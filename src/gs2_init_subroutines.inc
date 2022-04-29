@@ -1,489 +1,504 @@
-subroutine gs2_layouts_subroutine(going_up)
+integer function basic_function(self, current, going_up) result(new_level)
+  use unit_tests, only: debug_message
+
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
+  logical, intent(in) :: going_up
+  if (going_up) then
+
+    new_level = self%level
+  else
+
+    new_level = self%level - 1
+  end if
+end function basic_function
+
+integer function gs2_layouts_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use gs2_layouts, only: init_gs2_layouts, finish_gs2_layouts
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- gs2_layouts (2)')
     call init_gs2_layouts
-    current%level = init_level_list%gs2_layouts
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- gs2_layouts (2)')
     call finish_gs2_layouts
-    current%level = init_level_list%gs2_layouts - 1
+    new_level = self%level - 1
   end if
-end subroutine gs2_layouts_subroutine
+end function gs2_layouts_function
 
-subroutine normalisations_subroutine(going_up)
+integer function normalisations_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use normalisations, only: init_normalisations, finish_normalisations
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- normalisations (3)')
     call init_normalisations
-    current%level = init_level_list%normalisations
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- normalisations (3)')
     call finish_normalisations
-    current%level = init_level_list%normalisations - 1
+    new_level = self%level - 1
   end if
-end subroutine normalisations_subroutine
+end function normalisations_function
 
-subroutine theta_grid_params_subroutine(going_up)
+integer function theta_grid_params_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use theta_grid_params, only: init_theta_grid_params, finish_theta_grid_params
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- theta_grid_params (4)')
     call init_theta_grid_params
-    current%level = init_level_list%theta_grid_params
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- theta_grid_params (4)')
     call finish_theta_grid_params
-    current%level = init_level_list%theta_grid_params - 1
+    new_level = self%level - 1
   end if
-end subroutine theta_grid_params_subroutine
+end function theta_grid_params_function
 
-subroutine fields_parameters_subroutine(going_up)
+integer function fields_parameters_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use fields, only: init_fields_parameters, finish_fields_parameters
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- fields_parameters (5)')
     call init_fields_parameters
-    current%level = init_level_list%fields_parameters
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- fields_parameters (5)')
     call finish_fields_parameters
-    current%level = init_level_list%fields_parameters - 1
+    new_level = self%level - 1
   end if
-end subroutine fields_parameters_subroutine
+end function fields_parameters_function
 
-subroutine gs2_save_subroutine(going_up)
+integer function gs2_save_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use gs2_save, only: init_gs2_save, finish_gs2_save
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- gs2_save (6)')
     call init_gs2_save
-    current%level = init_level_list%gs2_save
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- gs2_save (6)')
     call finish_gs2_save
-    current%level = init_level_list%gs2_save - 1
+    new_level = self%level - 1
   end if
-end subroutine gs2_save_subroutine
+end function gs2_save_function
 
-subroutine init_g_subroutine(going_up)
+integer function init_g_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use init_g, only: init_init_g, finish_init_g
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- init_g (7)')
     call init_init_g
-    current%level = init_level_list%init_g
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- init_g (7)')
     call finish_init_g
-    current%level = init_level_list%init_g - 1
+    new_level = self%level - 1
   end if
-end subroutine init_g_subroutine
+end function init_g_function
 
-subroutine override_optimisations_subroutine(going_up)
+integer function override_optimisations_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use gs2_layouts, only: lso=>set_overrides
   use fields, only: fso=>set_overrides
   use dist_fn, only: dso=>set_overrides
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_optimisations (8)')
     if (current%opt_ov%is_initialised()) call lso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call fso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call dso(current%opt_ov)
-    current%level = init_level_list%override_optimisations
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_optimisations (8)')
 
-    current%level = init_level_list%override_optimisations - 1
+    new_level = self%level - 1
   end if
-end subroutine override_optimisations_subroutine
+end function override_optimisations_function
 
-subroutine override_miller_geometry_subroutine(going_up)
+integer function override_miller_geometry_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use theta_grid_params, only: tgpso => set_overrides
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_miller_geometry (9)')
     if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)
-    current%level = init_level_list%override_miller_geometry
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_miller_geometry (9)')
 
-    current%level = init_level_list%override_miller_geometry - 1
+    new_level = self%level - 1
   end if
-end subroutine override_miller_geometry_subroutine
+end function override_miller_geometry_function
 
-subroutine theta_grid_subroutine(going_up)
+integer function theta_grid_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use theta_grid, only: init_theta_grid, finish_theta_grid
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- theta_grid (10)')
     call init_theta_grid
-    current%level = init_level_list%theta_grid
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- theta_grid (10)')
     call finish_theta_grid
-    current%level = init_level_list%theta_grid - 1
+    new_level = self%level - 1
   end if
-end subroutine theta_grid_subroutine
+end function theta_grid_function
 
-subroutine kt_grids_parameters_subroutine(going_up)
+integer function kt_grids_parameters_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use kt_grids, only: init_kt_grids_parameters, finish_kt_grids_parameters
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- kt_grids_parameters (11)')
     call init_kt_grids_parameters
-    current%level = init_level_list%kt_grids_parameters
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- kt_grids_parameters (11)')
     call finish_kt_grids_parameters
-    current%level = init_level_list%kt_grids_parameters - 1
+    new_level = self%level - 1
   end if
-end subroutine kt_grids_parameters_subroutine
+end function kt_grids_parameters_function
 
-subroutine override_kt_grids_subroutine(going_up)
+integer function override_kt_grids_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use kt_grids, only: ktso => set_overrides
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_kt_grids (12)')
     if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)
-    current%level = init_level_list%override_kt_grids
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_kt_grids (12)')
 
-    current%level = init_level_list%override_kt_grids - 1
+    new_level = self%level - 1
   end if
-end subroutine override_kt_grids_subroutine
+end function override_kt_grids_function
 
-subroutine kt_grids_subroutine(going_up)
+integer function kt_grids_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use kt_grids, only: init_kt_grids, finish_kt_grids
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- kt_grids (13)')
     call init_kt_grids
-    current%level = init_level_list%kt_grids
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- kt_grids (13)')
     call finish_kt_grids
-    current%level = init_level_list%kt_grids - 1
+    new_level = self%level - 1
   end if
-end subroutine kt_grids_subroutine
+end function kt_grids_function
 
-subroutine run_parameters_subroutine(going_up)
+integer function run_parameters_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use run_parameters, only: init_run_parameters, finish_run_parameters
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- run_parameters (14)')
     call init_run_parameters
-    current%level = init_level_list%run_parameters
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- run_parameters (14)')
     call finish_run_parameters
-    current%level = init_level_list%run_parameters - 1
+    new_level = self%level - 1
   end if
-end subroutine run_parameters_subroutine
+end function run_parameters_function
 
-subroutine hyper_subroutine(going_up)
+integer function hyper_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use hyper, only: init_hyper, finish_hyper
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- hyper (15)')
     call init_hyper
-    current%level = init_level_list%hyper
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- hyper (15)')
     call finish_hyper
-    current%level = init_level_list%hyper - 1
+    new_level = self%level - 1
   end if
-end subroutine hyper_subroutine
+end function hyper_function
 
-subroutine species_subroutine(going_up)
+integer function species_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use species, only: init_species, finish_species
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- species (16)')
     call init_species
-    current%level = init_level_list%species
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- species (16)')
     call finish_species
-    current%level = init_level_list%species - 1
+    new_level = self%level - 1
   end if
-end subroutine species_subroutine
+end function species_function
 
-subroutine override_profiles_subroutine(going_up)
+integer function override_profiles_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: dfso=>set_overrides
   use species, only: sso=>set_overrides
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_profiles (17)')
     if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)
     if (current%prof_ov%is_initialised()) call sso(current%prof_ov)
-    current%level = init_level_list%override_profiles
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_profiles (17)')
 
-    current%level = init_level_list%override_profiles - 1
+    new_level = self%level - 1
   end if
-end subroutine override_profiles_subroutine
+end function override_profiles_function
 
-subroutine le_grids_subroutine(going_up)
+integer function le_grids_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use le_grids, only: init_le_grids, finish_le_grids
   logical :: dummy1, dummy2
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- le_grids (18)')
     call init_le_grids(dummy1, dummy2)
-    current%level = init_level_list%le_grids
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- le_grids (18)')
     call finish_le_grids
-    current%level = init_level_list%le_grids - 1
+    new_level = self%level - 1
   end if
-end subroutine le_grids_subroutine
+end function le_grids_function
 
-subroutine antenna_subroutine(going_up)
+integer function antenna_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use antenna, only: init_antenna, finish_antenna
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- antenna (19)')
     call init_antenna
-    current%level = init_level_list%antenna
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- antenna (19)')
     call finish_antenna
-    current%level = init_level_list%antenna - 1
+    new_level = self%level - 1
   end if
-end subroutine antenna_subroutine
+end function antenna_function
 
-subroutine dist_fn_parameters_subroutine(going_up)
+integer function dist_fn_parameters_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_parameters, finish_dist_fn_parameters
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_parameters (20)')
     call init_dist_fn_parameters
-    current%level = init_level_list%dist_fn_parameters
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_parameters (20)')
     call finish_dist_fn_parameters
-    current%level = init_level_list%dist_fn_parameters - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_parameters_subroutine
+end function dist_fn_parameters_function
 
-subroutine dist_fn_layouts_subroutine(going_up)
+integer function dist_fn_layouts_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts
   use kt_grids, only: naky, ntheta0
   use le_grids, only: nlambda, negrid
   use species, only: nspec
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_layouts (21)')
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
-    current%level = init_level_list%dist_fn_layouts
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_layouts (21)')
     call finish_dist_fn_layouts
-    current%level = init_level_list%dist_fn_layouts - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_layouts_subroutine
+end function dist_fn_layouts_function
 
-subroutine fields_level_1_subroutine(going_up)
+integer function fields_level_1_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use fields, only: init_fields_level_1, finish_fields_level_1
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_1 (22)')
     call init_fields_level_1
-    current%level = init_level_list%fields_level_1
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_1 (22)')
     call finish_fields_level_1
-    current%level = init_level_list%fields_level_1 - 1
+    new_level = self%level - 1
   end if
-end subroutine fields_level_1_subroutine
+end function fields_level_1_function
 
-subroutine nonlinear_terms_subroutine(going_up)
+integer function nonlinear_terms_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- nonlinear_terms (23)')
     call init_nonlinear_terms
-    current%level = init_level_list%nonlinear_terms
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- nonlinear_terms (23)')
     call finish_nonlinear_terms
-    current%level = init_level_list%nonlinear_terms - 1
+    new_level = self%level - 1
   end if
-end subroutine nonlinear_terms_subroutine
+end function nonlinear_terms_function
 
-subroutine dist_fn_arrays_subroutine(going_up)
+integer function dist_fn_arrays_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_arrays (24)')
     call init_dist_fn_arrays
-    current%level = init_level_list%dist_fn_arrays
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_arrays (24)')
     call finish_dist_fn_arrays
-    current%level = init_level_list%dist_fn_arrays - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_arrays_subroutine
+end function dist_fn_arrays_function
 
-subroutine dist_fn_level_1_subroutine(going_up)
+integer function dist_fn_level_1_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_level_1, finish_dist_fn_level_1
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_1 (25)')
     call init_dist_fn_level_1
-    current%level = init_level_list%dist_fn_level_1
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_1 (25)')
     call finish_dist_fn_level_1
-    current%level = init_level_list%dist_fn_level_1 - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_level_1_subroutine
+end function dist_fn_level_1_function
 
-subroutine dist_fn_level_2_subroutine(going_up)
+integer function dist_fn_level_2_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_level_2, finish_dist_fn_level_2
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_2 (26)')
     call init_dist_fn_level_2
-    current%level = init_level_list%dist_fn_level_2
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_2 (26)')
     call finish_dist_fn_level_2
-    current%level = init_level_list%dist_fn_level_2 - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_level_2_subroutine
+end function dist_fn_level_2_function
 
-subroutine override_timestep_subroutine(going_up)
+integer function override_timestep_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use run_parameters, only: rso => set_overrides
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_timestep (27)')
     if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
-    current%level = init_level_list%override_timestep
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_timestep (27)')
 
-    current%level = init_level_list%override_timestep - 1
+    new_level = self%level - 1
   end if
-end subroutine override_timestep_subroutine
+end function override_timestep_function
 
-subroutine dist_fn_level_3_subroutine(going_up)
+integer function dist_fn_level_3_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_3 (28)')
     call init_dist_fn_level_3
-    current%level = init_level_list%dist_fn_level_3
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_3 (28)')
     call finish_dist_fn_level_3
-    current%level = init_level_list%dist_fn_level_3 - 1
+    new_level = self%level - 1
   end if
-end subroutine dist_fn_level_3_subroutine
+end function dist_fn_level_3_function
 
-subroutine collisions_subroutine(going_up)
+integer function collisions_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use collisions, only: init_collisions, finish_collisions
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- collisions (29)')
     call init_collisions
-    current%level = init_level_list%collisions
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- collisions (29)')
     call finish_collisions
-    current%level = init_level_list%collisions - 1
+    new_level = self%level - 1
   end if
-end subroutine collisions_subroutine
+end function collisions_function
 
-subroutine fields_level_2_subroutine(going_up)
+integer function fields_level_2_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
   use fields, only: init_fields_level_2, finish_fields_level_2
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_2 (30)')
     call init_fields_level_2
-    current%level = init_level_list%fields_level_2
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_2 (30)')
     call finish_fields_level_2
-    current%level = init_level_list%fields_level_2 - 1
+    new_level = self%level - 1
   end if
-end subroutine fields_level_2_subroutine
+end function fields_level_2_function
 
-subroutine override_initial_values_subroutine(going_up)
+integer function override_initial_values_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
 
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_initial_values (31)')
 
-    current%level = init_level_list%override_initial_values
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_initial_values (31)')
 
-    current%level = init_level_list%override_initial_values - 1
+    new_level = self%level - 1
   end if
-end subroutine override_initial_values_subroutine
+end function override_initial_values_function
 
-subroutine set_initial_values_subroutine(going_up)
+integer function set_initial_values_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
 
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- set_initial_values (32)')
     call set_initial_field_and_dist_fn_values(current)
-    current%level = init_level_list%set_initial_values
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- set_initial_values (32)')
 
-    current%level = init_level_list%set_initial_values - 1
+    new_level = self%level - 1
   end if
-end subroutine set_initial_values_subroutine
+end function set_initial_values_function
 
-subroutine full_subroutine(going_up)
+integer function full_function(self, current, going_up) result(new_level)
   use unit_tests, only: debug_message
 
+  class(init_level_type), intent(in out) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- full (33)')
 
-    current%level = init_level_list%full
+    new_level = self%level
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- full (33)')
 
-    current%level = init_level_list%full - 1
+    new_level = self%level - 1
   end if
-end subroutine full_subroutine
+end function full_function

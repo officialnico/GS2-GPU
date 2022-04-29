@@ -25,7 +25,6 @@ module gs2_init
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use overrides, only: miller_geometry_overrides_type, initial_values_overrides_type, optimisations_overrides_type
   use overrides, only: profiles_overrides_type, kt_grids_overrides_type, timestep_overrides_type
-
   implicit none
 
   private
@@ -48,17 +47,6 @@ module gs2_init
   public :: init_config_type
   public :: set_gs2_init_config
   public :: get_gs2_init_config
-
-  !> A type for labelling the different init
-  !> levels available in gs2.
-  type init_level_list_type
-     !> The init_level reaches basic
-     !> when initialize_gs2 has been called.
-     integer :: basic = 1
-#include "gs2_init_level_list.inc"
-  end type init_level_list_type
-
-  type(init_level_list_type), parameter :: init_level_list = init_level_list_type()
 
   !> A type for storing the current initialization
   !> status, as well as all the overrides.
@@ -110,8 +98,43 @@ module gs2_init
      type(optimisations_overrides_type) :: opt_ov
   end type init_type
 
+  !> Define an type to represent an initialisation level.
+  !> This uses a hack to approximate type extension without
+  !> the boiler plate of extending an abstract type.
+  !> Specifically, we offer a type bound change_level procedure
+  !> which just calls a procedure pointer to implement the
+  !> actual work to change the level, specific to each instance.
+  type :: init_level_type
+     character(len=40) :: name = 'init level name not set'
+     integer :: level = -1
+     !> Used to set the verbosity level at which this
+     !> level reports debug messages.
+     integer :: debug_message_level = 1
+     procedure(init_level_change_level), pointer, private :: change_level_specific => null()
+   contains
+     procedure :: generate_debug_message => init_level_generate_debug_message
+     procedure :: change_level => init_level_change_level
+  end type init_level_type
+
+  !> Used to store all the init_level_type instances. Setup during
+  !> init_gs2_init.
+  type(init_level_type), dimension(:), allocatable :: init_levels
+
+  !> A type for labelling the different init
+  !> levels available in gs2.
+  type init_level_list_type
+#include "gs2_init_level_list.inc"
+  end type init_level_list_type
+
+  type(init_level_list_type), parameter :: init_level_list = init_level_list_type()
+
   logical :: in_memory = .false.
   logical :: initialized = .false.
+
+  interface init
+     module procedure :: init_pass_type
+     module procedure :: init_pass_int
+  end interface init
 
   !> Used to represent the input configuration of init
   type, extends(abstract_config_type) :: init_config_type
@@ -139,17 +162,58 @@ module gs2_init
   type(init_config_type) :: init_config
 
 contains
+
+  !> Produce the debug message associated with this level
+  subroutine init_level_generate_debug_message(self, going_up)
+    use unit_tests, only: debug_message
+    implicit none
+    class(init_level_type), intent(in) :: self
+    logical, intent(in) :: going_up
+    character(len=:), allocatable :: direction_msg
+    character(len=3) :: level_as_string
+    if (going_up) then
+       direction_msg = 'up'
+    else
+       direction_msg = 'down'
+    end if
+    write(level_as_string , '(I0)') self%level
+    call debug_message(self%debug_message_level, &
+         'gs2_init:init '//direction_msg//' reached init level -- '// &
+         trim(adjustl(self%name))//' ('//trim(level_as_string)//')')
+  end subroutine init_level_generate_debug_message
+
+  !> General wrapper to the init_level instance's specific
+  !> change level method.
+  integer function init_level_change_level(self, current, going_up) result(new_level)
+    implicit none
+    class(init_level_type), intent(in out) :: self
+    type(init_type), intent(in) :: current
+    logical, intent(in) :: going_up
+    call self%generate_debug_message(going_up)
+    new_level = self%change_level_specific(current, going_up)
+  end function init_level_change_level
+
+  !> Small wrapper to allow init_level_type to be passed
+  !> instead of the level integer.
+  subroutine init_pass_type(current, target_level)
+    type(init_type), intent(inout) :: current
+    type(init_level_type), intent(in) :: target_level
+    call init(current, target_level%level)
+  end subroutine init_pass_type
+
   !> Initialize gs2 to the level of target_level.
   !> The init_type current contains info
   !> about the current initialization level. At the end
   !> of the subroutine, current%level is set to target_level
-  subroutine init(current, target_level)
+  subroutine init_pass_int(current, target_level)
     use fields, only: init_fields
     use mp, only: mp_abort
     implicit none
     type(init_type), intent(inout) :: current
+    !    type(init_level_type), intent(in) :: target_level
     integer, intent(in) :: target_level
-
+    logical :: going_up
+    integer :: ilevel, direction, start_offset, end_offset
     if (current%level .lt. init_level_list%basic) then
        call mp_abort("gs2_init::init cannot be called before &
             & initialize_gs2 in gs2 main", .true.)
@@ -158,23 +222,26 @@ contains
     if (current%level .eq. target_level) then
        return
     else
-       if (up()) then
-#include "gs2_init_up.inc"
-       else if (down()) then
-#include "gs2_init_down.inc"
+       going_up = current%level < target_level
+
+       if (going_up) then
+          start_offset = 1
+          end_offset = 0
+          direction = 1
+       else
+          start_offset = 0
+          end_offset = 1
+          direction = -1
        end if
+
+       do ilevel = current%level + start_offset, target_level + end_offset, direction
+          current%level = init_levels(ilevel)%change_level(current, going_up)
+       end do
     end if
   contains
-    pure function up()
-      logical :: up
-      up = (target_level>current%level)
-    end function up
-    pure function down()
-      logical :: down
-      down = (target_level<current%level)
-    end function down
+  end subroutine init_pass_int
+
 #include "gs2_init_subroutines.inc"
-  end subroutine init
 
   !> Initialise this module
   subroutine init_gs2_init(current, init_config_in)
@@ -194,6 +261,7 @@ contains
     in_memory = init_config%in_memory
 
     exist = init_config%exist
+#include "gs2_init_level_array.inc"
   end subroutine init_gs2_init
 
   !> Finish this module
@@ -201,6 +269,7 @@ contains
     type(init_type), intent(inout) :: current
     call init_config%reset()
     initialized = .false.
+    deallocate(init_levels)
   end subroutine finish_gs2_init
 
   subroutine set_initial_field_and_dist_fn_values(current)
