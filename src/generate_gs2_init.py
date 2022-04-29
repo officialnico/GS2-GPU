@@ -2,7 +2,7 @@
 # in gs2 init.
 
 default_module_routine_string = """
-subroutine {name}_routine(self, current, going_up)
+subroutine {name}_subroutine(self, current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
   class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
@@ -12,11 +12,11 @@ subroutine {name}_routine(self, current, going_up)
   else
     call {finish_routine}
   end if
-end subroutine {name}_routine
+end subroutine {name}_subroutine
 """
 
 more_general_module_routine_string = """
-subroutine {name}_routine(self, current, going_up)
+subroutine {name}_subroutine(self, current, going_up)
 {imports}
   class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
@@ -26,7 +26,7 @@ subroutine {name}_routine(self, current, going_up)
   else
 {down_action}
   end if
-end subroutine {name}_routine
+end subroutine {name}_subroutine
 """
 
 class module_with_dependencies():
@@ -322,7 +322,7 @@ if __name__ == "__main__":
         ) for x in ordered_levels.values()
     ]) + "\n"
     init_array += "\n".join([
-        "      init_levels({level})%change_level_specific => {name}_routine".format(
+        "      init_levels({level})%change_level_specific => {name}_subroutine".format(
             name = x.name,
             level = x.level,
         ) for x in ordered_levels.values()
