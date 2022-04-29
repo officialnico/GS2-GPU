@@ -195,7 +195,7 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart opening file')
     call debug_message(verb, 'file proc is')
-    call debug_message(verb, file_proc)
+    call debug_message(verb, trim(adjustl(file_proc)))
 
     if (is_one_file_per_processor) then
        istatus = nf90_create (file_proc, create_file_mode, ncid)
