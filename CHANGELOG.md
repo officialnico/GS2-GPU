@@ -1,3 +1,41 @@
+## 8.1.1 (2022-04-29)
+
+### Breaking Changes
+
+* Previously if gridgen failed it would report the failure but the run
+  would continue. The run will now abort.
+* Collisional electromagnetic simulations with normalising
+  density/charge not equal to one previously missed a normalising
+  factor in the drag term. This has been fixed but may change results.
+
+### Known issues
+
+No new known issues.
+
+### Merged Pull Requests
+
+* Update utils and Makefiles for 8.1.1 and README doi [PR #598 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/598)
+* Integrate to final time [PR #594 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/594)
+* Use a broadcast rather than an allreduce to send the read in response matrix data in fields_local [PR #591 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/591)
+* Bugfix/improve init level list order to avoid excess work [PR #597 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/597)
+* Add linear tests with different normalisations [PR #592 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/592)
+* Add -1/(q_e n_e) factor to collisional drag term. [PR #593 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/593)
+* Make sure header created on all procs. [PR #596 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/596)
+* Make sure we set the index for indexed namelists when allocating them in config_collection write [PR #595 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/595)
+* Make new diagnostics respect write_ascii flag. [PR #589 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/589)
+* Trim white space when reporting file_proc [PR #584 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/584)
+* Abort if gridgen ends with an odd ntheta [PR #582 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/582)
+* Report time spent in ffts [PR #579 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/579)
+* Bugfix : Fix performance of collisional conservation terms in le_lo [PR #573 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/573)
+* Convert guidance to stop run to abort call [PR #577 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/577)
+* Ignore some more GS2 generated files [PR #576 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/576)
+* Always treat the dfn from restart files as gnew. [PR #572 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/572)
+* Use helper function to format timer lines [PR #575 | Peter Hill](https://bitbucket.org/gyrokinetics/gs2/pull-requests/575)
+* Minor/add collision and explicit mpi time breakdown [PR #574 | David Dickinson](https://bitbucket.org/gyrokinetics/gs2/pull-requests/574)
+* Add Fujitsu and NEC compilers in define.inc [PR #571 | Ryusuke Numata](https://bitbucket.org/gyrokinetics/gs2/pull-requests/571)
+* Update next with 8.1.0 release [PR #570 | Joseph Parker](https://bitbucket.org/gyrokinetics/gs2/pull-requests/570)
+
+
 ## 8.1.0 (2021-12-10)
 
 ### Breaking Changes

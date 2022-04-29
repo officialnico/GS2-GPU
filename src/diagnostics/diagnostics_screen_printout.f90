@@ -29,6 +29,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
+    if (.not. gnostics%write_ascii) return
     call output_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_line
 
@@ -95,6 +96,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
+    if (.not. gnostics%write_ascii) return
     call output_flux_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_flux_line
     
