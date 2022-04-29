@@ -264,6 +264,11 @@ contains
           direction = -1
        end if
 
+       ! Currently this requires the position of a level in init_levels to match
+       ! the level value (i.e. init_levels(index)%level == index). We could instead
+       ! use (dim passed so result is a scalar)
+       !   index = findloc(init_levels%level, ilevel, dim = 1)
+       !   current%level = init_levels(index)%change_level(current, going_up)
        do ilevel = current%level + start_offset, target_level + end_offset, direction
           current%level = init_levels(ilevel)%change_level(current, going_up)
        end do
@@ -299,7 +304,7 @@ contains
     type(init_type), intent(inout) :: current
     call init_config%reset()
     initialized = .false.
-    deallocate(init_levels)
+    if (allocated(init_levels)) deallocate(init_levels)
   end subroutine finish_gs2_init
 
   subroutine set_initial_field_and_dist_fn_values(current)
