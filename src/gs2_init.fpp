@@ -240,10 +240,9 @@ contains
     use mp, only: mp_abort
     implicit none
     type(init_type), intent(inout) :: current
-    !    type(init_level_type), intent(in) :: target_level
     integer, intent(in) :: target_level
     logical :: going_up
-    integer :: ilevel, direction, start_offset, end_offset
+    integer :: ilevel, offset
     if (current%level .lt. init_level_list%basic) then
        call mp_abort("gs2_init::init cannot be called before &
             & initialize_gs2 in gs2 main", .true.)
@@ -255,29 +254,26 @@ contains
        going_up = current%level < target_level
 
        if (going_up) then
-          start_offset = 1
-          end_offset = 0
-          direction = 1
+          offset = 1
        else
-          start_offset = 0
-          end_offset = 1
-          direction = -1
+          offset = 0
        end if
 
-       ! Currently this requires the position of a level in init_levels to match
-       ! the level value (i.e. init_levels(index)%level == index). We could instead
-       ! use (dim passed so result is a scalar)
-       !   index = findloc(init_levels%level, ilevel, dim = 1)
-       !   current%level = init_levels(index)%change_level(current, going_up)
-       do ilevel = current%level + start_offset, target_level + end_offset, direction
+       ! Written as a while loop in this way such that we are not sensitive to the
+       ! order of entries in the init_levels array.
+       do while (current%level /= target_level)
+          ilevel = findloc(init_levels%level, current%level + offset, dim = 1)
           current%level = init_levels(ilevel)%change_level(current, going_up)
        end do
+
     end if
   end subroutine init_pass_int
 
 #include "gs2_init_subroutines.inc"
 
-  !> Initialise this module
+  !> Initialise this module. As we pass in the initialisation state
+  !> object (current), we could/should consider making this set the
+  !> level to basic, e.g. current%level = init_level_list%basic
   subroutine init_gs2_init(current, init_config_in)
     implicit none
     type(init_type), intent(inout) :: current
