@@ -262,7 +262,10 @@ contains
        ! Written as a while loop in this way such that we are not sensitive to the
        ! order of entries in the init_levels array.
        do while (current%level /= target_level)
-          ilevel = findloc(init_levels%level, current%level + offset, dim = 1)
+          ! With f2008 we can do
+          !ilevel = findloc(init_levels%level, current%level + offset, dim = 1)
+          ! but for now we do
+          ilevel = minloc(abs(init_levels%level - (current%level + offset)), dim = 1)
           current%level = init_levels(ilevel)%change_level(current, going_up)
        end do
 
