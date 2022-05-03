@@ -502,7 +502,7 @@ contains
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         nout, ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane, header=local_header)
 
     call broadcast (nout)
 
@@ -2791,6 +2791,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = time_old
@@ -3490,6 +3493,7 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep
     !> Heating diagnostics summed over space at the current timestep
@@ -3505,7 +3509,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0) then
+    if (proc0 .and. collisions_heating) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
@@ -3538,6 +3542,7 @@ contains
        end do
     end if
 
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
 
     call avg_h(h, h_hist, istep, navg)
@@ -3903,7 +3908,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic.
   subroutine get_cross_phase (phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -3924,7 +3929,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
 
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)

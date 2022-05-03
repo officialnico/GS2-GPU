@@ -1,0 +1,71 @@
+! Standard normalisation options - two species case, length scale a/10
+! Ion mass, ion temperature, minor radius, ion Larmor radius
+! Should match collisionless_two_species_baseline
+! Scale down tprim, fprim, growth rate and frequency by 10, time up by
+! 10. Also need to scale some geometry parameters as well.
+  
+&kt_grids_single_parameters
+ aky = 0.5
+/
+
+&knobs
+ delt = 1.0
+ nstep = 2000
+/
+
+&species_parameters_1
+ z = 1.0
+ mass = 1.0
+ dens = 1.0
+ temp = 1.0
+ tprim = 0.69
+ fprim = 0.22
+ uprim = 0.0
+ vnewk = 0.0
+ type = "ion"
+/
+
+&dist_fn_species_knobs_1
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&species_parameters_2
+ z = -1.0
+ mass = 0.000544617021
+ dens = 1.0
+ temp = 1.0
+ tprim = 0.69
+ fprim = 0.22
+ uprim = 0.0
+ vnewk = 0.0
+ type = "electron"
+/
+
+&dist_fn_species_knobs_2
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&species_knobs
+ nspec = 2
+/
+
+&test_settings
+  tolerance = 1.0e-5
+  omega_expected = 0.0768526936442347
+  gamma_expected = 0.0339226765240504 
+/
+
+&theta_grid_parameters
+ ntheta = 12
+ nperiod = 1
+ eps = 0.18
+ epsl = 0.2
+ shat = 0.8
+ pk = 0.144
+ shift = 0.0
+/
+
+!Include the shared parameters
+!include grids.in

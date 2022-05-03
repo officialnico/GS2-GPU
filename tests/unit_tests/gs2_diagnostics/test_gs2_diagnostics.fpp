@@ -1,86 +1,65 @@
-#define CONCAT //
-
 !> A regression test for the old diagnostics module. This runs 
-!! a linear cyclone test case and then checks the value of diffusivity
-!! against the value produced by svn revision 4242.
-!!
-!! This is free software released under the MIT license
-!!   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
-
-!module checks_mod
-!  use unit_tests
-!  use functional_tests
-!  public checks
-!  contains
-!    function checks()
-!      logical :: checks
-!      checks = .true.
-!    end function checks
-!end module checks_mod
-!
+!> a linear cyclone test case and then checks the value of diffusivity
+!> against the value produced by svn revision 4242.
+!>
+!> This is free software released under the MIT license
+!>   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
 program test_gs2_diagnostics
-  !use functional_tests
-  !use checks_mod
-  !call test_gs2('Linear CBC (unit test) to test new diagnostics', checks)
-    use gs2_main, only: run_gs2, finish_gs2
-    use unit_tests
-    use file_utils, only: run_name, error_unit
-    use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
-    use run_parameters, only: use_old_diagnostics
-    use gs2_diagnostics
+  use gs2_main, only: run_gs2, finish_gs2
+  use unit_tests
+  use file_utils, only: run_name, error_unit
+  use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
+  use run_parameters, only: use_old_diagnostics
+  use gs2_diagnostics
 #ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
+  use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
 #endif 
-    implicit none
-    real :: eps
+  implicit none
+  real :: eps
 
-    eps = 1.0e-7
-    if (precision(eps).lt. 11) eps = eps * 1000.0
+  ! We pick a loose tolerance here as we know that the test
+  ! is not very well resolved.
+  eps = 1.0e-2
 
-    call init_mp
+  call init_mp
 
-    test_driver_flag = .true.
-    functional_test_flag = .true.
+  test_driver_flag = .true.
+  functional_test_flag = .true.
 
-    call announce_module_test("gs2_diagnostics")
+  call announce_module_test("gs2_diagnostics")
+  call run_gs2(mp_comm)
+  call announce_test('diffusivity')
 
-    call run_gs2(mp_comm)
+  if( trim(run_name) .eq. 'test_gs2_diagnostics' ) then
+     call process_test(test_diffusivity(1.25, eps), 'diffusivity')
+  else if( trim(run_name) .eq. 'test_gs2_diagnostics_nspec_2' ) then
+     call process_test(test_diffusivity(2.53, eps), 'diffusivity')
+  else
+     call mp_abort('test_gs2_diagnostics calling invalid test name')
+  end if
 
-    call announce_test('diffusivity')
+  call finish_gs2_diagnostics(ilast_step)
+#ifdef NEW_DIAG
+  if (.not. use_old_diagnostics) call finish_gs2_diagnostics_new
+#endif 
 
-    if( trim(run_name) .eq. 'test_gs2_diagnostics' ) then
-      call process_test(test_diffusivity(19.144575471638724, eps), 'diffusivity')
-    else if( trim(run_name) .eq. 'test_gs2_diagnostics_nspec_2' ) then
-      call process_test(test_diffusivity(6.5580345754760385, eps), 'diffusivity')
-    else
-      call mp_abort('test_gs2_diagnostics calling invalid test name')
+  call finish_gs2
+  call close_module_test("gs2_diagnostics")
+  call finish_mp
+
+contains
+
+  !> Return true if calculated diffusivity is within tolerance
+  function test_diffusivity(results, eps)
+    use unit_tests, only: agrees_with
+    use mp,only: proc0
+    real, intent(in) :: results, eps
+    logical :: test_diffusivity
+    test_diffusivity = .true.
+    if (proc0) then
+       test_diffusivity = agrees_with(diffusivity(), results, eps)
+       if (.not. test_diffusivity) write(*,*) "Expecting",results,"and got",diffusivity(),"with tolerance",eps
     end if
-
-    call finish_gs2_diagnostics(ilast_step)
-#ifdef NEW_DIAG
-    if (.not. use_old_diagnostics) call finish_gs2_diagnostics_new
-#endif 
-
-    call finish_gs2
-
-
-
-   call close_module_test("gs2_diagnostics")
-
-    call finish_mp
-
-  contains
-
-    !> Return true if calculated diffusivity is within tolerance
-    function test_diffusivity(results, eps)
-      use unit_tests, only: agrees_with
-      use mp,only: proc0
-      real, intent(in) :: results, eps
-      logical :: test_diffusivity
-      test_diffusivity = .true.
-      if (proc0) then
-         test_diffusivity = agrees_with(diffusivity(), results, eps)
-      end if
-    end function test_diffusivity
+  end function test_diffusivity
 
 end program test_gs2_diagnostics

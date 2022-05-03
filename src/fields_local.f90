@@ -861,7 +861,7 @@ contains
   !> Routine to read the response matrix for this supercell from netcdf file.
   subroutine sc_read_from_file(self, could_read, suffix)
     use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub, proc0
+    use mp, only: broadcast_sub, proc0
     use fields_arrays, only: get_specific_response_file_name
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
@@ -899,7 +899,6 @@ contains
 
     !Now allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
-    tmp_arr=0.
 
     !Now if on head proc read
     if (self%is_head) then
@@ -909,12 +908,12 @@ contains
     !Now we need to broadcast the data to everyone with supercell.
     !NOTE: Really we would want a supercell bound method which will do
     !this so that this module level routine is insensitive to communicators etc.
-    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !Furthermore we are lazy and use a broadcast_sub to send data to everyone
     !NOTE: The processors which consider this to supercell to be empty (i.e. which
     !don't have any associated work) shouldn't need to take part in this communication.
     !If we can promise that only non-empty processors could be the head that should
     !work fine, provided we have a suitable communicator (sc_sub_pd?).
-    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+    call broadcast_sub(tmp_arr,self%head_iproc,self%sc_sub_all%id)
 
     !Now push array to local storage
     call self%push_arr_to_rows(tmp_arr)
@@ -2478,6 +2477,8 @@ contains
     type(comm_type), save :: les_comm
     logical, save :: first=.true.
     logical, save :: sub_has_proc0=.false.
+    logical :: xy_block_comm_is_available
+    logical :: x_is_not_split
 
     !Set the to_all flag
     to_all=.false.
@@ -2492,7 +2493,11 @@ contains
 
     !Work out if we want to use sub communicators in reduction and
     !if we are allowed to.
-    use_sub=(.not.(g_lo%x_local.and.g_lo%y_local)).and.do_allreduce.and.field_local_allreduce_sub.and.intspec_sub
+    xy_block_comm_is_available = .not. (g_lo%x_local .and. g_lo%y_local) .and. intspec_sub
+    x_is_not_split = g_lo%x_local
+    use_sub=( &
+         xy_block_comm_is_available .and. x_is_not_split .and. & !Parallel decomposition constraints
+         do_allreduce .and. field_local_allreduce_sub) !Runtime choices
 
     !If using sub-communicators set up object and work out which procs
     !have proc0 as a member
@@ -2929,7 +2934,6 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -2963,7 +2967,6 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_layouts, only: gf_lo, proc_id, idx, ik_idx, it_idx
     use kt_grids, only: kwork_filter
-    use job_manage, only: time_message
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
@@ -4038,9 +4041,6 @@ contains
 
   !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
-    use fields_arrays, only: time_field
-    use mp, only: proc0 !, barrier
-    use job_manage, only: time_message
     use unit_tests, only: debug_message
     implicit none
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar !Note, these are actually phinew,... in typical usage
@@ -4054,10 +4054,6 @@ contains
     if(present(do_gather_in)) do_gather=do_gather_in
     do_update=.false.
     if(present(do_update_in)) do_update=do_update_in
-
-    !For timing
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
 
     call debug_message(verb, &
         'fields_local::getfield_local calling get_field_update')
@@ -4082,11 +4078,6 @@ contains
 
     call debug_message(verb, &
         'fields_local::getfield_local finished')
-    !For timing
-    !Barrier usage ensures that proc0 measures the longest time taken on
-    !any proc.
-    !if(debug)call barrier !!/These barriers influence the reported time
-    if (proc0) call time_message(.false.,time_field,' Field Solver')
   end subroutine getfield_local
 
   !> Initialise the fields from the initial g, just uses the
@@ -4104,14 +4095,16 @@ contains
   subroutine advance_local(istep, remove_zonal_flows_switch)
     use run_parameters, only: fphi, fapar, fbpar, reset
     use fields_implicit, only: remove_zonal_flows
-    use fields_arrays, only: phi, apar, bpar, phinew
-    use fields_arrays, only: aparnew, bparnew, apar_ext
+    use fields_arrays, only: phi, apar, bpar, phinew, time_field
+    use fields_arrays, only: aparnew, bparnew, apar_ext, time_field_mpi
     use dist_fn, only: timeadv, exb_shear, g_exb, g_exbfac
     use dist_fn, only: collisions_advance
     use dist_fn_arrays, only: g, gnew
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
+    use mp, only: proc0, get_mp_times !, barrier
+    use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4119,6 +4112,7 @@ contains
     logical, parameter :: do_gather=.true.
     logical :: do_update
     integer, parameter :: verb = 4
+    real :: mp_total, mp_total_after
     !do_gather=.true. => fields are collected from all procs and distributed to everyone (required)
     !do_update=.true. => "Smart" update routines are used which only update the local parts of the
     !field arrays. This could help when xy are strongly parallelised but is likely to be slower
@@ -4158,10 +4152,15 @@ contains
     if(.not.no_driver) aparnew=aparnew+apar_ext
 
     call debug_message(verb, &
-      'fields_local::advance_local calling getfield_local')
+         'fields_local::advance_local calling getfield_local')
+
+    !For timing
+    !if(debug)call barrier !!/These barriers influence the reported time
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total)
+
     !Calculate the fields at the next time point
     call getfield_local(phinew,aparnew,bparnew,do_gather,do_update)
-
 
     !If we do the update in getfield_local don't do it here
     if(.not.do_update)then
@@ -4170,6 +4169,13 @@ contains
        if(fbpar.gt.0) bparnew=bparnew+bpar
     endif
 
+    !For timing
+    !Barrier usage ensures that proc0 measures the longest time taken on
+    !any proc.
+    !if(debug)call barrier !!/These barriers influence the reported time
+    call time_message(.false.,time_field,' Field Solver')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_mpi = time_field_mpi + (mp_total_after - mp_total)
 
     !Remove zonal component if requested
     if(remove_zonal_flows_switch) call remove_zonal_flows

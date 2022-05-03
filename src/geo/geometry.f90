@@ -594,11 +594,9 @@ contains
     !Set output verbosity levels
     eeq_verbosity = verb
 
-    if (.not.futils_initialized) then
-      !:write (*,*) 'FILE UTILS NOT INITIALISED'
-      !stop 1
+    start_file_utils = .not. futils_initialized
 
-      start_file_utils = .true.
+    if (start_file_utils) then
       ! Initialize file utils with a run name we provide
       ! and by setting trin_run prevent it from searching
       ! the command line arguments. 
@@ -606,9 +604,7 @@ contains
       & in eikcoefs. This is a hack to &
       & support older programs like eiktest. You should&
       & initialize file utils before calling eikcoefs'
-      call init_file_utils(dummy, name='geometry_module', trin_run=.true.)
-    else
-      start_file_utils = .false.
+      call init_file_utils(dummy, name='geometry_module', trin_run=.true., input=.false.)
     end if
     !Create module level output file and get unit
     call get_unused_unit(fort11_unit)

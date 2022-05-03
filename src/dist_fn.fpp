@@ -116,12 +116,13 @@ module dist_fn
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
   integer, dimension (:), allocatable :: bd_exp ! nspec
-  real :: gridfac, apfac, driftknob, tpdriftknob, poisfac
+  real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
   real :: phi_ext, afilter, kfilter
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
+  logical :: hyper_in_initialisation
   !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
   logical :: opt_init_bc !< DEPRECATED
@@ -383,6 +384,9 @@ module dist_fn
      !> @note This used to default to 5.e4
      !> @todo Improve documentation
      real :: gridfac = 1.0
+     !> Determines if we include the hyperviscosity term during the
+     !> initialisation of the response matrix or not.
+     logical :: hyper_in_initialisation = .true.
      !> For debugging only.
      !>_
      !> @todo Improve documentation
@@ -454,6 +458,13 @@ module dist_fn
      !>
      !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
      real :: uparfac_lin = 2.
+     !> For debugging only. Scales the calculated vparallel.
+     !>
+     !> @note If set to zero then the homogeneous contribution, `g1`, will be
+     !> exactly 1 everywhere it is defined. This can lead to a divide by zero
+     !> in the trapped particle continuity calculation in [[invert_rhs_1]],
+     !> leading to NaNs appearing in the solution.
+     real :: vparknob = 1.0
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
      !> If true, do NOT save homogeneous solutions for WFB
@@ -627,6 +638,16 @@ contains
        write (report_unit, fmt="('The normal choice is tpdriftknob = 1.')")
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
+    end if
+
+    if (vparknob /= 1.0) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You selected vparknob = ',e11.4,' in dist_fn_knobs.')") vparknob
+       write (report_unit, fmt="('THIS IS EITHER AN ERROR, or you are DELIBERATELY SCALING THE PARALLEL VELOCITY.')")
+       write (report_unit, fmt="('The normal choice is vparknob = 1.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, *)
     end if
 
     select case (boundary_option_switch)
@@ -1015,8 +1036,6 @@ contains
 
     !if (debug) write(6,*) "init_dist_fn: init_vperp2"
     call init_vperp2
-
-    call init_dist_fn_arrays
     call init_bc
   
   end subroutine init_dist_fn_level_1
@@ -1357,6 +1376,7 @@ contains
     g_exbfac = dist_fn_config%g_exbfac
     gf_lo_integrate = dist_fn_config%gf_lo_integrate
     gridfac = dist_fn_config%gridfac
+    hyper_in_initialisation = dist_fn_config%hyper_in_initialisation
     kfilter = dist_fn_config%kfilter
     lf_decompose = dist_fn_config%lf_decompose
     lf_default = dist_fn_config%lf_default
@@ -1375,6 +1395,7 @@ contains
     tpdriftknob = dist_fn_config%tpdriftknob
     tprpfac_lin = dist_fn_config%tprpfac_lin
     uparfac_lin = dist_fn_config%uparfac_lin
+    vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
     wfb_cmr = dist_fn_config%wfb_cmr
     wfbbc_option = dist_fn_config%wfbbc_option
@@ -1790,7 +1811,7 @@ contains
        al1 = al(il_idx(g_lo,iglo))
        e1 = energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
-       vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag))
+       vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
        !vperp2(:,iglo) = bmag*al1*e1
 
@@ -3298,9 +3319,15 @@ contains
         'dist_fn::timeadv calculated rhs')
 
     !Add hyper terms (damping)
-    call hyper_diff (gnew, phinew)
-    call debug_message(verb, &
-        'dist_fn::timeadv calculated hypviscosity')
+    if ((istep == 0 .and. hyper_in_initialisation) .or. istep > 0) then
+       !Note we potentially exclude the hyper terms when we calculate the response
+       !data (indicated by istep==0) as these terms are typically not
+       !linearly independent.
+       call hyper_diff (gnew, phinew)
+       call debug_message(verb, &
+            'dist_fn::timeadv calculated hypviscosity')
+    end if
+
     !Add collisions
     if( .not. split_collisions) then
       call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
@@ -3392,28 +3419,32 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
     use gs2_time, only: code_dt, code_dt_old, code_time
-    use constants, only: twopi    
-
+    use constants, only: twopi
+    use optionals, only: get_option_with_default
+    implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g0
     integer, intent(in) :: istep
+    logical, intent(in), optional :: field_local
     complex, dimension(:,:,:), allocatable :: temp 
     complex, dimension(:,:), allocatable :: temp2
     integer, dimension(1), save :: itmin
+    logical :: should_use_kx
     integer :: ierr, j 
-    integer :: ik, it, ie, is, il, isgn, to_iglo, from_iglo
+    integer :: ik, it, ie, is, il, to_iglo, from_iglo
     integer:: iib, iit, ileft, iright, i
-    integer, save :: istep_last=0
-    !integer, intent(in) :: istep EGH commented... faulty merge?
-    logical, intent(in), optional :: field_local
+    integer, save :: istep_last = 0
     logical :: field_local_loc
     real, save :: dkx, dtheta0
     real :: gdt
-    !logical, save :: exb_first = .true.
-    complex , dimension(-ntgrid:ntgrid) :: z
+    complex , dimension(-ntgrid:ntgrid, 2) :: z
     character(130) :: str
 
     ierr = error_unit()
+
+    ! If in flux-tube (box mode) or have zero shear then we need
+    ! to work with kx, otherwise use theta0
+    should_use_kx = box .or. (shat .eq. 0.0)
 
 ! MR, March 2009: remove ExB restriction to box grids
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3424,7 +3455,7 @@ contains
        exb_first = .false.
        allocate (jump(naky)) 
        jump = 0
-       if (box .or. shat .eq. 0.0) then
+       if (should_use_kx) then
           allocate (ikx_indexed(ntheta0))
           itmin = minloc (ikx)
           
@@ -3476,7 +3507,15 @@ contains
 ! kx_shift is a function of time.   Update it here:  
 ! MR, 2007: kx_shift array gets saved in restart file
 ! CMR, 5/10/2010: multiply timestep by tunits(ik) for wstar_units=.true. 
-    if ( box .or. shat .eq. 0.0 ) then
+    ! Here we calculate the continuous kx/theta0 shift away from the current
+    ! grid point we are on. Once this reaches at lesat +1/2 * kx/theta0 spacing
+    ! jump will be non-zero so we will need to shuffle data. We then subtract
+    ! jump times the grid space from our continuous shift to reset this to
+    ! effectively -1/2 * kx/theta0 spacing. Note that as this array starts at
+    ! 0, the first jump will happen in half the time of subsequent jumps.
+    !
+    ! @note These statements should be verified.
+    if (should_use_kx) then
        do ik=1, naky
           kx_shift(ik) = kx_shift(ik) - aky(ik)*g_exb*g_exbfac*gdt*tunits(ik)
           jump(ik) = nint(kx_shift(ik)/dkx)
@@ -3490,18 +3529,35 @@ contains
        enddo 
     end if
 
+    !If jump is zero for all ky then nothing else to do so leave
+    if (all(jump == 0)) return
+
     !If using field_option='local' and x/it is not entirely local
     !then we need to make sure that all procs know the full field
     !THIS IS A TEMPORARY FIX AND WE SHOULD PROBABLY DO SOMETHING BETTER
-    field_local_loc=.false.
-    if(present(field_local)) field_local_loc=field_local
+    field_local_loc = get_option_with_default(field_local, .false.)
     if(any(jump.ne.0).and.(.not.g_lo%x_local).and.field_local_loc) then
        if(fphi>epsilon(0.0)) call broadcast(phi)
        if(fapar>epsilon(0.0)) call broadcast(apar)
        if(fbpar>epsilon(0.0)) call broadcast(bpar)
     endif
 
-    if (.not. box .and. shat .ne. 0.0 ) then
+    ! We should note that the following branches contain loops over the entire
+    ! global g_lo domain in order to do ordered point-wise communication. We should
+    ! probably think about constructing redistribute objects to represent the relevant
+    ! communications instead. As the communication pattern is ky dependent (as jump
+    ! depends on ky) and we may not wish to communicate in every ky at the same time
+    ! we probably want naky redistribute objects. This may be less than optimal as
+    ! we cannot then group communications for all ky together as in other redistributes.
+    ! The other option is to construct a single redistribute each time one is needed.
+    ! This would allow consolidation of communications but with the overhead of
+    ! redistribute construction. For cases with should_use_kx true, we would not
+    ! expect to need to communicate different ky at the same time (i.e. jump is
+    ! unlikely to be non-zero for more than one ky at a time). When should_use_kx
+    ! is false we will always need to communicate all ky at the same time as jump
+    ! is ky independent (unless wstar_units is true).
+
+    if (.not. should_use_kx) then
 ! MR, March 2009: impact of ExB shear on extended theta grid computed here
 !                 for finite shat
        do ik =1,naky
@@ -3587,13 +3643,9 @@ contains
                          if (idx_local(g_lo, to_iglo).and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3605,15 +3657,11 @@ contains
                             g0(ileft:,:,to_iglo) = temp(:iright,:,it-iit+1)
                             g0(:ileft-1,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1,2
-                               call send(temp(:, isgn, it-iit+1), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it-iit+1), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(ileft:,isgn,to_iglo) = z(:iright)
-                               g0(:ileft-1,isgn,to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(ileft:, :, to_iglo) = z(:iright, :)
+                            g0(:ileft-1, :, to_iglo) = 0.0
                          endif
                       enddo
 
@@ -3631,13 +3679,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(g0(:,isgn,to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3649,15 +3693,11 @@ contains
                             g0(:iright,:,to_iglo) = temp(ileft:,:,it)
                             g0(iright+1:,:,to_iglo) = 0.0
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn = 1, 2
-                               call send(temp(:, isgn, it), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send(temp(:, :, it), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn = 1, 2
-                               call receive(z, proc_id (g_lo, from_iglo))
-                               g0(:iright,isgn,to_iglo) = z(ileft:)
-                               g0(iright+1:,isgn,to_iglo) = 0.0
-                            enddo
+                            call receive(z, proc_id (g_lo, from_iglo))
+                            g0(:iright, :, to_iglo) = z(ileft:, :)
+                            g0(iright+1:, :, to_iglo) = 0.0
                          endif
                       enddo
                    endif
@@ -3666,9 +3706,8 @@ contains
           enddo
           deallocate (temp,temp2)
        enddo
-    end if
-    
-    if (box .or. shat .eq. 0.0) then
+    else
+       ! should_use_kx = .true.
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
              if (fphi > epsilon(0.0)) then
@@ -3707,13 +3746,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send (g0(:, isgn, from_iglo), proc_id (g_lo, to_iglo))
-                            enddo
+                            call send (g0(:, :, from_iglo), proc_id (g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive (g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive (g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -3764,13 +3799,9 @@ contains
                          if (idx_local(g_lo, to_iglo) .and. idx_local(g_lo, from_iglo)) then
                             g0(:,:,to_iglo) = g0(:,:,from_iglo)
                          else if (idx_local(g_lo, from_iglo)) then
-                            do isgn=1, 2
-                               call send(g0(:, isgn, from_iglo), proc_id(g_lo, to_iglo))
-                            enddo
+                            call send(g0(:, :, from_iglo), proc_id(g_lo, to_iglo))
                          else if (idx_local(g_lo, to_iglo)) then
-                            do isgn=1, 2
-                               call receive(g0(:, isgn, to_iglo), proc_id (g_lo, from_iglo))
-                            enddo
+                            call receive(g0(:, :, to_iglo), proc_id (g_lo, from_iglo))
                          endif
                       enddo
 
@@ -4566,10 +4597,10 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
-    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0
+    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid
+    use le_grids, only: nlambda, ng2, lmax, forbid, is_passing_hybrid_electron
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4635,6 +4666,15 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
 
+       !/////////////////////////
+       !// Handle hybrid electrons when passing
+       !/////////////////////////
+       
+       if (is_passing_hybrid_electron(is, ik, il))  then
+          call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
+          cycle
+       end if
+       
        !/////////////////////////
        !// Get the source terms
        !/////////////////////////
@@ -5032,7 +5072,7 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2
+    use le_grids, only: energy, al, nlambda, ng2, is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
@@ -5086,39 +5126,49 @@ contains
 
           ncell = r_links(ik, it) + l_links(ik, it) + 1
           if (ncell == 1) cycle
-
+          
           il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          if (is_passing_hybrid_electron(is, ik, il))  cycle
+          ! MRH above line causes us to skip the loops below which
+          ! build the solution along the connected cells
+          ! MRH we skip this in the case that we have taken the non-zonal
+          ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
 ! wfb
           if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-             is = is_idx(g_lo,iglo)
-             ie = ie_idx(g_lo,iglo)
-!CMR, 29/8/2014:
-!(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
-!                     at the extreme left and right of the supercell
-!(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
-!    (was previously applied to g)
-!      
-             vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
-             vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
-             itl=get_leftmost_it(it,ik)
-             itr=get_rightmost_it(it,ik)
-             argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
-             argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
-             aj0l = j0(argl)
-             aj0r = j0(argr)
-             aj1l = j1(argl)
-             aj1r = j1(argr)
+             if (nonad_zero) then
+                is = is_idx(g_lo,iglo)
+                ie = ie_idx(g_lo,iglo)
+                !CMR, 29/8/2014:
+                !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
+                !                     at the extreme left and right of the supercell
+                !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
+                !    (was previously applied to g)
+                !
+                vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
+                vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
+                itl=get_leftmost_it(it,ik)
+                itr=get_rightmost_it(it,ik)
+                argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
+                argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
+                aj0l = j0(argl)
+                aj0r = j0(argr)
+                aj1l = j1(argl)
+                aj1r = j1(argr)
 
-             adjl = 2.0*vperp2left*aj1l &
-              *bparnew(-ntgrid,itl,ik)*fbpar &
-              + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
-              *nonmaxw_corr(ie,is)*fphi
-             adjr = 2.0*vperp2right*aj1r &
-              *bparnew(ntgrid,itr,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
-              *nonmaxw_corr(ie,is)*fphi
-             dadj = adjl-adjr
+                adjl = 2.0*vperp2left*aj1l &
+                     *bparnew(-ntgrid,itl,ik)*fbpar &
+                     + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
+                     *nonmaxw_corr(ie,is)*fphi
+                adjr = 2.0*vperp2right*aj1r &
+                     *bparnew(ntgrid,itr,ik)*fbpar &
+                     + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
+                     *nonmaxw_corr(ie,is)*fphi
+                dadj = adjl-adjr
+             else
+                dadj = 0.0
+             end if
 
              if (save_h(1, iglo)) then
 !CMR, 7/8/2014:
@@ -5606,12 +5656,12 @@ contains
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
-
+    use iso_fortran_env, only: real32
     implicit none
     integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
-    complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
+    complex(real32), dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex*8, dimension(:), intent(out) :: phi_gryfx       
+    complex(real32), dimension(:), intent(out) :: phi_gryfx
     complex, dimension(:,:,:,:), allocatable :: total
 
     !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
@@ -6088,7 +6138,7 @@ contains
     wgt = spec%temp*spec%dens
     call integrate_species (g_work, wgt, tot)
     gamtot2 = real(tot)
-
+    
     !<DD>Make sure gamtots are single valued
     if(esv)then
        call ensure_single_val_fields_pass_r(gamtot)
@@ -6110,6 +6160,8 @@ contains
           gamtot = gamtot + tite 
        endif
     endif
+
+    
   end subroutine init_fieldeq
 
   !> FIXME : Add documentation    
@@ -6733,7 +6785,6 @@ contains
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
-    
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
@@ -6782,7 +6833,7 @@ contains
           numerator = antot+fl_avg_sp
           denominator = gamtot
        end if
-
+       
        where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
           !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
           !for example a simulation with beta=0.0 and an adiabatic species does
@@ -10362,7 +10413,7 @@ contains
     implicit none
     class(dist_fn_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10370,13 +10421,13 @@ contains
     character(len = 20) :: boundary_option, wfbbc_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
-    real :: tpdriftknob, tprpfac_lin, uparfac_lin, wfb
+    real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, test, tparfac_lin, &
-         tpdriftknob, tprpfac_lin, uparfac_lin, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, wfbbc_option, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10399,6 +10450,7 @@ contains
     g_exbfac = self%g_exbfac
     gf_lo_integrate = self%gf_lo_integrate
     gridfac = self%gridfac
+    hyper_in_initialisation = self%hyper_in_initialisation
     kfilter = self%kfilter
     lf_decompose = self%lf_decompose
     lf_default = self%lf_default
@@ -10417,22 +10469,15 @@ contains
     tpdriftknob = self%tpdriftknob
     tprpfac_lin = self%tprpfac_lin
     uparfac_lin = self%uparfac_lin
+    vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
     wfbbc_option = self%wfbbc_option
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = dist_fn_knobs)
 
     ! Now copy from local variables into type members
     self%adiabatic_option = adiabatic_option
@@ -10452,6 +10497,7 @@ contains
     self%g_exbfac = g_exbfac
     self%gf_lo_integrate = gf_lo_integrate
     self%gridfac = gridfac
+    self%hyper_in_initialisation = hyper_in_initialisation
     self%kfilter = kfilter
     self%lf_decompose = lf_decompose
     self%lf_default = lf_default
@@ -10470,6 +10516,7 @@ contains
     self%tpdriftknob = tpdriftknob
     self%tprpfac_lin = tprpfac_lin
     self%uparfac_lin = uparfac_lin
+    self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
     self%wfbbc_option = wfbbc_option
@@ -10508,6 +10555,7 @@ contains
     call self%write_key_val("g_exbfac", self%g_exbfac, unit_internal)
     call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
     call self%write_key_val("gridfac", self%gridfac, unit_internal)
+    call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
     call self%write_key_val("kfilter", self%kfilter, unit_internal)
     call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
     call self%write_key_val("lf_default", self%lf_default, unit_internal)
@@ -10526,6 +10574,7 @@ contains
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
     call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
+    call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
     call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
@@ -10566,6 +10615,7 @@ contains
     call broadcast(self%g_exbfac)
     call broadcast(self%gf_lo_integrate)
     call broadcast(self%gridfac)
+    call broadcast(self%hyper_in_initialisation)
     call broadcast(self%kfilter)
     call broadcast(self%lf_decompose)
     call broadcast(self%lf_default)
@@ -10584,6 +10634,7 @@ contains
     call broadcast(self%tpdriftknob)
     call broadcast(self%tprpfac_lin)
     call broadcast(self%uparfac_lin)
+    call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
     call broadcast(self%wfbbc_option)
@@ -10617,7 +10668,7 @@ contains
     implicit none
     class(source_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10639,16 +10690,8 @@ contains
     t0 = self%t0
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = source_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = source_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = source_knobs)
 
     ! Now copy from local variables into type members
     self%gamma0 = gamma0
@@ -10734,7 +10777,7 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -10754,16 +10797,9 @@ contains
     fexpr = self%fexpr
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = dist_fn_species_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = dist_fn_species_knobs)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = dist_fn_species_knobs)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif

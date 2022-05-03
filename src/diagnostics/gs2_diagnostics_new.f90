@@ -35,7 +35,7 @@ contains
 
   !> Read namelist diagnostics_config, initialise submodules,
   !! open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(init_options)
+  subroutine init_gs2_diagnostics_new(init_options, header)
     use diagnostics_config, only: init_diagnostics_config
     use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
@@ -65,8 +65,13 @@ contains
     use diagnostics_metadata, only: read_input_file_and_get_size
     use gs2_diagnostics, only: check_restart_file_writeable
     use unit_tests, only: debug_message
+    use standard_header, only: standard_header_type
+    use gs2_metadata, only: create_metadata
+    use run_parameters, only: user_comments
     implicit none
     type(diagnostics_init_options_type), intent(in) :: init_options
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in) :: header
     logical :: ex
     
     call debug_message(gnostics%verbosity, &
@@ -169,10 +174,6 @@ contains
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
        call set_parallel(gnostics%sfile, mp_comm)
-    else
-       if (.not. gnostics%serial_netcdf4) then 
-          gnostics%sfile%mode = NF90_CLOBBER
-       end if
     end if
 
     call debug_message(gnostics%verbosity, &
@@ -200,6 +201,7 @@ contains
        else
          gnostics%appending=.false.
          call create_file(gnostics%sfile)
+         call create_metadata(gnostics%sfile%nc_file_id, "GS2 Simulation Data", header, user_comments)
          call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
            'gs2_diagnostics_new::init_gs2_diagnostics_new written metadata')
@@ -259,7 +261,7 @@ contains
   !! Note that the .out file is always enabled
   subroutine set_ascii_file_switches
     implicit none
-    gnostics%ascii_files%write_to_out   = .true.
+    gnostics%ascii_files%write_to_out   = gnostics%write_ascii
     !gnostics%ascii_files%write_to_fields = gnostics%write_fields  .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat   = gnostics%write_heating .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat2  = gnostics%write_heating .and.  gnostics%write_ascii

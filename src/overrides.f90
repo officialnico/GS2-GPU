@@ -66,6 +66,7 @@ type initial_values_overrides_type
   complex, dimension (:,:,:), allocatable :: bpar
   complex, dimension (:,:,:), allocatable :: g
   complex, dimension (:,:,:), allocatable :: gexp_1, gexp_2, gexp_3
+  real, dimension(2) :: vnmult
  contains
   procedure :: initialise => init_initial_values_overrides
   procedure :: finish => finish_initial_values_overrides
@@ -431,6 +432,7 @@ subroutine init_initial_values_overrides(overrides_obj, ntgrid, ntheta0, naky, &
   overrides_obj%init = .true.
   overrides_obj%override = .false.
   overrides_obj%in_memory = in_memory
+  overrides_obj%vnmult = 0.0
 
   if (proc0) write (error_unit(), *) "INFO: changing in_memory &
     & after calling initial_values_overrides_type will almost certainly cause &
@@ -477,6 +479,7 @@ subroutine finish_initial_values_overrides(overrides_obj)
   end if
   overrides_obj%init = .false.
   overrides_obj%override = .false.
+  overrides_obj%vnmult = 0.0
   if (allocated(overrides_obj%g)) deallocate(overrides_obj%g)
   if (allocated(overrides_obj%gexp_1)) deallocate(overrides_obj%gexp_1)
   if (allocated(overrides_obj%gexp_2)) deallocate(overrides_obj%gexp_2)

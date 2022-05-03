@@ -120,7 +120,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-    use mp, only: nproc, proc0
+    use mp, only: nproc, proc0, mp_abort
     use gs2_layouts, only: init_gs2_layouts
     use gs2_layouts, only: pe_layout, init_accel_transform_layouts
     use gs2_layouts, only: init_y_transform_layouts
@@ -140,6 +140,12 @@ contains
     !Early exit if possible
     if (initialized) return
     initialized = .true.
+
+    ! If either nx or ny are zero then we cannot setup the transforms so
+    ! detect this and abort with a helpful message
+    if (nx == 0 .or. ny == 0) then
+       call mp_abort("Trying to initialise gs2 transforms but nx and / or ny are zero. Did you remember to set `grid_option = 'box'` in `kt_grids_knobs`?", .true.)
+    end if
 
     if (debug) write (*,*) 'init_transforms: init_gs2_layouts'
     call init_gs2_layouts
@@ -892,6 +898,8 @@ contains
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -921,10 +929,14 @@ contains
     i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
     allocate (aux(xf_fft%n))
+    call time_message(.false., time_fft, ' FFT')
     call fftw_f77 (xf_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
+    call time_message(.false., time_fft, ' FFT')
     deallocate (aux)
 # elif FFT == _FFTW3_
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute)(xf_fft%plan)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call prof_leaving ("transform_x5d", "gs2_transforms")
@@ -935,6 +947,8 @@ contains
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in out) :: xxf
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
@@ -957,10 +971,14 @@ contains
     i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
     allocate (aux(xb_fft%n))
+    call time_message(.false., time_fft, ' FFT')
     call fftw_f77 (xb_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
+    call time_message(.false., time_fft, ' FFT')
     deallocate (aux)
 # elif FFT == _FFTW3_
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute)(xb_fft%plan)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call scatter (g2x, xxf, g)
@@ -973,6 +991,8 @@ contains
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
@@ -1002,10 +1022,13 @@ contains
     !JH to be yxf_lo%llim_proc in this situation, and that will give 
     !JH 1 FFT to be calculated which the code can correctly undertake.
     i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+    call time_message(.false., time_fft, ' FFT')
     call rfftwnd_f77_complex_to_real (yf_fft%plan, i, fft, 1, yxf_lo%ny/2+1, yxf, 1, yxf_lo%ny)
+    call time_message(.false., time_fft, ' FFT')
 # elif FFT == _FFTW3_
-
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_c2r) (yf_fft%plan, fft, yxf)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call prof_leaving ("transform_y5d", "gs2_transforms")
@@ -1016,6 +1039,8 @@ contains
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -1035,9 +1060,13 @@ contains
     !JH to be yxf_lo%llim_proc in this situation, and that will give 
     !JH 1 FFT to be calculated which the code can correctly undertake.
     i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+    call time_message(.false., time_fft, ' FFT')
     call rfftwnd_f77_real_to_complex (yb_fft%plan, i, yxf, 1, yxf_lo%ny, fft, 1, yxf_lo%ny/2+1)
+    call time_message(.false., time_fft, ' FFT')
 # elif FFT == _FFTW3_
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_r2c) (yb_fft%plan, yxf, fft)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call scatter (x2y, fft, xxf)
@@ -1111,6 +1140,8 @@ contains
   subroutine transform2_5d_accel (g, axf, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
     use unit_tests, only: debug_message
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_get_node_pointer, shm_node_barrier, shm_fence
 #endif
@@ -1241,6 +1272,7 @@ contains
     i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
     idx = 1
+    call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_proc, accel_lo%ulim_proc, accel_lo%nxnky
 # if FFT == _FFTW_
        call rfftwnd_f77_complex_to_real (yf_fft%plan, i, ag(:,:,k:), i, 1, &
@@ -1252,7 +1284,7 @@ contains
 # endif
        idx = idx + 1
     end do
-
+    call time_message(.false., time_fft, ' FFT')
 #else
     ! in the following the ranks operate on other data ranges
     call shm_node_barrier
@@ -1264,6 +1296,7 @@ contains
     else
        idx = 1
     endif
+    call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_node, accel_lo%ulim_node, accel_lo%nxnky
        if (use_shm_2d_plan) then
           kk = k + shm_info%id * accel_lo%nxnky
@@ -1283,7 +1316,7 @@ contains
        endif
     end do
     call shm_node_barrier
-
+    call time_message(.false., time_fft, ' FFT')
   contains
 
 # if FFT == _FFTW3_
@@ -1394,6 +1427,8 @@ contains
   !> FIXME : Add documentation
   subroutine inverse2_5d_accel (axf, g, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_get_node_pointer, shm_node_barrier, shm_fence
 #endif
@@ -1417,6 +1452,7 @@ contains
 #ifndef SHMEM
     ! transform
     idx = 1
+    call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_proc, accelx_lo%ulim_proc, accelx_lo%nxny
 # if FFT == _FFTW_
        call rfftwnd_f77_real_to_complex (yb_fft%plan, i, axf(:,:,k:), i, 1, &
@@ -1427,6 +1463,7 @@ contains
 # endif
        idx = idx + 1
     end do
+    call time_message(.false., time_fft, ' FFT')
 
     idx = g_lo%llim_proc
     do k = accel_lo%llim_proc, accel_lo%ulim_proc
@@ -1480,6 +1517,7 @@ contains
     else
        idx = 1
     endif
+    call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_node, accelx_lo%ulim_node, accelx_lo%nxny
        if (use_shm_2d_plan) then
           kk = k + shm_info%id * accelx_lo%nxny
@@ -1501,6 +1539,7 @@ contains
 
     ! see comment from _accel
     call shm_node_barrier
+    call time_message(.false., time_fft, ' FFT')
 
     if(firsttime)then
        firsttime=.false.
@@ -1687,6 +1726,8 @@ contains
   subroutine transform2_3d (phi, phixf, nny, nnx)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -1722,11 +1763,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     do it=1,nnx
        do ik=1,nny
@@ -1742,10 +1785,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine inverse2_3d (phixf, phi, nny, nnx)
-    !CMR, 30/4/2010:  
+    !CMR, 30/4/2010:
     ! Fixed up previously buggy handling of dealiasing.
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, dimension (:,:,-ntgrid:), intent(in) :: phixf
     complex, dimension (-ntgrid:,:,:), intent(out) :: phi
@@ -1768,11 +1813,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf3d_rc%plan, i, phix, i, 1, aphi, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf3d_rc%plan, phix, aphi)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     ! dealias and scale
     do it=1,(ntheta0+1)/2
@@ -1806,6 +1853,8 @@ contains
   subroutine transform2_2d (phi, phixf, nny, nnx)
     use fft_work, only: FFTW_BACKWARD, delete_fft, init_crfftw
     use kt_grids, only: naky, nakx => ntheta0, nx, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, intent (in) :: phi(:,:)
@@ -1846,11 +1895,13 @@ contains
     end do
 
     ! transform
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf2d%plan, 1, aphi, 1, 1, phix, 1, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf2d%plan, aphi, phix)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     phixf(:,:)=transpose(phix(:,:))
 
@@ -1865,6 +1916,8 @@ contains
   subroutine inverse2_2d (phixf, phi, nny, nnx)
     use fft_work, only: FFTW_FORWARD, delete_fft, init_rcfftw
     use kt_grids, only: naky, nakx => ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, intent(in) :: phixf(:,:)
     complex, intent(out) :: phi(:,:)
@@ -1895,11 +1948,13 @@ contains
     phix(:,:)=transpose(phixf(:,:))
 
     ! transform
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf2d%plan, 1, phix, 1, 1, aphi, 1, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf2d%plan, phix, aphi)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     ! scale, dealias and transpose
     do it=1,nakx
@@ -1926,6 +1981,8 @@ contains
     !     anyone who uses this routine should be aware of/fix this!
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: den
@@ -1961,12 +2018,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
 # endif
-
+    call time_message(.false., time_fft, ' FFT')
     do it=1,nnx
        do ik=1,nny
           do ig=-ntgrid, ntgrid
@@ -1999,17 +2057,20 @@ contains
 
   !> FIXME : Add documentation        
   subroutine kz_spectrum (an, an2)
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 # if FFT == _FFTW_
     use kt_grids, only: naky, ntheta0
 # endif
     complex, dimension (:,:,:), intent(in)  :: an
     complex, dimension (:,:,:), intent(out) :: an2
-
-# if FFT == _FFTW_    
+    call time_message(.false., time_fft, ' FFT')
+# if FFT == _FFTW_
     call fftw_f77 (zf_fft%plan, ntheta0*naky, an, 1, zf_fft%n+1, an2, 1, zf_fft%n+1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft)(zf_fft%plan, an, an2)
 # endif
+    call time_message(.false., time_fft, ' FFT')
     an2 = conjg(an2)*an2
 
   end subroutine kz_spectrum

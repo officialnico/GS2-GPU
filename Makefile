@@ -61,6 +61,8 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
+# Default to compressed netcdf files?
+USE_NETCDF_COMPRESSION ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
@@ -129,6 +131,12 @@ endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
+
+###############################################################
+# Experimental features
+###############################################################
+# Do we use the experimental memory usage reporting
+GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE ?=
 
 ###############################################################
 # By default we export all variables defined in this Makefile
@@ -341,7 +349,7 @@ MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
 # Version string, including current commit if not on a release, plus
 # '-dirty' if there are uncommitted changes
-GIT_VERSION := $(shell git describe --tags --long --dirty --match "[0-9]*.[0-9]*.[0-9]*")
+GIT_VERSION := $(shell git describe --tags --dirty --match "[0-9]*.[0-9]*.[0-9]*")
 MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
 
 #The magic sed esacpes either ( or ) by replacing with \( or \)
@@ -470,6 +478,10 @@ endif
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
 	MACRO_DEFS += -DNETCDF
+endif
+
+ifdef USE_NETCDF_COMPRESSION
+	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
 endif
 
 ifdef USE_HDF5
@@ -697,15 +709,15 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
-$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(OBJDIR)/%.o: %.c |$(OBJDIR)
+$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
@@ -713,6 +725,22 @@ $(OBJDIR)/%.o: %.c |$(OBJDIR)
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+# Special handling for creating a serial version of the mp module
+$(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
+FPPFLAGS_SERIAL:=$(subst -DHAVE_MPI, ,$(subst -DMPI, ,$(FPPFLAGS)))
+ifdef ONE_STEP_PP
+$(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+else
+$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
+$(OBJDIR)/mp_serial.o:mp_serial.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
+	$(QUIETSYM)mkdir -p $(MODDIR)/serial
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR)/serial -c $< -o $@
+endif
 
 DEPEND:=Makefile.depend
 DEPEND_CMD:=$(PERL) scripts/fortdep
@@ -792,18 +820,6 @@ endif
 # If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
 ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
-endif
-
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-ifdef USE_FFT
-    utils_mod += $(OBJDIR)/fft_save_wisdom.o
-    gs2_mod += $(OBJDIR)/fft_save_wisdom.o
-    ingen_mod += $(OBJDIR)/fft_save_wisdom.o
-    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
-    generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
-    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
 geometry_c_interface.o: geometry_c_interface.h
@@ -949,6 +965,7 @@ test_make:
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))

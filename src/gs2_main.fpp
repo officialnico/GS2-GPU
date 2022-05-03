@@ -95,6 +95,7 @@ module gs2_main
   public :: gs2_trin_init
   public :: calculate_outputs
   public :: reset_equations
+  public :: write_used_inputs_file
 
   public :: determine_gs2spec_from_trin
   public :: gs2spec_from_trin
@@ -487,7 +488,7 @@ contains
          'gs2_main::initialize_gs2 called job fork (nensembles>1)')
     end if
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
 
     ! Pass run name to other procs
@@ -507,7 +508,7 @@ contains
     !state%gs2_initialized = .true.
     state%init%level = init_level_list%basic
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, 'gs2_main::initialize_gs2 finished')
 
@@ -537,13 +538,13 @@ contains
 
     if (.not. state%included) return
     call debug_message(state%verb, 'gs2_main::initialize_equations starting')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, &
       'gs2_main::initialize_equations calling init_parameter_scan')
     call init_parameter_scan
 
-    if (proc0) call time_message(.false., state%timers%init,' Initialization')
+    call time_message(.false., state%timers%init,' Initialization')
     !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
     call debug_message(state%verb, 'gs2_main::initialize_equations calling init_fields')
 
@@ -586,7 +587,7 @@ contains
     call broadcast (state%outputs%dvdrho)
     call broadcast (state%outputs%grho)
     
-    if (proc0) call time_message(.false.,state%timers%init,' Initialization')
+    call time_message(.false.,state%timers%init,' Initialization')
 
 
     ! Set defaults. These are typically only important
@@ -606,7 +607,7 @@ contains
 
     call init_gs2_reinit
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
   end subroutine initialize_equations
 
@@ -652,7 +653,7 @@ contains
 
     state%exit = .false. 
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     if (state%init%diagnostics_initialized) &
       call mp_abort('Calling initialize_diagnostics twice', .true.)
@@ -688,7 +689,7 @@ contains
       ! Specifiy whether we are doing a replay.
       diagnostics_init_options%replay = state%replay
 
-      call init_gs2_diagnostics_new(diagnostics_init_options)
+      call init_gs2_diagnostics_new(diagnostics_init_options, local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
@@ -712,7 +713,7 @@ contains
 
     state%init%diagnostics_initialized = .true.
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics finished')
@@ -754,7 +755,7 @@ contains
   !!      call evolve_equations(state, state%nstep/2)
   !!      call reset_equations(state)
   !!      call evolve_equations(state, state%nstep/2)
-  subroutine evolve_equations(state, nstep_run)
+  subroutine evolve_equations(state, nstep_run, header)
     use collisions, only: vnmult
     use dist_fn_arrays, only: gnew
     use fields, only: advance
@@ -771,26 +772,37 @@ contains
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
-    use run_parameters, only: reset, fphi, fapar, fbpar, nstep
+    use run_parameters, only: reset, fphi, fapar, fbpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
+    use standard_header, only: standard_header_type
+    use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
+    type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store
     integer :: istep_loop_max
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
 
     if (.not. state%included) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call debug_message(state%verb, &
         'gs2_main::evolve_equations starting')
     
     temp_initval_override_store = state%init%initval_ov%override
     
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
     
     if (state%nensembles > 1) &
           call scope (subprocs)
@@ -810,6 +822,11 @@ contains
     ! finalize_diagnostics resets state%istep_end
     istep_loop_max = state%istep_end + nstep_run
     do istep = state%istep_end+1, istep_loop_max
+       ! Check if we've reached our maximum requested time
+       if (user_time > max_sim_time) then
+          state%exit_reason = EXIT_MAX_SIM_TIME
+          exit
+       end if
 
        if (istep .gt. nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
@@ -818,7 +835,7 @@ contains
        end if
 
 
-       if (proc0) call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,state%timers%advance,' Advance time step')
        !if (proc0) write (*,*) 'advance 1', state%timers%advance
 
        ! If we are doing a replay we don't actually evolve 
@@ -828,10 +845,10 @@ contains
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling advance')
 
-         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call time_message(.false.,state%timers%timestep,' Timestep')
          ! Try to take a time step
          call advance (istep)
-         if (proc0) call time_message(.false.,state%timers%timestep,' Timestep')
+         call time_message(.false.,state%timers%timestep,' Timestep')
          call debug_message(state%verb+1, &
               'gs2_main::evolve_equations called advance')
 
@@ -870,15 +887,15 @@ contains
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
 #endif
          end if
          call update_time
-         if(proc0) call time_message(.false.,state%timers%diagnostics,' Diagnostics')
+         call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
        end if ! if (.not. state%replay)
        call debug_message(state%verb+1, &
@@ -914,9 +931,8 @@ contains
          'gs2_main::evolve_equations exit true after diagnostics')
 
 
-       if(proc0) call time_message(.false.,state%timers%diagnostics,' Diagnostics')
-
-       if (proc0) call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,state%timers%diagnostics,' Diagnostics')
+       call time_message(.false.,state%timers%advance,' Advance time step')
 
        if(.not.state%exit)then
           if (.not.state%replay) then
@@ -978,7 +994,7 @@ contains
 
     if (proc0 .and. .not. state%is_external_job) call write_dt
     
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%total,' Total')
 
     if (state%print_times) call print_times(state, state%timers)
 
@@ -1006,7 +1022,7 @@ contains
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
 #ifdef WITH_EIG
-   if (proc0) call time_message(.false.,state%timers%total,' Total')
+   call time_message(.false.,state%timers%total,' Total')
 
    !Start timer
    call time_message(.false.,state%timers%eigval,' Eigensolver')
@@ -1026,7 +1042,7 @@ contains
 #else
    call mp_abort("Require slepc/petsc")
 #endif
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+   call time_message(.false.,state%timers%total,' Total')
 
   end subroutine run_eigensolver
 
@@ -1091,9 +1107,8 @@ contains
 
     if (.not. state%included) return
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
-
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
 
     call debug_message(state%verb, 'gs2_main::finalize_diagnostics starting')
 
@@ -1112,12 +1127,10 @@ contains
     call deallocate_target_arrays
 
     state%istep_end = 0
-
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-
     state%init%diagnostics_initialized = .false.
 
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
   end subroutine finalize_diagnostics
 
   !> FIXME : Add documentation  
@@ -1134,8 +1147,8 @@ contains
 
     if (.not. state%included) return
 
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
 
     call debug_message(state%verb, 'gs2_main::finalize_equations starting')
 
@@ -1146,9 +1159,8 @@ contains
     !if (state%replay .and. allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew)
 
     call init(state%init, init_level_list%basic)
-    if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-    if (proc0) call time_message(.false.,state%timers%total,' Total')
-
+    call time_message(.false.,state%timers%finish,' Finished run')
+    call time_message(.false.,state%timers%total,' Total')
   end subroutine finalize_equations
 
   !> FIXME : Add documentation  
@@ -1158,6 +1170,7 @@ contains
     use job_manage, only: time_message
     use mp, only: finish_mp, proc0, barrier, unsplit_all, included
     use unit_tests, only: debug_message
+    use standard_header, only: date_iso8601
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> If true, don't print start-up messages/header
@@ -1192,15 +1205,14 @@ contains
          !stop 1
        !end if
 
-      if (proc0) call time_message(.false.,state%timers%total,' Total')
+      call time_message(.false.,state%timers%total,' Total')
 
       call finish_gs2_init(state%init)
 
       if (proc0) call finish_file_utils
 
-      if (proc0) call time_message(.false.,state%timers%finish,' Finished run')
-
-      if (proc0) call time_message(.false.,state%timers%total,' Total')
+      call time_message(.false.,state%timers%finish,' Finished run')
+      call time_message(.false.,state%timers%total,' Total')
       
       call debug_message(state%verb, 'gs2_main::finalize_gs2 calling print_times')
 
@@ -1221,6 +1233,7 @@ contains
 
     state%init%level = 0
 
+    if (proc0 .and. (.not. quiet_value) ) write(*, '("Run finished at ",A)') date_iso8601()
 
     !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
@@ -1316,7 +1329,7 @@ contains
 
     if(initval_ov%in_memory)then
       initval_ov%g=gnew
-
+      initval_ov%vnmult = vnmult
       if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
       if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
       if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
@@ -1485,38 +1498,55 @@ contains
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
-    use redistribute, only: time_redist
-    use fields_arrays, only: time_field
+    use mp, only: get_mp_times
+    use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
+    use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
-
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+#ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
+    use memory_usage, only: print_memory_usage
+#endif
     implicit none
     !> Program state information, needed to print
     type(gs2_program_state_type), intent(in) :: state
     !> Timing information
     type(gs2_timers_type), intent(in) :: timers
-
+    real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
+    real :: redist_total, redist_mpi, redist_copy
     if (.not. proc0) return
 
     if (state%print_full_timers) then
+      call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+      call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+      !Blank line to force separation from other outputs
+      write(*, '("")')
+      write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
+      write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
-      print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-           timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
+      write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
 #endif
-      print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(redistribute'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-           &'' total from timer is:'', 0pf9.2,'' min'',/)', &
-           timers%init(1)/60.,timers%init(1)/timers%total(1), &
-           timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-           time_redist(1)/60.,time_redist(1)/timers%total(1), &
-           time_field(1)/60.,time_field(1)/timers%total(1), &
-           timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
-           time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-           timers%finish(1)/60.,timers%finish(1)/timers%total(1),timers%total(1)/60.
+      write(*, '("(", a, ")")') formatted_time("field solve", time_field(1))
+      write(*, '("(", a, ")")') formatted_time("field solve mpi", time_field_mpi)
+      write(*, '("(", a, ")")') formatted_time("collisions", time_vspace_derivatives(1))
+      write(*, '("(", a, ")")') formatted_time("collisions mpi", time_vspace_derivatives_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
+      write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
+      write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
+      write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
+      write(*, '("(", a, ")")') formatted_time("redistribute mpi", redist_mpi)
+      write(*, '("(", a, ")")') formatted_time("redistribute copy", redist_copy)
+      write(*, '(" ", a)') formatted_time("Finishing", timers%finish(1))
+      write(*, '(" ", a)') formatted_time("MPI" ,mp_total)
+      write(*, '("(", a, ")")') formatted_time("Overheads", mp_over)
+      write(*, '("(", a, ")")') formatted_time("Collectives", mp_coll)
+      write(*, '("(", a, ")")') formatted_time("PTP", mp_ptp)
+      write(*, '("(", a, ")")') formatted_time("Sync", mp_sync)
+      write(*, '(" total from timer is:", 0pf9.2, " min", /)') timers%total(1) / 60.
     else
       if (state%external_job_id >= 0) then
         write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
@@ -1528,6 +1558,19 @@ contains
       write(*, '("Total from timer is:", 0pf9.2," min")') state%timers%total(1)/60.
     endif
 
+#ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
+    call print_memory_usage
+#endif
+  contains
+    !> Print a single formatted timer line
+    character(len=46) function formatted_time(name, timer)
+      !> Name of the timer
+      character(len=*), intent(in) :: name
+      !> Time in seconds
+      real, intent(in) :: timer
+
+      write(formatted_time, "(a, T25, 0pf9.3, ' min', T40, 2pf5.1, ' %')") name, timer / 60., timer/timers%total(1)
+    end function formatted_time
   end subroutine print_times
 
   !> FIXME : Add documentation  
@@ -1623,9 +1666,9 @@ contains
       call initialize_wall_clock_timer
       call initialize_gs2(old_iface_state)
       if (override_profiles .or. override_miller_geometry) then 
-        if (proc0) call time_message(.false., old_iface_state%timers%init,' Initialization')
+        call time_message(.false., old_iface_state%timers%init,' Initialization')
         call old_interface_set_overrides
-        if (proc0) call time_message(.false., old_iface_state%timers%init,' Initialization')
+        call time_message(.false., old_iface_state%timers%init,' Initialization')
       end if
       call initialize_equations(old_iface_state)
       call initialize_diagnostics(old_iface_state)
@@ -2066,6 +2109,46 @@ contains
      
     
   end subroutine gs2_trin_init
+
+  !> Write an input file containing the current state of all input
+  !> parameters
+  subroutine write_used_inputs_file(header)
+    use mp, only: proc0
+    use file_utils, only: get_unused_unit, run_name
+    use standard_header, only: standard_header_type
+    use config_collection, only : gs2_config_type
+
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+    ! File unit to write to
+    integer :: used_inputs_unit
+    type(gs2_config_type) :: input_config
+
+    ! Only write this file on rank 0
+    if (.not. proc0) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
+    call input_config%get_configs()
+    call get_unused_unit(used_inputs_unit)
+    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    write(unit=used_inputs_unit, fmt='(a)') &
+         local_header%to_string( &
+         comment_character="! ", &
+         file_description="Input parameters as used by " // trim(run_name) &
+         )
+
+    call input_config%write_to_unit(used_inputs_unit)
+    close(used_inputs_unit)
+
+  end subroutine write_used_inputs_file
 
 # ifndef MAKE_LIB
 end module gs2_main

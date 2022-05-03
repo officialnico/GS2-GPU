@@ -63,17 +63,14 @@ program gs2
   use gs2_main, only: finalize_diagnostics
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
-  use gs2_main, only: parse_command_line
+  use gs2_main, only: parse_command_line, write_used_inputs_file
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
-  use config_collection, only : gs2_config_type
   use file_utils, only: get_unused_unit, run_name
   use standard_header, only: standard_header_type
   implicit none
   type(gs2_program_state_type) :: state
-  type(gs2_config_type) :: input_config
   type(standard_header_type) :: local_header
-  integer :: used_inputs_unit
 
   call parse_command_line()
 
@@ -89,17 +86,7 @@ program gs2
     call initialize_equations(state)
     call initialize_diagnostics(state, header=local_header)
 
-    call input_config%get_configs()
-    call get_unused_unit(used_inputs_unit)
-    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
-    write(unit=used_inputs_unit, fmt='(a)') &
-         local_header%to_string( &
-             comment_character="! ", &
-             file_description="Input parameters as used by " // trim(run_name) &
-         )
-
-    call input_config%write_to_unit(used_inputs_unit)
-    close(used_inputs_unit)
+    call write_used_inputs_file(header=local_header)
 
     state%print_times = .false.
     if (state%do_eigsolve) then 

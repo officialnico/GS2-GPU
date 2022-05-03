@@ -6,7 +6,7 @@ module nonlinear_terms
 
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use mp, only: mp_request_null
-  
+  use iso_fortran_env, only: real32
   implicit none
 
   private
@@ -15,7 +15,7 @@ module nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch
   public :: finish_init, reset_init, nonlin, accelerated
-  public :: cfl
+  public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal
   public :: cfl_req_hand, nb_check_time_step_too_large
@@ -35,7 +35,7 @@ module nonlinear_terms
   !> FIXME : Add documentation  
   type gs2_gryfx_zonal_type
     logical :: on = .false.
-    complex*8, dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
+    complex(real32), dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
                                          NLtprp_ky0, NLqpar_ky0, NLqprp_ky0
     logical :: first_half_step = .false.
   end type gs2_gryfx_zonal_type
@@ -81,6 +81,8 @@ module nonlinear_terms
 
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
+
+  real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.
@@ -376,6 +378,8 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
     use gs2_time, only: save_dt_cfl
+    use job_manage, only: time_message
+    use mp, only: get_mp_times
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -383,6 +387,9 @@ contains
     real, intent (in) :: bd
     real :: dt_cfl
     logical, parameter :: nl = .true.
+    real :: mp_total_after, mp_total
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total)
 
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
@@ -398,6 +405,9 @@ contains
          call add_explicit (g1, g2, g3, phi, apar, bpar, istep, bd, nl)
        endif
     end select
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total_after)
+    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
   end subroutine add_explicit_terms
 
   !> FIXME : Add documentation  
@@ -1225,7 +1235,7 @@ contains
     implicit none
     class(nonlinear_terms_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1257,16 +1267,8 @@ contains
     zip = self%zip
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = nonlinear_terms_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = nonlinear_terms_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = nonlinear_terms_knobs)
 
     ! Now copy from local variables into type members
     self%cfl = cfl

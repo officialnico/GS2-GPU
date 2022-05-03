@@ -1,6 +1,6 @@
 # GS2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.4461680.svg)](https://doi.org/10.5281/zenodo.4461680)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6504391.svg)](https://doi.org/10.5281/zenodo.6504391)
 
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)
@@ -37,12 +37,13 @@ GS2 has no required external dependencies, but does have the following
 optional ones:
 
 - MPI
-- NetCDF
-- HDF5
-- FFTW
+- NetCDF (requires >= v4.2.0)
+- HDF5 (only required for parallel netCDF)
+- FFTW (support for v2 will be dropped in the near future)
 - LAPACK
 - NAG
-- python (for code generation, tests and documentation)
+- python (required for code generation, tests and documentation,
+  requires >= 3.6)
 
 ## Developing GS2
 
@@ -97,7 +98,10 @@ support its development.
 
 The DOI for the current stable version can be found at the top of this README.
 For reproducibility, it's best to use and cite a specific release version.
-If that's not possible (for example, if you are using your own development branch), the next best thing is to cite the GS2 project DOI [10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066).
+If that's not possible (for example, if you are using your own development branch),
+the next best thing is to cite the GS2 project DOI
+[10.5281/zenodo.2551066](https://doi.org/10.5281/zenodo.2551066) which resolves
+to the latest version and specify the commit hash you are using.
 
 The full citation for GS2 is in CITATION.cff.
 To get a bibtex citation from this file, do:

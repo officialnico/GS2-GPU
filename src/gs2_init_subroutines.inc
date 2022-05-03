@@ -244,32 +244,17 @@ subroutine override_profiles_subroutine(going_up)
   end if
 end subroutine override_profiles_subroutine
 
-subroutine override_timestep_subroutine(going_up)
-  use unit_tests, only: debug_message
-  use run_parameters, only: rso => set_overrides
-  logical, intent(in) :: going_up
-  if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_timestep (18)')
-    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
-    current%level = init_level_list%override_timestep
-  else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_timestep (18)')
-
-    current%level = init_level_list%override_timestep - 1
-  end if
-end subroutine override_timestep_subroutine
-
 subroutine le_grids_subroutine(going_up)
   use unit_tests, only: debug_message
   use le_grids, only: init_le_grids, finish_le_grids
   logical :: dummy1, dummy2
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- le_grids (19)')
+    call debug_message(1, 'gs2_init:init up reached init level -- le_grids (18)')
     call init_le_grids(dummy1, dummy2)
     current%level = init_level_list%le_grids
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- le_grids (19)')
+    call debug_message(1, 'gs2_init:init down reached init level -- le_grids (18)')
     call finish_le_grids
     current%level = init_level_list%le_grids - 1
   end if
@@ -280,11 +265,11 @@ subroutine antenna_subroutine(going_up)
   use antenna, only: init_antenna, finish_antenna
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- antenna (20)')
+    call debug_message(1, 'gs2_init:init up reached init level -- antenna (19)')
     call init_antenna
     current%level = init_level_list%antenna
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- antenna (20)')
+    call debug_message(1, 'gs2_init:init down reached init level -- antenna (19)')
     call finish_antenna
     current%level = init_level_list%antenna - 1
   end if
@@ -295,11 +280,11 @@ subroutine dist_fn_parameters_subroutine(going_up)
   use dist_fn, only: init_dist_fn_parameters, finish_dist_fn_parameters
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_parameters (21)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_parameters (20)')
     call init_dist_fn_parameters
     current%level = init_level_list%dist_fn_parameters
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_parameters (21)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_parameters (20)')
     call finish_dist_fn_parameters
     current%level = init_level_list%dist_fn_parameters - 1
   end if
@@ -313,11 +298,11 @@ subroutine dist_fn_layouts_subroutine(going_up)
   use species, only: nspec
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_layouts (22)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_layouts (21)')
     call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
     current%level = init_level_list%dist_fn_layouts
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_layouts (22)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_layouts (21)')
     call finish_dist_fn_layouts
     current%level = init_level_list%dist_fn_layouts - 1
   end if
@@ -328,11 +313,11 @@ subroutine fields_level_1_subroutine(going_up)
   use fields, only: init_fields_level_1, finish_fields_level_1
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_1 (23)')
+    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_1 (22)')
     call init_fields_level_1
     current%level = init_level_list%fields_level_1
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_1 (23)')
+    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_1 (22)')
     call finish_fields_level_1
     current%level = init_level_list%fields_level_1 - 1
   end if
@@ -343,11 +328,11 @@ subroutine nonlinear_terms_subroutine(going_up)
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- nonlinear_terms (24)')
+    call debug_message(1, 'gs2_init:init up reached init level -- nonlinear_terms (23)')
     call init_nonlinear_terms
     current%level = init_level_list%nonlinear_terms
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- nonlinear_terms (24)')
+    call debug_message(1, 'gs2_init:init down reached init level -- nonlinear_terms (23)')
     call finish_nonlinear_terms
     current%level = init_level_list%nonlinear_terms - 1
   end if
@@ -358,11 +343,11 @@ subroutine dist_fn_arrays_subroutine(going_up)
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_arrays (25)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_arrays (24)')
     call init_dist_fn_arrays
     current%level = init_level_list%dist_fn_arrays
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_arrays (25)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_arrays (24)')
     call finish_dist_fn_arrays
     current%level = init_level_list%dist_fn_arrays - 1
   end if
@@ -373,11 +358,11 @@ subroutine dist_fn_level_1_subroutine(going_up)
   use dist_fn, only: init_dist_fn_level_1, finish_dist_fn_level_1
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_1 (26)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_1 (25)')
     call init_dist_fn_level_1
     current%level = init_level_list%dist_fn_level_1
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_1 (26)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_1 (25)')
     call finish_dist_fn_level_1
     current%level = init_level_list%dist_fn_level_1 - 1
   end if
@@ -388,15 +373,30 @@ subroutine dist_fn_level_2_subroutine(going_up)
   use dist_fn, only: init_dist_fn_level_2, finish_dist_fn_level_2
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_2 (27)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_2 (26)')
     call init_dist_fn_level_2
     current%level = init_level_list%dist_fn_level_2
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_2 (27)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_2 (26)')
     call finish_dist_fn_level_2
     current%level = init_level_list%dist_fn_level_2 - 1
   end if
 end subroutine dist_fn_level_2_subroutine
+
+subroutine override_timestep_subroutine(going_up)
+  use unit_tests, only: debug_message
+  use run_parameters, only: rso => set_overrides
+  logical, intent(in) :: going_up
+  if (going_up) then
+    call debug_message(1, 'gs2_init:init up reached init level -- override_timestep (27)')
+    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
+    current%level = init_level_list%override_timestep
+  else
+    call debug_message(1, 'gs2_init:init down reached init level -- override_timestep (27)')
+
+    current%level = init_level_list%override_timestep - 1
+  end if
+end subroutine override_timestep_subroutine
 
 subroutine dist_fn_level_3_subroutine(going_up)
   use unit_tests, only: debug_message

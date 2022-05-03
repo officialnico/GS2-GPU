@@ -168,6 +168,7 @@ module le_grids
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
+  public :: is_passing_hybrid_electron
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -3388,6 +3389,9 @@ contains
     integer :: ie
     integer :: n, ip, je
     integer :: ile_bak, il0
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
 
     !Early exit if possible
     if (leinit) return
@@ -3408,11 +3412,15 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
+          il = il_idx(g_lo, iglo)
+
           !Loop over remaining dimensions, note ile is independent of isign
           !so add two to count
           do ig=-ntgrid,ntgrid
-             !Increment the data sent counter for this proc
-             nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region) then
+                !Increment the data sent counter for this proc
+                nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
+             end if
 
              !Increment ile
              ile=ile+1
@@ -3424,9 +3432,13 @@ contains
     !Protect against procs with no data
     if(le_lo%ulim_proc.ge.le_lo%llim_proc)then
        do ile=le_lo%llim_proc,le_lo%ulim_alloc
+          ig = ig_idx(le_lo, ile)
+
           !Loop over local dimensions, adding 2 to account for each sign
           do ie=1,g_lo%negrid
              do il=1,g_lo%nlambda
+                if (forbid(ig, il) .and. skip_forbidden_region) cycle
+
                 !Get index
                 iglo=idx(g_lo,ik_idx(le_lo,ile),it_idx(le_lo,ile),&
                      il,ie,is_idx(le_lo,ile))
@@ -3466,21 +3478,23 @@ contains
           ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
           ile_bak=ile
-
+          il = il_idx(g_lo, iglo)
           !Loop over sign
           do isign=1,2
              do ig=-ntgrid,ntgrid
-                !Get proc id
-                ip=proc_id(le_lo,ile)
+                if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region ) then
+                   !Get proc id
+                   ip=proc_id(le_lo,ile)
 
-                !Increment procs message counter
-                n=nn_from(ip)+1
-                nn_from(ip)=n
+                   !Increment procs message counter
+                   n=nn_from(ip)+1
+                   nn_from(ip)=n
 
-                !Store indices
-                from_list(ip)%first(n)=ig
-                from_list(ip)%second(n)=isign
-                from_list(ip)%third(n)=iglo
+                   !Store indices
+                   from_list(ip)%first(n)=ig
+                   from_list(ip)%second(n)=isign
+                   from_list(ip)%third(n)=iglo
+                end if
 
                 !Increment ile
                 ile=ile+1
@@ -3504,6 +3518,7 @@ contains
           do ie=1,g_lo%negrid
              do isign=1,2
                 do il0=1,g_lo%nlambda
+                   if (forbid(ig, il0) .and. skip_forbidden_region) cycle
                    !Pick correct extended lambda value
                    je=jend(ig)
                    il=il0
@@ -4538,6 +4553,17 @@ contains
     init_weights_init = .false.
   end subroutine finish_weights
 
+  !> Determine if the passed species, ky and lambda indicies correspond
+  !> to a passing hybrid electron point which should be skipped.
+  pure logical function is_passing_hybrid_electron(is, ik, il)
+    use species, only: spec, is_hybrid_electron_species
+    use kt_grids, only: aky
+    implicit none
+    integer, intent(in) :: is, ik, il
+    is_passing_hybrid_electron = &
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+  end function is_passing_hybrid_electron
+
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
@@ -4569,7 +4595,7 @@ contains
     implicit none
     class(le_grids_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -4601,16 +4627,8 @@ contains
     wgt_fac = self%wgt_fac
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = le_grids_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = le_grids_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = le_grids_knobs)
 
     ! Now copy from local variables into type members
     self%bouncefuzz = bouncefuzz

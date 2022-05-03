@@ -379,7 +379,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
     !> FIXME : Add documentation    
     subroutine gg4finish
-!      use mp, only: mp_abort
+      use mp, only: mp_abort
       use file_utils, only: close_output_file
       implicit none
       
@@ -405,7 +405,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          print *, "gridgen4_1:gg4results:nthetaout=",nthetaout
          print *, "nthetaout is not odd, so there is a problem with gridgen"
          print *, "This can sometimes happen if this file is not compiled with promotion to double precision."
-         !call mp_abort('MESSAGE')
+         call mp_abort('gridgen has finished with an odd ntheta. This suggests something has gone wrong so abort. Consider changing the gridgen input flags or ntheta.', .true.)
       end if
     end subroutine gg4finish
 

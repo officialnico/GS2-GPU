@@ -89,8 +89,7 @@ module ingen_mod
      !> `nmesh/ncut`.
      integer :: ncut = 100000
      !> Sets the maximum processor count considered when calculating
-     !> sweetspots. Currently this value is read in but always
-     !> overriden to 100000.
+     !> sweetspots.
      integer :: npmax = 100000     
      !> If `true` then alongside standard [[ingen]] report allows the
      !> creation of various types of scans. This will involve user
@@ -193,7 +192,6 @@ contains
     end if 
     
     n_sweet_spots = 0
-    npmax=100000
     allocate(sweet_spots(1))
     
   end subroutine init_ingen
@@ -2452,7 +2450,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     implicit none
     class(ingen_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -2472,16 +2470,8 @@ if (debug) write(6,*) 'get_namelists: returning'
     stdin = self%stdin
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = ingen_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = ingen_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = ingen_knobs)
 
     ! Now copy from local variables into type members
     self%ncut = ncut
