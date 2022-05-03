@@ -273,7 +273,6 @@ contains
           current%level = init_levels(ilevel)%change_level(current, going_up)
        end do
     end if
-  contains
   end subroutine init_pass_int
 
 #include "gs2_init_subroutines.inc"
