@@ -233,7 +233,7 @@ contains
     do ilevel = 1, size(init_levels)
        call init_levels(ilevel)%report_time(unit)
     end do
-  end subroutine report_time
+  end subroutine report_init_times
 
   !> Small wrapper to allow init_level_type to be passed
   !> instead of the level integer.
