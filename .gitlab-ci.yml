@@ -25,6 +25,7 @@ stages:
 
 .create_user: &create_user
   - useradd theuser
+  - chown -R theuser /builds/gyrokinetics/gs2
   - chmod gou+rw ${JOB_STATUS_FILE}
   - touch Makefile.local
   - chmod gou+rw Makefile.local
