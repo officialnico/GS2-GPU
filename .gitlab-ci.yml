@@ -184,7 +184,7 @@ coverage_standard_tests:
     - *push_status
     - time pip3 install git+https://github.com/d7919/cpp-coveralls.git
     - date
-    - time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build
+    - su -c "time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build" theuser
 
 
 onestep_standard_tests:
