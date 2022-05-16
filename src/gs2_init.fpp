@@ -43,7 +43,7 @@ module gs2_init
   !> Finalize the module
   public :: finish_gs2_init
 
-  public :: report_init_times
+  public :: report_init_times, reset_init_times
 
   public :: in_memory
   public :: init_config_type
@@ -234,6 +234,14 @@ contains
        call init_levels(ilevel)%report_time(unit)
     end do
   end subroutine report_init_times
+
+  !> Reset the time spent in each initialisation level
+  subroutine reset_init_times(unit)
+    implicit none
+    integer, intent(in), optional :: unit
+    init_levels%time_init(1) = 0.
+    init_levels%time_init(2) = 0.
+  end subroutine reset_init_times
 
   !> Small wrapper to allow init_level_type to be passed
   !> instead of the level integer.
