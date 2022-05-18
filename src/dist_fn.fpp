@@ -9104,7 +9104,7 @@ contains
   !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine write_f (last)
     use mp, only: proc0, send, receive
-    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id
     use le_grids, only: al, energy, forbid, negrid, nlambda

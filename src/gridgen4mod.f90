@@ -336,7 +336,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4init
       use splines, only: fitp_curvp1
       use mp, only: mp_abort
-      use file_utils, only: open_output_file, get_unused_unit
+      use file_utils, only: open_output_file
       implicit none
       real, dimension (2*nbmag) :: tmp
       integer :: ierr, i

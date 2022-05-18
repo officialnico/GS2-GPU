@@ -227,7 +227,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine read_parameters(driver_config_in, stir_config_in)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit, get_unused_unit
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
     use file_utils, only: open_output_file, input_unit
     use mp, only: proc0
     use antenna_data, only: init_antenna_data
@@ -318,7 +318,6 @@ contains
     end do
 
     if (proc0) then
-       call get_unused_unit (out_unit)
        call open_output_file (out_unit, ".antenna")
     end if
   end subroutine read_parameters

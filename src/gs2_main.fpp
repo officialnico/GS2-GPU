@@ -2114,7 +2114,7 @@ contains
   !> parameters
   subroutine write_used_inputs_file(header)
     use mp, only: proc0
-    use file_utils, only: get_unused_unit, run_name
+    use file_utils, only: open_output_file, close_output_file, run_name
     use standard_header, only: standard_header_type
     use config_collection, only : gs2_config_type
 
@@ -2137,8 +2137,7 @@ contains
     end if
 
     call input_config%get_configs()
-    call get_unused_unit(used_inputs_unit)
-    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    call open_output_file(used_inputs_unit, ".used_input.in")
     write(unit=used_inputs_unit, fmt='(a)') &
          local_header%to_string( &
          comment_character="! ", &
@@ -2146,7 +2145,7 @@ contains
          )
 
     call input_config%write_to_unit(used_inputs_unit)
-    close(used_inputs_unit)
+    call close_output_file(used_inputs_unit)
 
   end subroutine write_used_inputs_file
 
