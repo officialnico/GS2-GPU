@@ -132,6 +132,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
+    use mp, only : proc0
     implicit none
     type(ingen_config_type), intent(in), optional :: ingen_config_in
     type(standard_header_type) :: local_header
@@ -148,7 +149,7 @@ contains
     
     call get_namelists
     if (debug) write(6,*) 'ingen: call report'
-    call report(local_header)
+    if (proc0) call report(local_header)
     if (debug) write(6,*) 'ingen: call write_namelists'
     call write_namelists(header=local_header)
     
@@ -1028,7 +1029,6 @@ if (debug) write(6,*) 'get_namelists: returning'
       local_header = standard_header_type()
     end if
 
-    call get_unused_unit (report_unit)
     call open_output_file (report_unit, ".report")
 
     write (report_unit, *) 
