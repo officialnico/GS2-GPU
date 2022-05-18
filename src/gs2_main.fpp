@@ -2137,7 +2137,7 @@ contains
     end if
 
     call input_config%get_configs()
-    call open_output_file(used_inputs_unit, ".used_input.in")
+    call open_output_file(used_inputs_unit, ".used_inputs.in")
     write(unit=used_inputs_unit, fmt='(a)') &
          local_header%to_string( &
          comment_character="! ", &
