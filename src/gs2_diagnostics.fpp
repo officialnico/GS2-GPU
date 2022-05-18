@@ -3379,19 +3379,19 @@ contains
 
   !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
 
-    call get_unused_unit (unit)
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
           do ig = -ntg_out, ntg_out
@@ -3403,7 +3403,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file (unit)
   end subroutine do_dump_fields_periodically
 
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
