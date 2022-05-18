@@ -636,13 +636,13 @@ contains
           write_jext = .false.
        end if
 
-       if (dump_check1) then
+       if (dump_check1 .and. proc0) then
           call get_unused_unit (dump_check1_unit)
+          ! We should switch to open_output_file here.
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
 
-       if (dump_check2) then
-          call get_unused_unit (dump_check2_unit)
+       if (dump_check2 .and. proc0) then
           call open_output_file (dump_check2_unit, ".dc2")
        end if
 
@@ -3389,6 +3389,8 @@ contains
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
+
+    if (.not. proc0) return
 
     write (filename, "('dump.fields.t=',e13.6)") t
     call open_output_file(unit, '.'//filename)
