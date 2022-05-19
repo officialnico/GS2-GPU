@@ -541,7 +541,7 @@ contains
     use  leq, only: leqin, dpdrhofun
     use splines, only: inter_cspl
     use constants, only: pi
-    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
     implicit none
@@ -607,7 +607,6 @@ contains
       call init_file_utils(dummy, name='geometry_module', trin_run=.true., input=.false.)
     end if
     !Create module level output file and get unit
-    call get_unused_unit(fort11_unit)
     call open_output_file(fort11_unit,".fort.11")
 
     !Compute the initial constants
@@ -765,9 +764,7 @@ if (debug) write(6,*) "eikcoefs: find rgrid"
     endif
 
     if(writelots) then
-       call get_unused_unit(fort78_unit)
        call open_output_file(fort78_unit,".fort.78")
-       call get_unused_unit(fort99_unit)
        call open_output_file(fort99_unit,".fort.99")
     
        rbar = 0.
@@ -1426,7 +1423,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     
-    call get_unused_unit(fort25_unit)
     call open_output_file(fort25_unit,".fort.25")
     write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth))
     call close_output_file(fort25_unit)
