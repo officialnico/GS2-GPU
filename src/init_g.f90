@@ -12,7 +12,7 @@ module init_g
   public :: tstart
   public :: reset_init
   public :: init_vnmult
-  public :: new_field_init
+  public :: new_field_init, initial_condition_is_nonadiabatic_dfn
   public :: ginitopt_restart_many
   public :: ginitopt_restart_memory
   private :: single_initial_kx
