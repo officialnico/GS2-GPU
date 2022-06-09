@@ -250,7 +250,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn, gf_lo_integrate
-    use init_g, only: ginit, init_init_g
     use antenna, only: init_antenna
     use unit_tests, only: debug_message
     use kt_grids, only: naky, ntheta0
@@ -260,15 +259,8 @@ contains
     integer, parameter :: verb=3
     
     call init_fields_parameters(fields_config_in)
-
     call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
-    
-!CMR,30/3/2009:
-! call init_init_g before init_run_parameters to read delt from restart file
-
-    call debug_message(verb, "init_fields: init_init_g")
-    call init_init_g
     call debug_message(verb, "init_fields: init_run_parameters")
     call init_run_parameters
     call debug_message(verb, "init_fields: init_dist_fn")
@@ -370,7 +362,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn
-    use init_g, only: ginit, init_init_g
     use nonlinear_terms, only: nl_finish_init => finish_init
     use antenna, only: init_antenna
     use kt_grids, only: gridopt_switch, gridopt_box, kwork_filter
