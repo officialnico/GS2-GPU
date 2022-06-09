@@ -155,7 +155,7 @@ if __name__ == "__main__":
         module_with_dependencies("gs2_save", dependencies = []),
         module_with_dependencies("run_parameters",
                                  dependencies = [
-                                     "kt_grids"]),
+                                     "init_g", "kt_grids"]),
         module_with_dependencies("hyper",
                                  dependencies = [
                                      "kt_grids", "gs2_layouts"]),
