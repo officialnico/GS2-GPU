@@ -12,7 +12,7 @@ module init_g
   public :: tstart
   public :: reset_init
   public :: init_vnmult
-  public :: new_field_init
+  public :: new_field_init, initial_condition_is_nonadiabatic_dfn
   public :: ginitopt_restart_many
   public :: ginitopt_restart_memory
   private :: single_initial_kx
@@ -1235,12 +1235,9 @@ contains
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     implicit none
-    complex, dimension(:, :, :), allocatable :: phi, apar, bpar
     integer :: iglo, ik, il, is
-    allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
 
     ! Respect passing hybrid electrons h=0
     if (has_hybrid_electron_species(spec)) then
@@ -1260,6 +1257,9 @@ contains
 
     ! Ensure both timesteps are set correctly
     g = gnew
+    phinew = phi
+    aparnew = apar
+    bparnew = bpar
   end subroutine set_gnew_from_nonadiabatic_dfn
 
   !> FIXME : Add documentation
