@@ -40,7 +40,7 @@ module init_g
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
        ginitopt_stationary_mode = 38, ginitopt_cgyro = 39, &
-       ginitopt_random_sine = 40
+       ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -617,6 +617,11 @@ contains
        write (unit, fmt="(' zf_init = ',e17.10)") zf_init
        write (unit, fmt="(' max_mode = ',I0)") max_mode
 
+    case (ginitopt_constant)
+       write (unit, fmt="(' ginit_option = ',a)") '"constant"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -923,6 +928,12 @@ contains
        write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
        write (report_unit, fmt="('  Max mode:         ',I0)") max_mode
        write (report_unit, fmt="(' Random sum of sine waves up to max_mode mode number')")
+
+    case (ginitopt_constant)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
+       write (report_unit, fmt="(' Constant value')")
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -1201,6 +1212,8 @@ contains
        call ginit_cgyro
     case (ginitopt_random_sine)
        call ginit_random_sine
+    case (ginitopt_constant)
+       call ginit_constant
     end select
 
     ! If the initial condition is the nonadiabatic dfn then
@@ -1311,7 +1324,8 @@ contains
             text_option('eig_restart', ginitopt_restart_eig), &
             text_option('stationary_mode', ginitopt_stationary_mode), &
             text_option('cgyro', ginitopt_cgyro), &
-            text_option('random_sine', ginitopt_random_sine) &
+            text_option('random_sine', ginitopt_random_sine), &
+            text_option('constant', ginitopt_constant) &
             /)
     character(20) :: ginit_option
 
@@ -4471,6 +4485,37 @@ contains
     end subroutine set_a_and_b_uniform_random_weighting
 
   end subroutine ginit_random_sine
+
+  !> Initialise the distribution function to a constant but satisfying
+  !> forbidden regions. Can scale the zonal component separately as
+  !> usual.
+  subroutine ginit_constant
+    use kt_grids, only: aky
+    use le_grids, only: forbid
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    implicit none
+    integer :: iglo, ik, it, il
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       if (aky(ik) == 0.0) then
+          g(:, 1, iglo) = zf_init * phiinit
+
+          ! Zero the ky=kx=0 mode
+          if (it == 1) g(:, 1, iglo) = 0.0
+       else
+          g(:, 1, iglo) = phiinit
+       end if
+
+       where (forbid(:, il)) g(:, 1, iglo) = 0.0
+       g(:, 2, iglo) = g(:, 1, iglo)
+    end do
+
+    gnew = g
+  end subroutine ginit_constant
 
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
