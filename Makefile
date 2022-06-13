@@ -77,6 +77,8 @@ USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
+# Does this compiler support f2008 compiler_version and compiler_options
+GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
@@ -515,6 +517,10 @@ else
 			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
+endif
+
+ifdef GK_HAS_COMPILER_OPTIONS_2008
+	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifdef USE_NAGLIB
