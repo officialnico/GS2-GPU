@@ -1,4 +1,3 @@
-
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=cyclone_itg_collisions
 clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} *~ *.vspace_*
@@ -19,6 +18,10 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_low_ae.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_low.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_low_ae.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_high.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_high_ae.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_high.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_high_ae.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
