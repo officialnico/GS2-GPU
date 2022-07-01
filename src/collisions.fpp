@@ -2134,7 +2134,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, wl, al
+    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
     use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
