@@ -1,3 +1,7 @@
+&kt_grids_single_parameters
+  aky = 0.4
+/
+
 &parameters
  beta = 1.0e-4
  zeff = 1.0
