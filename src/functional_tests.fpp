@@ -73,6 +73,9 @@ contains
        end if
        check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
        call process_check(check_growth_rate, check_result, 'growth rate')
+       if (.not. check_result) then
+          write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, aimag(omegaavg(1,:))
+       end if
     end if
   end function check_growth_rate
 
@@ -105,6 +108,9 @@ contains
        end if
        check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
        call process_check(check_frequency, check_result, 'frequency')
+       if (.not. check_result) then
+          write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, real(omegaavg(1,:))
+       end if
     end if
   end function check_frequency
 
