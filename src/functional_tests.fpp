@@ -59,6 +59,7 @@ contains
     logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
+    integer :: ik
 
     check_growth_rate = .true.
 
@@ -74,7 +75,13 @@ contains
        check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
        call process_check(check_growth_rate, check_result, 'growth rate')
        if (.not. check_result) then
-          write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, aimag(omegaavg(1,:))
+          if (naky == 1) then
+             write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, aimag(omegaavg(1,:))
+          else
+             do ik = 1, naky
+                write(*, '("Expected : ",E14.6E3," but got ",E14.6E3," for ik=",I0)') rslt(ik), aimag(omegaavg(1,ik)),ik
+             end do
+          end if
        end if
     end if
   end function check_growth_rate
@@ -94,7 +101,7 @@ contains
     logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
-
+    integer :: ik
     check_frequency = .true.
 
     if (proc0) then
@@ -109,7 +116,13 @@ contains
        check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
        call process_check(check_frequency, check_result, 'frequency')
        if (.not. check_result) then
-          write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, real(omegaavg(1,:))
+          if (naky == 1) then
+             write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, real(omegaavg(1,:))
+          else
+             do ik = 1, naky
+                write(*, '("Expected : ",E14.6E3," but got ",E14.6E3," for ik=",I0)') rslt(ik), real(omegaavg(1,ik)),ik
+             end do
+          end if
        end if
     end if
   end function check_frequency
