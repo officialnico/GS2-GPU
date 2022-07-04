@@ -22,6 +22,8 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_high_ae.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_high.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_high_ae.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_high_nonradau_old.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_regular_high_nonradau_new.in)
 endif
 endif
 ${TEST_BASE_NAME}.o:  ${TEST_MODS}
