@@ -140,6 +140,8 @@ module collisions
   real, dimension (:,:), allocatable :: ec1, ebetaa, eql
   ! finish
 
+  real, dimension (:, :), allocatable :: pitch_weights
+
   logical :: drag = .false.
   logical :: heating_flag = .false.
   logical :: colls = .true.
@@ -2132,7 +2134,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le
+    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
+    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
@@ -2152,6 +2155,17 @@ contains
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
 
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
+
+    if (.not. allocated(pitch_weights)) then
+       ! Start by just copying the existing weights
+       allocate(pitch_weights(-ntgrid:ntgrid, nlambda))
+       pitch_weights = 0.0
+       ! We have to recaculate the passing weights here as when Radau-Gauss
+       ! grids are used the WFB (il=ng2+1) is treated as both passing and
+       ! trapped. Otherwise we could just copy the passing weights from wl.
+       call setup_passing_lambda_grids(al, pitch_weights)
+       call setup_trapped_lambda_grids_old_finite_difference(al, pitch_weights)
+    end if
 
     call init_vpdiff
 
@@ -2349,7 +2363,7 @@ contains
 
     use species, only: spec
     use le_grids, only: al, energy => energy_maxw, xi, ng2
-    use le_grids, only: wl, jend, al
+    use le_grids, only: jend, al
     use gs2_time, only: code_dt
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
@@ -2436,14 +2450,14 @@ contains
                * kperp2(ig,it,ik)*cfac
           
           ! coefficients for tridiagonal matrix:
-          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,il)*(slb2 - slb1))
-          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(wl(ig,il)*(slb1 - slb0))
+          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,il)*(slb2 - slb1))
+          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(pitch_weights(ig,il)*(slb1 - slb0))
           bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
           
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
-             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
+             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
+             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
           end if
        end do
        
@@ -2457,13 +2471,13 @@ contains
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
        
-       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,1)*(slb2 - slb1))
+       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,1)*(slb2 - slb1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*vn*code_dt
        
        if (heating) then
-          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
-          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
+          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
+          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
        end if
        
        ! boundary at xi = 0
@@ -2499,7 +2513,7 @@ contains
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
-       deltaxi=wl(ig,il)
+       deltaxi=pitch_weights(ig,il)
        if (te == je) deltaxi = 2.*deltaxi ! MRH vpar =0 fix 
        ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
        ! factor of 2 required above because xi=0 is a repeated point 
@@ -4333,7 +4347,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, wl, nlambda, jend, ng2
+    use le_grids, only: al, nlambda, jend, ng2
     use theta_grid, only: ntgrid, bmag
 
     implicit none
@@ -4362,14 +4376,14 @@ contains
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
+             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
           end do
 
           ! boundary at xi = 1
           slb1 = sqrt(abs(1.0 - bmag(ig)*al(1))) 
           slb2 = sqrt(abs(1.0 - bmag(ig)*al(2))) 
           slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/wl(ig,1)
+          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
           
           ! boundary at xi = 0
           il = te
@@ -4384,7 +4398,7 @@ contains
           
           slbl = (slb1 + slb0)*0.5
           slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
+          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
           
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
           
@@ -4424,6 +4438,7 @@ contains
     if (allocated(bz0)) deallocate (bz0, bw0, bs0)
     if (allocated(vnew)) deallocate (vnew, vnew_s, vnew_D, vnew_E, delvnew)
     if (allocated(vnewh)) deallocate (vnewh)
+    if (allocated(pitch_weights)) deallocate(pitch_weights)
 
     if(use_le_layout) then
       if (allocated(c1le)) then

@@ -169,6 +169,8 @@ module le_grids
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
   public :: is_passing_hybrid_electron
+  public :: setup_trapped_lambda_grids_old_finite_difference
+  public :: setup_passing_lambda_grids
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -2429,7 +2431,7 @@ contains
 
     ! Note this is a module level quantity that we keep around for possible
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
-    allocate (xx(ng2))
+    if (.not. allocated(xx)) allocate (xx(ng2))
 
     if(radau_gauss_grid .and. nlambda > ng2 ) then
 
@@ -2496,10 +2498,8 @@ contains
   subroutine setup_trapped_lambda_grids(lambda_grid, weights)
     use theta_grid, only: ntgrid
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
@@ -2552,10 +2552,8 @@ contains
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
@@ -2705,10 +2703,8 @@ contains
   subroutine setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
     use theta_grid, only: ntgrid, bmag
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
