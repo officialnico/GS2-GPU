@@ -379,6 +379,9 @@ contains
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
     use standard_header, only: standard_header_type
+#ifdef OPENMP
+    use omp_lib, only: omp_get_num_threads
+#endif
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
@@ -391,6 +394,9 @@ contains
     type(standard_header_type) :: local_header
     ! Internal value for optional `quiet` input
     logical :: quiet_value
+#ifdef OPENMP
+    integer :: nthread
+#endif
 
     if (state%init%level .ge. init_level_list%basic) then
       write  (*,*) "ERROR: Called initialize_gs2 twice &
@@ -445,19 +451,29 @@ contains
     if (proc0) then
       ! Report number of processors being used
       if (.not. quiet_value) then
-        write(*, '(a)') local_header%to_string(comment_character=" ")
+         write(*, '(a)') local_header%to_string(comment_character=" ")
 
-        if (state%external_job_id >= 0) then
-          write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
-        end if
-        write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
-        if (nproc > 1) then
-          ! Pluralise processor
-          write(*, '(a)') "s" // new_line('a')
-        else
-          ! Make sure we still get a blank line
-          write(*,*) new_line('a')
-        end if
+         if (state%external_job_id >= 0) then
+            write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
+         end if
+         write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
+         if (nproc > 1) then
+            ! Pluralise processor
+            write(*, '(a)', advance="no") "s"
+         end if
+#ifdef OPENMP
+         !$omp parallel
+         nthread = omp_get_num_threads()
+         !$omp end parallel
+         write(*, '(A, I0, A)',advance="no") " with ", nthread, " thread"
+         if (nthread > 1) then
+            ! Pluralise thread
+            write(*, '(a)', advance="no") "s"
+         end if
+#endif
+         ! Make sure we still get a blank line
+         write(*,*) new_line('a')
+
       end if
 
       ! Call init_file_utils, ie. initialize the run_name, checking
