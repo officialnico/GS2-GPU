@@ -4642,6 +4642,11 @@ contains
     ! only be true if have_trapped_particles is true.
     have_trapped_particles = nlambda > ng2
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, source, g1, use_pass_homog, speriod_flag, &
+    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
+    !$OMP g2, adjright, adjleft, ig, beta1) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
        !// Constants, flags etc.
@@ -5017,6 +5022,7 @@ contains
        endif
 
     end do
+    !$OMP END PARALLEL DO
 
     if (def_parity) call enforce_parity(parity_redist)
 
