@@ -975,6 +975,7 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
