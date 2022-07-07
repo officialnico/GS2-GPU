@@ -4963,7 +4963,7 @@ contains
           if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
        end if
 
-       if (is_self_periodic) call self_periodic
+       if (is_self_periodic) call self_periodic(iglo, g1, is, ie, it, ik)
 
        ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
        !CMR, 24/7/2014:
@@ -5035,8 +5035,10 @@ contains
     !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
     !> NB this code change will implement this only in ballooning space,
     !> and not in a linked fluxtube.
-    subroutine self_periodic
+    subroutine self_periodic(iglo, g1, is, ie, it, ik)
       implicit none
+      integer, intent(in) :: iglo, is, ie, it, ik
+      complex, dimension(-ntgrid:, :), intent(in) :: g1
       complex :: adjl, adjr, dadj
 
       if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
