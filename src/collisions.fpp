@@ -4087,6 +4087,9 @@ contains
     allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
 
     if (heating .and. present(diagnostics)) then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
 
@@ -4107,7 +4110,12 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
+
        call integrate_moment (le_lo, glec, tmp)
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, ig, it, ik, is) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -4115,14 +4123,18 @@ contains
           is = is_idx(le_lo,ile)
           c_rate(ig,it,ik,is,1) = tmp(ile)
        end do
+       !$OMP END PARALLEL DO
 
        if (hyper_colls) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
+          !$OMP SCHEDULE(dynamic)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
 
              je = 2*jend(ig)
              if (je == 0) then
-                je = 2*ng2 
+                je = 2*ng2
              end if
 
              do ie = 1, negrid
@@ -4132,7 +4144,13 @@ contains
                 end do
              end do
           end do
+          !$OMP END PARALLEL DO
+
           call integrate_moment (le_lo, glec, tmp)
+
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(ile, ig, it, ik, is) &
+          !$OMP SCHEDULE(dynamic)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
              it = it_idx(le_lo,ile)
@@ -4140,6 +4158,7 @@ contains
              is = is_idx(le_lo,ile)
              c_rate(ig,it,ik,is,2) = tmp(ile)
           end do
+          !$OMP END PARALLEL DO
        end if
     end if
 
