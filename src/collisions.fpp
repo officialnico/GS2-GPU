@@ -3437,6 +3437,9 @@ contains
        allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
 
        ! v0 = vpa J0 f0, y0 = gle
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
@@ -3455,11 +3458,15 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
        call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, it, ik, ixi, ie) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
@@ -3470,7 +3477,7 @@ contains
              end do
           end do
        end do
-
+       !$OMP END PARALLEL DO
        deallocate(v0y0)
     end if
 
@@ -3479,6 +3486,9 @@ contains
 
     ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -3495,7 +3505,11 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
+       !$OMP SCHEDULE(dynamic)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -3512,6 +3526,7 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
     end if
 
 
@@ -3520,6 +3535,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3530,12 +3548,15 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     deallocate(v1y1)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3551,12 +3572,15 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3567,7 +3591,7 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     deallocate (gtmp, v2y2)
 
   end subroutine conserve_lorentz_le_layout
@@ -3756,6 +3780,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3767,12 +3794,15 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3783,10 +3813,13 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, il, isgn, vpa, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3803,12 +3836,15 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3819,10 +3855,12 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
-
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3836,12 +3874,15 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3852,7 +3893,7 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
     deallocate (v0y0, v1y1, v2y2, gtmp)
 
   end subroutine conserve_diffuse_le_layout
@@ -4103,6 +4144,10 @@ contains
     end if
 
     ! solve for gle row by row
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
+    !$OMP gwfb, delta) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -4180,7 +4225,7 @@ contains
 
        end do
     end do
-
+    !$OMP END PARALLEL DO
     deallocate (tmp)
     
     call prof_leaving ("solfp_lorentz", "collisions")
@@ -4268,6 +4313,9 @@ contains
     endif
     
     ! solve for gle row by row
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
+    !$OMP SCHEDULE(dynamic)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
        is = is_idx(le_lo,ile)
@@ -4294,7 +4342,7 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine solfp_ediffuse_le_layout
 
   !> FIXME : Add documentation
