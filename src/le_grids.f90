@@ -1608,6 +1608,10 @@ contains
     endif
     total_small=0.
     !Integrate over local velocity space
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+    !$OMP REDUCTION(+ : total_small) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1619,6 +1623,7 @@ contains
        total_small(:, it, ik, is) = total_small(:, it, ik, is) + &
             w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
     end do
+    !$OMP END PARALLEL DO
 
     !Not sure that we really need to limit this to nproc>1 as if
     !we run with 1 proc MPI calls should still work ok
@@ -1685,6 +1690,10 @@ contains
     total = 0.
 
     !Do local velocity space integral
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iplo, is, ik, ie, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
@@ -1695,6 +1704,7 @@ contains
             w(ie,is)*wl(:,il)*(g(:,1,iplo)+g(:,2,iplo))
 
     end do
+    !$OMP END PARALLEL DO
 
     !Do we really need this if?
     if (nproc > 1) then
