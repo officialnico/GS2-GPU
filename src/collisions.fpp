@@ -3281,7 +3281,9 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
-
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, isgn) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3291,12 +3293,14 @@ contains
              gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*g(:,isgn,iglo)
           end do
        end do
-       
+       !$OMP END PARALLEL DO
        call integrate_moment (gtmp, v0y0, all)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
-
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3307,7 +3311,7 @@ contains
                   * z0(:,isgn,iglo)
           end do
        end do
-
+       !$OMP END PARALLEL DO
     else
 
        g1 = g
@@ -3317,6 +3321,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3335,12 +3342,16 @@ contains
           end if
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, v1y1, all)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3351,10 +3362,14 @@ contains
                * s0(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3368,6 +3383,7 @@ contains
                * g1(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, v2y2, all)    ! v2y2
 
@@ -3633,6 +3649,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3645,12 +3664,16 @@ contains
                * g(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, v0y0, all)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3661,10 +3684,14 @@ contains
                * bz0(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3677,6 +3704,7 @@ contains
                * g1(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, v1y1, all)    ! v1y1
 
@@ -3697,6 +3725,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3710,12 +3741,16 @@ contains
                * g1(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, v2y2, all)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3726,6 +3761,7 @@ contains
                * bw0(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     deallocate (vns, v0y0, v1y1, v2y2, gtmp)
 
@@ -3934,6 +3970,9 @@ contains
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ilz, ig, je, il, fac) &
+       !$OMP SCHEDULE(dynamic)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
@@ -3952,9 +3991,14 @@ contains
              glzc(il,ilz) = conjg(fac)*fac*d1(il,ilz)  ! d1 accounts for hC(h) entropy
           end do
        end do
+       !$OMP END PARALLEL DO
+
        call scatter (lambda_map, glzc, gc)
 
        if (hyper_colls) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(ilz, ig, je, il, fac) &
+          !$OMP SCHEDULE(dynamic)
           do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
              ig = ig_idx(lz_lo,ilz)
              
@@ -3968,11 +4012,17 @@ contains
                 glzc(il,ilz) = conjg(fac)*fac*h1(il,ilz)  ! h1 accounts for hH(h) entropy
              end do
           end do
+          !$OMP END PARALLEL DO
+
           call scatter (lambda_map, glzc, gh)
        end if
     end if
 
     ! solve for glz row by row
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
+    !$OMP il, gwfb, delta) &
+    !$OMP SCHEDULE(dynamic)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
 
        ik = ik_idx(lz_lo,ilz)
@@ -4051,6 +4101,7 @@ contains
        if (jend(ig) /= 0) glz(2*jend(ig),ilz) = glz(jend(ig),ilz)
 
     end do
+    !$OMP END PARALLEL DO
 
     call scatter (lambda_map, glz, g)
 
@@ -4279,6 +4330,9 @@ contains
     call gather (energy_map, g, ged)
 
     ! solve for ged row by row
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
+    !$OMP SCHEDULE(dynamic)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
 
        it = it_idx(e_lo,ielo)       
@@ -4302,6 +4356,7 @@ contains
        end do
 
     end do
+    !$OMP END PARALLEL DO
 
     call scatter (energy_map, ged, g)
 
