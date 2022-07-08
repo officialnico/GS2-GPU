@@ -1725,6 +1725,10 @@ contains
     integer :: is, il, ie, ik, it, ig, ielo
 
     total = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1738,6 +1742,7 @@ contains
             w(ie,is)*wl(ig,il)*g(ie,ielo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (present(all)) then
        !Complete vspace integral and get result to all procs
@@ -1763,6 +1768,10 @@ contains
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     total = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1784,6 +1793,7 @@ contains
             w(ie,is)*wl(ig,il)*g(il,ilzlo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (present(all)) then
        !Complete vspace integral and get result to all procs
@@ -1816,6 +1826,10 @@ contains
     else
        nxup=nxi
     endif
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ile = lo%llim_proc, lo%ulim_proc
        is = is_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1836,6 +1850,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
     ! No need for communication since all velocity grid points are together
     ! and each prcessor does not touch the unset place
     ! They actually don't need to keep all 4D array
@@ -1861,6 +1876,10 @@ contains
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
     total = cmplx(0.0,0.0)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ile = lo%llim_proc, lo%ulim_proc
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
@@ -1881,6 +1900,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
     ! No need for communication since all velocity grid points are together
     ! and each prcessor does not touch the unset place
   end subroutine integrate_moment_le
