@@ -3307,7 +3307,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(deq .and. leq) then
        write(*,*) 'Choosing dfit_eq = .true. AND iflux = 0 is not permitted.'
        write(*,*) 'Stopping.'
-!       call mp_abort('Clash of equilibrium flags.')
+       call mp_abort('Clash of equilibrium flags.')
     endif
 
     if(deq .and. peq) then
