@@ -14,6 +14,7 @@ module optimisation_config
 
   public :: optimisation_config_type
   public :: set_optimisation_config_config
+  public :: get_optimisation_config_config
 
   logical :: initialized = .false.
   
@@ -82,7 +83,8 @@ module optimisation_config
      !> considered when looking for a constrained set of parameters.
      !> A negative value implies only the optimal parameters are considered.
      real :: min_efficiency = -1.0
-     !> The number of timestep to use in the timing experiments
+     !> The number of timestep to use in the timing experiments. Must
+     !> be greater than 1
      integer :: nstep_measure = 5
      !> Set true to turn on optimisation procedure
      logical :: on = .false.
@@ -102,7 +104,7 @@ module optimisation_config
 contains
   subroutine init_optimisation_config(optim, optimisation_config_config_in)
     use file_utils, only: open_output_file
-    use mp, only: nproc
+    use mp, only: nproc, proc0
     implicit none
     type(optimisation_type), intent(inout) :: optim
     type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
@@ -110,19 +112,20 @@ contains
     initialized = .true.
     call read_parameters(optim, optimisation_config_config_in)
     if(optim%on) then
-      call open_output_file(optim%outunit, '.optim')
+      if (proc0) call open_output_file(optim%outunit, '.optim')
     end if
     optim%nproc_max = nproc
   end subroutine init_optimisation_config
 
   subroutine finish_optimisation_config(optim)
     use file_utils, only: close_output_file
+    use mp, only: proc0
     implicit none
     type(optimisation_type), intent(inout) :: optim
     initialized = .false.
 
     if(optim%on) then
-      call close_output_file(optim%outunit)
+      if (proc0) call close_output_file(optim%outunit)
     end if
 
     call optimisation_config_config%reset()
@@ -130,6 +133,8 @@ contains
   end subroutine finish_optimisation_config
 
   subroutine read_parameters(optim, optimisation_config_config_in)
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     type(optimisation_type), intent(inout) :: optim
     type(optimisation_config_type), intent(in), optional :: optimisation_config_config_in
@@ -148,6 +153,12 @@ contains
     optim%nstep_measure = optimisation_config_config%nstep_measure
     optim%on = optimisation_config_config%on
     optim%warm_up = optimisation_config_config%warm_up
+
+    if (optim%nstep_measure < 2) then
+       optim%nstep_measure = 2
+       if (proc0) write(error_unit(), '("Warning nstep_measure must be at least 2. Forcing nstep_measure = 2")')
+    end if
+
   end subroutine read_parameters
 
   !> Set the module level config type
@@ -163,7 +174,13 @@ contains
        optimisation_config_config = optimisation_config_config_in
     end if
   end subroutine set_optimisation_config_config
-  
+
+  !> Get the module level config instance
+  function get_optimisation_config_config()
+    type(optimisation_config_type) :: get_optimisation_config_config
+    get_optimisation_config_config = optimisation_config_config
+  end function get_optimisation_config_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -175,7 +192,7 @@ contains
     implicit none
     class(optimisation_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -201,16 +218,8 @@ contains
     warm_up = self%warm_up
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = optimisation_config, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = optimisation_config)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = optimisation_config)
 
     ! Now copy from local variables into type members
     self%auto = auto

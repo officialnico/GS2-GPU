@@ -17,6 +17,7 @@ module theta_grid_params
 
   public :: theta_grid_parameters_config_type
   public :: set_theta_grid_params_config
+  public :: get_theta_grid_params_config
   
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
@@ -48,9 +49,9 @@ module theta_grid_params
      !> `geoType=0`, which selects the Generalised Miller analytic
      !> geometry specification).  `akappri` = \(d\kappa/d\rho\)
      real :: akappri = 0.0
-     !> Default = 0. Do not use unless you know what you are doing.
-     !>
-     !> @todo Provide more complete documentation
+     !> Used in conjunction with [[theta_grid_salpha_knobs:alpmhdfac]]
+     !> to override `shift`, set as `shift=-alpmhd*alpmhdfac`. Do not
+     !> use unless you know what you are doing.
      real :: alpmhd = 0.0
      !> Minor radius of the flux surface that receives the specified
      !> shaping (only used when `geoType=1`, which selects the Global
@@ -342,6 +343,8 @@ contains
       "theta_grid_params::init_theta_grid_params call read_parameters")
     call read_parameters(theta_grid_parameters_config_in)
 
+    betaprim = 0.0
+
     call debug_message(verb, "theta_grid_params::init_theta_grid_params end")
   end subroutine init_theta_grid_params
 
@@ -620,6 +623,12 @@ contains
     end if
   end subroutine set_theta_grid_params_config
 
+  !> Get the module level config instance
+  function get_theta_grid_params_config()
+    type(theta_grid_parameters_config_type) :: get_theta_grid_params_config
+    get_theta_grid_params_config = theta_grid_parameters_config
+  end function get_theta_grid_params_config
+
   !---------------------------------------
   ! Following is for the config_type
   !--------------------------------------- 
@@ -631,7 +640,7 @@ contains
     implicit none
     class(theta_grid_parameters_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -688,16 +697,8 @@ contains
     zaxis = self%zaxis
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = theta_grid_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = theta_grid_parameters)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = theta_grid_parameters)
 
     ! Now copy from local variables into type members
     self%akappa = akappa

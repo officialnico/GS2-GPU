@@ -204,8 +204,10 @@ contains
   subroutine close_module_test(module_name)
     character(*), intent(in) :: module_name
     character(17) :: message = 'Finished testing '
-    if (should_print(1)) call print_with_stars(message, module_name)
-    write (*,*)
+    if (should_print(1)) then
+       call print_with_stars(message, module_name)
+       write (*,*)
+    end if
   end subroutine close_module_test
 
   subroutine print_with_stars(str1, str2)

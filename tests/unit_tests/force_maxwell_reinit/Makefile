@@ -1,9 +1,11 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= *.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*} OUTPUT
+#export LOCAL_TEST_FILES
 
-PYTHONCOMPARE=./compare.py initial.out.nc phi restart.out.nc phi
+clean_individual_test: LOCAL_TEST_FILES:=*.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*}
+
+PYTHONCOMPARE:=./compare.py initial.out.nc phi restart.out.nc phi
 
 define LOCALFAILCOMMAND
 echo "FAILED: `basename $$PWD` ($(PYTHONCOMPARE))" >> results_of_test.txt ; $(TEST_DIR)/write_test_xml.sh `basename $$PWD` 1 0 1 0 $(TEST_RESULT_DIR); cat OUTPUT

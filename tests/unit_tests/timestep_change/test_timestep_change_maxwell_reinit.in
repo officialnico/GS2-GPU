@@ -1,0 +1,7 @@
+&fields_knobs
+                              field_option =  "local"
+                      force_maxwell_reinit =  T
+                                   minnrow =  64000
+/
+
+!include test_timestep_change.in

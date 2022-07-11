@@ -8,7 +8,7 @@ module fields_arrays
 
   public :: phi, apar, bpar, phinew, aparnew, bparnew
   public :: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
-  public :: apar_ext, time_field, response_file
+  public :: apar_ext, time_field, response_file, time_field_mpi
   public :: get_specific_response_file_name
 
   !Main fields
@@ -21,7 +21,7 @@ module fields_arrays
   ! (-ntgrid:ntgrid,ntheta0,naky) replicated
 
   !Timing data
-  real :: time_field(2)=0.
+  real :: time_field(2) = 0., time_field_mpi = 0.
   
   !For response data
   character(run_name_size) :: response_file = 'NOT_SET'

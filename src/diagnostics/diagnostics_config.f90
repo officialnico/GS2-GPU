@@ -5,7 +5,7 @@ module diagnostics_config
   use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
   use diagnostics_dimensions, only: diagnostics_dimension_list_type
-  use diagnostics_base_config, only: new_gs2_diagnostics_config_type => diagnostics_base_config_type
+  use diagnostics_base_config, only: diagnostics_base_config_type
   implicit none
 
   private
@@ -18,6 +18,7 @@ module diagnostics_config
 
   public :: new_gs2_diagnostics_config_type
   public :: set_diagnostics_config_config
+  public :: get_diagnostics_config_config
   public :: apply_new_defaults
 
   real, parameter :: initial_value = -1.0
@@ -167,7 +168,6 @@ module diagnostics_config
      logical :: write_gg
      logical :: ob_midplane
      logical :: write_nl_flux
-     logical :: write_hrate
      logical :: write_avg_moments
      logical :: dump_check1
      logical :: dump_check2
@@ -181,7 +181,10 @@ module diagnostics_config
 
   logical :: initialized = .false.
 
-  type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config  
+  type, extends(diagnostics_base_config_type) :: new_gs2_diagnostics_config_type
+  end type new_gs2_diagnostics_config_type
+
+  type(new_gs2_diagnostics_config_type) :: new_gs2_diagnostics_config
   
 contains
   subroutine init_diagnostics_config(gnostics, new_gs2_diagnostics_config_in)
@@ -299,10 +302,8 @@ contains
     ! values and are not available in this diagnostics module
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
-    call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%file_safety_check, "file_safety_check")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_hrate, "write_hrate")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
     call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_sym, "write_pflux_sym")
@@ -368,7 +369,6 @@ contains
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
-    gnostics%write_hrate = new_gs2_diagnostics_config%write_hrate
     gnostics%write_jext = new_gs2_diagnostics_config%write_jext
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
@@ -416,5 +416,11 @@ contains
        new_gs2_diagnostics_config = diagnostics_config_config_in
     end if
   end subroutine set_diagnostics_config_config
+
+  !> Get the module level config instance
+  function get_diagnostics_config_config()
+    type(new_gs2_diagnostics_config_type) :: get_diagnostics_config_config
+    get_diagnostics_config_config = new_gs2_diagnostics_config
+  end function get_diagnostics_config_config
 
 end module diagnostics_config
