@@ -843,6 +843,10 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -857,7 +861,12 @@ contains
              total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -871,6 +880,7 @@ contains
              total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
     !Reduce sum across all procs to make integral over all velocity space and species
     call sum_allreduce (total) 
@@ -905,6 +915,10 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total_small) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -919,7 +933,12 @@ contains
              total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total_small) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -933,6 +952,7 @@ contains
              total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
 
     !Reduce sum across all procs in sub communicator to make integral over all velocity space and species
@@ -1139,7 +1159,10 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
-
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP REDUCTION(+ : total_flat) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1157,7 +1180,12 @@ contains
              total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP REDUCTION(+ : total_flat) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1175,6 +1203,7 @@ contains
              total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
 
     !Reduce sum across all procs in sub communicator to make integral over all velocity space and species
@@ -1223,6 +1252,10 @@ contains
     integer :: is, il, ie, ik, it, ig, ielo
 
     total = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1238,6 +1271,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_e
@@ -1258,6 +1292,10 @@ contains
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     total = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1281,6 +1319,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_lz
@@ -1307,6 +1346,10 @@ contains
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
     total = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(dynamic)
     do ile = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1329,6 +1372,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
 
