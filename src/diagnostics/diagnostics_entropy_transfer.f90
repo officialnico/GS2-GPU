@@ -24,6 +24,26 @@ contains
     end subroutine init_diagnostics_entropy_transfer
 
     ! insert all actual modules needed for calculation
+    subroutine get_kxky_values(grid_array)
+        use kt_grids, only: ntheta0, naky, aky, akx
+        use gs2_layouts, only: g_lo, ik_idx, it_idx
+
+        implicit none
+
+        real, dimension(:,:), intent(out) :: grid_array
+        integer :: iglo, it, ik
+        real :: kx_value, ky_value
+
+        do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                it = it_idx(g_lo,iglo)
+                ik = ik_idx(g_lo,iglo)
+                kx_value = akx(it)
+                ky_value = aky(ik)
+                grid_array(it,ik) = ky_value
+        end do
+
+    end subroutine get_kxky_values
+
 
     subroutine write_entropy_transfer(gnostics) !complete for test
         use diagnostics_create_and_write, only: create_and_write_variable
@@ -49,14 +69,18 @@ contains
         
         type(diagnostics_type), intent(in out) :: gnostics
 
-        complex, dimension (:,:), allocatable ::  entropy_transfer
+        real, dimension (:,:), allocatable ::  entropy_transfer, grid_array
+
         allocate (entropy_transfer(ntheta0,naky)) ; entropy_transfer = 0.
+        allocate (grid_array(ntheta0,naky)) ; grid_array = 0.
 
         entropy_transfer = 1.0 !fake calculation
 
-        gnostics%current_results%entropy_transfer = entropy_transfer
+        call get_kxky_values(grid_array)
 
-        deallocate (entropy_transfer)
+        gnostics%current_results%entropy_transfer = grid_array
+
+        deallocate (entropy_transfer,grid_array)
 
     end subroutine calculate_entropy_transfer
 
