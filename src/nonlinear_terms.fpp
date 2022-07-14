@@ -668,6 +668,9 @@ contains
     if (minval(jend) .gt. ng2) trapped=.true.
 
     ! factor of one-half appears elsewhere
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, il, ig) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
 
@@ -713,6 +716,7 @@ contains
           endif
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine nl_center
 
   !> Calculate the nonlinear term and corresponding CFL condition
