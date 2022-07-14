@@ -59,6 +59,7 @@ module diagnostics_config
 
      ! free energy transfer due to nonlinearity
      complex, dimension(:,:), pointer :: zonal_transfer
+     real, dimension(:,:), pointer :: entropy_transfer !ADDED 
 
   end type results_summary_type
 
@@ -163,6 +164,7 @@ module diagnostics_config
      logical :: save_glo_info_and_grids
      logical :: save_velocities
      logical :: write_zonal_transfer
+     logical :: write_entropy_transfer !ADDED
      logical :: write_collisional
      logical :: write_omavg
      logical :: write_gg
@@ -230,6 +232,8 @@ contains
     allocate(gnostics%current_results%species_heating_avg(nspec))
     allocate(gnostics%current_results%omega_average(ntheta0, naky))
     allocate(gnostics%current_results%zonal_transfer(ntheta0,naky))
+    allocate(gnostics%current_results%entropy_transfer(ntheta0,naky)) !ADDED
+
 
   end subroutine allocate_current_results
 
@@ -250,6 +254,7 @@ contains
     deallocate(gnostics%current_results%species_heating_avg)
     deallocate(gnostics%current_results%omega_average)
     deallocate(gnostics%current_results%zonal_transfer)
+    deallocate(gnostics%current_results%entropy_transfer) !ADDED
   end subroutine deallocate_current_results
 
   !> Set values according to the new diagnostics defaults.
@@ -390,6 +395,7 @@ contains
     gnostics%write_upar_over_time = new_gs2_diagnostics_config%write_upar_over_time
     gnostics%write_verr = new_gs2_diagnostics_config%write_verr
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
+    gnostics%write_entropy_transfer = new_gs2_diagnostics_config%write_entropy_transfer !ADDED
 
     exist = new_gs2_diagnostics_config%exist
 

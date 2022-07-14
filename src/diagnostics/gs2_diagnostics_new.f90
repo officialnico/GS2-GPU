@@ -46,6 +46,7 @@ contains
     use diagnostics_antenna, only: init_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
+    use diagnostics_entropy_transfer, only: init_diagnostics_entropy_transfer !ADDED
     use collisional_heating, only: init_collisional
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
@@ -165,6 +166,7 @@ contains
     call init_diagnostics_velocity_space(gnostics)
     call init_diagnostics_antenna(gnostics)
     call init_diagnostics_transfer(gnostics)
+    call init_diagnostics_entropy_transfer(gnostics) !ADDED
     call init_collisional(gnostics)
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
@@ -369,6 +371,7 @@ contains
     use mp, only: proc0
     use simpledataio, only: print_dimensions
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
+    use diagnostics_entropy_transfer, only: write_entropy_transfer, calculate_entropy_transfer !ADDED
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
@@ -526,7 +529,12 @@ contains
        if (gnostics%write_zonal_transfer) then
           call calculate_zonal_transfer(gnostics)
           call write_zonal_transfer(gnostics)
-       end if 
+       end if
+
+       if (gnostics%write_entropy_transfer) then
+          call calculate_entropy_transfer(gnostics)
+          call write_entropy_transfer(gnostics)
+       end if
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
           call calculate_collisional(gnostics)
