@@ -118,6 +118,7 @@ openmp_tests:
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
     PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
     OMP_NUM_THREADS: 2
+    GK_CI_PFUNIT: ""
   script: *default_script
 
 gfortran11_mpich:
