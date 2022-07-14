@@ -113,6 +113,9 @@ contains
        bpar_factor = 0.0
     end if
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ig, ik, it, il, ie, is, phi_factor, adj) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -137,6 +140,7 @@ contains
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine g_adjust
 
   !> This routine checks trapped particle bounce conditions: 
