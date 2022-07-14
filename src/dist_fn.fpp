@@ -5421,6 +5421,9 @@ contains
 !use the various antots if we're not calculating/using the related field).
 
     if (fphi > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5428,6 +5431,7 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
 
        wgt = spec%z*spec%dens
        call integrate_species (g_work, wgt, antot)
@@ -5440,6 +5444,9 @@ contains
     end if
 
     if (fapar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5447,6 +5454,7 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
@@ -5457,6 +5465,9 @@ contains
     end if
 
     if (fbpar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5464,6 +5475,8 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
+
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
@@ -6514,6 +6527,9 @@ contains
 
       if(.not. gf_lo_integrate) then
          if(any(kwork_filter))then
+            !$OMP PARALLEL DO DEFAULT(shared) &
+            !$OMP PRIVATE(iglo, isgn, it, ik) &
+            !$OMP SCHEDULE(dynamic)
             do iglo = g_lo%llim_proc, g_lo%ulim_proc
                it=it_idx(g_lo,iglo)
                ik=ik_idx(g_lo,iglo)
@@ -6522,12 +6538,17 @@ contains
                   g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
                end do
             end do
+            !$OMP END PARALLEL DO
          else
+            !$OMP PARALLEL DO DEFAULT(shared) &
+            !$OMP PRIVATE(iglo, isgn) &
+            !$OMP SCHEDULE(dynamic)
             do iglo = g_lo%llim_proc, g_lo%ulim_proc
                do isgn = 1, 2
                   g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
                end do
             end do
+            !$OMP END PARALLEL DO
          endif
          call integrate_species (g_work, wgt, antot, nogath=.true.)
       end if
@@ -6582,6 +6603,9 @@ contains
 
        if(.not. gf_lo_integrate) then
           if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(dynamic)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6590,12 +6614,17 @@ contains
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           else
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP SCHEDULE(dynamic)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
        end if
@@ -6653,6 +6682,9 @@ contains
        if(.not. gf_lo_integrate) then
 
           if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(dynamic)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6661,12 +6693,17 @@ contains
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           else
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP SCHEDULE(dynamic)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
        end if
