@@ -4968,7 +4968,7 @@ contains
           if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
        end if
 
-       if (is_self_periodic) call self_periodic(iglo, g1, is, ie, it, ik)
+       if (is_self_periodic) call self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
 
        ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
        !CMR, 24/7/2014:
@@ -5026,54 +5026,60 @@ contains
 
     if (def_parity) call enforce_parity(parity_redist)
 
-  contains
-
-    !> Sets sum of homogeneous and inhomogeneous solutions to give a result
-    !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
-    !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
-    !> ie periodic bcs at the ends of the flux tube.
-    !>
-    !> CMR, 25/7/2014:
-    !> self-periodic applied to zonal modes (makes sense)
-    !>                      and wfb        (seems strange)
-    !> adding adjr, adjl to cope with application of self-periodic to WFB
-    !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
-    !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
-    !> NB this code change will implement this only in ballooning space,
-    !> and not in a linked fluxtube.
-    subroutine self_periodic(iglo, g1, is, ie, it, ik)
-      implicit none
-      integer, intent(in) :: iglo, is, ie, it, ik
-      complex, dimension(-ntgrid:, :), intent(in) :: g1
-      complex :: adjl, adjr, dadj
-
-      if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
-         adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-              *bparnew(-ntgrid,it,ik)*fbpar &
-              + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-              *nonmaxw_corr(ie,is)*fphi
-         adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-              *bparnew(ntgrid,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-              *nonmaxw_corr(ie,is)*fphi
-         dadj = adjl-adjr
-      else 
-         dadj = cmplx(0.0,0.0)
-      endif
-
-      if (g1(ntgrid,1) /= 1.) then
-         beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
-         gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
-      end if
-
-      if (g1(-ntgrid,2) /= 1.) then
-         beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
-         gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
-      end if
-      
-    end subroutine self_periodic
-
   end subroutine invert_rhs_1
+
+  !> Sets sum of homogeneous and inhomogeneous solutions to give a result
+  !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
+  !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
+  !> ie periodic bcs at the ends of the flux tube.
+  !>
+  !> CMR, 25/7/2014:
+  !> self-periodic applied to zonal modes (makes sense)
+  !>                      and wfb        (seems strange)
+  !> adding adjr, adjl to cope with application of self-periodic to WFB
+  !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
+  !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
+  !> NB this code change will implement this only in ballooning space,
+  !> and not in a linked fluxtube.
+  subroutine self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
+    use species, only: spec, nonmaxw_corr
+    use dist_fn_arrays, only: vperp2, aj1, aj0
+    use run_parameters, only: fphi, fbpar
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: gnew
+    complex, dimension(-ntgrid:, :), intent(in) :: g1
+    integer, intent(in) :: iglo, is, ie, it, ik
+    logical, intent(in) :: is_wfb
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
+    complex :: adjl, adjr, dadj, beta1
+
+    if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
+       adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+            *bparnew(-ntgrid,it,ik)*fbpar &
+            + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+            *nonmaxw_corr(ie,is)*fphi
+       adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+            *bparnew(ntgrid,it,ik)*fbpar &
+            + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+            *nonmaxw_corr(ie,is)*fphi
+       dadj = adjl-adjr
+    else
+       dadj = cmplx(0.0,0.0)
+    endif
+
+    if (g1(ntgrid,1) /= 1.) then
+       beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
+       gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
+    end if
+
+    if (g1(-ntgrid,2) /= 1.) then
+       beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
+       gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
+    end if
+
+  end subroutine self_periodic
 
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
