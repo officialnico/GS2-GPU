@@ -758,12 +758,16 @@ contains
     !Form g1=i*ky*g_wesson
     g1=g
     call g_adjust(g1,phi,bpar,fphi,fbpar)
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ik) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
     enddo
+    !$OMP END PARALLEL DO
 
-    !Transform to real space    
+    !Transform to real space
     if (accelerated) then
        call transform2 (g1, agb, ia)
     else
@@ -796,10 +800,15 @@ contains
     !Form g1=i*kx*g_wesson
     g1=g
     call g_adjust(g1,phi,bpar,fphi,fbpar)
+
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ik) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
     enddo
+    !$OMP END PARALLEL DO
     
     !Transform to real space
     if (accelerated) then
@@ -844,6 +853,9 @@ contains
     integer :: iglo, it, ik
 
     if (fphi > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -851,6 +863,7 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
        g1 = 0.
     endif
@@ -871,6 +884,9 @@ contains
     integer :: iglo, it, ik
 
     if (fphi > epsilon(0.0)) then      
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SCHEDULE(dynamic)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -878,6 +894,7 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
        g1 = 0.
     endif
@@ -903,6 +920,9 @@ contains
 
     if(fapar <= epsilon(0.0)) return
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -912,7 +932,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_apar
 
   !> FIXME : Add documentation    
@@ -932,6 +952,9 @@ contains
 
     if(fapar <= epsilon(0.0)) return
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -941,7 +964,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_apar
 
   !> FIXME : Add documentation    
@@ -963,6 +986,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -972,7 +998,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_bpar
 
   !> FIXME : Add documentation    
@@ -994,6 +1020,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -1003,7 +1032,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_bpar
 
   !> Calculates an estimate of the current maximum velocity due to the
