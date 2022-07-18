@@ -462,8 +462,7 @@ contains
     character(20) :: field_option
     character(len=256) :: response_dir
     character(len=256) :: response_file
-    integer :: ierr
-
+    integer :: ierr, ind_slash
 
     if (present(fields_config_in)) fields_config = fields_config_in
 
@@ -498,7 +497,21 @@ contains
     if(trim(response_dir).eq.'')then
        write(real_response_file,'(A)') trim(response_file)
     else
-       write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       ! Need to check if resopnse_file has a directory path in it
+       ! to ensure we merge with response_dir correctly. For example,
+       ! consider response_file = '../../run/input' and response_dir = 'resp'.
+       ! We want to form response_file = '../../run/resp/input' and not
+       ! 'resp/../../run/input' as would happen if just concatenate.
+       ! Check for index of last '/'
+       ind_slash = index(response_file, "/", back = .true.)
+       if (ind_slash == 0) then
+          write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       else
+          write(real_response_file,'(A,A,"/",A)') &
+               trim(response_file(1:ind_slash)), &
+               trim(response_dir), &
+               trim(response_file(ind_slash+1:))
+       end if
     endif
 
     !Set the solve type specific flags
