@@ -873,8 +873,8 @@ contains
 
   !> FIXME : Add documentation 
   subroutine init_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc, proc0, comm_type, mp_abort
+       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    use mp, only: proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
     use file_utils, only: error_unit
@@ -883,7 +883,7 @@ contains
     use mp, only: allgather
 #endif
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
@@ -1698,12 +1698,11 @@ contains
 
   !> FIXME : Add documentation   
   subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
-       M_class, N_class, i_class)
-    use mp, only: iproc, nproc
+       M_class, N_class, i_class, nproc, iproc)
     implicit none
     integer, intent (in) :: nfield, nindex, naky, ntheta0
     integer, dimension(:), intent (in) :: M_class, N_class
-    integer, intent (in) :: i_class
+    integer, intent (in) :: i_class, nproc, iproc
     integer :: i, utmp, btmp
 
     if (initialized_fields_layouts) return
@@ -1907,10 +1906,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation  
-  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class)
-    use mp, only: iproc, nproc
+  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
     implicit none
-    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class
+    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class, nproc, iproc
     integer :: jlo
     if (initialized_jfields_layouts) return
     initialized_jfields_layouts = .true.
@@ -2063,11 +2061,11 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation  
-  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec)
-    use mp, only: iproc, nproc, min_allreduce
+  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
+    use mp, only:min_allreduce
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nspec, nproc, iproc
     integer :: ik_min, it_min, ig_min, is_min
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
@@ -2267,12 +2265,12 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation  
-  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
-    use mp, only: iproc, nproc, mp_abort
+  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
+    use mp, only: mp_abort
     use file_utils, only: error_unit
     use layouts_type, only: ikit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
 
     if (initialized_gf_layouts) return
     initialized_gf_layouts = .true.
@@ -2491,11 +2489,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_energy_layouts &
-       (ntgrid, naky, ntheta0, nlambda, nspec)
-    use mp, only: iproc, nproc
+       (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
 
     if (initialized_energy_layouts) return
     initialized_energy_layouts = .true.
@@ -2661,11 +2658,10 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lambda_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-    use mp, only: iproc, nproc
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc
     integer :: ngroup, nprocset
 
     if (initialized_lambda_layouts) return
@@ -2853,10 +2849,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_parity_layouts &
-       (naky, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc
+       (naky, nlambda, negrid, nspec, nproc, iproc)
     implicit none
-    integer, intent (in) :: naky, nlambda, negrid, nspec
+    integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
 
     if (initialized_parity_layouts) return
     initialized_parity_layouts = .true.
@@ -3035,10 +3030,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !> FIXME : Add documentation  
   subroutine init_x_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    use mp, only: iproc, nproc, proc0, barrier
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+    use mp, only: proc0, barrier
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
 
@@ -3933,11 +3928,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_y_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use mp, only: iproc, nproc, proc0
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+    use mp, only: proc0
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
-    integer, intent (in) :: nx, ny
+    integer, intent (in) :: nx, ny, nproc, iproc
     integer :: nnx, nny, ngroup, nprocset, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
 
@@ -4502,14 +4497,13 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_accel_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use mp, only: iproc, nproc
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 #ifdef SHMEM
     use mp, only: proc0, allgather
     use shm_mpi3, only : shm_info
 #endif
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
     integer :: nnx, nny
 #ifdef SHMEM
