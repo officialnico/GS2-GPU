@@ -120,7 +120,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-    use mp, only: nproc, proc0, mp_abort
+    use mp, only: nproc, iproc, proc0, mp_abort
     use gs2_layouts, only: init_gs2_layouts
     use gs2_layouts, only: pe_layout, init_accel_transform_layouts
     use gs2_layouts, only: init_y_transform_layouts
@@ -162,7 +162,7 @@ contains
 #endif
        accel = .true.
        if (debug) write (*,*) 'init_transforms: init_gs2_layouts (accel)'
-       call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+       call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     else
        !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
        !Could automate selection, though above condition is only fairly rough
@@ -172,9 +172,9 @@ contains
 
     ! need these for movies
     if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
-    call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+    call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
-    call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+    call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
     
     if (debug) write (*,*) 'init_transforms: init_y_fft'
     call init_y_fft (ntgrid)
@@ -494,7 +494,7 @@ contains
     use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
     use sorting, only: quicksort
@@ -515,7 +515,7 @@ contains
 
     !Setup the xxf_lo layout object
     call init_x_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
 
     ! count number of elements to be redistributed to/from each processor
     nn_to = 0
@@ -709,7 +709,7 @@ contains
     use gs2_layouts, only: init_y_transform_layouts
     use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort
@@ -734,7 +734,7 @@ contains
 
     !Setup the yxf layout object
     call init_y_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 
     !Initialise counts to zero
     nn_to = 0

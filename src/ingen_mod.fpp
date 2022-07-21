@@ -1559,6 +1559,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use le_grids, only: negrid, nlambda
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, init_x_transform_layouts, init_y_transform_layouts, factors
+    use mp, only: nproc, iproc
     implicit none
     real :: fac
     integer, intent (in) :: nmesh
@@ -1579,8 +1580,8 @@ if (debug) write(6,*) 'get_namelists: returning'
        write (report_unit, fmt="('----------------------------------------------------------------------------------------------------------------------------------------------')")
 
 
-       call init_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-       call init_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+       call init_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+       call init_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 
        select case (layout)
        case ('lexys')

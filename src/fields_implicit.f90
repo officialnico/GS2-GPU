@@ -482,7 +482,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_response_matrix
-    use mp, only: barrier, land_allreduce, proc0
+    use mp, only: barrier, land_allreduce, proc0, nproc, iproc
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -506,8 +506,8 @@ contains
     if (fbpar > epsilon(0.0)) nfield = nfield + 1
     nidx = (2*ntgrid+1)*nfield
 
-    call init_fields_layouts (nfield, nidx, naky, ntheta0, M_class, N_class, i_class)
-    call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class)
+    call init_fields_layouts (nfield, nidx, naky, ntheta0, M_class, N_class, i_class, nproc, iproc)
+    call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class, nproc, iproc)
     call finish_fields_layouts
 
     response_was_read = .false.

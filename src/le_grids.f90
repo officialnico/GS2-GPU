@@ -555,11 +555,11 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use gs2_layouts, only: init_dist_fn_layouts, pe_layout
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     implicit none
     character (1) :: char
 
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     if (.not. intinit) then
        intinit = .true.
@@ -3344,7 +3344,7 @@ contains
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the le_lo decomposition.
   subroutine init_g2le_redistribute_local
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3378,7 +3378,7 @@ contains
     leinit = .true.
 
     !Setup the le layout object (le_lo)
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec)
+    call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
 
     !Initialise the data counters
     nn_to = 0
@@ -3671,7 +3671,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_g2gf_redistribute
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3698,7 +3698,7 @@ contains
     gfinit = .true.
 
     !Setup the le layout object (gf_lo)
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
     !Initialise the data counters
     nn_to = 0
@@ -3951,7 +3951,7 @@ contains
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
   subroutine init_lambda_redistribute_local
-    use mp, only: nproc, barrier
+    use mp, only: nproc, iproc, barrier
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3978,7 +3978,7 @@ contains
 
     !Setup the lambda layout object (lz_lo)
     call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
 
     !Initialise data counters
     nn_to = 0
@@ -4162,7 +4162,7 @@ contains
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the e_lo decomposition
   subroutine init_energy_redistribute_local
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky,ntheta0
@@ -4188,7 +4188,7 @@ contains
 
     !Initialise e_lo layout object
     call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec)
+         (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
 
     !Initialise counters to zero
     nn_to = 0
