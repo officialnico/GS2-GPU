@@ -129,6 +129,8 @@ module gs2_layouts
 
   type (jf_layout_type) :: jf_lo
 
+  !> These are used with jf_lo. Perhaps we should make these a member of
+  !> the jf_layout_type.
   integer, dimension(:), allocatable :: ij, mj
   integer, dimension(:,:), allocatable :: dj
 
@@ -1932,13 +1934,12 @@ contains
 ! Fast field layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
+  !> Construct a jfields instance
+  type(jf_layout_type) function setup_jfields_layouts &
+       (nfield, nindex, naky, ntheta0, i_class, nproc, iproc) result(jf_lo)
     implicit none
     integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class, nproc, iproc
     integer :: jlo
-    if (initialized_jfields_layouts) return
-    initialized_jfields_layouts = .true.
     
     jf_lo%iproc = iproc
     jf_lo%nindex = nindex
@@ -1953,7 +1954,7 @@ contains
     jf_lo%ulim_proc = min(jf_lo%ulim_world, jf_lo%llim_proc + jf_lo%blocksize - 1)
     jf_lo%ulim_alloc = max(jf_lo%llim_proc, jf_lo%ulim_proc)
 
-    !Now work out the range of dimensions stored on this proc !<DD>
+    !Now work out the range of dimensions stored on this proc
     jf_lo%ig_max=-jf_lo%ntgrid-1
     jf_lo%ig_min=jf_lo%ntgrid+1
     jf_lo%ifield_max=0
@@ -1973,11 +1974,23 @@ contains
        jf_lo%it_min=MIN(jf_lo%it_min,it_idx(jf_lo,jlo))
     enddo
 
+    !> Note this will fail if we attempt to call this method
+    !> twice without call finish_jfields_layouts in between as
+    !> it attempts to modify module state. It would be better
+    !> to make these members of the jf_layout_type
     allocate (ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
     allocate (mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
     allocate (dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
     ij = 1  ; mj = 1;  dj = 0
-    
+  end function setup_jfields_layouts
+
+  !> Setup the module level jfields instance
+  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
+    implicit none
+    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class, nproc, iproc
+    if (initialized_jfields_layouts) return
+    initialized_jfields_layouts = .true.
+    jf_lo = setup_jfields_layouts(nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
   end subroutine init_jfields_layouts
 
   !> FIXME : Add documentation  
