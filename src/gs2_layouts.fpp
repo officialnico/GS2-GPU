@@ -3103,17 +3103,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! X-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> FIXME : Add documentation  
-  subroutine init_x_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+
+  !> Construct an xxf_lo instance.
+  type(xxf_layout_type) function setup_x_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc) result(xxf_lo)
     use mp, only: proc0, barrier
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
-
-    if (initialized_x_transform) return
-    initialized_x_transform = .true.
 
     xxf_lo%iproc = iproc
     xxf_lo%ntgrid = ntgrid
@@ -3157,13 +3155,13 @@ contains
     xxf_lo%dim_size(xxf_lo%il_ord)=nlambda
     xxf_lo%dim_size(xxf_lo%ie_ord)=negrid
     xxf_lo%dim_size(xxf_lo%is_ord)=nspec
-    
+
     xxf_lo%compound_count(1)=1
     xxf_lo%compound_count(2)=xxf_lo%compound_count(1)*xxf_lo%dim_size(1)
     xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*xxf_lo%dim_size(2)
     xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*xxf_lo%dim_size(3)
     xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*xxf_lo%dim_size(4)
-    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)    
+    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)
 
     xxf_lo%ig_comp=xxf_lo%compound_count(xxf_lo%ig_ord)
     xxf_lo%isgn_comp=xxf_lo%compound_count(xxf_lo%isgn_ord)
@@ -3173,13 +3171,13 @@ contains
     xxf_lo%is_comp=xxf_lo%compound_count(xxf_lo%is_ord)
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
-    if (accel_lxyes) then  
+    if (accel_lxyes) then
 
        xxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
        xxf_lo%ngroup = ngroup
-       
+
        nprocset = nproc / xxf_lo%ngroup
        xxf_lo%nprocset = nprocset
 
@@ -3188,10 +3186,10 @@ contains
 
        xxf_lo%llim_group = 0
        xxf_lo%ulim_group = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize - 1
-       xxf_lo%gsize      = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize 
-       
+       xxf_lo%gsize      = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize
+
        xxf_lo%nset = xxf_lo%ulim_group/xxf_lo%nprocset + 1
-       
+
        xxf_lo%llim_proc = xxf_lo%igroup*xxf_lo%gsize + xxf_lo%iset*xxf_lo%nset
        xxf_lo%ulim_proc = min(xxf_lo%ulim_group+xxf_lo%igroup*xxf_lo%gsize, &
             xxf_lo%llim_proc + xxf_lo%nset - 1)
@@ -3229,7 +3227,7 @@ contains
           xxf_lo%ulim_alloc = max(xxf_lo%llim_proc, xxf_lo%ulim_proc)
 
        else
-             
+
           if(proc0) then
              write(*, fmt="('Using unbalanced decomposition for xxf. ',&
               & 'Unbalanced fraction',F6.2)") unbalanced_amount
@@ -3238,7 +3236,18 @@ contains
        end if
 
     end if
+  end function setup_x_transform_layouts
 
+  !> Setup the module level xxf_lo instance
+  subroutine init_x_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc
+
+    if (initialized_x_transform) return
+    initialized_x_transform = .true.
+    xxf_lo = setup_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, nproc, iproc)
   end subroutine init_x_transform_layouts
 
   !> This subroutine (calculate_unbalanced_x) wraps up all the 
