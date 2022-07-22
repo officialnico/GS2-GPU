@@ -4010,18 +4010,15 @@ contains
 ! Y-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_y_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+  !> Construct a yxf_lo instance.
+  type(yxf_layout_type) function setup_y_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc) result(yxf_lo)
     use mp, only: proc0
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
     integer, intent (in) :: nx, ny, nproc, iproc
     integer :: nnx, nny, ngroup, nprocset, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
-
-    if (initialized_y_transform) return
-    initialized_y_transform = .true.
 
     if (nx > ntheta0) then
        nnx = nx
@@ -4072,13 +4069,13 @@ contains
     yxf_lo%dim_size(yxf_lo%il_ord)=nlambda
     yxf_lo%dim_size(yxf_lo%ie_ord)=negrid
     yxf_lo%dim_size(yxf_lo%is_ord)=nspec
-    
+
     yxf_lo%compound_count(1)=1
     yxf_lo%compound_count(2)=yxf_lo%compound_count(1)*yxf_lo%dim_size(1)
     yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*yxf_lo%dim_size(2)
     yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*yxf_lo%dim_size(3)
     yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*yxf_lo%dim_size(4)
-    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)    
+    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)
 
     yxf_lo%ig_comp=yxf_lo%compound_count(yxf_lo%ig_ord)
     yxf_lo%isgn_comp=yxf_lo%compound_count(yxf_lo%isgn_ord)
@@ -4089,13 +4086,13 @@ contains
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
 
-    if (accel_lxyes) then  
+    if (accel_lxyes) then
 
        yxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
        yxf_lo%ngroup = ngroup
-       
+
        nprocset = nproc / yxf_lo%ngroup
        yxf_lo%nprocset = nprocset
 
@@ -4105,9 +4102,9 @@ contains
        yxf_lo%llim_group = 0
        yxf_lo%ulim_group = nnx*(2*ntgrid+1)*2*nlambda - 1
        yxf_lo%gsize      = nnx*(2*ntgrid+1)*2*nlambda*yxf_lo%groupblocksize
-       
+
        yxf_lo%nset = yxf_lo%ulim_group/yxf_lo%nprocset + 1
-       
+
        yxf_lo%llim_proc = yxf_lo%igroup*yxf_lo%gsize + yxf_lo%iset*yxf_lo%nset
        yxf_lo%ulim_proc = min(yxf_lo%ulim_group+yxf_lo%igroup*yxf_lo%gsize, &
             yxf_lo%llim_proc + yxf_lo%nset - 1)
@@ -4129,24 +4126,24 @@ contains
        ! Note: We precalculate 2*ntgrid+1 as ntgridtotal.
        ! This functionality is the same as the functionality in
        ! init_x_transform_layouts which is extensively commented.
-       ! Please see init_x_transform_layouts for more details on the 
+       ! Please see init_x_transform_layouts for more details on the
        ! functionality below.
        if (unbalanced_yxf) then
 
           call calculate_unbalanced_y(nproc, iproc, unbalanced_amount)
-          
+
        end if
-       
+
        if (.not. unbalanced_yxf) then
-          
+
           yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
           yxf_lo%llim_proc = yxf_lo%blocksize*iproc
           yxf_lo%ulim_proc &
                = min(yxf_lo%ulim_world, yxf_lo%llim_proc + yxf_lo%blocksize - 1)
           yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-       
+
        else
-             
+
           if(proc0) then
              write(*, fmt="('Using unbalanced decomposition for yxf. ',&
              & 'Unbalanced fraction',F6.2)") unbalanced_amount
@@ -4155,8 +4152,19 @@ contains
        end if
 
     end if
+  end function setup_y_transform_layouts
 
+  !> Setup the module level yxf_lo instance.
+  subroutine init_y_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: nx, ny, nproc, iproc
 
+    if (initialized_y_transform) return
+    initialized_y_transform = .true.
+    yxf_lo = setup_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
   end subroutine init_y_transform_layouts
 
   !> FIXME : Add documentation
