@@ -2310,16 +2310,15 @@ contains
 ! a single process.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
+  !> Construct a gf_layout_type instance.
+  type(gf_layout_type) function setup_gf_layouts &
+       (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc) &
+       result(gf_lo)
     use mp, only: mp_abort
     use file_utils, only: error_unit
     use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
-
-    if (initialized_gf_layouts) return
-    initialized_gf_layouts = .true.
     
     gf_lo%iproc = iproc
     gf_lo%nproc = nproc
@@ -2446,9 +2445,18 @@ contains
           gf_lo%xypoints = gf_lo%smallblocksize
        end if
     end if
-        
-    gf_lo%ulim_alloc = gf_lo%ulim_proc
 
+    gf_lo%ulim_alloc = gf_lo%ulim_proc
+  end function setup_gf_layouts
+
+  !> Setup the module level gf_lo instance.
+  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
+
+    if (initialized_gf_layouts) return
+    initialized_gf_layouts = .true.
+    gf_lo = setup_gf_layouts(ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
   end subroutine init_gf_layouts
 
   !> FIXME : Add documentation    
