@@ -37,7 +37,6 @@ module gs2_layouts
 
   public :: init_jfields_layouts
   public :: jf_lo, jf_layout_type
-  public :: mj, ij, dj
 
   public :: init_lambda_layouts
   public :: lz_lo
@@ -125,14 +124,11 @@ module gs2_layouts
      integer :: nindex, naky, ntheta0, ntgrid, nfield
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer :: ig_min,ig_max,ifield_min,ifield_max,it_min,it_max,ik_min,ik_max
+     integer, dimension(:), allocatable :: ij, mj
+     integer, dimension(:,:), allocatable :: dj
   end type jf_layout_type
 
   type (jf_layout_type) :: jf_lo
-
-  !> These are used with jf_lo. Perhaps we should make these a member of
-  !> the jf_layout_type.
-  integer, dimension(:), allocatable :: ij, mj
-  integer, dimension(:,:), allocatable :: dj
 
   type (lz_layout_type) :: lz_lo
 
@@ -1978,10 +1974,10 @@ contains
     !> twice without call finish_jfields_layouts in between as
     !> it attempts to modify module state. It would be better
     !> to make these members of the jf_layout_type
-    allocate (ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
-    allocate (mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
-    allocate (dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
-    ij = 1  ; mj = 1;  dj = 0
+    allocate (jf_lo%ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
+    allocate (jf_lo%mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
+    allocate (jf_lo%dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
+    jf_lo%ij = 1  ;  jf_lo%mj = 1;   jf_lo%dj = 0
   end function setup_jfields_layouts
 
   !> Setup the module level jfields instance
@@ -1996,9 +1992,6 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_jfields_layouts
     implicit none
-    if(allocated(ij)) deallocate(ij)
-    if(allocated(mj)) deallocate(mj)
-    if(allocated(dj)) deallocate(dj)
     initialized_jfields_layouts = .false.
   end subroutine finish_jfields_layouts
 
