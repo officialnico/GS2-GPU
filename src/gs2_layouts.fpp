@@ -1711,17 +1711,16 @@ contains
 ! N_class(i) = size of i_th supercell
 ! i_class = number of classes of (different sized) supercells.  
 
-  !> FIXME : Add documentation   
-  subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
-       M_class, N_class, i_class, nproc, iproc)
+  !> Construct a fields layout instance
+ function setup_fields_layouts &
+      (nfield, nindex, naky, ntheta0, M_class, N_class, i_class, nproc, iproc) &
+      result(f_lo)
     implicit none
     integer, intent (in) :: nfield, nindex, naky, ntheta0
     integer, dimension(:), intent (in) :: M_class, N_class
     integer, intent (in) :: i_class, nproc, iproc
+    type (f_layout_type), dimension(:), allocatable :: f_lo
     integer :: i, utmp, btmp
-
-    if (initialized_fields_layouts) return
-    initialized_fields_layouts = .true.
     
     allocate (f_lo(i_class))
     do i = 1, i_class
@@ -1753,7 +1752,20 @@ contains
        f_lo(i)%ulim_proc = min(f_lo(i)%ulim_world, f_lo(i)%llim_proc + f_lo(i)%blocksize - 1)
        f_lo(i)%ulim_alloc = max(f_lo(i)%llim_proc, f_lo(i)%ulim_proc)
     end do
+  end function setup_fields_layouts
 
+  !> Construct the module level fields_layout instance
+  subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
+       M_class, N_class, i_class, nproc, iproc)
+    implicit none
+    integer, intent (in) :: nfield, nindex, naky, ntheta0
+    integer, dimension(:), intent (in) :: M_class, N_class
+    integer, intent (in) :: i_class, nproc, iproc
+
+    if (initialized_fields_layouts) return
+    initialized_fields_layouts = .true.
+    f_lo = setup_fields_layouts(nfield, nindex, naky, ntheta0, &
+       M_class, N_class, i_class, nproc, iproc)
   end subroutine init_fields_layouts
 
   !> FIXME : Add documentation   
