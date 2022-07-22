@@ -2915,15 +2915,12 @@ contains
 ! layouts for parity diagnostic 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_parity_layouts &
-       (naky, nlambda, negrid, nspec, nproc, iproc)
+  !> Construct a parity layout instance.
+  type(p_layout_type) function setup_parity_layouts &
+       (naky, nlambda, negrid, nspec, nproc, iproc) result(p_lo)
     implicit none
     integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
 
-    if (initialized_parity_layouts) return
-    initialized_parity_layouts = .true.
-    
     p_lo%iproc = iproc
     p_lo%naky = naky
     p_lo%nlambda = nlambda
@@ -2997,7 +2994,17 @@ contains
     p_lo%ik_comp=p_lo%compound_count(p_lo%ik_ord)
     p_lo%il_comp=p_lo%compound_count(p_lo%il_ord)
     p_lo%is_comp=p_lo%compound_count(p_lo%is_ord)
+  end function setup_parity_layouts
 
+  !> Setup the module level p_lo instance
+  subroutine init_parity_layouts &
+       (naky, nlambda, negrid, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
+
+    if (initialized_parity_layouts) return
+    initialized_parity_layouts = .true.
+    p_lo = setup_parity_layouts(naky, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_parity_layouts
 
   !> FIXME : Add documentation  
