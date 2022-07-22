@@ -876,6 +876,11 @@ contains
   !> MPI routines so requires all processors on comm world to take
   !> part. This does not require the input nproc to match the nproc
   !> of the world communicator.
+  !>
+  !> Note this can touch the following module level data:
+  !> * gf_local_fields
+  !> * intmom_sub
+  !> * intspec_sub
   type(g_layout_type) function setup_dist_fn_layouts &
        (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
     use mp, only: proc0, comm_type, mp_abort
