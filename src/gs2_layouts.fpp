@@ -2100,8 +2100,9 @@ contains
 ! Lambda-Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
+  !> Construct a le_layout_type instance.
+  type(le_layout_type) function setup_le_layouts &
+       (ntgrid, naky, ntheta0, nspec, nproc, iproc) result(le_lo)
     use mp, only:min_allreduce
     use file_utils, only: error_unit
     implicit none
@@ -2111,10 +2112,6 @@ contains
     integer :: ik, it, ig, is, ile
     !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
     integer :: is_dim_local
-
-    if (initialized_le_layouts) return
-    initialized_le_layouts = .true.
-    
     le_lo%iproc = iproc
     le_lo%ntgrid = ntgrid
     le_lo%ntgridtotal=(2*ntgrid+1)
@@ -2214,7 +2211,16 @@ contains
     call min_allreduce(is_dim_local)
     if(is_dim_local == 0) le_lo%s_local = .false.
 
-    !</DD>
+  end function setup_le_layouts
+
+  !> Setup the module level le_lo
+  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nspec, nproc, iproc
+
+    if (initialized_le_layouts) return
+    initialized_le_layouts = .true.
+    le_lo = setup_le_layouts(ntgrid, naky, ntheta0, nspec, nproc, iproc)
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
