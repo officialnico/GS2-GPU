@@ -2541,16 +2541,13 @@ contains
 ! Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation
-  subroutine init_energy_layouts &
-       (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
+  !> Construct an energy layout instance.
+  type(e_layout_type) function setup_energy_layouts &
+       (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc) result(e_lo)
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
 
-    if (initialized_energy_layouts) return
-    initialized_energy_layouts = .true.
-    
     e_lo%iproc = iproc
     e_lo%ntgrid = ntgrid
     e_lo%nsign = 2
@@ -2589,13 +2586,13 @@ contains
     e_lo%dim_size(e_lo%ik_ord)=naky
     e_lo%dim_size(e_lo%il_ord)=nlambda
     e_lo%dim_size(e_lo%is_ord)=nspec
-    
+
     e_lo%compound_count(1)=1
     e_lo%compound_count(2)=e_lo%compound_count(1)*e_lo%dim_size(1)
     e_lo%compound_count(3)=e_lo%compound_count(2)*e_lo%dim_size(2)
     e_lo%compound_count(4)=e_lo%compound_count(3)*e_lo%dim_size(3)
     e_lo%compound_count(5)=e_lo%compound_count(4)*e_lo%dim_size(4)
-    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)    
+    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)
 
     e_lo%ig_comp=e_lo%compound_count(e_lo%ig_ord)
     e_lo%isgn_comp=e_lo%compound_count(e_lo%isgn_ord)
@@ -2603,7 +2600,16 @@ contains
     e_lo%it_comp=e_lo%compound_count(e_lo%it_ord)
     e_lo%il_comp=e_lo%compound_count(e_lo%il_ord)
     e_lo%is_comp=e_lo%compound_count(e_lo%is_ord)
+  end function setup_energy_layouts
 
+  !> Setup the module level energy layout.
+  subroutine init_energy_layouts (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
+
+    if (initialized_energy_layouts) return
+    initialized_energy_layouts = .true.
+    e_lo = setup_energy_layouts(ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
   end subroutine init_energy_layouts
 
   !> FIXME : Add documentation    
