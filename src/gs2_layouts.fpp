@@ -2716,16 +2716,13 @@ contains
 ! Lambda layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_lambda_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
+  !> Construct a lambda layout instance
+  type(lz_layout_type) function setup_lambda_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc) result(lz_lo)
     use file_utils, only: error_unit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc
     integer :: ngroup, nprocset
-
-    if (initialized_lambda_layouts) return
-    initialized_lambda_layouts = .true.
 
     lz_lo%iproc = iproc
     lz_lo%ntgrid = ntgrid
@@ -2808,6 +2805,17 @@ contains
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
     lz_lo%ie_comp=lz_lo%compound_count(lz_lo%ie_ord)
     lz_lo%is_comp=lz_lo%compound_count(lz_lo%is_ord)
+  end function setup_lambda_layouts
+
+  !> Setup the module level lz_lo instance
+  subroutine init_lambda_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc
+
+    if (initialized_lambda_layouts) return
+    initialized_lambda_layouts = .true.
+    lz_lo = setup_lambda_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
   end subroutine init_lambda_layouts
 
   !> FIXME : Add documentation    
