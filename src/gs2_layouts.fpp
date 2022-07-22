@@ -871,9 +871,15 @@ contains
 ! Distribution function layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation 
-  subroutine init_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+  !> Setup a g_layout (g_lo) type data decomposition object
+  !> describing the work decomposition for a problem with
+  !> passed grid sizes running on nproc. Returns the values for
+  !> the processor with rank iproc. Note this involves collective
+  !> MPI routines so requires all processors on comm world to take
+  !> part. This does not require the input nproc to match the nproc
+  !> of the world communicator.
+  type(g_layout_type) function setup_dist_fn_layouts &
+       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
     use mp, only: proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
@@ -900,9 +906,6 @@ contains
     integer :: colour
     type(comm_type) :: tmpcomm
 
-    if (initialized_dist_fn_layouts) return
-    initialized_dist_fn_layouts = .true.
-   
     g_lo%iproc = iproc
     g_lo%naky = naky
     g_lo%ntheta0 = ntheta0
@@ -911,7 +914,7 @@ contains
     g_lo%nspec = nspec
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
-      
+
 #ifndef SHMEM
     g_lo%blocksize = g_lo%ulim_world/nproc + 1
     g_lo%llim_proc = g_lo%blocksize*iproc
@@ -923,7 +926,7 @@ contains
     nxy=naky*ntheta0
     les = nlambda*negrid*nspec
 
-    !shm 
+    !shm
     g_lo%ppn = shm_info%size
     g_lo%nnd = nproc / g_lo%ppn
     ! needs a test and to see if every node has the same number of processors
@@ -941,23 +944,23 @@ contains
     g_lo%blocksize =  xyb
     if (shm_info%id < mod(nxy * nd_les, g_lo%ppn)) g_lo%blocksize = g_lo%blocksize + 1
     !g_lo%llim_proc = g_lo%blocksize*iproc
-    
+
     g_lo%llim_proc = g_lo%llim_node &
          + shm_info%id * xyb + min(shm_info%id, mod(nxy * nd_les, g_lo%ppn))
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
     allocate(g_lo%proc_map(0:nproc-1))
-    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
+    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)
 
     ! report on shm details
-    if (proc0) then 
-       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)" 
+    if (proc0) then
+       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)"
        write(*,*) "ranks per node :", g_lo%ppn
        write(*,*) "total number of blocks", les, "; and per node :", g_lo%bpn
        write(*,*) "block size inside node :", g_lo%blocksize
     endif
-    
+
 #endif
 
     ! Calculate constants used in the index lookup routines
@@ -983,7 +986,7 @@ contains
     g_lo%dim_size(g_lo%il_ord)=nlambda
     g_lo%dim_size(g_lo%ie_ord)=negrid
     g_lo%dim_size(g_lo%is_ord)=nspec
-    
+
     g_lo%compound_count(1)=1
     g_lo%compound_count(2)=g_lo%compound_count(1)*g_lo%dim_size(1)
     g_lo%compound_count(3)=g_lo%compound_count(2)*g_lo%dim_size(2)
@@ -1000,7 +1003,7 @@ contains
     ! These are currently only used to slice the arrays used in the velocity space integrals
     ! but could well be useful in a number of places.
     ! NOTE: These are typically only useful if the dimensions are split nicely (i.e. we're using
-    ! a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the 
+    ! a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the
     ! min and max values (1,naky) are technically correct, we cannot assume we cover the range 1-naky
     ik_max=0
     ik_min=naky+1
@@ -1019,7 +1022,7 @@ contains
     ie_local=.false.
     is_local=.false.
     g_lo%ikitrange = 0
-    ! g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
+    ! g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of
     ! ik,it points.
     allocate(g_lo%ikit_procs_assignment(ntheta0,naky))
     g_lo%ikit_procs_assignment(:,:)%mine = .false.
@@ -1061,7 +1064,7 @@ contains
           write(*,*) 'properties list, and gf_lo_integrate to true in dist_fn properties'
        end if
        gf_local_fields = .false.
-    end if                                                                                                                                                                                                 
+    end if
 
     ! Record the ik,it points this process have in a contigious array.
     allocate(g_lo%local_ikit_points(g_lo%ikitrange))
@@ -1070,8 +1073,8 @@ contains
        do it=1,ntheta0
           colour = 0
           if(g_lo%ikit_procs_assignment(it,ik)%mine) then
-             g_lo%local_ikit_points(tmp)%ik = ik 
-             g_lo%local_ikit_points(tmp)%it = it 
+             g_lo%local_ikit_points(tmp)%ik = ik
+             g_lo%local_ikit_points(tmp)%it = it
              tmp = tmp + 1
              colour = 1
           end if
@@ -1117,7 +1120,7 @@ contains
              end do
           end do
        end do
-       
+
        tmp = g_lo%ikitrange
        call max_reduce(tmp,0)
 #ifdef DEBUG
@@ -1149,7 +1152,7 @@ contains
     g_lo%l_local=all(il_local)
     g_lo%e_local=all(ie_local)
     g_lo%s_local=all(is_local)
-    
+
     !//Deallocate locality data. Note this may actually be useful in some
     !places, so we may want to think about attaching it to the g_lo object
     deallocate(ik_local,it_local,il_local,ie_local,is_local)
@@ -1234,7 +1237,7 @@ contains
        g_lo%d5_min=it_min
        g_lo%d5_max=it_max
     end select
-       
+
     select case (g_lo%il_ord)
     case (1)
        g_lo%d1_min=il_min
@@ -1299,7 +1302,7 @@ contains
     g_lo%ie_max=ie_max
     g_lo%is_min=is_min
     g_lo%is_max=is_max
-    
+
     !Work out if x comes before y in layout
     do iglo=1,LEN_TRIM(layout)
        if(layout(iglo:iglo).eq.'x') then
@@ -1329,7 +1332,7 @@ contains
           dim_local(idim:1:-1)=.true.
           exit
        endif
-       
+
        !Does the current dimension divide evenly
        !amongst the remaining processors
        tmp_r=(1.0*nproc_tmp)/g_lo%dim_size(idim)
@@ -1523,14 +1526,14 @@ contains
        call mp_abort("g_lo%les_kxky_range should never be allocated&
        &at this point", .true.)
     end if
-    
+
     if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
        call nproc_comm(g_lo%lesblock_comm,nproc_subcomm)
        !Get rank of proc in sub-comm
        call rank_comm(g_lo%lesblock_comm,rank_subcomm)
-       !Allocate array | This will store the start and stop indices 
+       !Allocate array | This will store the start and stop indices
        !for flattened kxky indices in velocity space independent (e.g. field)
        !variables
        allocate(g_lo%les_kxky_range(2,0:nproc_subcomm-1))
@@ -1538,13 +1541,13 @@ contains
        !Initialise as we do sum_allreduce later
        !can remove if we use a gather
        les_kxky_range=0
-       
+
        !Now calculate our personal kxky range
        it_min=it_idx(g_lo,g_lo%llim_proc)
        it_max=it_idx(g_lo,g_lo%ulim_alloc)
        ik_min=ik_idx(g_lo,g_lo%llim_proc)
        ik_max=ik_idx(g_lo,g_lo%ulim_alloc)
-       
+
        if(g_lo%x_before_y) then
           les_kxky_range(rank_subcomm*2)=it_min-1+ntheta0*(ik_min-1)
           tmp=les_kxky_range(rank_subcomm*2)
@@ -1574,6 +1577,18 @@ contains
        deallocate(les_kxky_range)
     endif
 
+  end function setup_dist_fn_layouts
+
+  !> Construct the work decomposition for the g_layout and
+  !> store it in the module level g_lo instance.
+  subroutine init_dist_fn_layouts &
+       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+
+    if (initialized_dist_fn_layouts) return
+    initialized_dist_fn_layouts = .true.
+    g_lo = setup_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
