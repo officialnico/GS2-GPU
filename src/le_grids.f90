@@ -3342,15 +3342,10 @@ contains
 
   end subroutine init_g2gf
 
-  !> Constructs the redistribute mapping from the g_lo data
-  !> decomposition to the le_lo decomposition.
-  subroutine init_g2le_redistribute_local
+  !> Construct a redistribute for g_lo -> le_lo
+  type(redist_type) function setup_g2le_redistribute_local(g_lo, le_lo) result(g2le)
+    use layouts_type, only: g_layout_type, le_layout_type
     use mp, only: nproc, iproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_le_layouts
-    use gs2_layouts, only: g_lo, le_lo
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ig_idx, isign_idx
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
@@ -3358,11 +3353,10 @@ contains
     use redistribute, only: index_list_type, init_redist, delete_list
 
     implicit none
-
+    type(g_layout_type), intent(in) :: g_lo
+    type(le_layout_type), intent(in) :: le_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
-!    type (index_list_type), dimension(0:nproc-1) :: old_list !Testing
     integer, dimension (0:nproc-1) :: nn_to, nn_from
-!    integer, dimension (0:nproc-1) :: nn_to_old, nn_from_old !Testing
     integer, dimension (3) :: from_low, from_high
     integer, dimension (3) :: to_high
     integer :: to_low
@@ -3374,13 +3368,6 @@ contains
     !> points to be communicated if we wish.
     logical, parameter :: skip_forbidden_region = .true.
 
-    !Early exit if possible
-    if (leinit) return
-    leinit = .true.
-
-    !Setup the le layout object (le_lo)
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
-
     !Initialise the data counters
     nn_to = 0
     nn_from = 0
@@ -3390,14 +3377,14 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc,g_lo%ulim_alloc
           !Get le_lo idx for ig=-ntgrid
-          ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
+          ile=idx(le_lo,-g_lo%ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           il = il_idx(g_lo, iglo)
 
           !Loop over remaining dimensions, note ile is independent of isign
           !so add two to count
-          do ig=-ntgrid,ntgrid
+          do ig=-g_lo%ntgrid, g_lo%ntgrid
              if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region) then
                 !Increment the data sent counter for this proc
                 nn_from(proc_id(le_lo,ile))=nn_from(proc_id(le_lo,ile))+2
@@ -3416,8 +3403,8 @@ contains
           ig = ig_idx(le_lo, ile)
 
           !Loop over local dimensions, adding 2 to account for each sign
-          do ie=1,g_lo%negrid
-             do il=1,g_lo%nlambda
+          do ie=1,g_lo%negrid !le_lo%?
+             do il=1,g_lo%nlambda !le_lo%?
                 if (forbid(ig, il) .and. skip_forbidden_region) cycle
 
                 !Get index
@@ -3456,13 +3443,13 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo=g_lo%llim_proc,g_lo%ulim_alloc
           !Get ile for ig=-ntgrid
-          ile=idx(le_lo,-ntgrid,ik_idx(g_lo,iglo),&
+          ile=idx(le_lo,-g_lo%ntgrid,ik_idx(g_lo,iglo),&
                it_idx(g_lo,iglo),is_idx(g_lo,iglo))
           ile_bak=ile
           il = il_idx(g_lo, iglo)
           !Loop over sign
           do isign=1,2
-             do ig=-ntgrid,ntgrid
+             do ig=-g_lo%ntgrid, g_lo%ntgrid
                 if ((.not. forbid(ig, il)) .or. .not. skip_forbidden_region ) then
                    !Get proc id
                    ip=proc_id(le_lo,ile)
@@ -3493,18 +3480,18 @@ contains
        do ile=le_lo%llim_proc,le_lo%ulim_alloc
           !Get ig index
           ig=ig_idx(le_lo,ile)
- 
+
           !Loop over local dimensions,Whilst ile is independent of sign this information
           !is in lambda so loop over sign included here
-          do ie=1,g_lo%negrid
+          do ie=1,g_lo%negrid !le_lo%?
              do isign=1,2
-                do il0=1,g_lo%nlambda
+                do il0=1,g_lo%nlambda !le_lo%?
                    if (forbid(ig, il0) .and. skip_forbidden_region) cycle
                    !Pick correct extended lambda value
                    je=jend(ig)
                    il=il0
                    if (je.eq.0) then
-                      if (isign.eq.2) il=2*g_lo%nlambda+1-il
+                      if (isign.eq.2) il=2*g_lo%nlambda+1-il !le_lo%?
                    else
                       if(il.eq.je) then
                          if(isign.eq.1) il=2*je
@@ -3512,13 +3499,13 @@ contains
                          if(isign.eq.1) then
                             il=il+je
                          else
-                            il=2*g_lo%nlambda+1-il+je
+                            il=2*g_lo%nlambda+1-il+je !le_lo%?
                          endif
                       else
                          if(isign.eq.2) il=2*je-il
                       endif
                    endif
-                   
+
                    !Get iglo value
                    iglo=idx(g_lo,ik_idx(le_lo,ile),it_idx(le_lo,ile),&
                         il0,ie,is_idx(le_lo,ile))
@@ -3536,7 +3523,7 @@ contains
                    to_list(ip)%third(n)=ile
 
                    !Store sorting index
-                   sort_list(ip)%first(n)=ig+ntgrid-1+(2*ntgrid+1)*(isign-1+2*(iglo-g_lo%llim_world))
+                   sort_list(ip)%first(n)=ig+g_lo%ntgrid-1+g_lo%ntgridtotal*(isign-1+2*(iglo-g_lo%llim_world))
                 enddo
              enddo
           enddo
@@ -3552,16 +3539,17 @@ contains
     enddo
 
     !Now setup array range values
-    from_low (1) = -ntgrid
+    from_low (1) = -g_lo%ntgrid
     from_low (2) = 1
     from_low (3) = g_lo%llim_proc
 
-    from_high(1) = ntgrid
+    from_high(1) = g_lo%ntgrid
     from_high(2) = 2
     from_high(3) = g_lo%ulim_alloc
 
     to_low = le_lo%llim_proc
 
+    ! Note: Need to revisit next two so not dependent on module level nlambda/negrid
     to_high(1) = max(2*nlambda, 2*ng2+1)
     to_high(2) = negrid + 1  ! TT: just followed convention with +1.
     ! TT: It may be good to avoid bank conflict.
@@ -3574,6 +3562,25 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
+  end function setup_g2le_redistribute_local
+
+  !> Constructs the redistribute mapping from the global g_lo data
+  !> decomposition to the le_lo decomposition.
+  subroutine init_g2le_redistribute_local
+    use mp, only: nproc, iproc
+    use species, only: nspec
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky, ntheta0
+    use gs2_layouts, only: init_le_layouts, g_lo, le_lo
+
+    !Early exit if possible
+    if (leinit) return
+    leinit = .true.
+
+    !Setup the le layout object (le_lo)
+    call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
+
+    g2le = setup_g2le_redistribute_local(g_lo, le_lo)
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
