@@ -511,6 +511,13 @@ endif
 
 ifdef USE_OPENMP
 	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
