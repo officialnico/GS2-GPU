@@ -5429,7 +5429,7 @@ contains
     if (fphi > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5452,7 +5452,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5473,7 +5473,7 @@ contains
     if (fbpar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -6535,7 +6535,7 @@ contains
          if(any(kwork_filter))then
             !$OMP PARALLEL DO DEFAULT(shared) &
             !$OMP PRIVATE(iglo, isgn, it, ik) &
-            !$OMP SCHEDULE(dynamic)
+            !$OMP SCHEDULE(guided)
             do iglo = g_lo%llim_proc, g_lo%ulim_proc
                it=it_idx(g_lo,iglo)
                ik=ik_idx(g_lo,iglo)
@@ -6548,7 +6548,7 @@ contains
          else
             !$OMP PARALLEL DO DEFAULT(shared) &
             !$OMP PRIVATE(iglo, isgn) &
-            !$OMP SCHEDULE(dynamic)
+            !$OMP SCHEDULE(guided)
             do iglo = g_lo%llim_proc, g_lo%ulim_proc
                do isgn = 1, 2
                   g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
@@ -6611,7 +6611,7 @@ contains
           if(any(kwork_filter))then
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn, it, ik) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6624,7 +6624,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
@@ -6690,7 +6690,7 @@ contains
           if(any(kwork_filter))then
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn, it, ik) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6703,7 +6703,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)

@@ -3283,7 +3283,7 @@ contains
 ! First get v0y0
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, isgn) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3300,7 +3300,7 @@ contains
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3323,7 +3323,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3351,7 +3351,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3369,7 +3369,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3455,7 +3455,7 @@ contains
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
@@ -3482,7 +3482,7 @@ contains
 
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, it, ik, ixi, ie) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
@@ -3504,7 +3504,7 @@ contains
     if (conservative) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -3525,7 +3525,7 @@ contains
     else
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -3553,7 +3553,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3572,7 +3572,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3596,7 +3596,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3651,7 +3651,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3673,7 +3673,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3691,7 +3691,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3727,7 +3727,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3750,7 +3750,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3818,7 +3818,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3838,7 +3838,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3855,7 +3855,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, il, isgn, vpa, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3880,7 +3880,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3896,7 +3896,7 @@ contains
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -3918,7 +3918,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -3972,7 +3972,7 @@ contains
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
@@ -3998,7 +3998,7 @@ contains
        if (hyper_colls) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ilz, ig, je, il, fac) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(guided)
           do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
              ig = ig_idx(lz_lo,ilz)
              
@@ -4022,7 +4022,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
     !$OMP il, gwfb, delta) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
 
        ik = ik_idx(lz_lo,ilz)
@@ -4140,7 +4140,7 @@ contains
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
 
@@ -4166,7 +4166,7 @@ contains
        call integrate_moment (le_lo, glec, tmp)
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, ig, it, ik, is) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(guided)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -4179,7 +4179,7 @@ contains
        if (hyper_colls) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(guided)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
 
@@ -4201,7 +4201,7 @@ contains
 
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ile, ig, it, ik, is) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(guided)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
              it = it_idx(le_lo,ile)
@@ -4217,7 +4217,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
     !$OMP gwfb, delta) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -4332,7 +4332,7 @@ contains
     ! solve for ged row by row
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
 
        it = it_idx(e_lo,ielo)       
@@ -4389,7 +4389,7 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
        is = is_idx(le_lo,ile)

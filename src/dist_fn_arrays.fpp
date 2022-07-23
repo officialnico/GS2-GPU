@@ -115,7 +115,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(shared) &
     !$OMP PRIVATE(iglo, ig, ik, it, il, ie, is, phi_factor, adj) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
