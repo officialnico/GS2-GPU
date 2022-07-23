@@ -4585,9 +4585,10 @@ contains
 ! Accelerated FFT layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_accel_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+  !> Construct an accelx layout instance
+  type(accelx_layout_type) function setup_accelx_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, &
+       nproc, iproc) result(accelx_lo)
 #ifdef SHMEM
     use mp, only: proc0, allgather
     use shm_mpi3, only : shm_info
@@ -4599,9 +4600,6 @@ contains
 #ifdef SHMEM
     integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
 #endif
-
-    if (initialized_accel_transform_layouts) return
-    initialized_accel_transform_layouts = .true.
 
     if (nx > ntheta0) then
        nnx = nx
@@ -4633,7 +4631,74 @@ contains
     accelx_lo%ulim_proc &
          = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
     accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+#else
+    nxy=nnx*nny
+    les = nlambda*negrid*nspec
 
+    accelx_lo%ppn = shm_info%size
+    accelx_lo%nnd = nproc / accelx_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
+    ind = iproc / accelx_lo%ppn
+
+    accelx_lo%bpn = les / accelx_lo%nnd
+    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
+    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
+    accelx_lo%llim_node = llim_nd * nxy
+    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
+    nd_les = accelx_lo%bpn
+
+    xyb = (nxy *nd_les) / accelx_lo%ppn
+    accelx_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
+
+    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
+    accelx_lo%llim_proc = accelx_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
+    accelx_lo%ulim_proc &
+         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
+    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+
+    allocate(accelx_lo%proc_map(0:nproc-1))
+    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
+
+    if (proc0) then
+       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)"
+       write(*,*) "ranks per node :", accelx_lo%ppn
+       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
+       write(*,*) "block size per rank :", accelx_lo%blocksize
+    endif
+#endif
+  end function setup_accelx_transform_layouts
+
+  !> Construct an accel layout instance
+  type(accel_layout_type) function setup_accel_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, &
+       nproc, iproc) result(accel_lo)
+#ifdef SHMEM
+    use mp, only: proc0, allgather
+    use shm_mpi3, only : shm_info
+#endif
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: nx, ny
+    integer :: nnx, nny
+#ifdef SHMEM
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+#endif
+
+    if (nx > ntheta0) then
+       nnx = nx
+    else
+       nnx = (3*ntheta0+1)/2
+    end if
+    if (ny > naky) then
+       nny = ny
+    else
+       nny = 3*naky
+    end if
+
+#ifndef SHMEM
     accel_lo%iproc = iproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
@@ -4657,44 +4722,6 @@ contains
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
 #else
-
-    nxy=nnx*nny
-    les = nlambda*negrid*nspec
-
-    accelx_lo%ppn = shm_info%size
-    accelx_lo%nnd = nproc / accelx_lo%ppn
-    ! needs a test and to see if every node has the same number of processors
-    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
-    ind = iproc / accelx_lo%ppn
-
-    accelx_lo%bpn = les / accelx_lo%nnd
-    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
-    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
-    accelx_lo%llim_node = llim_nd * nxy
-    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
-    nd_les = accelx_lo%bpn
-
-    xyb = (nxy *nd_les) / accelx_lo%ppn
-    accelx_lo%blocksize = xyb
-    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
-    
-    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
-    accelx_lo%llim_proc = accelx_lo%llim_node &
-         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
-    accelx_lo%ulim_proc &
-         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
-    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
-    
-    allocate(accelx_lo%proc_map(0:nproc-1))
-    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
-
-    if (proc0) then 
-       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)" 
-       write(*,*) "ranks per node :", accelx_lo%ppn
-       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
-       write(*,*) "block size per rank :", accelx_lo%blocksize
-    endif
-
     accel_lo%iproc = iproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
@@ -4713,6 +4740,7 @@ contains
     accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
     !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     nxy = nnx*(nny/2+1)
+    les = nlambda*negrid*nspec
 
     accel_lo%ppn = shm_info%size
     accel_lo%nnd = nproc / accel_lo%ppn
@@ -4724,7 +4752,7 @@ contains
     if (ind < mod(les,  accel_lo%nnd )) accel_lo%bpn = accel_lo%bpn + 1
     llim_nd = ind * (les / accel_lo%nnd) + min(ind, mod(les, accel_lo%nnd))
     accel_lo%llim_node = llim_nd * nxy
-    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1 
+    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1
     nd_les = accel_lo%bpn
 
     xyb = (nxy * nd_les) / accel_lo%ppn
@@ -4739,14 +4767,30 @@ contains
          = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
-   if (proc0) then 
-       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) " 
+   if (proc0) then
+       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) "
        write(*,*) "ranks per node :", accel_lo%ppn
        write(*,*) "total number of blocks:", les, "; per node :", accel_lo%bpn
        write(*,*) "block size per rank :", accel_lo%blocksize
     endif
 
 #endif
+  end function setup_accel_transform_layouts
+
+  !> Setup the module level accelx_lo and accel_lo instances
+  subroutine init_accel_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: nx, ny
+
+    if (initialized_accel_transform_layouts) return
+    initialized_accel_transform_layouts = .true.
+
+    accelx_lo = setup_accelx_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
+    accel_lo = setup_accel_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
   end subroutine init_accel_transform_layouts
 
   !> FIXME : Add documentation
