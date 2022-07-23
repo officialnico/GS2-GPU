@@ -9,6 +9,8 @@ module gs2_layouts
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
+  use layouts_type, only: xxf_layout_type, yxf_layout_type
+  use layouts_type, only: accel_layout_type, accelx_layout_type
   use constants, only: run_name_size
 
   implicit none
@@ -134,75 +136,11 @@ module gs2_layouts
 
   type (e_layout_type) :: e_lo
 
-  !> FIXME : Add documentation
-  type :: xxf_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ntheta0, nx, nadd, negrid, nlambda, nspec, ntgridtotal
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
-     integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
-     integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
-     integer :: small_block_balance_factor, large_block_balance_factor
-     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
-     integer :: ig_ord, isgn_ord, ik_ord, il_ord, ie_ord, is_ord
-     !> `it_comp` is the product of the sizes of dimensions which are more
-     !> local than kx in the g_lo layout.
-     integer :: ig_comp, isgn_comp, ik_comp, il_comp, ie_comp, is_comp
-     !> Work array that holds iX_comp in the order that they appear in the
-     !> layout.
-     integer,dimension(6) :: compound_count
-     !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout.
-     integer,dimension(6) :: dim_size
-  end type xxf_layout_type
-
   type (xxf_layout_type) :: xxf_lo
-
-  !> FIXME : Add documentation  
-  type :: yxf_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ny, ntheta0, nx, negrid, nlambda, nspec, ntgridtotal
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
-     integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
-     integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
-     integer :: small_block_balance_factor, large_block_balance_factor
-     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
-     integer :: ig_ord, isgn_ord, it_ord, il_ord, ie_ord, is_ord
-     !> `it_comp` is the product of the sizes of dimensions which are more
-     !> local than kx in the g_lo layout.
-     integer :: ig_comp, isgn_comp, it_comp, il_comp, ie_comp, is_comp
-     !> Work array that holds iX_comp in the order that they appear in the
-     !> layout.
-     integer,dimension(6) :: compound_count
-     !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout.
-     integer,dimension(6) :: dim_size
-  end type yxf_layout_type
 
   type (yxf_layout_type) :: yxf_lo
 
-  !> FIXME : Add documentation  
-  type :: accel_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
-     integer :: nx, nxny, nxnky, negrid, nlambda, nspec, nia
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-#ifdef SHMEM
-     integer :: ppn, nnd, bpn, llim_node, ulim_node !shm data
-#endif
-  end type accel_layout_type
-
   type (accel_layout_type) :: accel_lo
-
-  !> FIXME : Add documentation  
-  type :: accelx_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-#ifdef SHMEM
-     integer :: ppn, nnd, bpn, llim_node, ulim_node ! shm data
-     integer, allocatable :: proc_map(:)
-#endif
-  end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
   
