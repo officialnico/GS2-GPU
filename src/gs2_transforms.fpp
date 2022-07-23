@@ -713,40 +713,26 @@ contains
     g2x = setup_x_redist_local(g_lo, xxf_lo)
   end subroutine init_x_redist_local
 
-  !> Constructs the redistribute mapping from the g_lo data
-  !> decomposition to the yxf_lo decomposition. Note this also
-  !> calls [[init_x_redist_local]] in order to setup the
-  !> mapping for g_lo to xxf_lo as well.
-  subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use gs2_layouts, only: init_y_transform_layouts
-    use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
+  !> Constructs the redistribute mapping from the xxf_lo data
+  !> decomposition to the yxf_lo decomposition.
+  type(redist_type) function setup_y_redist_local(xxf_lo, yxf_lo) result(x2y)
+    use layouts_type, only: xxf_layout_type, yxf_layout_type
+    use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
     use mp, only: nproc, iproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort
     implicit none
+    type(xxf_layout_type), intent(in) :: xxf_lo
+    type(yxf_layout_type), intent(in) :: yxf_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension (2) :: from_low, from_high, to_high
     integer :: to_low
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
-    integer, intent (in) :: nx, ny
-
     integer :: it, ixxf, ik, iyxf
     integer :: ixxf_start, iyxf_start
     integer :: n, ip
-
-    !Early exit if possible
-    if (initialized_y_redist) return
-    initialized_y_redist = .true.
-
-    !Setup g_lo-->xxf_lo redist object first
-    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
-    !Setup the yxf layout object
-    call init_y_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 
     !Initialise counts to zero
     nn_to = 0
@@ -756,7 +742,7 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf=xxf_lo%llim_proc,xxf_lo%ulim_alloc
-          !Get iyxf index for "it"=1 
+          !Get iyxf index for "it"=1
           iyxf_start=idx(yxf_lo,ig_idx(xxf_lo,ixxf),&
                isign_idx(xxf_lo,ixxf),1,il_idx(xxf_lo,ixxf),&
                ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
@@ -775,7 +761,7 @@ contains
     !Protect against procs with no data
     if(yxf_lo%ulim_proc.ge.yxf_lo%llim_proc)then
        do iyxf=yxf_lo%llim_proc,yxf_lo%ulim_alloc
-          !Get ixxf index for "ik"=1 
+          !Get ixxf index for "ik"=1
           ixxf_start=idx(xxf_lo,ig_idx(yxf_lo,iyxf),&
                isign_idx(yxf_lo,iyxf),1,il_idx(yxf_lo,iyxf),&
                ie_idx(yxf_lo,iyxf),is_idx(yxf_lo,iyxf))
@@ -887,7 +873,7 @@ contains
 
     to_high(1) = yxf_lo%ny/2+1
     to_high(2) = yxf_lo%ulim_alloc
-    
+
     from_high(1) = xxf_lo%nx
     from_high(2) = xxf_lo%ulim_alloc
 
@@ -902,7 +888,31 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
+  end function setup_y_redist_local
 
+  !> Setup the module level xxf -> yxf redistribute. Note this also
+  !> calls [[init_x_redist_local]] in order to setup the mapping for
+  !> g_lo to xxf_lo as well.
+  subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+    use gs2_layouts, only: init_y_transform_layouts
+    use gs2_layouts, only: xxf_lo, yxf_lo
+    use mp, only: nproc, iproc
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: nx, ny
+
+    !Early exit if possible
+    if (initialized_y_redist) return
+    initialized_y_redist = .true.
+
+    !Setup g_lo-->xxf_lo redist object first
+    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+
+    !Setup the yxf layout object
+    call init_y_transform_layouts &
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+
+    x2y = setup_y_redist_local(xxf_lo, yxf_lo)
   end subroutine init_y_redist_local
 
   !> FIXME : Add documentation
