@@ -555,11 +555,12 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use gs2_layouts, only: init_dist_fn_layouts, pe_layout
+    use theta_grid, only: ntgrid
     use mp, only: nproc, iproc
     implicit none
     character (1) :: char
 
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     if (.not. intinit) then
        intinit = .true.

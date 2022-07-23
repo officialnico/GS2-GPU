@@ -820,7 +820,7 @@ contains
   !> * intmom_sub
   !> * intspec_sub
   type(g_layout_type) function setup_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
     use mp, only: proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
@@ -830,7 +830,7 @@ contains
     use mp, only: allgather
 #endif
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
@@ -853,6 +853,8 @@ contains
     g_lo%nlambda = nlambda
     g_lo%negrid = negrid
     g_lo%nspec = nspec
+    g_lo%ntgrid = ntgrid
+    g_lo%ntgridtotal = (2*ntgrid+1)
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
 
@@ -1523,13 +1525,13 @@ contains
   !> Construct the work decomposition for the g_layout and
   !> store it in the module level g_lo instance.
   subroutine init_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
 
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
-    g_lo = setup_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    g_lo = setup_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
