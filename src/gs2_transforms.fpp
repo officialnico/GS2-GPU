@@ -531,7 +531,7 @@ contains
 
           !Now loop over other local dimensions
           do isign = 1, 2
-             do ig = -g_lo%ntgrid, -g_lo%ntgrid
+             do ig = -g_lo%ntgrid, g_lo%ntgrid
                 !Increase the data send count for the proc which has the ixxf
                 nn_from(proc_id(xxf_lo,ixxf))=nn_from(proc_id(xxf_lo,ixxf))+1
 
