@@ -494,7 +494,7 @@ contains
     use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
     use sorting, only: quicksort
@@ -719,7 +719,7 @@ contains
     use layouts_type, only: xxf_layout_type, yxf_layout_type
     use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort

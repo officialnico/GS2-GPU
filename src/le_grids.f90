@@ -3345,7 +3345,7 @@ contains
   !> Construct a redistribute for g_lo -> le_lo
   type(redist_type) function setup_g2le_redistribute_local(g_lo, le_lo) result(g2le)
     use layouts_type, only: g_layout_type, le_layout_type
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ig_idx, isign_idx
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
@@ -3679,7 +3679,7 @@ contains
 
   !> Construct the redistribute for g_lo -> gf_lo
   type(redist_type) function setup_g2gf_redistribute(g_lo, gf_lo) result(g2gf)
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use layouts_type, only: g_layout_type, gf_layout_type
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ig_idx, isign_idx
@@ -3969,7 +3969,7 @@ contains
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
   type(redist_type) function setup_lambda_redistribute_local(g_lo, lz_lo) result(lambda_map)
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use layouts_type, only: g_layout_type, lz_layout_type
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx, ig_idx,isign_idx
@@ -4191,7 +4191,7 @@ contains
   !> Constructs the redistribute mapping from a g_lo data
   !> decomposition to an e_lo decomposition
   type(redist_type) function setup_energy_redistribute_local(g_lo, e_lo) result(energy_map)
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use layouts_type, only: g_layout_type, e_layout_type
     use gs2_layouts, only: ie_idx, ik_idx, it_idx, il_idx, is_idx, ig_idx, isign_idx
     use gs2_layouts, only:proc_id, idx, idx_local
