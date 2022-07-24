@@ -3968,19 +3968,16 @@ contains
 
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
-  subroutine init_lambda_redistribute_local
-    use mp, only: nproc, iproc, barrier
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_lambda_layouts
-    use gs2_layouts, only: g_lo, lz_lo
+  type(redist_type) function setup_lambda_redistribute_local(g_lo, lz_lo) result(lambda_map)
+    use mp, only: nproc, iproc
+    use layouts_type, only: g_layout_type, lz_layout_type
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx, ig_idx,isign_idx
     use redistribute, only: index_list_type, init_redist, delete_list
     use sorting, only: quicksort
     implicit none
-
+    type(g_layout_type), intent(in) :: g_lo
+    type(lz_layout_type), intent(in) :: lz_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
@@ -3989,14 +3986,6 @@ contains
     integer :: ig, isign, iglo, il, ilz, il0
     integer :: je, ilz_bak
     integer :: n, ip
-
-    !Early exit if possible
-    if (lzinit) return
-    lzinit = .true.
-
-    !Setup the lambda layout object (lz_lo)
-    call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
 
     !Initialise data counters
     nn_to = 0
@@ -4007,15 +3996,15 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc, g_lo%ulim_alloc
           !Get lz_lo idx for ig=-ntgrid
-          ilz=idx(lz_lo,-ntgrid,ik_idx(g_lo,iglo), &
+          ilz=idx(lz_lo,-g_lo%ntgrid,ik_idx(g_lo,iglo), &
                it_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
-          
+
           !Loop over other local dimensions, noting that ig->ig+1 ==> ilz->ilz+1
           !Note that ilz is independent ofi sign so we just add two pieces of data per point instead
-          do ig=-ntgrid,ntgrid
+          do ig=-g_lo%ntgrid,g_lo%ntgrid
              !Increment the data sent counter for the processor with ilz
              nn_from(proc_id(lz_lo,ilz))=nn_from(proc_id(lz_lo,ilz))+2
-             
+
              !Increment ilz
              ilz=ilz+1
           enddo
@@ -4026,11 +4015,11 @@ contains
     !Protect against procs with no data
     if(lz_lo%ulim_proc.ge.lz_lo%llim_proc)then
        do ilz = lz_lo%llim_proc, lz_lo%ulim_alloc
-          do il=1,g_lo%nlambda
+          do il=1,g_lo%nlambda !lz_lo%?
              !Get iglo
              iglo=idx(g_lo,ik_idx(lz_lo,ilz),it_idx(lz_lo,ilz),&
                   il,ie_idx(lz_lo,ilz),is_idx(lz_lo,ilz))
-             
+
              !Increment the data to receive count for this proc
              !Note we increment by two due to independence of isign
              nn_to(proc_id(g_lo,iglo))=nn_to(proc_id(g_lo,iglo))+2
@@ -4062,31 +4051,31 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo=g_lo%llim_proc,g_lo%ulim_alloc
           !Convert to ilz for ig=-ntgrid
-          ilz=idx(lz_lo,-ntgrid,ik_idx(g_lo,iglo), &
+          ilz=idx(lz_lo,-g_lo%ntgrid,ik_idx(g_lo,iglo), &
             it_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
-          
+
           !Store backup of ilz value
           ilz_bak=ilz
-          
+
           !Loop over other local dimensions
           do isign=1,2
-             do ig=-ntgrid,ntgrid
+             do ig=-g_lo%ntgrid,g_lo%ntgrid
                 !Get proc id
                 ip=proc_id(lz_lo,ilz)
-                
+
                 !Increment procs message counter
                 n=nn_from(ip)+1
                 nn_from(ip)=n
-                
+
                 !Store indices
                 from_list(ip)%first(n)=ig
                 from_list(ip)%second(n)=isign
                 from_list(ip)%third(n)=iglo
-                
+
                 !Increment ilz
                 ilz=ilz+1
              enddo
-             
+
           !Restore ilz
              ilz=ilz_bak
           enddo
@@ -4094,19 +4083,19 @@ contains
     endif
 
     !Now fill in the receiving indices, these must match the message order (through sorting later)
-    !NOTE: Not all procs have data in lz_lo so protect against this 
+    !NOTE: Not all procs have data in lz_lo so protect against this
     if(lz_lo%ulim_proc.ge.lz_lo%llim_proc)then
        do ilz=lz_lo%llim_proc,lz_lo%ulim_alloc
           ig=ig_idx(lz_lo,ilz)
           !Whilst lz_lo is independent of sign we actually have a lambda dimension double that of other layouts, which is how the sign dependent information is stored, so loop over sign here.
           do isign=1,2
              !Should the upper limit actually be max(nlambda,ng2+1)?
-             do il0=1,g_lo%nlambda
+             do il0=1,g_lo%nlambda !lz_lo%?
                 je=jend(ig)
                 !Pick the correct value of il
                 il=il0
                 if (je.eq.0) then
-                   if (isign.eq.2) il=2*g_lo%nlambda+1-il
+                   if (isign.eq.2) il=2*g_lo%nlambda+1-il !lz_lo%?
                 else
                    if(il.eq.je) then
                       if(isign.eq.1) il=2*je
@@ -4114,35 +4103,35 @@ contains
                       if(isign.eq.1) then
                          il=il+je
                       else
-                         il=2*g_lo%nlambda+1-il+je
+                         il=2*g_lo%nlambda+1-il+je !lz_lo%?
                       endif
                    else
                       if(isign.eq.2) il=2*je-il
                    endif
                 endif
-                
+
                 !Get iglo value. Note we use il0 and not il
                 iglo=idx(g_lo,ik_idx(lz_lo,ilz),it_idx(lz_lo,ilz),&
                      il0,ie_idx(lz_lo,ilz),is_idx(lz_lo,ilz))
-                
+
                 !Get proc id
                 ip=proc_id(g_lo,iglo)
-                
+
                 !Increment counter
                 n=nn_to(ip)+1
                 nn_to(ip)=n
-                
+
                 !Store indices
                 to_list(ip)%first(n)=il
                 to_list(ip)%second(n)=ilz
-                
+
                 !Store sorting index
-                sort_list(ip)%first(n)=ig+ntgrid-1+(2*ntgrid+1)*(isign-1+2*(iglo-g_lo%llim_world))
+                sort_list(ip)%first(n)=ig+g_lo%ntgrid-1+g_lo%ntgridtotal*(isign-1+2*(iglo-g_lo%llim_world))
              enddo
           enddo
        enddo
     endif
-    
+
     !Now sort receive indices into message order
     do ip=0,nproc-1
        !Only worry about the cases where we're receiving data
@@ -4153,16 +4142,16 @@ contains
     enddo
 
     !Now setup array range values
-    from_low (1) = -ntgrid
+    from_low (1) = -g_lo%ntgrid
     from_low (2) = 1
     from_low (3) = g_lo%llim_proc
 
     to_low = lz_lo%llim_proc
 
-    to_high(1) = max(2*nlambda, 2*ng2+1)
+    to_high(1) = max(2*nlambda, 2*ng2+1) !lz_lo%?
     to_high(2) = lz_lo%ulim_alloc
 
-    from_high(1) = ntgrid
+    from_high(1) = g_lo%ntgrid
     from_high(2) = 2
     from_high(3) = g_lo%ulim_alloc
 
@@ -4175,6 +4164,28 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
 
+  end function setup_lambda_redistribute_local
+
+  !> Computes the redistribute mapping from the global g_lo data
+  !> decomposition to the global lz_lo decomposition
+  subroutine init_lambda_redistribute_local
+    use mp, only: nproc, iproc
+    use species, only: nspec
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky, ntheta0
+    use gs2_layouts, only: init_lambda_layouts
+    use gs2_layouts, only: g_lo, lz_lo
+    implicit none
+
+    !Early exit if possible
+    if (lzinit) return
+    lzinit = .true.
+
+    !Setup the lambda layout object (lz_lo)
+    call init_lambda_layouts &
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
+
+    lambda_map = setup_lambda_redistribute_local(g_lo, lz_lo)
   end subroutine init_lambda_redistribute_local
 
   !> Constructs the redistribute mapping from the g_lo data
