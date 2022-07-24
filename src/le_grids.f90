@@ -4188,36 +4188,26 @@ contains
     lambda_map = setup_lambda_redistribute_local(g_lo, lz_lo)
   end subroutine init_lambda_redistribute_local
 
-  !> Constructs the redistribute mapping from the g_lo data
-  !> decomposition to the e_lo decomposition
-  subroutine init_energy_redistribute_local
+  !> Constructs the redistribute mapping from a g_lo data
+  !> decomposition to an e_lo decomposition
+  type(redist_type) function setup_energy_redistribute_local(g_lo, e_lo) result(energy_map)
     use mp, only: nproc, iproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky,ntheta0
-    use gs2_layouts, only: init_energy_layouts
-    use gs2_layouts, only: g_lo, e_lo, ie_idx, ik_idx, it_idx, il_idx, is_idx, ig_idx, isign_idx
+    use layouts_type, only: g_layout_type, e_layout_type
+    use gs2_layouts, only: ie_idx, ik_idx, it_idx, il_idx, is_idx, ig_idx, isign_idx
     use gs2_layouts, only:proc_id, idx, idx_local
     use redistribute, only: index_list_type, init_redist, delete_list
     use sorting, only: quicksort
 
     implicit none
-
-    type (index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list  
+    type(g_layout_type), intent(in) :: g_lo
+    type(e_layout_type), intent(in) :: e_lo
+    type(index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
     integer, dimension(2) :: to_high
     integer :: to_low
     integer :: ig, isign, iglo, ie, ielo
     integer :: n, ip
-
-    !Early exit if possible
-    if (einit) return
-    einit = .true.
-
-    !Initialise e_lo layout object
-    call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
 
     !Initialise counters to zero
     nn_to = 0
@@ -4228,12 +4218,12 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc, g_lo%ulim_alloc
           !Get e_lo idx for ig=-ntgrid and isign=1
-          ielo=idx(e_lo,-ntgrid,1,ik_idx(g_lo,iglo), &
+          ielo=idx(e_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo), &
                it_idx(g_lo,iglo),il_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Loop over other local dimensions, noting that ig->ig+1 ==> ielo->ielo+1
           do isign = 1,2
-             do ig=-ntgrid,ntgrid
+             do ig=-g_lo%ntgrid, g_lo%ntgrid
                 !Increment the data sent counter for the processor with ielo
                 nn_from(proc_id(e_lo,ielo))=nn_from(proc_id(e_lo,ielo))+1
 
@@ -4248,7 +4238,7 @@ contains
     !Protect against procs with no data
     if(e_lo%ulim_proc.ge.e_lo%llim_proc)then
        do ielo = e_lo%llim_proc, e_lo%ulim_alloc
-          do ie=1,g_lo%negrid
+          do ie=1,g_lo%negrid !e_lo%?
              !Get iglo
              iglo=idx(g_lo,ik_idx(e_lo,ielo),it_idx(e_lo,ielo),&
                   il_idx(e_lo,ielo),ie,is_idx(e_lo,ielo))
@@ -4283,12 +4273,12 @@ contains
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo=g_lo%llim_proc,g_lo%ulim_alloc
           !Convert to ielo for ig=-ntgrid and isign=1
-          ielo=idx(e_lo,-ntgrid,1,ik_idx(g_lo,iglo), &
+          ielo=idx(e_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo), &
                it_idx(g_lo,iglo),il_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Loop over other local dimensions
           do isign=1,2
-             do ig=-ntgrid,ntgrid
+             do ig=-g_lo%ntgrid, g_lo%ntgrid
                 !Get proc id
                 ip=proc_id(e_lo,ielo)
 
@@ -4316,7 +4306,7 @@ contains
           ig=ig_idx(e_lo,ielo)
           isign=isign_idx(e_lo,ielo)
 
-          do ie=1,g_lo%negrid
+          do ie=1,g_lo%negrid !e_lo%?
              !Get iglo index
              iglo=idx(g_lo,ik_idx(e_lo,ielo),it_idx(e_lo,ielo),&
                   il_idx(e_lo,ielo),ie,is_idx(e_lo,ielo))
@@ -4333,7 +4323,7 @@ contains
              to_list(ip)%second(n)=ielo
 
              !Store index for sorting
-             sort_list(ip)%first(n)=ig+ntgrid-1+(2*ntgrid+1)*(isign-1+(iglo-g_lo%llim_world)*2)
+             sort_list(ip)%first(n)=ig+g_lo%ntgrid-1+g_lo%ntgridtotal*(isign-1+(iglo-g_lo%llim_world)*2)
           enddo
        enddo
     endif
@@ -4348,16 +4338,16 @@ contains
     enddo
 
     !Now setup array range values
-    from_low (1) = -ntgrid
+    from_low (1) = -g_lo%ntgrid
     from_low (2) = 1
     from_low (3) = g_lo%llim_proc
 
     to_low = e_lo%llim_proc
 
-    to_high(1) = negrid+1
+    to_high(1) = negrid+1 !e_lo%?
     to_high(2) = e_lo%ulim_alloc
 
-    from_high(1) = ntgrid
+    from_high(1) = g_lo%ntgrid
     from_high(2) = 2
     from_high(3) = g_lo%ulim_alloc
 
@@ -4365,11 +4355,33 @@ contains
     call init_redist (energy_map, 'c', to_low, to_high, to_list, &
          from_low, from_high, from_list)
 
-    !Deallocate the list objects 
+    !Deallocate the list objects
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
+  end function setup_energy_redistribute_local
 
+  !> Constructs the redistribute mapping from the global g_lo data
+  !> decomposition to the global e_lo decomposition
+  subroutine init_energy_redistribute_local
+    use mp, only: nproc, iproc
+    use species, only: nspec
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky,ntheta0
+    use gs2_layouts, only: init_energy_layouts
+    use gs2_layouts, only: g_lo, e_lo
+
+    implicit none
+
+    !Early exit if possible
+    if (einit) return
+    einit = .true.
+
+    !Initialise e_lo layout object
+    call init_energy_layouts &
+         (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
+
+    energy_map = setup_energy_redistribute_local(g_lo, e_lo)
   end subroutine init_energy_redistribute_local
 
   !> Used for testing
