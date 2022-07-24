@@ -3677,14 +3677,10 @@ contains
 
   end subroutine check_g2le
 
-  !> FIXME : Add documentation  
-  subroutine init_g2gf_redistribute
+  !> Construct the redistribute for g_lo -> gf_lo
+  type(redist_type) function setup_g2gf_redistribute(g_lo, gf_lo) result(g2gf)
     use mp, only: nproc, iproc
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: init_gf_layouts
-    use gs2_layouts, only: g_lo, gf_lo
+    use layouts_type, only: g_layout_type, gf_layout_type
     use gs2_layouts, only: idx_local, proc_id
     use gs2_layouts, only: ig_idx, isign_idx
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, is_idx, il_idx, idx
@@ -3692,7 +3688,8 @@ contains
     use sorting, only: quicksort
 
     implicit none
-
+    type(g_layout_type), intent(in) :: g_lo
+    type(gf_layout_type), intent(in) :: gf_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list, bak_sort_list
     integer, dimension (0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -3700,14 +3697,6 @@ contains
     integer :: iglo, il, igf
     integer :: ie, is
     integer :: n, ip
-
-    !Early exit if possible
-    if (gfinit) return
-    gfinit = .true.
-
-    !Setup the le layout object (gf_lo)
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
-
     !Initialise the data counters
     nn_to = 0
     nn_from = 0
@@ -3716,7 +3705,7 @@ contains
     !Protect against procs with no data
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc,g_lo%ulim_alloc
-          
+
           igf = idx(gf_lo, ik_idx(g_lo, iglo), it_idx(g_lo, iglo))
           nn_from(proc_id(gf_lo,igf))=nn_from(proc_id(gf_lo,igf))+1
        enddo
@@ -3773,12 +3762,12 @@ contains
 
           n=nn_from(ip)+1
           nn_from(ip)=n
-          
+
           !Store indices (we are sending ntgridtotal*isign sized messages each time at a time)
-          from_list(ip)%first(n)=-gf_lo%ntgrid
+          from_list(ip)%first(n)=-g_lo%ntgrid
           from_list(ip)%second(n)=1
           from_list(ip)%third(n)=iglo
-          
+
        enddo
     endif
 
@@ -3786,18 +3775,18 @@ contains
     !Protect against procs with no data
     if(gf_lo%ulim_proc.ge.gf_lo%llim_proc)then
        do igf=gf_lo%llim_proc,gf_lo%ulim_alloc
-          do il=1,g_lo%nlambda
-             do ie=1,g_lo%negrid
-                do is=1,g_lo%nspec
+          do il=1,gf_lo%nlambda
+             do ie=1,gf_lo%negrid
+                do is=1,gf_lo%nspec
                    !Get iglo value
                    iglo = idx(g_lo,ik_idx(gf_lo,igf),it_idx(gf_lo,igf),il,ie,is)
                    !Get proc_id
                    ip=proc_id(g_lo,iglo)
-                                         
+
                    !Increment counter
                    n=nn_to(ip)+1
                    nn_to(ip)=n
-                   
+
                    !Store indices
                    !We are sending messages of size ntgridtotal*isign
                    to_list(ip)%first(n)=-gf_lo%ntgrid
@@ -3833,26 +3822,26 @@ contains
 
 
     !Now setup array range values
-    from_low (1) = -ntgrid
+    from_low (1) = -g_lo%ntgrid
     from_low (2) = 1
     from_low (3) = g_lo%llim_proc
 
-    from_high(1) = ntgrid
+    from_high(1) = g_lo%ntgrid
     from_high(2) = 2
     from_high(3) = g_lo%ulim_alloc
 
-    to_low(1) = -ntgrid
+    to_low(1) = -gf_lo%ntgrid
     to_low(2) = 1
     to_low(3) = 1
     to_low(4) = 1
     to_low(5) = 1
     to_low(6) = gf_lo%llim_proc
 
-    to_high(1) = ntgrid
+    to_high(1) = gf_lo%ntgrid
     to_high(2) = 2
-    to_high(3) = nspec
-    to_high(4) = negrid
-    to_high(5) = nlambda
+    to_high(3) = gf_lo%nspec
+    to_high(4) = gf_lo%negrid
+    to_high(5) = gf_lo%nlambda
     to_high(6) = gf_lo%ulim_alloc
 
     !Create g2gf redist object
@@ -3863,7 +3852,28 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
     call delete_list (bak_sort_list)
+  end function setup_g2gf_redistribute
 
+  !> Setup the module level g2gf instance describing the transformation from
+  !> global g_lo to global gf_lo.
+  subroutine init_g2gf_redistribute
+    use mp, only: nproc, iproc
+    use species, only: nspec
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky, ntheta0
+    use gs2_layouts, only: init_gf_layouts
+    use gs2_layouts, only: g_lo, gf_lo
+
+    implicit none
+
+    !Early exit if possible
+    if (gfinit) return
+    gfinit = .true.
+
+    !Setup the le layout object (gf_lo)
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
+
+    g2gf = setup_g2gf_redistribute(g_lo, gf_lo)
   end subroutine init_g2gf_redistribute
 
   !> FIXME : Add documentation  
