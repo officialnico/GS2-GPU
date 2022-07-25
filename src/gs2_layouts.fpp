@@ -111,7 +111,7 @@ module gs2_layouts
 
   !> FIXME : Add documentation  
   type :: f_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: nidx, nfield, ntgrid, nindex, naky, ntheta0, M_class, N_class, i_class
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer, dimension(:,:), pointer :: ik => null ()
@@ -122,7 +122,7 @@ module gs2_layouts
 
   !> FIXME : Add documentation
   type :: jf_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: nindex, naky, ntheta0, ntgrid, nfield
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer :: ig_min,ig_max,ifield_min,ifield_max,it_min,it_max,ik_min,ik_max
@@ -848,6 +848,7 @@ contains
     type(comm_type) :: tmpcomm
 
     g_lo%iproc = iproc
+    g_lo%nproc = nproc
     g_lo%naky = naky
     g_lo%ntheta0 = ntheta0
     g_lo%nlambda = nlambda
@@ -1673,6 +1674,7 @@ contains
 
     do i = 1, i_class
        f_lo(i)%iproc = iproc
+       f_lo(i)%nproc = nproc
        f_lo(i)%nfield = nfield
        f_lo(i)%nidx = nindex                 ! cell size
        f_lo(i)%ntgrid = (nindex/nfield-1)/2
@@ -1883,6 +1885,7 @@ contains
     integer :: jlo
     
     jf_lo%iproc = iproc
+    jf_lo%nproc = nproc
     jf_lo%nindex = nindex
     jf_lo%ntgrid = (nindex/nfield-1)/2
     jf_lo%nfield = nfield
@@ -2051,6 +2054,7 @@ contains
     !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
     integer :: is_dim_local
     le_lo%iproc = iproc
+    le_lo%nproc = nproc
     le_lo%ntgrid = ntgrid
     le_lo%ntgridtotal=(2*ntgrid+1)
     le_lo%ntheta0 = ntheta0
@@ -2487,6 +2491,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
 
     e_lo%iproc = iproc
+    e_lo%nproc = nproc
     e_lo%ntgrid = ntgrid
     e_lo%nsign = 2
     e_lo%ntheta0 = ntheta0
@@ -2663,6 +2668,7 @@ contains
     integer :: ngroup, nprocset
 
     lz_lo%iproc = iproc
+    lz_lo%nproc = nproc
     lz_lo%ntgrid = ntgrid
     lz_lo%naky = naky
     lz_lo%ntheta0 = ntheta0
@@ -2860,6 +2866,7 @@ contains
     integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
 
     p_lo%iproc = iproc
+    p_lo%nproc = nproc
     p_lo%naky = naky
     p_lo%nlambda = nlambda
     p_lo%negrid = negrid
@@ -3052,6 +3059,7 @@ contains
     real :: unbalanced_amount
 
     xxf_lo%iproc = iproc
+    xxf_lo%nproc = nproc
     xxf_lo%ntgrid = ntgrid
     ntgridtotal=(2*ntgrid+1)
     xxf_lo%ntgridtotal = ntgridtotal
@@ -3970,6 +3978,7 @@ contains
     end if
 
     yxf_lo%iproc = iproc
+    yxf_lo%nproc = nproc
     yxf_lo%ntgrid = ntgrid
     ntgridtotal=(2*ntgrid+1)
     yxf_lo%ntgridtotal = ntgridtotal
@@ -4553,6 +4562,7 @@ contains
     end if
 
     accelx_lo%iproc = iproc
+    accelx_lo%nproc = nproc
     accelx_lo%ntgrid = ntgrid
     accelx_lo%nsign = 2
     accelx_lo%naky = naky
@@ -4640,6 +4650,7 @@ contains
 
 #ifndef SHMEM
     accel_lo%iproc = iproc
+    accel_lo%nproc = nproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
     accel_lo%naky = naky
@@ -4663,6 +4674,7 @@ contains
 
 #else
     accel_lo%iproc = iproc
+    accel_lo%nproc = nproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
     accel_lo%naky = naky

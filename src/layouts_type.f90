@@ -33,7 +33,7 @@ module layouts_type
   !> FIXME : Add documentation
   type :: g_layout_type
      sequence
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: naky, ntheta0, nlambda, negrid, nspec, ntgrid, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      !<DD>
@@ -70,7 +70,7 @@ module layouts_type
   !> FIXME : Add documentation
   type :: lz_layout_type
      sequence
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, naky, ntheta0, negrid, nspec, ng2, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
      integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
@@ -88,7 +88,7 @@ module layouts_type
   !> FIXME : Add documentation
   type :: e_layout_type
      sequence
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, naky, ntheta0, nlambda, nspec, nsign, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      !<DD>
@@ -104,7 +104,7 @@ module layouts_type
   !> FIXME : Add documentation
   type :: le_layout_type
      sequence
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, naky, ntheta0, nspec, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      !<DD>
@@ -134,7 +134,7 @@ module layouts_type
   !> FIXME : Add documentation
   type :: p_layout_type
      sequence
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: naky, nlambda, negrid, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      !<DD>
@@ -148,10 +148,9 @@ module layouts_type
      module procedure deallocate_g_layout
   end interface deallocate_layout
 
-
   !> FIXME : Add documentation
   type :: xxf_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, nsign, naky, ntheta0, nx, nadd, negrid, nlambda, nspec, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
      integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
@@ -172,7 +171,7 @@ module layouts_type
 
   !> FIXME : Add documentation
   type :: yxf_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, negrid, nlambda, nspec, ntgridtotal
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
      integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
@@ -193,7 +192,7 @@ module layouts_type
 
   !> FIXME : Add documentation
   type :: accel_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
      integer :: nx, nxny, nxnky, negrid, nlambda, nspec, nia
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
@@ -204,7 +203,7 @@ module layouts_type
 
   !> FIXME : Add documentation
   type :: accelx_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      ! Following just for SHMEM
