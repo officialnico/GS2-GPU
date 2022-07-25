@@ -4648,7 +4648,6 @@ contains
        nny = 3*naky
     end if
 
-#ifndef SHMEM
     accel_lo%iproc = iproc
     accel_lo%nproc = nproc
     accel_lo%ntgrid = ntgrid
@@ -4663,9 +4662,11 @@ contains
     accel_lo%nlambda = nlambda
     accel_lo%negrid = negrid
     accel_lo%nspec = nspec
-    accel_lo%nia = negrid*nlambda*nspec/nproc
     accel_lo%llim_world = 0
     accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
+
+#ifndef SHMEM
+    accel_lo%nia = negrid*nlambda*nspec/nproc
     accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     accel_lo%llim_proc = accel_lo%blocksize*iproc
     accel_lo%ulim_proc &
@@ -4673,24 +4674,6 @@ contains
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
 #else
-    accel_lo%iproc = iproc
-    accel_lo%nproc = nproc
-    accel_lo%ntgrid = ntgrid
-    accel_lo%nsign = 2
-    accel_lo%naky = naky
-    accel_lo%ndky = nny/2+1  ! Note: this is for dealiased k space quantities
-    accel_lo%ny = nny
-    accel_lo%ntheta0 = ntheta0
-    accel_lo%nx = nnx
-    accel_lo%nxny = nnx*nny
-    accel_lo%nxnky = nnx*(nny/2+1)
-    accel_lo%nlambda = nlambda
-    accel_lo%negrid = negrid
-    accel_lo%nspec = nspec
-    !accel_lo%nia = negrid*nlambda*nspec/nproc
-    accel_lo%llim_world = 0
-    accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
-    !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     nxy = nnx*(nny/2+1)
     les = nlambda*negrid*nspec
 
