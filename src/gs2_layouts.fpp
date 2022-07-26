@@ -1975,10 +1975,6 @@ contains
        jf_lo%it_min=MIN(jf_lo%it_min,it_idx(jf_lo,jlo))
     enddo
 
-    !> Note this will fail if we attempt to call this method
-    !> twice without call finish_jfields_layouts in between as
-    !> it attempts to modify module state. It would be better
-    !> to make these members of the jf_layout_type
     allocate (jf_lo%ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
     allocate (jf_lo%mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
     allocate (jf_lo%dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
