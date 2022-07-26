@@ -1,0 +1,26 @@
+&species_knobs
+ nspec = 1
+/
+
+&collisions_knobs
+collision_model = "default"
+split_collisions = F
+/
+
+&species_parameters_1
+ z = 1.0
+ mass = 1.0
+ dens = 1.0
+ temp = 1.0
+ tprim = 6.9
+ fprim = 2.2
+ vnewk = 0.01
+ type = "ion"
+/
+
+&test_settings
+gamma_expected = 0.179023
+omega_expected = 0.523211
+tolerance = 1.0e-3
+/
+!include cyclone_itg_collisions_base.in

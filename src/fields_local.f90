@@ -902,7 +902,7 @@ contains
 
     !Now if on head proc read
     if (self%is_head) then
-       call gs2_restore_response(tmp_arr, file_name)
+       call gs2_restore_response(tmp_arr, file_name, self%condition_number)
     end if
 
     !Now we need to broadcast the data to everyone with supercell.
