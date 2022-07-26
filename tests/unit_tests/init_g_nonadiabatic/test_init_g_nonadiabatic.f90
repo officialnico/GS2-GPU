@@ -139,11 +139,16 @@ contains
   !> Note we don't test bpar here as this should be non-zero here.
   logical function test_zero_charge_density() result(agrees)
     use gs2_layouts, only: g_lo, is_idx
-    use species, only: spec
+    use species, only: spec, nspec
     implicit none
     character(len=*), parameter :: case_name = 'zero_charge_density'
     logical, dimension(2) :: checks
     integer :: iglo, is
+
+    if (nspec == 1) then
+       agrees = .true.
+       return
+    end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
