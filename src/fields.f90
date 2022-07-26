@@ -508,7 +508,7 @@ contains
           write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
        else
           write(real_response_file,'(A,A,"/",A)') &
-               trim(response_file(1:ind_slash)), &
+               response_file(1:ind_slash), &
                trim(response_dir), &
                trim(response_file(ind_slash+1:))
        end if
