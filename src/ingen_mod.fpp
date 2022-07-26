@@ -132,6 +132,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
+    use mp, only : proc0
     implicit none
     type(ingen_config_type), intent(in), optional :: ingen_config_in
     type(standard_header_type) :: local_header
@@ -148,7 +149,7 @@ contains
     
     call get_namelists
     if (debug) write(6,*) 'ingen: call report'
-    call report(local_header)
+    if (proc0) call report(local_header)
     if (debug) write(6,*) 'ingen: call write_namelists'
     call write_namelists(header=local_header)
     
@@ -1028,7 +1029,6 @@ if (debug) write(6,*) 'get_namelists: returning'
       local_header = standard_header_type()
     end if
 
-    call get_unused_unit (report_unit)
     call open_output_file (report_unit, ".report")
 
     write (report_unit, *) 
@@ -1333,14 +1333,14 @@ if (debug) write(6,*) 'get_namelists: returning'
        sdim = (/ nspec, negrid, nlambda, 2, 2*ntgrid+1, naky /)
        nfac= (/ nspfacs, nefacs, nlfacs, nsgfacs, ntgfacs, nkyfacs /)
        facs(:,1)=spfacs; facs(:,2)=efacs; facs(:,3)=lfacs
-       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=nkyfacs
+       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=kyfacs
        call wsweetspots(sym,sdim,nfac,facs,npmax,LUN=report_unit)
     case ('yxels')
        sym = (/ "s  ","l  ","e  ","sgn","tg ","y  " /)
        sdim = (/ nspec, nlambda, negrid, 2, 2*ntgrid+1, naky /)
        nfac= (/ nspfacs, nlfacs, nefacs, nsgfacs, ntgfacs, nkyfacs /)
        facs(:,1)=spfacs; facs(:,2)=lfacs; facs(:,3)=efacs
-       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=nkyfacs
+       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=kyfacs
        call wsweetspots(sym,sdim,nfac,facs,npmax,LUN=report_unit)
     end select
     deallocate (facs,spfacs,efacs,lfacs,sgfacs,tgfacs,kyfacs)
@@ -1388,7 +1388,7 @@ if (debug) write(6,*) 'get_namelists: returning'
        sdim = (/ nspec, nlambda, negrid, 2, 2*ntgrid+1, nx /)
        nfac= (/ nspfacs, nlfacs, nefacs, nsgfacs, ntgfacs, nkxfacs /)
        facs(:,1)=spfacs; facs(:,2)=lfacs; facs(:,3)=efacs
-       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=nkxfacs
+       facs(:,4)=sgfacs; facs(:,5)=tgfacs; facs(:,6)=kxfacs
        call wsweetspots(sym,sdim,nfac,facs,npmax,LUN=report_unit)
     end select
     deallocate (facs,spfacs,efacs,lfacs,sgfacs,tgfacs,kxfacs)

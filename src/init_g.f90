@@ -12,7 +12,7 @@ module init_g
   public :: tstart
   public :: reset_init
   public :: init_vnmult
-  public :: new_field_init
+  public :: new_field_init, initial_condition_is_nonadiabatic_dfn
   public :: ginitopt_restart_many
   public :: ginitopt_restart_memory
   private :: single_initial_kx
@@ -1248,12 +1248,9 @@ contains
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     implicit none
-    complex, dimension(:, :, :), allocatable :: phi, apar, bpar
     integer :: iglo, ik, il, is
-    allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
 
     ! Respect passing hybrid electrons h=0
     if (has_hybrid_electron_species(spec)) then
@@ -1273,6 +1270,9 @@ contains
 
     ! Ensure both timesteps are set correctly
     g = gnew
+    phinew = phi
+    aparnew = apar
+    bparnew = bpar
   end subroutine set_gnew_from_nonadiabatic_dfn
 
   !> FIXME : Add documentation
@@ -3265,7 +3265,7 @@ contains
     use dist_fn, only: gamtot, gamtot1, gamtot2
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
-    use file_utils, only: error_unit, get_unused_unit
+    use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
     implicit none
     integer :: iglo
@@ -3763,12 +3763,11 @@ contains
 
        ! store equilibrium fields
        if(proc0) then
-          call get_unused_unit(unit)
-          open(unit,file='equilibrium.dat',form='unformatted')
+          call open_output_file(unit, ".equilibrium.dat", binary = .true.)
           write(unit) phixy(:,:,0),aparxy(:,:,0),bparxy(:,:,0),jparxy(:,:,0)
           write(unit) densxy(:,:,0,:),uparxy(:,:,0,:), &
                & tparxy(:,:,0,:),tperxy(:,:,0,:)
-          close(unit)
+          call close_output_file(unit)
        endif
     endif
 
@@ -3830,8 +3829,7 @@ contains
                      & real(tper(0,eq_mode_n+1,1,is))
              end do
 
-             call get_unused_unit(unit)
-             open(unit,file='check_moment.dat')
+             call open_output_file(unit, '.check_moment.dat')
              write(unit,'(a1,1x,2a20,4(4a20))') '#','x','y', &
                   & ('dens','upar','tpar','tperp',i=1,nspec)
              do it=1,nx+1
@@ -3844,7 +3842,7 @@ contains
                 end do
                 write(unit,*)
              end do
-             close(unit)
+             call close_output_file(unit)
           endif
 
           write(6,*)
@@ -3868,8 +3866,7 @@ contains
                   & eq_mode_n,0, &
                   & real(bpar(0,eq_mode_n+1,1))
 
-             call get_unused_unit(unit)
-             open(unit,file='check_field.dat')
+             call open_output_file(unit, '.check_field.dat')
              write(unit,'(a1,1x,5a20)') '#','x','y','phi','apar','bpar','by'
              do it=1,nx+1
                 i=mod(it-1,nx)+1
@@ -3880,7 +3877,7 @@ contains
                 end do
                 write(unit,*)
              end do
-             close(unit)
+             call close_output_file(unit)
           endif
 
        endif

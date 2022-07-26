@@ -66,7 +66,6 @@ program gs2
   use gs2_main, only: parse_command_line, write_used_inputs_file
   use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
   use mp, only: proc0
-  use file_utils, only: get_unused_unit, run_name
   use standard_header, only: standard_header_type
   implicit none
   type(gs2_program_state_type) :: state
