@@ -95,6 +95,8 @@ module gs2_layouts
   logical :: intmom_sub
   logical :: intspec_sub
   logical :: local_field_solve, accel_lxyes, lambda_local, unbalanced_xxf, unbalanced_yxf
+  integer :: nproc_e_lo, nproc_g_lo, nproc_le_lo, nproc_lz_lo
+  integer :: nproc_xxf_lo, nproc_yxf_lo
   real :: max_unbalanced_xxf, max_unbalanced_yxf
   character (len=5) :: layout
   character(run_name_size) :: fft_wisdom_file
@@ -260,6 +262,24 @@ module gs2_layouts
      !> report](https://bitbucket.org/gyrokinetics/wikifiles/raw/HEAD/CMR/GS2_Final_report_NAG_Version_v1.0.pdf)
      !> for more details.
      real :: max_unbalanced_yxf = 0.0
+     !> The number of processors to use in e_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_e_lo = 0
+     !> The number of processors to use in g_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_g_lo = 0
+     !> The number of processors to use in le_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_le_lo = 0
+     !> The number of processors to use in lz_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_lz_lo = 0
+     !> The number of processors to use in xxf_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_xxf_lo = 0
+     !> The number of processors to use in yxf_lo layout. Capped to number of processors
+     !> in comm world. If not set (<=0) defaults to global nproc.
+     integer :: nproc_yxf_lo = 0
      !> Setting to true enables optimising redistribute code, used in
      !> FFTs for evaluating nonlinear terms, that avoids indirect
      !> addressing. This can introduces worthwhile savings in
@@ -541,6 +561,12 @@ contains
     local_field_solve = layouts_config%local_field_solve
     max_unbalanced_xxf = layouts_config%max_unbalanced_xxf
     max_unbalanced_yxf = layouts_config%max_unbalanced_yxf
+    nproc_e_lo = layouts_config%nproc_e_lo
+    nproc_g_lo = layouts_config%nproc_g_lo
+    nproc_le_lo = layouts_config%nproc_le_lo
+    nproc_lz_lo = layouts_config%nproc_lz_lo
+    nproc_xxf_lo = layouts_config%nproc_xxf_lo
+    nproc_yxf_lo = layouts_config%nproc_yxf_lo
     opt_local_copy = layouts_config%opt_local_copy
     opt_redist_nbk = layouts_config%opt_redist_nbk
     opt_redist_persist = layouts_config%opt_redist_persist
@@ -5128,12 +5154,13 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 5) :: layout
     character(len = run_name_size) :: fft_wisdom_file
+    integer :: nproc_e_lo, nproc_g_lo, nproc_le_lo, nproc_lz_lo, nproc_xxf_lo, nproc_yxf_lo
     logical :: fft_measure_plan, fft_use_wisdom, gf_local_fields, intmom_sub, intspec_sub, local_field_solve, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition
     logical :: unbalanced_xxf, unbalanced_yxf
     real :: max_unbalanced_xxf, max_unbalanced_yxf
 
-    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, max_unbalanced_yxf, opt_local_copy, opt_redist_nbk, &
-         opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
+    namelist /layouts_knobs/ fft_measure_plan, fft_use_wisdom, fft_wisdom_file, gf_local_fields, intmom_sub, intspec_sub, layout, local_field_solve, max_unbalanced_xxf, max_unbalanced_yxf, nproc_e_lo, nproc_g_lo, nproc_le_lo, &
+         nproc_lz_lo, nproc_xxf_lo, nproc_yxf_lo, opt_local_copy, opt_redist_nbk, opt_redist_persist, opt_redist_persist_overlap, simple_gf_decomposition, unbalanced_xxf, unbalanced_yxf
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5149,6 +5176,12 @@ contains
     local_field_solve = self%local_field_solve
     max_unbalanced_xxf = self%max_unbalanced_xxf
     max_unbalanced_yxf = self%max_unbalanced_yxf
+    nproc_e_lo = self%nproc_e_lo
+    nproc_g_lo = self%nproc_g_lo
+    nproc_le_lo = self%nproc_le_lo
+    nproc_lz_lo = self%nproc_lz_lo
+    nproc_xxf_lo = self%nproc_xxf_lo
+    nproc_yxf_lo = self%nproc_yxf_lo
     opt_local_copy = self%opt_local_copy
     opt_redist_nbk = self%opt_redist_nbk
     opt_redist_persist = self%opt_redist_persist
@@ -5172,6 +5205,12 @@ contains
     self%local_field_solve = local_field_solve
     self%max_unbalanced_xxf = max_unbalanced_xxf
     self%max_unbalanced_yxf = max_unbalanced_yxf
+    self%nproc_e_lo = nproc_e_lo
+    self%nproc_g_lo = nproc_g_lo
+    self%nproc_le_lo = nproc_le_lo
+    self%nproc_lz_lo = nproc_lz_lo
+    self%nproc_xxf_lo = nproc_xxf_lo
+    self%nproc_yxf_lo = nproc_yxf_lo
     self%opt_local_copy = opt_local_copy
     self%opt_redist_nbk = opt_redist_nbk
     self%opt_redist_persist = opt_redist_persist
@@ -5206,6 +5245,12 @@ contains
     call self%write_key_val("local_field_solve", self%local_field_solve, unit_internal)
     call self%write_key_val("max_unbalanced_xxf", self%max_unbalanced_xxf, unit_internal)
     call self%write_key_val("max_unbalanced_yxf", self%max_unbalanced_yxf, unit_internal)
+    call self%write_key_val("nproc_e_lo", self%nproc_e_lo, unit_internal)
+    call self%write_key_val("nproc_g_lo", self%nproc_g_lo, unit_internal)
+    call self%write_key_val("nproc_le_lo", self%nproc_le_lo, unit_internal)
+    call self%write_key_val("nproc_lz_lo", self%nproc_lz_lo, unit_internal)
+    call self%write_key_val("nproc_xxf_lo", self%nproc_xxf_lo, unit_internal)
+    call self%write_key_val("nproc_yxf_lo", self%nproc_yxf_lo, unit_internal)
     call self%write_key_val("opt_local_copy", self%opt_local_copy, unit_internal)
     call self%write_key_val("opt_redist_nbk", self%opt_redist_nbk, unit_internal)
     call self%write_key_val("opt_redist_persist", self%opt_redist_persist, unit_internal)
@@ -5242,6 +5287,12 @@ contains
     call broadcast(self%local_field_solve)
     call broadcast(self%max_unbalanced_xxf)
     call broadcast(self%max_unbalanced_yxf)
+    call broadcast(self%nproc_e_lo)
+    call broadcast(self%nproc_g_lo)
+    call broadcast(self%nproc_le_lo)
+    call broadcast(self%nproc_lz_lo)
+    call broadcast(self%nproc_xxf_lo)
+    call broadcast(self%nproc_yxf_lo)
     call broadcast(self%opt_local_copy)
     call broadcast(self%opt_redist_nbk)
     call broadcast(self%opt_redist_persist)
