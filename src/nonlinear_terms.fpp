@@ -67,10 +67,13 @@ module nonlinear_terms
 
 ! CFL coefficients
   real :: cfl, cflx, cfly
-  !> Maximum velocity of the nonlinear term, the reciprocal of the maximum timestep that
-  !> satisfies the CFL condition. This currently has to be module level due to potential
-  !> non-blocking reduction.
-  real :: max_vel, max_vel_x, max_vel_y
+  !> Data on maximum velocity of the nonlinear term, the reciprocal of
+  !> the maximum timestep that satisfies the CFL condition. This
+  !> currently has to be module level due to potential non-blocking
+  !> reduction. Stores max_vel_x, max_vel_y and max_vel_error
+  !> components to allow a max reduction over each element.
+  real, dimension(3) :: max_vel_components
+
   integer :: cfl_req_hand = mp_request_null
   logical :: use_cfl_limit
 
@@ -442,7 +445,7 @@ contains
 
           ! Ensure the module level max_vel is consistent with
           ! the selected cfl limiting timestep.
-          max_vel = 1.0/dt_cfl
+          max_vel_components = 1.0/dt_cfl
        end if
        return
     endif
@@ -484,6 +487,12 @@ contains
        ! and store it in g1
        if (present(nl)) then
           call debug_message(verb, 'nonlinear_terms::add_explicit calling add_nl')
+
+          ! If we're not using various limits then we'd like to zero
+          ! out the maximum velocity however, we later take 1/max_vel
+          ! so let's just set it small.
+          max_vel_components = epsilon(0.0)
+
           if(gryfx_zonal%on) then
              call add_nl_gryfx (g1)
           else
@@ -493,16 +502,15 @@ contains
 
           call nl_center (g1, bd)
 
-          ! Currently the module level max_vel contains the maximum
-          ! velocity found from the nonlinear term on this
-          ! processor. This can be used to find the cfl limting time
-          ! step.
+          ! Currently the module level max_vel_components contains the
+          ! maximum x and y velocities found from the nonlinear term
+          ! on this processor. This can be used to find the cfl
+          ! limting time step.
 
-          ! If we're not using the cfl limit then we'd like to zero
-          ! out the maximum velocity however, we later take 1/max_vel
-          ! so let's just set it small.
+          ! Reset the x and y components of max_vel_components if we
+          ! don't want to consider the cfl limit
           if (.not. use_cfl_limit) then
-             max_vel = epsilon(0.0)
+             max_vel_components(1:2) = epsilon(0.0)
           end if
 
           ! Calculate the effective maximum velocity based on the error
@@ -524,7 +532,7 @@ contains
 
              ! Now we have an error limited time step lets convert this
              ! to an effective maximum velocity
-             max_vel = max(max_vel, 1.0/target_dt)
+             max_vel_components(3) = 1.0/target_dt
           end if
 
           ! Now we can reduce our local limiting velocities to get
@@ -536,13 +544,13 @@ contains
              ! allreduce immediately.  If not, overlap comms and work,
              ! and check for reset at the end of the timestep.
              if(immediate_reset)then
-                call max_allreduce(max_vel)
+                call max_allreduce(max_vel_components)
                 ! This call can update the value of reset.
                 call set_cfl_time_step_and_check_if_too_large
              else
                 ! Do a nonblocking reduce and check later in
                 ! [[gs2_reinit:check_time_step]].
-                call nb_max_allreduce(max_vel, cfl_req_hand)
+                call nb_max_allreduce(max_vel_components, cfl_req_hand)
              end if
           else
              ! If we don't have any checks active then we better make sure that the
@@ -729,7 +737,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    real :: dt_cfl
+    real :: dt_cfl, max_vel_x, max_vel_y
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia
@@ -822,9 +830,9 @@ contains
        call inverse2 (bracket, g1)
     end if
 
-    ! For now keep original cfl limit approach and just take the more
-    ! limiting of x and y limits
-    max_vel = max(max_vel_x, max_vel_y)
+    !Store local max vel components for future max reduce
+    max_vel_components(1) = max_vel_x
+    max_vel_components(2) = max_vel_y
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
@@ -1134,7 +1142,12 @@ contains
     use run_parameters, only: reset
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     implicit none
-    real :: dt_cfl
+    real :: dt_cfl, max_vel_cfl, max_vel_error, max_vel
+
+    max_vel_cfl = max_vel_components(1) + max_vel_components(2)
+    max_vel_error = max_vel_components(3)
+
+    max_vel = max(max_vel_cfl, max_vel_error)
 
     ! Estimate the global cfl limit based on max_vel.
     dt_cfl = 1./max_vel
