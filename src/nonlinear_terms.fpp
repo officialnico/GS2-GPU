@@ -70,7 +70,7 @@ module nonlinear_terms
   !> Maximum velocity of the nonlinear term, the reciprocal of the maximum timestep that
   !> satisfies the CFL condition. This currently has to be module level due to potential
   !> non-blocking reduction.
-  real :: max_vel
+  real :: max_vel, max_vel_x, max_vel_y
   integer :: cfl_req_hand = mp_request_null
   logical :: use_cfl_limit
 
@@ -742,12 +742,16 @@ contains
     call load_kx_apar(g1, apar)    
 
     call debug_message(verb, 'nonlinear_terms::add_nl calling transform2')
+
     !Transform to real space
     if (accelerated) then
        call transform2 (g1, aba, ia)
+       max_vel_y = maxval(abs(aba))
     else
        call transform2 (g1, ba)
+       max_vel_y = maxval(abs(ba))
     end if
+    max_vel_y = max_vel_y * cfly
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
@@ -768,9 +772,6 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
 
-    max_vel = 0.
-    call get_max_vel(cfly)
-
     call calculate_bracket(.true.)
     
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx.dg/dy')
@@ -785,9 +786,12 @@ contains
     !Transform to real space    
     if (accelerated) then
        call transform2 (g1, aba, ia)
+       max_vel_x = maxval(abs(aba))
     else
        call transform2 (g1, ba)
+       max_vel_x = maxval(abs(ba))
     end if
+    max_vel_x = max_vel_x * cflx
 
     !Form g1=i*kx*g_wesson
     g1=g
@@ -805,8 +809,6 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
-    
-    call get_max_vel(cflx)
 
     call calculate_bracket(.false.)
     
@@ -819,6 +821,10 @@ contains
     else
        call inverse2 (bracket, g1)
     end if
+
+    ! For now keep original cfl limit approach and just take the more
+    ! limiting of x and y limits
+    max_vel = max(max_vel_x, max_vel_y)
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
@@ -1001,23 +1007,6 @@ contains
     end do
 
   end subroutine load_ky_bpar
-
-  !> Calculates an estimate of the current maximum velocity due to the
-  !! perturbed potentials. This is currenly a processor local estimate.
-  subroutine get_max_vel(scaling)
-    implicit none
-    real, intent(in) :: scaling
-    real :: local_max_vel
-    if (accelerated) then
-       local_max_vel = maxval(abs(aba))
-    else
-       local_max_vel = maxval(abs(ba))
-    end if
-    
-    local_max_vel = local_max_vel * scaling
-
-    max_vel = max(max_vel, local_max_vel)
-  end subroutine get_max_vel
 
   !> Calculate (d Chi /dx).(d g_wesson/dy) and store in bracket if is_first_term = .true.
   !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
