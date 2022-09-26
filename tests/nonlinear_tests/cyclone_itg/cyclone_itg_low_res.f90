@@ -13,7 +13,7 @@ module checks_mod
       !Check if the cfl condition matches expected value with 3%
       !Checking against a predefined "correct" value, this may not
       !be a fatal error if agreement not found.
-      checks =  agrees_with(code_dt_cfl,0.20,0.03)
+      checks =  agrees_with(code_dt_cfl,0.215,0.04)
     end function checks
 end module checks_mod
 
