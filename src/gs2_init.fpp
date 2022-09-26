@@ -332,7 +332,7 @@ contains
     use fields, only: set_init_fields
     use file_utils, only: error_unit
     use init_g, only: ginit, init_vnmult
-    use init_g, only: ginitopt_restart_many
+    use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
     use run_parameters, only: fphi, fapar, fbpar
     use collisions, only: vnmult
     implicit none
@@ -342,6 +342,10 @@ contains
     if (.not. current%initval_ov%override) then
        ! This is the usual initial setup
        call ginit (restarted)
+       ! If initial_condition_is_nonadiabatic_dfn then we have already
+       ! calculated the correct fields, unless restarting, so return straight away.
+       ! If restarting then we deal with this further below.
+       if ((.not.restarted) .and. initial_condition_is_nonadiabatic_dfn) return
        ! If we're restarting from file then we don't want to recalculate
        ! the fields unless force_maxwell_reinit is true. If we are not
        ! restarting then we better call set_init_fields to set the initial

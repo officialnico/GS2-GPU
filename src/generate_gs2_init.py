@@ -148,7 +148,7 @@ if __name__ == "__main__":
         module_with_dependencies("gs2_save", dependencies = ["basic"]),
         module_with_dependencies("run_parameters",
                                  dependencies = [
-                                     "kt_grids"]),
+                                     "init_g", "kt_grids"]),
         module_with_dependencies("hyper",
                                  dependencies = [
                                      "kt_grids", "gs2_layouts"]),
@@ -177,8 +177,9 @@ if __name__ == "__main__":
                                     "  use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts",
                                     "  use kt_grids, only: naky, ntheta0",
                                     "  use le_grids, only: nlambda, negrid",
+                                    "  use mp, only: nproc, iproc",
                                     "  use species, only: nspec"]),
-                                               'up_action': "    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)",
+                                               'up_action': "    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
                                                'down_action': "    call finish_dist_fn_layouts"}
 
         ),

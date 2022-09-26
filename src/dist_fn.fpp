@@ -980,7 +980,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_dist_fn_arrays
-    use mp, only: proc0, finish_mp, mp_abort
+    use mp, only: nproc, iproc, proc0, finish_mp, mp_abort
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
@@ -1010,7 +1010,7 @@ contains
     call init_run_parameters
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays
@@ -1903,7 +1903,7 @@ contains
 !AJ
     use gs2_layouts, only: gf_lo, init_gf_layouts
     use spfunc, only: j0, j1
-
+    use mp, only: nproc, iproc
     implicit none
 
     integer :: ig, ik, it, il, ie, is
@@ -1916,7 +1916,7 @@ contains
     allocate (aj0(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (aj1(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
 
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -6728,15 +6728,15 @@ contains
   subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: fphi, fapar, fbpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
-    use species, only: nspec, spec
+    use species, only: nspec, spec, has_electron_species, has_ion_species
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real, dimension(nspec) :: weights
-
+    real :: phi_weight
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
@@ -6746,8 +6746,13 @@ contains
     call getan_from_dfn(f_in, antot, antota, antotp)
 
     if (fphi > 0) then
-       ! Do we need to include the adiabatic contribution in the sum?
-       phi = antot / sum(spec%dens*spec%z*spec%z / spec%temp)
+       ! We could add in kperp2*poisfac to the weight to retain this feature
+       if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
+          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp) + tite
+       else
+          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
+       end if
+       phi = antot / phi_weight
     else
        phi = 0
     end if
@@ -9104,7 +9109,7 @@ contains
   !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine write_f (last)
     use mp, only: proc0, send, receive
-    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id
     use le_grids, only: al, energy, forbid, negrid, nlambda

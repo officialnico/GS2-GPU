@@ -249,12 +249,13 @@ subroutine dist_fn_layouts_subroutine(self, current, going_up)
   use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts
   use kt_grids, only: naky, ntheta0
   use le_grids, only: nlambda, negrid
+  use mp, only: nproc, iproc
   use species, only: nspec
   class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   else
     call finish_dist_fn_layouts
   end if

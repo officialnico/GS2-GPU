@@ -77,10 +77,14 @@ USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
+# Does this compiler support f2008 compiler_version and compiler_options
+GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?= 
+USE_NAGLIB ?=
+# Use openmp (very limited use currently)
+USE_OPENMP ?=
 # Make GS2 into a library which can be called by external programs
 MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
@@ -505,6 +509,10 @@ ifdef USE_LAPACK
 	MACRO_DEFS += -DLAPACK
 endif
 
+ifdef USE_OPENMP
+	MACRO_DEFS += -DOPENMP
+endif
+
 ifdef USE_F200X_INTRINSICS
 	MACRO_DEFS += -DF200X_INTRINSICS -DSPFUNC=_SPF200X_
 else
@@ -515,6 +523,10 @@ else
 			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
+endif
+
+ifdef GK_HAS_COMPILER_OPTIONS_2008
+	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifdef USE_NAGLIB

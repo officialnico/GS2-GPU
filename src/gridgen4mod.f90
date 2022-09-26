@@ -175,6 +175,7 @@ contains
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
        ntheta,nbset,thetagrid,bmaggrid,bset)
     use constants, only: pi, twopi
+    use mp, only: proc0
     implicit none
     integer, intent (in) :: n
     integer, intent (in) :: nbmag
@@ -187,7 +188,7 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real :: npi
     integer, parameter :: maxiter = 100
-    logical, parameter :: debug_output = .true.,verbose_debug_output = .false. ! MRH verbose_debug_output prints out the resolution_metric to debug_unit for every iteration of gg4remove to debug the point using procedure
+    logical :: debug_output = .true., verbose_debug_output = .false. ! MRH verbose_debug_output prints out the resolution_metric to debug_unit for every iteration of gg4remove to debug the point using procedure    
 
     real, parameter :: precision_bound = 1.0e3*epsilon (0.0)! MRH a number used to take into account machine error in floatingpoint arithmetic
     real, dimension (:), allocatable :: bmagspl
@@ -211,8 +212,13 @@ contains
     integer :: nthetaout, nlambdaout
     integer :: itheta !MRH
     integer :: debug_unit
-    logical, parameter :: debug=.false.!.true.!    
+    logical, parameter :: debug=.false.!.true.!
     npi = n * twopi
+
+    ! Disable debug output when iproc /= 0 and make sure debug_output
+    ! active if verbose_debug_output
+    verbose_debug_output = verbose_debug_output .and. proc0
+    debug_output = (debug_output .or. verbose_debug_output) .and. proc0
 
 if (debug) write(6,*) "gridgen4_2: call gg4init"
     call gg4init
@@ -330,7 +336,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4init
       use splines, only: fitp_curvp1
       use mp, only: mp_abort
-      use file_utils, only: open_output_file, get_unused_unit
+      use file_utils, only: open_output_file
       implicit none
       real, dimension (2*nbmag) :: tmp
       integer :: ierr, i
@@ -358,7 +364,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       nsetset = 0
 
       if (debug_output) then
-         call get_unused_unit(debug_unit)
          call open_output_file(debug_unit,".gridgen.200")
          write (unit=debug_unit, fmt=*) "nbmag=", nbmag
          write (unit=debug_unit, fmt=*) "thetain,bmagin="
