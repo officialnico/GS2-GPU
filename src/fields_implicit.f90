@@ -403,9 +403,8 @@ contains
     implicit none
     complex, dimension(:,:,:), allocatable :: phi_avg
 
-    allocate(phi_avg(-ntgrid:ntgrid,ntheta0,naky)) 
-    phi_avg = 0.
-    ! fieldline_average_phi will calculate the field line average of phinew and 
+    allocate(phi_avg(-ntgrid:ntgrid,ntheta0,naky))
+    ! fieldline_average_phi will calculate the field line average of phinew and
     ! put it into phi_avg, but only for ik = 1 (the last parameter of the call)
     call fieldline_average_phi(phinew, phi_avg, 1)
     phinew = phinew - phi_avg
@@ -439,6 +438,7 @@ contains
             sum(delthet(-ntgrid:ntgrid)*jac(-ntgrid:ntgrid))
            phi_average(:, it, ik_only_actual) = phi_avg_line
       end do
+       phi_average = 0.
     else
       do it = 1,ntheta0
         do ik = 1,naky
