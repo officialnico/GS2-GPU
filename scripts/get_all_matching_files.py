@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 def get_all_matching_files(paths = None, patterns = None, absolute = False, exclude=None):
     if paths is None:
