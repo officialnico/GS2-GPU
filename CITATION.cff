@@ -101,9 +101,9 @@ authors:
   - family-names: Van Wyk
     given-names: Ferdinand
 
-version: 8.1.0
-date-released: 2021-12-10
+version: 8.1.2
+date-released: 2022-06-26
 repository-code: https://bitbucket.org/gyrokinetics/gs2/
 url: https://gyrokinetics.gitlab.io/gs2/
-doi: 10.5281/zenodo.5772100
+doi: 10.5281/zenodo.6882296
 license: 'MIT'

@@ -144,6 +144,7 @@ contains
     use gs2_save, only: restore_current_scan_parameter_value 
     use init_g, only: init_init_g
     use file_utils, only: open_output_file
+    use mp, only: proc0
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
 
@@ -165,7 +166,7 @@ contains
     end select
 
 
-    call open_output_file(scan_output_file, ".par_scan")
+    if (proc0) call open_output_file(scan_output_file, ".par_scan")
       
     write_scan_parameter = .true.
     run_scan = .true.
@@ -226,16 +227,17 @@ contains
   !> FIXME : Add documentation
   subroutine finish_parameter_scan
     use file_utils, only: close_output_file
+    use mp, only: proc0
     implicit none
     call deallocate_target_arrays
-    call close_output_file(scan_output_file)
+    if (proc0) call close_output_file(scan_output_file)
     initialized = .false.
     call parameter_scan_config%reset()
   end subroutine finish_parameter_scan
 
   !> FIXME : Add documentation  
   subroutine update_scan_parameter_value(istep, reset, exit)
-    use mp, only : mp_abort
+    use mp, only : mp_abort, proc0
     use gs2_time, only: user_time
     implicit none
     logical, intent (inout) :: exit, reset
@@ -251,7 +253,7 @@ contains
     case (scan_type_none)
       return
     case (scan_type_range)
-      write (scan_output_file, fmt="('time=  ',e11.4,'  parameter=  ',e11.4)") &
+      if (proc0) write (scan_output_file, fmt="('time=  ',e11.4,'  parameter=  ',e11.4)") &
           user_time, current_scan_parameter_value
       call check_increment_condition_satisfied(istep, increment_condition_satisfied)
       if (.not. increment_condition_satisfied) return
@@ -266,7 +268,7 @@ contains
           call increment_scan_parameter(increment, reset)
        end if
      case (scan_type_target)
-      write (scan_output_file, &
+      if (proc0) write (scan_output_file, &
         fmt="('time=  ',e11.4,'  parameter=  ',e11.4,'  target=  ',e11.4)") &
           user_time, current_scan_parameter_value, current_target_value 
       call check_increment_condition_satisfied(istep, increment_condition_satisfied)
@@ -294,7 +296,7 @@ contains
         !call increment_scan_parameter(increment, reset)
       !end if
     end select
-    if (exit) write (scan_output_file, *) "Parameter scan is complete...."
+    if (exit .and. proc0) write (scan_output_file, *) "Parameter scan is complete...."
   end subroutine update_scan_parameter_value
 
   !> FIXME : Add documentation  

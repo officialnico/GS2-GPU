@@ -25,7 +25,7 @@ contains
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: g_lo, init_dist_fn_layouts
     use hyper, only: init_hyper
-    
+    use mp, only: nproc, iproc
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     logical :: accel_x, accel_v
@@ -39,7 +39,7 @@ contains
     call init_le_grids(accel_x, accel_v)
     ! in order to use fft transform routines
     call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
 !!!!! now need to initiate and assign hypervisc_filter
     call init_hyper

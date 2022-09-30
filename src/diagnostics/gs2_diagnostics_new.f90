@@ -261,7 +261,7 @@ contains
   !! Note that the .out file is always enabled
   subroutine set_ascii_file_switches
     implicit none
-    gnostics%ascii_files%write_to_out   = .true.
+    gnostics%ascii_files%write_to_out   = gnostics%write_ascii
     !gnostics%ascii_files%write_to_fields = gnostics%write_fields  .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat   = gnostics%write_heating .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat2  = gnostics%write_heating .and.  gnostics%write_ascii

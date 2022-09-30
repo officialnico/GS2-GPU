@@ -251,6 +251,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine optimise_nprocs(state)
+    use mp, only: proc0
     use ingen_mod, only: init_ingen, finish_ingen, report
     use ingen_mod, only: sweet_spots, n_sweet_spots
     use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics
@@ -267,7 +268,7 @@ contains
     call initialize_gs2(state)
     call initialize_equations(state)
     call initialize_diagnostics(state)
-    call report
+    if (proc0) call report
     call finalize_diagnostics(state)
     call finalize_equations(state)
     call finalize_gs2(state)

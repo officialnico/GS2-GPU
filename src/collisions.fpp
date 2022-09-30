@@ -120,7 +120,6 @@ module collisions
 
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
-  real, dimension (:,:), allocatable :: vpatmp
   real, dimension (:,:,:), allocatable :: bs0le, bw0le, bz0le
   ! finish
 
@@ -140,6 +139,8 @@ module collisions
   ! only for energy diffusion
   real, dimension (:,:), allocatable :: ec1, ebetaa, eql
   ! finish
+
+  real, dimension (:, :), allocatable :: pitch_weights
 
   logical :: drag = .false.
   logical :: heating_flag = .false.
@@ -463,6 +464,7 @@ contains
     use le_grids, only: init_le_grids, nlambda, negrid
     use run_parameters, only: init_run_parameters
     use gs2_layouts, only: init_dist_fn_layouts, init_gs2_layouts
+    use mp, only: nproc, iproc
     implicit none
     type(collisions_config_type), intent(in), optional :: collisions_config_in
 
@@ -478,7 +480,7 @@ contains
     call init_kt_grids
     call init_le_grids (accelerated_x, accelerated_v)
     call init_run_parameters
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     call read_parameters(collisions_config_in)
 
     call init_arrays
@@ -2133,7 +2135,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le
+    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
+    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
@@ -2153,6 +2156,17 @@ contains
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
 
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
+
+    if (.not. allocated(pitch_weights)) then
+       ! Start by just copying the existing weights
+       allocate(pitch_weights(-ntgrid:ntgrid, nlambda))
+       pitch_weights = 0.0
+       ! We have to recaculate the passing weights here as when Radau-Gauss
+       ! grids are used the WFB (il=ng2+1) is treated as both passing and
+       ! trapped. Otherwise we could just copy the passing weights from wl.
+       call setup_passing_lambda_grids(al, pitch_weights)
+       call setup_trapped_lambda_grids_old_finite_difference(al, pitch_weights)
+    end if
 
     call init_vpdiff
 
@@ -2350,7 +2364,7 @@ contains
 
     use species, only: spec
     use le_grids, only: al, energy => energy_maxw, xi, ng2
-    use le_grids, only: wl, jend, al
+    use le_grids, only: jend, al
     use gs2_time, only: code_dt
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
@@ -2437,14 +2451,14 @@ contains
                * kperp2(ig,it,ik)*cfac
           
           ! coefficients for tridiagonal matrix:
-          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,il)*(slb2 - slb1))
-          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(wl(ig,il)*(slb1 - slb0))
+          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,il)*(slb2 - slb1))
+          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(pitch_weights(ig,il)*(slb1 - slb0))
           bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
           
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
-             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(wl(ig,il)*(slb2-slb1)) + ee)
+             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
+             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
           end if
        end do
        
@@ -2458,13 +2472,13 @@ contains
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
        
-       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(wl(ig,1)*(slb2 - slb1))
+       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,1)*(slb2 - slb1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*vn*code_dt
        
        if (heating) then
-          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
-          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(wl(ig,1)*(slb2-slb1)) + ee)
+          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
+          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
        end if
        
        ! boundary at xi = 0
@@ -2500,7 +2514,7 @@ contains
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
-       deltaxi=wl(ig,il)
+       deltaxi=pitch_weights(ig,il)
        if (te == je) deltaxi = 2.*deltaxi ! MRH vpar =0 fix 
        ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
        ! factor of 2 required above because xi=0 is a repeated point 
@@ -3008,8 +3022,10 @@ contains
                 g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
-                     / (beta*spec(is)%stm*energy(ie)**1.5)
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
              end do
           end do
        end if
@@ -3055,7 +3071,10 @@ contains
                 g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
-                     / (beta*spec(is)%stm*energy(ie)**1.5)
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
              end do
           end do
        end if
@@ -3147,9 +3166,11 @@ contains
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / (beta*spec(is)%stm*energy(ie)) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
-                   ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
                 end do
              end do
           end do
@@ -3199,9 +3220,11 @@ contains
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / (beta*spec(is)%stm*energy(ie)) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
-                   ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
+                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
+                ! in an attempt handle the multi-ion species case.
                 end do
              end do
           end do
@@ -3386,9 +3409,8 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real, dimension (:,:,:,:), allocatable :: vpanud
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-
+    real :: vpa, vpa_nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3398,42 +3420,41 @@ contains
     else
         nxi_lim = nxi
     endif
-    
-    allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
+
+    ! We only need one of these at a time so could just reuse one allocation.
+    ! We'll keep two for now to help with code clarity and note that these
+    ! should not be large arrays.
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
 
     ! Let's work on gle directly instead of g for the moment
     allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc)) ; gtmp = 0.0
-    allocate (vpanud(-ntgrid:ntgrid, nxi+1, negrid+1, nspec)) ; vpanud = 0.0
 
-!    if (resistivity) then
     if (drag) then
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
-       ! initially define vpanud to be vpa
-       do is = 1, nspec
-          do ie = 1, negrid
-             do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
-                end do
-             end do
-          end do
-       end do
-       
+       allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
+
        ! v0 = vpa J0 f0, y0 = gle
        do ile = le_lo%llim_proc, le_lo%ulim_proc
-          is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
-          gtmp(:,:,ile) = vpanud(ig,:,:,is) * aj0le(:,:,ile) * gle(:,:,ile)
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
+          do ie = 1, negrid
+             do ixi = 1, nxi_lim
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                ! We could consider precalculating vpa in the le_lo layout to avoid this
+                ! repeated calculation of constant vpa. This would increase peak memory use.
+                ! Should we use vpdiff here if conservative?
+                vpa = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
+                gtmp(ixi,ie,ile) =  vpa * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             end do
+          end do
        end do
        call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
@@ -3444,51 +3465,56 @@ contains
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
-          gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)* z0le(:,:,ile) * v0y0(ile)
+          do ie = 1, negrid
+             do ixi = 1, nxi_lim
+                gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)* z0le(ixi,ie,ile) * v0y0(ile)
+             end do
+          end do
        end do
 
+       deallocate(v0y0)
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    ! redefine vpanud to be vpa * nu_D
+    ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
-       do is = 1, nspec
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          ik = ik_idx(le_lo,ile)
+          it = it_idx(le_lo,ile)
+          if(kwork_filter(it,ik)) cycle
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = vpdiff(ig,isgn,il) * sqrt(energy(ie)) * vnmult(1)*vnew_D(1,ie,is)/tunits(1)
-                end do
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                vpa_nud = vpdiff(ig,isgn,il) * sqrt(energy(ie)) &
+                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
     else
-       do is = 1, nspec
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          ik = ik_idx(le_lo,ile)
+          it = it_idx(le_lo,ile)
+          if(kwork_filter(it,ik)) cycle
+          is = is_idx(le_lo,ile)
+          ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                do ig = -ntgrid, ntgrid
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   vpanud(ig,ixi,ie,is) = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))*vnmult(1)*vnew_D(1,ie,is)/tunits(1)
-                end do
+                il = ixi_to_il(ig,ixi)
+                isgn = ixi_to_isgn(ig,ixi)
+                vpa_nud = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie)) &
+                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
     end if
 
-    ! v1 = nud vpa J0 f0, y1 = gle
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
-       gtmp(:,:,ile) = vpanud(ig,:,:,is) * tunits(ik) * aj0le(:,:,ile) &
-            * gle(:,:,ile)
-    end do
 
     call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
 
@@ -3499,9 +3525,14 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*s0le(:,:,ile) * v1y1(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*s0le(ixi,ie,ile) * v1y1(ile)
+          end do
+       end do
     end do
+
+    deallocate(v1y1)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
@@ -3512,11 +3543,13 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
-       do ixi=1, nxi_lim
-          il = ixi_to_il(ig,ixi)
-          ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-          gtmp(ixi,:negrid,ile) = vnmult(1) * vnew_D(ik,:negrid,is) * aj1le(ixi,:negrid,ile) &
-               * energy(:) * al(il) * gle(ixi,:negrid,ile)
+       do ie = 1, negrid
+          do ixi=1, nxi_lim
+             il = ixi_to_il(ig,ixi)
+             ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
+             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,ie,ile) &
+                  * energy(ie) * al(il) * gle(ixi,ie,ile)
+          end do
        end do
     end do
 
@@ -3529,10 +3562,14 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*w0le(:,:,ile) * v2y2(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*w0le(ixi,ie,ile) * v2y2(ile)
+          end do
+       end do
     end do
 
-    deallocate (gtmp, vpanud, v0y0, v1y1, v2y2)
+    deallocate (gtmp, v2y2)
 
   end subroutine conserve_lorentz_le_layout
 
@@ -3686,33 +3723,25 @@ contains
     use theta_grid, only: bmag
     use run_parameters, only: tunits
     use kt_grids, only: kwork_filter
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
 
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real, dimension (:,:,:), allocatable :: vns
-
+    real :: vpa, delnu
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
-    real, dimension (:,:,:,:), allocatable :: vpadelnu
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, tr
-!    real :: t1tot=0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0., t6tot = 0., t7tot = 0., t8tot = 0., t9tot = 0., t10tot=0.
-
+    ! We only use one of these at a time so could just use a single array.
+    ! We keep all three here for clarity and note that these should be small.
     allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
     allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
 
     allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (vpadelnu(-ntgrid:ntgrid, nxi+1, negrid+1, nspec)) ; vpadelnu = 0.0
-    allocate (vns(naky,negrid,nspec))
 
     !This is needed to to ensure the it,ik values we don't set aren't included
     !in the integral (can also be enforced in integrate_moment routine)
@@ -3725,47 +3754,22 @@ contains
         nxi_lim = nxi
     endif
 
-    
-    if (.not. allocated(vpatmp)) then
-       allocate(vpatmp(-ntgrid:ntgrid,nxi_lim)) ; vpatmp = 0.0
-       do ixi = 1, nxi_lim
-          do ig = -ntgrid, ntgrid
-             il = ixi_to_il(ig,ixi)
-             isgn = ixi_to_isgn(ig,ixi)
-             if (.not. forbid(ig,il)) &
-                  vpatmp(ig,ixi) = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig))))
-          end do
-       end do
-    end if
-    
-    vns = vnmult(2)*vnew_E
-    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
-    
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) call system_clock (count=t0, count_rate=tr)
 
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       is = is_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gtmp(ixi,ie,ile) = vns(ik,ie,is)*aj0le(ixi,ie,ile)*gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vnmult(2) * vnew_E(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
-    
-    call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
-!    call integrate_moment (le_lo, gle*aj0le, v0y0, vns)    ! v0y0
 
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t1)
-!       t1tot = t1tot + real(t1-t0)/tr
-!    end if
+    call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3774,50 +3778,34 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(:,:,ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(ixi,ie,ile)
+          end do
+       end do
     end do
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    vns(1,:,:) = vnmult(2)*delvnew(1,:,:)/tunits(1)
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t2)
-!       t2tot = t2tot + real(t2-t1)/tr
-!    end if
-
-    do is = 1, nspec
-       do ie = 1, negrid
-          vpadelnu(:,:nxi_lim,ie,is) = vns(1,ie,is) * vpatmp * speed(ie)
-       end do
-    end do
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t3)
-!       t3tot = t3tot + real(t3-t2)/tr
-!    end if
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gtmp (:,:,ile) = vpadelnu(ig,:,:,is) * tunits(ik) * aj0le(:,:,ile) * gle(:,:,ile)
+       is = is_idx(le_lo,ile)
+       ig = ig_idx(le_lo,ile)
+       do ie=1, negrid
+          delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
+          do ixi = 1, nxi_lim
+             il = ixi_to_il(ig,ixi)
+             isgn = ixi_to_isgn(ig,ixi)
+             vpa = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
+             gtmp (ixi,ie,ile) = vpa * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+          end do
+       end do
     end do
 
     call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t4)
-!       t4tot = t4tot + real(t4-t3)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3826,48 +3814,31 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*bs0le(:,:,ile) * v1y1(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bs0le(ixi,ie,ile) * v1y1(ile)
+          end do
+       end do
     end do
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t5)
-!       t5tot = t5tot + real(t5-t4)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
-    do is = 1, nspec
-       do ik = 1, naky
-          vns(ik,:,is) = delvnew(ik,:,is)*energy 
-       end do
-    end do
-
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
+       is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = vns(ik,ie,is) &
-                  * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * energy(ie) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
 
     call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t6)
-!       t6tot = t6tot + real(t6-t5)/tr
-!    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -3876,22 +3847,14 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
-
-       gle(:,:,ile) = gle(:,:,ile) - ieqzip(it,ik)*bw0le(:,:,ile) * v2y2(ile)
+       do ie=1, negrid
+          do ixi = 1, nxi_lim
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bw0le(ixi,ie,ile) * v2y2(ile)
+          end do
+       end do
     end do
 
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       call system_clock (count=t7)
-!       t7tot = t7tot + real(t7-t6)/tr
-!    end if
-
-    ! TMP FOR TESTING -- MAB
-!    if (proc0) then
-!       write (*,'(a20,7e14.5)') 'conserve_diffuse: ', t1tot, t2tot, t3tot, t4tot, t5tot, t6tot, t7tot
-!    end if
-
-    deallocate (vpadelnu, vns, v0y0, v1y1, v2y2, gtmp)
+    deallocate (v0y0, v1y1, v2y2, gtmp)
 
   end subroutine conserve_diffuse_le_layout
 
@@ -4385,7 +4348,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, wl, nlambda, jend, ng2
+    use le_grids, only: al, nlambda, jend, ng2
     use theta_grid, only: ntgrid, bmag
 
     implicit none
@@ -4414,14 +4377,14 @@ contains
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
+             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
           end do
 
           ! boundary at xi = 1
           slb1 = sqrt(abs(1.0 - bmag(ig)*al(1))) 
           slb2 = sqrt(abs(1.0 - bmag(ig)*al(2))) 
           slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/wl(ig,1)
+          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
           
           ! boundary at xi = 0
           il = te
@@ -4436,7 +4399,7 @@ contains
           
           slbl = (slb1 + slb0)*0.5
           slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/wl(ig,il)
+          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
           
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
           
@@ -4476,6 +4439,7 @@ contains
     if (allocated(bz0)) deallocate (bz0, bw0, bs0)
     if (allocated(vnew)) deallocate (vnew, vnew_s, vnew_D, vnew_E, delvnew)
     if (allocated(vnewh)) deallocate (vnewh)
+    if (allocated(pitch_weights)) deallocate(pitch_weights)
 
     if(use_le_layout) then
       if (allocated(c1le)) then
@@ -4484,7 +4448,6 @@ contains
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
       if (allocated(glec)) deallocate (glec)
-      if (allocated(vpatmp)) deallocate (vpatmp)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
