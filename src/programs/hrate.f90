@@ -1,16 +1,14 @@
 !> FIXME : Add documentation
 program hrate
 
-  use command_line, only: cl_getarg, cl_iargc
-
   real, dimension (:), allocatable :: time
   real, dimension(:,:), allocatable :: h_rate, hrateavg
   character (500) :: runname, c
   integer, dimension (1) :: max_loc, jlo, jhi
   integer :: i, imax, ierr
 
-  if (cl_iargc() /= 0) then
-     call cl_getarg (1, runname, 500, ierr)
+  if (command_argument_count() /= 0) then
+     call get_command_argument(1, runname, 500, ierr)
   else
      write (*,*) 'runname = ?'
      read (*,*) runname
