@@ -630,13 +630,13 @@ contains
           write_jext = .false.
        end if
 
-       if (dump_check1) then
+       if (dump_check1 .and. proc0) then
           call get_unused_unit (dump_check1_unit)
+          ! We should switch to open_output_file here.
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
 
-       if (dump_check2) then
-          call get_unused_unit (dump_check2_unit)
+       if (dump_check2 .and. proc0) then
           call open_output_file (dump_check2_unit, ".dc2")
        end if
 
@@ -2796,7 +2796,7 @@ contains
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, iproc, nproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
@@ -2824,7 +2824,7 @@ contains
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
 
@@ -3358,7 +3358,7 @@ contains
 
   !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -3371,9 +3371,8 @@ contains
 
     if (.not. proc0) return
 
-    call get_unused_unit (unit)
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
           do ig = -ntgrid, ntgrid
@@ -3385,7 +3384,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file (unit)
   end subroutine do_dump_fields_periodically
 
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and

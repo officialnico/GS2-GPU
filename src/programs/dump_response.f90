@@ -17,14 +17,18 @@ program dump_response
   use mp, only: init_mp, proc0, nproc, broadcast
   use file_utils, only: init_file_utils, run_name, input_unit_exist
   use constants, only: run_name_size
+  use standard_header, only: standard_header_type
   implicit none
   logical :: list, exist, jnk_exit
   logical, parameter :: quiet=.false.
   character (run_name_size), target :: cbuff
   integer :: istep, n_time_steps, in_file
+  type(standard_header_type) :: local_header
   namelist /dump_response_knobs/n_time_steps
 
   call init_mp
+
+  local_header = standard_header_type()
 
   ! Report # of processors being used
   if (proc0) then
@@ -107,7 +111,7 @@ contains
     real :: time_measure(2)
     character (len=64) :: str_code_dt
 
-    if(.not.quiet) write(*,'("")')
+    if(proc0.and.(.not.quiet)) write(*,'("")')
     time_measure = 0.
 
     !Prepare to initialise the fields

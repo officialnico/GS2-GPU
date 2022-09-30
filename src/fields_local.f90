@@ -861,7 +861,7 @@ contains
   !> Routine to read the response matrix for this supercell from netcdf file.
   subroutine sc_read_from_file(self, could_read, suffix)
     use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub, proc0
+    use mp, only: broadcast_sub, proc0
     use fields_arrays, only: get_specific_response_file_name
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
@@ -899,22 +899,21 @@ contains
 
     !Now allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
-    tmp_arr=0.
 
     !Now if on head proc read
     if (self%is_head) then
-       call gs2_restore_response(tmp_arr, file_name)
+       call gs2_restore_response(tmp_arr, file_name, self%condition_number)
     end if
 
     !Now we need to broadcast the data to everyone with supercell.
     !NOTE: Really we would want a supercell bound method which will do
     !this so that this module level routine is insensitive to communicators etc.
-    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !Furthermore we are lazy and use a broadcast_sub to send data to everyone
     !NOTE: The processors which consider this to supercell to be empty (i.e. which
     !don't have any associated work) shouldn't need to take part in this communication.
     !If we can promise that only non-empty processors could be the head that should
     !work fine, provided we have a suitable communicator (sc_sub_pd?).
-    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+    call broadcast_sub(tmp_arr,self%head_iproc,self%sc_sub_all%id)
 
     !Now push array to local storage
     call self%push_arr_to_rows(tmp_arr)

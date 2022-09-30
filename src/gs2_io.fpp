@@ -1445,7 +1445,7 @@ contains
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
-         zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
+         zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1457,6 +1457,7 @@ contains
          long_name="Magnitude of magnetic field", units="B_0")
     call neasyf_write(file_id, "bpol", bpol, dim_names=["theta"], &
          long_name="Poloidal magnetic field", units="B_0")
+    call neasyf_write(file_id, "kxfac", kxfac, long_name="kxfac factor used in NL term")
     call neasyf_write(file_id, "gradpar", gradpar, dim_names=["theta"], &
          long_name="Parallel derivative multiplier")
     call neasyf_write(file_id, "gbdrift", gbdrift, dim_names=["theta"], &

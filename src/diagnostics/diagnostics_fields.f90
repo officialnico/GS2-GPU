@@ -116,7 +116,7 @@ contains
   !! suggestion... use the netcdf file with 
   !! write_phi_over_time etc on instead :-)
   subroutine dump_fields_periodically(gnostics)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -142,9 +142,8 @@ contains
     
     !<DD>Should this only occur for write_ascii=T?
     ! EGH Yes...
-    call get_unused_unit (unit)
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
           do ig = -ntg_out, ntg_out
@@ -156,7 +155,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file(unit)
   end subroutine dump_fields_periodically
 
   !> FIXME : Add documentation  

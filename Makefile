@@ -72,15 +72,17 @@ USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
-# Use posix for command_line (bin)
-USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
+# Does this compiler support f2008 compiler_version and compiler_options
+GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?= 
+USE_NAGLIB ?=
+# Use openmp (very limited use currently)
+USE_OPENMP ?=
 # Make GS2 into a library which can be called by external programs
 MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
@@ -499,12 +501,12 @@ ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
-ifdef USE_POSIX
-	MACRO_DEFS += -DPOSIX
-endif
-
 ifdef USE_LAPACK
 	MACRO_DEFS += -DLAPACK
+endif
+
+ifdef USE_OPENMP
+	MACRO_DEFS += -DOPENMP
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -517,6 +519,10 @@ else
 			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
+endif
+
+ifdef GK_HAS_COMPILER_OPTIONS_2008
+	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifdef USE_NAGLIB
@@ -970,7 +976,6 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))

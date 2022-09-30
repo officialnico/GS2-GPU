@@ -169,6 +169,8 @@ module le_grids
   public :: integrate_species_sub !<DD>
   public :: hermite_prob
   public :: is_passing_hybrid_electron
+  public :: setup_trapped_lambda_grids_old_finite_difference
+  public :: setup_passing_lambda_grids
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -553,11 +555,11 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use gs2_layouts, only: init_dist_fn_layouts, pe_layout
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     implicit none
     character (1) :: char
 
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     if (.not. intinit) then
        intinit = .true.
@@ -2429,7 +2431,7 @@ contains
 
     ! Note this is a module level quantity that we keep around for possible
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
-    allocate (xx(ng2))
+    if (.not. allocated(xx)) allocate (xx(ng2))
 
     if(radau_gauss_grid .and. nlambda > ng2 ) then
 
@@ -2496,10 +2498,8 @@ contains
   subroutine setup_trapped_lambda_grids(lambda_grid, weights)
     use theta_grid, only: ntgrid
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
@@ -2552,10 +2552,8 @@ contains
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
@@ -2705,10 +2703,8 @@ contains
   subroutine setup_trapped_lambda_grids_old_finite_difference(lambda_grid, weights)
     use theta_grid, only: ntgrid, bmag
     implicit none
-    !> The lambda grid points. Note this is intent `in out` as we only
-    !> set a portion of the grid so may want to keep the rest of the
-    !> input values.
-    real, dimension(:), intent(in out) :: lambda_grid
+    !> The lambda grid points.
+    real, dimension(:), intent(in) :: lambda_grid
     !> The integration weights for the lambda grid. Note this is
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
@@ -3348,7 +3344,7 @@ contains
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the le_lo decomposition.
   subroutine init_g2le_redistribute_local
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3382,7 +3378,7 @@ contains
     leinit = .true.
 
     !Setup the le layout object (le_lo)
-    call init_le_layouts (ntgrid, naky, ntheta0, nspec)
+    call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
 
     !Initialise the data counters
     nn_to = 0
@@ -3675,7 +3671,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_g2gf_redistribute
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3702,7 +3698,7 @@ contains
     gfinit = .true.
 
     !Setup the le layout object (gf_lo)
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
     !Initialise the data counters
     nn_to = 0
@@ -3955,7 +3951,7 @@ contains
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
   subroutine init_lambda_redistribute_local
-    use mp, only: nproc, barrier
+    use mp, only: nproc, iproc, barrier
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3982,7 +3978,7 @@ contains
 
     !Setup the lambda layout object (lz_lo)
     call init_lambda_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
 
     !Initialise data counters
     nn_to = 0
@@ -4166,7 +4162,7 @@ contains
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the e_lo decomposition
   subroutine init_energy_redistribute_local
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use species, only: nspec
     use theta_grid, only: ntgrid
     use kt_grids, only: naky,ntheta0
@@ -4192,7 +4188,7 @@ contains
 
     !Initialise e_lo layout object
     call init_energy_layouts &
-         (ntgrid, naky, ntheta0, nlambda, nspec)
+         (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
 
     !Initialise counters to zero
     nn_to = 0
