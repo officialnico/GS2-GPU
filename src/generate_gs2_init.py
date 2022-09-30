@@ -155,7 +155,7 @@ if __name__ == "__main__":
         module_with_dependencies("gs2_save", dependencies = []),
         module_with_dependencies("run_parameters",
                                  dependencies = [
-                                     "kt_grids"]),
+                                     "init_g", "kt_grids"]),
         module_with_dependencies("hyper",
                                  dependencies = [
                                      "kt_grids", "gs2_layouts"]),
@@ -184,8 +184,9 @@ if __name__ == "__main__":
                                     "  use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts",
                                     "  use kt_grids, only: naky, ntheta0",
                                     "  use le_grids, only: nlambda, negrid",
+                                    "  use mp, only: nproc, iproc",
                                     "  use species, only: nspec"]),
-                                               'up_action': "    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)",
+                                               'up_action': "    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
                                                'down_action': "    call finish_dist_fn_layouts"}
 
         ),
@@ -238,7 +239,15 @@ if __name__ == "__main__":
         ),
         module_with_dependencies("override_timestep",
                                  dependencies = [
-                                     "run_parameters"],
+                                     "run_parameters",
+                                     # We add dist_fn_level_2 here to
+                                     # make sure this is lower down
+                                     # the init list than
+                                     # override_timestep, to help skip
+                                     # duplicate work when changing
+                                     # the time step.
+                                     "dist_fn_level_2"
+                                 ],
                                          visit_routine = more_general_module_routine_string,
                                  visit_args = {'imports': "  use run_parameters, only: rso => set_overrides",
                                                'up_action': "    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)",

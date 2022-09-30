@@ -195,7 +195,7 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart opening file')
     call debug_message(verb, 'file proc is')
-    call debug_message(verb, file_proc)
+    call debug_message(verb, trim(adjustl(file_proc)))
 
     if (is_one_file_per_processor) then
        istatus = nf90_create (file_proc, create_file_mode, ncid)
@@ -1357,7 +1357,7 @@ contains
 
   !> This routine reads a square complex array from a file
   !! with passed name
-  subroutine gs2_restore_response(resp,fname)
+  subroutine gs2_restore_response(resp, fname, condition)
     use file_utils, only: error_unit
 #ifdef NETCDF
     use convert, only: r2c
@@ -1365,11 +1365,12 @@ contains
     use file_utils, only: get_unused_unit
 #endif
     implicit none
-    complex,dimension(:,:), intent(out) :: resp
+    complex, dimension(:,:), intent(out) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(out), optional :: condition
     integer :: sz
 #ifdef NETCDF
-    integer :: ierr, respid,ncid
+    integer :: ierr, respid, ncid, condition_id
     real, dimension(:,:,:), allocatable :: ri_resp
 #else
     integer :: unit
@@ -1400,6 +1401,14 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
     call r2c(resp,ri_resp)
     deallocate(ri_resp)
+
+    !/Get the condition number
+    if (present(condition)) then
+       ierr = nf90_inq_varid(ncid, "condition", condition_id)
+       if(ierr/=NF90_NOERR) call netcdf_error(ierr, var="condition")
+       ierr=nf90_get_var(ncid, condition_id, condition)
+       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condition")
+    end if
 
     !/Now close the file
     ierr=nf90_close(ncid)

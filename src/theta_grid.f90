@@ -142,6 +142,7 @@ contains
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     use gridgen4mod, only: gridgen4_2
     use constants, only: pi
+    use mp, only: mp_abort
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -188,11 +189,12 @@ if (debug) write(6,*) 'gridgen_get_grids: call gridgen4_2'
        write(*,*) 'Error in theta_grid_gridgen?'
        write(*,*) 'ntheta_old = ',ntheta_old
        write(*,*) 'ntheta_new = ',ntheta
-       write(*,*) 'Stopping this run would be wise.'
+       write(*,*) 'Stopping this run would be wise so will now abort.'
        write(*,*) 'Try again with ntheta = ',ntheta_old + 2
        if(ntheta_old<ntheta)then
-          write(*,*) 'ntheta_old<ntheta but code assumes ntheta<ntheta_old => Should definitely abort.'
+          write(*,*) 'ntheta_old<ntheta but code assumes ntheta<ntheta_old.'
        endif
+       call mp_abort("Bad behaviour spotted in theta_grid_gridgen. Consider changing ntheta or set skip_gridgen = .true.", to_screen = .true.)
     end if
 
     ! interpolate to new grid

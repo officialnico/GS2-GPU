@@ -37,7 +37,6 @@ module gs2_layouts
 
   public :: init_jfields_layouts
   public :: jf_lo, jf_layout_type
-  public :: mj, ij, dj
 
   public :: init_lambda_layouts
   public :: lz_lo
@@ -125,12 +124,11 @@ module gs2_layouts
      integer :: nindex, naky, ntheta0, ntgrid, nfield
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer :: ig_min,ig_max,ifield_min,ifield_max,it_min,it_max,ik_min,ik_max
+     integer, dimension(:), allocatable :: ij, mj
+     integer, dimension(:,:), allocatable :: dj
   end type jf_layout_type
 
   type (jf_layout_type) :: jf_lo
-
-  integer, dimension(:), allocatable :: ij, mj
-  integer, dimension(:,:), allocatable :: dj
 
   type (lz_layout_type) :: lz_lo
 
@@ -871,10 +869,21 @@ contains
 ! Distribution function layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation 
-  subroutine init_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc, proc0, comm_type, mp_abort
+  !> Setup a g_layout (g_lo) type data decomposition object
+  !> describing the work decomposition for a problem with
+  !> passed grid sizes running on nproc. Returns the values for
+  !> the processor with rank iproc. Note this involves collective
+  !> MPI routines so requires all processors on comm world to take
+  !> part. This does not require the input nproc to match the nproc
+  !> of the world communicator.
+  !>
+  !> Note this can touch the following module level data:
+  !> * gf_local_fields
+  !> * intmom_sub
+  !> * intspec_sub
+  type(g_layout_type) function setup_dist_fn_layouts &
+       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
+    use mp, only: proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
     use file_utils, only: error_unit
@@ -883,7 +892,7 @@ contains
     use mp, only: allgather
 #endif
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
@@ -900,9 +909,6 @@ contains
     integer :: colour
     type(comm_type) :: tmpcomm
 
-    if (initialized_dist_fn_layouts) return
-    initialized_dist_fn_layouts = .true.
-   
     g_lo%iproc = iproc
     g_lo%naky = naky
     g_lo%ntheta0 = ntheta0
@@ -911,7 +917,7 @@ contains
     g_lo%nspec = nspec
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
-      
+
 #ifndef SHMEM
     g_lo%blocksize = g_lo%ulim_world/nproc + 1
     g_lo%llim_proc = g_lo%blocksize*iproc
@@ -923,7 +929,7 @@ contains
     nxy=naky*ntheta0
     les = nlambda*negrid*nspec
 
-    !shm 
+    !shm
     g_lo%ppn = shm_info%size
     g_lo%nnd = nproc / g_lo%ppn
     ! needs a test and to see if every node has the same number of processors
@@ -941,23 +947,23 @@ contains
     g_lo%blocksize =  xyb
     if (shm_info%id < mod(nxy * nd_les, g_lo%ppn)) g_lo%blocksize = g_lo%blocksize + 1
     !g_lo%llim_proc = g_lo%blocksize*iproc
-    
+
     g_lo%llim_proc = g_lo%llim_node &
          + shm_info%id * xyb + min(shm_info%id, mod(nxy * nd_les, g_lo%ppn))
     g_lo%ulim_proc = min(g_lo%ulim_world, g_lo%llim_proc + g_lo%blocksize - 1)
     g_lo%ulim_alloc = max(g_lo%llim_proc, g_lo%ulim_proc)
 
     allocate(g_lo%proc_map(0:nproc-1))
-    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)  
+    call allgather((/ g_lo%llim_proc /), 1, g_lo%proc_map, 1)
 
     ! report on shm details
-    if (proc0) then 
-       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)" 
+    if (proc0) then
+       write(*,'(/,a)') "g_lo shared memory parameters (rank 0)"
        write(*,*) "ranks per node :", g_lo%ppn
        write(*,*) "total number of blocks", les, "; and per node :", g_lo%bpn
        write(*,*) "block size inside node :", g_lo%blocksize
     endif
-    
+
 #endif
 
     ! Calculate constants used in the index lookup routines
@@ -983,7 +989,7 @@ contains
     g_lo%dim_size(g_lo%il_ord)=nlambda
     g_lo%dim_size(g_lo%ie_ord)=negrid
     g_lo%dim_size(g_lo%is_ord)=nspec
-    
+
     g_lo%compound_count(1)=1
     g_lo%compound_count(2)=g_lo%compound_count(1)*g_lo%dim_size(1)
     g_lo%compound_count(3)=g_lo%compound_count(2)*g_lo%dim_size(2)
@@ -1000,7 +1006,7 @@ contains
     ! These are currently only used to slice the arrays used in the velocity space integrals
     ! but could well be useful in a number of places.
     ! NOTE: These are typically only useful if the dimensions are split nicely (i.e. we're using
-    ! a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the 
+    ! a sweet spot) otherwise our local ik section may look like, [naky-1,naky,1,2], so whilst the
     ! min and max values (1,naky) are technically correct, we cannot assume we cover the range 1-naky
     ik_max=0
     ik_min=naky+1
@@ -1019,7 +1025,7 @@ contains
     ie_local=.false.
     is_local=.false.
     g_lo%ikitrange = 0
-    ! g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of 
+    ! g_lo%ikit_procs_assignment is used to record which ik,it points I have from the range of
     ! ik,it points.
     allocate(g_lo%ikit_procs_assignment(ntheta0,naky))
     g_lo%ikit_procs_assignment(:,:)%mine = .false.
@@ -1061,7 +1067,7 @@ contains
           write(*,*) 'properties list, and gf_lo_integrate to true in dist_fn properties'
        end if
        gf_local_fields = .false.
-    end if                                                                                                                                                                                                 
+    end if
 
     ! Record the ik,it points this process have in a contigious array.
     allocate(g_lo%local_ikit_points(g_lo%ikitrange))
@@ -1070,8 +1076,8 @@ contains
        do it=1,ntheta0
           colour = 0
           if(g_lo%ikit_procs_assignment(it,ik)%mine) then
-             g_lo%local_ikit_points(tmp)%ik = ik 
-             g_lo%local_ikit_points(tmp)%it = it 
+             g_lo%local_ikit_points(tmp)%ik = ik
+             g_lo%local_ikit_points(tmp)%it = it
              tmp = tmp + 1
              colour = 1
           end if
@@ -1117,7 +1123,7 @@ contains
              end do
           end do
        end do
-       
+
        tmp = g_lo%ikitrange
        call max_reduce(tmp,0)
 #ifdef DEBUG
@@ -1149,7 +1155,7 @@ contains
     g_lo%l_local=all(il_local)
     g_lo%e_local=all(ie_local)
     g_lo%s_local=all(is_local)
-    
+
     !//Deallocate locality data. Note this may actually be useful in some
     !places, so we may want to think about attaching it to the g_lo object
     deallocate(ik_local,it_local,il_local,ie_local,is_local)
@@ -1234,7 +1240,7 @@ contains
        g_lo%d5_min=it_min
        g_lo%d5_max=it_max
     end select
-       
+
     select case (g_lo%il_ord)
     case (1)
        g_lo%d1_min=il_min
@@ -1299,7 +1305,7 @@ contains
     g_lo%ie_max=ie_max
     g_lo%is_min=is_min
     g_lo%is_max=is_max
-    
+
     !Work out if x comes before y in layout
     do iglo=1,LEN_TRIM(layout)
        if(layout(iglo:iglo).eq.'x') then
@@ -1329,7 +1335,7 @@ contains
           dim_local(idim:1:-1)=.true.
           exit
        endif
-       
+
        !Does the current dimension divide evenly
        !amongst the remaining processors
        tmp_r=(1.0*nproc_tmp)/g_lo%dim_size(idim)
@@ -1523,14 +1529,14 @@ contains
        call mp_abort("g_lo%les_kxky_range should never be allocated&
        &at this point", .true.)
     end if
-    
+
     if(intspec_sub) then
        !->Kx-Ky range for procs in lesblock_comm sub comm
        !Get number of procs in sub-comm
        call nproc_comm(g_lo%lesblock_comm,nproc_subcomm)
        !Get rank of proc in sub-comm
        call rank_comm(g_lo%lesblock_comm,rank_subcomm)
-       !Allocate array | This will store the start and stop indices 
+       !Allocate array | This will store the start and stop indices
        !for flattened kxky indices in velocity space independent (e.g. field)
        !variables
        allocate(g_lo%les_kxky_range(2,0:nproc_subcomm-1))
@@ -1538,13 +1544,13 @@ contains
        !Initialise as we do sum_allreduce later
        !can remove if we use a gather
        les_kxky_range=0
-       
+
        !Now calculate our personal kxky range
        it_min=it_idx(g_lo,g_lo%llim_proc)
        it_max=it_idx(g_lo,g_lo%ulim_alloc)
        ik_min=ik_idx(g_lo,g_lo%llim_proc)
        ik_max=ik_idx(g_lo,g_lo%ulim_alloc)
-       
+
        if(g_lo%x_before_y) then
           les_kxky_range(rank_subcomm*2)=it_min-1+ntheta0*(ik_min-1)
           tmp=les_kxky_range(rank_subcomm*2)
@@ -1574,6 +1580,18 @@ contains
        deallocate(les_kxky_range)
     endif
 
+  end function setup_dist_fn_layouts
+
+  !> Construct the work decomposition for the g_layout and
+  !> store it in the module level g_lo instance.
+  subroutine init_dist_fn_layouts &
+       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+
+    if (initialized_dist_fn_layouts) return
+    initialized_dist_fn_layouts = .true.
+    g_lo = setup_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
@@ -1696,18 +1714,16 @@ contains
 ! N_class(i) = size of i_th supercell
 ! i_class = number of classes of (different sized) supercells.  
 
-  !> FIXME : Add documentation   
-  subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
-       M_class, N_class, i_class)
-    use mp, only: iproc, nproc
+  !> Construct a fields layout instance
+ function setup_fields_layouts &
+      (nfield, nindex, naky, ntheta0, M_class, N_class, i_class, nproc, iproc) &
+      result(f_lo)
     implicit none
     integer, intent (in) :: nfield, nindex, naky, ntheta0
     integer, dimension(:), intent (in) :: M_class, N_class
-    integer, intent (in) :: i_class
+    integer, intent (in) :: i_class, nproc, iproc
+    type (f_layout_type), dimension(:), allocatable :: f_lo
     integer :: i, utmp, btmp
-
-    if (initialized_fields_layouts) return
-    initialized_fields_layouts = .true.
     
     allocate (f_lo(i_class))
     do i = 1, i_class
@@ -1739,7 +1755,20 @@ contains
        f_lo(i)%ulim_proc = min(f_lo(i)%ulim_world, f_lo(i)%llim_proc + f_lo(i)%blocksize - 1)
        f_lo(i)%ulim_alloc = max(f_lo(i)%llim_proc, f_lo(i)%ulim_proc)
     end do
+  end function setup_fields_layouts
 
+  !> Construct the module level fields_layout instance
+  subroutine init_fields_layouts (nfield, nindex, naky, ntheta0, &
+       M_class, N_class, i_class, nproc, iproc)
+    implicit none
+    integer, intent (in) :: nfield, nindex, naky, ntheta0
+    integer, dimension(:), intent (in) :: M_class, N_class
+    integer, intent (in) :: i_class, nproc, iproc
+
+    if (initialized_fields_layouts) return
+    initialized_fields_layouts = .true.
+    f_lo = setup_fields_layouts(nfield, nindex, naky, ntheta0, &
+       M_class, N_class, i_class, nproc, iproc)
   end subroutine init_fields_layouts
 
   !> FIXME : Add documentation   
@@ -1906,14 +1935,12 @@ contains
 ! Fast field layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class)
-    use mp, only: iproc, nproc
+  !> Construct a jfields instance
+  type(jf_layout_type) function setup_jfields_layouts &
+       (nfield, nindex, naky, ntheta0, i_class, nproc, iproc) result(jf_lo)
     implicit none
-    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class
+    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class, nproc, iproc
     integer :: jlo
-    if (initialized_jfields_layouts) return
-    initialized_jfields_layouts = .true.
     
     jf_lo%iproc = iproc
     jf_lo%nindex = nindex
@@ -1928,7 +1955,7 @@ contains
     jf_lo%ulim_proc = min(jf_lo%ulim_world, jf_lo%llim_proc + jf_lo%blocksize - 1)
     jf_lo%ulim_alloc = max(jf_lo%llim_proc, jf_lo%ulim_proc)
 
-    !Now work out the range of dimensions stored on this proc !<DD>
+    !Now work out the range of dimensions stored on this proc
     jf_lo%ig_max=-jf_lo%ntgrid-1
     jf_lo%ig_min=jf_lo%ntgrid+1
     jf_lo%ifield_max=0
@@ -1948,19 +1975,24 @@ contains
        jf_lo%it_min=MIN(jf_lo%it_min,it_idx(jf_lo,jlo))
     enddo
 
-    allocate (ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
-    allocate (mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
-    allocate (dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
-    ij = 1  ; mj = 1;  dj = 0
-    
+    allocate (jf_lo%ij(jf_lo%llim_proc:jf_lo%ulim_alloc))
+    allocate (jf_lo%mj(jf_lo%llim_proc:jf_lo%ulim_alloc))
+    allocate (jf_lo%dj(i_class,jf_lo%llim_proc:jf_lo%ulim_alloc))
+    jf_lo%ij = 1  ;  jf_lo%mj = 1;   jf_lo%dj = 0
+  end function setup_jfields_layouts
+
+  !> Setup the module level jfields instance
+  subroutine init_jfields_layouts (nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
+    implicit none
+    integer, intent (in) :: nfield, nindex, naky, ntheta0, i_class, nproc, iproc
+    if (initialized_jfields_layouts) return
+    initialized_jfields_layouts = .true.
+    jf_lo = setup_jfields_layouts(nfield, nindex, naky, ntheta0, i_class, nproc, iproc)
   end subroutine init_jfields_layouts
 
   !> FIXME : Add documentation  
   subroutine finish_jfields_layouts
     implicit none
-    if(allocated(ij)) deallocate(ij)
-    if(allocated(mj)) deallocate(mj)
-    if(allocated(dj)) deallocate(dj)
     initialized_jfields_layouts = .false.
   end subroutine finish_jfields_layouts
 
@@ -2062,21 +2094,18 @@ contains
 ! Lambda-Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec)
-    use mp, only: iproc, nproc, min_allreduce
+  !> Construct a le_layout_type instance.
+  type(le_layout_type) function setup_le_layouts &
+       (ntgrid, naky, ntheta0, nspec, nproc, iproc) result(le_lo)
+    use mp, only:min_allreduce
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nspec, nproc, iproc
     integer :: ik_min, it_min, ig_min, is_min
     integer :: ik_max, it_max, ig_max, is_max
     integer :: ik, it, ig, is, ile
     !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
     integer :: is_dim_local
-
-    if (initialized_le_layouts) return
-    initialized_le_layouts = .true.
-    
     le_lo%iproc = iproc
     le_lo%ntgrid = ntgrid
     le_lo%ntgridtotal=(2*ntgrid+1)
@@ -2176,7 +2205,16 @@ contains
     call min_allreduce(is_dim_local)
     if(is_dim_local == 0) le_lo%s_local = .false.
 
-    !</DD>
+  end function setup_le_layouts
+
+  !> Setup the module level le_lo
+  subroutine init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nspec, nproc, iproc
+
+    if (initialized_le_layouts) return
+    initialized_le_layouts = .true.
+    le_lo = setup_le_layouts(ntgrid, naky, ntheta0, nspec, nproc, iproc)
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
@@ -2266,16 +2304,15 @@ contains
 ! a single process.
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
-    use mp, only: iproc, nproc, mp_abort
+  !> Construct a gf_layout_type instance.
+  type(gf_layout_type) function setup_gf_layouts &
+       (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc) &
+       result(gf_lo)
+    use mp, only: mp_abort
     use file_utils, only: error_unit
     use layouts_type, only: ikit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec
-
-    if (initialized_gf_layouts) return
-    initialized_gf_layouts = .true.
+    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
     
     gf_lo%iproc = iproc
     gf_lo%nproc = nproc
@@ -2402,9 +2439,18 @@ contains
           gf_lo%xypoints = gf_lo%smallblocksize
        end if
     end if
-        
-    gf_lo%ulim_alloc = gf_lo%ulim_proc
 
+    gf_lo%ulim_alloc = gf_lo%ulim_proc
+  end function setup_gf_layouts
+
+  !> Setup the module level gf_lo instance.
+  subroutine init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
+
+    if (initialized_gf_layouts) return
+    initialized_gf_layouts = .true.
+    gf_lo = setup_gf_layouts(ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
   end subroutine init_gf_layouts
 
   !> FIXME : Add documentation    
@@ -2489,17 +2535,13 @@ contains
 ! Energy layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation
-  subroutine init_energy_layouts &
-       (ntgrid, naky, ntheta0, nlambda, nspec)
-    use mp, only: iproc, nproc
+  !> Construct an energy layout instance.
+  type(e_layout_type) function setup_energy_layouts &
+       (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc) result(e_lo)
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
 
-    if (initialized_energy_layouts) return
-    initialized_energy_layouts = .true.
-    
     e_lo%iproc = iproc
     e_lo%ntgrid = ntgrid
     e_lo%nsign = 2
@@ -2538,13 +2580,13 @@ contains
     e_lo%dim_size(e_lo%ik_ord)=naky
     e_lo%dim_size(e_lo%il_ord)=nlambda
     e_lo%dim_size(e_lo%is_ord)=nspec
-    
+
     e_lo%compound_count(1)=1
     e_lo%compound_count(2)=e_lo%compound_count(1)*e_lo%dim_size(1)
     e_lo%compound_count(3)=e_lo%compound_count(2)*e_lo%dim_size(2)
     e_lo%compound_count(4)=e_lo%compound_count(3)*e_lo%dim_size(3)
     e_lo%compound_count(5)=e_lo%compound_count(4)*e_lo%dim_size(4)
-    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)    
+    e_lo%compound_count(6)=e_lo%compound_count(5)*e_lo%dim_size(5)
 
     e_lo%ig_comp=e_lo%compound_count(e_lo%ig_ord)
     e_lo%isgn_comp=e_lo%compound_count(e_lo%isgn_ord)
@@ -2552,7 +2594,16 @@ contains
     e_lo%it_comp=e_lo%compound_count(e_lo%it_ord)
     e_lo%il_comp=e_lo%compound_count(e_lo%il_ord)
     e_lo%is_comp=e_lo%compound_count(e_lo%is_ord)
+  end function setup_energy_layouts
 
+  !> Setup the module level energy layout.
+  subroutine init_energy_layouts (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
+
+    if (initialized_energy_layouts) return
+    initialized_energy_layouts = .true.
+    e_lo = setup_energy_layouts(ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
   end subroutine init_energy_layouts
 
   !> FIXME : Add documentation    
@@ -2659,17 +2710,13 @@ contains
 ! Lambda layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_lambda_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2)
-    use mp, only: iproc, nproc
+  !> Construct a lambda layout instance
+  type(lz_layout_type) function setup_lambda_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc) result(lz_lo)
     use file_utils, only: error_unit
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc
     integer :: ngroup, nprocset
-
-    if (initialized_lambda_layouts) return
-    initialized_lambda_layouts = .true.
 
     lz_lo%iproc = iproc
     lz_lo%ntgrid = ntgrid
@@ -2752,6 +2799,17 @@ contains
     lz_lo%it_comp=lz_lo%compound_count(lz_lo%it_ord)
     lz_lo%ie_comp=lz_lo%compound_count(lz_lo%ie_ord)
     lz_lo%is_comp=lz_lo%compound_count(lz_lo%is_ord)
+  end function setup_lambda_layouts
+
+  !> Setup the module level lz_lo instance
+  subroutine init_lambda_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc
+
+    if (initialized_lambda_layouts) return
+    initialized_lambda_layouts = .true.
+    lz_lo = setup_lambda_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
   end subroutine init_lambda_layouts
 
   !> FIXME : Add documentation    
@@ -2851,16 +2909,12 @@ contains
 ! layouts for parity diagnostic 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_parity_layouts &
-       (naky, nlambda, negrid, nspec)
-    use mp, only: iproc, nproc
+  !> Construct a parity layout instance.
+  type(p_layout_type) function setup_parity_layouts &
+       (naky, nlambda, negrid, nspec, nproc, iproc) result(p_lo)
     implicit none
-    integer, intent (in) :: naky, nlambda, negrid, nspec
+    integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
 
-    if (initialized_parity_layouts) return
-    initialized_parity_layouts = .true.
-    
     p_lo%iproc = iproc
     p_lo%naky = naky
     p_lo%nlambda = nlambda
@@ -2934,7 +2988,17 @@ contains
     p_lo%ik_comp=p_lo%compound_count(p_lo%ik_ord)
     p_lo%il_comp=p_lo%compound_count(p_lo%il_ord)
     p_lo%is_comp=p_lo%compound_count(p_lo%is_ord)
+  end function setup_parity_layouts
 
+  !> Setup the module level p_lo instance
+  subroutine init_parity_layouts &
+       (naky, nlambda, negrid, nspec, nproc, iproc)
+    implicit none
+    integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
+
+    if (initialized_parity_layouts) return
+    initialized_parity_layouts = .true.
+    p_lo = setup_parity_layouts(naky, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_parity_layouts
 
   !> FIXME : Add documentation  
@@ -3033,17 +3097,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! X-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !> FIXME : Add documentation  
-  subroutine init_x_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    use mp, only: iproc, nproc, proc0, barrier
+
+  !> Construct an xxf_lo instance.
+  type(xxf_layout_type) function setup_x_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc) result(xxf_lo)
+    use mp, only: proc0, barrier
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc
     integer :: nprocset, ngroup, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
-
-    if (initialized_x_transform) return
-    initialized_x_transform = .true.
 
     xxf_lo%iproc = iproc
     xxf_lo%ntgrid = ntgrid
@@ -3087,13 +3149,13 @@ contains
     xxf_lo%dim_size(xxf_lo%il_ord)=nlambda
     xxf_lo%dim_size(xxf_lo%ie_ord)=negrid
     xxf_lo%dim_size(xxf_lo%is_ord)=nspec
-    
+
     xxf_lo%compound_count(1)=1
     xxf_lo%compound_count(2)=xxf_lo%compound_count(1)*xxf_lo%dim_size(1)
     xxf_lo%compound_count(3)=xxf_lo%compound_count(2)*xxf_lo%dim_size(2)
     xxf_lo%compound_count(4)=xxf_lo%compound_count(3)*xxf_lo%dim_size(3)
     xxf_lo%compound_count(5)=xxf_lo%compound_count(4)*xxf_lo%dim_size(4)
-    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)    
+    xxf_lo%compound_count(6)=xxf_lo%compound_count(5)*xxf_lo%dim_size(5)
 
     xxf_lo%ig_comp=xxf_lo%compound_count(xxf_lo%ig_ord)
     xxf_lo%isgn_comp=xxf_lo%compound_count(xxf_lo%isgn_ord)
@@ -3103,13 +3165,13 @@ contains
     xxf_lo%is_comp=xxf_lo%compound_count(xxf_lo%is_ord)
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
-    if (accel_lxyes) then  
+    if (accel_lxyes) then
 
        xxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
        xxf_lo%ngroup = ngroup
-       
+
        nprocset = nproc / xxf_lo%ngroup
        xxf_lo%nprocset = nprocset
 
@@ -3118,10 +3180,10 @@ contains
 
        xxf_lo%llim_group = 0
        xxf_lo%ulim_group = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize - 1
-       xxf_lo%gsize      = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize 
-       
+       xxf_lo%gsize      = naky*(2*ntgrid+1)*2*nlambda*xxf_lo%groupblocksize
+
        xxf_lo%nset = xxf_lo%ulim_group/xxf_lo%nprocset + 1
-       
+
        xxf_lo%llim_proc = xxf_lo%igroup*xxf_lo%gsize + xxf_lo%iset*xxf_lo%nset
        xxf_lo%ulim_proc = min(xxf_lo%ulim_group+xxf_lo%igroup*xxf_lo%gsize, &
             xxf_lo%llim_proc + xxf_lo%nset - 1)
@@ -3159,7 +3221,7 @@ contains
           xxf_lo%ulim_alloc = max(xxf_lo%llim_proc, xxf_lo%ulim_proc)
 
        else
-             
+
           if(proc0) then
              write(*, fmt="('Using unbalanced decomposition for xxf. ',&
               & 'Unbalanced fraction',F6.2)") unbalanced_amount
@@ -3168,7 +3230,18 @@ contains
        end if
 
     end if
+  end function setup_x_transform_layouts
 
+  !> Setup the module level xxf_lo instance
+  subroutine init_x_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc
+
+    if (initialized_x_transform) return
+    initialized_x_transform = .true.
+    xxf_lo = setup_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, nproc, iproc)
   end subroutine init_x_transform_layouts
 
   !> This subroutine (calculate_unbalanced_x) wraps up all the 
@@ -3931,18 +4004,15 @@ contains
 ! Y-space layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_y_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use mp, only: iproc, nproc, proc0
+  !> Construct a yxf_lo instance.
+  type(yxf_layout_type) function setup_y_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc) result(yxf_lo)
+    use mp, only: proc0
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
-    integer, intent (in) :: nx, ny
+    integer, intent (in) :: nx, ny, nproc, iproc
     integer :: nnx, nny, ngroup, nprocset, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
-
-    if (initialized_y_transform) return
-    initialized_y_transform = .true.
 
     if (nx > ntheta0) then
        nnx = nx
@@ -3993,13 +4063,13 @@ contains
     yxf_lo%dim_size(yxf_lo%il_ord)=nlambda
     yxf_lo%dim_size(yxf_lo%ie_ord)=negrid
     yxf_lo%dim_size(yxf_lo%is_ord)=nspec
-    
+
     yxf_lo%compound_count(1)=1
     yxf_lo%compound_count(2)=yxf_lo%compound_count(1)*yxf_lo%dim_size(1)
     yxf_lo%compound_count(3)=yxf_lo%compound_count(2)*yxf_lo%dim_size(2)
     yxf_lo%compound_count(4)=yxf_lo%compound_count(3)*yxf_lo%dim_size(3)
     yxf_lo%compound_count(5)=yxf_lo%compound_count(4)*yxf_lo%dim_size(4)
-    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)    
+    yxf_lo%compound_count(6)=yxf_lo%compound_count(5)*yxf_lo%dim_size(5)
 
     yxf_lo%ig_comp=yxf_lo%compound_count(yxf_lo%ig_ord)
     yxf_lo%isgn_comp=yxf_lo%compound_count(yxf_lo%isgn_ord)
@@ -4010,13 +4080,13 @@ contains
 
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
 
-    if (accel_lxyes) then  
+    if (accel_lxyes) then
 
        yxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
        yxf_lo%ngroup = ngroup
-       
+
        nprocset = nproc / yxf_lo%ngroup
        yxf_lo%nprocset = nprocset
 
@@ -4026,9 +4096,9 @@ contains
        yxf_lo%llim_group = 0
        yxf_lo%ulim_group = nnx*(2*ntgrid+1)*2*nlambda - 1
        yxf_lo%gsize      = nnx*(2*ntgrid+1)*2*nlambda*yxf_lo%groupblocksize
-       
+
        yxf_lo%nset = yxf_lo%ulim_group/yxf_lo%nprocset + 1
-       
+
        yxf_lo%llim_proc = yxf_lo%igroup*yxf_lo%gsize + yxf_lo%iset*yxf_lo%nset
        yxf_lo%ulim_proc = min(yxf_lo%ulim_group+yxf_lo%igroup*yxf_lo%gsize, &
             yxf_lo%llim_proc + yxf_lo%nset - 1)
@@ -4050,24 +4120,24 @@ contains
        ! Note: We precalculate 2*ntgrid+1 as ntgridtotal.
        ! This functionality is the same as the functionality in
        ! init_x_transform_layouts which is extensively commented.
-       ! Please see init_x_transform_layouts for more details on the 
+       ! Please see init_x_transform_layouts for more details on the
        ! functionality below.
        if (unbalanced_yxf) then
 
           call calculate_unbalanced_y(nproc, iproc, unbalanced_amount)
-          
+
        end if
-       
+
        if (.not. unbalanced_yxf) then
-          
+
           yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
           yxf_lo%llim_proc = yxf_lo%blocksize*iproc
           yxf_lo%ulim_proc &
                = min(yxf_lo%ulim_world, yxf_lo%llim_proc + yxf_lo%blocksize - 1)
           yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-       
+
        else
-             
+
           if(proc0) then
              write(*, fmt="('Using unbalanced decomposition for yxf. ',&
              & 'Unbalanced fraction',F6.2)") unbalanced_amount
@@ -4076,8 +4146,19 @@ contains
        end if
 
     end if
+  end function setup_y_transform_layouts
 
+  !> Setup the module level yxf_lo instance.
+  subroutine init_y_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: nx, ny, nproc, iproc
 
+    if (initialized_y_transform) return
+    initialized_y_transform = .true.
+    yxf_lo = setup_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
   end subroutine init_y_transform_layouts
 
   !> FIXME : Add documentation
@@ -4500,24 +4581,21 @@ contains
 ! Accelerated FFT layouts
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation  
-  subroutine init_accel_transform_layouts &
-       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use mp, only: iproc, nproc
+  !> Construct an accelx layout instance
+  type(accelx_layout_type) function setup_accelx_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, &
+       nproc, iproc) result(accelx_lo)
 #ifdef SHMEM
     use mp, only: proc0, allgather
     use shm_mpi3, only : shm_info
 #endif
     implicit none
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
     integer :: nnx, nny
 #ifdef SHMEM
     integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
 #endif
-
-    if (initialized_accel_transform_layouts) return
-    initialized_accel_transform_layouts = .true.
 
     if (nx > ntheta0) then
        nnx = nx
@@ -4549,7 +4627,74 @@ contains
     accelx_lo%ulim_proc &
          = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
     accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+#else
+    nxy=nnx*nny
+    les = nlambda*negrid*nspec
 
+    accelx_lo%ppn = shm_info%size
+    accelx_lo%nnd = nproc / accelx_lo%ppn
+    ! needs a test and to see if every node has the same number of processors
+    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
+    ind = iproc / accelx_lo%ppn
+
+    accelx_lo%bpn = les / accelx_lo%nnd
+    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
+    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
+    accelx_lo%llim_node = llim_nd * nxy
+    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
+    nd_les = accelx_lo%bpn
+
+    xyb = (nxy *nd_les) / accelx_lo%ppn
+    accelx_lo%blocksize = xyb
+    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
+
+    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
+    accelx_lo%llim_proc = accelx_lo%llim_node &
+         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
+    accelx_lo%ulim_proc &
+         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
+    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
+
+    allocate(accelx_lo%proc_map(0:nproc-1))
+    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
+
+    if (proc0) then
+       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)"
+       write(*,*) "ranks per node :", accelx_lo%ppn
+       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
+       write(*,*) "block size per rank :", accelx_lo%blocksize
+    endif
+#endif
+  end function setup_accelx_transform_layouts
+
+  !> Construct an accel layout instance
+  type(accel_layout_type) function setup_accel_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, &
+       nproc, iproc) result(accel_lo)
+#ifdef SHMEM
+    use mp, only: proc0, allgather
+    use shm_mpi3, only : shm_info
+#endif
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: nx, ny
+    integer :: nnx, nny
+#ifdef SHMEM
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+#endif
+
+    if (nx > ntheta0) then
+       nnx = nx
+    else
+       nnx = (3*ntheta0+1)/2
+    end if
+    if (ny > naky) then
+       nny = ny
+    else
+       nny = 3*naky
+    end if
+
+#ifndef SHMEM
     accel_lo%iproc = iproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
@@ -4573,44 +4718,6 @@ contains
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
 #else
-
-    nxy=nnx*nny
-    les = nlambda*negrid*nspec
-
-    accelx_lo%ppn = shm_info%size
-    accelx_lo%nnd = nproc / accelx_lo%ppn
-    ! needs a test and to see if every node has the same number of processors
-    !if ( mod(nproc,accelx_lo%ppn) /= 0) accelx_lo%nnd = accelx_lo%nnd + 1
-    ind = iproc / accelx_lo%ppn
-
-    accelx_lo%bpn = les / accelx_lo%nnd
-    if (ind < mod(les,  accelx_lo%nnd )) accelx_lo%bpn = accelx_lo%bpn + 1
-    llim_nd = ind * (les / accelx_lo%nnd) + min(ind, mod(les, accelx_lo%nnd))
-    accelx_lo%llim_node = llim_nd * nxy
-    accelx_lo%ulim_node = accelx_lo%llim_node + accelx_lo%bpn * nxy -1
-    nd_les = accelx_lo%bpn
-
-    xyb = (nxy *nd_les) / accelx_lo%ppn
-    accelx_lo%blocksize = xyb
-    if ( shm_info%id < mod(nxy * nd_les, accelx_lo%ppn) ) accelx_lo%blocksize = accelx_lo%blocksize + 1
-    
-    !accelx_lo%llim_proc = accelx_lo%blocksize*iproc
-    accelx_lo%llim_proc = accelx_lo%llim_node &
-         + shm_info%id * xyb +  min(shm_info%id, mod(nxy * nd_les, accelx_lo%ppn))
-    accelx_lo%ulim_proc &
-         = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
-    accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
-    
-    allocate(accelx_lo%proc_map(0:nproc-1))
-    call allgather((/accelx_lo%llim_proc/), 1, accelx_lo%proc_map, 1)
-
-    if (proc0) then 
-       write(*,'(/,a)') "accelx_lo shared memory parammeters (rank 0)" 
-       write(*,*) "ranks per node :", accelx_lo%ppn
-       write(*,*) "total number of blocks: ", les, "; and per node :", accelx_lo%bpn
-       write(*,*) "block size per rank :", accelx_lo%blocksize
-    endif
-
     accel_lo%iproc = iproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
@@ -4629,6 +4736,7 @@ contains
     accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
     !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     nxy = nnx*(nny/2+1)
+    les = nlambda*negrid*nspec
 
     accel_lo%ppn = shm_info%size
     accel_lo%nnd = nproc / accel_lo%ppn
@@ -4640,7 +4748,7 @@ contains
     if (ind < mod(les,  accel_lo%nnd )) accel_lo%bpn = accel_lo%bpn + 1
     llim_nd = ind * (les / accel_lo%nnd) + min(ind, mod(les, accel_lo%nnd))
     accel_lo%llim_node = llim_nd * nxy
-    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1 
+    accel_lo%ulim_node = accel_lo%llim_node + accel_lo%bpn * nxy -1
     nd_les = accel_lo%bpn
 
     xyb = (nxy * nd_les) / accel_lo%ppn
@@ -4655,14 +4763,30 @@ contains
          = min(accel_lo%ulim_world, accel_lo%llim_proc + accel_lo%blocksize - 1)
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
-   if (proc0) then 
-       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) " 
+   if (proc0) then
+       write(*,'(/,a)') "accel_lo shared memory parammeters (rank 0) "
        write(*,*) "ranks per node :", accel_lo%ppn
        write(*,*) "total number of blocks:", les, "; per node :", accel_lo%bpn
        write(*,*) "block size per rank :", accel_lo%blocksize
     endif
 
 #endif
+  end function setup_accel_transform_layouts
+
+  !> Setup the module level accelx_lo and accel_lo instances
+  subroutine init_accel_transform_layouts &
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: nx, ny
+
+    if (initialized_accel_transform_layouts) return
+    initialized_accel_transform_layouts = .true.
+
+    accelx_lo = setup_accelx_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
+    accel_lo = setup_accel_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
+         negrid, nspec, nx, ny, nproc, iproc)
   end subroutine init_accel_transform_layouts
 
   !> FIXME : Add documentation

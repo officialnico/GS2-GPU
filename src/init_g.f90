@@ -12,7 +12,7 @@ module init_g
   public :: tstart
   public :: reset_init
   public :: init_vnmult
-  public :: new_field_init
+  public :: new_field_init, initial_condition_is_nonadiabatic_dfn
   public :: ginitopt_restart_many
   public :: ginitopt_restart_memory
   private :: single_initial_kx
@@ -40,7 +40,7 @@ module init_g
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
        ginitopt_stationary_mode = 38, ginitopt_cgyro = 39, &
-       ginitopt_random_sine = 40
+       ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -617,6 +617,11 @@ contains
        write (unit, fmt="(' zf_init = ',e17.10)") zf_init
        write (unit, fmt="(' max_mode = ',I0)") max_mode
 
+    case (ginitopt_constant)
+       write (unit, fmt="(' ginit_option = ',a)") '"constant"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -923,6 +928,12 @@ contains
        write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
        write (report_unit, fmt="('  Max mode:         ',I0)") max_mode
        write (report_unit, fmt="(' Random sum of sine waves up to max_mode mode number')")
+
+    case (ginitopt_constant)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
+       write (report_unit, fmt="(' Constant value')")
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -1201,12 +1212,16 @@ contains
        call ginit_cgyro
     case (ginitopt_random_sine)
        call ginit_random_sine
+    case (ginitopt_constant)
+       call ginit_constant
     end select
 
     ! If the initial condition is the nonadiabatic dfn then
     ! ensure we've actually set `gnew` correctly.
-    if (initial_condition_is_nonadiabatic_dfn) then
-       !Should we avoid doing this if restart is true?
+    ! We avoid doing this if we're restarting as currently we assume
+    ! that the restart files always contain our evolved gnew, rather
+    ! than the nonadiabatic dfn.
+    if (initial_condition_is_nonadiabatic_dfn .and. .not. restarted) then
        call set_gnew_from_nonadiabatic_dfn
     else
        ! If not restarting and have a hybrid electron species then
@@ -1233,12 +1248,9 @@ contains
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     implicit none
-    complex, dimension(:, :, :), allocatable :: phi, apar, bpar
     integer :: iglo, ik, il, is
-    allocate( phi(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(apar(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(bpar(-ntgrid:ntgrid, ntheta0, naky))
 
     ! Respect passing hybrid electrons h=0
     if (has_hybrid_electron_species(spec)) then
@@ -1258,6 +1270,9 @@ contains
 
     ! Ensure both timesteps are set correctly
     g = gnew
+    phinew = phi
+    aparnew = apar
+    bparnew = bpar
   end subroutine set_gnew_from_nonadiabatic_dfn
 
   !> FIXME : Add documentation
@@ -1309,7 +1324,8 @@ contains
             text_option('eig_restart', ginitopt_restart_eig), &
             text_option('stationary_mode', ginitopt_stationary_mode), &
             text_option('cgyro', ginitopt_cgyro), &
-            text_option('random_sine', ginitopt_random_sine) &
+            text_option('random_sine', ginitopt_random_sine), &
+            text_option('constant', ginitopt_constant) &
             /)
     character(20) :: ginit_option
 
@@ -3249,7 +3265,7 @@ contains
     use dist_fn, only: gamtot, gamtot1, gamtot2
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
-    use file_utils, only: error_unit, get_unused_unit
+    use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
     implicit none
     integer :: iglo
@@ -3747,12 +3763,11 @@ contains
 
        ! store equilibrium fields
        if(proc0) then
-          call get_unused_unit(unit)
-          open(unit,file='equilibrium.dat',form='unformatted')
+          call open_output_file(unit, ".equilibrium.dat", binary = .true.)
           write(unit) phixy(:,:,0),aparxy(:,:,0),bparxy(:,:,0),jparxy(:,:,0)
           write(unit) densxy(:,:,0,:),uparxy(:,:,0,:), &
                & tparxy(:,:,0,:),tperxy(:,:,0,:)
-          close(unit)
+          call close_output_file(unit)
        endif
     endif
 
@@ -3814,8 +3829,7 @@ contains
                      & real(tper(0,eq_mode_n+1,1,is))
              end do
 
-             call get_unused_unit(unit)
-             open(unit,file='check_moment.dat')
+             call open_output_file(unit, '.check_moment.dat')
              write(unit,'(a1,1x,2a20,4(4a20))') '#','x','y', &
                   & ('dens','upar','tpar','tperp',i=1,nspec)
              do it=1,nx+1
@@ -3828,7 +3842,7 @@ contains
                 end do
                 write(unit,*)
              end do
-             close(unit)
+             call close_output_file(unit)
           endif
 
           write(6,*)
@@ -3852,8 +3866,7 @@ contains
                   & eq_mode_n,0, &
                   & real(bpar(0,eq_mode_n+1,1))
 
-             call get_unused_unit(unit)
-             open(unit,file='check_field.dat')
+             call open_output_file(unit, '.check_field.dat')
              write(unit,'(a1,1x,5a20)') '#','x','y','phi','apar','bpar','by'
              do it=1,nx+1
                 i=mod(it-1,nx)+1
@@ -3864,7 +3877,7 @@ contains
                 end do
                 write(unit,*)
              end do
-             close(unit)
+             call close_output_file(unit)
           endif
 
        endif
@@ -4469,6 +4482,37 @@ contains
     end subroutine set_a_and_b_uniform_random_weighting
 
   end subroutine ginit_random_sine
+
+  !> Initialise the distribution function to a constant but satisfying
+  !> forbidden regions. Can scale the zonal component separately as
+  !> usual.
+  subroutine ginit_constant
+    use kt_grids, only: aky
+    use le_grids, only: forbid
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    implicit none
+    integer :: iglo, ik, it, il
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       if (aky(ik) == 0.0) then
+          g(:, 1, iglo) = zf_init * phiinit
+
+          ! Zero the ky=kx=0 mode
+          if (it == 1) g(:, 1, iglo) = 0.0
+       else
+          g(:, 1, iglo) = phiinit
+       end if
+
+       where (forbid(:, il)) g(:, 1, iglo) = 0.0
+       g(:, 2, iglo) = g(:, 1, iglo)
+    end do
+
+    gnew = g
+  end subroutine ginit_constant
 
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)

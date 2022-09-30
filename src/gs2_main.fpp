@@ -772,13 +772,14 @@ contains
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
-    use run_parameters, only: reset, fphi, fapar, fbpar, nstep
+    use run_parameters, only: reset, fphi, fapar, fbpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
     use standard_header, only: standard_header_type
+    use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
@@ -821,6 +822,11 @@ contains
     ! finalize_diagnostics resets state%istep_end
     istep_loop_max = state%istep_end + nstep_run
     do istep = state%istep_end+1, istep_loop_max
+       ! Check if we've reached our maximum requested time
+       if (user_time > max_sim_time) then
+          state%exit_reason = EXIT_MAX_SIM_TIME
+          exit
+       end if
 
        if (istep .gt. nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
@@ -1494,10 +1500,11 @@ contains
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
-    use le_derivatives, only: time_vspace_derivatives
-    use nonlinear_terms, only: time_add_explicit_terms
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
 #endif
@@ -1511,48 +1518,35 @@ contains
     if (.not. proc0) return
 
     if (state%print_full_timers) then
-       call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
-       call get_redist_times(redist_total, redist_mpi, redist_copy)
+      call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+      call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+      !Blank line to force separation from other outputs
+      write(*, '("")')
+      write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
+      write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
-      print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-           timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
+      write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
 #endif
-      print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(field solve mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(collisions'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(explicit/nl'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Redistribute  '',T25,0pf9.3,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-           &A,T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-           &''(Overheads'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(Collectives'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(PTP'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(Sync'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' total from timer is:'', 0pf9.2,'' min'',/)', &
-           timers%init(1)/60.,timers%init(1)/timers%total(1), &
-           timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-           time_field(1)/60.,time_field(1)/timers%total(1), &
-           time_field_mpi/60.,time_field_mpi/timers%total(1), &
-           time_vspace_derivatives(1)/60.,time_vspace_derivatives(1)/timers%total(1), &
-           time_add_explicit_terms(1)/60.,time_add_explicit_terms(1)/timers%total(1), &
-           timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
-           time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-           redist_total/60.,redist_total/timers%total(1), &
-           redist_mpi/60.,redist_mpi/timers%total(1), &
-           redist_copy/60.,redist_copy/timers%total(1), &
-           timers%finish(1)/60.,timers%finish(1)/timers%total(1), &
-           " MPI",mp_total/60., mp_total/timers%total(1), &
-           mp_over/60., mp_over/timers%total(1), &
-           mp_coll/60., mp_coll/timers%total(1), &
-           mp_ptp/60., mp_ptp/timers%total(1), &
-           mp_sync/60., mp_sync/timers%total(1), &
-           timers%total(1)/60.
+      write(*, '("(", a, ")")') formatted_time("field solve", time_field(1))
+      write(*, '("(", a, ")")') formatted_time("field solve mpi", time_field_mpi)
+      write(*, '("(", a, ")")') formatted_time("collisions", time_vspace_derivatives(1))
+      write(*, '("(", a, ")")') formatted_time("collisions mpi", time_vspace_derivatives_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
+      write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
+      write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
+      write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
+      write(*, '("(", a, ")")') formatted_time("redistribute mpi", redist_mpi)
+      write(*, '("(", a, ")")') formatted_time("redistribute copy", redist_copy)
+      write(*, '(" ", a)') formatted_time("Finishing", timers%finish(1))
+      write(*, '(" ", a)') formatted_time("MPI" ,mp_total)
+      write(*, '("(", a, ")")') formatted_time("Overheads", mp_over)
+      write(*, '("(", a, ")")') formatted_time("Collectives", mp_coll)
+      write(*, '("(", a, ")")') formatted_time("PTP", mp_ptp)
+      write(*, '("(", a, ")")') formatted_time("Sync", mp_sync)
+      write(*, '(" total from timer is:", 0pf9.2, " min", /)') timers%total(1) / 60.
     else
       if (state%external_job_id >= 0) then
         write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
@@ -1567,6 +1561,16 @@ contains
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     call print_memory_usage
 #endif
+  contains
+    !> Print a single formatted timer line
+    character(len=46) function formatted_time(name, timer)
+      !> Name of the timer
+      character(len=*), intent(in) :: name
+      !> Time in seconds
+      real, intent(in) :: timer
+
+      write(formatted_time, "(a, T25, 0pf9.3, ' min', T40, 2pf5.1, ' %')") name, timer / 60., timer/timers%total(1)
+    end function formatted_time
   end subroutine print_times
 
   !> FIXME : Add documentation  
@@ -2110,7 +2114,7 @@ contains
   !> parameters
   subroutine write_used_inputs_file(header)
     use mp, only: proc0
-    use file_utils, only: get_unused_unit, run_name
+    use file_utils, only: open_output_file, close_output_file, run_name
     use standard_header, only: standard_header_type
     use config_collection, only : gs2_config_type
 
@@ -2133,8 +2137,7 @@ contains
     end if
 
     call input_config%get_configs()
-    call get_unused_unit(used_inputs_unit)
-    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    call open_output_file(used_inputs_unit, ".used_inputs.in")
     write(unit=used_inputs_unit, fmt='(a)') &
          local_header%to_string( &
          comment_character="! ", &
@@ -2142,7 +2145,7 @@ contains
          )
 
     call input_config%write_to_unit(used_inputs_unit)
-    close(used_inputs_unit)
+    call close_output_file(used_inputs_unit)
 
   end subroutine write_used_inputs_file
 
