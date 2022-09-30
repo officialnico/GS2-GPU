@@ -36,7 +36,7 @@ along with other tags and branches on the
 GS2 requires a Fortran compiler that supports at least the F2008 standard. We
 regularly test with gfortran 11 and Intel 2022.
 
-We recommend using at least gfortran 7, or Intel 19. Earlier versions may
+We recommend using at least gfortran 9.3, or Intel 19. Earlier versions may
 still work but we can make no guarantees.
 
 GS2 has no required external dependencies, but does have the following

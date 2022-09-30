@@ -126,11 +126,11 @@ gfortran11_mpich:
     - su -c "source load_petsc_slepc ;  ./pipeline_test_scripts/ci_build_and_run.sh" theuser
     - *report_pass
 
-gfortran7_standard_tests:
+gfortran9_standard_tests:
   stage: test
-  image: fedora:26
+  image: fedora:31
   variables:
-    CASENAME: "gfortran_7"
+    CASENAME: "gfortran_9"
     WITH_PYTHON: ""
     GK_CI_PFUNIT: ""
     GK_CI_INTEGRATED: ""
