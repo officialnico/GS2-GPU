@@ -1239,8 +1239,8 @@ contains
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
-#ifdef NETCDF
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
+#ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
 
     call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout], &
