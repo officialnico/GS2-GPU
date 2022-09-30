@@ -54,7 +54,10 @@ optional ones:
 ### Fortran standard features
 
 Some compilers still only support a subset of the F2003/F2008 standards. The
-below is a non-exhaustive list of features from these standards that we require.
+below is a non-exhaustive list of features from these standards that
+we require. You can try building the [Fortran
+Features](https://bitbucket.org/gyrokinetics/fortran-features/) repo
+to see if your compiler supports the features we require.
 
 #### Fortran 2003
 
