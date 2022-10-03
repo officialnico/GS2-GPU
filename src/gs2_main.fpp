@@ -1635,30 +1635,7 @@ contains
 
     call parse_command_line()
 
-    ! HJL tests on Trinity optionals for load balancing
-    old_iface_state%external_job_id = -1
-    if(present(job_id)) then
-      old_iface_state%external_job_id = job_id + 1
-      old_iface_state%is_trinity_job = .true.
-      old_iface_state%is_external_job = .true.
-    end if
-    if(present(trinity_reset)) then
-       old_iface_state%converged = .false.
-       trin_reset = trinity_reset
-       first_time = .true.
-    endif
-    if (present(filename)) then
-      old_iface_state%run_name_external = .true.
-      old_iface_state%run_name = filename
-    end if
-    if (present(mpi_comm)) then
-      old_iface_state%mp_comm_external = .true.
-      old_iface_state%mp_comm = mpi_comm
-    end if
-    if (present(nensembles)) then
-      old_iface_state%nensembles = nensembles
-    end if
-    if(present(trinity_reset)) trin_restart = .true. ! All trinity runs are restarted except the first
+    call set_state_from_inputs()
 
     if (first_time) then
       call initialize_wall_clock_timer
@@ -1673,7 +1650,6 @@ contains
       first_time = .false.
     endif !firstime
 
-
     if(old_iface_state%do_eigsolve)then
        call run_eigensolver(old_iface_state)
     else
@@ -1682,28 +1658,63 @@ contains
     endif
     if(proc0) call old_iface_state%exit_reason%write_exit_file()
 
-    if (present(converged)) converged = old_iface_state%converged
+    call set_outputs_from_state()
 
-
-    if (present(pflux) .or. present(dvdrho) .or. present(grho)) then
-      call calculate_outputs(old_iface_state)
-    end if
-    if (present(dvdrho)) dvdrho = old_iface_state%outputs%dvdrho
-    if (present(grho)) grho = old_iface_state%outputs%grho
-    if (present(pflux)) then
-      pflux = old_iface_state%outputs%pflux
-      qflux = old_iface_state%outputs%qflux
-      vflux = old_iface_state%outputs%vflux
-      heat = old_iface_state%outputs%heat
-    else
-       if (.not. functional_test_flag ) &
-         call finalize_diagnostics(old_iface_state) 
+    if (.not. present(pflux) .and. .not. functional_test_flag) then
+      call finalize_diagnostics(old_iface_state)
     end if
 
     if (.not. present(mpi_comm) .and. .not. functional_test_flag) then 
       call finalize_equations(old_iface_state)
       call finalize_gs2(old_iface_state)
     end if
+    
+  contains
+    !> Set various components of the module-level state variable from
+    !> the optional input arguments
+    subroutine set_state_from_inputs()
+      old_iface_state%external_job_id = -1
+      if(present(job_id)) then
+        old_iface_state%external_job_id = job_id + 1
+        old_iface_state%is_trinity_job = .true.
+        old_iface_state%is_external_job = .true.
+      end if
+      if(present(trinity_reset)) then
+        old_iface_state%converged = .false.
+        trin_reset = trinity_reset
+        first_time = .true.
+      endif
+      if (present(filename)) then
+        old_iface_state%run_name_external = .true.
+        old_iface_state%run_name = filename
+      end if
+      if (present(mpi_comm)) then
+        old_iface_state%mp_comm_external = .true.
+        old_iface_state%mp_comm = mpi_comm
+      end if
+      if (present(nensembles)) then
+        old_iface_state%nensembles = nensembles
+      end if
+      if(present(trinity_reset)) trin_restart = .true. ! All trinity runs are restarted except the first
+    end subroutine set_state_from_inputs
+
+    !> Set optional output arguments from components of the
+    !> module-level state variable
+    subroutine set_outputs_from_state()
+      if (present(converged)) converged = old_iface_state%converged
+
+      if (present(pflux) .or. present(dvdrho) .or. present(grho)) then
+        call calculate_outputs(old_iface_state)
+      end if
+      if (present(dvdrho)) dvdrho = old_iface_state%outputs%dvdrho
+      if (present(grho)) grho = old_iface_state%outputs%grho
+      if (present(pflux)) then
+        pflux = old_iface_state%outputs%pflux
+        qflux = old_iface_state%outputs%qflux
+        vflux = old_iface_state%outputs%vflux
+        heat = old_iface_state%outputs%heat
+      end if
+    end subroutine set_outputs_from_state
     
   end subroutine run_gs2
   
