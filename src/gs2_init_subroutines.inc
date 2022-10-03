@@ -295,12 +295,13 @@ subroutine dist_fn_layouts_subroutine(going_up)
   use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts
   use kt_grids, only: naky, ntheta0
   use le_grids, only: nlambda, negrid
+  use theta_grid, only: ntgrid
   use mp, only: nproc, iproc
   use species, only: nspec
   logical, intent(in) :: going_up
   if (going_up) then
     call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_layouts (21)')
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     current%level = init_level_list%dist_fn_layouts
   else
     call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_layouts (21)')

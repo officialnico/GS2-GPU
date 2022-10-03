@@ -9,6 +9,8 @@ module gs2_layouts
   use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
+  use layouts_type, only: xxf_layout_type, yxf_layout_type
+  use layouts_type, only: accel_layout_type, accelx_layout_type
   use constants, only: run_name_size
 
   implicit none
@@ -109,7 +111,7 @@ module gs2_layouts
 
   !> FIXME : Add documentation  
   type :: f_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: nidx, nfield, ntgrid, nindex, naky, ntheta0, M_class, N_class, i_class
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer, dimension(:,:), pointer :: ik => null ()
@@ -120,7 +122,7 @@ module gs2_layouts
 
   !> FIXME : Add documentation
   type :: jf_layout_type
-     integer :: iproc
+     integer :: iproc, nproc
      integer :: nindex, naky, ntheta0, ntgrid, nfield
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
      integer :: ig_min,ig_max,ifield_min,ifield_max,it_min,it_max,ik_min,ik_max
@@ -134,75 +136,11 @@ module gs2_layouts
 
   type (e_layout_type) :: e_lo
 
-  !> FIXME : Add documentation
-  type :: xxf_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ntheta0, nx, nadd, negrid, nlambda, nspec, ntgridtotal
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
-     integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
-     integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
-     integer :: small_block_balance_factor, large_block_balance_factor
-     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
-     integer :: ig_ord, isgn_ord, ik_ord, il_ord, ie_ord, is_ord
-     !> `it_comp` is the product of the sizes of dimensions which are more
-     !> local than kx in the g_lo layout.
-     integer :: ig_comp, isgn_comp, ik_comp, il_comp, ie_comp, is_comp
-     !> Work array that holds iX_comp in the order that they appear in the
-     !> layout.
-     integer,dimension(6) :: compound_count
-     !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout.
-     integer,dimension(6) :: dim_size
-  end type xxf_layout_type
-
   type (xxf_layout_type) :: xxf_lo
-
-  !> FIXME : Add documentation  
-  type :: yxf_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ny, ntheta0, nx, negrid, nlambda, nspec, ntgridtotal
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize, gsize
-     integer :: llim_group, ulim_group, igroup, ngroup, nprocset, iset, nset, groupblocksize
-     integer :: small_block_size, block_multiple, large_block_size, num_small, num_large
-     integer :: small_block_balance_factor, large_block_balance_factor
-     !> Order of iX in the distributed index. e.g. ig_ord = 1 => theta is the fastest moving distributed index
-     integer :: ig_ord, isgn_ord, it_ord, il_ord, ie_ord, is_ord
-     !> `it_comp` is the product of the sizes of dimensions which are more
-     !> local than kx in the g_lo layout.
-     integer :: ig_comp, isgn_comp, it_comp, il_comp, ie_comp, is_comp
-     !> Work array that holds iX_comp in the order that they appear in the
-     !> layout.
-     integer,dimension(6) :: compound_count
-     !> Array that holds the size of each dimension in the order that they
-     !> appear in the layout.
-     integer,dimension(6) :: dim_size
-  end type yxf_layout_type
 
   type (yxf_layout_type) :: yxf_lo
 
-  !> FIXME : Add documentation  
-  type :: accel_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ndky, ny, ntheta0
-     integer :: nx, nxny, nxnky, negrid, nlambda, nspec, nia
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-#ifdef SHMEM
-     integer :: ppn, nnd, bpn, llim_node, ulim_node !shm data
-#endif
-  end type accel_layout_type
-
   type (accel_layout_type) :: accel_lo
-
-  !> FIXME : Add documentation  
-  type :: accelx_layout_type
-     integer :: iproc
-     integer :: ntgrid, nsign, naky, ny, ntheta0, nx, nxny, negrid, nlambda, nspec
-     integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-#ifdef SHMEM
-     integer :: ppn, nnd, bpn, llim_node, ulim_node ! shm data
-     integer, allocatable :: proc_map(:)
-#endif
-  end type accelx_layout_type
 
   type (accelx_layout_type) :: accelx_lo
   
@@ -882,7 +820,7 @@ contains
   !> * intmom_sub
   !> * intspec_sub
   type(g_layout_type) function setup_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc) result(g_lo)
     use mp, only: proc0, comm_type, mp_abort
     use mp, only: split, free_comm, mp_comm, nproc_comm, rank_comm
     use mp, only: sum_allreduce_sub, sum_allreduce, sum_reduce, max_reduce
@@ -892,7 +830,7 @@ contains
     use mp, only: allgather
 #endif
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer :: iglo,ik,it,il,ie,is,col,mycol
     integer :: ik_min,ik_max,it_min,it_max,il_min,il_max,ie_min,ie_max,is_min,is_max,ip
     integer :: nproc_subcomm, rank_subcomm
@@ -910,11 +848,14 @@ contains
     type(comm_type) :: tmpcomm
 
     g_lo%iproc = iproc
+    g_lo%nproc = nproc
     g_lo%naky = naky
     g_lo%ntheta0 = ntheta0
     g_lo%nlambda = nlambda
     g_lo%negrid = negrid
     g_lo%nspec = nspec
+    g_lo%ntgrid = ntgrid
+    g_lo%ntgridtotal = (2*ntgrid+1)
     g_lo%llim_world = 0
     g_lo%ulim_world = naky*ntheta0*negrid*nlambda*nspec - 1
 
@@ -1585,13 +1526,13 @@ contains
   !> Construct the work decomposition for the g_layout and
   !> store it in the module level g_lo instance.
   subroutine init_dist_fn_layouts &
-       (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+       (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     implicit none
-    integer, intent (in) :: naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
 
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
-    g_lo = setup_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    g_lo = setup_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
@@ -1733,6 +1674,7 @@ contains
 
     do i = 1, i_class
        f_lo(i)%iproc = iproc
+       f_lo(i)%nproc = nproc
        f_lo(i)%nfield = nfield
        f_lo(i)%nidx = nindex                 ! cell size
        f_lo(i)%ntgrid = (nindex/nfield-1)/2
@@ -1943,6 +1885,7 @@ contains
     integer :: jlo
     
     jf_lo%iproc = iproc
+    jf_lo%nproc = nproc
     jf_lo%nindex = nindex
     jf_lo%ntgrid = (nindex/nfield-1)/2
     jf_lo%nfield = nfield
@@ -2107,6 +2050,7 @@ contains
     !> A temporary integer to represent, the ?_local logicals. Integer so we can use min_allreduce.
     integer :: is_dim_local
     le_lo%iproc = iproc
+    le_lo%nproc = nproc
     le_lo%ntgrid = ntgrid
     le_lo%ntgridtotal=(2*ntgrid+1)
     le_lo%ntheta0 = ntheta0
@@ -2543,6 +2487,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc
 
     e_lo%iproc = iproc
+    e_lo%nproc = nproc
     e_lo%ntgrid = ntgrid
     e_lo%nsign = 2
     e_lo%ntheta0 = ntheta0
@@ -2719,6 +2664,7 @@ contains
     integer :: ngroup, nprocset
 
     lz_lo%iproc = iproc
+    lz_lo%nproc = nproc
     lz_lo%ntgrid = ntgrid
     lz_lo%naky = naky
     lz_lo%ntheta0 = ntheta0
@@ -2916,6 +2862,7 @@ contains
     integer, intent (in) :: naky, nlambda, negrid, nspec, nproc, iproc
 
     p_lo%iproc = iproc
+    p_lo%nproc = nproc
     p_lo%naky = naky
     p_lo%nlambda = nlambda
     p_lo%negrid = negrid
@@ -3108,6 +3055,7 @@ contains
     real :: unbalanced_amount
 
     xxf_lo%iproc = iproc
+    xxf_lo%nproc = nproc
     xxf_lo%ntgrid = ntgrid
     ntgridtotal=(2*ntgrid+1)
     xxf_lo%ntgridtotal = ntgridtotal
@@ -4026,6 +3974,7 @@ contains
     end if
 
     yxf_lo%iproc = iproc
+    yxf_lo%nproc = nproc
     yxf_lo%ntgrid = ntgrid
     ntgridtotal=(2*ntgrid+1)
     yxf_lo%ntgridtotal = ntgridtotal
@@ -4609,6 +4558,7 @@ contains
     end if
 
     accelx_lo%iproc = iproc
+    accelx_lo%nproc = nproc
     accelx_lo%ntgrid = ntgrid
     accelx_lo%nsign = 2
     accelx_lo%naky = naky
@@ -4694,8 +4644,8 @@ contains
        nny = 3*naky
     end if
 
-#ifndef SHMEM
     accel_lo%iproc = iproc
+    accel_lo%nproc = nproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
     accel_lo%naky = naky
@@ -4708,9 +4658,11 @@ contains
     accel_lo%nlambda = nlambda
     accel_lo%negrid = negrid
     accel_lo%nspec = nspec
-    accel_lo%nia = negrid*nlambda*nspec/nproc
     accel_lo%llim_world = 0
     accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
+
+#ifndef SHMEM
+    accel_lo%nia = negrid*nlambda*nspec/nproc
     accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     accel_lo%llim_proc = accel_lo%blocksize*iproc
     accel_lo%ulim_proc &
@@ -4718,23 +4670,6 @@ contains
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
 #else
-    accel_lo%iproc = iproc
-    accel_lo%ntgrid = ntgrid
-    accel_lo%nsign = 2
-    accel_lo%naky = naky
-    accel_lo%ndky = nny/2+1  ! Note: this is for dealiased k space quantities
-    accel_lo%ny = nny
-    accel_lo%ntheta0 = ntheta0
-    accel_lo%nx = nnx
-    accel_lo%nxny = nnx*nny
-    accel_lo%nxnky = nnx*(nny/2+1)
-    accel_lo%nlambda = nlambda
-    accel_lo%negrid = negrid
-    accel_lo%nspec = nspec
-    !accel_lo%nia = negrid*nlambda*nspec/nproc
-    accel_lo%llim_world = 0
-    accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
-    !accel_lo%blocksize = accel_lo%ulim_world/nproc + 1
     nxy = nnx*(nny/2+1)
     les = nlambda*negrid*nspec
 

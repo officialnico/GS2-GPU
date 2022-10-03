@@ -984,6 +984,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts
     use nonlinear_terms, only: init_nonlinear_terms
     use run_parameters, only: init_run_parameters
@@ -1010,7 +1011,7 @@ contains
     call init_run_parameters
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays

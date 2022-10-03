@@ -184,9 +184,10 @@ if __name__ == "__main__":
                                     "  use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts",
                                     "  use kt_grids, only: naky, ntheta0",
                                     "  use le_grids, only: nlambda, negrid",
+                                    "  use theta_grid, only: ntgrid",
                                     "  use mp, only: nproc, iproc",
                                     "  use species, only: nspec"]),
-                                               'up_action': "    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
+                                               'up_action': "    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
                                                'down_action': "    call finish_dist_fn_layouts"}
 
         ),
