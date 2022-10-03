@@ -505,8 +505,21 @@ module gs2_layouts
      module procedure set_dimension_order_yxf
   end interface set_dimension_order
   
-contains 
-  !> FIXME : Add documentation 
+contains
+
+  !> Handle nproc values outside valid range (i.e. <= 0 or > nproc_total).
+  !> Values outside of this range are replaced with nproc_total
+  integer elemental function handle_processor_request(nproc_in, upper_limit) result(nproc)
+    implicit none
+    integer, intent(in) :: nproc_in, upper_limit
+    if(nproc_in <= 0 .or. nproc_in > upper_limit) then
+       nproc = upper_limit
+    else
+       nproc = nproc_in
+    end if
+  end function handle_processor_request
+
+  !> FIXME : Add documentation
   subroutine wnml_gs2_layouts(unit)
     implicit none
     integer, intent(in) :: unit
@@ -1557,7 +1570,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
-    if (nproc_g_lo <= 0 .or. nproc_g_lo > nproc) nproc_g_lo = nproc
+    nproc_g_lo = handle_processor_request(nproc_g_lo, nproc)
     g_lo = setup_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc_g_lo, iproc)
   end subroutine init_dist_fn_layouts
 
@@ -2184,7 +2197,7 @@ contains
 
     if (initialized_le_layouts) return
     initialized_le_layouts = .true.
-    if (nproc_le_lo <= 0 .or. nproc_le_lo > nproc) nproc_le_lo = nproc
+    nproc_le_lo = handle_processor_request(nproc_le_lo, nproc)
     le_lo = setup_le_layouts(ntgrid, naky, ntheta0, nspec, nproc_le_lo, iproc)
   end subroutine init_le_layouts
 
@@ -2575,7 +2588,7 @@ contains
 
     if (initialized_energy_layouts) return
     initialized_energy_layouts = .true.
-    if (nproc_e_lo <= 0 .or. nproc_e_lo > nproc) nproc_e_lo = nproc
+    nproc_e_lo = handle_processor_request(nproc_e_lo, nproc)
     e_lo = setup_energy_layouts(ntgrid, naky, ntheta0, nlambda, nspec, nproc_e_lo, iproc)
   end subroutine init_energy_layouts
 
@@ -2783,7 +2796,7 @@ contains
 
     if (initialized_lambda_layouts) return
     initialized_lambda_layouts = .true.
-    if (nproc_lz_lo <= 0 .or. nproc_lz_lo > nproc) nproc_lz_lo = nproc
+    nproc_lz_lo = handle_processor_request(nproc_lz_lo, nproc)
     lz_lo = setup_lambda_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc_lz_lo, iproc)
   end subroutine init_lambda_layouts
 
@@ -3217,7 +3230,7 @@ contains
 
     if (initialized_x_transform) return
     initialized_x_transform = .true.
-    if (nproc_xxf_lo <= 0 .or. nproc_xxf_lo > nproc) nproc_xxf_lo = nproc
+    nproc_xxf_lo = handle_processor_request(nproc_xxf_lo, nproc)
     xxf_lo = setup_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
          negrid, nspec, nx, nproc_xxf_lo, iproc)
   end subroutine init_x_transform_layouts
@@ -4136,7 +4149,7 @@ contains
 
     if (initialized_y_transform) return
     initialized_y_transform = .true.
-    if (nproc_yxf_lo <= 0 .or. nproc_yxf_lo > nproc) nproc_yxf_lo = nproc
+    nproc_yxf_lo = handle_processor_request(nproc_yxf_lo, nproc)
     yxf_lo = setup_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, &
          negrid, nspec, nx, ny, nproc_yxf_lo, iproc)
   end subroutine init_y_transform_layouts
