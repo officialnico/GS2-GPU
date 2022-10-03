@@ -1555,7 +1555,6 @@ contains
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
-    integer :: nproc_used
     if (initialized_dist_fn_layouts) return
     initialized_dist_fn_layouts = .true.
     if (nproc_g_lo <= 0 .or. nproc_g_lo > nproc) nproc_g_lo = nproc
