@@ -197,10 +197,11 @@ contains
        if (split_nonlinear) then
           write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('The nonlinear term will be evolved separately from the')")
+          write (report_unit, fmt="('The nonlinear term will be evolved separately from')")
           write (report_unit, fmt="('the linear terms in a crude IMEX style.')")
           write (report_unit, fmt="('This is an experimental feature.')")
-          write (report_unit, fmt="('################# WARNING #######################')")              write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
        end if
 
        if (nperiod > 1) then
