@@ -3358,14 +3358,19 @@ contains
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
-    use mp, only: mp_abort
+    use mp, only: mp_abort, get_mp_times
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step
+    real :: mp_total_after, mp_total
     real, dimension(:), allocatable :: ab_coeffs
     integer :: counter
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total)
 
     ! Initialise internal variables
     internal_time = 0.0
@@ -3427,6 +3432,11 @@ contains
     phi = phinew
     apar = aparnew
     bpar = bparnew
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total_after)
+    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
+
   end subroutine advance_nonlinear_term
 
   !> Advance collision term one timestep by implicit Euler.
