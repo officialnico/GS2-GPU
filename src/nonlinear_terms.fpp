@@ -13,7 +13,7 @@ module nonlinear_terms
 
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
-  public :: add_explicit_terms, nonlinear_mode_switch
+  public :: add_explicit_terms, nonlinear_mode_switch, split_nonlinear
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
@@ -81,6 +81,7 @@ module nonlinear_terms
 
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
+  logical :: split_nonlinear
 
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
@@ -129,6 +130,9 @@ module nonlinear_terms
      real :: qparfac = 1./sqrt(8.)
      !> GRYFX only. No documentation available
      real :: qprpfac = 1./sqrt(8.)
+     !> Do we evolve the nonlinear term separately from the linear terms (true) or
+     !> include the nonlinear term as a source in the standard algorithm (false).
+     logical :: split_nonlinear = .false.
      !> GRYFX only. No documentation available
      real :: tparfac = 1./2.
      !> GRYFX only. No documentation available
@@ -188,6 +192,15 @@ contains
           write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, *) 
+       end if
+
+       if (split_nonlinear) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The nonlinear term will be evolved separately from the')")
+          write (report_unit, fmt="('the linear terms in a crude IMEX style.')")
+          write (report_unit, fmt="('This is an experimental feature.')")
+          write (report_unit, fmt="('################# WARNING #######################')")              write (report_unit, *)
        end if
 
        if (nperiod > 1) then
@@ -353,6 +366,7 @@ contains
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
     qprpfac = nonlinear_terms_config%qprpfac
+    split_nonlinear = nonlinear_terms_config%split_nonlinear
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
     uparfac = nonlinear_terms_config%uparfac
@@ -1242,10 +1256,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
     integer :: istep_error_start
-    logical :: nl_forbid_force_zero, use_cfl_limit, use_order_based_error, zip
+    logical :: nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
     real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1259,6 +1273,7 @@ contains
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
     qprpfac = self%qprpfac
+    split_nonlinear = self%split_nonlinear
     tparfac = self%tparfac
     tprpfac = self%tprpfac
     uparfac = self%uparfac
@@ -1279,6 +1294,7 @@ contains
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
     self%qprpfac = qprpfac
+    self%split_nonlinear = split_nonlinear
     self%tparfac = tparfac
     self%tprpfac = tprpfac
     self%uparfac = uparfac
@@ -1310,6 +1326,7 @@ contains
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
     call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
+    call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
     call self%write_key_val("uparfac", self%uparfac, unit_internal)
@@ -1343,6 +1360,7 @@ contains
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
     call broadcast(self%qprpfac)
+    call broadcast(self%split_nonlinear)
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)
     call broadcast(self%uparfac)
