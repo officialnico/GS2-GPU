@@ -3361,6 +3361,7 @@ contains
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, get_mp_times
+    use job_manage, only: time_message
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
