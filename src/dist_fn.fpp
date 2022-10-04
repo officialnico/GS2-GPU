@@ -4610,7 +4610,7 @@ contains
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4633,10 +4633,10 @@ contains
     include_explicit = istep > 0
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -6903,7 +6903,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
     use collisions, only: vnmult
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -6927,10 +6927,10 @@ contains
     endif
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)
