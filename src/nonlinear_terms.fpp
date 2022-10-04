@@ -17,7 +17,7 @@ module nonlinear_terms
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
-  public :: gryfx_zonal
+  public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -729,7 +729,22 @@ contains
     end do
   end subroutine nl_center
 
-  !> Calculate the nonlinear term and corresponding CFL condition
+  !> Calculates the current nonlinear source term by calling add_nl
+  !> and the associated cfl limit.
+  subroutine calculate_current_nl_source_and_cfl_limit(g1, phi, apar, bpar, dt_lim)
+    use mp, only: max_allreduce
+    implicit none
+    complex, dimension (:,:,:), intent (out) :: g1
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(out) :: dt_lim
+
+    call add_nl(g1, phi, apar, bpar)
+    ! This code may need changing if the handling of the cfl limit changes
+    call max_allreduce(max_vel)
+    dt_lim = 1.0/max_vel
+  end subroutine calculate_current_nl_source_and_cfl_limit
+
+  !> Calculate the nonlinear term and part of the corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
