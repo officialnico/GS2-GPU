@@ -3405,7 +3405,7 @@ contains
                ab_coeffs(1) * gexp_1 +     &
                ab_coeffs(2) * gexp_2       &
                )
-       case(default)
+       case default
           gnew = gnew + time_step * 0.5 *( &
                ab_coeffs(1) * gexp_1 +     &
                ab_coeffs(2) * gexp_2 +     &
