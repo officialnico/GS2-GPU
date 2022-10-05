@@ -32,7 +32,7 @@ ignored_junk := $(foreach tmp_target, $(needs_fft_wisdom), \
 endif
 
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
 gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
@@ -131,7 +131,7 @@ $(BINDIR)/ball: $(ball_mod) | $(BINDIR)
 .PHONY: ball
 ball: $(BINDIR)/ball
 
-#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file | DOES NOT COMPILE
+#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
 $(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

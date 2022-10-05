@@ -13,6 +13,7 @@ program eiktest
   real :: rd, rdm, rdp, rdpri
   real :: rhocm, rhocp
   real :: bbar
+  real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   integer :: nbeta
