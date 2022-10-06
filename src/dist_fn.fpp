@@ -3416,7 +3416,8 @@ contains
     ! Keep taking explicit steps until we have advanced by code_dt
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
-       call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, time_step)
+       call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, &
+            time_step, calculate_cfl_limit = .true.)
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -3506,7 +3507,8 @@ contains
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
-          call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, time_step_limit)
+          call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, &
+               time_step_limit, calculate_cfl_limit = .false.)
 
           ! Calculate the estimate of the new g
           g_work = g + actual_dt * 0.5 * gexp_1

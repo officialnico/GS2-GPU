@@ -758,17 +758,27 @@ contains
 
   !> Calculates the current nonlinear source term by calling add_nl
   !> and the associated cfl limit.
-  subroutine calculate_current_nl_source_and_cfl_limit(g1, phi, apar, bpar, dt_lim)
+  subroutine calculate_current_nl_source_and_cfl_limit(g1, phi, apar, bpar, &
+       dt_lim, calculate_cfl_limit)
     use mp, only: max_allreduce
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension (:,:,:), intent (out) :: g1
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
     real, intent(out) :: dt_lim
+    logical, intent(in), optional :: calculate_cfl_limit
 
+    use_cfl_limit = get_option_with_default(calculate_cfl_limit, .true.)
     call add_nl(g1, phi, apar, bpar)
-    ! This code may need changing if the handling of the cfl limit changes
-    call max_allreduce(max_vel)
-    dt_lim = 1.0/max_vel
+
+    if (use_cfl_limit) then
+       ! This code may need changing if the handling of the cfl limit changes
+       call max_allreduce(max_vel)
+       dt_lim = 1.0/max_vel
+    else
+       dt_lim = 1.0e8
+    end if
+
   end subroutine calculate_current_nl_source_and_cfl_limit
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
@@ -824,8 +834,10 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
 
-    max_vel = 0.
-    call get_max_vel(cfly)
+    if (use_cfl_limit) then
+       max_vel = 0.
+       call get_max_vel(cfly)
+    end if
 
     call calculate_bracket(.true.)
     
@@ -861,8 +873,10 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
-    
-    call get_max_vel(cflx)
+
+    if (use_cfl_limit) then
+       call get_max_vel(cflx)
+    end if
 
     call calculate_bracket(.false.)
     
