@@ -17,7 +17,7 @@ module nonlinear_terms
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
-  public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
+  public :: gryfx_zonal, advance_nonlinear_term
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -766,6 +766,93 @@ contains
     call max_allreduce(max_vel)
     dt_lim = 1.0/max_vel
   end subroutine calculate_current_nl_source_and_cfl_limit
+
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt.
+  !> On output g = gnew, chi = chinew.
+  subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew)
+    use theta_grid, only: ntgrid
+    use gs2_time, only: get_adams_bashforth_coefficients, code_dt
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
+    use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
+    use mp, only: mp_abort, get_mp_times
+    use job_manage, only: time_message
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real :: internal_time, time_step
+    real :: mp_total_after, mp_total
+    real, dimension(:), allocatable :: ab_coeffs
+    integer :: counter
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total)
+
+    ! Initialise internal variables
+    internal_time = 0.0
+    counter = 1
+
+    ! Reset time step sizes to reflect fact we're restarting the explicit scheme
+    code_dt_prev1 = dt_not_set
+    code_dt_prev2 = dt_not_set
+
+    ! Keep taking explicit steps until we have advanced by code_dt
+    do while (internal_time < code_dt)
+       ! Get the current nonlinear source term and cfl limit
+       call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, time_step)
+
+       ! If the cfl time step is too small then abort
+       if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+
+       ! Now make sure we're don't overshoot the target time by limiting time step.
+       time_step = min(time_step, code_dt - internal_time)
+
+       ! Get the Adams-Bashforth coefficients for the current collection of time step sizes
+       ab_coeffs = get_adams_bashforth_coefficients(target_dt = time_step)
+
+       ! Advance solution by time_step
+       select case(counter)
+       case(1)
+          gnew = gnew + time_step * 0.5 *( &
+               ab_coeffs(1) * gexp_1       &
+               )
+       case(2)
+          gnew = gnew + time_step * 0.5 *( &
+               ab_coeffs(1) * gexp_1 +     &
+               ab_coeffs(2) * gexp_2       &
+               )
+       case default
+          gnew = gnew + time_step * 0.5 *( &
+               ab_coeffs(1) * gexp_1 +     &
+               ab_coeffs(2) * gexp_2 +     &
+               ab_coeffs(3) * gexp_3       &
+               )
+       end select
+
+       ! Calculate the fields consistent with the new g
+       call get_init_field(phinew, aparnew, bparnew)
+
+       ! Increment internal state
+       internal_time = internal_time + time_step
+       counter = counter + 1
+
+       ! Shift time history along one point
+       code_dt_prev2 = code_dt_prev1
+       code_dt_prev1 = time_step
+       gexp_3 = gexp_2
+       gexp_2 = gexp_1
+    end do
+
+    ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
+    g = gnew
+    phi = phinew
+    apar = aparnew
+    bpar = bparnew
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total_after)
+    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
+
+  end subroutine advance_nonlinear_term
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
