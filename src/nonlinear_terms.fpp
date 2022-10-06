@@ -384,7 +384,7 @@ contains
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
     qprpfac = nonlinear_terms_config%qprpfac
-    split_method = method_terms_config%split_method
+    split_method = nonlinear_terms_config%split_method
     split_nonlinear = nonlinear_terms_config%split_nonlinear
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
