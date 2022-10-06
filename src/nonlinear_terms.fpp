@@ -767,25 +767,54 @@ contains
     dt_lim = 1.0/max_vel
   end subroutine calculate_current_nl_source_and_cfl_limit
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt.
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
+  !> specific requested method.
   !> On output g = gnew, chi = chinew.
   subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew)
+    use dist_fn_arrays, only: gnew, g
+    use mp, only: mp_abort, get_mp_times
+    use job_manage, only: time_message
+    implicit none
+    complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real :: mp_total_after, mp_total
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total)
+
+    ! Call requested method for advancing nonlinear term
+    select case(split_method_switch)
+    case(split_method_ab3)
+       call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew)
+    case default
+       call mp_abort("Invalid split_method_switch", .true.)
+    end select
+
+    ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
+    g = gnew
+    phi = phinew
+    apar = aparnew
+    bpar = bparnew
+
+    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
+    call get_mp_times(total_time = mp_total_after)
+    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
+  end subroutine advance_nonlinear_term
+
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> AB scheme of orders up to 3rd.
+  subroutine advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
-    use mp, only: mp_abort, get_mp_times
-    use job_manage, only: time_message
+    use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step
-    real :: mp_total_after, mp_total
     real, dimension(:), allocatable :: ab_coeffs
     integer :: counter
-
-    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
-    call get_mp_times(total_time = mp_total)
 
     ! Initialise internal variables
     internal_time = 0.0
@@ -842,17 +871,7 @@ contains
        gexp_2 = gexp_1
     end do
 
-    ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
-    g = gnew
-    phi = phinew
-    apar = aparnew
-    bpar = bparnew
-
-    call time_message(.false., time_add_explicit_terms, 'Explicit terms')
-    call get_mp_times(total_time = mp_total_after)
-    time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
-
-  end subroutine advance_nonlinear_term
+  end subroutine advance_nonlinear_term_ab3
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
   subroutine add_nl (g1, phi, apar, bpar)
