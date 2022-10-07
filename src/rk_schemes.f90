@@ -21,6 +21,8 @@ module rk_schemes
      real, dimension(:), allocatable :: time_points
      real, dimension(:, :), allocatable :: coeffs
      logical :: follow_high_order
+   contains
+     procedure :: validate => rk_scheme_validate
   end type rk_scheme
 
   !> Dormand-Prince 45 method
@@ -38,7 +40,7 @@ contains
     case(rk_dopri%id)
        scheme%number_of_stages = 7
        scheme%order = 5
-       scheme%lower_order_coeffs = [5179/57600.0, 0.0,7571/16695.0, 393/640.0, -92097/339200.0, 187/21000.0, 1/40.0]
+       scheme%lower_order_coeffs = [5179/57600.0, 0.0,7571/16695.0, 393/640.0, -92097/339200.0, 187/2100.0, 1/40.0]
        scheme%high_order_coeffs = [35/384.0, 0.0, 500/1113.0, 125/192.0, -2187/6784.0, 11/84.0, 0.0]
        scheme%time_points = [0.0, 1/5.0, 3/10.0, 4/5.0, 8/9.0, 1.0, 1.0]
        scheme%follow_high_order = .true.
@@ -53,5 +55,21 @@ contains
     end select
 
   end function get_rk_scheme
+
+  !> Perform a small check of the consistency. Returns an error
+  !> code built from bitwise flags to give information about which
+  !> checks, if any, failed. Success is repesented by zero.
+  integer pure function rk_scheme_validate(self) result(valid)
+    implicit none
+    class(rk_scheme), intent(in) :: self
+    integer :: i
+    real, parameter :: tolerance = 10*epsilon(1.0)
+    valid = 0
+    if (.not.(abs(sum(self%lower_order_coeffs) - 1.0) < tolerance)) valid = valid + 1
+    if (.not.(abs(sum(self%high_order_coeffs) - 1.0) < tolerance)) valid = valid + 2
+    do i = 1, self%number_of_stages
+       if (.not.(abs(sum(self%coeffs(:, i)) - self%time_points(i)) < tolerance)) valid = valid + (2**(i+1))
+    end do
+  end function rk_scheme_validate
 
 end module rk_schemes
