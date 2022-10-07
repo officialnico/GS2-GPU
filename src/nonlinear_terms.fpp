@@ -19,7 +19,7 @@ module nonlinear_terms
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
   public :: split_method_switch, split_method_ab3, split_method_backwards_euler
-  public :: error_target
+  public :: split_method_rk, error_target
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -86,7 +86,8 @@ module nonlinear_terms
 
   logical :: split_nonlinear
   integer :: split_method_switch
-  integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2
+  integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
+       split_method_rk = 3
 
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
@@ -142,6 +143,7 @@ module nonlinear_terms
      !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order.
      !>  - 'beuler' -- Backwards Euler
      !>  - 'default' -- The same as 'AB3'
+     !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
      !>
      character(len = 20) :: split_method = 'default'
      !> Do we evolve the nonlinear term separately from the linear terms (true) or
@@ -370,6 +372,7 @@ contains
          [ &
          text_option('default', split_method_ab3), &
          text_option('AB3', split_method_ab3), &
+         text_option('RK', split_method_rk), &
          text_option('beuler', split_method_backwards_euler)  &
          ]
     character(len = 20) :: split_method

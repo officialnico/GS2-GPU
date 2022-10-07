@@ -3359,6 +3359,7 @@ contains
     use mp, only: mp_abort, get_mp_times
     use job_manage, only: time_message
     use nonlinear_terms, only: split_method_switch, split_method_ab3, split_method_backwards_euler
+    use nonlinear_terms, only: split_method_rk
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     implicit none
     complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
@@ -3374,6 +3375,8 @@ contains
        call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew)
     case(split_method_backwards_euler)
        call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew)
+    case(split_method_rk)
+       call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
@@ -3583,6 +3586,115 @@ contains
     if(proc0.and.debug) print*,'Explicit done in ',counter,'steps with final error',error,'and step',time_step,'final time',internal_time
 
   end subroutine advance_nonlinear_term_beuler
+
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> an Runge-Kutta scheme with embedded error estimate for error control
+  subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew)
+    use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gnew, g, g_work, gexp_1
+    use gs2_time, only: code_dt_min, code_dt
+    use mp, only: mp_abort, proc0, max_allreduce
+    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit, error_target
+    use gs2_layouts, only: g_lo
+    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_dopri
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension (:, :, :, :), allocatable :: stages
+    real :: internal_time, time_step, time_step_limit, error, actual_time_step
+    real :: tolerance, new_time_step
+    integer :: counter, nstages
+    logical, parameter :: debug = .true.
+    ! Define the RK scheme
+    type(rk_scheme) :: scheme
+    integer :: istage, istage_sub
+    real, save :: time_step_last = -1
+
+    ! Initialise internal variables
+    if (time_step_last < 0) time_step_last = code_dt
+    internal_time = 0.0
+    counter = 1
+    time_step = time_step_last
+    tolerance = error_target
+
+    scheme = get_rk_scheme(rk_dopri)
+    nstages = scheme%number_of_stages
+    allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_proc, nstages))
+
+    ! Keep taking explicit steps until we have advanced by code_dt
+    do while (internal_time < code_dt)
+       stages = 0.0
+       if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
+       do istage = 1, nstages
+          gnew = g
+          do istage_sub = 1, istage-1
+             gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
+          end do
+          call get_init_field(phinew, aparnew, bparnew)
+
+          ! Get the current nonlinear source term
+          call calculate_current_nl_source_and_cfl_limit(gexp_1, &
+               phinew, aparnew, bparnew, &
+               time_step_limit, calculate_cfl_limit = .false.)
+          stages(:, :, :, istage) = 0.5 * gexp_1
+       end do
+
+       ! Form low and high order solutions. One can directly form the error by simply
+       ! forming error = time_step * sum(stages_i * (high_order_coeffs_i - low_order_coeffs_i))
+       ! which saves some computational cost. However we need to explicitly form one of the low/high
+       ! order solutions in order to be able to construct the solution so in practice this doesn't
+       ! save work overall.
+       g_work = scheme%lower_order_coeffs(1) * stages(:, :, :, 1)
+       gnew = scheme%high_order_coeffs(1) * stages(:, :, :, 1)
+       do istage = 2, nstages
+          if (scheme%lower_order_coeffs(istage) /= 0.0) then
+             g_work = g_work + scheme%lower_order_coeffs(istage) * stages(:, :, :, istage)
+          end if
+          if (scheme%high_order_coeffs(istage) /= 0.0) then
+             gnew = gnew + scheme%high_order_coeffs(istage) * stages(:, :, :, istage)
+          end if
+       end do
+
+       error = maxval(abs(gnew-g_work))*time_step
+       call max_allreduce(error)
+
+       !Calculate the new_time_step
+       new_time_step = 0.9 * time_step * (tolerance/(error+1.0e-14))**(1.0/scheme%order)
+       if(proc0.and.debug) print*,'Error is ',error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
+       ! If the cfl time step is too small then abort
+       if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+
+       ! If the error is too large we need to retry with a smaller step, so don't
+       ! update anything
+       if (error > tolerance) then
+          if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
+       else
+          !Form the new solution
+          if (scheme%follow_high_order) then
+             g = g + gnew * time_step
+          else
+             g = g + g_work * time_step
+          end if
+
+          internal_time = internal_time + time_step
+       end if
+
+       !Now update the time step, capped to code_dt
+       time_step = min(new_time_step, code_dt)
+
+       ! Make sure we don't overshoot the target time by limiting time step.
+       if(internal_time < code_dt) then
+          time_step = min(time_step, code_dt - internal_time)
+          counter = counter + 1
+       end if
+
+    end do
+    if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
+    gnew = g
+    call get_init_field(phinew, aparnew, bparnew)
+
+    time_step_last = time_step
+  end subroutine advance_nonlinear_term_rk
 
   !> Advance collision term one timestep by implicit Euler.
   !!
