@@ -5,7 +5,7 @@ module rk_schemes
   private
 
   public :: rk_scheme, get_rk_scheme
-  public :: rk_dopri
+  public :: rk_dopri, rk_f45
 
   !> Internal named type to represent scheme ids
   type rk_scheme_id
@@ -27,6 +27,9 @@ module rk_schemes
 
   !> Dormand-Prince 45 method
   type(rk_scheme_id), parameter :: rk_dopri = rk_scheme_id(id=1)
+
+  !> Runge-Kutta-Fehlberg 45 method
+  type(rk_scheme_id), parameter :: rk_f45 = rk_scheme_id(id=2)
 
 contains
 
@@ -52,6 +55,20 @@ contains
        scheme%coeffs(:4, 5) = [19372/6561.0, -25360/2187.0, 64448/6561.0, -212/729.0]
        scheme%coeffs(:5, 6) = [9017/3168.0, -355/33.0, 46732/5247.0, 49/176.0, -5103/18656.0]
        scheme%coeffs(:6, 7) = [35/384.0, 0.0, 500/1113.0, 125/192.0, -2187/6784.0, 11/84.0, 0.0]
+    case(rk_f45%id)
+       scheme%number_of_stages = 6
+       scheme%order = 5
+       scheme%lower_order_coeffs = [25/216.0, 0.0, 1408/2565.0, 2197/4104.0, -1/5.0, 0.0]
+       scheme%high_order_coeffs = [16/135.0, 0.0, 6656/12825.0, 28561/56430.0, -9/50.0, 2/55.0]
+       scheme%time_points = [0.0, 1/4.0, 3/8.0, 12/13.0, 1.0, 1/2.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+       scheme%coeffs(:1, 2) = [1/4.0]
+       scheme%coeffs(:2, 3) = [3/32.0, 9/32.0]
+       scheme%coeffs(:3, 4) = [1932/2197.0, -7200/2197.0, 7296/2197.0]
+       scheme%coeffs(:4, 5) = [439/216.0, -8.0, 3680/513.0, -845/4104.0]
+       scheme%coeffs(:5, 6) = [-8/27.0, 2.0, -3544/2565.0, 1859/4104.0, -11/40.0]
     end select
 
   end function get_rk_scheme
