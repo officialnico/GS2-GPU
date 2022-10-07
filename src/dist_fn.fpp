@@ -3607,7 +3607,7 @@ contains
     logical, parameter :: debug = .true.
     ! Define the RK scheme
     type(rk_scheme) :: scheme
-    integer :: istage, istage_sub
+    integer :: istage, istage_sub, validity
     real, save :: time_step_last = -1
 
     ! Initialise internal variables
@@ -3618,6 +3618,12 @@ contains
     tolerance = error_target
 
     scheme = get_rk_scheme(rk_dopri)
+    validity = scheme%validate()
+    if (proc0 .and. (validity /= 0))) then
+       print*,'The RK scheme failed validity check with error code:',validity
+       call mp_abort("RK scheme failed validity check", .true.)
+    end if
+
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_proc, nstages))
 
