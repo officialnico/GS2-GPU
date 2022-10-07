@@ -3619,7 +3619,7 @@ contains
 
     scheme = get_rk_scheme(rk_dopri)
     validity = scheme%validate()
-    if (proc0 .and. (validity /= 0))) then
+    if (proc0 .and. (validity /= 0)) then
        print*,'The RK scheme failed validity check with error code:',validity
        call mp_abort("RK scheme failed validity check", .true.)
     end if
