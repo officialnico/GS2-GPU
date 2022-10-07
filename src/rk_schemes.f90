@@ -6,6 +6,7 @@ module rk_schemes
 
   public :: rk_scheme, get_rk_scheme
   public :: rk_dopri, rk_f45, rk_cashkarp
+  public :: rk_heun, rk_ralston, rk_midpoint
 
   !> Internal named type to represent scheme ids
   type rk_scheme_id
@@ -33,6 +34,15 @@ module rk_schemes
 
   !> Cash-Karp 45 method
   type(rk_scheme_id), parameter :: rk_cashkarp = rk_scheme_id(id=3)
+
+  !> Heun-Euler 12 method
+  type(rk_scheme_id), parameter :: rk_heun = rk_scheme_id(id=4)
+
+  !> Ralston-Euler 12 method
+  type(rk_scheme_id), parameter :: rk_ralston = rk_scheme_id(id=5)
+
+  !> Midpoint-Euler 12 method
+  type(rk_scheme_id), parameter :: rk_midpoint = rk_scheme_id(id=6)
 
 contains
 
@@ -86,6 +96,36 @@ contains
        scheme%coeffs(:3, 4) = [3/10.0, -9/10.0, 6/5.0]
        scheme%coeffs(:4, 5) = [-11/54.0, 5/2.0, -70/27.0, 35/27.0]
        scheme%coeffs(:5, 6) = [1631/55296.0, 175/512.0, 575/13824.0, 44275/110592.0, 253/4096.0]
+    case(rk_heun%id)
+       scheme%number_of_stages = 2
+       scheme%order = 2
+       scheme%lower_order_coeffs = [1.0, 0.0]
+       scheme%high_order_coeffs = [1/2.0, 1/2.0]
+       scheme%time_points = [0.0, 1.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+       scheme%coeffs(:1, 2) = [1.0]
+    case(rk_ralston%id)
+       scheme%number_of_stages = 2
+       scheme%order = 2
+       scheme%lower_order_coeffs = [1.0, 0.0]
+       scheme%high_order_coeffs = [1/4.0, 3/4.0]
+       scheme%time_points = [0.0, 2/3.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+       scheme%coeffs(:1, 2) = [2/3.0]
+    case(rk_midpoint%id)
+       scheme%number_of_stages = 2
+       scheme%order = 2
+       scheme%lower_order_coeffs = [1.0, 0.0]
+       scheme%high_order_coeffs = [0.0, 1.0]
+       scheme%time_points = [0.0, 1/2.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+       scheme%coeffs(:1, 2) = [1/2.0]
     end select
 
   end function get_rk_scheme
