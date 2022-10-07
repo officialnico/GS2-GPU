@@ -3596,7 +3596,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit, error_target
     use gs2_layouts, only: g_lo
-    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_dopri
+    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_cashkarp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -3604,7 +3604,7 @@ contains
     real :: internal_time, time_step, time_step_limit, error, actual_time_step
     real :: tolerance, new_time_step
     integer :: counter, nstages
-    logical, parameter :: debug = .true.
+    logical, parameter :: debug = .false.
     ! Define the RK scheme
     type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
@@ -3617,7 +3617,7 @@ contains
     time_step = time_step_last
     tolerance = error_target
 
-    scheme = get_rk_scheme(rk_dopri)
+    scheme = get_rk_scheme(rk_cashkarp)
     validity = scheme%validate()
     if (proc0 .and. (validity /= 0)) then
        print*,'The RK scheme failed validity check with error code:',validity
