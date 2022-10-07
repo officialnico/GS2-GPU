@@ -5,7 +5,7 @@ module rk_schemes
   private
 
   public :: rk_scheme, get_rk_scheme
-  public :: rk_dopri, rk_f45
+  public :: rk_dopri, rk_f45, rk_cashkarp
 
   !> Internal named type to represent scheme ids
   type rk_scheme_id
@@ -30,6 +30,9 @@ module rk_schemes
 
   !> Runge-Kutta-Fehlberg 45 method
   type(rk_scheme_id), parameter :: rk_f45 = rk_scheme_id(id=2)
+
+  !> Cash-Karp 45 method
+  type(rk_scheme_id), parameter :: rk_cashkarp = rk_scheme_id(id=3)
 
 contains
 
@@ -69,6 +72,20 @@ contains
        scheme%coeffs(:3, 4) = [1932/2197.0, -7200/2197.0, 7296/2197.0]
        scheme%coeffs(:4, 5) = [439/216.0, -8.0, 3680/513.0, -845/4104.0]
        scheme%coeffs(:5, 6) = [-8/27.0, 2.0, -3544/2565.0, 1859/4104.0, -11/40.0]
+    case(rk_cashkarp%id)
+       scheme%number_of_stages = 6
+       scheme%order = 5
+       scheme%lower_order_coeffs = [2825/27648.0, 0.0, 18575/48384.0, 13525/55296.0, 277/14336.0, 1/4.0]
+       scheme%high_order_coeffs = [37/378.0, 0.0, 250/621.0, 125/594.0, 0.0, 512/1771.0]
+       scheme%time_points = [0.0, 1/5.0, 3/10.0, 3/5.0, 1.0, 7/8.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+       scheme%coeffs(:1, 2) = [1/5.0]
+       scheme%coeffs(:2, 3) = [3/40.0, 9/40.0]
+       scheme%coeffs(:3, 4) = [3/10.0, -9/10.0, 6/5.0]
+       scheme%coeffs(:4, 5) = [-11/54.0, 5/2.0, -70/27.0, 35/27.0]
+       scheme%coeffs(:5, 6) = [1631/55296.0, 175/512.0, 575/13824.0, 44275/110592.0, 253/4096.0]
     end select
 
   end function get_rk_scheme
