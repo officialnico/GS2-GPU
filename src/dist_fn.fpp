@@ -3310,7 +3310,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use nonlinear_terms, only: add_explicit_terms, split_nonlinear
+    use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
@@ -3331,7 +3331,7 @@ contains
     if (split_nonlinear) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew)
+       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, get_init_field, calculate_current_nl_source_and_cfl_limit)
     else
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
             phi, apar, bpar, istep, bkdiff(1))
@@ -3373,18 +3373,20 @@ contains
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
-  subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
+       fields_func, source_func)
     use dist_fn_arrays, only: gnew, g
     use mp, only: mp_abort, get_mp_times
     use job_manage, only: time_message
     use nonlinear_terms, only: split_method_switch, split_method_ab3, split_method_backwards_euler
     use nonlinear_terms, only: split_method_rk
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
-    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     implicit none
     complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: mp_total_after, mp_total
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total)
@@ -3393,13 +3395,13 @@ contains
     select case(split_method_switch)
     case(split_method_ab3)
        call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
-            get_init_field, calculate_current_nl_source_and_cfl_limit)
+            fields_func, source_func)
     case(split_method_backwards_euler)
        call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
-            get_init_field, calculate_current_nl_source_and_cfl_limit)
+            fields_func, source_func)
     case(split_method_rk)
        call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
-            get_init_field, calculate_current_nl_source_and_cfl_limit)
+            fields_func, source_func)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
