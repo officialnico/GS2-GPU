@@ -3549,7 +3549,7 @@ contains
 
           ! Calculate the maximum absolute error and the maximum value of the previous solution
           errors(1) = maxval(abs(gnew - g_work))
-          errors(2) = maxval(abs(gnew))
+          errors(2) = maxval(abs(g_work))
           call max_allreduce(errors)
 
           ! Calculate an approximate relative error
