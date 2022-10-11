@@ -111,7 +111,7 @@ module dist_fn
   public :: get_dist_fn_config
   public :: get_dist_fn_species_config
   public :: get_source_config
-  
+
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
@@ -289,6 +289,25 @@ module dist_fn
 #else
   logical, parameter :: moment_to_allprocs = .false.
 #endif 
+
+  !> Interface to describe the call signatures for routines to calculate the
+  !> field from gnew (invert_field_func) and to calculate the source term used
+  !> in the advance_nonlinear_term methods. Used to allow us to pass in these
+  !> methods, giving us a way to test the integrators on different problems.
+  interface
+     subroutine invert_field_func (phi, apar, bpar, gf_lo)
+       use theta_grid, only: ntgrid
+       complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
+       logical, optional :: gf_lo
+     end subroutine invert_field_func
+
+     subroutine source_term_func(g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+       complex, dimension (:,:,:), intent (out) :: g1
+       complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+       real, intent(out) :: dt_lim
+       logical, intent(in), optional :: calculate_cfl_limit
+     end subroutine source_term_func
+  end interface
 
   !> Used to represent the input configuration of dist_fn
   type, extends(abstract_config_type) :: dist_fn_config_type
@@ -3361,6 +3380,7 @@ contains
     use nonlinear_terms, only: split_method_switch, split_method_ab3, split_method_backwards_euler
     use nonlinear_terms, only: split_method_rk
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     implicit none
     complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -3372,11 +3392,14 @@ contains
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
     case(split_method_ab3)
-       call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew)
+       call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+            get_init_field, calculate_current_nl_source_and_cfl_limit)
     case(split_method_backwards_euler)
-       call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew)
+       call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+            get_init_field, calculate_current_nl_source_and_cfl_limit)
     case(split_method_rk)
-       call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew)
+       call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+            get_init_field, calculate_current_nl_source_and_cfl_limit)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
@@ -3394,7 +3417,8 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> AB scheme of orders up to 3rd.
-  subroutine advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+       fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
@@ -3407,6 +3431,8 @@ contains
     real :: internal_time, time_step
     real, dimension(:), allocatable :: ab_coeffs
     integer :: counter
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
 
     ! Initialise internal variables
     internal_time = 0.0
@@ -3419,7 +3445,7 @@ contains
     ! Keep taking explicit steps until we have advanced by code_dt
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
-       call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, &
+       call source_func(gexp_1, phinew, aparnew, bparnew, &
             time_step, calculate_cfl_limit = .true.)
 
        ! If the cfl time step is too small then abort
@@ -3451,7 +3477,7 @@ contains
        end select
 
        ! Calculate the fields consistent with the new g
-       call get_init_field(phinew, aparnew, bparnew)
+       call fields_func(phinew, aparnew, bparnew)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -3468,7 +3494,8 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> backwards Euler with fixed-point iteration.
-  subroutine advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+       fields_func, source_func)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, gexp_1, g, g_work
     use gs2_time, only: code_dt_min, code_dt
@@ -3487,6 +3514,8 @@ contains
     real :: error, actual_dt
     real, dimension(2) :: errors
     real, save :: time_step_last = -1
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = code_dt
@@ -3510,7 +3539,7 @@ contains
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
-          call calculate_current_nl_source_and_cfl_limit(gexp_1, phinew, aparnew, bparnew, &
+          call source_func(gexp_1, phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
 
           ! Calculate the estimate of the new g
@@ -3529,7 +3558,7 @@ contains
           gnew = g_work
 
           ! Update the fields consistently with the current solution
-          call get_init_field(phinew, aparnew, bparnew)
+          call fields_func(phinew, aparnew, bparnew)
        end do
 
        ! Now we need to decide if the last step was successful or not. There are two exit conditions, either the
@@ -3547,7 +3576,7 @@ contains
           ! again. To try again we must ensure that gnew has been reset to g, and the fields
           ! are consistent with this.
           gnew = g
-          call get_init_field(phinew, aparnew, bparnew)
+          call fields_func(phinew, aparnew, bparnew)
        else
           ! If we have met the error convergence condition and not taken too many steps
           ! then gnew represents our new solution so make sure we update g to reflect this.
@@ -3589,7 +3618,8 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control
-  subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+       fields_func, source_func)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g, g_work, gexp_1
     use gs2_time, only: code_dt_min, code_dt
@@ -3609,6 +3639,8 @@ contains
     type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
     real, save :: time_step_last = -1
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = code_dt
@@ -3636,10 +3668,10 @@ contains
           do istage_sub = 1, istage-1
              gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
           end do
-          call get_init_field(phinew, aparnew, bparnew)
+          call fields_func(phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
-          call calculate_current_nl_source_and_cfl_limit(gexp_1, &
+          call source_func(gexp_1, &
                phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
           stages(:, :, :, istage) = 0.5 * gexp_1
@@ -3697,7 +3729,7 @@ contains
     end do
     if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
     gnew = g
-    call get_init_field(phinew, aparnew, bparnew)
+    call fields_func(phinew, aparnew, bparnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk
