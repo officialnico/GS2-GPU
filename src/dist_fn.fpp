@@ -64,7 +64,7 @@ module dist_fn
   !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
-  public :: collisions_advance
+  public :: collisions_advance, advance_nonlinear_term
   public :: g_exb_error_limit
   public :: g_exb_start_timestep, g_exb_start_time
   public :: init_bessel, init_fieldeq
