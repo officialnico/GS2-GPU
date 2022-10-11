@@ -13,13 +13,15 @@ program test_split_nonlinear_integrators
   use dist_fn_arrays, only: gnew, g
   use gs2_time, only: code_dt
   use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+  use run_parameters, only: nstep
   implicit none
   type(gs2_program_state_type) :: state
   logical :: agrees
-  real, parameter :: tolerance = epsilon(0.0)*1e7
+  real, parameter :: tolerance = 1.0e-6
   complex :: exponential_coefficient
   real :: error
   character(len=40) :: name
+  integer :: i
   
   call init_mp
   call initialize_wall_clock_timer
@@ -38,11 +40,13 @@ program test_split_nonlinear_integrators
   bparnew = bpar
 
   exponential_coefficient = 0.1
-  call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
-       null_field_op, exponential_source)
+  do i = 1, nstep
+     call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
+          null_field_op, exponential_source)
+  end do
 
   ! Form expected result, gnew = g(t=0) * exp(exponential_coefficient * dt)
-  g = exp(exponential_coefficient * code_dt)
+  g = exp(exponential_coefficient * code_dt * nstep)
   error = maxval(abs(gnew - g))
   call max_allreduce(error)
   
