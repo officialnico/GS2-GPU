@@ -1,0 +1,8 @@
+&nonlinear_terms_knobs
+  nonlinear_mode = 'on'
+  split_nonlinear = T
+  error_target = 1.0e-6
+  split_method = 'RK'
+/
+
+!include test_split_nonlinear_integrators_base.in
