@@ -3704,25 +3704,34 @@ contains
           stages(:, :, :, istage) = 0.5 * gexp_1
        end do
 
-       ! Form low and high order solutions. One can directly form the error by simply
-       ! forming error = time_step * sum(stages_i * (high_order_coeffs_i - low_order_coeffs_i))
-       ! which saves some computational cost. However we need to explicitly form one of the low/high
-       ! order solutions in order to be able to construct the solution so in practice this doesn't
-       ! save work overall.
-       g_work = scheme%lower_order_coeffs(1) * stages(:, :, :, 1)
-       gnew = scheme%high_order_coeffs(1) * stages(:, :, :, 1)
+       ! One can directly form the error by simply forming error =
+       ! time_step * sum(stages_i * (high_order_coeffs_i -
+       ! low_order_coeffs_i)). However we also need to explicitly form one of the low/high
+       ! order solutions in order to be able to construct the solution and the relative error.
+       ! Here we put the absolute error into g_work and the new solution into gnew.
+       ! First calculate the error, then calculate the estimated solution.
+       ! Note if we use the existing solution to produce the relative error we
+       ! could hold off forming the new solution until we've checked that the
+       ! error is acceptable.
+       g_work = (scheme%high_order_coeffs(1) - scheme%low_order_coeffs(1)) * stages(:, :, :, 1)
        do istage = 2, nstages
-          if (scheme%lower_order_coeffs(istage) /= 0.0) then
-             g_work = g_work + scheme%lower_order_coeffs(istage) * stages(:, :, :, istage)
-          end if
-          if (scheme%high_order_coeffs(istage) /= 0.0) then
-             gnew = gnew + scheme%high_order_coeffs(istage) * stages(:, :, :, istage)
-          end if
+          g_work = g_work + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
        end do
 
-       errors(1) = maxval(abs(gnew-g_work))*time_step
-       ! Assumes we want to follow the high order. This statement is inefficient currently
-       errors(2) = maxval(abs(g + gnew*time_step))
+       if (scheme%follow_high_order) then
+          gnew = g + scheme%high_order_coeffs(1) * stages(:, :, :, 1) * time_step
+          do istage = 2, nstages
+             gnew = gnew + scheme%high_order_coeffs(istage) * stages(:, :, :, istage) * time_step
+          end do
+       else
+          gnew = g + scheme%low_order_coeffs(1) * stages(:, :, :, 1) * time_step
+          do istage = 2, nstages
+             gnew = gnew + scheme%low_order_coeffs(istage) * stages(:, :, :, istage) * time_step
+          end do
+       end if
+
+       errors(1) = maxval(abs(g_work))*time_step
+       errors(2) = maxval(abs(gnew))
        call max_allreduce(errors)
        error = errors(1) / errors(2)
 
@@ -3737,13 +3746,8 @@ contains
        if (error > tolerance) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
        else
-          !Form the new solution
-          if (scheme%follow_high_order) then
-             g = g + gnew * time_step
-          else
-             g = g + g_work * time_step
-          end if
-
+          !Update the solution
+          g = gnew
           internal_time = internal_time + time_step
        end if
 
