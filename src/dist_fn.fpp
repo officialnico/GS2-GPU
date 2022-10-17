@@ -3499,16 +3499,16 @@ contains
   subroutine advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, gexp_1, g, g_work
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
-    use nonlinear_terms, only: error_target, calculate_current_nl_source_and_cfl_limit
+    use nonlinear_terms, only: error_target, calculate_current_nl_source_and_cfl_limit, cfl
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step, time_step_limit
     integer :: counter
-    real :: tolerance
+    real :: tolerance, convergence_tolerance
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
@@ -3518,12 +3518,14 @@ contains
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
+    logical :: reject_step
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = code_dt
     internal_time = 0.0
     time_step = time_step_last
     tolerance = error_target
+    convergence_tolerance = cfl
 
     ! Keep on advancing until we have advanced by code_dt
     do while (internal_time < code_dt)
@@ -3535,9 +3537,14 @@ contains
        ! to keep internal_time <= code_dt).
        actual_dt = min(time_step, code_dt - internal_time)
 
+       ! Calculate the current NL source term, for use in error
+       ! estimates later.
+       call source_func(gexp_2, phinew, aparnew, bparnew, &
+            time_step_limit, calculate_cfl_limit = .false.)
+
        ! Try to take a step of size actual_dt using fixed point iteration with
        ! backwards Euler.
-       do while (error > tolerance .and. counter < iteration_limit)
+       do while (error > convergence_tolerance .and. counter < iteration_limit)
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
@@ -3577,36 +3584,53 @@ contains
           ! If we've taken too many iterations then we want to drop the time step and try
           ! again. To try again we must ensure that gnew has been reset to g, and the fields
           ! are consistent with this.
+          reject_step = .true.
+       else
+          ! If we have met the convergence condition then we should estimate the error
+          ! on the solution and see if we need to reject the step or how we should adjust
+          ! the step size.
+          ! To estimate the error we compare the backward Euler update with an approximate
+          ! Crank-Nicolson update.
+          ! g_new_beuler = g + 0.5 * actual_dt * gexp_1(g_new_beuler)
+          ! g_new_cn = g + 0.5 * actual_dt * (gexp_1(g_new_beuler) + gexp_1(g))/2
+          ! abs_error  = |g_new_beuler - g_new_cn|
+          !      = 0.5 * actual_dt * 0.5 * (gexp_1(g_new_beuler) - gexp_1(g)
+          ! Where gexp_1(h) is the source func evaluated with gnew=h.
+
+          ! Here we calculate gexp_1(g_new_beuler) exactly. We could probably
+          ! rely on using the existing value of gexp_1(g_work) as, whilst this is
+          ! strictly from the previous iteration of the fixed-point scheme, we know
+          ! it is within the convergence tolerance of the true value.
+          call source_func(gexp_1, phinew, aparnew, bparnew, &
+               time_step_limit, calculate_cfl_limit = .false.)
+
+          errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
+          call max_allreduce(errors)
+          error = errors(1) / errors(2)
+
+          !Calculate new time step based on error
+          time_step = 0.9 * actual_dt * sqrt(tolerance/(error+1.0e-14))
+
+          ! If error is too large reject the step
+          if ( error > tolerance) then
+             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
+             ! Reset as we're retrying the step.
+             reject_step = .true.
+          else
+             reject_step = .false.
+          end if
+       end if
+
+       if (reject_step) then
+          ! If the time step is now too small then abort
+          if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
           gnew = g
           call fields_func(phinew, aparnew, bparnew)
        else
-          ! If we have met the error convergence condition and not taken too many steps
-          ! then gnew represents our new solution so make sure we update g to reflect this.
+          ! If we have met the error condition and not taken too many steps
+          ! then gnew represents our new solution so make sure we update g to reflect this
           internal_time = internal_time + actual_dt
           g = gnew
-
-          ! If we managed to do this in a small number of steps or if our error was sufficiently small, then consider increasing
-          ! the time step for future iterations. However, don't do this on the last sub-step of the full code_dt step. This is because
-          ! we may have taken an artificially small step here (actual_dt < time_step) to avoid overshooting.
-          if ((counter <= iteration_lower_limit .or. error < tolerance/50.0) .and. time_step < code_dt .and. internal_time < code_dt) then
-             if (proc0.and.debug) print*,'Increasing time_step size from',time_step,'to',min(time_step*time_adjust_factor, code_dt),&
-                  'with internal_time = ', internal_time, counter <= iteration_lower_limit, error < tolerance/50.0
-             time_step = min(time_step * time_adjust_factor, code_dt)
-          end if
-
-          ! We consider pre-emptively reducing the time step for the
-          ! next step, e.g. if the error is only just below tolerance
-          ! then we may as well drop the time step ready for next sub-step
-          if (error > 0.95 * tolerance) then
-             if(proc0 .and. debug) print*,'Pre-emptively reducing time step from',time_step,'to',time_step/time_adjust_factor
-             time_step = time_step / time_adjust_factor
-
-             ! If the time step is now too small then increase it again. We may as well try
-             ! to take the step, even if we think it's likely to fail.
-             if (time_step < code_dt_min) time_step = time_step * time_adjust_factor
-
-          end if
-
        end if
 
     end do
