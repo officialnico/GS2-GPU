@@ -3664,6 +3664,7 @@ contains
     ! Define the RK scheme
     type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
+    real, dimension(2) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -3719,8 +3720,11 @@ contains
           end if
        end do
 
-       error = maxval(abs(gnew-g_work))*time_step
-       call max_allreduce(error)
+       errors(1) = maxval(abs(gnew-g_work))*time_step
+       ! Assumes we want to follow the high order. This statement is inefficient currently
+       errors(2) = maxval(abs(g + gnew*time_step))
+       call max_allreduce(errors)
+       error = errors(1) / errors(2)
 
        !Calculate the new_time_step
        new_time_step = 0.9 * time_step * (tolerance/(error+1.0e-14))**(1.0/scheme%order)
