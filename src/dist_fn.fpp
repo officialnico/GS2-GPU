@@ -3665,6 +3665,7 @@ contains
     type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
     real, dimension(2) :: errors
+    real, dimension(:), allocatable :: solution_coeffs
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -3681,6 +3682,14 @@ contains
     if (proc0 .and. (validity /= 0)) then
        print*,'The RK scheme failed validity check with error code:',validity
        call mp_abort("RK scheme failed validity check", .true.)
+    end if
+
+    ! Copy the relevant coefficients for forming the solution to reduce
+    ! later duplication.
+    if (scheme%follow_high_order) then
+       solution_coeffs = scheme%high_order_coeffs
+    else
+       solution_coeffs = scheme%lower_order_coeffs
     end if
 
     nstages = scheme%number_of_stages
@@ -3718,17 +3727,10 @@ contains
           g_work = g_work + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
        end do
 
-       if (scheme%follow_high_order) then
-          gnew = g + scheme%high_order_coeffs(1) * stages(:, :, :, 1) * time_step
-          do istage = 2, nstages
-             gnew = gnew + scheme%high_order_coeffs(istage) * stages(:, :, :, istage) * time_step
-          end do
-       else
-          gnew = g + scheme%lower_order_coeffs(1) * stages(:, :, :, 1) * time_step
-          do istage = 2, nstages
-             gnew = gnew + scheme%lower_order_coeffs(istage) * stages(:, :, :, istage) * time_step
-          end do
-       end if
+       gnew = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
+       do istage = 2, nstages
+          gnew = gnew + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
+       end do
 
        errors(1) = maxval(abs(g_work))*time_step
        errors(2) = maxval(abs(gnew))
