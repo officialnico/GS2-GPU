@@ -3713,7 +3713,7 @@ contains
        ! Note if we use the existing solution to produce the relative error we
        ! could hold off forming the new solution until we've checked that the
        ! error is acceptable.
-       g_work = (scheme%high_order_coeffs(1) - scheme%low_order_coeffs(1)) * stages(:, :, :, 1)
+       g_work = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
        do istage = 2, nstages
           g_work = g_work + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
        end do
@@ -3724,9 +3724,9 @@ contains
              gnew = gnew + scheme%high_order_coeffs(istage) * stages(:, :, :, istage) * time_step
           end do
        else
-          gnew = g + scheme%low_order_coeffs(1) * stages(:, :, :, 1) * time_step
+          gnew = g + scheme%lower_order_coeffs(1) * stages(:, :, :, 1) * time_step
           do istage = 2, nstages
-             gnew = gnew + scheme%low_order_coeffs(istage) * stages(:, :, :, istage) * time_step
+             gnew = gnew + scheme%lower_order_coeffs(istage) * stages(:, :, :, istage) * time_step
           end do
        end if
 
