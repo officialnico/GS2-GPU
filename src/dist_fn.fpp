@@ -3647,7 +3647,7 @@ contains
   subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g, g_work, gexp_1
+    use dist_fn_arrays, only: gnew, g, gexp_1
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, proc0, max_allreduce
     use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit, error_target
@@ -3664,7 +3664,6 @@ contains
     ! Define the RK scheme
     type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
-    real, dimension(2) :: errors
     real, dimension(:), allocatable :: solution_coeffs
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -3717,25 +3716,14 @@ contains
        ! time_step * sum(stages_i * (high_order_coeffs_i -
        ! low_order_coeffs_i)). However we also need to explicitly form one of the low/high
        ! order solutions in order to be able to construct the solution and the relative error.
-       ! Here we put the absolute error into g_work and the new solution into gnew.
-       ! First calculate the error, then calculate the estimated solution.
-       ! Note if we use the existing solution to produce the relative error we
-       ! could hold off forming the new solution until we've checked that the
-       ! error is acceptable.
-       g_work = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
+       ! Here we use just the absolute error, stored in gnew,
+       gnew = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
        do istage = 2, nstages
-          g_work = g_work + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
+          gnew = gnew + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
        end do
 
-       gnew = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
-       do istage = 2, nstages
-          gnew = gnew + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
-       end do
-
-       errors(1) = maxval(abs(g_work))*time_step
-       errors(2) = maxval(abs(gnew))
-       call max_allreduce(errors)
-       error = errors(1) / errors(2)
+       error = maxval(abs(gnew))*time_step
+       call max_allreduce(error)
 
        !Calculate the new_time_step
        new_time_step = 0.9 * time_step * (tolerance/(error+1.0e-14))**(1.0/scheme%order)
@@ -3749,7 +3737,11 @@ contains
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
        else
           !Update the solution
-          g = gnew
+          g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
+          do istage = 2, nstages
+             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
+          end do
+
           internal_time = internal_time + time_step
        end if
 
