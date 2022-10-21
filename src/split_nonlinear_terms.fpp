@@ -1,10 +1,14 @@
 !> A module to deal with advancing the nonlinear term
 !> separately from the linear terms.
 module split_nonlinear_terms
+  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   implicit none
   private
 
+  public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
   public :: advance_nonlinear_term
+
+  logical :: initialized = .false.
 
   !> Interface to describe the call signatures for routines to calculate the
   !> field from gnew (invert_field_func) and to calculate the source term used
@@ -25,7 +29,102 @@ module split_nonlinear_terms
      end subroutine source_term_func
   end interface
 
+  ! Related to inputs
+  integer :: split_method_switch
+  integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
+       split_method_rk = 3
+
+  real :: convergence_tolerance
+  real :: error_tolerance
+
+  !> Used to represent the input configuration of split_nonlinear_terms
+  type, extends(abstract_config_type) :: split_nonlinear_terms_config_type
+     ! namelist : split_nonlinear_terms_knobs
+     ! indexed : false
+     !> The tolerance used in convergence checks. Currently only used
+     !> for halting the fixed-point iteration in the beuler method
+     real :: convergence_tolerance = 1.0e-2
+     !> The tolerance used in error controlled schemes. Attempt to adjust
+     !> time step to keep error below this tolerance.
+     real :: error_tolerance = 1.0e-4
+     !> What algorithm do we use to advance the nonlinear term if
+     !> split_nonlinear is true.
+     !> Valid options include:
+     !>
+     !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order. CLF controlled time step.
+     !>  - 'beuler' -- Backwards Euler. Relative error controlled time step
+     !>  - 'default' -- The same as 'AB3'.
+     !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
+     !>            using rk_method switch. Absolute error controlled time step
+     !>
+     character(len = 20) :: split_method = 'default'
+   contains
+     procedure, public :: read => read_split_nonlinear_terms_config
+     procedure, public :: write => write_split_nonlinear_terms_config
+     procedure, public :: reset => reset_split_nonlinear_terms_config
+     procedure, public :: broadcast => broadcast_split_nonlinear_terms_config
+     procedure, public, nopass :: get_default_name => get_default_name_split_nonlinear_terms_config
+     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_split_nonlinear_terms_config
+  end type split_nonlinear_terms_config_type
+
+  type(split_nonlinear_terms_config_type) :: split_nonlinear_terms_config
+
 contains
+
+  !> Initialises the split_nonlinear_terms module. Primarily just reading input
+  subroutine init_split_nonlinear_terms(split_nonlinear_terms_config_in)
+    implicit none
+    type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
+
+    if (initialized) return
+    initialized = .true.
+
+    call read_parameters(split_nonlinear_terms_config_in)
+
+  end subroutine init_split_nonlinear_terms
+
+  !> Read the split_nonlinear_terms namelist
+  subroutine read_parameters(split_nonlinear_terms_config_in)
+    use file_utils, only: input_unit_exist, error_unit
+    use text_options, only: text_option, get_option_value
+    implicit none
+    type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
+    type (text_option), dimension (*), parameter :: split_method_opts = &
+         [ &
+         text_option('default', split_method_ab3), &
+         text_option('AB3', split_method_ab3), &
+         text_option('RK', split_method_rk), &
+         text_option('beuler', split_method_backwards_euler)  &
+         ]
+    character(len = 20) :: split_method
+    logical :: exist
+    integer :: ierr
+
+    if (present(split_nonlinear_terms_config_in)) split_nonlinear_terms_config = split_nonlinear_terms_config_in
+
+    call split_nonlinear_terms_config%init(name = 'split_nonlinear_terms_knobs', requires_index = .false.)
+
+    ! Copy out internal values into module level parameters
+    convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
+    error_tolerance = split_nonlinear_terms_config%error_tolerance
+    split_method = split_nonlinear_terms_config%split_method
+
+    exist = split_nonlinear_terms_config%exist
+
+    ierr = error_unit()
+
+    call get_option_value &
+         (split_method, split_method_opts, split_method_switch, &
+         ierr, "split_method in split_nonlinear_terms_knobs",.true.)
+
+  end subroutine read_parameters
+
+  !> Reset the module, freeing memory etc.
+  subroutine finish_split_nonlinear_terms
+    implicit none
+    initialized = .false.
+    call split_nonlinear_terms_config%reset()
+  end subroutine finish_split_nonlinear_terms
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
@@ -35,8 +134,6 @@ contains
     use dist_fn_arrays, only: gnew, g
     use mp, only: mp_abort, get_mp_times
     use job_manage, only: time_message
-    use nonlinear_terms, only: split_method_switch, split_method_ab3, split_method_backwards_euler
-    use nonlinear_terms, only: split_method_rk
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     implicit none
     complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
@@ -159,13 +256,12 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
-    use nonlinear_terms, only: error_target, calculate_current_nl_source_and_cfl_limit, cfl
+    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step, time_step_limit
     integer :: counter
-    real :: tolerance, convergence_tolerance
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
@@ -181,8 +277,6 @@ contains
     if (time_step_last < 0) time_step_last = code_dt
     internal_time = 0.0
     time_step = time_step_last
-    tolerance = error_target
-    convergence_tolerance = cfl
 
     ! Keep on advancing until we have advanced by code_dt
     do while (internal_time < code_dt)
@@ -266,10 +360,10 @@ contains
           error = errors(1) / errors(2)
 
           !Calculate new time step based on error
-          time_step = 0.9 * actual_dt * sqrt(tolerance/(error+1.0e-14))
+          time_step = 0.9 * actual_dt * sqrt(error_tolerance/(error+1.0e-14))
 
           ! If error is too large reject the step
-          if ( error > tolerance) then
+          if ( error > error_tolerance) then
              if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
@@ -337,7 +431,7 @@ contains
     use dist_fn_arrays, only: gnew, g, gexp_1
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, proc0, max_allreduce
-    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit, error_target
+    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme
     implicit none
@@ -346,7 +440,7 @@ contains
     type(rk_scheme), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, time_step_limit, error, actual_time_step
-    real :: tolerance, new_time_step
+    real :: new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
@@ -360,7 +454,6 @@ contains
     internal_time = 0.0
     counter = 1
     time_step = time_step_last
-    tolerance = error_target
 
     ! Copy the relevant coefficients for forming the solution to reduce
     ! later duplication.
@@ -405,14 +498,14 @@ contains
        call max_allreduce(error)
 
        !Calculate the new_time_step
-       new_time_step = 0.9 * time_step * (tolerance/(error+1.0e-14))**(1.0/scheme%order)
+       new_time_step = 0.9 * time_step * (error_tolerance/(error+1.0e-14))**(1.0/scheme%order)
        if(proc0.and.debug) print*,'Error is ',error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
        ! If the cfl time step is too small then abort
        if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (error > tolerance) then
+       if (error > error_tolerance) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
        else
           !Update the solution
@@ -440,5 +533,108 @@ contains
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
+
+  !---------------------------------------
+  ! Following is for the config_type
+  !---------------------------------------
+
+  !> Reads in the split_nonlinear_terms_knobs namelist and populates the member variables
+  subroutine read_split_nonlinear_terms_config(self)
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
+    use mp, only: proc0
+    implicit none
+    class(split_nonlinear_terms_config_type), intent(in out) :: self
+    logical :: exist
+    integer :: in_file
+
+    ! Note: When this routine is in the module where these variables live
+    ! we shadow the module level variables here. This is intentional to provide
+    ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: split_method
+    real :: convergence_tolerance, error_tolerance
+
+    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, split_method
+
+    ! Only proc0 reads from file
+    if (.not. proc0) return
+
+    ! First set local variables from current values
+    convergence_tolerance = self%convergence_tolerance
+    error_tolerance = self%error_tolerance
+    split_method = self%split_method
+
+    ! Now read in the main namelist
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = split_nonlinear_terms_knobs)
+
+    ! Now copy from local variables into type members
+    self%convergence_tolerance = convergence_tolerance
+    self%error_tolerance = error_tolerance
+    self%split_method = split_method
+
+    self%exist = exist
+  end subroutine read_split_nonlinear_terms_config
+
+  !> Writes out a namelist representing the current state of the config object
+  subroutine write_split_nonlinear_terms_config(self, unit)
+    implicit none
+    class(split_nonlinear_terms_config_type), intent(in) :: self
+    integer, intent(in) , optional:: unit
+    integer :: unit_internal
+
+    unit_internal = 6 ! @todo -- get stdout from file_utils
+    if (present(unit)) then
+       unit_internal = unit
+    endif
+
+    call self%write_namelist_header(unit_internal)
+    call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
+    call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
+    call self%write_key_val("split_method", self%split_method, unit_internal)
+    call self%write_namelist_footer(unit_internal)
+  end subroutine write_split_nonlinear_terms_config
+
+  !> Resets the config object to the initial empty state
+  subroutine reset_split_nonlinear_terms_config(self)
+    class(split_nonlinear_terms_config_type), intent(in out) :: self
+    type(split_nonlinear_terms_config_type) :: empty
+    select type (self)
+    type is (split_nonlinear_terms_config_type)
+       self = empty
+    end select
+  end subroutine reset_split_nonlinear_terms_config
+
+  !> Broadcasts all config parameters so object is populated identically on
+  !! all processors
+  subroutine broadcast_split_nonlinear_terms_config(self)
+    use mp, only: broadcast
+    implicit none
+    class(split_nonlinear_terms_config_type), intent(in out) :: self
+    call broadcast(self%convergence_tolerance)
+    call broadcast(self%error_tolerance)
+    call broadcast(self%split_method)
+
+    call broadcast(self%exist)
+  end subroutine broadcast_split_nonlinear_terms_config
+
+  !> Gets the default name for this namelist
+  function get_default_name_split_nonlinear_terms_config()
+    implicit none
+    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_split_nonlinear_terms_config
+    get_default_name_split_nonlinear_terms_config = "split_nonlinear_terms_knobs"
+  end function get_default_name_split_nonlinear_terms_config
+
+  !> Gets the default requires index for this namelist
+  function get_default_requires_index_split_nonlinear_terms_config()
+    implicit none
+    logical :: get_default_requires_index_split_nonlinear_terms_config
+    get_default_requires_index_split_nonlinear_terms_config = .false.
+  end function get_default_requires_index_split_nonlinear_terms_config
+
+  !> Get the module level config instance
+  pure function get_split_nonlinear_terms_config()
+    type(split_nonlinear_terms_config_type) :: get_split_nonlinear_terms_config
+    get_split_nonlinear_terms_config = split_nonlinear_terms_config
+  end function get_split_nonlinear_terms_config
 
 end module split_nonlinear_terms
