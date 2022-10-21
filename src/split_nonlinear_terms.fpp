@@ -11,6 +11,9 @@ module split_nonlinear_terms
 
   logical :: initialized = .false.
 
+  !> Statistics for the number of steps taken in the integrators
+  integer :: nfailed_steps = 0, nrhs_calls = 0, nsuccessful_steps = 0
+
   !> Interface to describe the call signatures for routines to calculate the
   !> field from gnew (invert_field_func) and to calculate the source term used
   !> in the advance_nonlinear_term methods. Used to allow us to pass in these
@@ -144,13 +147,29 @@ contains
     call split_nonlinear_terms_config%reset()
   end subroutine finish_split_nonlinear_terms
 
+  !> Reset the step statistics
+  subroutine reset_step_statistics
+    nfailed_steps = 0 ; nrhs_calls = 0 ; nsuccessful_steps = 0
+  end subroutine reset_step_statistics
+
+  subroutine report_step_statistics(unit_in)
+    use iso_fortran_env, only: output_unit
+    use optionals, only: get_option_with_default
+    implicit none
+    integer, intent(in), optional :: unit_in
+    integer :: unit
+    unit = get_option_with_default(unit_in, output_unit)
+    write(unit,'("Number of internal steps : ",I0," Number of failed steps : ",I0," Number of RHS calls : ",I0)') &
+         nsuccessful_steps, nfailed_steps, nrhs_calls
+  end subroutine report_step_statistics
+
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
   subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
     use dist_fn_arrays, only: gnew, g
-    use mp, only: mp_abort, get_mp_times
+    use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     implicit none
@@ -162,6 +181,7 @@ contains
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total)
+    call reset_step_statistics
 
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
@@ -177,6 +197,8 @@ contains
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
+
+    if (proc0) call report_step_statistics
 
     ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
     g = gnew
@@ -220,6 +242,7 @@ contains
        ! Get the current nonlinear source term and cfl limit
        call source_func(gexp_1, phinew, aparnew, bparnew, &
             time_step, calculate_cfl_limit = .true.)
+       nrhs_calls = nrhs_calls + 1
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -255,6 +278,7 @@ contains
        ! Increment internal state
        internal_time = internal_time + time_step
        counter = counter + 1
+       nsuccessful_steps = nsuccessful_steps + 1
 
        ! Shift time history along one point
        code_dt_prev2 = code_dt_prev1
@@ -308,6 +332,7 @@ contains
        ! estimates later.
        call source_func(gexp_2, phinew, aparnew, bparnew, &
             time_step_limit, calculate_cfl_limit = .false.)
+       nrhs_calls = nrhs_calls + 1
 
        ! Try to take a step of size actual_dt using fixed point iteration with
        ! backwards Euler.
@@ -317,6 +342,7 @@ contains
           ! cfl limit here
           call source_func(gexp_1, phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
+          nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
           g_work = g + actual_dt * 0.5 * gexp_1
@@ -370,6 +396,7 @@ contains
           ! it is within the convergence tolerance of the true value.
           call source_func(gexp_1, phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
+          nrhs_calls = nrhs_calls + 1
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
           call max_allreduce(errors)
@@ -393,11 +420,13 @@ contains
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
           gnew = g
           call fields_func(phinew, aparnew, bparnew)
+          nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
           ! then gnew represents our new solution so make sure we update g to reflect this
           internal_time = internal_time + actual_dt
           g = gnew
+          nsuccessful_steps = nsuccessful_steps + 1
        end if
 
     end do
@@ -483,6 +512,8 @@ contains
           call source_func(gexp_1, &
                phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
+          nrhs_calls = nrhs_calls + 1
+
           stages(:, :, :, istage) = 0.5 * gexp_1
        end do
 
@@ -509,6 +540,7 @@ contains
        ! update anything
        if (error > error_tolerance) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
+          nfailed_steps = nfailed_steps + 1
        else
           !Update the solution
           g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
@@ -517,6 +549,7 @@ contains
           end do
 
           internal_time = internal_time + time_step
+          nsuccessful_steps = nsuccessful_steps + 1
        end if
 
        !Now update the time step, capped to code_dt
@@ -529,6 +562,7 @@ contains
        end if
 
     end do
+
     if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
     gnew = g
     call fields_func(phinew, aparnew, bparnew)
