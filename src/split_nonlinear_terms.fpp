@@ -2,6 +2,7 @@
 !> separately from the linear terms.
 module split_nonlinear_terms
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use rk_schemes, only: rk_scheme
   implicit none
   private
 
@@ -33,8 +34,7 @@ module split_nonlinear_terms
   integer :: split_method_switch
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
-
-  integer :: rk_method_switch
+  type(rk_scheme) :: the_rk_scheme
 
   real :: convergence_tolerance
   real :: error_tolerance
@@ -99,7 +99,7 @@ contains
   subroutine read_parameters(split_nonlinear_terms_config_in)
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
-    use rk_schemes, only: get_rk_schemes_as_text_options
+    use rk_schemes, only: get_rk_schemes_as_text_options, get_rk_scheme_by_id
     implicit none
     type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
     type(text_option), dimension (*), parameter :: split_method_opts = &
@@ -111,7 +111,7 @@ contains
          ]
     character(len = 20) :: rk_method, split_method
     logical :: exist
-    integer :: ierr
+    integer :: ierr, rk_method_switch
 
     if (present(split_nonlinear_terms_config_in)) split_nonlinear_terms_config = split_nonlinear_terms_config_in
 
@@ -134,7 +134,7 @@ contains
     call get_option_value &
          (rk_method, get_rk_schemes_as_text_options(), rk_method_switch, &
          ierr, "rk_method in split_nonlinear_terms_knobs",.true.)
-
+    the_rk_scheme = get_rk_scheme_by_id(rk_method_switch)
   end subroutine read_parameters
 
   !> Reset the module, freeing memory etc.
@@ -198,7 +198,6 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort
-    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -274,7 +273,6 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
-    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -417,21 +415,15 @@ contains
   subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use rk_schemes, only: rk_scheme, get_rk_scheme_by_id
-    use mp, only: proc0, mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
-    type(rk_scheme) :: scheme
-    ! Get the scheme and check it is valid. Ideally we might
-    ! only do this once.
-    scheme = get_rk_scheme_by_id(rk_method_switch)
 
-    call advance_nonlinear_term_rk_implementation(&
+    call advance_nonlinear_term_rk_implementation( &
          phi, apar, bpar, phinew, aparnew, bparnew, &
-         fields_func, source_func, scheme)
+         fields_func, source_func, the_rk_scheme)
   end subroutine advance_nonlinear_term_rk
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
@@ -442,7 +434,6 @@ contains
     use dist_fn_arrays, only: gnew, g, gexp_1
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, proc0, max_allreduce
-    use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme
     implicit none
