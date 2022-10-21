@@ -9,7 +9,7 @@ program test_split_nonlinear_integrators
   use gs2_main, only: initialize_equations
   use gs2_main, only: finalize_equations
   use gs2_main, only: finalize_gs2
-  use dist_fn, only: advance_nonlinear_term
+  use split_nonlinear_terms, only: advance_nonlinear_term
   use dist_fn_arrays, only: gnew, g
   use gs2_time, only: code_dt
   use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
