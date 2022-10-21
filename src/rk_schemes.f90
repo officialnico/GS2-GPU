@@ -4,7 +4,8 @@ module rk_schemes
 
   private
 
-  public :: rk_scheme, get_rk_scheme
+  public :: rk_scheme, get_rk_scheme, get_rk_scheme_by_id
+  public :: get_rk_schemes_as_text_options
   public :: rk_dopri, rk_f45, rk_cashkarp
   public :: rk_heun, rk_ralston, rk_midpoint
   public :: rk_bs23, rk_bs45
@@ -56,9 +57,58 @@ module rk_schemes
 
 contains
 
+  !> Returns an array of text_option values representing the known rk schemes, mapping
+  !> names to integer ids
+  pure function get_rk_schemes_as_text_options() result(options)
+    use text_options, only: text_option
+    implicit none
+    type(text_option), dimension(:), allocatable :: options
+
+    options = [ &
+         text_option(rk_dopri%name, rk_dopri%id), &
+         text_option(rk_f45%name, rk_f45%id), &
+         text_option(rk_cashkarp%name, rk_cashkarp%id), &
+         text_option(rk_heun%name, rk_heun%id), &
+         text_option(rk_ralston%name, rk_ralston%id), &
+         text_option(rk_midpoint%name, rk_midpoint%id), &
+         text_option(rk_bs23%name, rk_bs23%id), &
+         text_option(rk_bs45%name, rk_bs45%id), &
+         text_option('default', rk_heun%id) &
+         ]
+  end function get_rk_schemes_as_text_options
+
+  !> Returns an rk_scheme instance describing the scheme with id matching
+  !> the passed id value.
+  type(rk_scheme) function get_rk_scheme_by_id(id) result(scheme)
+    use mp, only: mp_abort
+    implicit none
+    integer, intent(in) :: id
+    select case(id)
+    case(rk_dopri%id)
+       scheme = get_rk_scheme(rk_dopri)
+    case(rk_f45%id)
+       scheme = get_rk_scheme(rk_f45)
+    case(rk_cashkarp%id)
+       scheme = get_rk_scheme(rk_cashkarp)
+    case(rk_heun%id)
+       scheme = get_rk_scheme(rk_heun)
+    case(rk_ralston%id)
+       scheme = get_rk_scheme(rk_ralston)
+    case(rk_midpoint%id)
+       scheme = get_rk_scheme(rk_midpoint)
+    case(rk_bs23%id)
+       scheme = get_rk_scheme(rk_bs23)
+    case(rk_bs45%id)
+       scheme = get_rk_scheme(rk_bs45)
+    case default
+       call mp_abort("Invalid RK scheme id passed to get_rk_scheme_by_id", .true.)
+    end select
+  end function get_rk_scheme_by_id
+
   !> Returns an rk_scheme instance describing the scheme represented by
   !> the passed variant type.
-  pure type(rk_scheme) function get_rk_scheme(variant) result(scheme)
+  type(rk_scheme) function get_rk_scheme(variant) result(scheme)
+    use mp, only: mp_abort
     implicit none
     type(rk_scheme_id), intent(in) :: variant
 
@@ -178,6 +228,8 @@ contains
             666106/1039181.0, -29421/29068.0, 482048/414219.0]
        scheme%coeffs(:7, 8) = [587/8064.0, 0.0, 4440339/15491840.0, 24353/124800.0, &
             387/44800.0, 2152/5985.0, 7267/94080.0]
+    case default
+       call mp_abort("Invalid RK scheme passed to get_rk_scheme", .true.)
     end select
 
   end function get_rk_scheme

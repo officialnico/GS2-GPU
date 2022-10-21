@@ -34,6 +34,8 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
 
+  integer :: rk_method_switch
+
   real :: convergence_tolerance
   real :: error_tolerance
 
@@ -47,6 +49,16 @@ module split_nonlinear_terms
      !> The tolerance used in error controlled schemes. Attempt to adjust
      !> time step to keep error below this tolerance.
      real :: error_tolerance = 1.0e-4
+     !> Choose which specific RK scheme to use in the RK method.
+     !> Generally if error_tolerance is small a higher order scheme
+     !> will be more effective than low order. At loose tolerances
+     !> low order schemes are generally more efficient
+     !> Valid options include:
+     !>
+     !>  - 'cashkarp' -- Cash-Karp scheme of order 4(5)
+     !>  - 'default' -- Same as heun
+     !>  - 'heun' -- Heun scheme of order 1(2)
+     character(len = 20) :: rk_method = 'default'
      !> What algorithm do we use to advance the nonlinear term if
      !> split_nonlinear is true.
      !> Valid options include:
@@ -87,16 +99,17 @@ contains
   subroutine read_parameters(split_nonlinear_terms_config_in)
     use file_utils, only: input_unit_exist, error_unit
     use text_options, only: text_option, get_option_value
+    use rk_schemes, only: get_rk_schemes_as_text_options
     implicit none
     type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
-    type (text_option), dimension (*), parameter :: split_method_opts = &
+    type(text_option), dimension (*), parameter :: split_method_opts = &
          [ &
          text_option('default', split_method_ab3), &
          text_option('AB3', split_method_ab3), &
          text_option('RK', split_method_rk), &
          text_option('beuler', split_method_backwards_euler)  &
          ]
-    character(len = 20) :: split_method
+    character(len = 20) :: rk_method, split_method
     logical :: exist
     integer :: ierr
 
@@ -107,6 +120,7 @@ contains
     ! Copy out internal values into module level parameters
     convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
     error_tolerance = split_nonlinear_terms_config%error_tolerance
+    rk_method = split_nonlinear_terms_config%rk_method
     split_method = split_nonlinear_terms_config%split_method
 
     exist = split_nonlinear_terms_config%exist
@@ -116,6 +130,10 @@ contains
     call get_option_value &
          (split_method, split_method_opts, split_method_switch, &
          ierr, "split_method in split_nonlinear_terms_knobs",.true.)
+
+    call get_option_value &
+         (rk_method, get_rk_schemes_as_text_options(), rk_method_switch, &
+         ierr, "rk_method in split_nonlinear_terms_knobs",.true.)
 
   end subroutine read_parameters
 
@@ -399,7 +417,7 @@ contains
   subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_cashkarp
+    use rk_schemes, only: rk_scheme, get_rk_scheme_by_id
     use mp, only: proc0, mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
@@ -411,10 +429,10 @@ contains
 
     ! Get the scheme and check it is valid. Ideally we might
     ! only do this once.
-    scheme = get_rk_scheme(rk_cashkarp)
+    scheme = get_rk_scheme_by_id(rk_method_switch)
     validity = scheme%validate()
     if (proc0 .and. (validity /= 0)) then
-       print*,'The RK scheme failed validity check with error code:',validity
+       print*,'The RK scheme failed validity check with error code:',validity,'and scheme',scheme%name
        call mp_abort("RK scheme failed validity check", .true.)
     end if
 
@@ -550,10 +568,10 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: split_method
+    character(len = 20) :: rk_method, split_method
     real :: convergence_tolerance, error_tolerance
 
-    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, split_method
+    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, rk_method, split_method
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -561,6 +579,7 @@ contains
     ! First set local variables from current values
     convergence_tolerance = self%convergence_tolerance
     error_tolerance = self%error_tolerance
+    rk_method = self%rk_method
     split_method = self%split_method
 
     ! Now read in the main namelist
@@ -570,6 +589,7 @@ contains
     ! Now copy from local variables into type members
     self%convergence_tolerance = convergence_tolerance
     self%error_tolerance = error_tolerance
+    self%rk_method = rk_method
     self%split_method = split_method
 
     self%exist = exist
@@ -590,6 +610,7 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
     call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
+    call self%write_key_val("rk_method", self%rk_method, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_split_nonlinear_terms_config
@@ -612,6 +633,7 @@ contains
     class(split_nonlinear_terms_config_type), intent(in out) :: self
     call broadcast(self%convergence_tolerance)
     call broadcast(self%error_tolerance)
+    call broadcast(self%rk_method)
     call broadcast(self%split_method)
 
     call broadcast(self%exist)
