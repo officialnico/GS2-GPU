@@ -340,16 +340,31 @@ subroutine nonlinear_terms_subroutine(going_up)
   end if
 end subroutine nonlinear_terms_subroutine
 
+subroutine split_nonlinear_terms_subroutine(going_up)
+  use unit_tests, only: debug_message
+  use split_nonlinear_terms, only: init_split_nonlinear_terms, finish_split_nonlinear_terms
+  logical, intent(in) :: going_up
+  if (going_up) then
+    call debug_message(1, 'gs2_init:init up reached init level -- split_nonlinear_terms (24)')
+    call init_split_nonlinear_terms
+    current%level = init_level_list%split_nonlinear_terms
+  else
+    call debug_message(1, 'gs2_init:init down reached init level -- split_nonlinear_terms (24)')
+    call finish_split_nonlinear_terms
+    current%level = init_level_list%split_nonlinear_terms - 1
+  end if
+end subroutine split_nonlinear_terms_subroutine
+
 subroutine dist_fn_arrays_subroutine(going_up)
   use unit_tests, only: debug_message
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_arrays (24)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_arrays (25)')
     call init_dist_fn_arrays
     current%level = init_level_list%dist_fn_arrays
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_arrays (24)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_arrays (25)')
     call finish_dist_fn_arrays
     current%level = init_level_list%dist_fn_arrays - 1
   end if
@@ -360,11 +375,11 @@ subroutine dist_fn_level_1_subroutine(going_up)
   use dist_fn, only: init_dist_fn_level_1, finish_dist_fn_level_1
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_1 (25)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_1 (26)')
     call init_dist_fn_level_1
     current%level = init_level_list%dist_fn_level_1
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_1 (25)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_1 (26)')
     call finish_dist_fn_level_1
     current%level = init_level_list%dist_fn_level_1 - 1
   end if
@@ -375,11 +390,11 @@ subroutine dist_fn_level_2_subroutine(going_up)
   use dist_fn, only: init_dist_fn_level_2, finish_dist_fn_level_2
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_2 (26)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_2 (27)')
     call init_dist_fn_level_2
     current%level = init_level_list%dist_fn_level_2
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_2 (26)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_2 (27)')
     call finish_dist_fn_level_2
     current%level = init_level_list%dist_fn_level_2 - 1
   end if
@@ -390,11 +405,11 @@ subroutine override_timestep_subroutine(going_up)
   use run_parameters, only: rso => set_overrides
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_timestep (27)')
+    call debug_message(1, 'gs2_init:init up reached init level -- override_timestep (28)')
     if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
     current%level = init_level_list%override_timestep
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_timestep (27)')
+    call debug_message(1, 'gs2_init:init down reached init level -- override_timestep (28)')
 
     current%level = init_level_list%override_timestep - 1
   end if
@@ -405,11 +420,11 @@ subroutine dist_fn_level_3_subroutine(going_up)
   use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_3 (28)')
+    call debug_message(1, 'gs2_init:init up reached init level -- dist_fn_level_3 (29)')
     call init_dist_fn_level_3
     current%level = init_level_list%dist_fn_level_3
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_3 (28)')
+    call debug_message(1, 'gs2_init:init down reached init level -- dist_fn_level_3 (29)')
     call finish_dist_fn_level_3
     current%level = init_level_list%dist_fn_level_3 - 1
   end if
@@ -420,11 +435,11 @@ subroutine collisions_subroutine(going_up)
   use collisions, only: init_collisions, finish_collisions
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- collisions (29)')
+    call debug_message(1, 'gs2_init:init up reached init level -- collisions (30)')
     call init_collisions
     current%level = init_level_list%collisions
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- collisions (29)')
+    call debug_message(1, 'gs2_init:init down reached init level -- collisions (30)')
     call finish_collisions
     current%level = init_level_list%collisions - 1
   end if
@@ -435,11 +450,11 @@ subroutine fields_level_2_subroutine(going_up)
   use fields, only: init_fields_level_2, finish_fields_level_2
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_2 (30)')
+    call debug_message(1, 'gs2_init:init up reached init level -- fields_level_2 (31)')
     call init_fields_level_2
     current%level = init_level_list%fields_level_2
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_2 (30)')
+    call debug_message(1, 'gs2_init:init down reached init level -- fields_level_2 (31)')
     call finish_fields_level_2
     current%level = init_level_list%fields_level_2 - 1
   end if
@@ -450,11 +465,11 @@ subroutine override_initial_values_subroutine(going_up)
 
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- override_initial_values (31)')
+    call debug_message(1, 'gs2_init:init up reached init level -- override_initial_values (32)')
 
     current%level = init_level_list%override_initial_values
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- override_initial_values (31)')
+    call debug_message(1, 'gs2_init:init down reached init level -- override_initial_values (32)')
 
     current%level = init_level_list%override_initial_values - 1
   end if
@@ -465,11 +480,11 @@ subroutine set_initial_values_subroutine(going_up)
 
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- set_initial_values (32)')
+    call debug_message(1, 'gs2_init:init up reached init level -- set_initial_values (33)')
     call set_initial_field_and_dist_fn_values(current)
     current%level = init_level_list%set_initial_values
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- set_initial_values (32)')
+    call debug_message(1, 'gs2_init:init down reached init level -- set_initial_values (33)')
 
     current%level = init_level_list%set_initial_values - 1
   end if
@@ -480,11 +495,11 @@ subroutine full_subroutine(going_up)
 
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- full (33)')
+    call debug_message(1, 'gs2_init:init up reached init level -- full (34)')
 
     current%level = init_level_list%full
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- full (33)')
+    call debug_message(1, 'gs2_init:init down reached init level -- full (34)')
 
     current%level = init_level_list%full - 1
   end if

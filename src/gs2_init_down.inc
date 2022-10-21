@@ -8,6 +8,7 @@ if (down() .and. (current%level == init_level_list%full)) call full_subroutine(.
     if (down() .and. (current%level == init_level_list%dist_fn_level_2)) call dist_fn_level_2_subroutine(.false.)
     if (down() .and. (current%level == init_level_list%dist_fn_level_1)) call dist_fn_level_1_subroutine(.false.)
     if (down() .and. (current%level == init_level_list%dist_fn_arrays)) call dist_fn_arrays_subroutine(.false.)
+    if (down() .and. (current%level == init_level_list%split_nonlinear_terms)) call split_nonlinear_terms_subroutine(.false.)
     if (down() .and. (current%level == init_level_list%nonlinear_terms)) call nonlinear_terms_subroutine(.false.)
     if (down() .and. (current%level == init_level_list%fields_level_1)) call fields_level_1_subroutine(.false.)
     if (down() .and. (current%level == init_level_list%dist_fn_layouts)) call dist_fn_layouts_subroutine(.false.)

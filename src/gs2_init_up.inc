@@ -20,6 +20,7 @@ if (up() .and. (current%level == init_level_list%gs2_layouts - 1)) call gs2_layo
     if (up() .and. (current%level == init_level_list%dist_fn_layouts - 1)) call dist_fn_layouts_subroutine(.true.)
     if (up() .and. (current%level == init_level_list%fields_level_1 - 1)) call fields_level_1_subroutine(.true.)
     if (up() .and. (current%level == init_level_list%nonlinear_terms - 1)) call nonlinear_terms_subroutine(.true.)
+    if (up() .and. (current%level == init_level_list%split_nonlinear_terms - 1)) call split_nonlinear_terms_subroutine(.true.)
     if (up() .and. (current%level == init_level_list%dist_fn_arrays - 1)) call dist_fn_arrays_subroutine(.true.)
     if (up() .and. (current%level == init_level_list%dist_fn_level_1 - 1)) call dist_fn_level_1_subroutine(.true.)
     if (up() .and. (current%level == init_level_list%dist_fn_level_2 - 1)) call dist_fn_level_2_subroutine(.true.)
