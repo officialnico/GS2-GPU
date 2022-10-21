@@ -108,9 +108,10 @@ contains
   !> Returns an rk_scheme instance describing the scheme represented by
   !> the passed variant type.
   type(rk_scheme) function get_rk_scheme(variant) result(scheme)
-    use mp, only: mp_abort
+    use mp, only: mp_abort, proc0
     implicit none
     type(rk_scheme_id), intent(in) :: variant
+    integer :: validity
 
     scheme%name = variant%name
 
@@ -231,6 +232,12 @@ contains
     case default
        call mp_abort("Invalid RK scheme passed to get_rk_scheme", .true.)
     end select
+
+    validity = scheme%validate()
+    if (proc0 .and. (validity /= 0)) then
+       print*,'The RK scheme failed validity check with error code:',validity,'and scheme',scheme%name
+       call mp_abort("RK scheme failed validity check", .true.)
+    end if
 
   end function get_rk_scheme
 

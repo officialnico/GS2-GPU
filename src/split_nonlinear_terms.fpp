@@ -425,16 +425,9 @@ contains
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
     type(rk_scheme) :: scheme
-    integer :: validity
-
     ! Get the scheme and check it is valid. Ideally we might
     ! only do this once.
     scheme = get_rk_scheme_by_id(rk_method_switch)
-    validity = scheme%validate()
-    if (proc0 .and. (validity /= 0)) then
-       print*,'The RK scheme failed validity check with error code:',validity,'and scheme',scheme%name
-       call mp_abort("RK scheme failed validity check", .true.)
-    end if
 
     call advance_nonlinear_term_rk_implementation(&
          phi, apar, bpar, phinew, aparnew, bparnew, &
