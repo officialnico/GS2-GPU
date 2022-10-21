@@ -11,13 +11,16 @@ module rk_schemes
 
   !> Internal named type to represent scheme ids
   type rk_scheme_id
-     integer, private :: id
+     private
+     integer :: id
+     character(len=20) :: name
   end type rk_scheme_id
 
   !> Public type storing the data for a particular RK scheme
   type :: rk_scheme
      integer :: number_of_stages
      integer :: order
+     character(len=20) :: name
      real, dimension(:), allocatable :: lower_order_coeffs
      real, dimension(:), allocatable :: high_order_coeffs
      real, dimension(:), allocatable :: time_points
@@ -28,28 +31,28 @@ module rk_schemes
   end type rk_scheme
 
   !> Dormand-Prince 45 method
-  type(rk_scheme_id), parameter :: rk_dopri = rk_scheme_id(id=1)
+  type(rk_scheme_id), parameter :: rk_dopri = rk_scheme_id(id=1, name='dopri')
 
   !> Runge-Kutta-Fehlberg 45 method
-  type(rk_scheme_id), parameter :: rk_f45 = rk_scheme_id(id=2)
+  type(rk_scheme_id), parameter :: rk_f45 = rk_scheme_id(id=2, name='rkf45')
 
   !> Cash-Karp 45 method
-  type(rk_scheme_id), parameter :: rk_cashkarp = rk_scheme_id(id=3)
+  type(rk_scheme_id), parameter :: rk_cashkarp = rk_scheme_id(id=3, name='cashkarp')
 
   !> Heun-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_heun = rk_scheme_id(id=4)
+  type(rk_scheme_id), parameter :: rk_heun = rk_scheme_id(id=4, name='heun')
 
   !> Ralston-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_ralston = rk_scheme_id(id=5)
+  type(rk_scheme_id), parameter :: rk_ralston = rk_scheme_id(id=5, name='ralston')
 
   !> Midpoint-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_midpoint = rk_scheme_id(id=6)
+  type(rk_scheme_id), parameter :: rk_midpoint = rk_scheme_id(id=6, name='midpoint')
 
   !> Bogacki-Shampine 23 method
-  type(rk_scheme_id), parameter :: rk_bs23 = rk_scheme_id(id=7)
+  type(rk_scheme_id), parameter :: rk_bs23 = rk_scheme_id(id=7, name='bs23')
 
   !> Bogacki-Shampine 45 method
-  type(rk_scheme_id), parameter :: rk_bs45 = rk_scheme_id(id=8)
+  type(rk_scheme_id), parameter :: rk_bs45 = rk_scheme_id(id=8, name='bs45')
 
 contains
 
@@ -58,6 +61,8 @@ contains
   pure type(rk_scheme) function get_rk_scheme(variant) result(scheme)
     implicit none
     type(rk_scheme_id), intent(in) :: variant
+
+    scheme%name = variant%name
 
     select case(variant%id)
     case(rk_dopri%id)
