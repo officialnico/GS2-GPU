@@ -38,7 +38,7 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
   type(rk_scheme) :: the_rk_scheme
-
+  logical :: show_statistics
   real :: convergence_tolerance
   real :: error_tolerance
 
@@ -62,6 +62,10 @@ module split_nonlinear_terms
      !>  - 'default' -- Same as heun
      !>  - 'heun' -- Heun scheme of order 1(2)
      character(len = 20) :: rk_method = 'default'
+     !> If true then reports the number of right hand side (NL term) calculations,
+     !> the number of failed internal steps and the number of successful steps at the
+     !> end of each linear size step.
+     logical :: show_statistics = .false.
      !> What algorithm do we use to advance the nonlinear term if
      !> split_nonlinear is true.
      !> Valid options include:
@@ -124,6 +128,7 @@ contains
     convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
     error_tolerance = split_nonlinear_terms_config%error_tolerance
     rk_method = split_nonlinear_terms_config%rk_method
+    show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
 
     exist = split_nonlinear_terms_config%exist
@@ -198,7 +203,7 @@ contains
        call mp_abort("Invalid split_method_switch", .true.)
     end select
 
-    if (proc0) call report_step_statistics
+    if (proc0 .and. show_statistics) call report_step_statistics
 
     ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
     g = gnew
@@ -587,9 +592,10 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
+    logical :: show_statistics
     real :: convergence_tolerance, error_tolerance
 
-    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, rk_method, split_method
+    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -598,6 +604,7 @@ contains
     convergence_tolerance = self%convergence_tolerance
     error_tolerance = self%error_tolerance
     rk_method = self%rk_method
+    show_statistics = self%show_statistics
     split_method = self%split_method
 
     ! Now read in the main namelist
@@ -608,6 +615,7 @@ contains
     self%convergence_tolerance = convergence_tolerance
     self%error_tolerance = error_tolerance
     self%rk_method = rk_method
+    self%show_statistics = show_statistics
     self%split_method = split_method
 
     self%exist = exist
@@ -629,6 +637,7 @@ contains
     call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
     call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
+    call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_split_nonlinear_terms_config
@@ -652,6 +661,7 @@ contains
     call broadcast(self%convergence_tolerance)
     call broadcast(self%error_tolerance)
     call broadcast(self%rk_method)
+    call broadcast(self%show_statistics)
     call broadcast(self%split_method)
 
     call broadcast(self%exist)
