@@ -300,26 +300,55 @@ contains
   end subroutine advance_nonlinear_term_beuler
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
-  !> an Runge-Kutta scheme with embedded error estimate for error control
+  !> an Runge-Kutta scheme with embedded error estimate for error control. This method
+  !> is a wrapper to the true generic RK implementation.
   subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
        fields_func, source_func)
+    use theta_grid, only: ntgrid
+    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_cashkarp
+    use mp, only: proc0, mp_abort
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
+    type(rk_scheme) :: scheme
+    integer :: validity
+
+    ! Get the scheme and check it is valid. Ideally we might
+    ! only do this once.
+    scheme = get_rk_scheme(rk_cashkarp)
+    validity = scheme%validate()
+    if (proc0 .and. (validity /= 0)) then
+       print*,'The RK scheme failed validity check with error code:',validity
+       call mp_abort("RK scheme failed validity check", .true.)
+    end if
+
+    call advance_nonlinear_term_rk_implementation(&
+         phi, apar, bpar, phinew, aparnew, bparnew, &
+         fields_func, source_func, scheme)
+  end subroutine advance_nonlinear_term_rk
+
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> an Runge-Kutta scheme with embedded error estimate for error control
+  subroutine advance_nonlinear_term_rk_implementation(phi, apar, bpar, phinew, &
+       aparnew, bparnew, fields_func, source_func, scheme)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g, gexp_1
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, proc0, max_allreduce
     use nonlinear_terms, only: calculate_current_nl_source_and_cfl_limit, error_target
     use gs2_layouts, only: g_lo
-    use rk_schemes, only: rk_scheme, get_rk_scheme, rk_cashkarp
+    use rk_schemes, only: rk_scheme
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    type(rk_scheme), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, time_step_limit, error, actual_time_step
     real :: tolerance, new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
-    ! Define the RK scheme
-    type(rk_scheme) :: scheme
     integer :: istage, istage_sub, validity
     real, dimension(:), allocatable :: solution_coeffs
     real, save :: time_step_last = -1
@@ -332,13 +361,6 @@ contains
     counter = 1
     time_step = time_step_last
     tolerance = error_target
-
-    scheme = get_rk_scheme(rk_cashkarp)
-    validity = scheme%validate()
-    if (proc0 .and. (validity /= 0)) then
-       print*,'The RK scheme failed validity check with error code:',validity
-       call mp_abort("RK scheme failed validity check", .true.)
-    end if
 
     ! Copy the relevant coefficients for forming the solution to reduce
     ! later duplication.
@@ -417,6 +439,6 @@ contains
     call fields_func(phinew, aparnew, bparnew)
 
     time_step_last = time_step
-  end subroutine advance_nonlinear_term_rk
+  end subroutine advance_nonlinear_term_rk_implementation
 
 end module split_nonlinear_terms
