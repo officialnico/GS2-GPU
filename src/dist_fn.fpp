@@ -111,7 +111,7 @@ module dist_fn
   public :: get_dist_fn_config
   public :: get_dist_fn_species_config
   public :: get_source_config
-  
+
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
@@ -984,6 +984,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts
     use nonlinear_terms, only: init_nonlinear_terms
     use run_parameters, only: init_run_parameters
@@ -1010,7 +1011,7 @@ contains
     call init_run_parameters
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays
@@ -3290,14 +3291,15 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use nonlinear_terms, only: add_explicit_terms
+    use split_nonlinear_terms, only: advance_nonlinear_term
+    use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
@@ -3308,8 +3310,15 @@ contains
     if (present(mode)) modep = mode
 
     !Calculate the explicit nonlinear terms
-    call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
+    if (split_nonlinear) then
+       ! If we're starting a new full step then advance just the nonlinear term
+       ! by code_dt.
+       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, get_init_field, calculate_current_nl_source_and_cfl_limit)
+    else
+       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
+            phi, apar, bpar, istep, bkdiff(1))
+    end if
+
     call debug_message(verb, &
         'dist_fn::timeadv calculated nonlinear term')
     if(reset .and. immediate_reset) return !Return if resetting
@@ -4609,7 +4618,7 @@ contains
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4632,10 +4641,10 @@ contains
     include_explicit = istep > 0
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -6902,7 +6911,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
     use collisions, only: vnmult
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -6926,10 +6935,10 @@ contains
     endif
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)

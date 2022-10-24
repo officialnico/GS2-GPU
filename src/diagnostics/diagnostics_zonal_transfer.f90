@@ -39,7 +39,7 @@ contains
     call init_le_grids(accel_x, accel_v)
     !> will need to use fft routines
     call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 !!!! accel_x =false : useless
     
   end subroutine init_diagnostics_transfer

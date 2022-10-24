@@ -341,6 +341,8 @@ contains
       else if (argument == "--build-config") then
         write(*, '(a)') formatted_build_config()
         stop
+     else if (argument == "--") then
+        exit
       else if (argument(1:1) == "-") then
         write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
         stop 2
