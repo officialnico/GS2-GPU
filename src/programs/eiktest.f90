@@ -2,6 +2,8 @@
 program eiktest
   use constants, only: pi
   use geometry
+  use file_utils, only: init_file_utils, run_name
+  use command_line, only: cl_iargc
   implicit none
 
   integer :: i, nth, ntgrid, ntheta
@@ -19,7 +21,8 @@ program eiktest
   integer :: nbeta
 
   real :: airat, wgt, wdavg, jac
-  logical :: fast, dipole
+  logical :: fast, dipole, list
+  character (100) :: in_stem, out_stem
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -78,10 +81,18 @@ program eiktest
 
   eqinit = 1       ! Mike K. codes do not have this variable.
 
-      
+  if (cl_iargc() == 0) then
+     in_stem = 'eik'
+     out_stem = ''
+  else
+     call init_file_utils(list)
+     in_stem = trim(run_name)
+     out_stem = trim(in_stem)//'.'
+  endif
+
 !     read in data
-  open(10,file='eik.in')
-  read(10,stuff)
+  open(10,file=trim(in_stem)//'.in')
+  read(10,nml=stuff)
   close(10)
   
   if(bishop >= 7) then
@@ -123,12 +134,12 @@ program eiktest
      chs_eq = .false.
   endif
   
-  open(unit=21,file='eik.out',status='unknown')
-  open(unit=24,file='shear.out',status='unknown')
-  open(unit=25,file='trap.out',status='unknown')
-  open(unit=11,file='eik2.out',status='unknown')
-  open(unit=99,file='eik3.out',status='unknown')
-  open(unit=78,file='eik7.out',status='unknown')
+  open(unit=21,file=trim(out_stem)//'eik.out',status='unknown')
+  open(unit=24,file=trim(out_stem)//'shear.out',status='unknown')
+  open(unit=25,file=trim(out_stem)//'trap.out',status='unknown')
+  open(unit=11,file=trim(out_stem)//'eik2.out',status='unknown')
+  open(unit=99,file=trim(out_stem)//'eik3.out',status='unknown')
+  open(unit=78,file=trim(out_stem)//'eik7.out',status='unknown')
   
   call eikcoefs(ntheta)
 ! note that ntheta may have changed
