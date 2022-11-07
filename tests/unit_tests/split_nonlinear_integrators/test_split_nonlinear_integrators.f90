@@ -41,7 +41,7 @@ program test_split_nonlinear_integrators
 
   exponential_coefficient = 0.1
   do i = 1, nstep
-     call advance_nonlinear_term(phi, apar, bpar, &
+     call advance_nonlinear_term(i, phi, apar, bpar, &
           null_field_op, exponential_source)
   end do
 
