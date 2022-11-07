@@ -195,13 +195,13 @@ contains
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
     case(split_method_ab3)
-       call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case(split_method_backwards_euler)
-       call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case(split_method_rk)
-       call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
