@@ -19,9 +19,9 @@ module split_nonlinear_terms
   !> in the advance_nonlinear_term methods. Used to allow us to pass in these
   !> methods, giving us a way to test the integrators on different problems.
   interface
-     subroutine invert_field_func (phi, apar, bpar, gf_lo)
-       use theta_grid, only: ntgrid
-       complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
+     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo)
+       complex, dimension (:,:,:), intent(in) :: g_in
+       complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
        logical, optional :: gf_lo
      end subroutine invert_field_func
 
@@ -283,7 +283,7 @@ contains
        end select
 
        ! Calculate the fields consistent with the new g
-       call fields_func(phinew, aparnew, bparnew)
+       call fields_func(gnew, phinew, aparnew, bparnew)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -369,7 +369,7 @@ contains
           gnew = g_work
 
           ! Update the fields consistently with the current solution
-          call fields_func(phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew)
        end do
 
        ! Now we need to decide if the last step was successful or not. There are two exit conditions, either the
@@ -428,7 +428,7 @@ contains
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
           gnew = g
-          call fields_func(phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew)
           nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
@@ -513,7 +513,7 @@ contains
           do istage_sub = 1, istage-1
              gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
           end do
-          call fields_func(phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
@@ -572,7 +572,7 @@ contains
 
     if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
     gnew = g
-    call fields_func(phinew, aparnew, bparnew)
+    call fields_func(gnew, phinew, aparnew, bparnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation

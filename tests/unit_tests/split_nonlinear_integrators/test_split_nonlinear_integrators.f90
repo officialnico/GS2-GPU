@@ -70,22 +70,22 @@ program test_split_nonlinear_integrators
 
 contains
 
-     subroutine null_field_op(phi, apar, bpar, gf_lo)
-       use theta_grid, only: ntgrid
-       complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
-       logical, optional :: gf_lo
-     end subroutine null_field_op
+  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo)
+    complex, dimension (:,:,:), intent(in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
+    logical, optional :: gf_lo
+  end subroutine null_field_op
 
-     subroutine exponential_source(g_in, g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
-       use nonlinear_terms, only: cfl
-       complex, dimension (:,:,:), intent (in) :: g_in
-       complex, dimension (:,:,:), intent (out) :: g1
-       complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
-       real, intent(out) :: dt_lim
-       logical, intent(in), optional :: calculate_cfl_limit
-       ! Factor 2 to cancel hard-coded 0.5 in regular NL term
-       g1 = g_in * exponential_coefficient * 2
-       dt_lim = cfl
-     end subroutine exponential_source
+  subroutine exponential_source(g_in, g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+    use nonlinear_terms, only: cfl
+    complex, dimension (:,:,:), intent (in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: g1
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(out) :: dt_lim
+    logical, intent(in), optional :: calculate_cfl_limit
+    ! Factor 2 to cancel hard-coded 0.5 in regular NL term
+    g1 = g_in * exponential_coefficient * 2
+    dt_lim = cfl
+  end subroutine exponential_source
 
 end program test_split_nonlinear_integrators
