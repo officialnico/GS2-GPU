@@ -2,7 +2,7 @@
 !> separately from the linear terms.
 module split_nonlinear_terms
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use rk_schemes, only: rk_scheme
+  use rk_schemes, only: rk_scheme_type
   implicit none
   private
 
@@ -37,7 +37,7 @@ module split_nonlinear_terms
   integer :: split_method_switch
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
-  type(rk_scheme) :: the_rk_scheme
+  type(rk_scheme_type) :: the_rk_scheme
   logical :: show_statistics
   real :: convergence_tolerance
   real :: error_tolerance
@@ -469,11 +469,11 @@ contains
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
-    use rk_schemes, only: rk_scheme
+    use rk_schemes, only: rk_scheme_type
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    type(rk_scheme), intent(in) :: scheme
+    type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, time_step_limit, error, actual_time_step
     real :: new_time_step

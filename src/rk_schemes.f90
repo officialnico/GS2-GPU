@@ -4,7 +4,7 @@ module rk_schemes
 
   private
 
-  public :: rk_scheme, get_rk_scheme, get_rk_scheme_by_id
+  public :: rk_scheme_type, get_rk_scheme, get_rk_scheme_by_id
   public :: get_rk_schemes_as_text_options
   public :: rk_dopri, rk_f45, rk_cashkarp
   public :: rk_heun, rk_ralston, rk_midpoint
@@ -18,7 +18,7 @@ module rk_schemes
   end type rk_scheme_id
 
   !> Public type storing the data for a particular RK scheme
-  type :: rk_scheme
+  type :: rk_scheme_type
      integer :: number_of_stages
      integer :: order
      character(len=20) :: name
@@ -29,7 +29,7 @@ module rk_schemes
      logical :: follow_high_order
    contains
      procedure :: validate => rk_scheme_validate
-  end type rk_scheme
+  end type rk_scheme_type
 
   !> Dormand-Prince 45 method
   type(rk_scheme_id), parameter :: rk_dopri = rk_scheme_id(id=1, name='dopri')
@@ -79,7 +79,7 @@ contains
 
   !> Returns an rk_scheme instance describing the scheme with id matching
   !> the passed id value.
-  type(rk_scheme) function get_rk_scheme_by_id(id) result(scheme)
+  type(rk_scheme_type) function get_rk_scheme_by_id(id) result(scheme)
     use mp, only: mp_abort
     implicit none
     integer, intent(in) :: id
@@ -107,7 +107,7 @@ contains
 
   !> Returns an rk_scheme instance describing the scheme represented by
   !> the passed variant type.
-  type(rk_scheme) function get_rk_scheme(variant) result(scheme)
+  type(rk_scheme_type) function get_rk_scheme(variant) result(scheme)
     use mp, only: mp_abort, proc0
     implicit none
     type(rk_scheme_id), intent(in) :: variant
@@ -246,7 +246,7 @@ contains
   !> checks, if any, failed. Success is repesented by zero.
   integer pure function rk_scheme_validate(self) result(valid)
     implicit none
-    class(rk_scheme), intent(in) :: self
+    class(rk_scheme_type), intent(in) :: self
     integer :: i
     real, parameter :: tolerance = 10*epsilon(1.0)
     valid = 0
