@@ -3298,8 +3298,8 @@ contains
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
@@ -3313,7 +3313,7 @@ contains
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, get_init_field, calculate_current_nl_source_and_cfl_limit)
+       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, get_init_field, calculate_current_nl_source_and_cfl_limit)
     else
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
             phi, apar, bpar, istep, bkdiff(1))

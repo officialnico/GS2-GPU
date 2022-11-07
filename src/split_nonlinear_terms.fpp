@@ -172,15 +172,15 @@ contains
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
-  subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term(phi, apar, bpar, &
        fields_func, source_func)
     use dist_fn_arrays, only: gnew, g
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     implicit none
-    complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
-    complex, dimension (:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    complex, dimension (:,:,:), allocatable :: phinew, aparnew, bparnew
     real :: mp_total_after, mp_total
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -188,6 +188,9 @@ contains
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total)
     call reset_step_statistics
+
+    ! Copy current fields to local copies
+    phinew = phi ; aparnew = apar ; bparnew = bpar
 
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
@@ -213,7 +216,6 @@ contains
     ! field solve and including the NL contribution here leads to
     ! "double counting".
     g = gnew
-    phinew = phi ; aparnew = apar ; bparnew = bpar
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
@@ -230,7 +232,7 @@ contains
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step
     real, dimension(:), allocatable :: ab_coeffs
@@ -307,7 +309,7 @@ contains
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step, time_step_limit
     integer :: counter
@@ -454,7 +456,7 @@ contains
        fields_func, source_func)
     use theta_grid, only: ntgrid
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -475,7 +477,7 @@ contains
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages

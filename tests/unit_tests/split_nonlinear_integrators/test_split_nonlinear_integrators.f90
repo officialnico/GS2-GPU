@@ -22,7 +22,7 @@ program test_split_nonlinear_integrators
   real :: error
   character(len=40) :: name
   integer :: i
-  
+
   call init_mp
   call initialize_wall_clock_timer
   call initialize_gs2(state)
@@ -41,7 +41,7 @@ program test_split_nonlinear_integrators
 
   exponential_coefficient = 0.1
   do i = 1, nstep
-     call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
+     call advance_nonlinear_term(phi, apar, bpar, &
           null_field_op, exponential_source)
   end do
 
@@ -49,7 +49,7 @@ program test_split_nonlinear_integrators
   g = exp(exponential_coefficient * code_dt * nstep)
   error = maxval(abs(gnew - g))
   call max_allreduce(error)
-  
+
   ! Initialise local variables
   agrees = error <= tolerance
 
@@ -59,11 +59,11 @@ program test_split_nonlinear_integrators
      write(output_unit, '("Test case ",A," failed with error = ", E12.5)') &
           trim(adjustl(name)), error
   end if
-  
+
   call process_test(agrees,'split_nonlinear_integrators -- '//trim(name))
-  
+
   call close_module_test('split_nonlinear_integrators')
-  
+
   call finalize_equations(state)
   call finalize_gs2(state)
   call finish_mp
@@ -87,6 +87,5 @@ contains
        g1 = g_in * exponential_coefficient * 2
        dt_lim = cfl
      end subroutine exponential_source
-  
-end program test_split_nonlinear_integrators
 
+end program test_split_nonlinear_integrators
