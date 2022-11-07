@@ -206,11 +206,14 @@ contains
 
     if (proc0 .and. show_statistics) call report_step_statistics
 
-    ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
+    ! Now that we've advanced the explicit terms by code_dt set the
+    ! current state to this new result. Note that we do not update the
+    ! fields, instead resetting them to their original values. The
+    ! update to the fields is calculated as a part of the implicit
+    ! field solve and including the NL contribution here leads to
+    ! "double counting".
     g = gnew
-    phi = phinew
-    apar = aparnew
-    bpar = bparnew
+    phinew = phi ; aparnew = apar ; bparnew = bpar
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
