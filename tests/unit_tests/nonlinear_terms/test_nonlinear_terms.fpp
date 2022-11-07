@@ -14,6 +14,7 @@ program test_nonlinear_terms
   use file_utils, only: init_file_utils, run_name
   use species, only: init_species, nspec
   use dist_fn, only: init_dist_fn, finish_dist_fn
+  use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
@@ -75,7 +76,7 @@ program test_nonlinear_terms
   apar = 0.
   bpar = 0.
   call announce_test('run nonlinear terms')
-  call nonlinear_terms_tests%add_nl(g1, phi, apar, bpar)
+  call nonlinear_terms_tests%add_nl(g, g1, phi, apar, bpar)
   call process_test(.true., 'run nonlinear terms')
 
   call announce_test('fast fourier transforms in nonlinear term')
