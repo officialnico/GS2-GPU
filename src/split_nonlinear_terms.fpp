@@ -158,27 +158,28 @@ contains
     nfailed_steps = 0 ; nrhs_calls = 0 ; nsuccessful_steps = 0
   end subroutine reset_step_statistics
 
-  subroutine report_step_statistics(unit_in)
+  subroutine report_step_statistics(istep, unit_in)
     use iso_fortran_env, only: output_unit
     use optionals, only: get_option_with_default
     implicit none
+    integer, intent(in) :: istep
     integer, intent(in), optional :: unit_in
     integer :: unit
     unit = get_option_with_default(unit_in, output_unit)
-    write(unit,'("Number of internal steps : ",I0," Number of failed steps : ",I0," Number of RHS calls : ",I0)') &
-         nsuccessful_steps, nfailed_steps, nrhs_calls
+    write(unit,'("Iteration : ",I0," Number of internal steps : ",I0," Number of failed steps : ",I0," Number of RHS calls : ",I0)') &
+         istep, nsuccessful_steps, nfailed_steps, nrhs_calls
   end subroutine report_step_statistics
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
-  subroutine advance_nonlinear_term(phi, apar, bpar, &
-       fields_func, source_func)
+  subroutine advance_nonlinear_term(istep, phi, apar, bpar, fields_func, source_func)
     use dist_fn_arrays, only: gnew, g
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     implicit none
+    integer, intent(in) :: istep
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: phinew, aparnew, bparnew
     real :: mp_total_after, mp_total
@@ -207,7 +208,7 @@ contains
        call mp_abort("Invalid split_method_switch", .true.)
     end select
 
-    if (proc0 .and. show_statistics) call report_step_statistics
+    if (proc0 .and. show_statistics) call report_step_statistics(istep)
 
     ! Now that we've advanced the explicit terms by code_dt set the
     ! current state to this new result. Note that we do not update the
@@ -428,6 +429,8 @@ contains
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
           gnew = g
+          ! If we store the initial field then we could perhaps just copy here instead.
+          ! This could be faster as it avoids communications involved in the velocity integration.
           call fields_func(gnew, phinew, aparnew, bparnew)
           nfailed_steps = nfailed_steps + 1
        else
@@ -571,6 +574,10 @@ contains
     end do
 
     if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
+
+    ! We may be able to avoid this copy and field solve on exit if we restructure the main
+    ! loop slightly so gnew represents the new solution. This may require use of g_work
+    ! or similar to hold intermediate values.
     gnew = g
     call fields_func(gnew, phinew, aparnew, bparnew)
 

@@ -3313,7 +3313,7 @@ contains
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, &
+       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(istep, phi, apar, bpar, &
             get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
     else
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
