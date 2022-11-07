@@ -224,7 +224,7 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> AB scheme of orders up to 3rd.
-  subroutine advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
@@ -232,7 +232,6 @@ contains
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step
     real, dimension(:), allocatable :: ab_coeffs
@@ -302,14 +301,13 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> backwards Euler with fixed-point iteration.
-  subroutine advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step, time_step_limit
     integer :: counter
@@ -452,23 +450,22 @@ contains
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control. This method
   !> is a wrapper to the true generic RK implementation.
-  subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
 
     call advance_nonlinear_term_rk_implementation( &
-         phi, apar, bpar, phinew, aparnew, bparnew, &
+         phinew, aparnew, bparnew, &
          fields_func, source_func, the_rk_scheme)
   end subroutine advance_nonlinear_term_rk
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control
-  subroutine advance_nonlinear_term_rk_implementation(phi, apar, bpar, phinew, &
+  subroutine advance_nonlinear_term_rk_implementation(phinew, &
        aparnew, bparnew, fields_func, source_func, scheme)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g, gexp_1
@@ -477,7 +474,6 @@ contains
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
