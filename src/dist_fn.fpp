@@ -3292,7 +3292,7 @@ contains
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use split_nonlinear_terms, only: advance_nonlinear_term
-    use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit
+    use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
@@ -3310,7 +3310,7 @@ contains
     if (present(mode)) modep = mode
 
     !Calculate the explicit nonlinear terms
-    if (split_nonlinear) then
+    if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
        if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, get_init_field, calculate_current_nl_source_and_cfl_limit)

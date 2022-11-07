@@ -1,8 +1,5 @@
-&nonlinear_terms_knobs
-  nonlinear_mode = 'on'
-  split_nonlinear = T
-  split_method = 'AB'
-  cfl = 0.0001
+&split_nonlinear_terms_knobs
+  split_method = 'AB3'
 /
 
 !include test_split_nonlinear_integrators_base.in

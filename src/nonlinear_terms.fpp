@@ -18,8 +18,6 @@ module nonlinear_terms
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
-  public :: split_method_switch, split_method_ab3, split_method_backwards_euler
-  public :: split_method_rk, error_target
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -85,9 +83,6 @@ module nonlinear_terms
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
   logical :: split_nonlinear
-  integer :: split_method_switch
-  integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
-       split_method_rk = 3
 
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
@@ -136,16 +131,6 @@ module nonlinear_terms
      real :: qparfac = 1./sqrt(8.)
      !> GRYFX only. No documentation available
      real :: qprpfac = 1./sqrt(8.)
-     !> What algorithm do we use to advance the nonlinear term if
-     !> split_nonlinear is true.
-     !> Valid options include:
-     !>
-     !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order.
-     !>  - 'beuler' -- Backwards Euler
-     !>  - 'default' -- The same as 'AB3'
-     !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
-     !>
-     character(len = 20) :: split_method = 'default'
      !> Do we evolve the nonlinear term separately from the linear terms (true) or
      !> include the nonlinear term as a source in the standard algorithm (false).
      logical :: split_nonlinear = .false.
@@ -368,14 +353,6 @@ contains
             text_option('off', nonlinear_mode_none), &
             text_option('on', nonlinear_mode_on) ]
     character(len = 20) :: nonlinear_mode
-    type (text_option), dimension (*), parameter :: split_method_opts = &
-         [ &
-         text_option('default', split_method_ab3), &
-         text_option('AB3', split_method_ab3), &
-         text_option('RK', split_method_rk), &
-         text_option('beuler', split_method_backwards_euler)  &
-         ]
-    character(len = 20) :: split_method
     integer :: ierr
 
     if (present(nonlinear_terms_config_in)) nonlinear_terms_config = nonlinear_terms_config_in
@@ -391,7 +368,6 @@ contains
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
     qprpfac = nonlinear_terms_config%qprpfac
-    split_method = nonlinear_terms_config%split_method
     split_nonlinear = nonlinear_terms_config%split_nonlinear
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
@@ -406,10 +382,6 @@ contains
     call get_option_value &
          (nonlinear_mode, nonlinearopts, nonlinear_mode_switch, &
          ierr, "nonlinear_mode in nonlinear_terms_knobs",.true.)
-
-    call get_option_value &
-         (split_method, split_method_opts, split_method_switch, &
-         ierr, "split_method in nonlinear_terms_knobs",.true.)
 
     if (nonlinear_mode_switch == nonlinear_mode_on)  then
        nonlin = .true.
@@ -1313,13 +1285,12 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: nonlinear_mode, split_method
+    character(len = 20) :: nonlinear_mode
     integer :: istep_error_start
     logical :: nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
     real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_method, split_nonlinear, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, &
-         zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1333,7 +1304,6 @@ contains
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
     qprpfac = self%qprpfac
-    split_method = self%split_method
     split_nonlinear = self%split_nonlinear
     tparfac = self%tparfac
     tprpfac = self%tprpfac
@@ -1355,7 +1325,6 @@ contains
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
     self%qprpfac = qprpfac
-    self%split_method = split_method
     self%split_nonlinear = split_nonlinear
     self%tparfac = tparfac
     self%tprpfac = tprpfac
@@ -1388,7 +1357,6 @@ contains
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
     call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
-    call self%write_key_val("split_method", self%split_method, unit_internal)
     call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
@@ -1423,7 +1391,6 @@ contains
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
     call broadcast(self%qprpfac)
-    call broadcast(self%split_method)
     call broadcast(self%split_nonlinear)
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)

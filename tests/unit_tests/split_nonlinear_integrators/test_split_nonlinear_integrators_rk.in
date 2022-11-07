@@ -1,7 +1,5 @@
-&nonlinear_terms_knobs
-  nonlinear_mode = 'on'
-  split_nonlinear = T
-  error_target = 1.0e-6
+&split_nonlinear_terms_knobs
+  error_tolerance = 1.0e-6
   split_method = 'RK'
 /
 

@@ -4,20 +4,24 @@ module rk_schemes
 
   private
 
-  public :: rk_scheme, get_rk_scheme
+  public :: rk_scheme_type, get_rk_scheme, get_rk_scheme_by_id
+  public :: get_rk_schemes_as_text_options
   public :: rk_dopri, rk_f45, rk_cashkarp
   public :: rk_heun, rk_ralston, rk_midpoint
   public :: rk_bs23, rk_bs45
 
   !> Internal named type to represent scheme ids
-  type rk_scheme_id
-     integer, private :: id
-  end type rk_scheme_id
+  type rk_scheme_id_type
+     private
+     integer :: id
+     character(len=20) :: name
+  end type rk_scheme_id_type
 
   !> Public type storing the data for a particular RK scheme
-  type :: rk_scheme
+  type :: rk_scheme_type
      integer :: number_of_stages
      integer :: order
+     character(len=20) :: name
      real, dimension(:), allocatable :: lower_order_coeffs
      real, dimension(:), allocatable :: high_order_coeffs
      real, dimension(:), allocatable :: time_points
@@ -25,39 +29,91 @@ module rk_schemes
      logical :: follow_high_order
    contains
      procedure :: validate => rk_scheme_validate
-  end type rk_scheme
+  end type rk_scheme_type
 
   !> Dormand-Prince 45 method
-  type(rk_scheme_id), parameter :: rk_dopri = rk_scheme_id(id=1)
+  type(rk_scheme_id_type), parameter :: rk_dopri = rk_scheme_id_type(id=1, name='dopri')
 
   !> Runge-Kutta-Fehlberg 45 method
-  type(rk_scheme_id), parameter :: rk_f45 = rk_scheme_id(id=2)
+  type(rk_scheme_id_type), parameter :: rk_f45 = rk_scheme_id_type(id=2, name='rkf45')
 
   !> Cash-Karp 45 method
-  type(rk_scheme_id), parameter :: rk_cashkarp = rk_scheme_id(id=3)
+  type(rk_scheme_id_type), parameter :: rk_cashkarp = rk_scheme_id_type(id=3, name='cashkarp')
 
   !> Heun-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_heun = rk_scheme_id(id=4)
+  type(rk_scheme_id_type), parameter :: rk_heun = rk_scheme_id_type(id=4, name='heun')
 
   !> Ralston-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_ralston = rk_scheme_id(id=5)
+  type(rk_scheme_id_type), parameter :: rk_ralston = rk_scheme_id_type(id=5, name='ralston')
 
   !> Midpoint-Euler 12 method
-  type(rk_scheme_id), parameter :: rk_midpoint = rk_scheme_id(id=6)
+  type(rk_scheme_id_type), parameter :: rk_midpoint = rk_scheme_id_type(id=6, name='midpoint')
 
   !> Bogacki-Shampine 23 method
-  type(rk_scheme_id), parameter :: rk_bs23 = rk_scheme_id(id=7)
+  type(rk_scheme_id_type), parameter :: rk_bs23 = rk_scheme_id_type(id=7, name='bs23')
 
   !> Bogacki-Shampine 45 method
-  type(rk_scheme_id), parameter :: rk_bs45 = rk_scheme_id(id=8)
+  type(rk_scheme_id_type), parameter :: rk_bs45 = rk_scheme_id_type(id=8, name='bs45')
 
 contains
 
+  !> Returns an array of text_option values representing the known rk schemes, mapping
+  !> names to integer ids
+  pure function get_rk_schemes_as_text_options() result(options)
+    use text_options, only: text_option
+    implicit none
+    type(text_option), dimension(:), allocatable :: options
+
+    options = [ &
+         text_option(rk_dopri%name, rk_dopri%id), &
+         text_option(rk_f45%name, rk_f45%id), &
+         text_option(rk_cashkarp%name, rk_cashkarp%id), &
+         text_option(rk_heun%name, rk_heun%id), &
+         text_option(rk_ralston%name, rk_ralston%id), &
+         text_option(rk_midpoint%name, rk_midpoint%id), &
+         text_option(rk_bs23%name, rk_bs23%id), &
+         text_option(rk_bs45%name, rk_bs45%id), &
+         text_option('default', rk_heun%id) &
+         ]
+  end function get_rk_schemes_as_text_options
+
+  !> Returns an rk_scheme instance describing the scheme with id matching
+  !> the passed id value.
+  type(rk_scheme_type) function get_rk_scheme_by_id(id) result(scheme)
+    use mp, only: mp_abort
+    implicit none
+    integer, intent(in) :: id
+    select case(id)
+    case(rk_dopri%id)
+       scheme = get_rk_scheme(rk_dopri)
+    case(rk_f45%id)
+       scheme = get_rk_scheme(rk_f45)
+    case(rk_cashkarp%id)
+       scheme = get_rk_scheme(rk_cashkarp)
+    case(rk_heun%id)
+       scheme = get_rk_scheme(rk_heun)
+    case(rk_ralston%id)
+       scheme = get_rk_scheme(rk_ralston)
+    case(rk_midpoint%id)
+       scheme = get_rk_scheme(rk_midpoint)
+    case(rk_bs23%id)
+       scheme = get_rk_scheme(rk_bs23)
+    case(rk_bs45%id)
+       scheme = get_rk_scheme(rk_bs45)
+    case default
+       call mp_abort("Invalid RK scheme id passed to get_rk_scheme_by_id", .true.)
+    end select
+  end function get_rk_scheme_by_id
+
   !> Returns an rk_scheme instance describing the scheme represented by
   !> the passed variant type.
-  pure type(rk_scheme) function get_rk_scheme(variant) result(scheme)
+  type(rk_scheme_type) function get_rk_scheme(variant) result(scheme)
+    use mp, only: mp_abort, proc0
     implicit none
-    type(rk_scheme_id), intent(in) :: variant
+    type(rk_scheme_id_type), intent(in) :: variant
+    integer :: validity
+
+    scheme%name = variant%name
 
     select case(variant%id)
     case(rk_dopri%id)
@@ -173,7 +229,15 @@ contains
             666106/1039181.0, -29421/29068.0, 482048/414219.0]
        scheme%coeffs(:7, 8) = [587/8064.0, 0.0, 4440339/15491840.0, 24353/124800.0, &
             387/44800.0, 2152/5985.0, 7267/94080.0]
+    case default
+       call mp_abort("Invalid RK scheme passed to get_rk_scheme", .true.)
     end select
+
+    validity = scheme%validate()
+    if (proc0 .and. (validity /= 0)) then
+       print*,'The RK scheme failed validity check with error code:',validity,'and scheme',scheme%name
+       call mp_abort("RK scheme failed validity check", .true.)
+    end if
 
   end function get_rk_scheme
 
@@ -182,7 +246,7 @@ contains
   !> checks, if any, failed. Success is repesented by zero.
   integer pure function rk_scheme_validate(self) result(valid)
     implicit none
-    class(rk_scheme), intent(in) :: self
+    class(rk_scheme_type), intent(in) :: self
     integer :: i
     real, parameter :: tolerance = 10*epsilon(1.0)
     valid = 0
