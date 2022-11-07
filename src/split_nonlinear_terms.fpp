@@ -25,7 +25,8 @@ module split_nonlinear_terms
        logical, optional :: gf_lo
      end subroutine invert_field_func
 
-     subroutine source_term_func(g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+     subroutine source_term_func(g_in, g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+       complex, dimension (:,:,:), intent (in) :: g_in
        complex, dimension (:,:,:), intent (out) :: g1
        complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
        real, intent(out) :: dt_lim
@@ -245,7 +246,7 @@ contains
     ! Keep taking explicit steps until we have advanced by code_dt
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
-       call source_func(gexp_1, phinew, aparnew, bparnew, &
+       call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
             time_step, calculate_cfl_limit = .true.)
        nrhs_calls = nrhs_calls + 1
 
@@ -335,7 +336,7 @@ contains
 
        ! Calculate the current NL source term, for use in error
        ! estimates later.
-       call source_func(gexp_2, phinew, aparnew, bparnew, &
+       call source_func(gnew, gexp_2, phinew, aparnew, bparnew, &
             time_step_limit, calculate_cfl_limit = .false.)
        nrhs_calls = nrhs_calls + 1
 
@@ -345,7 +346,7 @@ contains
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
-          call source_func(gexp_1, phinew, aparnew, bparnew, &
+          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
@@ -399,7 +400,7 @@ contains
           ! rely on using the existing value of gexp_1(g_work) as, whilst this is
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
-          call source_func(gexp_1, phinew, aparnew, bparnew, &
+          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
@@ -514,7 +515,7 @@ contains
           call fields_func(phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
-          call source_func(gexp_1, &
+          call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
                time_step_limit, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
