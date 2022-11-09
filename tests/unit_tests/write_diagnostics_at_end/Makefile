@@ -10,14 +10,22 @@ else
 #Define this tests level
 MY_TEST_LEVEL=1
 VAL:= $(shell expr ${MY_TEST_LEVEL} \<= ${TEST_LEVEL})
+ifdef USE_NETCDF
 ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
 all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+ifdef USE_NEW_DIAG
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_new.in)
+else
+	$(call SKIPCOMMAND,compiled without new diagnostics; compile with USE_NEW_DIAG=on to run this test)
+endif
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_exact_nwrite.in)
+endif
+else
+	$(call SKIPCOMMAND,compiled without NETCDF; compile with USE_NETCDF to run this test)
 endif
 endif
 
