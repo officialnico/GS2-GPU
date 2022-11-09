@@ -25,7 +25,8 @@ module split_nonlinear_terms
        logical, optional :: gf_lo
      end subroutine invert_field_func
 
-     subroutine source_term_func(g_in, g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+     subroutine source_term_func(g_in, g1, phi, apar, bpar, dt_lim, &
+          need_to_adjust, calculate_cfl_limit)
        complex, dimension (:,:,:), intent (in) :: g_in
        complex, dimension (:,:,:), intent (out) :: g1
        complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
