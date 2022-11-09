@@ -3291,7 +3291,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use split_nonlinear_terms, only: advance_nonlinear_term
+    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn
     use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
@@ -3313,8 +3313,16 @@ contains
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) call advance_nonlinear_term(istep, phi, apar, bpar, &
-            get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+       if (istep > 0 .and. istep /= istep_last) then       
+          if (advance_nonadiabatic_dfn) then
+             call advance_nonlinear_term(istep, phi, apar, bpar, &
+                  calculate_potentials_from_nonadiabatic_dfn, &
+                  calculate_current_nl_source_and_cfl_limit)
+          else
+             call advance_nonlinear_term(istep, phi, apar, bpar, &
+                  get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+          end if
+       end if
     else
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
             phi, apar, bpar, istep, bkdiff(1))

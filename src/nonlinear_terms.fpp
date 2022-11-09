@@ -734,17 +734,18 @@ contains
   !> Calculates the current nonlinear source term by calling add_nl
   !> and the associated cfl limit.
   subroutine calculate_current_nl_source_and_cfl_limit(g_in, g1, phi, apar, bpar, &
-       max_vel_local, calculate_cfl_limit)
+       max_vel_local, need_to_adjust, calculate_cfl_limit)
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (:,:,:), intent (out) :: g1
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
     real, intent(out) :: max_vel_local
+    logical, intent(in) :: need_to_adjust
     logical, intent(in), optional :: calculate_cfl_limit
 
     use_cfl_limit = get_option_with_default(calculate_cfl_limit, .true.)
-    call add_nl(g_in, g1, phi, apar, bpar)
+    call add_nl(g_in, g1, phi, apar, bpar, need_to_adjust)
 
     if (use_cfl_limit) then
        ! This code may need changing if the handling of the cfl limit changes

@@ -30,6 +30,7 @@ module split_nonlinear_terms
        complex, dimension (:,:,:), intent (out) :: g1
        complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
        real, intent(out) :: dt_lim
+       logical, intent(in) :: need_to_adjust
        logical, intent(in), optional :: calculate_cfl_limit
      end subroutine source_term_func
   end interface
@@ -39,7 +40,7 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
   type(rk_scheme_type) :: the_rk_scheme
-  logical :: show_statistics
+  logical :: show_statistics, advance_nonadiabatic_dfn
   real :: convergence_tolerance
   real :: error_tolerance
 
@@ -47,6 +48,9 @@ module split_nonlinear_terms
   type, extends(abstract_config_type) :: split_nonlinear_terms_config_type
      ! namelist : split_nonlinear_terms_knobs
      ! indexed : false
+     !> If true then nonlinear integrator advances the nonadiabatic dfn, h,
+     !> rather than the modified distribution function, g.
+     logical :: advance_nonadiabatic_dfn
      !> The tolerance used in convergence checks. Currently only used
      !> for halting the fixed-point iteration in the beuler method
      real :: convergence_tolerance = 1.0e-2
@@ -126,6 +130,7 @@ contains
     call split_nonlinear_terms_config%init(name = 'split_nonlinear_terms_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
+    advance_nonadiabatic_dfn = split_nonlinear_terms_config%advance_nonadiabatic_dfn
     convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
     error_tolerance = split_nonlinear_terms_config%error_tolerance
     rk_method = split_nonlinear_terms_config%rk_method
@@ -174,7 +179,7 @@ contains
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
   subroutine advance_nonlinear_term(istep, phi, apar, bpar, fields_func, source_func)
-    use dist_fn_arrays, only: gnew, g
+    use dist_fn_arrays, only: gnew, g, g_adjust
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -193,6 +198,17 @@ contains
     ! Copy current fields to local copies
     phinew = phi ; aparnew = apar ; bparnew = bpar
 
+    ! If we want to advance h rather than g then adjust
+    ! here to get h. Note we rely on the call site also
+    ! providing the correct fields_func to calculate fields
+    ! from h rather than g. A different option would be
+    ! to require the call site to always pass a way to calculate
+    ! from g and a way from h and we then decide here which to use.
+    if (advance_nonadiabatic_dfn) then
+       call g_adjust(g, phinew, bparnew, fphi, fbpar)
+       gnew = g
+    end if
+
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
     case(split_method_ab3)
@@ -209,6 +225,11 @@ contains
     end select
 
     if (proc0 .and. show_statistics) call report_step_statistics(istep)
+
+    ! If we advanced h then we need to reconstruct g from this
+    if (advance_nonadiabatic_dfn) then
+       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+    end if
 
     ! Now that we've advanced the explicit terms by code_dt set the
     ! current state to this new result. Note that we do not update the
@@ -252,7 +273,8 @@ contains
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
        call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-            max_vel, calculate_cfl_limit = .true.)
+            max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+            calculate_cfl_limit = .true.)
        nrhs_calls = nrhs_calls + 1
 
        ! Get the maximum velocity across all processors
@@ -346,7 +368,8 @@ contains
        ! Calculate the current NL source term, for use in error
        ! estimates later.
        call source_func(gnew, gexp_2, phinew, aparnew, bparnew, &
-            max_vel, calculate_cfl_limit = .false.)
+            max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+            calculate_cfl_limit = .false.)
        nrhs_calls = nrhs_calls + 1
 
        ! Try to take a step of size actual_dt using fixed point iteration with
@@ -356,7 +379,8 @@ contains
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
           call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-               max_vel, calculate_cfl_limit = .false.)
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
@@ -410,7 +434,8 @@ contains
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
           call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-               max_vel, calculate_cfl_limit = .false.)
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
@@ -526,7 +551,8 @@ contains
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
-               max_vel, calculate_cfl_limit = .false.)
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           stages(:, :, :, istage) = 0.5 * gexp_1
@@ -606,15 +632,16 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
-    logical :: show_statistics
+    logical :: advance_nonadiabatic_dfn, show_statistics
     real :: convergence_tolerance, error_tolerance
 
-    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
+    namelist /split_nonlinear_terms_knobs/ advance_nonadiabatic_dfn, convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
+    advance_nonadiabatic_dfn = self%advance_nonadiabatic_dfn
     convergence_tolerance = self%convergence_tolerance
     error_tolerance = self%error_tolerance
     rk_method = self%rk_method
@@ -626,6 +653,7 @@ contains
     if (exist) read(in_file, nml = split_nonlinear_terms_knobs)
 
     ! Now copy from local variables into type members
+    self%advance_nonadiabatic_dfn = advance_nonadiabatic_dfn
     self%convergence_tolerance = convergence_tolerance
     self%error_tolerance = error_tolerance
     self%rk_method = rk_method
@@ -648,6 +676,7 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
+    call self%write_key_val("advance_nonadiabatic_dfn", self%advance_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
     call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
@@ -672,6 +701,7 @@ contains
     use mp, only: broadcast
     implicit none
     class(split_nonlinear_terms_config_type), intent(in out) :: self
+    call broadcast(self%advance_nonadiabatic_dfn)
     call broadcast(self%convergence_tolerance)
     call broadcast(self%error_tolerance)
     call broadcast(self%rk_method)
