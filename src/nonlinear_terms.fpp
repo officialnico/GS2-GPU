@@ -756,7 +756,7 @@ contains
   end subroutine calculate_current_nl_source_and_cfl_limit
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
-  subroutine add_nl (g_in, g1, phi, apar, bpar)
+  subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g_adjust
@@ -766,16 +766,20 @@ contains
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
+    logical, intent(in), optional :: adjust
+    logical :: should_adjust
     real :: dt_cfl
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
+    should_adjust = get_option_with_default(adjust, .true.)
 
     !Form g1=i*kx*chi
     call load_kx_phi(g1, phi)    
@@ -794,7 +798,7 @@ contains
     
     !Form g1=i*ky*g_wesson
     g1 = g_in
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
@@ -834,7 +838,7 @@ contains
 
     !Form g1=i*kx*g_wesson
     g1 = g_in
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
