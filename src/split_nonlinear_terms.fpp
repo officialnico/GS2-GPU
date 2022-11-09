@@ -7,7 +7,7 @@ module split_nonlinear_terms
   private
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
-  public :: advance_nonlinear_term
+  public :: advance_nonlinear_term, advance_nonadiabatic_dfn
 
   logical :: initialized = .false.
 
