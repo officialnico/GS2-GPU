@@ -1088,6 +1088,8 @@ contains
 
     !Set the current time
     t = user_time
+    !Always skip if we've already done this step
+    if (istep == istep_last) return
 
     do_force = get_option_with_default(force, .false.)
 
@@ -1115,8 +1117,6 @@ contains
     !########################################################
     !The rest of the routine only happens every nwrite steps
     !########################################################
-    !Always skip if we've already done this step
-    if (istep == istep_last) return
     if (mod(istep,nwrite) /= 0 .and. .not. exit .and. .not. do_force) return
 
     ! If we get here then we're doing a full set of diagnostics
