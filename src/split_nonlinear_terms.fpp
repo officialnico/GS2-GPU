@@ -184,6 +184,7 @@ contains
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use run_parameters, only: fphi, fbpar
     implicit none
     integer, intent(in) :: istep
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
