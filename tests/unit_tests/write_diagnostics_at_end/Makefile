@@ -25,6 +25,7 @@ endif
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_exact_nwrite.in)
 endif
 else
+all: ${TEST_BASE_NAME}
 	$(call SKIPCOMMAND,compiled without NETCDF; compile with USE_NETCDF to run this test)
 endif
 endif
