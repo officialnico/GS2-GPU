@@ -51,7 +51,7 @@ module split_nonlinear_terms
      ! indexed : false
      !> If true then nonlinear integrator advances the nonadiabatic dfn, h,
      !> rather than the modified distribution function, g.
-     logical :: advance_nonadiabatic_dfn
+     logical :: advance_nonadiabatic_dfn = .false.
      !> The tolerance used in convergence checks. Currently only used
      !> for halting the fixed-point iteration in the beuler method
      real :: convergence_tolerance = 1.0e-2
