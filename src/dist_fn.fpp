@@ -6744,25 +6744,34 @@ contains
   !> simulation. We should provide a method to calculate these fields even
   !> if they are not included in the evolution (e.g. for diagnostics,
   !> collisions etc.). Perhaps an optional flag here would be enough.
-  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar, gf_lo)
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
     use run_parameters, only: fphi, fapar, fbpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
     use species, only: nspec, spec, has_electron_species, has_ion_species
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
+    logical, optional :: gf_lo
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real, dimension(nspec) :: weights
     real :: phi_weight
+    logical :: local_gf_lo
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
 
+    local_gf_lo = get_option_with_default(gf_lo, .false.)
+
     ! Get the weighted velocity space integrals of the passed
     ! distribution function.
-    call getan_from_dfn(f_in, antot, antota, antotp)
+    if(local_gf_lo) then
+       call getan_nogath_from_dfn (f_in, antot, antota, antotp)
+    else
+       call getan_from_dfn (f_in, antot, antota, antotp)
+    end if
 
     if (fphi > 0) then
        ! We could add in kperp2*poisfac to the weight to retain this feature
