@@ -231,10 +231,10 @@ contains
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
-    use mp, only: mp_abort
+    use mp, only: mp_abort, max_allreduce
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    real :: internal_time, time_step
+    real :: internal_time, time_step, max_vel
     real, dimension(:), allocatable :: ab_coeffs
     integer :: counter
     procedure(invert_field_func) :: fields_func
@@ -252,8 +252,13 @@ contains
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
        call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-            time_step, calculate_cfl_limit = .true.)
+            max_vel, calculate_cfl_limit = .true.)
        nrhs_calls = nrhs_calls + 1
+
+       ! Get the maximum velocity across all processors
+       ! and convert to time_step estimate.
+       call max_allreduce(max_vel)
+       time_step = 1.0 / max_vel
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -310,7 +315,7 @@ contains
     use mp, only: mp_abort, max_allreduce, proc0
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    real :: internal_time, time_step, time_step_limit
+    real :: internal_time, time_step, max_vel
     integer :: counter
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
@@ -341,7 +346,7 @@ contains
        ! Calculate the current NL source term, for use in error
        ! estimates later.
        call source_func(gnew, gexp_2, phinew, aparnew, bparnew, &
-            time_step_limit, calculate_cfl_limit = .false.)
+            max_vel, calculate_cfl_limit = .false.)
        nrhs_calls = nrhs_calls + 1
 
        ! Try to take a step of size actual_dt using fixed point iteration with
@@ -351,7 +356,7 @@ contains
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
           call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+               max_vel, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
@@ -405,7 +410,7 @@ contains
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
           call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+               max_vel, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
@@ -480,7 +485,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
-    real :: internal_time, time_step, time_step_limit, error, actual_time_step
+    real :: internal_time, time_step, max_vel, error, actual_time_step
     real :: new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
@@ -521,7 +526,7 @@ contains
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+               max_vel, calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           stages(:, :, :, istage) = 0.5 * gexp_1
