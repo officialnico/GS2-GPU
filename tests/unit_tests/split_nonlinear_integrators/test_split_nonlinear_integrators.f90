@@ -76,17 +76,17 @@ contains
     logical, optional :: gf_lo
   end subroutine null_field_op
 
-  subroutine exponential_source(g_in, g1, phi, apar, bpar, dt_lim, need_to_adjust, calculate_cfl_limit)
+  subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)
     use nonlinear_terms, only: cfl
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (:,:,:), intent (out) :: g1
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
-    real, intent(out) :: dt_lim
+    real, intent(out) :: max_vel_local
     logical, intent(in) :: need_to_adjust
     logical, intent(in), optional :: calculate_cfl_limit
     ! Factor 2 to cancel hard-coded 0.5 in regular NL term
     g1 = g_in * exponential_coefficient * 2
-    dt_lim = cfl
+    max_vel_local = 1.0/cfl
   end subroutine exponential_source
 
 end program test_split_nonlinear_integrators
