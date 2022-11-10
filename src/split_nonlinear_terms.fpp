@@ -230,7 +230,7 @@ contains
 
     ! If we advanced h then we need to reconstruct g from this
     if (advance_nonadiabatic_dfn) then
-       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+       call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
     end if
 
     ! Now that we've advanced the explicit terms by code_dt set the
