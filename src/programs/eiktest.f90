@@ -3,7 +3,6 @@ program eiktest
   use constants, only: pi
   use geometry
   use file_utils, only: init_file_utils, run_name
-  use command_line, only: cl_iargc
   implicit none
 
   integer :: i, nth, ntgrid, ntheta
@@ -81,7 +80,7 @@ program eiktest
 
   eqinit = 1       ! Mike K. codes do not have this variable.
 
-  if (cl_iargc() == 0) then
+  if (command_argument_count() == 0) then
      in_stem = 'eik'
      out_stem = ''
   else
