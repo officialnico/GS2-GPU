@@ -17,7 +17,7 @@ program eiktest
   real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
-  integer :: nbeta
+  integer :: nbeta, funit
 
   real :: airat, wgt, wdavg, jac
   logical :: fast, dipole, list
@@ -94,9 +94,9 @@ program eiktest
   endif
 
 !     read in data
-  open(10,file=trim(in_stem)//'.in')
-  read(10,nml=stuff)
-  close(10)
+  open(newunit=funit,file=in_stem//'.in')
+  read(funit,nml=stuff)
+  close(funit)
   
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
