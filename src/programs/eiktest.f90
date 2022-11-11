@@ -21,7 +21,7 @@ program eiktest
 
   real :: airat, wgt, wdavg, jac
   logical :: fast, dipole, list
-  character (100) :: in_stem, out_stem
+  character(len=:), allocatable :: in_stem, out_stem
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -81,10 +81,14 @@ program eiktest
   eqinit = 1       ! Mike K. codes do not have this variable.
 
   if (command_argument_count() == 0) then
+     allocate(character(len=3)::in_stem)
      in_stem = 'eik'
+     allocate(character(len=0)::out_stem)
      out_stem = ''
   else
      call init_file_utils(list)
+     allocate(character(len=len_trim(run_name))::in_stem)
+     allocate(character(len=len_trim(run_name)+1)::out_stem)
      in_stem = trim(run_name)
      out_stem = trim(in_stem)//'.'
   endif
@@ -133,12 +137,12 @@ program eiktest
      chs_eq = .false.
   endif
   
-  open(unit=21,file=trim(out_stem)//'eik.out',status='unknown')
-  open(unit=24,file=trim(out_stem)//'shear.out',status='unknown')
-  open(unit=25,file=trim(out_stem)//'trap.out',status='unknown')
-  open(unit=11,file=trim(out_stem)//'eik2.out',status='unknown')
-  open(unit=99,file=trim(out_stem)//'eik3.out',status='unknown')
-  open(unit=78,file=trim(out_stem)//'eik7.out',status='unknown')
+  open(unit=21,file=out_stem//'eik.out',status='unknown')
+  open(unit=24,file=out_stem//'shear.out',status='unknown')
+  open(unit=25,file=out_stem//'trap.out',status='unknown')
+  open(unit=11,file=out_stem//'eik2.out',status='unknown')
+  open(unit=99,file=out_stem//'eik3.out',status='unknown')
+  open(unit=78,file=out_stem//'eik7.out',status='unknown')
   
   call eikcoefs(ntheta)
 ! note that ntheta may have changed
