@@ -1,0 +1,14 @@
+!include defaults.in
+
+&knobs
+ nstep = 1
+ delt = 1.0
+ use_old_diagnostics = F
+/
+
+&gs2_diagnostics_knobs
+write_ascii = F
+write_line = F
+print_line = F
+nwrite = 2
+/
