@@ -1067,8 +1067,6 @@ contains
     call broadcast (constant_random_flag)
     ! <RN
     call set_restart_file (restart_file)
-    call broadcast(constant_random_flag)
-    
     if (proc_to_save_fields >= 0) proc_to_save_fields = mod(proc_to_save_fields, nproc)
   end subroutine init_init_g
 
