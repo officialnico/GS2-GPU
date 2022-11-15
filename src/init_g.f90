@@ -286,6 +286,10 @@ module init_g
      real :: phiinit0 = 0.0
      !> Amplitude of random perturbation. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit_rand = 0.0
+     !> Which processor is responsible for saving/reading potentials to/from restart
+     !> files. If <0 then all procs write to restart files. If >= nproc then set to
+     !> proc_to_save_fields = mod(proc_to_save_fields, nproc)
+     integer :: proc_to_save_fields = -1
      !> Width of "porcelli", "doubleharris" profiles in
      !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
@@ -969,9 +973,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_init_g(init_g_config_in)
-    use gs2_save, only: set_restart_file, read_many
+    use gs2_save, only: set_restart_file, read_many, proc_to_save_fields
     use gs2_layouts, only: init_gs2_layouts
-    use mp, only: proc0, broadcast, job
+    use mp, only: proc0, broadcast, job, nproc
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in    
     integer :: ind_slash
@@ -1028,6 +1032,7 @@ contains
     call broadcast (max_mode)
     call broadcast (clean_init)
     call broadcast (restart_file)
+    call broadcast (proc_to_save_fields)
     call broadcast (read_many)
     call broadcast (ikk)
     call broadcast (itt) 
@@ -1064,6 +1069,7 @@ contains
     call set_restart_file (restart_file)
     call broadcast(constant_random_flag)
     
+    if (proc_to_save_fields >= 0) proc_to_save_fields = mod(proc_to_save_fields, nproc)
   end subroutine init_init_g
 
   !> FIXME : Add documentation  
@@ -1279,9 +1285,8 @@ contains
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use gs2_save, only: read_many, include_explicit_source_in_restart
+    use gs2_save, only: read_many, include_explicit_source_in_restart, proc_to_save_fields
     use job_manage, only: trin_restart
-
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
@@ -1381,6 +1386,7 @@ contains
     phiinit = init_g_config%phiinit
     phiinit0 = init_g_config%phiinit0
     phiinit_rand = init_g_config%phiinit_rand
+    proc_to_save_fields = init_g_config%proc_to_save_fields
     prof_width = init_g_config%prof_width
     read_many = init_g_config%read_many
     refac = init_g_config%refac
@@ -4615,7 +4621,7 @@ contains
     character(len = 2000) :: restart_file
     complex, dimension(3) :: nkxy_pt, ukxy_pt
     complex, dimension(6) :: aparamp, phiamp
-    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, restart_eig_id
+    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
     logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
@@ -4624,7 +4630,7 @@ contains
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
          include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, &
-         phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
+         phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
          upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
@@ -4671,6 +4677,7 @@ contains
     phiinit = self%phiinit
     phiinit0 = self%phiinit0
     phiinit_rand = self%phiinit_rand
+    proc_to_save_fields = self%proc_to_save_fields
     prof_width = self%prof_width
     read_many = self%read_many
     refac = self%refac
@@ -4737,6 +4744,7 @@ contains
     self%phiinit = phiinit
     self%phiinit0 = phiinit0
     self%phiinit_rand = phiinit_rand
+    self%proc_to_save_fields = proc_to_save_fields
     self%prof_width = prof_width
     self%read_many = read_many
     self%refac = refac
@@ -4814,6 +4822,7 @@ contains
     call self%write_key_val("phiinit", self%phiinit, unit_internal)
     call self%write_key_val("phiinit0", self%phiinit0, unit_internal)
     call self%write_key_val("phiinit_rand", self%phiinit_rand, unit_internal)
+    call self%write_key_val("proc_to_save_fields", self%proc_to_save_fields, unit_internal)
     call self%write_key_val("prof_width", self%prof_width, unit_internal)
     call self%write_key_val("read_many", self%read_many, unit_internal)
     call self%write_key_val("refac", self%refac, unit_internal)
@@ -4893,6 +4902,7 @@ contains
     call broadcast(self%phiinit)
     call broadcast(self%phiinit0)
     call broadcast(self%phiinit_rand)
+    call broadcast(self%proc_to_save_fields)
     call broadcast(self%prof_width)
     call broadcast(self%read_many)
     call broadcast(self%refac)
