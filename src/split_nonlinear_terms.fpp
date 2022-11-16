@@ -7,7 +7,7 @@ module split_nonlinear_terms
   private
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
-  public :: advance_nonlinear_term
+  public :: advance_nonlinear_term, advance_nonadiabatic_dfn
 
   logical :: initialized = .false.
 
@@ -19,16 +19,19 @@ module split_nonlinear_terms
   !> in the advance_nonlinear_term methods. Used to allow us to pass in these
   !> methods, giving us a way to test the integrators on different problems.
   interface
-     subroutine invert_field_func (phi, apar, bpar, gf_lo)
-       use theta_grid, only: ntgrid
-       complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
+     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo)
+       complex, dimension (:,:,:), intent(in) :: g_in
+       complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
        logical, optional :: gf_lo
      end subroutine invert_field_func
 
-     subroutine source_term_func(g1, phi, apar, bpar, dt_lim, calculate_cfl_limit)
+     subroutine source_term_func(g_in, g1, phi, apar, bpar, max_vel_local, &
+          need_to_adjust, calculate_cfl_limit)
+       complex, dimension (:,:,:), intent (in) :: g_in
        complex, dimension (:,:,:), intent (out) :: g1
        complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
-       real, intent(out) :: dt_lim
+       real, intent(out) :: max_vel_local
+       logical, intent(in) :: need_to_adjust
        logical, intent(in), optional :: calculate_cfl_limit
      end subroutine source_term_func
   end interface
@@ -38,7 +41,7 @@ module split_nonlinear_terms
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
        split_method_rk = 3
   type(rk_scheme_type) :: the_rk_scheme
-  logical :: show_statistics
+  logical :: show_statistics, advance_nonadiabatic_dfn
   real :: convergence_tolerance
   real :: error_tolerance
 
@@ -46,6 +49,9 @@ module split_nonlinear_terms
   type, extends(abstract_config_type) :: split_nonlinear_terms_config_type
      ! namelist : split_nonlinear_terms_knobs
      ! indexed : false
+     !> If true then nonlinear integrator advances the nonadiabatic dfn, h,
+     !> rather than the modified distribution function, g.
+     logical :: advance_nonadiabatic_dfn = .false.
      !> The tolerance used in convergence checks. Currently only used
      !> for halting the fixed-point iteration in the beuler method
      real :: convergence_tolerance = 1.0e-2
@@ -125,6 +131,7 @@ contains
     call split_nonlinear_terms_config%init(name = 'split_nonlinear_terms_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
+    advance_nonadiabatic_dfn = split_nonlinear_terms_config%advance_nonadiabatic_dfn
     convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
     error_tolerance = split_nonlinear_terms_config%error_tolerance
     rk_method = split_nonlinear_terms_config%rk_method
@@ -157,29 +164,31 @@ contains
     nfailed_steps = 0 ; nrhs_calls = 0 ; nsuccessful_steps = 0
   end subroutine reset_step_statistics
 
-  subroutine report_step_statistics(unit_in)
+  subroutine report_step_statistics(istep, unit_in)
     use iso_fortran_env, only: output_unit
     use optionals, only: get_option_with_default
     implicit none
+    integer, intent(in) :: istep
     integer, intent(in), optional :: unit_in
     integer :: unit
     unit = get_option_with_default(unit_in, output_unit)
-    write(unit,'("Number of internal steps : ",I0," Number of failed steps : ",I0," Number of RHS calls : ",I0)') &
-         nsuccessful_steps, nfailed_steps, nrhs_calls
+    write(unit,'("Iteration : ",I0," Number of internal steps : ",I0," Number of failed steps : ",I0," Number of RHS calls : ",I0)') &
+         istep, nsuccessful_steps, nfailed_steps, nrhs_calls
   end subroutine report_step_statistics
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
-  subroutine advance_nonlinear_term(phi, apar, bpar, phinew, aparnew, bparnew, &
-       fields_func, source_func)
-    use dist_fn_arrays, only: gnew, g
+  subroutine advance_nonlinear_term(istep, phi, apar, bpar, fields_func, source_func)
+    use dist_fn_arrays, only: gnew, g, g_adjust
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use run_parameters, only: fphi, fbpar
     implicit none
-    complex, dimension (:,:,:), intent (in out) :: phi, apar, bpar
-    complex, dimension (:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    integer, intent(in) :: istep
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    complex, dimension (:,:,:), allocatable :: phinew, aparnew, bparnew
     real :: mp_total_after, mp_total
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -188,28 +197,49 @@ contains
     call get_mp_times(total_time = mp_total)
     call reset_step_statistics
 
+    ! Copy current fields to local copies
+    phinew = phi ; aparnew = apar ; bparnew = bpar
+
+    ! If we want to advance h rather than g then adjust
+    ! here to get h. Note we rely on the call site also
+    ! providing the correct fields_func to calculate fields
+    ! from h rather than g. A different option would be
+    ! to require the call site to always pass a way to calculate
+    ! from g and a way from h and we then decide here which to use.
+    if (advance_nonadiabatic_dfn) then
+       call g_adjust(g, phinew, bparnew, fphi, fbpar)
+       gnew = g
+    end if
+
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
     case(split_method_ab3)
-       call advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case(split_method_backwards_euler)
-       call advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case(split_method_rk)
-       call advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
             fields_func, source_func)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
 
-    if (proc0 .and. show_statistics) call report_step_statistics
+    if (proc0 .and. show_statistics) call report_step_statistics(istep)
 
-    ! Now that we've advanced the explicit terms by code_dt set the current state to this new result
+    ! If we advanced h then we need to reconstruct g from this
+    if (advance_nonadiabatic_dfn) then
+       call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+    end if
+
+    ! Now that we've advanced the explicit terms by code_dt set the
+    ! current state to this new result. Note that we do not update the
+    ! fields, instead resetting them to their original values. The
+    ! update to the fields is calculated as a part of the implicit
+    ! field solve and including the NL contribution here leads to
+    ! "double counting".
     g = gnew
-    phi = phinew
-    apar = aparnew
-    bpar = bparnew
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
@@ -218,17 +248,16 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> AB scheme of orders up to 3rd.
-  subroutine advance_nonlinear_term_ab3(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients, code_dt
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
-    use mp, only: mp_abort
+    use mp, only: mp_abort, max_allreduce
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    real :: internal_time, time_step
+    real :: internal_time, time_step, max_vel
     real, dimension(:), allocatable :: ab_coeffs
     integer :: counter
     procedure(invert_field_func) :: fields_func
@@ -245,9 +274,15 @@ contains
     ! Keep taking explicit steps until we have advanced by code_dt
     do while (internal_time < code_dt)
        ! Get the current nonlinear source term and cfl limit
-       call source_func(gexp_1, phinew, aparnew, bparnew, &
-            time_step, calculate_cfl_limit = .true.)
+       call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+            max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+            calculate_cfl_limit = .true.)
        nrhs_calls = nrhs_calls + 1
+
+       ! Get the maximum velocity across all processors
+       ! and convert to time_step estimate.
+       call max_allreduce(max_vel)
+       time_step = 1.0 / max_vel
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -278,7 +313,7 @@ contains
        end select
 
        ! Calculate the fields consistent with the new g
-       call fields_func(phinew, aparnew, bparnew)
+       call fields_func(gnew, phinew, aparnew, bparnew)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -296,16 +331,15 @@ contains
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> backwards Euler with fixed-point iteration.
-  subroutine advance_nonlinear_term_beuler(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    real :: internal_time, time_step, time_step_limit
+    real :: internal_time, time_step, max_vel
     integer :: counter
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
@@ -335,8 +369,9 @@ contains
 
        ! Calculate the current NL source term, for use in error
        ! estimates later.
-       call source_func(gexp_2, phinew, aparnew, bparnew, &
-            time_step_limit, calculate_cfl_limit = .false.)
+       call source_func(gnew, gexp_2, phinew, aparnew, bparnew, &
+            max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+            calculate_cfl_limit = .false.)
        nrhs_calls = nrhs_calls + 1
 
        ! Try to take a step of size actual_dt using fixed point iteration with
@@ -345,8 +380,9 @@ contains
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
-          call source_func(gexp_1, phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
@@ -365,7 +401,7 @@ contains
           gnew = g_work
 
           ! Update the fields consistently with the current solution
-          call fields_func(phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew)
        end do
 
        ! Now we need to decide if the last step was successful or not. There are two exit conditions, either the
@@ -399,8 +435,9 @@ contains
           ! rely on using the existing value of gexp_1(g_work) as, whilst this is
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
-          call source_func(gexp_1, phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
@@ -424,7 +461,9 @@ contains
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
           gnew = g
-          call fields_func(phinew, aparnew, bparnew)
+          ! If we store the initial field then we could perhaps just copy here instead.
+          ! This could be faster as it avoids communications involved in the velocity integration.
+          call fields_func(gnew, phinew, aparnew, bparnew)
           nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
@@ -446,23 +485,22 @@ contains
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control. This method
   !> is a wrapper to the true generic RK implementation.
-  subroutine advance_nonlinear_term_rk(phi, apar, bpar, phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
 
     call advance_nonlinear_term_rk_implementation( &
-         phi, apar, bpar, phinew, aparnew, bparnew, &
+         phinew, aparnew, bparnew, &
          fields_func, source_func, the_rk_scheme)
   end subroutine advance_nonlinear_term_rk
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control
-  subroutine advance_nonlinear_term_rk_implementation(phi, apar, bpar, phinew, &
+  subroutine advance_nonlinear_term_rk_implementation(phinew, &
        aparnew, bparnew, fields_func, source_func, scheme)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g, gexp_1
@@ -471,11 +509,10 @@ contains
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in out) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
-    real :: internal_time, time_step, time_step_limit, error, actual_time_step
+    real :: internal_time, time_step, max_vel, error, actual_time_step
     real :: new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
@@ -511,12 +548,13 @@ contains
           do istage_sub = 1, istage-1
              gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
           end do
-          call fields_func(phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
-          call source_func(gexp_1, &
+          call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
-               time_step_limit, calculate_cfl_limit = .false.)
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
 
           stages(:, :, :, istage) = 0.5 * gexp_1
@@ -569,8 +607,12 @@ contains
     end do
 
     if(proc0.and.debug) print*,'Completed rk step in',counter,'steps to',internal_time
+
+    ! We may be able to avoid this copy and field solve on exit if we restructure the main
+    ! loop slightly so gnew represents the new solution. This may require use of g_work
+    ! or similar to hold intermediate values.
     gnew = g
-    call fields_func(phinew, aparnew, bparnew)
+    call fields_func(gnew, phinew, aparnew, bparnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
@@ -592,15 +634,16 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
-    logical :: show_statistics
+    logical :: advance_nonadiabatic_dfn, show_statistics
     real :: convergence_tolerance, error_tolerance
 
-    namelist /split_nonlinear_terms_knobs/ convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
+    namelist /split_nonlinear_terms_knobs/ advance_nonadiabatic_dfn, convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
+    advance_nonadiabatic_dfn = self%advance_nonadiabatic_dfn
     convergence_tolerance = self%convergence_tolerance
     error_tolerance = self%error_tolerance
     rk_method = self%rk_method
@@ -612,6 +655,7 @@ contains
     if (exist) read(in_file, nml = split_nonlinear_terms_knobs)
 
     ! Now copy from local variables into type members
+    self%advance_nonadiabatic_dfn = advance_nonadiabatic_dfn
     self%convergence_tolerance = convergence_tolerance
     self%error_tolerance = error_tolerance
     self%rk_method = rk_method
@@ -634,6 +678,7 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
+    call self%write_key_val("advance_nonadiabatic_dfn", self%advance_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
     call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
@@ -658,6 +703,7 @@ contains
     use mp, only: broadcast
     implicit none
     class(split_nonlinear_terms_config_type), intent(in out) :: self
+    call broadcast(self%advance_nonadiabatic_dfn)
     call broadcast(self%convergence_tolerance)
     call broadcast(self%error_tolerance)
     call broadcast(self%rk_method)

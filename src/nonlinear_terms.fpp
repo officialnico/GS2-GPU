@@ -503,7 +503,7 @@ contains
           if(gryfx_zonal%on) then
              call add_nl_gryfx (g1)
           else
-             call add_nl (g1, phi, apar, bpar)
+             call add_nl (g, g1, phi, apar, bpar)
           endif
           ! takes g1 at grid points and returns 2*g1 at cell centers
 
@@ -733,49 +733,54 @@ contains
 
   !> Calculates the current nonlinear source term by calling add_nl
   !> and the associated cfl limit.
-  subroutine calculate_current_nl_source_and_cfl_limit(g1, phi, apar, bpar, &
-       dt_lim, calculate_cfl_limit)
-    use mp, only: max_allreduce
+  subroutine calculate_current_nl_source_and_cfl_limit(g_in, g1, phi, apar, bpar, &
+       max_vel_local, need_to_adjust, calculate_cfl_limit)
     use optionals, only: get_option_with_default
     implicit none
+    complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (:,:,:), intent (out) :: g1
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
-    real, intent(out) :: dt_lim
+    real, intent(out) :: max_vel_local
+    logical, intent(in) :: need_to_adjust
     logical, intent(in), optional :: calculate_cfl_limit
 
     use_cfl_limit = get_option_with_default(calculate_cfl_limit, .true.)
-    call add_nl(g1, phi, apar, bpar)
+    call add_nl(g_in, g1, phi, apar, bpar, need_to_adjust)
 
     if (use_cfl_limit) then
        ! This code may need changing if the handling of the cfl limit changes
-       call max_allreduce(max_vel)
-       dt_lim = 1.0/max_vel
+       max_vel_local = max_vel
     else
-       dt_lim = 1.0e8
+       max_vel_local = 1.0e-8
     end if
 
   end subroutine calculate_current_nl_source_and_cfl_limit
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
-  subroutine add_nl (g1, phi, apar, bpar)
+  subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use dist_fn_arrays, only: g, g_adjust
+    use dist_fn_arrays, only: g_adjust
     use gs2_transforms, only: transform2, inverse2
     use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
     implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
+    logical, intent(in), optional :: adjust
+    logical :: should_adjust
     real :: dt_cfl
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
+    should_adjust = get_option_with_default(adjust, .true.)
 
     !Form g1=i*kx*chi
     call load_kx_phi(g1, phi)    
@@ -793,8 +798,8 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
     !Form g1=i*ky*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    g1 = g_in
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
@@ -833,8 +838,8 @@ contains
     end if
 
     !Form g1=i*kx*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    g1 = g_in
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
