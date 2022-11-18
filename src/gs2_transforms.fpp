@@ -494,10 +494,11 @@ contains
     use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
     use sorting, only: quicksort
+    use le_grids, only: forbid
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(xxf_layout_type), intent(in) :: xxf_lo
@@ -507,7 +508,10 @@ contains
     integer, dimension (2) :: to_high
     integer :: to_low
     integer :: iglo, isign, ig, it, ixxf, it0
-    integer :: n, ip
+    integer :: n, ip, il, ik, ie, is
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
 
     ! count number of elements to be redistributed to/from each processor
     nn_to = 0
@@ -525,15 +529,24 @@ contains
     !Protect against procs with no data
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc, g_lo%ulim_alloc
+          il = il_idx(g_lo, iglo)
+
           !Convert iglo,isign=1,ig=-ntgrid into ixxf
           ixxf=idx(xxf_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo),&
-               il_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+               il, ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Now loop over other local dimensions
           do isign = 1, 2
              do ig = -g_lo%ntgrid, g_lo%ntgrid
-                !Increase the data send count for the proc which has the ixxf
-                nn_from(proc_id(xxf_lo,ixxf))=nn_from(proc_id(xxf_lo,ixxf))+1
+                ip = proc_id(xxf_lo, ixxf)
+
+                ! Don't send data from forbidden region, unless it is going to
+                ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+                ! based methods.
+                if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
+                   !Increase the data send count for the proc which has the ixxf
+                   nn_from(ip)=nn_from(ip)+1
+                end if
 
                 !Increase ixxf using knowledge of the xxf_lo layout
                 ixxf=ixxf+xxf_lo%naky
@@ -551,10 +564,21 @@ contains
           !but only interested in how much data we receive and not the
           !exact indices (yet) so just do 1-->ntheta0 (this is how many
           !non-zero x's?)
+          ik = ik_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+          ie = ie_idx(xxf_lo, ixxf)
+          is = is_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
           do it=1,xxf_lo%ntheta0
              !Convert ixxf,it indices into iglo, ig and isign indices
-             iglo=idx(g_lo,ik_idx(xxf_lo,ixxf),it,il_idx(xxf_lo,ixxf),&
-                  ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
+             iglo=idx(g_lo, ik, it, il, ie, is)
+
+             ip = proc_id(g_lo, iglo)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
 
              !Increase the data to receive count for proc with this data
              !Note, we only worry about iglo and not isign/ig because we know that
@@ -589,24 +613,28 @@ contains
     !Protect against procs with no data
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo=g_lo%llim_proc, g_lo%ulim_alloc
+          il = il_idx(g_lo, iglo)
+
           !Convert iglo,isign=1,ig=-ntgrid into ixxf
           ixxf=idx(xxf_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo),&
-               il_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+               il, ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Now loop over other local dimensions
           do isign = 1, 2
              do ig = -g_lo%ntgrid, g_lo%ntgrid
                 !Get proc id
                 ip=proc_id(xxf_lo,ixxf)
+                if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
 
-                !Increment procs message counter
-                n=nn_from(ip)+1
-                nn_from(ip)=n
+                   !Increment procs message counter
+                   n=nn_from(ip)+1
+                   nn_from(ip)=n
 
-                !Store indices
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
+                   !Store indices
+                   from_list(ip)%first(n) = ig
+                   from_list(ip)%second(n) = isign
+                   from_list(ip)%third(n) = iglo
+                end if
 
                 !We could send this information, transformed to the xxf layout to the proc.
 
@@ -621,9 +649,13 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf = xxf_lo%llim_proc, xxf_lo%ulim_alloc
-          !Get ig and isign indices
-          ig=ig_idx(xxf_lo,ixxf)
+          !Get indices
           isign=isign_idx(xxf_lo,ixxf)
+          ik = ik_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+          ie = ie_idx(xxf_lo, ixxf)
+          is = is_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
 
           !Loop over receiving "it" indices
           do it=1,g_lo%ntheta0
@@ -635,11 +667,12 @@ contains
              endif
 
              !Convert ixxf,it indices into iglo indices
-             iglo=idx(g_lo,ik_idx(xxf_lo,ixxf),it,il_idx(xxf_lo,ixxf),&
-                  ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
+             iglo=idx(g_lo, ik, it, il, ie, is)
 
              !Get proc id which has this data
              ip=proc_id(g_lo,iglo)
+
+             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
 
              !Determine message position index
              n=nn_to(ip)+1
