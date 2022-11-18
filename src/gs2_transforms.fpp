@@ -752,10 +752,11 @@ contains
     use layouts_type, only: xxf_layout_type, yxf_layout_type
     use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
-    use mp, only: nproc
+    use mp, only: nproc, iproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort
+    use le_grids, only: forbid
     implicit none
     type(xxf_layout_type), intent(in) :: xxf_lo
     type(yxf_layout_type), intent(in) :: yxf_lo
@@ -765,7 +766,10 @@ contains
     integer :: to_low
     integer :: it, ixxf, ik, iyxf
     integer :: ixxf_start, iyxf_start
-    integer :: n, ip
+    integer :: n, ip, il, ig
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
 
     !Initialise counts to zero
     nn_to = 0
@@ -775,17 +779,26 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf=xxf_lo%llim_proc,xxf_lo%ulim_alloc
+          il = il_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
+
           !Get iyxf index for "it"=1
-          iyxf_start=idx(yxf_lo,ig_idx(xxf_lo,ixxf),&
-               isign_idx(xxf_lo,ixxf),1,il_idx(xxf_lo,ixxf),&
+          iyxf_start=idx(yxf_lo, ig,&
+               isign_idx(xxf_lo,ixxf), 1, il,&
                ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
 
           !Loop over "it" range, note that we actually only want to know
           !iyxf in this range and we know that it-->it+1 => iyxf-->iyxf+1
           !so replace loop with one over iyxf
           do iyxf=iyxf_start,iyxf_start+yxf_lo%nx-1
+             ip = proc_id(yxf_lo, iyxf)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
              !Increase the appropriate procs send count
-             nn_from(proc_id(yxf_lo,iyxf))=nn_from(proc_id(yxf_lo,iyxf))+1
+             nn_from(ip)=nn_from(ip)+1
           enddo
        enddo
     endif
@@ -794,17 +807,26 @@ contains
     !Protect against procs with no data
     if(yxf_lo%ulim_proc.ge.yxf_lo%llim_proc)then
        do iyxf=yxf_lo%llim_proc,yxf_lo%ulim_alloc
+          ig = ig_idx(yxf_lo, iyxf)
+          il = il_idx(yxf_lo, iyxf)
           !Get ixxf index for "ik"=1
-          ixxf_start=idx(xxf_lo,ig_idx(yxf_lo,iyxf),&
-               isign_idx(yxf_lo,iyxf),1,il_idx(yxf_lo,iyxf),&
+          ixxf_start=idx(xxf_lo, ig,&
+               isign_idx(yxf_lo,iyxf), 1, il,&
                ie_idx(yxf_lo,iyxf),is_idx(yxf_lo,iyxf))
 
           !Loop over "ik" range, note that we actually only want to know
           !ixxf in this range and we know that ik-->ik+1 => ixxf-->ixxf+1
           !so replace loop with one over ixxf
           do ixxf=ixxf_start,ixxf_start+xxf_lo%naky-1
+             ip = proc_id(xxf_lo, ixxf)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
+
              !Increase the appropriate procs recv count
-             nn_to(proc_id(xxf_lo,ixxf))=nn_to(proc_id(xxf_lo,ixxf))+1
+             nn_to(ip) = nn_to(ip)+1
           enddo
        enddo
     endif
@@ -831,24 +853,33 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf=xxf_lo%llim_proc,xxf_lo%ulim_alloc
+          ig = ig_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+
           !Get iyxf for "it"=1
-          iyxf=idx(yxf_lo,ig_idx(xxf_lo,ixxf),&
-               isign_idx(xxf_lo,ixxf),1,il_idx(xxf_lo,ixxf),&
+          iyxf=idx(yxf_lo, ig,&
+               isign_idx(xxf_lo,ixxf), 1, il,&
                ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
 
           !Now loop over other local dimension. Note we need "it" here
           !so don't replace this with loop over iyxf
           do it=1,yxf_lo%nx
-             !Get the processor id
-             ip=proc_id(yxf_lo,iyxf)
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
 
-             !Increment the procs message counter
-             n=nn_from(ip)+1
-             nn_from(ip)=n
+                !Get the processor id
+                ip=proc_id(yxf_lo,iyxf)
 
-             !Store indices
-             from_list(ip)%first(n)=it
-             from_list(ip)%second(n)=ixxf
+                !Increment the procs message counter
+                n=nn_from(ip)+1
+                nn_from(ip)=n
+
+                !Store indices
+                from_list(ip)%first(n)=it
+                from_list(ip)%second(n)=ixxf
+             end if
 
              !Increment iyxf
              iyxf=iyxf+1
@@ -860,9 +891,12 @@ contains
     !Protect against procs with no data
     if(yxf_lo%ulim_proc.ge.yxf_lo%llim_proc)then
        do iyxf=yxf_lo%llim_proc,yxf_lo%ulim_alloc
+          ig = ig_idx(yxf_lo, iyxf)
+          il = il_idx(yxf_lo, iyxf)
+
           !Get ixxf for "ik"=1
-          ixxf=idx(xxf_lo,ig_idx(yxf_lo,iyxf),&
-               isign_idx(yxf_lo,iyxf),1,il_idx(yxf_lo,iyxf),&
+          ixxf=idx(xxf_lo, ig,&
+               isign_idx(yxf_lo,iyxf), 1, il,&
                ie_idx(yxf_lo,iyxf),is_idx(yxf_lo,iyxf))
 
           !Now loop over other local dimension. Note we need "ik" here
@@ -871,16 +905,22 @@ contains
              !Get the processor id
              ip=proc_id(xxf_lo,ixxf)
 
-             !Increment the procs message counter
-             n=nn_to(ip)+1
-             nn_to(ip)=n
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (.not.(forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
 
-             !Store indices
-             to_list(ip)%first(n)=ik
-             to_list(ip)%second(n)=iyxf
+                !Increment the procs message counter
+                n=nn_to(ip)+1
+                nn_to(ip)=n
 
-             !Store index for sorting
-             sort_list(ip)%first(n)=it_idx(yxf_lo,iyxf)+ixxf*yxf_lo%nx
+                !Store indices
+                to_list(ip)%first(n)=ik
+                to_list(ip)%second(n)=iyxf
+
+                !Store index for sorting
+                sort_list(ip)%first(n)=it_idx(yxf_lo,iyxf)+ixxf*yxf_lo%nx
+             end if
 
              !Increment ixxf
              ixxf=ixxf+1
