@@ -864,14 +864,13 @@ contains
           !Now loop over other local dimension. Note we need "it" here
           !so don't replace this with loop over iyxf
           do it=1,yxf_lo%nx
+             !Get the processor id
+             ip=proc_id(yxf_lo,iyxf)
+
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
              if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
-
-                !Get the processor id
-                ip=proc_id(yxf_lo,iyxf)
-
                 !Increment the procs message counter
                 n=nn_from(ip)+1
                 nn_from(ip)=n
