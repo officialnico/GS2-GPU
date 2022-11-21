@@ -1,6 +1,7 @@
 &split_nonlinear_terms_knobs
+  absolute_tolerance = 1.0e-11
   convergence_tolerance = 1.0e-12
-  error_tolerance = 1.0e-10
+  relative_tolerance = 1.0e-10
   split_method = 'beuler'
 /
 

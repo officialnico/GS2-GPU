@@ -43,23 +43,26 @@ module split_nonlinear_terms
   type(rk_scheme_type) :: the_rk_scheme
   logical :: show_statistics, advance_nonadiabatic_dfn
   real :: convergence_tolerance
-  real :: error_tolerance
+  real :: relative_tolerance, absolute_tolerance
 
   !> Used to represent the input configuration of split_nonlinear_terms
   type, extends(abstract_config_type) :: split_nonlinear_terms_config_type
      ! namelist : split_nonlinear_terms_knobs
      ! indexed : false
+     !> The absolute tolerance used in error controlled schemes. Attempt to adjust
+     !> time step to keep error below this tolerance.
+     real :: absolute_tolerance = 1.0e-3
      !> If true then nonlinear integrator advances the nonadiabatic dfn, h,
      !> rather than the modified distribution function, g.
      logical :: advance_nonadiabatic_dfn = .false.
      !> The tolerance used in convergence checks. Currently only used
      !> for halting the fixed-point iteration in the beuler method
-     real :: convergence_tolerance = 1.0e-2
-     !> The tolerance used in error controlled schemes. Attempt to adjust
+     real :: convergence_tolerance = 1.0e-1
+     !> The relative tolerance used in error controlled schemes. Attempt to adjust
      !> time step to keep error below this tolerance.
-     real :: error_tolerance = 1.0e-4
+     real :: relative_tolerance = 1.0e-2
      !> Choose which specific RK scheme to use in the RK method.
-     !> Generally if error_tolerance is small a higher order scheme
+     !> Generally if the tolerances are small a higher order scheme
      !> will be more effective than low order. At loose tolerances
      !> low order schemes are generally more efficient
      !> Valid options include:
@@ -131,9 +134,10 @@ contains
     call split_nonlinear_terms_config%init(name = 'split_nonlinear_terms_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
+    absolute_tolerance = split_nonlinear_terms_config%absolute_tolerance
     advance_nonadiabatic_dfn = split_nonlinear_terms_config%advance_nonadiabatic_dfn
     convergence_tolerance = split_nonlinear_terms_config%convergence_tolerance
-    error_tolerance = split_nonlinear_terms_config%error_tolerance
+    relative_tolerance = split_nonlinear_terms_config%relative_tolerance
     rk_method = split_nonlinear_terms_config%rk_method
     show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
@@ -345,7 +349,7 @@ contains
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
-    real :: error, actual_dt
+    real :: inverse_error, error, actual_dt
     real, dimension(2) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -442,13 +446,13 @@ contains
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
           call max_allreduce(errors)
-          error = errors(1) / errors(2)
+          inverse_error = get_inverse_error(errors)
 
           !Calculate new time step based on error
-          time_step = 0.9 * actual_dt * sqrt(error_tolerance/(error+1.0e-14))
+          time_step = 0.9 * actual_dt * sqrt(inverse_error)
 
           ! If error is too large reject the step
-          if ( error > error_tolerance) then
+          if ( inverse_error < 1.0) then
              if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
@@ -478,7 +482,7 @@ contains
     ! Store the final time step size so we can start from this in the next callg
     time_step_last = time_step
 
-    if(proc0.and.debug) print*,'Explicit done in ',counter,'steps with final error',error,'and step',time_step,'final time',internal_time
+    if(proc0.and.debug) print*,'Explicit done in ',counter,'steps with final error',inverse_error,'and step',time_step,'final time',internal_time
 
   end subroutine advance_nonlinear_term_beuler
 
@@ -512,12 +516,13 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
-    real :: internal_time, time_step, max_vel, error, actual_time_step
+    real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
     real :: new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
     real, dimension(:), allocatable :: solution_coeffs
+    real, dimension(2) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -570,22 +575,27 @@ contains
           gnew = gnew + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
        end do
 
-       error = maxval(abs(gnew))*time_step
-       call max_allreduce(error)
+       ! Store the absolute error
+       errors(1) = maxval(abs(gnew))*time_step
+       ! Estimate the absolution size of the solution using
+       ! the old solution
+       errors(2) = maxval(abs(g))
+       call max_allreduce(errors)
+       inverse_error = get_inverse_error(errors)
 
        !Calculate the new_time_step
-       new_time_step = 0.9 * time_step * (error_tolerance/(error+1.0e-14))**(1.0/scheme%order)
-       if(proc0.and.debug) print*,'Error is ',error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
+       new_time_step = 0.9 * time_step * (inverse_error)**(1.0/scheme%order)
+       if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
        ! If the cfl time step is too small then abort
        if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (error > error_tolerance) then
+       if (inverse_error < 1.0) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
-          !Update the solution
+         !Update the solution
           g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
           do istage = 2, nstages
              g = g + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
@@ -617,6 +627,20 @@ contains
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
 
+  !> Returns the normalised inverse error estimate. In other words
+  !> the error tolerance, rtol*errors(2) + atol, divided by the error
+  !> estimate (plus a small number to avoid divide by zero).
+  !>
+  !> Assumes that errors contains the global magnitude of the error
+  !> estimate in the first element and the global maximum of the solution
+  !> in the second element.
+  real pure function get_inverse_error(errors) result(inverse_error)
+    implicit none
+    real, dimension(2), intent(in) :: errors
+    inverse_error = (relative_tolerance * errors(2) + absolute_tolerance) / &
+         (errors(1) + epsilon(errors(1)))
+  end function get_inverse_error
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -635,17 +659,18 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
     logical :: advance_nonadiabatic_dfn, show_statistics
-    real :: convergence_tolerance, error_tolerance
+    real :: absolute_tolerance, convergence_tolerance, relative_tolerance
 
-    namelist /split_nonlinear_terms_knobs/ advance_nonadiabatic_dfn, convergence_tolerance, error_tolerance, rk_method, show_statistics, split_method
+    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
+    absolute_tolerance = self%absolute_tolerance
     advance_nonadiabatic_dfn = self%advance_nonadiabatic_dfn
     convergence_tolerance = self%convergence_tolerance
-    error_tolerance = self%error_tolerance
+    relative_tolerance = self%relative_tolerance
     rk_method = self%rk_method
     show_statistics = self%show_statistics
     split_method = self%split_method
@@ -655,9 +680,10 @@ contains
     if (exist) read(in_file, nml = split_nonlinear_terms_knobs)
 
     ! Now copy from local variables into type members
+    self%absolute_tolerance = absolute_tolerance
     self%advance_nonadiabatic_dfn = advance_nonadiabatic_dfn
     self%convergence_tolerance = convergence_tolerance
-    self%error_tolerance = error_tolerance
+    self%relative_tolerance = relative_tolerance
     self%rk_method = rk_method
     self%show_statistics = show_statistics
     self%split_method = split_method
@@ -678,9 +704,10 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
+    call self%write_key_val("absolute_tolerance", self%absolute_tolerance, unit_internal)
     call self%write_key_val("advance_nonadiabatic_dfn", self%advance_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("convergence_tolerance", self%convergence_tolerance, unit_internal)
-    call self%write_key_val("error_tolerance", self%error_tolerance, unit_internal)
+    call self%write_key_val("relative_tolerance", self%relative_tolerance, unit_internal)
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
     call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
@@ -703,9 +730,10 @@ contains
     use mp, only: broadcast
     implicit none
     class(split_nonlinear_terms_config_type), intent(in out) :: self
+    call broadcast(self%absolute_tolerance)
     call broadcast(self%advance_nonadiabatic_dfn)
     call broadcast(self%convergence_tolerance)
-    call broadcast(self%error_tolerance)
+    call broadcast(self%relative_tolerance)
     call broadcast(self%rk_method)
     call broadcast(self%show_statistics)
     call broadcast(self%split_method)
