@@ -350,7 +350,7 @@ contains
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
     real :: inverse_error, error, actual_dt
-    real, dimension(2) :: errors
+    real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -441,15 +441,16 @@ contains
           ! it is within the convergence tolerance of the true value.
           call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
-               calculate_cfl_limit = .false.)
+               calculate_cfl_limit = .true.)
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
+          errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
 
           !Calculate new time step based on error
-          time_step = 0.9 * actual_dt * sqrt(inverse_error)
+          time_step = min(0.9 * actual_dt * sqrt(inverse_error), 1.0/max_vel)
 
           ! If error is too large reject the step
           if ( inverse_error < 1.0) then
@@ -522,7 +523,7 @@ contains
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
     real, dimension(:), allocatable :: solution_coeffs
-    real, dimension(2) :: errors
+    real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
@@ -559,7 +560,7 @@ contains
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
-               calculate_cfl_limit = .false.)
+               calculate_cfl_limit = (istage == nstages))
           nrhs_calls = nrhs_calls + 1
 
           stages(:, :, :, istage) = 0.5 * gexp_1
@@ -580,11 +581,13 @@ contains
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = maxval(abs(g))
+       errors(3) = max_vel
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
 
        !Calculate the new_time_step
-       new_time_step = 0.9 * time_step * (inverse_error)**(1.0/scheme%order)
+       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), 1.0/max_vel)
+
        if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
        ! If the cfl time step is too small then abort
        if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -636,7 +639,7 @@ contains
   !> in the second element.
   real pure function get_inverse_error(errors) result(inverse_error)
     implicit none
-    real, dimension(2), intent(in) :: errors
+    real, dimension(:), intent(in) :: errors
     inverse_error = (relative_tolerance * errors(2) + absolute_tolerance) / &
          (errors(1) + epsilon(errors(1)))
   end function get_inverse_error
