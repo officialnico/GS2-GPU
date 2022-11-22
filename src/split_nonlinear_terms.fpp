@@ -561,8 +561,9 @@ contains
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
-               calculate_cfl_limit = (istage == nstages))
+               calculate_cfl_limit = (istage == 1))
           nrhs_calls = nrhs_calls + 1
+          if (istage == 1) errors(3) = max_vel
 
           stages(:, :, :, istage) = 0.5 * gexp_1
        end do
@@ -582,7 +583,6 @@ contains
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = maxval(abs(g))
-       errors(3) = max_vel
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
 
