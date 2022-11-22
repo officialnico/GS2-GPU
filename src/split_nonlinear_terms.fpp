@@ -366,6 +366,7 @@ contains
        ! Reset counter and error
        counter = 0
        error = 1.0
+       errors = 0.0
 
        ! Limit the actual time step that we take to avoid overshooting (i.e.
        ! to keep internal_time <= code_dt).
