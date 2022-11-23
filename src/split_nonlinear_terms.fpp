@@ -612,7 +612,6 @@ contains
     ! loop slightly so gnew represents the new solution. This may require use of g_work
     ! or similar to hold intermediate values.
     gnew = g
-    call fields_func(gnew, phinew, aparnew, bparnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
