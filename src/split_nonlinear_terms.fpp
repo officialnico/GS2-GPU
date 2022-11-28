@@ -537,7 +537,7 @@ contains
     end if
 
     nstages = scheme%number_of_stages
-    allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_proc, nstages))
+    allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
 
     ! Keep taking explicit steps until we have advanced by code_dt
     do while (internal_time < code_dt)
