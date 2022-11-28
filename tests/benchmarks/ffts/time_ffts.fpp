@@ -15,6 +15,7 @@ program time_ffts
   use theta_grid, only: ntgrid
   use gs2_layouts, only: g_lo
   use nonlinear_terms, only: nonlinear_terms_testing
+  use dist_fn_arrays, only: g
   use job_manage, only: time_message
   use benchmarks, only: benchmark_identifier
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
@@ -65,7 +66,7 @@ program time_ffts
   if (proc0) call time_message(.false., time_taken, "FFT time")
 
   do i = 1,nstep
-    call nonlinear_terms_tests%add_nl(g1, phi, apar, bpar)
+    call nonlinear_terms_tests%add_nl(g, g1, phi, apar, bpar)
   end do
 
   if (proc0) then

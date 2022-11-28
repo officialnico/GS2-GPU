@@ -111,7 +111,7 @@ module dist_fn
   public :: get_dist_fn_config
   public :: get_dist_fn_species_config
   public :: get_source_config
-  
+
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
@@ -980,10 +980,11 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_dist_fn_arrays
-    use mp, only: proc0, finish_mp, mp_abort
+    use mp, only: nproc, iproc, proc0, finish_mp, mp_abort
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts
     use nonlinear_terms, only: init_nonlinear_terms
     use run_parameters, only: init_run_parameters
@@ -1010,7 +1011,7 @@ contains
     call init_run_parameters
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays
@@ -1903,7 +1904,7 @@ contains
 !AJ
     use gs2_layouts, only: gf_lo, init_gf_layouts
     use spfunc, only: j0, j1
-
+    use mp, only: nproc, iproc
     implicit none
 
     integer :: ig, ik, it, il, ie, is
@@ -1916,7 +1917,7 @@ contains
     allocate (aj0(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (aj1(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
 
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec)
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3290,7 +3291,8 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use nonlinear_terms, only: add_explicit_terms
+    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn
+    use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
@@ -3308,8 +3310,24 @@ contains
     if (present(mode)) modep = mode
 
     !Calculate the explicit nonlinear terms
-    call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
-         phi, apar, bpar, istep, bkdiff(1))
+    if (split_nonlinear .and. nonlin) then
+       ! If we're starting a new full step then advance just the nonlinear term
+       ! by code_dt.
+       if (istep > 0 .and. istep /= istep_last) then       
+          if (advance_nonadiabatic_dfn) then
+             call advance_nonlinear_term(istep, phi, apar, bpar, &
+                  calculate_potentials_from_nonadiabatic_dfn, &
+                  calculate_current_nl_source_and_cfl_limit)
+          else
+             call advance_nonlinear_term(istep, phi, apar, bpar, &
+                  get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+          end if
+       end if
+    else
+       call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
+            phi, apar, bpar, istep, bkdiff(1))
+    end if
+
     call debug_message(verb, &
         'dist_fn::timeadv calculated nonlinear term')
     if(reset .and. immediate_reset) return !Return if resetting
@@ -4609,7 +4627,7 @@ contains
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     use gs2_time, only: get_adams_bashforth_coefficients
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4632,10 +4650,10 @@ contains
     include_explicit = istep > 0
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -6475,19 +6493,19 @@ contains
 
   end subroutine check_getan
 
-  !> Getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in 
+  !> Getan_nogath has been substantially changed to enable gf_lo field calculations, it can now operate in
   !> 2 modes; using the standard integrate_species (integrate_species_sub in le_grids) when called from
-  !> fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when 
+  !> fields_local and gf_lo_integrate is false (which is teh default, or doing the integrate in place when
   !> called from fields_gf_local or from fields_local when gf_lo_integrate is true.  Note, if this is called from
   !> fields_local and gf_lo_integrate is true then the calculation will be done locally but there is a function
   !> called after this has finished in fields_local that sends the data back (from gf_lo to g_lo layouts).
   !> When call with gf_lo_integrate = .true. this routine does a gather that converts the gnew array from g_lo
   !> data distribution to gf_lo data distribution and stores the result in gfarray.  With gf_lo_integrate = .false.
-  !> gnew is used instead and this is in g_lo data distribution.
+  !> g_in is used instead and this is in g_lo data distribution.
   !>
   !> AJ
-  subroutine getan_nogath (antot, antota, antotp)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
+  subroutine getan_nogath_from_dfn (g_in, antot, antota, antotp)
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
@@ -6498,9 +6516,8 @@ contains
     use kt_grids, only: kwork_filter, kperp2
     use redistribute, only: gather
     use mp, only: barrier
-
     implicit none
-
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
@@ -6516,71 +6533,70 @@ contains
     antotp = 0.0
 
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
-    !AJ then do the initial redistribution of the data from g_lo (where gnew is current) to gf_lo
+    !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
     !AJ where it will end up in gfarray)
     if(gf_lo_integrate) then
        allocate( gfarray(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
-       call gather(g2gf, gnew, gfarray, ntgrid)
+       call gather(g2gf, g_in, gfarray, ntgrid)
     end if
 
     if (fphi > epsilon(0.0)) then
        !<DD>NOTE: It's possible to rewrite this loop as simply
-       !g_work=gnew*spread(aj0,2,2)
-       !but this seems to be slower than an explicit loop and 
+       !g_work=g_in*spread(aj0,2,2)
+       !but this seems to be slower than an explicit loop and
        !the ability to skip certain it/ik values is lost.
 
        wgt = spec%z*spec%dens
 
-      if(.not. gf_lo_integrate) then
-         if(any(kwork_filter))then
-            !$OMP PARALLEL DO DEFAULT(shared) &
-            !$OMP PRIVATE(iglo, isgn, it, ik) &
-            !$OMP SCHEDULE(guided)
-            do iglo = g_lo%llim_proc, g_lo%ulim_proc
-               it=it_idx(g_lo,iglo)
-               ik=ik_idx(g_lo,iglo)
-               if(kwork_filter(it,ik))cycle
-               do isgn = 1, 2
-                  g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
-               end do
-            end do
-            !$OMP END PARALLEL DO
-         else
+       if(.not. gf_lo_integrate) then
+          if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(guided)
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                it=it_idx(g_lo,iglo)
+                ik=ik_idx(g_lo,iglo)
+                if(kwork_filter(it,ik))cycle
+                do isgn = 1, 2
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
+                end do
+             end do
+             !$OMP END PARALLEL DO
+          else
             !$OMP PARALLEL DO DEFAULT(shared) &
             !$OMP PRIVATE(iglo, isgn) &
             !$OMP SCHEDULE(guided)
-            do iglo = g_lo%llim_proc, g_lo%ulim_proc
-               do isgn = 1, 2
-                  g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)
-               end do
-            end do
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                do isgn = 1, 2
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
+                end do
+             end do
             !$OMP END PARALLEL DO
-         endif
-         call integrate_species (g_work, wgt, antot, nogath=.true.)
-      end if
-      
+          endif
+          call integrate_species (g_work, wgt, antot, nogath=.true.)
+       end if
 
-      if(gf_lo_integrate) then
-         !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-         !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
-         !AJ pre-calculation loop (see the call above where aj0 is multipled by gnew) with the integrate species itself.  This should be more 
-         !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
-         !AJ done (i.e. aj0_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
-         if(any(kwork_filter))then
-            do igf = gf_lo%llim_proc,gf_lo%ulim_proc
-               it = it_idx(gf_lo,igf)
-               ik = ik_idx(gf_lo,igf)
-               antot(:,it,ik) =0.
-               if(kwork_filter(it,ik)) cycle
-               do il = 1,gf_lo%nlambda
-                  do ie = 1,gf_lo%negrid
-                     do is = 1,gf_lo%nspec
-                        antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
+       if(gf_lo_integrate) then
+          !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
+          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
+          !AJ pre-calculation loop (see the call above where aj0 is multipled by g_in) with the integrate species itself.  This should be more
+          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
+          !AJ done (i.e. aj0_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
+          if(any(kwork_filter))then
+             do igf = gf_lo%llim_proc,gf_lo%ulim_proc
+                it = it_idx(gf_lo,igf)
+                ik = ik_idx(gf_lo,igf)
+                antot(:,it,ik) =0.
+                if(kwork_filter(it,ik)) cycle
+                do il = 1,gf_lo%nlambda
+                   do ie = 1,gf_lo%negrid
+                      do is = 1,gf_lo%nspec
+                         antot(:,it,ik) = antot(:,it,ik) + wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
              end do
-       
+
           else
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
                 it = it_idx(gf_lo,igf)
@@ -6617,7 +6633,7 @@ contains
                 ik=ik_idx(g_lo,iglo)
                 if(kwork_filter(it,ik))cycle
                 do isgn = 1, 2
-                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
              !$OMP END PARALLEL DO
@@ -6627,7 +6643,7 @@ contains
              !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
-                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
              !$OMP END PARALLEL DO
@@ -6637,9 +6653,9 @@ contains
 
        if(gf_lo_integrate) then
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
-          !AJ pre-calculation loop (see the call above where aj0 and vpa are multipled by gnew) with the integrate species itself.  This should be more 
-          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
+          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
+          !AJ pre-calculation loop (see the call above where aj0 and vpa are multipled by g_in) with the integrate species itself.  This should be more
+          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
           !AJ done (i.e. aj0_gf and vpa_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
           if(any(kwork_filter))then
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -6651,7 +6667,7 @@ contains
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
                          antota(:,it,ik) = antota(:,it,ik) + &
-                         wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
+                              wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -6666,7 +6682,7 @@ contains
                    do ie = 1,gf_lo%negrid
                       do is = 1,gf_lo%nspec
                          antota(:,it,ik) = antota(:,it,ik) + &
-                         wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
+                              wgt(is)*w(ie,is)*wl(:,il)*((aj0_gf(:,is,ie,il,igf)*vpa_gf(:,1,ie,il,is)*gfarray(:,1,is,ie,il,igf))+(aj0_gf(:,is,ie,il,igf)*vpa_gf(:,2,ie,il,is)*gfarray(:,2,is,ie,il,igf)))
                       end do
                    end do
                 end do
@@ -6696,7 +6712,7 @@ contains
                 ik=ik_idx(g_lo,iglo)
                 if(kwork_filter(it,ik))cycle
                 do isgn = 1, 2
-                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
              !$OMP END PARALLEL DO
@@ -6706,7 +6722,7 @@ contains
              !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
-                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*gnew(:,isgn,iglo)
+                   g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
              !$OMP END PARALLEL DO
@@ -6716,9 +6732,9 @@ contains
 
        if(gf_lo_integrate) then
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
-          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the 
-          !AJ pre-calculation loop (see the call above where aj1 and vperp2 are multipled by gnew) with the integrate species itself.  This should be more 
-          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been 
+          !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
+          !AJ pre-calculation loop (see the call above where aj1 and vperp2 are multipled by g_in) with the integrate species itself.  This should be more
+          !AJ efficient as we then are only traversing the gf_array once for the integration of this field.  However, the opposite could also have been
           !AJ done (i.e. aj1_gf and vperp2_gf taken into integrate_species) and if that would be cleaner then that refactoring can be done.
           if(any(kwork_filter))then
              do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -6758,6 +6774,16 @@ contains
     end if
 
     if (allocated(gfarray)) deallocate(gfarray)
+  end subroutine getan_nogath_from_dfn
+
+  !> Calls getan_nogath_from_dfn to calculate antot arrays for
+  !> current gnew value
+  subroutine getan_nogath (antot, antota, antotp)
+    use dist_fn_arrays, only: gnew
+    use theta_grid, only: ntgrid
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    call getan_nogath_from_dfn(gnew, antot, antota, antotp)
   end subroutine getan_nogath
 
 !///////////////////////////////////////
@@ -6776,29 +6802,43 @@ contains
   !> simulation. We should provide a method to calculate these fields even
   !> if they are not included in the evolution (e.g. for diagnostics,
   !> collisions etc.). Perhaps an optional flag here would be enough.
-  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar)
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar, gf_lo)
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: fphi, fapar, fbpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
-    use species, only: nspec, spec
+    use species, only: nspec, spec, has_electron_species, has_ion_species
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
+    logical, optional :: gf_lo
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real, dimension(nspec) :: weights
-
+    real :: phi_weight
+    logical :: local_gf_lo
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
 
+    local_gf_lo = get_option_with_default(gf_lo, .false.)
+
     ! Get the weighted velocity space integrals of the passed
     ! distribution function.
-    call getan_from_dfn(f_in, antot, antota, antotp)
+    if(local_gf_lo) then
+       call getan_nogath_from_dfn (f_in, antot, antota, antotp)
+    else
+       call getan_from_dfn (f_in, antot, antota, antotp)
+    end if
 
     if (fphi > 0) then
-       ! Do we need to include the adiabatic contribution in the sum?
-       phi = antot / sum(spec%dens*spec%z*spec%z / spec%temp)
+       ! We could add in kperp2*poisfac to the weight to retain this feature
+       if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
+          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp) + tite
+       else
+          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
+       end if
+       phi = antot / phi_weight
     else
        phi = 0
     end if
@@ -6822,20 +6862,22 @@ contains
   end subroutine calculate_potentials_from_nonadiabatic_dfn
 
   !> Inverts the field equations:
-  !!   gamtot * phi - gamtot1 * bpar = antot
-  !!   kperp2 * apar = antota
-  !!   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
-  !!
-  !! @note I haven't made any check for use_Bpar=T case.
-  !!
-  !! TT> Given initial distribution function this obtains consistent fields
-  !! MAB> ported from agk
-  !! CMR, 1/8/2011> corrections below for inhomogeneous bmag
-  subroutine get_init_field (phi, apar, bpar, gf_lo)
+  !>   gamtot * phi - gamtot1 * bpar = antot
+  !>   kperp2 * apar = antota
+  !>   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
+  !>
+  !> @note I haven't made any check for use_Bpar=T case.
+  !>
+  !> TT> Given initial distribution function this obtains consistent fields
+  !> MAB> ported from agk
+  !> CMR, 1/8/2011> corrections below for inhomogeneous bmag
+  subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo)
     use run_parameters, only: beta, fphi, fapar, fbpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
+    implicit none
+    complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
@@ -6858,9 +6900,9 @@ contains
 !CMR, 1/8/2011:  bmagsp is 3D array containing bmag
     bmagsp=spread(spread(bmag,2,ntheta0),3,naky)
     if(local_gf_lo) then
-       call getan_nogath (antot, antota, antotp)
+       call getan_nogath_from_dfn (g_in, antot, antota, antotp)
     else
-       call getan (antot, antota, antotp)
+       call getan_from_dfn (g_in, antot, antota, antotp)
     end if
 
     fl_avg = 0.0
@@ -6930,7 +6972,15 @@ contains
           bpar = numerator / denominator
        end where
     end if
+  end subroutine get_fields_direct_from_dfn
 
+  !> Calls get_fields_direct_from_dfn to solve for fields consistent with current gnew
+  subroutine get_init_field (phi, apar, bpar, gf_lo)
+    use dist_fn_arrays, only: gnew
+    implicit none
+    complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
+    logical, optional :: gf_lo
+    call get_fields_direct_from_dfn(gnew, phi, apar, bpar, gf_lo)
   end subroutine get_init_field
 
   !> Routine to dump the current source term used in [[invert_rhs]].
@@ -6948,7 +6998,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
     use collisions, only: vnmult
-    use nonlinear_terms, only: nonlin
+    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -6972,10 +7022,10 @@ contains
     endif
 
 #ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)

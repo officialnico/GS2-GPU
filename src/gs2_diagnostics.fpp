@@ -1032,7 +1032,7 @@ contains
   !> Calculate and write the various diagnostic quantities.
   !>
   !> This is the main routine for the "old" diagnostics.
-  subroutine loop_diagnostics (istep, exit, debopt)
+  subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: fapar, fphi, fbpar, nstep
@@ -1050,7 +1050,7 @@ contains
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
-
+    use optionals, only: get_option_with_default
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1058,7 +1058,7 @@ contains
     logical, intent (out) :: exit
     !> If true, turn on some debug prints
     logical, intent (in), optional:: debopt
-
+    logical, intent(in), optional :: force
     real, dimension (ntheta0, naky) :: phitot
     real :: phi2, apar2, bpar2
     real :: t
@@ -1081,12 +1081,17 @@ contains
     real, save :: t_old = 0.
     logical :: last = .false.
     logical:: debug=.false.
-
+    logical :: do_force
+    integer, save :: istep_last = -1
     if (present(debopt)) debug = debopt
     call prof_entering ("loop_diagnostics")
 
     !Set the current time
     t = user_time
+    !Always skip if we've already done this step
+    if (istep == istep_last) return
+
+    do_force = get_option_with_default(force, .false.)
 
     exit = .false.
 
@@ -1112,7 +1117,11 @@ contains
     !########################################################
     !The rest of the routine only happens every nwrite steps
     !########################################################
-    if (mod(istep,nwrite) /= 0 .and. .not. exit) return
+    if (mod(istep,nwrite) /= 0 .and. .not. exit .and. .not. do_force) return
+
+    ! If we get here then we're doing a full set of diagnostics
+    ! so store the step
+    istep_last = istep
 
     if (write_g) call write_f (last)
 
@@ -2820,7 +2829,7 @@ contains
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, iproc, nproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
@@ -2842,7 +2851,7 @@ contains
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
 

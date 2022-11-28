@@ -156,17 +156,22 @@ contains
   !> The order is determined by how much time history we have
   !> available up to a maximum of 3rd order. The coefficients
   !> are generalised for variable timestep.
-  function get_adams_bashforth_coefficients(maximum_order) result(coefficients)
+  function get_adams_bashforth_coefficients(maximum_order, target_dt) result(coefficients)
+    use optionals, only: get_option_with_default
     implicit none
     !> If present then sets the maxmimum method order to use when
     !> calculating the coefficients. Limited by how much time history
     !> we have available and no higher than 3.
     integer, intent(in), optional :: maximum_order
+    !> If present sets the intended time step size we want to take. Otherwise
+    !> assume we want to step by code_dt.
+    real, intent(in), optional :: target_dt
     !> The result contains up to three coefficients. The first entry
     !> corresponds to the coefficient for the latest source term, the
     !> second entry corresponds to the coefficient for the previous source
     !> term and the last entry is for the oldest source term.
     real, dimension(:), allocatable :: coefficients
+    real :: this_dt
     integer :: order
 
     order = time_history_available()
@@ -176,6 +181,8 @@ contains
        order = min(order, maximum_order)
     end if
 
+    this_dt = get_option_with_default(target_dt, code_dt)
+
     ! We have one coefficient for each point of history we keep at
     ! this order
     allocate(coefficients(order))
@@ -184,27 +191,27 @@ contains
     case (3) !Most common case - 3rd order coefficients
        ! see Tatsuno & Dorland, Physics of Plasmas 13, 092107 (2006)
        ! http://www.cscamm.umd.edu/publications/TatsunoDorland-PoP06_CS-06-11.pdf
-       ! if code_dt = code_dt_prev1 = code_dt_prev2, this reduces to usual AB3
+       ! if this_dt = code_dt_prev1 = code_dt_prev2, this reduces to usual AB3
        ! coefficients 23/12, -4/3 and 5/12.
-       coefficients(1) = (((code_dt + &
+       coefficients(1) = (((this_dt + &
             code_dt_prev1)**2/code_dt_prev1)*( &
-            (code_dt+code_dt_prev1)/3. + code_dt_prev2/2. )  - &
+            (this_dt+code_dt_prev1)/3. + code_dt_prev2/2. )  - &
             code_dt_prev1*(code_dt_prev1/3. + code_dt_prev2/2.) ) / &
-            (code_dt*(code_dt_prev1 + code_dt_prev2))
+            (this_dt*(code_dt_prev1 + code_dt_prev2))
 
-       coefficients(2) = - code_dt * ( code_dt/3. + &
+       coefficients(2) = - this_dt * ( this_dt/3. + &
             (code_dt_prev1+code_dt_prev2)/2. ) / &
             (code_dt_prev1*code_dt_prev2)
 
-       coefficients(3) = code_dt * ( code_dt/3. + &
+       coefficients(3) = this_dt * ( this_dt/3. + &
             code_dt_prev1/2. ) / ( &
             code_dt_prev2*(code_dt_prev1+code_dt_prev2) )
 
     case (2) !2nd order coefficients
 
-       coefficients(1) = (0.5*code_dt + code_dt_prev1) / code_dt_prev1
+       coefficients(1) = (0.5*this_dt + code_dt_prev1) / code_dt_prev1
 
-       coefficients(2) = -0.5*code_dt / code_dt_prev1
+       coefficients(2) = -0.5*this_dt / code_dt_prev1
 
     case (1) !1st order coefficients - this is just explicit Euler
 

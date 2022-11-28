@@ -62,7 +62,7 @@ USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
 # Default to compressed netcdf files?
-USE_NETCDF_COMPRESSION ?=
+USE_NETCDF_COMPRESSION ?= on
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
@@ -72,8 +72,6 @@ USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
-# Use posix for command_line (bin)
-USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
@@ -501,10 +499,6 @@ ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
-ifdef USE_POSIX
-	MACRO_DEFS += -DPOSIX
-endif
-
 ifdef USE_LAPACK
 	MACRO_DEFS += -DLAPACK
 endif
@@ -657,11 +651,11 @@ DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && ec
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
 
-$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
+$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$@) ($(call processName,$^)))
 	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
+$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
 
 $(SRCDIR)/overrides.f90: $(SRCDIR)/generate_overrides.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
@@ -988,7 +982,6 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
