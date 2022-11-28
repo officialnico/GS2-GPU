@@ -1,0 +1,14 @@
+
+&nonlinear_terms_knobs
+  cfl                                      =  1.00000000000E+00
+  nonlinear_mode                           =  "on"
+  split_nonlinear                          =  T
+/
+
+&split_nonlinear_terms_knobs
+  rk_method = 'heun'
+  show_statistics = F
+  split_method = 'RK'
+
+/
+!include test_cyclone_itg_flux_base.in
