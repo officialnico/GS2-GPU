@@ -1,37 +1,30 @@
 # Helper file to generate the boilerplate files included
 # in gs2 init.
 
-
 default_module_routine_string = """
-subroutine {name}_subroutine(going_up)
-  use unit_tests, only: debug_message
+subroutine {name}_subroutine(self, current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
+  class(init_level_type), intent(in) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- {name} ({level})')
     call {init_routine}
-    current%level = init_level_list%{name}
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- {name} ({level})')
     call {finish_routine}
-    current%level = init_level_list%{name} - 1
   end if
 end subroutine {name}_subroutine
 """
 
 more_general_module_routine_string = """
-subroutine {name}_subroutine(going_up)
-  use unit_tests, only: debug_message
+subroutine {name}_subroutine(self, current, going_up)
 {imports}
+  class(init_level_type), intent(in) :: self
+  type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
-    call debug_message(1, 'gs2_init:init up reached init level -- {name} ({level})')
 {up_action}
-    current%level = init_level_list%{name}
   else
-    call debug_message(1, 'gs2_init:init down reached init level -- {name} ({level})')
 {down_action}
-    current%level = init_level_list%{name} - 1
   end if
 end subroutine {name}_subroutine
 """
@@ -118,7 +111,7 @@ if __name__ == "__main__":
         module_with_dependencies("split_nonlinear_terms",
                                  dependencies = [
                                      "nonlinear_terms"]),
-        module_with_dependencies("gs2_layouts", dependencies = []),
+        module_with_dependencies("gs2_layouts", dependencies = ["basic"]),
         module_with_dependencies("set_initial_values",
                                  dependencies = [
                                      "fields_level_2", "init_g", "override_initial_values"],
@@ -143,10 +136,10 @@ if __name__ == "__main__":
         module_with_dependencies("theta_grid",
                                  dependencies = [
                                      "theta_grid_params", "override_miller_geometry"]),
-        module_with_dependencies("normalisations", dependencies = []),
-        module_with_dependencies("theta_grid_params", dependencies = []),
+        module_with_dependencies("normalisations", dependencies = ["basic"]),
+        module_with_dependencies("theta_grid_params", dependencies = ["basic"]),
         module_with_dependencies("fields_parameters", module_name = "fields",
-                                 dependencies = []),
+                                 dependencies = ["basic"]),
         module_with_dependencies("kt_grids_parameters",
                                  module_name = "kt_grids",
                                  dependencies = [
@@ -155,7 +148,7 @@ if __name__ == "__main__":
                                  dependencies = [
                                      "theta_grid", "kt_grids_parameters",
                                      "override_kt_grids"]),
-        module_with_dependencies("gs2_save", dependencies = []),
+        module_with_dependencies("gs2_save", dependencies = ["basic"]),
         module_with_dependencies("run_parameters",
                                  dependencies = [
                                      "init_g", "kt_grids"]),
@@ -264,6 +257,13 @@ if __name__ == "__main__":
                                  visit_args = {'imports': "",
                                                'up_action': "",
                                                'down_action':""}
+                                 ),
+        module_with_dependencies("basic",
+                                 dependencies = [],
+                                 visit_routine = more_general_module_routine_string,
+                                 visit_args = {'imports': "",
+                                               'up_action': "",
+                                               'down_action':""}
                                  )
         ]
 
@@ -308,26 +308,24 @@ if __name__ == "__main__":
     # to construct an ordered dictionary in appropriate order
     ordered_levels = OrderedDict()
     for i, level in enumerate(levels_satisfied):
-        # We start with levels at 2 as we always have the hard-coded
-        # basic entry with level = 1
-        levels_dict[level].level = i + 2
+        # We start with levels at 1
+        levels_dict[level].level = i + 1
         ordered_levels[level] = levels_dict[level]
 
     # Now we can form the init level list entries
     init_level_list = "\n".join([
-        "  integer :: {name} = {level}".format(
+        "    integer :: {name} = {level}".format(
             name = x.name,
             level = x.level,
         ) for x in ordered_levels.values()])
 
-    # Now we can form the up/down calls
-    up_calls = "\n".join([
-        "    if (up() .and. (current%level == init_level_list%{name} - 1)) call {name}_subroutine(.true.)".format(
-            name = x.name) for x in ordered_levels.values()])
-
-    down_calls = "\n".join([
-        "    if (down() .and. (current%level == init_level_list%{name})) call {name}_subroutine(.false.)".format(
-            name = x.name) for x in ordered_levels.values()][::-1])
+    init_array = "      init_levels = [ &\n".format(nlevels=len(ordered_levels.values()))
+    init_array += ", &\n".join([
+        "        init_level_type(name = '{name}', level = {level}, change_level_specific = {name}_subroutine)".format(
+            name = x.name,
+            level = x.level,
+        ) for x in ordered_levels.values()
+    ]) + " &\n]\n"
 
     # Now the visit methods
     visit_methods = "\n\n".join([
@@ -337,13 +335,10 @@ if __name__ == "__main__":
     import sys
     src_dir = os.path.dirname(sys.argv[0])
     with open(os.path.join(src_dir,"gs2_init_level_list.inc"), "w") as output:
-        output.write(init_level_list.strip())
+        output.write(init_level_list.rstrip())
 
-    with open(os.path.join(src_dir,"gs2_init_up.inc"), "w") as output:
-        output.write(up_calls.strip())
-
-    with open(os.path.join(src_dir,"gs2_init_down.inc"), "w") as output:
-        output.write(down_calls.strip())
+    with open(os.path.join(src_dir,"gs2_init_level_array.inc"), "w") as output:
+        output.write(init_array.strip())
 
     with open(os.path.join(src_dir,"gs2_init_subroutines.inc"), "w") as output:
         output.write(visit_methods.strip())
