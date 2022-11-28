@@ -8,6 +8,7 @@ module split_nonlinear_terms
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
   public :: advance_nonlinear_term, advance_nonadiabatic_dfn
+  public :: split_nonlinear_terms_config_type, get_split_nonlinear_terms_config
 
   logical :: initialized = .false.
 
