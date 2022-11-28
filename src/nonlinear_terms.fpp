@@ -13,11 +13,11 @@ module nonlinear_terms
 
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
-  public :: add_explicit_terms, nonlinear_mode_switch
+  public :: add_explicit_terms, nonlinear_mode_switch, split_nonlinear
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: nonlinear_mode_none, nonlinear_mode_on
-  public :: gryfx_zonal
+  public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -82,6 +82,8 @@ module nonlinear_terms
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
+  logical :: split_nonlinear
+
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
   logical :: nonlin = .false.
@@ -129,6 +131,9 @@ module nonlinear_terms
      real :: qparfac = 1./sqrt(8.)
      !> GRYFX only. No documentation available
      real :: qprpfac = 1./sqrt(8.)
+     !> Do we evolve the nonlinear term separately from the linear terms (true) or
+     !> include the nonlinear term as a source in the standard algorithm (false).
+     logical :: split_nonlinear = .false.
      !> GRYFX only. No documentation available
      real :: tparfac = 1./2.
      !> GRYFX only. No documentation available
@@ -188,6 +193,16 @@ contains
           write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, *) 
+       end if
+
+       if (split_nonlinear) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The nonlinear term will be evolved separately from')")
+          write (report_unit, fmt="('the linear terms in a crude IMEX style.')")
+          write (report_unit, fmt="('This is an experimental feature.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
        end if
 
        if (nperiod > 1) then
@@ -284,7 +299,7 @@ contains
     if (debug) write(6,*) "init_nonlinear_terms: init_species"
     call init_species
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     
     call read_parameters(nonlinear_terms_config_in)
 
@@ -333,11 +348,11 @@ contains
     implicit none
     type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
     type (text_option), dimension (4), parameter :: nonlinearopts = &
-         (/ text_option('default', nonlinear_mode_none), &
+         [ text_option('default', nonlinear_mode_none), &
             text_option('none', nonlinear_mode_none), &
             text_option('off', nonlinear_mode_none), &
-            text_option('on', nonlinear_mode_on) /)
-    character(20) :: nonlinear_mode
+            text_option('on', nonlinear_mode_on) ]
+    character(len = 20) :: nonlinear_mode
     integer :: ierr
 
     if (present(nonlinear_terms_config_in)) nonlinear_terms_config = nonlinear_terms_config_in
@@ -353,6 +368,7 @@ contains
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
     qprpfac = nonlinear_terms_config%qprpfac
+    split_nonlinear = nonlinear_terms_config%split_nonlinear
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
     uparfac = nonlinear_terms_config%uparfac
@@ -487,7 +503,7 @@ contains
           if(gryfx_zonal%on) then
              call add_nl_gryfx (g1)
           else
-             call add_nl (g1, phi, apar, bpar)
+             call add_nl (g, g1, phi, apar, bpar)
           endif
           ! takes g1 at grid points and returns 2*g1 at cell centers
 
@@ -715,26 +731,56 @@ contains
     end do
   end subroutine nl_center
 
-  !> Calculate the nonlinear term and corresponding CFL condition
-  subroutine add_nl (g1, phi, apar, bpar)
+  !> Calculates the current nonlinear source term by calling add_nl
+  !> and the associated cfl limit.
+  subroutine calculate_current_nl_source_and_cfl_limit(g_in, g1, phi, apar, bpar, &
+       max_vel_local, need_to_adjust, calculate_cfl_limit)
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension (:,:,:), intent (in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: g1
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(out) :: max_vel_local
+    logical, intent(in) :: need_to_adjust
+    logical, intent(in), optional :: calculate_cfl_limit
+
+    use_cfl_limit = get_option_with_default(calculate_cfl_limit, .true.)
+    call add_nl(g_in, g1, phi, apar, bpar, need_to_adjust)
+
+    if (use_cfl_limit) then
+       ! This code may need changing if the handling of the cfl limit changes
+       max_vel_local = max_vel
+    else
+       max_vel_local = 1.0e-8
+    end if
+
+  end subroutine calculate_current_nl_source_and_cfl_limit
+
+  !> Calculate the nonlinear term and part of the corresponding CFL condition
+  subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use dist_fn_arrays, only: g, g_adjust
+    use dist_fn_arrays, only: g_adjust
     use gs2_transforms, only: transform2, inverse2
     use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
     implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
+    logical, intent(in), optional :: adjust
+    logical :: should_adjust
     real :: dt_cfl
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
+    should_adjust = get_option_with_default(adjust, .true.)
 
     !Form g1=i*kx*chi
     call load_kx_phi(g1, phi)    
@@ -752,8 +798,8 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
     !Form g1=i*ky*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    g1 = g_in
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
@@ -768,8 +814,10 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
 
-    max_vel = 0.
-    call get_max_vel(cfly)
+    if (use_cfl_limit) then
+       max_vel = 0.
+       call get_max_vel(cfly)
+    end if
 
     call calculate_bracket(.true.)
     
@@ -790,8 +838,8 @@ contains
     end if
 
     !Form g1=i*kx*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    g1 = g_in
+    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
@@ -805,8 +853,10 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
-    
-    call get_max_vel(cflx)
+
+    if (use_cfl_limit) then
+       call get_max_vel(cflx)
+    end if
 
     call calculate_bracket(.false.)
     
@@ -1242,10 +1292,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
     integer :: istep_error_start
-    logical :: nl_forbid_force_zero, use_cfl_limit, use_order_based_error, zip
+    logical :: nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
     real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1259,6 +1309,7 @@ contains
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
     qprpfac = self%qprpfac
+    split_nonlinear = self%split_nonlinear
     tparfac = self%tparfac
     tprpfac = self%tprpfac
     uparfac = self%uparfac
@@ -1279,6 +1330,7 @@ contains
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
     self%qprpfac = qprpfac
+    self%split_nonlinear = split_nonlinear
     self%tparfac = tparfac
     self%tprpfac = tprpfac
     self%uparfac = uparfac
@@ -1310,6 +1362,7 @@ contains
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
     call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
+    call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
     call self%write_key_val("uparfac", self%uparfac, unit_internal)
@@ -1343,6 +1396,7 @@ contains
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
     call broadcast(self%qprpfac)
+    call broadcast(self%split_nonlinear)
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)
     call broadcast(self%uparfac)
