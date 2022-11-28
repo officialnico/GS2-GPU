@@ -494,11 +494,10 @@ contains
     use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
     use sorting, only: quicksort
-    use le_grids, only: forbid
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(xxf_layout_type), intent(in) :: xxf_lo
@@ -509,9 +508,6 @@ contains
     integer :: to_low
     integer :: iglo, isign, ig, it, ixxf, it0
     integer :: n, ip, il, ik, ie, is
-    !> The following is for debug/testing to force all grid
-    !> points to be communicated if we wish.
-    logical, parameter :: skip_forbidden_region = .true.
 
     ! count number of elements to be redistributed to/from each processor
     nn_to = 0
@@ -543,7 +539,7 @@ contains
                 ! Don't send data from forbidden region, unless it is going to
                 ! this processor (i.e. local copy) due to assumptions in opt_local_copy
                 ! based methods.
-                if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
+                if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
                    !Increase the data send count for the proc which has the ixxf
                    nn_from(ip)=nn_from(ip)+1
                 end if
@@ -578,7 +574,7 @@ contains
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
-             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
 
              !Increase the data to receive count for proc with this data
              !Note, we only worry about iglo and not isign/ig because we know that
@@ -624,7 +620,7 @@ contains
              do ig = -g_lo%ntgrid, g_lo%ntgrid
                 !Get proc id
                 ip=proc_id(xxf_lo,ixxf)
-                if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
+                if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
 
                    !Increment procs message counter
                    n=nn_from(ip)+1
@@ -672,7 +668,7 @@ contains
              !Get proc id which has this data
              ip=proc_id(g_lo,iglo)
 
-             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
 
              !Determine message position index
              n=nn_to(ip)+1
@@ -752,11 +748,10 @@ contains
     use layouts_type, only: xxf_layout_type, yxf_layout_type
     use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
-    use mp, only: nproc, iproc
+    use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort
-    use le_grids, only: forbid
     implicit none
     type(xxf_layout_type), intent(in) :: xxf_lo
     type(yxf_layout_type), intent(in) :: yxf_lo
@@ -767,9 +762,6 @@ contains
     integer :: it, ixxf, ik, iyxf
     integer :: ixxf_start, iyxf_start
     integer :: n, ip, il, ig
-    !> The following is for debug/testing to force all grid
-    !> points to be communicated if we wish.
-    logical, parameter :: skip_forbidden_region = .true.
 
     !Initialise counts to zero
     nn_to = 0
@@ -796,7 +788,7 @@ contains
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
-             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
              !Increase the appropriate procs send count
              nn_from(ip)=nn_from(ip)+1
           enddo
@@ -823,7 +815,7 @@ contains
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
-             if (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc)) cycle
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
 
              !Increase the appropriate procs recv count
              nn_to(ip) = nn_to(ip)+1
@@ -870,7 +862,7 @@ contains
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
-             if (.not. (forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
+             if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
                 !Increment the procs message counter
                 n=nn_from(ip)+1
                 nn_from(ip)=n
@@ -907,7 +899,7 @@ contains
              ! Don't send data from forbidden region, unless it is going to
              ! this processor (i.e. local copy) due to assumptions in opt_local_copy
              ! based methods.
-             if (.not.(forbid(ig, il) .and. skip_forbidden_region .and. (ip /= iproc))) then
+             if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
 
                 !Increment the procs message counter
                 n=nn_to(ip)+1
@@ -961,6 +953,26 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
   end function setup_y_redist_local
+
+  !> Small helper function to wrap up logic about if this point corresponds to a forbidden
+  !> point and if we need to transfer it in the redistribute
+  pure logical function point_is_forbidden_and_not_redistributed(ig, il, ip) result(flag)
+    use mp, only: iproc
+    use le_grids, only: forbid
+    use gs2_layouts, only: opt_local_copy
+    implicit none
+    integer, intent(in) :: ig, il, ip
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
+    flag = &
+         !We want to skip the forbidden points
+         skip_forbidden_region .and. &
+         !Point is in forbidden region
+         forbid(ig, il) &
+         !Point will be sent to a different proc, or we are not using opt_local_copy.
+         .and. ((ip/=iproc) .or. .not. opt_local_copy)
+  end function point_is_forbidden_and_not_redistributed
 
   !> Setup the module level xxf -> yxf redistribute. Note this also
   !> calls [[init_x_redist_local]] in order to setup the mapping for
