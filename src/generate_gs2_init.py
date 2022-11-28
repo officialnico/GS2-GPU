@@ -108,6 +108,9 @@ if __name__ == "__main__":
                                      "species", "kt_grids", "gs2_layouts", "theta_grid",
                                      "le_grids", "dist_fn_layouts",
                                      "override_optimisations"]),
+        module_with_dependencies("split_nonlinear_terms",
+                                 dependencies = [
+                                     "nonlinear_terms"]),
         module_with_dependencies("gs2_layouts", dependencies = ["basic"]),
         module_with_dependencies("set_initial_values",
                                  dependencies = [

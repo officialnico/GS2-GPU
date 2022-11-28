@@ -22,14 +22,15 @@ init_levels = [ &
         init_level_type(name = 'dist_fn_layouts', level = 21, change_level_specific = dist_fn_layouts_subroutine), &
         init_level_type(name = 'fields_level_1', level = 22, change_level_specific = fields_level_1_subroutine), &
         init_level_type(name = 'nonlinear_terms', level = 23, change_level_specific = nonlinear_terms_subroutine), &
-        init_level_type(name = 'dist_fn_arrays', level = 24, change_level_specific = dist_fn_arrays_subroutine), &
-        init_level_type(name = 'dist_fn_level_1', level = 25, change_level_specific = dist_fn_level_1_subroutine), &
-        init_level_type(name = 'dist_fn_level_2', level = 26, change_level_specific = dist_fn_level_2_subroutine), &
-        init_level_type(name = 'override_timestep', level = 27, change_level_specific = override_timestep_subroutine), &
-        init_level_type(name = 'dist_fn_level_3', level = 28, change_level_specific = dist_fn_level_3_subroutine), &
-        init_level_type(name = 'collisions', level = 29, change_level_specific = collisions_subroutine), &
-        init_level_type(name = 'fields_level_2', level = 30, change_level_specific = fields_level_2_subroutine), &
-        init_level_type(name = 'override_initial_values', level = 31, change_level_specific = override_initial_values_subroutine), &
-        init_level_type(name = 'set_initial_values', level = 32, change_level_specific = set_initial_values_subroutine), &
-        init_level_type(name = 'full', level = 33, change_level_specific = full_subroutine) &
+        init_level_type(name = 'split_nonlinear_terms', level = 24, change_level_specific = split_nonlinear_terms_subroutine), &
+        init_level_type(name = 'dist_fn_arrays', level = 25, change_level_specific = dist_fn_arrays_subroutine), &
+        init_level_type(name = 'dist_fn_level_1', level = 26, change_level_specific = dist_fn_level_1_subroutine), &
+        init_level_type(name = 'dist_fn_level_2', level = 27, change_level_specific = dist_fn_level_2_subroutine), &
+        init_level_type(name = 'override_timestep', level = 28, change_level_specific = override_timestep_subroutine), &
+        init_level_type(name = 'dist_fn_level_3', level = 29, change_level_specific = dist_fn_level_3_subroutine), &
+        init_level_type(name = 'collisions', level = 30, change_level_specific = collisions_subroutine), &
+        init_level_type(name = 'fields_level_2', level = 31, change_level_specific = fields_level_2_subroutine), &
+        init_level_type(name = 'override_initial_values', level = 32, change_level_specific = override_initial_values_subroutine), &
+        init_level_type(name = 'set_initial_values', level = 33, change_level_specific = set_initial_values_subroutine), &
+        init_level_type(name = 'full', level = 34, change_level_specific = full_subroutine) &
 ]

@@ -286,6 +286,18 @@ subroutine nonlinear_terms_subroutine(self, current, going_up)
   end if
 end subroutine nonlinear_terms_subroutine
 
+subroutine split_nonlinear_terms_subroutine(self, current, going_up)
+  use split_nonlinear_terms, only: init_split_nonlinear_terms, finish_split_nonlinear_terms
+  class(init_level_type), intent(in) :: self
+  type(init_type), intent(in) :: current
+  logical, intent(in) :: going_up
+  if (going_up) then
+    call init_split_nonlinear_terms
+  else
+    call finish_split_nonlinear_terms
+  end if
+end subroutine split_nonlinear_terms_subroutine
+
 subroutine dist_fn_arrays_subroutine(self, current, going_up)
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
   class(init_level_type), intent(in) :: self

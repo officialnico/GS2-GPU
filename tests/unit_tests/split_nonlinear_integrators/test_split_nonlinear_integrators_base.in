@@ -31,3 +31,9 @@ fbpar = 0.0
 /
 &dist_fn_species_knobs_1
 /
+
+&nonlinear_terms_knobs
+  nonlinear_mode = 'on'
+  split_nonlinear = T
+  cfl = 1.0e-3
+/

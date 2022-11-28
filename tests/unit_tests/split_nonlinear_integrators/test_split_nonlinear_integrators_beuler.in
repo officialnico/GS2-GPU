@@ -1,9 +1,8 @@
-&nonlinear_terms_knobs
-  nonlinear_mode = 'on'
-  split_nonlinear = T
-  error_target = 1.0e-10
+&split_nonlinear_terms_knobs
+  absolute_tolerance = 1.0e-11
+  convergence_tolerance = 1.0e-12
+  relative_tolerance = 1.0e-10
   split_method = 'beuler'
-  cfl = 1.0e-12
 /
 
 !include test_split_nonlinear_integrators_base.in

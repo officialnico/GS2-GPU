@@ -987,6 +987,20 @@ contains
 
     end do
 
+    ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
+    ! even in cases where nstep does not have nwrite as a factor.
+    ! Note we pass istep-1 as we assume istep has been incremented once
+    ! from the last step actually taken.
+    if (.not. state%skip_diagnostics) then
+       if (use_old_diagnostics) then
+          call loop_diagnostics (istep - 1, state%exit, force = .true.)
+#ifdef NEW_DIAG
+       else
+          call run_diagnostics (istep - 1, state%exit, state%replay, force = .true.)
+#endif
+       end if
+    end if
+
   ! NRM: When running inside GryfX, evolve_equations is called every timestep to
   ! advance a single timestep.
   ! So anything that is supposed to happen after GS2 completes the main nstep

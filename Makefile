@@ -62,7 +62,7 @@ USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
 # Default to compressed netcdf files?
-USE_NETCDF_COMPRESSION ?=
+USE_NETCDF_COMPRESSION ?= on
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses hdf5 library (bin)
