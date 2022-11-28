@@ -107,6 +107,7 @@ standard_tests:
   image: fedora:35
   variables:
     CASENAME: "standard"
+    EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
     PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
