@@ -38,7 +38,7 @@ contains
     real, dimension(:,:,:), allocatable   :: pflux, vflux, vflux_par, vflux_perp
     real, dimension(:,:,:), allocatable   :: pmflux, vmflux, pbflux, vbflux, pflux_tormom
     real, dimension(:), allocatable :: heat_fluxes
-    real, parameter :: expected_es_hflux_tot = 137.0
+    real, parameter :: expected_es_hflux_tot = 108.0
     integer :: is
 
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.

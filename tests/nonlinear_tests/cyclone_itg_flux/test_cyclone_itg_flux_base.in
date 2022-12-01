@@ -10,11 +10,11 @@
 
 &dist_fn_species_knobs_1
   bakdif                                   =  0.05
-  fexpr                                    =  0.48
+  fexpr                                    =  0.45
 /
 
 &gs2_diagnostics_knobs
-  nwrite                                   =  10
+  nwrite                                   =  100
   write_ascii                              =  F
   write_correlation                        =  F
   write_flux_line                          =  F
@@ -23,18 +23,18 @@
   
 &init_g_knobs
   chop_side                                =  F
-  ginit_option                             =  "random_sine"
-  phiinit                                  =  0.001
+  ginit_option                             =  "default"
+  phiinit                                  =  0.1
 /
 
 &knobs
   beta                                     =  0.00000000000E+00
-  delt                                     =  0.50000000000E+00
+  delt                                     =  0.20000000000E+00
   fapar                                    =  0.00000000000E+00
   fbpar                                    =  0.00000000000E+00
   fphi                                     =  0.10000000000E+01
   immediate_reset                          =  T
-  max_sim_time                             =  60.0
+  max_sim_time                             =  50.0
   nstep                                    =  10000000
   seed                                     =  100001
 /
