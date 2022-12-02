@@ -20,8 +20,7 @@ else # TEST_LEVEL
 # We want to run 'pytest' without MPI, so undefine TESTCOMMAND
 TESTCOMMAND =
 
-all:
-	make -C $(GK_HEAD_DIR) write_default_input_file gs2
+all: $(BINDIR)/write_default_input_file $(BINDIR)/gs2
 	$(call RUNCOMMAND,PYTHONPATH=$(GK_HEAD_DIR)/scripts pytest)
 
 .PHONY: all
