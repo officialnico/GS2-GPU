@@ -66,7 +66,8 @@ def test_all_namelists_present(default_input_file):
     namelists = set()
 
     for file in files:
-        if (tmp := constructFromFile(file, quiet=True)) is None:
+        tmp = constructFromFile(file, quiet=True)
+        if tmp is None:
             continue
         for v in tmp.values():
             namelists.add(v.namelistName)
