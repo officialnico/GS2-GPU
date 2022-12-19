@@ -211,6 +211,33 @@ contains
           write (report_unit, *)
        end if
 
+       if (.not. include_apar) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The A|| potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (.not. include_bpar) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The B|| potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (.not. include_phi) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The electrostatic potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
        if (nperiod > 1) then
           write (report_unit, *) 
           write (report_unit, fmt="('################# WARNING #######################')")
