@@ -83,6 +83,7 @@ module nonlinear_terms
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
   logical :: split_nonlinear
+  logical :: include_apar, include_bpar, include_phi
 
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
 
