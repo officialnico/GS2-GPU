@@ -925,7 +925,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0)) then
+    if (fphi > epsilon(0.0) .and. include_phi) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -952,7 +952,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0)) then      
+    if (fphi > epsilon(0.0) .and. include_phi) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -983,7 +983,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0)) return
+    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1012,7 +1012,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0)) return
+    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1041,7 +1041,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0)) return
+    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
 
     ! Is this factor of two from the old normalization?
 
@@ -1072,7 +1072,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0)) return
+    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
 
     ! Is this factor of two from the old normalization?
 
