@@ -1332,7 +1332,8 @@ contains
     logical :: include_apar, include_bpar, include_phi, nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
     real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, &
+         use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
