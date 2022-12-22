@@ -35,6 +35,7 @@ module gs2_save
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
+  public :: gs2_save_slice
 
   interface gs2_restore
      module procedure gs2_restore_many
@@ -859,7 +860,187 @@ contains
          'WARNING: gs2_save_for_restart is called without netcdf library'
 # endif
   end subroutine gs2_save_for_restart
-  
+
+  !> Save g slices
+  subroutine gs2_save_slice(g_in, it, ik, il, ie, is, time,istatus, nout, fileopt, header)
+# ifdef NETCDF
+    use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists, netcdf_real
+    use gs2_metadata, only: create_metadata
+    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4, nf90_put_var
+    use file_utils, only: error_unit
+    use unit_tests, only: debug_message
+    use mp, only: iproc, barrier, proc0, nbsend, nbrecv, wait
+    use optionals, only: get_option_with_default
+# endif
+    use theta_grid, only: ntgrid, theta
+    use gs2_layouts, only: g_lo, proc_id, idx
+    use standard_header, only : standard_header_type
+    implicit none
+    !> The distribution function \(g\)
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in) :: g_in
+    !> The indices of the slice to save
+    integer, intent(in) :: it, ik, il, ie, is
+    !> The current time
+    real, intent(in) :: time
+    !> Last netCDF status: zero on success, non-zero on failure
+    integer, intent (out) :: istatus
+    !> The current time output index
+    integer, intent(in), optional :: nout
+    !> Optional extra filename infix
+    character (len=*), intent (in), optional :: fileopt
+    !> Header for files with build and run information
+    type(standard_header_type), optional, intent(in) :: header
+# ifdef NETCDF
+    character (run_name_size) :: file_proc
+    integer :: ierr, the_iglo, the_proc, r_handle, s_handle
+    integer, parameter :: verb = 3
+    ! Netcdf ids for variables only handled in this routine
+    integer (kind_nf) :: theta_id, time_id, gslice_id
+    integer (kind_nf) :: ri_dim, sign_dim, theta_dim, time_dim
+    !> Open new netCDF files with netCDF-4 model, and overwrite existing files
+    integer :: create_file_mode
+    integer, dimension(4) :: gslice_dims
+    type(standard_header_type) :: local_header
+    complex, dimension(-ntgrid:ntgrid, 2) :: gslice
+    character (len=*), parameter :: file_opt_base = '.slice'
+    logical :: appending, previous_file_exists
+    real, dimension(:, :, :), allocatable :: ri_gslice
+    integer, save :: nout_local = 1
+
+    istatus = 0
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
+
+    the_iglo = idx(g_lo, ik, it, il, ie, is)
+    the_proc = proc_id(g_lo, the_iglo)
+
+    ! If we don't own the relevant slice then return
+    if (iproc == the_proc) then
+       gslice = g_in(:, :, the_iglo)
+       ! Send to proc0
+       call nbsend(gslice, 0, 0, s_handle)
+    end if
+
+    ! Proc0 deals with receiving the data
+    if (proc0) then
+       call nbrecv(gslice, the_proc, 0, r_handle)
+       call wait(r_handle)
+    end if
+
+    if (iproc == the_proc) call wait(s_handle)
+
+    ! Now proc0 does the rest of the work so let us return
+    if (.not. proc0) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
+
+    ierr = error_unit()
+
+    ! Open the file and define dimensions and variables
+    file_proc = get_file_proc(.false., file_opt_base // fileopt)
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice opening file')
+    call debug_message(verb, 'file proc is')
+    call debug_message(verb, trim(adjustl(file_proc)))
+
+    nout_local = get_option_with_default(nout, nout_local)
+
+    ! See if the output file already exists, so we know how to open
+    ! the file.  This would be simpler if netCDF had a "open if it
+    ! exists, create if it doesn't" mode, but it doesn't so we have
+    ! to do this instead
+    inquire(file=trim(file_proc), exist=previous_file_exists)
+    appending = (previous_file_exists .and. nout_local > 1)
+
+    if (.not. appending) then
+       create_file_mode = ior(NF90_NETCDF4, NF90_CLOBBER)
+       istatus = nf90_create (file_proc, create_file_mode, ncid)
+    else
+       create_file_mode = NF90_WRITE
+       istatus = nf90_open (file_proc, create_file_mode, ncid)
+    end if
+
+    if (istatus /= NF90_NOERR) then
+       write(ierr,*) "nf90_create/open error: ", nf90_strerror(istatus)
+       goto 1
+    end if
+
+    call create_metadata(ncid, "GS2 slice file", local_header)
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice defining dimensions')
+
+    call ensure_netcdf_dim_exists(ncid, 'ri', 2, ri_dim)
+    call ensure_netcdf_dim_exists(ncid, "theta", 2*ntgrid+1, theta_dim)
+    call ensure_netcdf_dim_exists(ncid, "sign", 2, sign_dim)
+    call ensure_netcdf_dim_exists(ncid, 't', NF90_UNLIMITED, time_dim)
+
+    gslice_dims = [ri_dim, theta_dim, sign_dim, time_dim]
+
+    call ensure_netcdf_var_exists(ncid, "t", netcdf_real, [time_dim], time_id)
+    call ensure_netcdf_var_exists(ncid, "g_slice", netcdf_real, gslice_dims, gslice_id)
+    call ensure_netcdf_var_exists(ncid, "theta", netcdf_real, [theta_dim], theta_id)
+
+    ! Now we've finished defining things switch to put mode
+    call debug_message(verb, 'gs2_save::gs2_save_slice nf90_enddef')
+    istatus = nf90_enddef (ncid)
+    if (istatus /= NF90_NOERR) then
+       write (ierr,*) "nf90_enddef error: ", nf90_strerror(istatus)
+       goto 1
+    end if
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice writing variables')
+
+    if (nout_local == 1) then
+       istatus = nf90_put_var (ncid, theta_id, theta)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var theta error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+    end if
+
+    istatus = nf90_put_var (ncid, time_id, time, start = [nout_local])
+    if (istatus /= NF90_NOERR) then
+       write (ierr,*) "nf90_put_var time error: ", nf90_strerror(istatus)
+       goto 1
+    end if
+
+    allocate(ri_gslice(2, size(theta), 2))
+    call c2r(gslice, ri_gslice)
+    istatus = nf90_put_var (ncid, gslice_id, ri_gslice, &
+         start = [1, 1, 1, nout_local], &
+         count = [2, size(theta), 2, 1] &
+         )
+    if (istatus /= NF90_NOERR) then
+       write (ierr,*) "nf90_put_var gslice error: ", nf90_strerror(istatus)
+       goto 1
+    end if
+
+    ! Here is the label which we head to if we detect an error at any point before here.
+    ! Note this appears mid-way through our variable put phase, which seems a little odd.
+    ! We therefore don't exit early if we encounter an error in later put statements.
+1   continue
+
+    if (istatus /= NF90_NOERR) then
+       call debug_message(verb, 'gs2_save::gs2_save_slice closing file at the continue point')
+       istatus = nf90_close (ncid)
+       return
+    end if
+
+    ! Close the file
+    istatus = nf90_close (ncid)
+    if (istatus /= NF90_NOERR) &
+         call netcdf_error (istatus, message='nf90_close error')
+
+    nout_local = nout_local + 1
+# endif
+  end subroutine gs2_save_slice
+
   !> FIXME : Add documentation
   subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
