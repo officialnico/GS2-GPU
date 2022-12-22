@@ -915,6 +915,10 @@ contains
     the_iglo = idx(g_lo, ik, it, il, ie, is)
     the_proc = proc_id(g_lo, the_iglo)
 
+    ! There's no real reason that we ask proc0 to be in charge of writing
+    ! this data so we could skip this communication and just let the owner
+    ! deal with writing the data.
+
     ! If we don't own the relevant slice then return
     if (iproc == the_proc) then
        gslice = g_in(:, :, the_iglo)
@@ -986,14 +990,6 @@ contains
     call ensure_netcdf_var_exists(ncid, "t", netcdf_real, [time_dim], time_id)
     call ensure_netcdf_var_exists(ncid, "g_slice", netcdf_real, gslice_dims, gslice_id)
     call ensure_netcdf_var_exists(ncid, "theta", netcdf_real, [theta_dim], theta_id)
-
-    ! Now we've finished defining things switch to put mode
-    call debug_message(verb, 'gs2_save::gs2_save_slice nf90_enddef')
-    istatus = nf90_enddef (ncid)
-    if (istatus /= NF90_NOERR) then
-       write (ierr,*) "nf90_enddef error: ", nf90_strerror(istatus)
-       goto 1
-    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_slice writing variables')
 
