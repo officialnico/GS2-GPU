@@ -871,6 +871,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: iproc, barrier, proc0, nbsend, nbrecv, wait
     use optionals, only: get_option_with_default
+    use convert, only: c2r
 # endif
     use theta_grid, only: ntgrid, theta
     use gs2_layouts, only: g_lo, proc_id, idx
