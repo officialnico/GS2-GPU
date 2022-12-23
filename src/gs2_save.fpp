@@ -872,6 +872,8 @@ contains
     use mp, only: iproc, barrier, proc0, nbsend, nbrecv, wait
     use optionals, only: get_option_with_default
     use convert, only: c2r
+    use kt_grids, only: aky, akx
+    use le_grids, only: energy, al
 # endif
     use theta_grid, only: ntgrid, theta
     use gs2_layouts, only: g_lo, proc_id, idx
@@ -897,6 +899,8 @@ contains
     integer, parameter :: verb = 3
     ! Netcdf ids for variables only handled in this routine
     integer (kind_nf) :: theta_id, time_id, gslice_id
+    integer (kind_nf) :: it_id, ik_id, il_id, ie_id, is_id, the_iglo_id, the_proc_id
+    integer (kind_nf) :: kx_id, ky_id, lambda_id, energy_id
     integer (kind_nf) :: ri_dim, sign_dim, theta_dim, time_dim
     !> Open new netCDF files with netCDF-4 model, and overwrite existing files
     integer :: create_file_mode
@@ -991,14 +995,96 @@ contains
     call ensure_netcdf_var_exists(ncid, "g_slice", netcdf_real, gslice_dims, gslice_id)
     call ensure_netcdf_var_exists(ncid, "theta", netcdf_real, [theta_dim], theta_id)
 
+    call ensure_netcdf_var_exists(ncid, 'it', netcdf_int, it_id)
+    call ensure_netcdf_var_exists(ncid, 'ik', netcdf_int, ik_id)
+    call ensure_netcdf_var_exists(ncid, 'il', netcdf_int, il_id)
+    call ensure_netcdf_var_exists(ncid, 'ie', netcdf_int, ie_id)
+    call ensure_netcdf_var_exists(ncid, 'is', netcdf_int, is_id)
+
+    call ensure_netcdf_var_exists(ncid, 'iglo', netcdf_int, the_iglo_id)
+    call ensure_netcdf_var_exists(ncid, 'iproc', netcdf_int, the_proc_id)
+
+    call ensure_netcdf_var_exists(ncid, 'kx', netcdf_real, kx_id)
+    call ensure_netcdf_var_exists(ncid, 'ky', netcdf_real, ky_id)
+    call ensure_netcdf_var_exists(ncid, 'lambda', netcdf_real, lambda_id)
+    call ensure_netcdf_var_exists(ncid, 'energy', netcdf_real, energy_id)
+
     call debug_message(verb, 'gs2_save::gs2_save_slice writing variables')
 
+    ! Write constant data
     if (nout_local == 1) then
        istatus = nf90_put_var (ncid, theta_id, theta)
        if (istatus /= NF90_NOERR) then
           write (ierr,*) "nf90_put_var theta error: ", nf90_strerror(istatus)
           goto 1
        end if
+
+       istatus = nf90_put_var (ncid, it_id, it)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var it error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, ik_id, ik)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var ik error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, il_id, il)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var il error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, ie_id, ie)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var ie error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, is_id, is)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var is error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, the_iglo_id, the_iglo)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var iglo error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, the_proc_id, the_proc)
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var iproc error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, kx_id, akx(it))
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var kx error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, ky_id, aky(ik))
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var ky error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, lambda_id, al(il))
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var lambda error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
+       istatus = nf90_put_var (ncid, energy_id, energy(ie, is))
+       if (istatus /= NF90_NOERR) then
+          write (ierr,*) "nf90_put_var energy error: ", nf90_strerror(istatus)
+          goto 1
+       end if
+
     end if
 
     istatus = nf90_put_var (ncid, time_id, time, start = [nout_local])
