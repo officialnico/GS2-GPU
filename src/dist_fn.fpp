@@ -3306,21 +3306,35 @@ contains
     integer :: modep
     integer,save :: istep_last=-1
     integer, parameter :: verb = 3
-
+    logical :: is_first_half_step, is_second_half_step
+    real :: nl_dt
+    ! Hard-code this for now, but can make a user input.
+    logical, parameter :: nl_split_strang = .true.
     modep = 0
     if (present(mode)) modep = mode
+
+    is_first_half_step = istep /= istep_last .and. istep > 0
+    is_second_half_step = istep == istep_last .and. istep > 0
+
+    if (nl_split_strang) then
+       nl_dt = code_dt / 2
+    else
+       nl_dt = code_dt
+    end if
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
-       ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then       
+       ! by nl_dt.
+
+       if (is_first_half_step) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+
+             call advance_nonlinear_term(istep, phi, apar, bpar, nl_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(istep, phi, apar, bpar, nl_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -3357,7 +3371,24 @@ contains
     !Enforce parity if desired (also performed in invert_rhs, but this is required
     !as collisions etc. may break parity?)
     if (def_parity) call enforce_parity(parity_redist)
-      
+
+    !Calculate the explicit nonlinear terms
+    if (split_nonlinear .and. nonlin .and. nl_split_strang) then
+       ! If we're finishing a full step then advance just the nonlinear term
+       ! by code_dt/2.
+       if (is_second_half_step) then
+          g = gnew
+          if (advance_nonadiabatic_dfn) then
+             call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
+                  calculate_potentials_from_nonadiabatic_dfn, &
+                  calculate_current_nl_source_and_cfl_limit)
+          else
+             call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
+                  get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
+          end if
+       end if
+    end if
+
     istep_last=istep
 
   end subroutine timeadv
