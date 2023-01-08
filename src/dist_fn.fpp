@@ -3300,7 +3300,7 @@ contains
     use gs2_time, only: code_dt
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
@@ -3313,8 +3313,8 @@ contains
     modep = 0
     if (present(mode)) modep = mode
 
-    is_first_half_step = istep /= istep_last .and. istep > 0
-    is_second_half_step = istep == istep_last .and. istep > 0
+    is_first_half_step = istep /= istep_last
+    is_second_half_step = istep == istep_last
 
     if (nl_split_strang) then
        nl_dt = code_dt / 2
@@ -3326,10 +3326,8 @@ contains
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by nl_dt.
-
-       if (is_first_half_step) then
+       if (is_first_half_step .and. istep > 0) then
           if (advance_nonadiabatic_dfn) then
-
              call advance_nonlinear_term(istep, phi, apar, bpar, nl_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
@@ -3375,8 +3373,8 @@ contains
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin .and. nl_split_strang) then
        ! If we're finishing a full step then advance just the nonlinear term
-       ! by code_dt/2.
-       if (is_second_half_step) then
+       ! by nl_dt.
+       if (is_second_half_step .and. istep > 0) then
           g = gnew
           if (advance_nonadiabatic_dfn) then
              call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
@@ -3386,6 +3384,7 @@ contains
              call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
+          call get_init_field(phinew, aparnew, bparnew)
        end if
     end if
 
