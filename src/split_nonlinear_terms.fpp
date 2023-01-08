@@ -455,8 +455,8 @@ contains
           time_step = min(0.9 * actual_dt * sqrt(inverse_error), 1.0 / errors(3))
 
           ! If error is too large reject the step
-          if ( inverse_error < 1.0) then
-             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
+          if ( inverse_error < 1.0 .or. (time_step == 1.0/errors(3))) then
+             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error or cfl, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
           else
@@ -596,7 +596,7 @@ contains
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (inverse_error < 1.0) then
+       if (inverse_error < 1.0 .or. (new_time_step == 1.0/errors(3))) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
