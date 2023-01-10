@@ -1,5 +1,4 @@
 sinclude ../Makefile.tests_common
-include $(GK_HEAD_DIR)/Makefile.target_gs2
 
 PYTEST := $(shell which pytest)
 GK_HAS_PYTEST := $(if $(PYTEST),yes,no)
