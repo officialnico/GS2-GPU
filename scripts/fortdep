@@ -647,6 +647,7 @@ sub write_dependency{
 	print DEP "\n\n";
     }
 
+    print DEP "# Developer-only option to avoid rebuilding module files\n";
     print DEP "ifndef JUST_RELINK\n";
     foreach my $key ( sort ( keys %$reqfile ) ){
 	my $keyo=$key;
