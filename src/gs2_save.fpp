@@ -869,11 +869,12 @@ contains
     use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4, nf90_put_var
     use file_utils, only: error_unit
     use unit_tests, only: debug_message
-    use mp, only: iproc
+    use mp, only: iproc, proc0
     use optionals, only: get_option_with_default
     use convert, only: c2r
-    use kt_grids, only: aky, akx
-    use le_grids, only: energy, al
+    use kt_grids, only: aky, akx, naky, ntheta0
+    use le_grids, only: energy, al, negrid, nlambda
+    use species, only: nspec
 # endif
     use theta_grid, only: ntgrid, theta
     use gs2_layouts, only: g_lo, proc_id, idx
@@ -910,10 +911,19 @@ contains
     logical :: appending, previous_file_exists
     real, dimension(:, :, :), allocatable :: ri_gslice
     integer, save :: nout_local = 1
-
+    logical :: error_exit
     istatus = 0
-
     call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
+
+    ! Sanity check the inputs
+    error_exit = .false.
+    if (it < 1 .or. it > ntheta0) error_exit = .true.
+    if (ik < 1 .or. ik > naky) error_exit = .true.
+    if (il < 1 .or. il > nlambda) error_exit = .true.
+    if (ie < 1 .or. ie > negrid) error_exit = .true.
+    if (is < 1 .or. is > nspec) error_exit = .true.
+    if (proc0 .and. error_exit) write(6,'("Error: Invalid index based to gs2_save_slice.")')
+    if (error_exit) return
 
     the_iglo = idx(g_lo, ik, it, il, ie, is)
     the_proc = proc_id(g_lo, the_iglo)
