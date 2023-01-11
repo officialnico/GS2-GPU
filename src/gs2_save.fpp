@@ -869,7 +869,7 @@ contains
     use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4, nf90_put_var
     use file_utils, only: error_unit
     use unit_tests, only: debug_message
-    use mp, only: iproc, barrier, proc0, nbsend, nbrecv, wait
+    use mp, only: iproc
     use optionals, only: get_option_with_default
     use convert, only: c2r
     use kt_grids, only: aky, akx
@@ -906,7 +906,6 @@ contains
     integer :: create_file_mode
     integer, dimension(4) :: gslice_dims
     type(standard_header_type) :: local_header
-    complex, dimension(-ntgrid:ntgrid, 2) :: gslice
     character (len=*), parameter :: file_opt_base = '.slice'
     logical :: appending, previous_file_exists
     real, dimension(:, :, :), allocatable :: ri_gslice
@@ -919,27 +918,10 @@ contains
     the_iglo = idx(g_lo, ik, it, il, ie, is)
     the_proc = proc_id(g_lo, the_iglo)
 
-    ! There's no real reason that we ask proc0 to be in charge of writing
-    ! this data so we could skip this communication and just let the owner
-    ! deal with writing the data.
-
-    ! If we don't own the relevant slice then return
-    if (iproc == the_proc) then
-       gslice = g_in(:, :, the_iglo)
-       ! Send to proc0
-       call nbsend(gslice, 0, 0, s_handle)
-    end if
-
-    ! Proc0 deals with receiving the data
-    if (proc0) then
-       call nbrecv(gslice, the_proc, 0, r_handle)
-       call wait(r_handle)
-    end if
-
-    if (iproc == the_proc) call wait(s_handle)
-
-    ! Now proc0 does the rest of the work so let us return
-    if (.not. proc0) return
+    ! The proc which owns this slice is responsible for writing and
+    ! does the rest of the work so let us return if that's not this
+    ! proc
+    if (iproc /= the_proc) return
 
     if (present(header)) then
       local_header = header
@@ -1093,8 +1075,9 @@ contains
        goto 1
     end if
 
+    ! Convert from complex to real
     allocate(ri_gslice(2, size(theta), 2))
-    call c2r(gslice, ri_gslice)
+    call c2r(g_in(:, :, the_iglo), ri_gslice)
     istatus = nf90_put_var (ncid, gslice_id, ri_gslice, &
          start = [1, 1, 1, nout_local], &
          count = [2, size(theta), 2, 1] &
