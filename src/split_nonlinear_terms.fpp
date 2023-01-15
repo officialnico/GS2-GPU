@@ -83,10 +83,11 @@ module split_nonlinear_terms
      !> Valid options include:
      !>
      !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order. CLF controlled time step.
-     !>  - 'beuler' -- Backwards Euler. Relative error controlled time step
+     !>  - 'beuler' -- Backwards Euler. Relative and absolute error controlled time step.
+     !>            Newton iteration controlled by convergence_tolerance.
      !>  - 'default' -- The same as 'RK'.
      !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
-     !>            using rk_method switch. Absolute error controlled time step
+     !>            using rk_method switch. Relative and absolute error controlled time step.
      !>
      character(len = 20) :: split_method = 'default'
    contains
