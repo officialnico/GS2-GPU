@@ -664,16 +664,17 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
-    real :: internal_time, time_step, max_vel
+    real :: internal_time, time_step, max_vel, cfl_limit
     integer :: counter, ipic
     logical, parameter :: debug = .false.
-    real, dimension(3) :: errors
+    real, dimension(4) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
     complex, dimension(:, :, :), allocatable :: g_start, dg
     integer, parameter :: npic_limit = 15, npic_low_limit = 3
     real, parameter :: time_step_factor = 2.0
+    logical, parameter :: check_cfl = .true.
     logical :: converged
 
     ! Initialise internal variables
@@ -695,18 +696,31 @@ contains
        call source_func(gnew, gexp_1, &
             phinew, aparnew, bparnew, &
             max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
-            calculate_cfl_limit = .false.)
+            calculate_cfl_limit = check_cfl)
        nrhs_calls = nrhs_calls + 1
 
        dg = gexp_1 * (0.5 * time_step)
-       gnew = g_start + dg
 
        errors(1) = 0.0
        errors(2) = maxval(abs(dg))
        errors(3) = maxval(abs(g_start))
+       errors(4) = max_vel
        call max_allreduce(errors)
 
+       ! Check for CFL limit - we can simply rescale dg and carry on
+       cfl_limit = 1.0 / errors(4)
+       if (time_step > cfl_limit .and. check_cfl) then
+          ! Drop the effective time step a little from the limit
+          cfl_limit = 0.9 * cfl_limit
+          if(proc0.and.debug) print*,'Dropping time step due to cfl from',time_step,'to',cfl_limit
+          errors(2) = errors(2) * cfl_limit / time_step
+          dg = dg * cfl_limit / time_step
+          time_step = cfl_limit
+       end if
+
        converged = picard_converged(errors)
+
+       gnew = g_start + dg
 
        do while(.not. converged)
           ipic = ipic + 1
@@ -717,21 +731,26 @@ contains
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
-               calculate_cfl_limit = .false.)
+               calculate_cfl_limit = check_cfl)
           nrhs_calls = nrhs_calls + 1
 
           dg = gexp_1 * (0.5 * time_step)
-          gnew = g_start + dg
 
           errors(1) = errors(2)
           errors(2) = maxval(abs(dg))
+          errors(4) = max_vel
           call max_allreduce(errors)
+
+          cfl_limit = 1.0 / errors(4)
 
           converged = picard_converged(errors)
 
           if(proc0.and.debug) print*,'ipic',ipic,converged,'|',errors
 
+          if (time_step > cfl_limit) exit
           if (ipic >= npic_limit) exit
+
+          gnew = g_start + dg
        end do
 
        if (.not. converged) then
@@ -768,7 +787,7 @@ contains
   contains
     pure logical function picard_converged(errors) result(converged)
       implicit none
-      real, dimension(3), intent(in) :: errors
+      real, dimension(4), intent(in) :: errors
       converged = &
            !Change in solution less than abs tol
            (errors(2) < absolute_tolerance) .or.  &
