@@ -349,6 +349,7 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min, code_dt
     use mp, only: mp_abort, max_allreduce, proc0
+    use run_parameters, only: immediate_reset
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real :: internal_time, time_step, max_vel
@@ -465,7 +466,7 @@ contains
           time_step = time_step * time_step_safety_factor
 
           ! If error is too large reject the step
-          if ( inverse_error < 1.0 .or. cfl_limited) then
+          if ( inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
              if (proc0 .and. debug) print*,'Attempted beuler step failed due to error or cfl, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
@@ -525,6 +526,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
+    use run_parameters, only: immediate_reset
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     type(rk_scheme_type), intent(in) :: scheme
@@ -610,7 +612,7 @@ contains
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (inverse_error < 1.0 .or. cfl_limited) then
+       if (inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
           if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
