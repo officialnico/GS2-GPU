@@ -559,7 +559,7 @@ contains
        do istage = 1, nstages
           gnew = g
           do istage_sub = 1, istage-1
-             gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
+             gnew = gnew + (0.5 * time_step) * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
           end do
           call fields_func(gnew, phinew, aparnew, bparnew)
 
@@ -571,7 +571,7 @@ contains
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
-          stages(:, :, :, istage) = 0.5 * gexp_1
+          stages(:, :, :, istage) = gexp_1
        end do
 
        ! One can directly form the error by simply forming error =
@@ -585,7 +585,7 @@ contains
        end do
 
        ! Store the absolute error
-       errors(1) = maxval(abs(gnew))*time_step
+       errors(1) = maxval(abs(gnew)) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = maxval(abs(g))
@@ -606,9 +606,9 @@ contains
           nfailed_steps = nfailed_steps + 1
        else
          !Update the solution
-          g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
+          g = g + solution_coeffs(1) * stages(:, :, :, 1) * (time_step * 0.5)
           do istage = 2, nstages
-             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
+             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * (time_step * 0.5)
           end do
 
           internal_time = internal_time + time_step
