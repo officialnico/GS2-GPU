@@ -459,7 +459,7 @@ contains
           cfl_time_step = 1.0 / errors(3)
 
           !Calculate new time step based on error
-          time_step = min(0.9 * actual_dt * sqrt(inverse_error), cfl_time_step)
+          time_step = min(time_step_safety_factor * actual_dt * sqrt(inverse_error), cfl_time_step)
           cfl_limited = time_step < actual_dt .and. time_step == cfl_time_step
 
           ! If error is too large reject the step
@@ -598,7 +598,7 @@ contains
        cfl_time_step = 1.0 / errors(3)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
+       new_time_step = min(time_step_safety_factor * time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
        cfl_limited = new_time_step < time_step .and. new_time_step == cfl_time_step
 
        if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
