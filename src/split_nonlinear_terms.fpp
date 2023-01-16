@@ -562,7 +562,7 @@ contains
        do istage = 1, nstages
           gnew = g
           do istage_sub = 1, istage-1
-             gnew = gnew + (0.5 * time_step) * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
+             gnew = gnew + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, :, istage_sub)
           end do
           call fields_func(gnew, phinew, aparnew, bparnew)
 
@@ -571,6 +571,7 @@ contains
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = (istage == 1))
+
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
