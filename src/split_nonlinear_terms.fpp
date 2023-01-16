@@ -579,14 +579,17 @@ contains
 
        ! One can directly form the error by simply forming error =
        ! time_step * 0.5 * sum(stages_i * (high_order_coeffs_i -
-       ! low_order_coeffs_i)).
-       gnew = error_coeffs * stages(:, :, :, 1)
+       ! low_order_coeffs_i)). Here we store this in gexp_1
+       ! without the time_step * 0.5 factor (to avoid extra
+       ! array operations). We multiply the final error by
+       ! time_step/2 to ensure full consistency.
+       gexp_1 = error_coeffs * stages(:, :, :, 1)
        do istage = 2, nstages
-          gnew = gnew + error_coeffs(istage) * stages(:, :, :, istage)
+          gexp_1 = gexp_1 + error_coeffs(istage) * stages(:, :, :, istage)
        end do
 
        ! Store the absolute error
-       errors(1) = maxval(abs(gnew)) * (time_step * 0.5)
+       errors(1) = maxval(abs(gexp_1)) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = maxval(abs(g))
