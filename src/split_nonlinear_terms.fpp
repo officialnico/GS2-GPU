@@ -597,16 +597,22 @@ contains
        inverse_error = get_inverse_error(errors)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), 1.0 / errors(3))
+       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order),&
+            1.0 / errors(3))
 
-       if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
+       if(proc0 .and. debug) print*,'Inverse error is ',inverse_error,'at internal_time', &
+            internal_time,'with step',time_step,'new time step is',new_time_step, &
+            'counter=',counter
+
        ! If the cfl time step is too small then abort
-       if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+       if (new_time_step < code_dt_min) &
+            call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
        if (inverse_error < 1.0) then
-          if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
+          if(proc0 .and. debug) print*,'Time step with size',time_step,'failed at internal_time', &
+               internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
          !Update the solution
