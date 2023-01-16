@@ -787,7 +787,7 @@ contains
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store
-    integer :: istep_loop_max
+    integer :: istep_loop_max, istep_offset
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -824,11 +824,6 @@ contains
     ! finalize_diagnostics resets state%istep_end
     istep_loop_max = state%istep_end + nstep_run
     do istep = state%istep_end+1, istep_loop_max
-       ! Check if we've reached our maximum requested time
-       if (user_time > max_sim_time) then
-          state%exit_reason = EXIT_MAX_SIM_TIME
-          exit
-       end if
 
        if (istep .gt. nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
@@ -836,9 +831,7 @@ contains
          exit
        end if
 
-
        call time_message(.false.,state%timers%advance,' Advance time step')
-       !if (proc0) write (*,*) 'advance 1', state%timers%advance
 
        ! If we are doing a replay we don't actually evolve 
        ! the equations
@@ -882,8 +875,6 @@ contains
          end if
          if(state%exit) exit
 
-
-
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
          
@@ -907,31 +898,14 @@ contains
            call loop_diagnostics (istep, state%exit)
 #ifdef NEW_DIAG
          else 
-           !if (state%replay) call broadcast(state%exit)
            call run_diagnostics (istep, state%exit, state%replay)
 #endif
          end if
        end if
-       !if (state%replay) then 
-         !!call debug_message(state%verb+1, &
-           !!'gs2_main::evolve_equations broadcasting exit')
-         !! Necessary with replay because other procs just read garbage and 
-         !! exit may be wrong
-         !!call broadcast(state%exit)
-!#ifdef NEW_DIAG
-         !if (.not. state%exit .and. istep < istep_loop_max ) then
-           !call debug_message(state%verb+1, &
-             !'gs2_main::evolve_equations rereading variable values')
-           !call run_diagnostics (istep, state%exit, .true.)
-         !end if
-!#endif          
-         !call broadcast(state%exit)
-       !end if
 
        if(state%exit) state%converged = .true.
        if (state%exit) call debug_message(state%verb+1, &
          'gs2_main::evolve_equations exit true after diagnostics')
-
 
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
        call time_message(.false.,state%timers%advance,' Advance time step')
@@ -976,8 +950,13 @@ contains
         'gs2_main::evolve_equations after reset and checks')
 
        state%istep_end = istep
-       !if (proc0) write (*,*) 'advance 2', state%timers%advance, state%exit
 
+       ! Check if the next step would exceed the maximum requested simulation time,
+       ! and if so flag that we wish to exit. Only check this if we're not already exiting.
+       if ((.not. state%exit) .and. user_time + user_dt > max_sim_time) then
+          state%exit_reason = EXIT_MAX_SIM_TIME
+          state%exit = .true.
+       end if
 
        if (state%exit) then
            call debug_message(state%verb, &
@@ -989,14 +968,17 @@ contains
 
     ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
     ! even in cases where nstep does not have nwrite as a factor.
-    ! Note we pass istep-1 as we assume istep has been incremented once
-    ! from the last step actually taken.
     if (.not. state%skip_diagnostics) then
+       ! Note when we have completed all our iterations we pass istep - 1 as we assume istep has been 
+       ! incremented once from the last step actually taken. In cases where we explicitly exit the loop
+       ! we need to pass istep instead.
+       istep_offset = 1
+       if(state%exit) istep_offset = 0
        if (use_old_diagnostics) then
-          call loop_diagnostics (istep - 1, state%exit, force = .true.)
+          call loop_diagnostics (istep - istep_offset, state%exit, force = .true.)
 #ifdef NEW_DIAG
        else
-          call run_diagnostics (istep - 1, state%exit, state%replay, force = .true.)
+          call run_diagnostics (istep - istep_offset, state%exit, state%replay, force = .true.)
 #endif
        end if
     end if

@@ -477,7 +477,7 @@ class config():
         st.append("")
         return st
     
-def constructFromFile(fileIn=None, verbose=False):
+def constructFromFile(fileIn=None, verbose=False, quiet=False):
     # Currently not able to get value of requires_index automatically.
 
     if fileIn is None:
@@ -537,7 +537,8 @@ def constructFromFile(fileIn=None, verbose=False):
     theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
-        print("Processing file '{f}'".format(f=fileIn))
+        if not quiet:
+            print("Processing file '{f}'".format(f=fileIn))
         found = False
         currName = 'ERROR'
         otherLines = []
