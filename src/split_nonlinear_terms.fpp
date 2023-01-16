@@ -584,7 +584,7 @@ contains
        ! without the time_step * 0.5 factor (to avoid extra
        ! array operations). We multiply the final error by
        ! time_step/2 to ensure full consistency.
-       gexp_1 = error_coeffs * stages(:, :, :, 1)
+       gexp_1 = error_coeffs(1) * stages(:, :, :, 1)
        do istage = 2, nstages
           gexp_1 = gexp_1 + error_coeffs(istage) * stages(:, :, :, istage)
        end do
