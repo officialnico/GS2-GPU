@@ -532,7 +532,7 @@ contains
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
-    real, dimension(:), allocatable :: solution_coeffs
+    real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -552,6 +552,9 @@ contains
        solution_coeffs = scheme%lower_order_coeffs
     end if
 
+    ! Get the error coefficients
+    error_coeffs = scheme%high_order_coeffs - scheme%lower_order_coeffs
+
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
 
@@ -562,7 +565,7 @@ contains
        do istage = 1, nstages
           gnew = g
           do istage_sub = 1, istage-1
-             gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
+             gnew = gnew + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, :, istage_sub)
           end do
           call fields_func(gnew, phinew, aparnew, bparnew)
 
@@ -571,24 +574,26 @@ contains
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = (istage == 1))
+
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
-          stages(:, :, :, istage) = 0.5 * gexp_1
+          stages(:, :, :, istage) = gexp_1
        end do
 
        ! One can directly form the error by simply forming error =
-       ! time_step * sum(stages_i * (high_order_coeffs_i -
-       ! low_order_coeffs_i)). However we also need to explicitly form one of the low/high
-       ! order solutions in order to be able to construct the solution and the relative error.
-       ! Here we use just the absolute error, stored in gnew,
-       gnew = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
+       ! time_step * 0.5 * sum(stages_i * (high_order_coeffs_i -
+       ! low_order_coeffs_i)). Here we store this in gexp_1
+       ! without the time_step * 0.5 factor (to avoid extra
+       ! array operations). We multiply the final error by
+       ! time_step/2 to ensure full consistency.
+       gexp_1 = error_coeffs(1) * stages(:, :, :, 1)
        do istage = 2, nstages
-          gnew = gnew + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
+          gexp_1 = gexp_1 + error_coeffs(istage) * stages(:, :, :, istage)
        end do
 
        ! Store the absolute error
-       errors(1) = maxval(abs(gnew))*time_step
+       errors(1) = maxval(abs(gexp_1)) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = maxval(abs(g))
@@ -596,22 +601,28 @@ contains
        inverse_error = get_inverse_error(errors)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), 1.0 / errors(3))
+       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order),&
+            1.0 / errors(3))
 
-       if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
+       if(proc0 .and. debug) print*,'Inverse error is ',inverse_error,'at internal_time', &
+            internal_time,'with step',time_step,'new time step is',new_time_step, &
+            'counter=',counter
+
        ! If the cfl time step is too small then abort
-       if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+       if (new_time_step < code_dt_min) &
+            call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
        if (inverse_error < 1.0) then
-          if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
+          if(proc0 .and. debug) print*,'Time step with size',time_step,'failed at internal_time', &
+               internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
          !Update the solution
-          g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
+          g = g + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, :, 1)
           do istage = 2, nstages
-             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
+             g = g + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, :, istage)
           end do
 
           internal_time = internal_time + time_step
