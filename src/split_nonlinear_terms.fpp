@@ -529,7 +529,7 @@ contains
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
-    real, dimension(:), allocatable :: solution_coeffs
+    real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -548,6 +548,9 @@ contains
     else
        solution_coeffs = scheme%lower_order_coeffs
     end if
+
+    ! Get the error coefficients
+    error_coeffs = scheme%high_order_coeffs - scheme%lower_order_coeffs
 
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
@@ -575,13 +578,11 @@ contains
        end do
 
        ! One can directly form the error by simply forming error =
-       ! time_step * sum(stages_i * (high_order_coeffs_i -
-       ! low_order_coeffs_i)). However we also need to explicitly form one of the low/high
-       ! order solutions in order to be able to construct the solution and the relative error.
-       ! Here we use just the absolute error, stored in gnew,
-       gnew = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
+       ! time_step * 0.5 * sum(stages_i * (high_order_coeffs_i -
+       ! low_order_coeffs_i)).
+       gnew = error_coeffs * stages(:, :, :, 1)
        do istage = 2, nstages
-          gnew = gnew + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
+          gnew = gnew + error_coeffs(istage) * stages(:, :, :, istage)
        end do
 
        ! Store the absolute error
