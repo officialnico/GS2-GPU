@@ -71,6 +71,8 @@ module split_nonlinear_terms
      !>  - 'cashkarp' -- Cash-Karp scheme of order 4(5)
      !>  - 'default' -- Same as heun
      !>  - 'heun' -- Heun scheme of order 1(2)
+     !>
+     !> See [rk_schemes] for other options.
      character(len = 20) :: rk_method = 'default'
      !> If true then reports the number of right hand side (NL term) calculations,
      !> the number of failed internal steps and the number of successful steps at the
@@ -81,10 +83,11 @@ module split_nonlinear_terms
      !> Valid options include:
      !>
      !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order. CLF controlled time step.
-     !>  - 'beuler' -- Backwards Euler. Relative error controlled time step
-     !>  - 'default' -- The same as 'AB3'.
+     !>  - 'beuler' -- Backwards Euler. Relative and absolute error controlled time step.
+     !>            Newton iteration controlled by convergence_tolerance.
+     !>  - 'default' -- The same as 'RK'.
      !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
-     !>            using rk_method switch. Absolute error controlled time step
+     !>            using rk_method switch. Relative and absolute error controlled time step.
      !>
      character(len = 20) :: split_method = 'default'
    contains
@@ -121,7 +124,7 @@ contains
     type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
     type(text_option), dimension (*), parameter :: split_method_opts = &
          [ &
-         text_option('default', split_method_ab3), &
+         text_option('default', split_method_rk), &
          text_option('AB3', split_method_ab3), &
          text_option('RK', split_method_rk), &
          text_option('beuler', split_method_backwards_euler)  &
