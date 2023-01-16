@@ -350,7 +350,7 @@ contains
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
-    real :: inverse_error, error, actual_dt
+    real :: inverse_error, error, actual_dt, cfl_time_step
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -450,10 +450,11 @@ contains
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
+          cfl_time_step = 1.0 / errors(3)
 
           !Calculate new time step based on error
-          time_step = min(0.9 * actual_dt * sqrt(inverse_error), 1.0 / errors(3))
-          cfl_limited = time_step < actual_dt .and. time_step == 1.0 / errors(3)
+          time_step = min(0.9 * actual_dt * sqrt(inverse_error), cfl_time_step)
+          cfl_limited = time_step < actual_dt .and. time_step == cfl_time_step
 
           ! If error is too large reject the step
           if ( inverse_error < 1.0 .or. cfl_limited) then
@@ -521,7 +522,7 @@ contains
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
-    real :: new_time_step
+    real :: new_time_step, cfl_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity
@@ -588,10 +589,11 @@ contains
        errors(2) = maxval(abs(g))
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
+       cfl_time_step = 1.0 / errors(3)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), 1.0 / errors(3))
-       cfl_limited = new_time_step < time_step .and. new_time_step == 1.0 / errors(3)
+       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
+       cfl_limited = new_time_step < time_step .and. new_time_step == cfl_time_step
 
        if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
        ! If the cfl time step is too small then abort
