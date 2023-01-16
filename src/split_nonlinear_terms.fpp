@@ -610,9 +610,9 @@ contains
           nfailed_steps = nfailed_steps + 1
        else
          !Update the solution
-          g = g + solution_coeffs(1) * stages(:, :, :, 1) * (time_step * 0.5)
+          g = g + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, :, 1)
           do istage = 2, nstages
-             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * (time_step * 0.5)
+             g = g + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, :, istage)
           end do
 
           internal_time = internal_time + time_step
