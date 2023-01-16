@@ -294,6 +294,7 @@ contains
        ! and convert to time_step estimate.
        call max_allreduce(max_vel)
        time_step = 1.0 / max_vel
+       time_step = time_step * time_step_safety_factor
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -459,8 +460,9 @@ contains
           cfl_time_step = 1.0 / errors(3)
 
           !Calculate new time step based on error
-          time_step = min(time_step_safety_factor * actual_dt * sqrt(inverse_error), cfl_time_step)
+          time_step = min(actual_dt * sqrt(inverse_error), cfl_time_step)
           cfl_limited = time_step < actual_dt .and. time_step == cfl_time_step
+          time_step = time_step * time_step_safety_factor
 
           ! If error is too large reject the step
           if ( inverse_error < 1.0 .or. cfl_limited) then
@@ -598,8 +600,9 @@ contains
        cfl_time_step = 1.0 / errors(3)
 
        !Calculate the new_time_step
-       new_time_step = min(time_step_safety_factor * time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
+       new_time_step = min(time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
        cfl_limited = new_time_step < time_step .and. new_time_step == cfl_time_step
+       new_time_step = new_time_step * time_step_safety_factor
 
        if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
        ! If the cfl time step is too small then abort
