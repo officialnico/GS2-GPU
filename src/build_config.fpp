@@ -68,12 +68,6 @@ module build_config
   logical, parameter :: gs2_has_with_eig = .false.
 #endif
 
-#ifdef HDF
-  logical, parameter :: gs2_has_hdf5 = .true.
-#else
-  logical, parameter :: gs2_has_hdf5 = .false.
-#endif
-
 #ifdef F200X_INTRINSICS
   logical, parameter :: gs2_has_f200x_intrinsics = .true.
 #else
@@ -124,7 +118,6 @@ contains
     write(output, '(a, l)') trim(output) // nl // "LAPACK: ", gs2_has_lapack
     write(output, '(a, l)') trim(output) // nl // "Lowflow: ", gs2_has_lowflow
     write(output, '(a, l)') trim(output) // nl // "Eigensolver: ", gs2_has_with_eig
-    write(output, '(a, l)') trim(output) // nl // "HDF5: ", gs2_has_hdf5
     write(output, '(a, l)') trim(output) // nl // "F200X intrinsics: ", gs2_has_f200x_intrinsics
     write(output, '(a, l)') trim(output) // nl // "Single precision: ", gs2_is_single_precision
     write(output, '(a, l)') trim(output) // nl // "Quad precision: ", gs2_has_quad

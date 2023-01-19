@@ -166,7 +166,6 @@ The following is the full list of switches the possible options in
  - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
  - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
- - `USE_HDF5` (defined [undefined]): uses HDF5 library or not
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
  - `USE_LOCAL_RAN` (`mt` [undefined]): uses local random number generator
  - `USE_LOCAL_SPFUNC` (defined [undefined]): use local special functions (this overrides
@@ -226,9 +225,6 @@ might expect).
 |                 |               |                                                  |
 | `NETCDF`        | `_NONE_`      | Do not use NetCDF                                |
 |                 |               | Use of -DNETCDF makes netcdf work.               |
-|                 |               |                                                  |
-| `HDF`           | `_NONE_`      | Do not use HDF5                                  |
-|                 |               | Use of -DHDF makes hdf work.                     |
 |                 |               |                                                  |
 | `NO_SIZEOF`     | `_NONE_`      | This is for memory accounting.                   |
 |                 |               | In most compilers, non-standard sizeof function  |

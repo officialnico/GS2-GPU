@@ -3297,6 +3297,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
+    use gs2_time, only: code_dt
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -3315,11 +3316,11 @@ contains
        ! by code_dt.
        if (istep > 0 .and. istep /= istep_last) then       
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(istep, phi, apar, bpar, &
+             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(istep, phi, apar, bpar, &
+             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -6982,6 +6983,47 @@ contains
     logical, optional :: gf_lo
     call get_fields_direct_from_dfn(gnew, phi, apar, bpar, gf_lo)
   end subroutine get_init_field
+
+  !> Calculates the potentials directly from the passed distribution
+  !> function and compares the result to the passed
+  !> potentials. Returns the maximum relative error for each
+  !> potential.
+  subroutine get_field_inconsistency(g_in, phi_in, apar_in, bpar_in, phi_err, apar_err, bpar_err)
+    use run_parameters, only: fphi, fapar, fbpar
+    implicit none
+    complex, dimension(:,:,:), intent(in) :: g_in, phi_in, apar_in, bpar_in
+    real, intent(out) :: phi_err, apar_err, bpar_err
+    complex, dimension(:,:,:), allocatable :: phi_new, apar_new, bpar_new
+    real, dimension(:,:,:), allocatable :: err
+
+    allocate(err, mold = real(phi_in))
+    allocate(phi_new, mold = phi_in); phi_new = 0.0
+    allocate(apar_new, mold = phi_in); apar_new = 0.0
+    allocate(bpar_new, mold = phi_in); bpar_new = 0.0
+
+    phi_err = 0. ; apar_err = 0. ; bpar_err = 0.
+
+    call get_fields_direct_from_dfn(g_in, phi_new, apar_new, bpar_new)
+
+    if (fphi > epsilon(0.0)) phi_err = get_field_relative_error(phi_in, phi_new)
+    if (fapar > epsilon(0.0)) apar_err = get_field_relative_error(apar_in, apar_new)
+    if (fbpar > epsilon(0.0)) bpar_err = get_field_relative_error(bpar_in, bpar_new)
+
+  contains
+
+    real function get_field_relative_error(field_in, field_new) result(rel_err)
+      use mp, only: max_allreduce
+      implicit none
+      complex, dimension(:, :, :), intent(in) :: field_in, field_new
+      err = 0.
+      where(abs(field_in) > 0)
+         err = abs(field_in - field_new)/abs(field_in)
+      end where
+      rel_err = maxval(err)
+      call max_allreduce(rel_err)
+    end function get_field_relative_error
+
+  end subroutine get_field_inconsistency
 
   !> Routine to dump the current source term used in [[invert_rhs]].
   !>

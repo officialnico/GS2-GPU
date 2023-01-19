@@ -65,8 +65,6 @@ USE_NETCDF ?= on
 USE_NETCDF_COMPRESSION ?= on
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
-# uses hdf5 library (bin)
-USE_HDF5 ?=  
 # uses lapack or compatible library (bin)
 USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
@@ -203,8 +201,6 @@ NETCDF_INC ?=
 NETCDF_LIB ?=
 LAPACK_INC ?=
 LAPACK_LIB ?=
-HDF5_INC ?=
-HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
@@ -261,18 +257,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 
 #Patch file
 PATCHFILE:= .patch.make
-
-################################################### SET COMPILE MODE SWITCHES
-
-# It makes no sense to set USE_PARALLEL_NETCDF without
-# setting USE_HDF5... so we set USE_HDF5 here. 
-# If you want to use parallel-netcdf instead of netcdf/hdf5 you can 
-# override this behaviour in the system makefile
-ifdef USE_PARALLEL_NETCDF
-ifndef USE_HDF5
-	USE_HDF5=on
-endif
-endif
 
 ######################################################### PLATFORM DEPENDENCE
 
@@ -413,13 +397,6 @@ MACRO_DEFS+=-DRELEASE='"$(RELEASE)"'
 # at runtime
 MACRO_DEFS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
 
-ifdef USE_HDF5
-	ifndef USE_MPI
-$(error Currently, USE_HDF5 only works with USE_MPI)
-	endif
-endif
-
-
 ifndef USE_NETCDF
 ifdef USE_NEW_DIAG
 $(error 'USE_NETCDF is off/undefined. The new diagnostics module requires netcdf. Please build without the new diagnostics module (i.e. set USE_NEW_DIAG=) ')
@@ -486,13 +463,8 @@ ifdef USE_NETCDF_COMPRESSION
 	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
 endif
 
-ifdef USE_HDF5
-	FC = $(H5FC_par)
-	CC = $(H5CC_par)
-	ifdef USE_PARALLEL_NETCDF
-		MACRO_DEFS += -DNETCDF_PARALLEL
-	endif
-	MACRO_DEFS += -DHDF
+ifdef USE_PARALLEL_NETCDF
+	MACRO_DEFS += -DNETCDF_PARALLEL
 endif
 
 ifeq ($(USE_LOCAL_RAN),mt)
@@ -601,9 +573,9 @@ endif
 
 ############################################################################# Done dealing with user flags
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
-INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
@@ -616,7 +588,7 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-
 
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
 CPPFLAGS += $(MACRO_DEFS)
 FPPFLAGS += $(MACRO_DEFS)
@@ -980,7 +952,6 @@ test_make:
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
-	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
@@ -1050,14 +1021,6 @@ ifdef USE_NETCDF
 	$(call messageKeyVal, "NETCDF_INC", $(NETCDF_INC))
 else
 	$(call messageInfo,"Netcdf: DISABLED")
-endif
-	@echo
-ifdef USE_HDF5
-	$(call messageInfo,"HDF5:")
-	$(call messageKeyVal, "HDF5_LIB", $(HDF5_LIB))
-	$(call messageKeyVal, "HDF5_INC", $(HDF5_INC))
-else
-	$(call messageInfo,"HDF5: DISABLED")
 endif
 	@echo
 ifdef USE_FFT

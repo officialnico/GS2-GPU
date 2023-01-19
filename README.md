@@ -44,7 +44,6 @@ optional ones:
 
 - MPI
 - NetCDF (requires >= v4.2.0)
-- HDF5 (only required for parallel netCDF)
 - FFTW (support for v2 will be dropped in the near future)
 - LAPACK
 - NAG
