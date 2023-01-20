@@ -31,7 +31,7 @@ program test_transform_round_trip
 
   do iglo = g_lo%llim_proc, g_lo%ulim_proc
      il = il_idx(g_lo, iglo)
-     where (forbid(:, il))
+     where (.not. forbid(:, il))
         g(:, 1, iglo) = 1.0
         g(:, 2, iglo) = 1.0
      elsewhere
