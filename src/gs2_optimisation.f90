@@ -31,12 +31,10 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finalize_gs2_optimisation(state)
-    use mp, only: finish_mp
     use optimisation_config, only: finish_optimisation_config
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call finish_optimisation_config(state%optim)
-    call finish_mp
   end subroutine finalize_gs2_optimisation
 
   !> FIXME : Add documentation  

@@ -11,35 +11,29 @@
 program zonal_flow_residual
   use fields_arrays, only : phinew
   use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics, &
-       & evolve_equations, initialize_wall_clock_timer, old_iface_state, &
-       & finalize_diagnostics, finalize_equations, finalize_gs2
-  use mp, only: init_mp, finish_mp
+       & evolve_equations, initialize_wall_clock_timer, gs2_program_state_type, &
+       & finish_gs2
   use unit_tests, only: process_test, announce_test
 
   implicit none
 
   !> The initial value of phi
   real :: initial_phi
-
-  call init_mp
+  type(gs2_program_state_type) :: state
 
   call initialize_wall_clock_timer
-  call initialize_gs2(old_iface_state)
-  call initialize_equations(old_iface_state)
-  call initialize_diagnostics(old_iface_state)
+  call initialize_gs2(state)
+  call initialize_equations(state)
+  call initialize_diagnostics(state)
 
   initial_phi = real(phinew(0, 1, 1))
 
-  call evolve_equations(old_iface_state, old_iface_state%nstep)
+  call evolve_equations(state, state%nstep)
 
   call announce_test('results')
   call process_test(check_residual(initial_phi), 'results')
 
-  call finalize_diagnostics(old_iface_state)
-  call finalize_equations(old_iface_state)
-  call finalize_gs2(old_iface_state)
-
-  call finish_mp
+  call finish_gs2(state)
 
 contains
 

@@ -62,6 +62,9 @@ module gs2_main
   use constants, only: run_name_size
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   implicit none
+  public :: run_gs2
+  public :: finish_gs2
+
   public :: parse_command_line
 
   public :: gs2_program_state_type
@@ -222,7 +225,7 @@ module gs2_main
 
     !> If true, 
     !! print full timing breakdown. 
-    logical :: print_full_timers = .false.
+    logical :: print_full_timers = .true.
 
     !> If true, print run time or
     !! full timing breakdown, depending
@@ -329,7 +332,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state, header, quiet)
+  subroutine initialize_gs2(state, header_in, header_out, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -346,7 +349,9 @@ contains
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
-    type(standard_header_type), intent(in), optional :: header
+    type(standard_header_type), intent(in), optional :: header_in
+    !> Get the header set by this function. Useful if `header_in` is _not_ used
+    type(standard_header_type), intent(out), optional :: header_out
     !> If true, don't print start-up messages/header
     logical, intent(in), optional :: quiet
 
@@ -370,11 +375,13 @@ contains
        call init_mp
     end if
 
-    if (present(header)) then
-      local_header = header
+    if (present(header_in)) then
+      local_header = header_in
     else
       local_header = standard_header_type()
     end if
+
+    if (present(header_out)) header_out = local_header
 
     if (present(quiet)) then
       quiet_value = quiet
@@ -1554,7 +1561,106 @@ contains
     end if
   end subroutine deallocate_outputs
 
-  !> FIXME : Add documentation  
+  !> The main entry point into GS2, runs a single GS2 simulation
+  !>
+  !> A minimal use of this to run a single, complete simulation is:
+  !>
+  !>     call run_gs2()
+  !>
+  !> This will initialise all the GS2 internals, evolve the equations
+  !> (or run the eigensolver), and then finalise the internals
+  !> (writing files to disk, deallocating memory, and so on).
+  !>
+  !> If you want more control over how GS2 is run, you can create a
+  !> [[gs2_program_state_type]] instance and pass it in with the
+  !> `state` argument.
+  !>
+  !> You can also not finalise the simulation, which can be useful if
+  !> you want read or modify the fields, for example. In this case,
+  !> you *must* pass in `state` and then call [[finish_gs2]] when
+  !> you're done:
+  !>
+  !>     type(gs2_program_state_type) :: state
+  !>     ! Optionally modify the state and input options
+  !>     call run_gs2(state, finalize=.false.)
+  !>     ! Do some interesting things
+  !>     call finish_gs2(state)
+  !>
+  !> This pattern is also useful if you want to run many GS2
+  !> simulations in the same process.
+  subroutine run_gs2(state, finalize)
+    use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
+    use mp, only: proc0
+    use standard_header, only: standard_header_type
+    use optionals, only : get_option_with_default
+    implicit none
+    !> State of the GS2 simulation. You can pass in your own instance
+    !> to modify the behaviour of GS2 and/or to programmatically get
+    !> information about the simulation on completion.
+    type(gs2_program_state_type), optional, intent(inout) :: state
+    !> If `.true.` (default), then GS2 is finalised, end-of-simulation
+    !> diagnostics are computed, files are closed, arrays are
+    !> deallocated, and so on.
+    !>
+    !> If this is set to `.false.`, (for example, because you want to
+    !> read the state of the fields before the arrays are deallocated)
+    !> then you MUST pass in `state` and call [[finish_gs2]] with that
+    !> state object to ensure GS2 is finalised correctly.
+    logical, optional, intent(in) :: finalize
+
+    logical :: local_finalize
+    type(gs2_program_state_type) :: local_state
+    type(standard_header_type) :: local_header
+    logical, save :: first_time = .true.
+
+    call parse_command_line()
+
+    if (present(state)) local_state = state
+    local_finalize = get_option_with_default(finalize, .true.)
+
+    if (first_time) then
+      call initialize_wall_clock_timer
+      call initialize_gs2(local_state, header_out=local_header)
+      call initialize_equations(local_state)
+      call initialize_diagnostics(local_state, header=local_header)
+
+      call write_used_inputs_file(header=local_header)
+
+      first_time = .false.
+    end if
+
+    local_state%print_times = .false.
+    if (local_state%do_eigsolve) then
+      call run_eigensolver(local_state)
+    else
+      call evolve_equations(local_state, local_state%nstep)
+      if (local_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) local_state%exit_reason = EXIT_NSTEP
+    end if
+    if(proc0) call local_state%exit_reason%write_exit_file()
+
+    if (present(state)) then
+      call calculate_outputs(local_state)
+      state = local_state
+    end if
+
+    if (local_finalize) then
+      local_state%print_times = .true.
+      call finish_gs2(local_state)
+    end if
+
+    if (present(state)) state = local_state
+  end subroutine run_gs2
+
+  !> Finish and cleanup a complete simulation
+  subroutine finish_gs2(state, quiet)
+    type(gs2_program_state_type), intent(inout) :: state
+    logical, intent(in), optional :: quiet
+    call finalize_diagnostics(state)
+    call finalize_equations(state)
+    call finalize_gs2(state, quiet)
+  end subroutine finish_gs2
+
+  !> FIXME : Add documentation
   subroutine reset_linear_magnitude
     use dist_fn_arrays, only: g, gnew
     use fields, only: set_init_fields

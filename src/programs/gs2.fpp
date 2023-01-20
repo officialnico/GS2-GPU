@@ -44,59 +44,7 @@
 !! 
 !!  <tt> make doc sync_doc USER=[sourceforge user name]</tt>
 program gs2
-  !use optimisation_config, only: optimisation_type
-  use gs2_optimisation, only: initialize_gs2_optimisation
-  use gs2_optimisation, only: finalize_gs2_optimisation
-  use gs2_optimisation, only: optimise_gs2
-  use gs2_main, only: gs2_program_state_type
-  use gs2_main, only: initialize_wall_clock_timer
-  use gs2_main, only: initialize_gs2
-  use gs2_main, only: initialize_equations
-  use gs2_main, only: initialize_diagnostics
-  use gs2_main, only: evolve_equations
-  use gs2_main, only: run_eigensolver
-  use gs2_main, only: finalize_diagnostics
-  use gs2_main, only: finalize_equations
-  use gs2_main, only: finalize_gs2
-  use gs2_main, only: parse_command_line, write_used_inputs_file
-  use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
-  use mp, only: proc0
-  use standard_header, only: standard_header_type
+  use gs2_main, only : run_gs2
   implicit none
-  type(gs2_program_state_type) :: state
-  type(standard_header_type) :: local_header
-
-  call parse_command_line()
-
-  call initialize_gs2_optimisation(state)
-  call initialize_wall_clock_timer
-
-  if (state%optim%on) then
-    call optimise_gs2(state)
-  end if
-  if (state%optim%auto .or. .not. state%optim%on) then
-    local_header = standard_header_type()
-    call initialize_gs2(state, header=local_header)
-    call initialize_equations(state)
-    call initialize_diagnostics(state, header=local_header)
-
-    call write_used_inputs_file(header=local_header)
-
-    state%print_times = .false.
-    if (state%do_eigsolve) then 
-      call run_eigensolver(state)
-    else
-       call evolve_equations(state, state%nstep)
-       if (state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) state%exit_reason = EXIT_NSTEP
-    end if
-    if(proc0) call state%exit_reason%write_exit_file()
-    call finalize_diagnostics(state)
-    call finalize_equations(state)
-    state%print_times = .true.
-    state%print_full_timers = .true.
-    call finalize_gs2(state)
-  end if
-
-  call finalize_gs2_optimisation(state)
-
+  call run_gs2
 end program gs2

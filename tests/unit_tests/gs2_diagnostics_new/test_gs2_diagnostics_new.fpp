@@ -21,7 +21,7 @@ program test_gs2_diagnostics_new
   !use functional_tests
   !use checks_mod
   !call test_gs2('Linear CBC (unit test) to test new diagnostics', checks)
-    use gs2_main, only: run_gs2, finish_gs2
+    use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
     use unit_tests
     use unit_tests, only: should_print
 #ifdef NEW_DIAG
@@ -39,6 +39,7 @@ program test_gs2_diagnostics_new
     use run_parameters, only: use_old_diagnostics, nstep
     use species, only: nspec
     implicit none
+    type(gs2_program_state_type) :: state
     integer :: n_vars, n_file_names
     integer :: i
     real :: eps
@@ -164,10 +165,12 @@ program test_gs2_diagnostics_new
 
   test_driver_flag = .true.
   functional_test_flag = .true.
+  state%mp_comm_external = .true.
+  state%mp_comm = mp_comm
 
   call announce_module_test("gs2_diagnostics_new")
 
-  call run_gs2(mp_comm)
+  call run_gs2(finalize=.false., state=state)
 
 
   !call announce_test('results')
@@ -216,21 +219,14 @@ program test_gs2_diagnostics_new
     end if
 #endif
 
-    if (use_old_diagnostics) then
-      call finish_gs2_diagnostics(ilast_step)
-#ifdef NEW_DIAG
-    else
-      call finish_gs2_diagnostics_new
-#endif
-    end if
+    call finish_gs2(state)
 
 #ifdef NEW_DIAG
     if (proc0 .and. .not. use_old_diagnostics) then
       if (nstep==200) then 
         do i = 1,n_vars
           call announce_test("value of "//trim(new_variables(i)))
-          call process_test(test_variable(trim(variables(i)), trim(new_variables(i)), &
-            trim(n_lines(i))), &
+          call process_test(test_variable(trim(variables(i)), trim(new_variables(i))), &
             "value of "//trim(new_variables(i)))
         end do
       else if (gnostics%appending) then 
@@ -240,8 +236,7 @@ program test_gs2_diagnostics_new
           if (i.eq.14.or.i.eq.15) cycle
           call announce_test("value of "//trim(new_variables(i)))
           call process_test(&
-            test_variable(trim(new_variables(i)), trim(new_variables(i)), &
-            trim(n_lines(i))), &
+            test_variable(trim(new_variables(i)), trim(new_variables(i))), &
             "value of "//trim(new_variables(i)))
         end do
       end if
@@ -259,19 +254,18 @@ program test_gs2_diagnostics_new
     end if
 #endif
 
-    call finish_gs2
     call close_module_test("gs2_diagnostics_new")
 
     call finish_mp
 
 contains
   
-  function test_variable(var_name, new_var_name, n_lines)
+  function test_variable(var_name, new_var_name)
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: gnostics
 #endif
     use unit_tests, only: should_print
-    character(*), intent(in) :: var_name, new_var_name, n_lines
+    character(*), intent(in) :: var_name, new_var_name
     logical :: test_variable
     character(1000) ::  command 
     

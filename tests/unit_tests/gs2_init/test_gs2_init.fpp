@@ -31,12 +31,11 @@ program test_gs2_reinit
     use gs2_main, only: prepare_initial_values_overrides
     use gs2_main, only: set_initval_overrides_to_current_vals
     use gs2_time, only: code_dt_cfl
-    use gs2_main, only: old_iface_state
+    use gs2_main, only: gs2_program_state_type
     use gs2_main, only: finalize_overrides
     use gs2_main, only: prepare_miller_geometry_overrides
     use gs2_main, only: initialize_gs2, initialize_equations, finalize_equations
     use gs2_main, only: initialize_diagnostics
-    use gs2_main, only: reset_gs2
     use fields, only: finish_fields_level_2, init_fields_level_2
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
@@ -62,7 +61,7 @@ program test_gs2_reinit
     character(len=29) :: message
     logical :: dummy
     integer :: supercell_idx
-
+    type(gs2_program_state_type) :: state
 
 
 
@@ -86,9 +85,9 @@ program test_gs2_reinit
 
    call announce_test('That initialization always results in the same initial condition') 
 
-   call initialize_gs2(old_iface_state)
-   call initialize_equations(old_iface_state)
-   call initialize_diagnostics(old_iface_state)
+   call initialize_gs2(state)
+   call initialize_equations(state)
+   call initialize_diagnostics(state)
 
     allocate(gbak(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(phi_bak(-ntgrid:ntgrid,ntheta0,naky))
@@ -122,21 +121,21 @@ program test_gs2_reinit
     !call finalize_diagnostics(old_iface_state)
 
     call announce_test('init down and up')
-    call finalize_diagnostics(old_iface_state)
+    call finalize_diagnostics(state)
     !call finish_fields_local
     !call init_fields_local
     call finish_fields_level_2
     call init_fields_level_2
-    call init(old_iface_state%init, init_level_list%collisions)
-    call init(old_iface_state%init, init_level_list%full)
-    call init(old_iface_state%init, init_level_list%basic)
-    call init(old_iface_state%init, init_level_list%full)
-    call initialize_diagnostics(old_iface_state)
+    call init(state%init, init_level_list%collisions)
+    call init(state%init, init_level_list%full)
+    call init(state%init, init_level_list%basic)
+    call init(state%init, init_level_list%full)
+    call initialize_diagnostics(state)
     call process_test(.true., 'init down and up')
 
     call announce_test('init down to species and up')
-    call init(old_iface_state%init, init_level_list%collisions)
-    call init(old_iface_state%init, init_level_list%full)
+    call init(state%init, init_level_list%collisions)
+    call init(state%init, init_level_list%full)
     call process_test(.true., 'init down to species and up')
 
 
@@ -144,11 +143,11 @@ program test_gs2_reinit
 
     !call save_fields_and_dist_fn
     !call reinit_gk_and_field_equations(reset_antenna=.true.)
-    call prepare_initial_values_overrides(old_iface_state)
-    call set_initval_overrides_to_current_vals(old_iface_state%init%initval_ov)
-    old_iface_state%init%initval_ov%override = .true.
-    call init(old_iface_state%init, init_level_list%override_timestep)
-    call init(old_iface_state%init, init_level_list%full)
+    call prepare_initial_values_overrides(state)
+    call set_initval_overrides_to_current_vals(state%init%initval_ov)
+    state%init%initval_ov%override = .true.
+    call init(state%init, init_level_list%override_timestep)
+    call init(state%init, init_level_list%full)
 
     call announce_test('Values of fields and dist fn after reinitialising')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after reinitialising')
@@ -158,17 +157,17 @@ program test_gs2_reinit
       'Value of response matrix after reinitialising')
 
     ! Reset the overrides
-    call finalize_overrides(old_iface_state)
+    call finalize_overrides(state)
 
     call gs2_reinit_unit_test_set_in_memory(.true.)
 
-    call prepare_initial_values_overrides(old_iface_state)
-    call set_initval_overrides_to_current_vals(old_iface_state%init%initval_ov)
-    old_iface_state%init%initval_ov%override = .true.
+    call prepare_initial_values_overrides(state)
+    call set_initval_overrides_to_current_vals(state%init%initval_ov)
+    state%init%initval_ov%override = .true.
     
     !call save_fields_and_dist_fn
-    call init(old_iface_state%init, init_level_list%override_timestep)
-    call init(old_iface_state%init, init_level_list%full)
+    call init(state%init, init_level_list%override_timestep)
+    call init(state%init, init_level_list%full)
     !call reinit_gk_and_field_equations(reset_antenna=.true.) 
 
     call announce_test('Values of fields and dist fn after reinitialising in memory')
@@ -178,7 +177,7 @@ program test_gs2_reinit
     call process_test(response_unchanged(),&
       'Value of response matrix after reinitialising in memory')
 
-    call reset_time_step(old_iface_state%init, 0, dummy)
+    call reset_time_step(state%init, 0, dummy)
 
     call announce_test('Values of fields and dist fn after calling reset_time_step')
     call process_test(test_fields_and_dist(), &
@@ -189,7 +188,7 @@ program test_gs2_reinit
       'Value of response matrix after calling reset_time_step')
 
     code_dt_cfl = 0.001
-    call reset_time_step(old_iface_state%init, 0, dummy)
+    call reset_time_step(state%init, 0, dummy)
 
     call announce_test('Values of fields and dist fn after changing timestep')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after changing timestep')
@@ -199,7 +198,7 @@ program test_gs2_reinit
       'Value of response matrix should have changed after changing timestep')
 
     code_dt_cfl = 1.0
-    call reset_time_step(old_iface_state%init, 0, dummy)
+    call reset_time_step(state%init, 0, dummy)
     call announce_test('Values of fields and dist fn after restoring timestep')
     call process_test(test_fields_and_dist(), 'Values of fields and dist fn after restoring timestep')
 
@@ -207,37 +206,12 @@ program test_gs2_reinit
     call process_test(response_unchanged() ,&
       'Value of response matrix after restoring timestep')
 
-    dummy = test_reset_gs2(1.0)
-    call announce_test('Values of fields and dist fn after calling gs2_reset')
-    call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset')
-
-    call announce_test('Value of response matrix  after calling gs2_reset')
-    call process_test(response_unchanged() ,&
-      'Value of response matrix  after calling gs2_reset')
-
-
-    dummy = test_reset_gs2(2.0)
-    call announce_test('Values of fields and dist fn after calling gs2_reset with a factor')
-    call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset with a factor')
-
-    call announce_test('Value of response matrix should have changed after calling gs2_reset with a factor')
-    call process_test(.not. response_unchanged() ,&
-      'Value of response matrix should have changed after calling gs2_reset with a factor')
-
-    dummy = test_reset_gs2(0.5)
-    call announce_test('Values of fields and dist fn after calling gs2_reset to initial')
-    call process_test(test_fields_and_dist(), 'Values of fields and dist fn after calling gs2_reset to _initial')
-
-    call announce_test('Value of response matrix  after calling gs2_reset to initial')
-    call process_test(response_unchanged() ,&
-      'Value of response matrix  after calling gs2_reset to initial')
-
     !call save_fields_and_dist_fn
-    !call override(old_iface_state, oqval, 2.0) 
-    call prepare_miller_geometry_overrides(old_iface_state)
-    old_iface_state%init%mgeo_ov%override_qinp = .true.
-    old_iface_state%init%mgeo_ov%qinp = 2.0 
-    call init(old_iface_state%init, init_level_list%full)
+    !call override(state, oqval, 2.0) 
+    call prepare_miller_geometry_overrides(state)
+    state%init%mgeo_ov%override_qinp = .true.
+    state%init%mgeo_ov%qinp = 2.0 
+    call init(state%init, init_level_list%full)
     call announce_test('Values of fields and dist fn after changing qinp')
     call process_test(test_fields_and_dist(fields_changed=.true.), 'Values of fields and dist fn after changing qinp')
 
@@ -245,34 +219,11 @@ program test_gs2_reinit
     call process_test(.not. response_unchanged() ,&
       'Value of response matrix  after changing qinp')
 
+    call finish_gs2(state)
 
+    call close_module_test("gs2_reinit")
 
-    !call barrier
-
-
-    !call announce_test('results')
-    !call process_test(test_function(), 'results')
-
-      !call announce_test("average heat flux")
-      !call process_test( &
-        !"average heat flux")
-
-
-    if (use_old_diagnostics) then
-      call finish_gs2_diagnostics(ilast_step)
-    else
-#ifdef NEW_DIAG
-      call finish_gs2_diagnostics_new
-#endif
-    end if
-
-    call finish_gs2
-
-   call close_module_test("gs2_reinit")
-
-    call finish_mp
-    
-    call finalize_overrides(old_iface_state)
+    call finalize_overrides(state)
 
     deallocate(gbak)
     deallocate(phi_bak)
@@ -348,34 +299,5 @@ contains
 
     test_fields_and_dist = test_result
   end function test_fields_and_dist
-
-  !> This function calls reset_gs2 using
-  !! all the default parameters, multiplied
-  !! by a factor. It is used
-  !! in the gs2_reinit unit test
-  function test_reset_gs2(fac)
-    use species, only: spec, nspec
-    use dist_fn, only: g_exb
-    use mp, only: mp_abort
-    logical :: test_reset_gs2
-    real, intent(in) :: fac
-
-    if (nspec.ne.2)  &
-      call mp_abort("test_reset_gs2 only works with 2 species", .true.)
-
-    call reset_gs2(nspec, &
-      ! Deliberately leave fac off the next 2 lines
-      ! so QN is unaffected
-      (/spec(1)%dens, spec(2)%dens/), &
-      (/spec(1)%temp, spec(2)%temp/), &
-      (/spec(1)%fprim, spec(2)%fprim/)*fac, &
-      (/spec(1)%tprim, spec(2)%tprim/)*fac, &
-      g_exb, 0.0, &
-      (/spec(1)%vnewk, spec(2)%vnewk/), &
-      1)
-
-    test_reset_gs2 = .true.
-
-  end function test_reset_gs2
 
 end program test_gs2_reinit

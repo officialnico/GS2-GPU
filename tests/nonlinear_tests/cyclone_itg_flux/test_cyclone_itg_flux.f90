@@ -1,27 +1,24 @@
 program test_cyclone_itg_flux
-  use gs2_main, only: run_gs2, finish_gs2, old_iface_state
-  use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2
+  use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
+  use gs2_main, only: finalize_diagnostics
   use unit_tests, only: announce_test, process_test, functional_test_flag
-  use mp, only: init_mp, mp_comm, finish_mp, test_driver_flag
+  use mp, only: test_driver_flag
   implicit none
   character(len=*), parameter :: test_name = 'Cyclone itg flux'
   real, parameter :: absolute_tolerance = 5.0
-  call init_mp
+  type(gs2_program_state_type) :: state
 
   test_driver_flag = .true.
   functional_test_flag = .true.
 
-  call run_gs2(mp_comm)
-  call finalize_diagnostics(old_iface_state)
+  call run_gs2(state, finalize=.false.)
+  call finalize_diagnostics(state)
 
   call announce_test('results')
   call process_test(check_fluxes(), 'results')
 
-  call finalize_equations(old_iface_state)
-  call finalize_gs2(old_iface_state, quiet=.true.)
+  call finish_gs2(state, quiet=.true.)
 
-  call finish_mp
-    
 contains
 
   logical function check_fluxes() result(check)

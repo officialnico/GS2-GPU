@@ -5,16 +5,13 @@
 !> This is free software released under the MIT license
 !>   Written by: Edmund Highcock (edmundhighcock@users.sourceforge.net)
 program test_gs2_diagnostics
-  use gs2_main, only: run_gs2, finish_gs2
+  use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
   use unit_tests
   use file_utils, only: run_name, error_unit
-  use mp, only: init_mp, mp_comm, test_driver_flag, finish_mp, mp_abort
-  use run_parameters, only: use_old_diagnostics
-  use gs2_diagnostics
-#ifdef NEW_DIAG
-  use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
-#endif 
+  use mp, only: init_mp, test_driver_flag, mp_abort
   implicit none
+
+  type(gs2_program_state_type) :: state
   real :: eps
 
   ! We pick a loose tolerance here as we know that the test
@@ -27,7 +24,7 @@ program test_gs2_diagnostics
   functional_test_flag = .true.
 
   call announce_module_test("gs2_diagnostics")
-  call run_gs2(mp_comm)
+  call run_gs2(finalize=.false., state=state)
   call announce_test('diffusivity')
 
   if( trim(run_name) .eq. 'test_gs2_diagnostics' ) then
@@ -38,14 +35,8 @@ program test_gs2_diagnostics
      call mp_abort('test_gs2_diagnostics calling invalid test name')
   end if
 
-  call finish_gs2_diagnostics(ilast_step)
-#ifdef NEW_DIAG
-  if (.not. use_old_diagnostics) call finish_gs2_diagnostics_new
-#endif 
-
-  call finish_gs2
+  call finish_gs2(state, quiet=.true.)
   call close_module_test("gs2_diagnostics")
-  call finish_mp
 
 contains
 
@@ -53,6 +44,7 @@ contains
   function test_diffusivity(results, eps)
     use unit_tests, only: agrees_with
     use mp,only: proc0
+    use gs2_diagnostics, only: diffusivity
     real, intent(in) :: results, eps
     logical :: test_diffusivity
     test_diffusivity = .true.
