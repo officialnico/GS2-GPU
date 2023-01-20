@@ -11,8 +11,6 @@ module old_interface_store
     logical :: override_miller_geometry = .false.
 end module old_interface_store
 
-# ifndef MAKE_LIB
-
 !> This module provides the external interface to gs2. It contains functions
 !! to initialize gs2, functions to run gs2, functions to finalize gs2 and 
 !! functions to override/tweak gs2 parameters. 
@@ -302,7 +300,6 @@ module gs2_main
   type(gs2_program_state_type) :: old_iface_state
  
 contains
-# endif
 
   !> Parse some basic command line arguments. Currently just 'version' and 'help'.
   !>
@@ -2158,8 +2155,4 @@ contains
 
   end subroutine write_used_inputs_file
 
-# ifndef MAKE_LIB
 end module gs2_main
-# endif
-
-

@@ -44,11 +44,6 @@
 !! 
 !!  <tt> make doc sync_doc USER=[sourceforge user name]</tt>
 program gs2
-
-  ! make_lib is a compiler flag used if running with 
-  ! an old version of trinity (coupled flux tube code)
-  ! MAKE_LIB is now deprecated.
-# ifndef MAKE_LIB 
   !use optimisation_config, only: optimisation_type
   use gs2_optimisation, only: initialize_gs2_optimisation
   use gs2_optimisation, only: finalize_gs2_optimisation
@@ -104,10 +99,4 @@ program gs2
 
   call finalize_gs2_optimisation(state)
 
-# else
-
-  implicit none
-  call run_gs2
-
-# endif
 end program gs2
