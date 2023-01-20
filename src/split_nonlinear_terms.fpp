@@ -762,6 +762,10 @@ contains
           gnew = g_start
           time_step = time_step / time_step_factor
           nfailed_steps = nfailed_steps + 1
+
+          ! If the time step is too small then abort
+          if (time_step < code_dt_min) &
+               call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
        else
           internal_time = internal_time + time_step
           nsuccessful_steps = nsuccessful_steps + 1
@@ -769,9 +773,6 @@ contains
           if (ipic <= npic_low_limit) time_step = time_step * time_step_factor
        end if
 
-       ! If the time step is too small then abort
-       if (time_step < code_dt_min) &
-            call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        !Now update the time step, capped to dt
        time_step = min(time_step, dt)
