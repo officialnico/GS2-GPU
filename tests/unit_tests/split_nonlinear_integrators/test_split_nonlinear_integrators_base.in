@@ -35,5 +35,5 @@ fbpar = 0.0
 &nonlinear_terms_knobs
   nonlinear_mode = 'on'
   split_nonlinear = T
-  cfl = 1.0e-3
+  cfl = 1.0e-4
 /
