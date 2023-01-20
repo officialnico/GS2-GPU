@@ -18,6 +18,7 @@ all: ${TEST_BASE_NAME}
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_ab.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_beuler.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_rk.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_picard.in)
 endif
 endif
 
