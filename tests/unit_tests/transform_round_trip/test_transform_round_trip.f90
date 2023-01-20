@@ -70,7 +70,7 @@ program test_transform_round_trip
 
   error = maxval(abs(gnew - g))
   call max_allreduce(error)
-  if(proc0) print*,name,' Error:',error, maxval(abs(gnew)), maxval(abs(g)), xxf_lo%nx, nx, yxf_lo%ny, ny
+  if(proc0) print*,name,' Error:',error, maxval(abs(gnew)), maxval(abs(g)), xxf_lo%nx, yxf_lo%ny
 
   agrees = error <= tolerance
   overall_result = overall_result .and. agrees
@@ -95,7 +95,27 @@ program test_transform_round_trip
 
   error = maxval(abs(xxf_original - xxf))
   call max_allreduce(error)
-  if(proc0) print*,name,' Error:',error, maxval(abs(xxf_original)), maxval(abs(xxf)), xxf_lo%nx, nx, yxf_lo%ny, ny
+  if(proc0) print*,name,' Error:',error, maxval(abs(xxf_original)), maxval(abs(xxf)), xxf_lo%nx, yxf_lo%ny
+
+  agrees = error <= tolerance
+  overall_result = overall_result .and. agrees
+
+  if (.not. agrees .and. proc0) then
+     write(output_unit, '("Test case ",A," failed with error = ", E12.5)') &
+          trim(adjustl(name)), error
+  end if
+
+  name = "x+y, manual scaling"
+  g = gnew
+  call transform_x(g, xxf)
+  call transform_y(xxf, yxf)
+  call inverse_y(yxf, xxf)
+  call inverse_x(xxf, g)
+  g = g / ( yxf_lo%ny * xxf_lo%nx)
+
+  error = maxval(abs(gnew - g))
+  call max_allreduce(error)
+  if(proc0) print*,name,' Error:',error, maxval(abs(gnew)), maxval(abs(g)), xxf_lo%nx, yxf_lo%ny
 
   agrees = error <= tolerance
   overall_result = overall_result .and. agrees
