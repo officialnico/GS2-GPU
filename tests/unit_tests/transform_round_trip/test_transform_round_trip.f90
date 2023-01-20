@@ -16,9 +16,9 @@ program test_transform_round_trip
   implicit none
   type(gs2_program_state_type) :: state
   logical :: agrees
-  real :: error
+  real :: error = 0.0
   real, dimension(:, :), allocatable :: yxf
-  real, parameter :: tolerance = 1.0e-12
+  real, parameter :: tolerance = epsilon(error)
   character(len=40) :: name
   integer :: i, iglo, il, ik
 
