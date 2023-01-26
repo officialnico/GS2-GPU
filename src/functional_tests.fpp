@@ -215,10 +215,7 @@ contains
     call announce_test('results')
     call process_test(test_function(), 'results')
 
-    call finish_gs2(state, quiet=.true.)
-
     if (proc0) call close_functional_test(test_name)
-
-    call finish_mp
+    call finish_gs2(state, quiet=.true.)
   end subroutine test_gs2
 end module functional_tests
