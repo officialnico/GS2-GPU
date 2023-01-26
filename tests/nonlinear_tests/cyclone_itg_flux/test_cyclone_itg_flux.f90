@@ -1,6 +1,6 @@
 program test_cyclone_itg_flux
-  use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
-  use gs2_main, only: finalize_diagnostics
+  use gs2_main, only: run_gs2, gs2_program_state_type
+  use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2
   use unit_tests, only: announce_test, process_test, functional_test_flag
   use mp, only: test_driver_flag
   implicit none
@@ -17,7 +17,8 @@ program test_cyclone_itg_flux
   call announce_test('results')
   call process_test(check_fluxes(), 'results')
 
-  call finish_gs2(state, quiet=.true.)
+  call finalize_equations(state)
+  call finalize_gs2(state, quiet=.true.)
 
 contains
 
