@@ -389,6 +389,8 @@ contains
       quiet_value = .false.
     end if
 
+    call initialize_wall_clock_timer
+
     oldrank = iproc
     if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
       state%init%opt_ov%old_comm = mp_comm
@@ -1619,7 +1621,6 @@ contains
     local_finalize = get_option_with_default(finalize, .true.)
 
     if (first_time) then
-      call initialize_wall_clock_timer
       call initialize_gs2(local_state, header_out=local_header)
       call initialize_equations(local_state)
       call initialize_diagnostics(local_state, header=local_header)
