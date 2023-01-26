@@ -11,8 +11,7 @@
 program zonal_flow_residual
   use fields_arrays, only : phinew
   use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics, &
-       & evolve_equations, initialize_wall_clock_timer, gs2_program_state_type, &
-       & finish_gs2
+       & evolve_equations, gs2_program_state_type, finish_gs2
   use unit_tests, only: process_test, announce_test
 
   implicit none
@@ -21,7 +20,6 @@ program zonal_flow_residual
   real :: initial_phi
   type(gs2_program_state_type) :: state
 
-  call initialize_wall_clock_timer
   call initialize_gs2(state)
   call initialize_equations(state)
   call initialize_diagnostics(state)
