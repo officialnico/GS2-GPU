@@ -1613,22 +1613,17 @@ contains
     logical :: local_finalize
     type(gs2_program_state_type) :: local_state
     type(standard_header_type) :: local_header
-    logical, save :: first_time = .true.
 
     call parse_command_line()
 
     if (present(state)) local_state = state
     local_finalize = get_option_with_default(finalize, .true.)
 
-    if (first_time) then
-      call initialize_gs2(local_state, header_out=local_header)
-      call initialize_equations(local_state)
-      call initialize_diagnostics(local_state, header=local_header)
+    call initialize_gs2(local_state, header_out=local_header)
+    call initialize_equations(local_state)
+    call initialize_diagnostics(local_state, header=local_header)
 
-      call write_used_inputs_file(header=local_header)
-
-      first_time = .false.
-    end if
+    call write_used_inputs_file(header=local_header)
 
     local_state%print_times = .false.
     if (local_state%do_eigsolve) then
