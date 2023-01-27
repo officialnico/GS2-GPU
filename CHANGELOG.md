@@ -1,3 +1,13 @@
+## 8.2 (2023)
+
+### Breaking Changes
+
+* The entry points to GS2 when using it as a library have been
+  refactored, with some deprecated routines having been removed. The
+  main entry point is still `run_gs2`, but this now takes only two
+  (optional) arguments: the program `state`, and an option to delay
+  finalising the simulation until `finish_gs2` is called
+
 ## 8.1.2 (2022-07-26)
 
 
