@@ -2,33 +2,29 @@
 !! to initialize gs2, functions to run gs2, functions to finalize gs2 and 
 !! functions to override/tweak gs2 parameters. 
 !!
-!! gs2_main contains both the new and the old interface to gs2. The new interface
-!! comprises the gs2_program_state_type object, and functions for manipulating
-!! that object, which are documented individually. 
+!! The main entry point is [[run_gs2]], which takes care of initialising all the
+!! subsystems, solving the equations (either the time advance or eigensolver),
+!! and then finalising all the subsystems. This looks something like:
 !!
-!! The basic flow of a gs2 program can be seen in gs2.fpp, reproduced here:
 !!
+!!     ! An object holding the state of the simulationg
 !!     type(gs2_program_state_type) :: state
+!!     ! Initialisation of subsystems
 !!     call initialize_gs2(state)
 !!     call initialize_equations(state)
 !!     call initialize_diagnostics(state)
+!!     ! Solve the equations
 !!     if (state%do_eigsolve) then 
 !!       call run_eigensolver(state)
 !!     else
 !!       call evolve_equations(state, state%nstep)
 !!     end if
+!!     ! Clean up
 !!     call finalize_diagnostics(state)
 !!     call finalize_equations(state)
 !!     call finalize_gs2(state)
 !!
-!! You can manipulate the gs2_program_state before running gs2. A typical
-!! manipulation is to pass in an external mpi communicator (which also 
-!! means that MPI_Init is not called within initialize_gs2. 
-!!
-!!     state%mp_comm_external = .true
-!!     state%mp_comm = my_mpi_communicator
-!!     call initialize_gs2(state)
-!!     ...
+!! You can manipulate the [[gs2_program_state]] before running gs2.
 !! 
 !! You can also override parameters: typically this is done either before
 !! calling initialize_equations, or between two calls to evolve equations;
@@ -232,10 +228,8 @@ module gs2_main
     !! on the value of print_full_timers
     logical :: print_times = .true.
 
-
-    !> Parameters to be used when passing in an external communicator
-    logical :: mp_comm_external = .false.
-    integer :: mp_comm
+    !> MPI communicator. This MUST be set
+    integer :: mp_comm = -1
 
     !> This is set in initialize_gs2 to the number
     !! of procs actually used
@@ -369,11 +363,7 @@ contains
 
     call debug_message(4, 'gs2_main::initialize_gs2 starting initialization')
 
-    if (state%mp_comm_external) then
-       call init_mp (state%mp_comm)
-    else
-       call init_mp
-    end if
+    call init_mp(state%mp_comm)
 
     if (present(header_in)) then
       local_header = header_in
@@ -1164,16 +1154,6 @@ contains
         stop 1
       end if
 
-      !if ((.not. state%gs2_initialized) .or. &
-          !state%equations_initialized .or. &
-          !state%diagnostics_initialized) then
-          !write (*,*) 'ERROR: initialize_gs2 can only be called when &
-          !& gs2_initialized is true, and equations_initialized &
-          !& and diagnostics_initialized, &
-          !& are all false. '
-         !stop 1
-       !end if
-
       call time_message(.false.,state%timers%total,' Total')
 
       call finish_gs2_init(state%init)
@@ -1196,15 +1176,11 @@ contains
 
     call debug_message(state%verb, 'gs2_main::finalize_gs2 calling finish_mp')
 
-    if (.not. state%mp_comm_external) call finish_mp
-
     !state%gs2_initialized = .false.
 
     state%init%level = 0
 
     if (proc0 .and. (.not. quiet_value) ) write(*, '("Run finished at ",A)') date_iso8601()
-
-    !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
 
   !> FIXME : Add documentation  
@@ -1565,24 +1541,29 @@ contains
 
   !> The main entry point into GS2, runs a single GS2 simulation
   !>
-  !> A minimal use of this to run a single, complete simulation is:
+  !> A complete, minimal use of this to run a single, complete
+  !> simulation is:
   !>
-  !>     call run_gs2()
+  !>     program gs2
+  !>       use mp, only: init_mp, mp_comm, finish_mp
+  !>       use gs2_main, only : run_gs2, gs2_program_state_type
+  !>       implicit none
+  !>       type(gs2_program_state_type) :: state
+  !>       call init_mp
+  !>       state%mp_comm = mp_comm
+  !>       call run_gs2(state)
+  !>       call finish_mp
+  !>     end program gs2
   !>
   !> This will initialise all the GS2 internals, evolve the equations
   !> (or run the eigensolver), and then finalise the internals
   !> (writing files to disk, deallocating memory, and so on).
-  !>
-  !> If you want more control over how GS2 is run, you can create a
-  !> [[gs2_program_state_type]] instance and pass it in with the
-  !> `state` argument.
   !>
   !> You can also not finalise the simulation, which can be useful if
   !> you want read or modify the fields, for example. In this case,
   !> you *must* pass in `state` and then call [[finish_gs2]] when
   !> you're done:
   !>
-  !>     type(gs2_program_state_type) :: state
   !>     ! Optionally modify the state and input options
   !>     call run_gs2(state, finalize=.false.)
   !>     ! Do some interesting things
@@ -1592,14 +1573,14 @@ contains
   !> simulations in the same process.
   subroutine run_gs2(state, finalize)
     use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
-    use mp, only: proc0
+    use mp, only: proc0, mp_comm, init_mp
     use standard_header, only: standard_header_type
     use optionals, only : get_option_with_default
     implicit none
-    !> State of the GS2 simulation. You can pass in your own instance
-    !> to modify the behaviour of GS2 and/or to programmatically get
-    !> information about the simulation on completion.
-    type(gs2_program_state_type), optional, intent(inout) :: state
+    !> State of the GS2 simulation. Used to modify the behaviour of
+    !> GS2 and/or to programmatically get information about the
+    !> simulation on completion.
+    type(gs2_program_state_type), intent(inout) :: state
     !> If `.true.` (default), then GS2 is finalised, end-of-simulation
     !> diagnostics are computed, files are closed, arrays are
     !> deallocated, and so on.
@@ -1611,44 +1592,38 @@ contains
     logical, optional, intent(in) :: finalize
 
     logical :: local_finalize
-    type(gs2_program_state_type) :: local_state
     type(standard_header_type) :: local_header
 
     call parse_command_line()
 
-    if (present(state)) local_state = state
     local_finalize = get_option_with_default(finalize, .true.)
 
-    call initialize_gs2(local_state, header_out=local_header)
-    call initialize_equations(local_state)
-    call initialize_diagnostics(local_state, header=local_header)
+    call initialize_gs2(state, header_out=local_header)
+    call initialize_equations(state)
+    call initialize_diagnostics(state, header=local_header)
 
     call write_used_inputs_file(header=local_header)
 
-    local_state%print_times = .false.
-    if (local_state%do_eigsolve) then
-      call run_eigensolver(local_state)
+    state%print_times = .false.
+    if (state%do_eigsolve) then
+      call run_eigensolver(state)
     else
-      call evolve_equations(local_state, local_state%nstep)
-      if (local_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) local_state%exit_reason = EXIT_NSTEP
+      call evolve_equations(state, state%nstep)
+      if (state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) state%exit_reason = EXIT_NSTEP
     end if
-    if(proc0) call local_state%exit_reason%write_exit_file()
+    if(proc0) call state%exit_reason%write_exit_file()
 
-    if (present(state)) then
-      call calculate_outputs(local_state)
-      state = local_state
-    end if
+    call calculate_outputs(state)
 
     if (local_finalize) then
-      local_state%print_times = .true.
-      call finish_gs2(local_state)
+      state%print_times = .true.
+      call finish_gs2(state)
     end if
-
-    if (present(state)) state = local_state
   end subroutine run_gs2
 
   !> Finish and cleanup a complete simulation
   subroutine finish_gs2(state, quiet)
+    !> An existing, initialisation simulation state
     type(gs2_program_state_type), intent(inout) :: state
     logical, intent(in), optional :: quiet
     call finalize_diagnostics(state)

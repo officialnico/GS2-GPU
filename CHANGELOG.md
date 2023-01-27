@@ -5,8 +5,10 @@
 * The entry points to GS2 when using it as a library have been
   refactored, with some deprecated routines having been removed. The
   main entry point is still `run_gs2`, but this now takes only two
-  (optional) arguments: the program `state`, and an option to delay
-  finalising the simulation until `finish_gs2` is called
+  arguments: the program `state`, and an option to delay finalising
+  the simulation until `finish_gs2` is called. The user is expected to
+  take care of initialising and finalising MPI, and passing the MPI
+  communicator through `state%mp_comm`
 
 ## 8.1.2 (2022-07-26)
 

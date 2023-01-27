@@ -2,7 +2,7 @@ program test_cyclone_itg_flux
   use gs2_main, only: run_gs2, gs2_program_state_type
   use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2
   use unit_tests, only: announce_test, process_test, functional_test_flag
-  use mp, only: test_driver_flag
+  use mp, only: test_driver_flag, init_mp, mp_comm, finish_mp
   implicit none
   character(len=*), parameter :: test_name = 'Cyclone itg flux'
   real, parameter :: absolute_tolerance = 5.0
@@ -10,6 +10,9 @@ program test_cyclone_itg_flux
 
   test_driver_flag = .true.
   functional_test_flag = .true.
+
+  call init_mp()
+  state%mp_comm = mp_comm
 
   call run_gs2(state, finalize=.false.)
   call finalize_diagnostics(state)
@@ -19,6 +22,8 @@ program test_cyclone_itg_flux
 
   call finalize_equations(state)
   call finalize_gs2(state, quiet=.true.)
+
+  call finish_mp()
 
 contains
 

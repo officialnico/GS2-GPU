@@ -197,13 +197,14 @@ contains
   subroutine test_gs2(test_name, test_function)
     use gs2_main, only: run_gs2, gs2_program_state_type, finish_gs2
     use unit_tests, only: functional_test_flag
-    use mp, only: init_mp, proc0, test_driver_flag, finish_mp
+    use mp, only: init_mp, proc0, test_driver_flag, finish_mp, mp_comm
     implicit none
     character(*), intent(in) :: test_name
     logical, external :: test_function
     type(gs2_program_state_type) :: state
 
     call init_mp
+    state%mp_comm = mp_comm
 
     test_driver_flag = .true.
     functional_test_flag = .true.
@@ -217,5 +218,6 @@ contains
 
     if (proc0) call close_functional_test(test_name)
     call finish_gs2(state, quiet=.true.)
+    call finish_mp
   end subroutine test_gs2
 end module functional_tests

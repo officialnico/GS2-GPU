@@ -8,7 +8,7 @@ program test_gs2_diagnostics
   use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
   use unit_tests
   use file_utils, only: run_name, error_unit
-  use mp, only: init_mp, test_driver_flag, mp_abort
+  use mp, only: init_mp, test_driver_flag, mp_abort, mp_comm, finish_mp
   implicit none
 
   type(gs2_program_state_type) :: state
@@ -18,7 +18,8 @@ program test_gs2_diagnostics
   ! is not very well resolved.
   eps = 1.0e-2
 
-  call init_mp
+  call init_mp()
+  state%mp_comm = mp_comm
 
   test_driver_flag = .true.
   functional_test_flag = .true.
@@ -37,6 +38,7 @@ program test_gs2_diagnostics
 
   call finish_gs2(state, quiet=.true.)
   call close_module_test("gs2_diagnostics")
+  call finish_mp
 
 contains
 

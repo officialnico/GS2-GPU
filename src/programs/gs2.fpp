@@ -44,7 +44,12 @@
 !! 
 !!  <tt> make doc sync_doc USER=[sourceforge user name]</tt>
 program gs2
-  use gs2_main, only : run_gs2
+  use mp, only: init_mp, mp_comm, finish_mp
+  use gs2_main, only : run_gs2, gs2_program_state_type
   implicit none
-  call run_gs2
+  type(gs2_program_state_type) :: state
+  call init_mp
+  state%mp_comm = mp_comm
+  call run_gs2(state)
+  call finish_mp
 end program gs2

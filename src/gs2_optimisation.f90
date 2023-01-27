@@ -16,7 +16,6 @@ contains
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call init_mp
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm
     allocate(state%optim%sorted_optimisations(0))
     allocate(state%optim%sorted_results(0))

@@ -11,12 +11,10 @@ program test_gs2_main
   implicit none
   type(gs2_program_state_type) :: state
 
-  call init_mp
+  call init_mp()
+  state%mp_comm = mp_comm
 
   call announce_module_test("gs2_main")
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
   call finalize_gs2(state)

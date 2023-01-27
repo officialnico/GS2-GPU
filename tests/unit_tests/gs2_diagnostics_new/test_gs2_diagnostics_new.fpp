@@ -165,7 +165,6 @@ program test_gs2_diagnostics_new
 
   test_driver_flag = .true.
   functional_test_flag = .true.
-  state%mp_comm_external = .true.
   state%mp_comm = mp_comm
 
   call announce_module_test("gs2_diagnostics_new")

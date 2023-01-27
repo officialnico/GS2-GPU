@@ -13,12 +13,16 @@ program zonal_flow_residual
   use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics, &
        & evolve_equations, gs2_program_state_type, finish_gs2
   use unit_tests, only: process_test, announce_test
+  use mp, only: init_mp, mp_comm, finish_mp
 
   implicit none
 
   !> The initial value of phi
   real :: initial_phi
   type(gs2_program_state_type) :: state
+
+  call init_mp
+  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
   call initialize_equations(state)
@@ -32,6 +36,8 @@ program zonal_flow_residual
   call process_test(check_residual(initial_phi), 'results')
 
   call finish_gs2(state)
+
+  call finish_mp
 
 contains
 
