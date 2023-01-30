@@ -41,7 +41,7 @@ program test_gs2_reinit
     use unit_tests
     use unit_tests, only: should_print
     use mp, only: init_mp, test_driver_flag, finish_mp
-    use mp, only: broadcast, barrier, iproc
+    use mp, only: broadcast, barrier, iproc, mp_comm
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gnew
     use gs2_diagnostics, only: finish_gs2_diagnostics
@@ -49,10 +49,6 @@ program test_gs2_reinit
   use theta_grid, only: ntgrid, init_theta_grid
   use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
   use fields_local, only: fields_local_functional, fieldmat
-  use run_parameters, only: use_old_diagnostics
-#ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
-#endif
     implicit none
     real :: eps
     complex, dimension (:,:,:), allocatable :: gbak 
@@ -76,6 +72,7 @@ program test_gs2_reinit
 
 
     call init_mp
+    state%mp_comm = mp_comm
 
 
     test_driver_flag = .true.
@@ -229,6 +226,8 @@ program test_gs2_reinit
     deallocate(phi_bak)
     deallocate(apar_bak)
     deallocate(bpar_bak)
+
+    call finish_mp
 
 contains
   
