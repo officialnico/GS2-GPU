@@ -248,8 +248,11 @@ module gs2_main
     !! Cannot be used in conjunction with list mode
     integer :: nensembles = 1
 
-    ! Outputs (e.g. for Trinity)
+    !> Outputs (e.g. for Trinity)
     type(gs2_outputs_type) :: outputs
+
+    !> If true, calculate and set [[outputs]]
+    logical :: set_outputs = .false.
 
     ! Optimisation configuration
     type(optimisation_type) :: optim
@@ -1613,7 +1616,7 @@ contains
     end if
     if(proc0) call state%exit_reason%write_exit_file()
 
-    call calculate_outputs(state)
+    if (state%set_outputs) call calculate_outputs(state)
 
     if (local_finalize) then
       state%print_times = .true.
