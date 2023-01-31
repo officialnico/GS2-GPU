@@ -14,7 +14,7 @@ module rk_schemes
   type rk_scheme_id_type
      private
      integer :: id
-     character(len=20) :: name
+     character(len=30) :: name
   end type rk_scheme_id_type
 
   !> Public type storing the data for a particular RK scheme
