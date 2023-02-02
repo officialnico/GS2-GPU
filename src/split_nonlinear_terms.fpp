@@ -371,16 +371,17 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
+    use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel
-    integer :: counter
+    integer :: counter, iglo
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
-    real :: inverse_error, error, actual_dt
+    real :: inverse_error, error, actual_dt, half_time
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
@@ -402,6 +403,7 @@ contains
        ! Limit the actual time step that we take to avoid overshooting (i.e.
        ! to keep internal_time <= dt).
        actual_dt = min(time_step, dt - internal_time)
+       half_time = 0.5 * actual_dt
 
        ! Calculate the current NL source term, for use in error
        ! estimates later.
@@ -422,9 +424,16 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
-          g_work = g + actual_dt * 0.5 * gexp_1
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             g_work(:, :, iglo) = g(:, :, iglo) + half_time * gexp_1(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
 
           ! Calculate the maximum absolute error and the maximum value of the previous solution
+          !OpenMP max as have to form result?
           errors(1) = maxval(abs(gnew - g_work))
           errors(2) = maxval(abs(g_work))
           call max_allreduce(errors)
@@ -434,6 +443,7 @@ contains
 
           ! Update internals -- increment counter and update the 'previous' solution with the new one.
           counter = counter + 1
+          !OpenMP copy?
           gnew = g_work
 
           ! Update the fields consistently with the current solution
@@ -476,6 +486,7 @@ contains
                calculate_cfl_limit = .true.)
           nrhs_calls = nrhs_calls + 1
 
+          !OpenMP max as need to form the dfn sized result?
           errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
           errors(3) = max_vel
           call max_allreduce(errors)
@@ -497,6 +508,7 @@ contains
        if (reject_step) then
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+          !OpenMP copy?
           gnew = g
           ! If we store the initial field then we could perhaps just copy here instead.
           ! This could be faster as it avoids communications involved in the velocity integration.
@@ -506,6 +518,7 @@ contains
           ! If we have met the error condition and not taken too many steps
           ! then gnew represents our new solution so make sure we update g to reflect this
           internal_time = internal_time + actual_dt
+          !OpenMP copy?
           g = gnew
           nsuccessful_steps = nsuccessful_steps + 1
        end if
