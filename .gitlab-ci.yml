@@ -110,11 +110,11 @@ standard_tests:
     PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
-gfortran11_mpich:
+gfortran12_mpich:
   stage: test
-  image: fedora:35
+  image: fedora:37
   variables:
-    CASENAME: "gfortran_11_mpich"
+    CASENAME: "gfortran_12_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
