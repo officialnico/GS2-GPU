@@ -207,6 +207,7 @@ contains
     call reset_step_statistics
 
     ! Copy current fields to local copies
+    !OpenMP tasks?
     phinew = phi ; aparnew = apar ; bparnew = bpar
 
     ! If we want to advance h rather than g then adjust
@@ -248,6 +249,7 @@ contains
     ! update to the fields is calculated as a part of the implicit
     ! field solve and including the NL contribution here leads to
     ! "double counting".
+    !OpenMP loop?
     g = gnew
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
@@ -264,12 +266,13 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
+    use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
-    real :: internal_time, time_step, max_vel
+    real :: internal_time, time_step, max_vel, half_time
     real, dimension(:), allocatable :: ab_coeffs
-    integer :: counter
+    integer :: counter, iglo
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
 
@@ -303,23 +306,43 @@ contains
        ! Get the Adams-Bashforth coefficients for the current collection of time step sizes
        ab_coeffs = get_adams_bashforth_coefficients(target_dt = time_step)
 
+       half_time = 0.5 * time_step
+
        ! Advance solution by time_step
        select case(counter)
        case(1)
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        case(2)
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1 +     &
-               ab_coeffs(2) * gexp_2       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gexp_2(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        case default
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1 +     &
-               ab_coeffs(2) * gexp_2 +     &
-               ab_coeffs(3) * gexp_3       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gexp_2(:, :, iglo) +     &
+                  ab_coeffs(3) * gexp_3(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        end select
 
        ! Calculate the fields consistent with the new g
@@ -333,6 +356,7 @@ contains
        ! Shift time history along one point
        code_dt_prev2 = code_dt_prev1
        code_dt_prev1 = time_step
+       !OpenMP copy?
        gexp_3 = gexp_2
        gexp_2 = gexp_1
     end do
