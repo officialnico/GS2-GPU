@@ -568,7 +568,7 @@ contains
     real :: new_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
-    integer :: istage, istage_sub, validity
+    integer :: istage, istage_sub, validity, iglo
     real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
@@ -600,9 +600,18 @@ contains
        stages = 0.0
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        do istage = 1, nstages
+          !OpenMP copy?
           gnew = g
+          !Could OpenMP reduce here but might be more efficient to distribute calculation
+          !of each stage
           do istage_sub = 1, istage-1
-             gnew = gnew + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, :, istage_sub)
+             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PRIVATE(iglo) &
+             !$OMP SCHEDULE(dynamic)
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
+             end do
+             !$OMP END PARALLEL DO
           end do
           call fields_func(gnew, phinew, aparnew, bparnew)
 
@@ -615,6 +624,7 @@ contains
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
+          !OpenMP copy?
           stages(:, :, :, istage) = gexp_1
        end do
 
@@ -624,12 +634,26 @@ contains
        ! without the time_step * 0.5 factor (to avoid extra
        ! array operations). We multiply the final error by
        ! time_step/2 to ensure full consistency.
-       gexp_1 = error_coeffs(1) * stages(:, :, :, 1)
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SCHEDULE(dynamic)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          gexp_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
+       end do
+       !$OMP END PARALLEL DO
+
        do istage = 2, nstages
-          gexp_1 = gexp_1 + error_coeffs(istage) * stages(:, :, :, istage)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
+          end do
+          !$OMP END PARALLEL DO
        end do
 
        ! Store the absolute error
+       !OpenMP for max?
        errors(1) = maxval(abs(gexp_1)) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
@@ -656,10 +680,23 @@ contains
                internal_time,'and counter',counter,'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
-         !Update the solution
-          g = g + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, :, 1)
+          !Update the solution
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(dynamic)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, iglo, 1)
+          end do
+          !$OMP END PARALLEL DO
+
           do istage = 2, nstages
-             g = g + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, :, istage)
+             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PRIVATE(iglo) &
+             !$OMP SCHEDULE(dynamic)
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
+             end do
+             !$OMP END PARALLEL DO
           end do
 
           internal_time = internal_time + time_step
@@ -682,6 +719,7 @@ contains
     ! We may be able to avoid this copy and field solve on exit if we restructure the main
     ! loop slightly so gnew represents the new solution. This may require use of g_work
     ! or similar to hold intermediate values.
+    !OpenMP copy?
     gnew = g
 
     time_step_last = time_step
