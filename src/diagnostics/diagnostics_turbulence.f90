@@ -245,7 +245,7 @@ contains
          "Cross phase between electron density and perpendicular electron temperature, &
          & averaged across all space", "radians", phase_tot)
     
-    if (proc0 .and. gnostics%write_ascii) write (unit=gnostics%ascii_files%phase, &
+    if (proc0 .and. gnostics%ascii_files%write_to_phase .and. (.not. gnostics%create)) write (unit=gnostics%ascii_files%phase, &
          fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & t, phase_tot, phase_theta
   end subroutine write_cross_phase
