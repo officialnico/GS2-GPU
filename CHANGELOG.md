@@ -8,7 +8,11 @@
   arguments: the program `state`, and an option to delay finalising
   the simulation until `finish_gs2` is called. The user is expected to
   take care of initialising and finalising MPI, and passing the MPI
-  communicator through `state%mp_comm`
+  communicator through `state%mp_comm`.
+
+* The change to the GS2 entry points means that some interfaces to
+  external codes, such as Trinity, have also been removed. The caller
+  should now handle any customisation to the GS2 setup/teardown.
 
 ## 8.1.2 (2022-07-26)
 
