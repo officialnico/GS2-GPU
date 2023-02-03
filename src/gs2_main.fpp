@@ -1565,8 +1565,7 @@ contains
   !>
   !> You can also not finalise the simulation, which can be useful if
   !> you want read or modify the fields, for example. In this case,
-  !> you *must* pass in `state` and then call [[finish_gs2]] when
-  !> you're done:
+  !> you *must* call [[finish_gs2]] when you're done:
   !>
   !>     ! Optionally modify the state and input options
   !>     call run_gs2(state, finalize=.false.)
