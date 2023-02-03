@@ -57,6 +57,7 @@ module gs2_main
   use optimisation_config, only: optimisation_type
   use constants, only: run_name_size
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
+  use mp, only: mp_comm_null
   implicit none
   public :: run_gs2
   public :: finish_gs2
@@ -229,7 +230,7 @@ module gs2_main
     logical :: print_times = .true.
 
     !> MPI communicator. This MUST be set
-    integer :: mp_comm = -1
+    integer :: mp_comm = mp_comm_null
 
     !> This is set in initialize_gs2 to the number
     !! of procs actually used
