@@ -309,11 +309,9 @@ contains
 #ifdef NEW_DIAG
     ! bash command that compares the old and new diagnostics results for the last
     ! n_lines lines of a file, and writes T to tmpdata.dat if they agree
-    command = "if [ ""`cat old_diagnostics/test_gs2_diagnostics_new."//file_name//"  &
-     & | tail -n "//n_lines//"`"" = &
-     &  ""`cat test_gs2_diagnostics_new."//file_name//"   | tail -n "//n_lines//"`"" ]; &
-     & then echo ""T"" > tmpdata.dat; &
-     & else echo ""F"" > tmpdata.dat; fi"
+    write(command,'("./compare_ascii.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
+         "old_diagnostics/test_gs2_diagnostics_new."//file_name,&
+         "test_gs2_diagnostics_new."//file_name
     if (should_print(3)) write(*,*) trim(command)
     call execute_command_line(command)
     open(120349, file='tmpdata.dat')
