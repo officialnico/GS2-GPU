@@ -192,7 +192,7 @@ contains
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
-    use run_parameters, only: fphi, fbpar
+    use run_parameters, only: fphi, fapar, fbpar
     implicit none
     integer, intent(in) :: istep
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
@@ -207,8 +207,12 @@ contains
     call reset_step_statistics
 
     ! Copy current fields to local copies
-    !OpenMP tasks?
-    phinew = phi ; aparnew = apar ; bparnew = bpar
+    allocate(phinew, mold = phi)
+    allocate(aparnew, mold = apar)
+    allocate(bparnew, mold = bpar)
+    if (fphi > epsilon(0.0)) call copy(phi, phinew)
+    if (fapar > epsilon(0.0)) call copy(apar, aparnew)
+    if (fbpar > epsilon(0.0)) call copy(bpar, bparnew)
 
     ! If we want to advance h rather than g then adjust
     ! here to get h. Note we rely on the call site also
@@ -218,7 +222,7 @@ contains
     ! from g and a way from h and we then decide here which to use.
     if (advance_nonadiabatic_dfn) then
        call g_adjust(g, phinew, bparnew, fphi, fbpar)
-       gnew = g
+       call copy(g, gnew)
     end if
 
     ! Call requested method for advancing nonlinear term
@@ -249,13 +253,34 @@ contains
     ! update to the fields is calculated as a part of the implicit
     ! field solve and including the NL contribution here leads to
     ! "double counting".
-    !OpenMP loop?
-    g = gnew
+    call copy(gnew, g)
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
     time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
   end subroutine advance_nonlinear_term
+
+  !> Helper subroutine for copying one 3D complex array into another.
+  !> Doesn't really belong in this module, but only using it here for
+  !> now.
+  subroutine copy(array_in, array_out)
+    implicit none
+    complex, dimension(:, :, :), intent(in) :: array_in
+    complex, dimension(:, :, :), intent(out) :: array_out
+    integer :: counter, start, end
+    ! In a debug build we might want to add a check here that the arrays have
+    ! compatible shape.
+
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_out(:, :, counter) = array_in(:, :, counter)
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine copy
 
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> AB scheme of orders up to 3rd.
@@ -356,9 +381,8 @@ contains
        ! Shift time history along one point
        code_dt_prev2 = code_dt_prev1
        code_dt_prev1 = time_step
-       !OpenMP copy?
-       gexp_3 = gexp_2
-       gexp_2 = gexp_1
+       call copy(gexp_2, gexp_3)
+       call copy(gexp_1, gexp_2)
     end do
 
   end subroutine advance_nonlinear_term_ab3
@@ -443,8 +467,7 @@ contains
 
           ! Update internals -- increment counter and update the 'previous' solution with the new one.
           counter = counter + 1
-          !OpenMP copy?
-          gnew = g_work
+          call copy(g_work, gnew)
 
           ! Update the fields consistently with the current solution
           call fields_func(gnew, phinew, aparnew, bparnew)
@@ -508,8 +531,7 @@ contains
        if (reject_step) then
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
-          !OpenMP copy?
-          gnew = g
+          call copy(g, gnew)
           ! If we store the initial field then we could perhaps just copy here instead.
           ! This could be faster as it avoids communications involved in the velocity integration.
           call fields_func(gnew, phinew, aparnew, bparnew)
@@ -518,8 +540,7 @@ contains
           ! If we have met the error condition and not taken too many steps
           ! then gnew represents our new solution so make sure we update g to reflect this
           internal_time = internal_time + actual_dt
-          !OpenMP copy?
-          g = gnew
+          call copy(gnew, g)
           nsuccessful_steps = nsuccessful_steps + 1
        end if
 
@@ -600,8 +621,8 @@ contains
        stages = 0.0
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        do istage = 1, nstages
-          !OpenMP copy?
-          gnew = g
+          call copy(g, gnew)
+
           !Could OpenMP reduce here but might be more efficient to distribute calculation
           !of each stage
           do istage_sub = 1, istage-1
@@ -624,8 +645,9 @@ contains
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
-          !OpenMP copy?
-          stages(:, :, :, istage) = gexp_1
+          ! Could we just pass stages(:, :, :, istage) instead of gexp_1
+          ! in above source_func call?
+          call copy(gexp_1, stages(:, :, :, istage))
        end do
 
        ! One can directly form the error by simply forming error =
@@ -719,8 +741,7 @@ contains
     ! We may be able to avoid this copy and field solve on exit if we restructure the main
     ! loop slightly so gnew represents the new solution. This may require use of g_work
     ! or similar to hold intermediate values.
-    !OpenMP copy?
-    gnew = g
+    call copy(g, gnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
