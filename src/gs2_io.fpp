@@ -44,7 +44,7 @@ module gs2_io
   integer :: nakx_id, naky_id, nttot_id, akx_id, aky_id, theta_id, nspec_id
   integer :: negrid_id, nlambda_id, egrid_id, lambda_id
   integer :: time_id, phi2_id, apar2_id, bpar2_id, theta0_id, nproc_id, nmesh_id
-  integer :: current_scan_parameter_value_id
+  integer :: current_scan_parameter_value_id, time_wstar_id
   integer :: phi2_by_mode_id, apar2_by_mode_id, bpar2_by_mode_id, errest_by_mode_id, lpcoef_by_mode_id
   integer :: phtot_id
   integer :: phi2_by_kx_id, apar2_by_kx_id, bpar2_by_kx_id
@@ -526,7 +526,7 @@ contains
     use file_utils, only: error_unit
     use mp, only: nproc
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fapar, fbpar, wstar_units
     use parameter_scan_arrays, only: write_scan_parameter
     use netcdf, only: NF90_CHAR, NF90_INT, NF90_GLOBAL
     use netcdf, only: nf90_enddef, nf90_inq_libvers, nf90_put_var
@@ -733,6 +733,12 @@ contains
     call ensure_netcdf_var_exists(ncid, 'lambda', netcdf_real, nlambda_dim, lambda_id)
 
     call ensure_netcdf_var_exists(ncid, 'theta', netcdf_real, nttot_dim, theta_id)
+
+    if (wstar_units) then
+       call ensure_netcdf_var_exists(ncid, 't_wstar', netcdf_real, [naky_dim, time_dim], time_wstar_id)
+       call ensure_netcdf_att_exists(ncid, time_wstar_id, 'long_name', 'Time (wstar)')
+       call ensure_netcdf_att_exists(ncid, time_wstar_id, 'units', 'L/vt')
+    end if
 
     !################################################
     !# NOW DO GEOMETRICAL/EQUILIBRIUM DATA
@@ -2219,7 +2225,7 @@ contains
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
     use gs2_heating, only: hk_repack
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fapar, fbpar, wstar_units, tunits
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use species, only: nspec
@@ -2269,7 +2275,12 @@ contains
     count5(4) = naky
     count5(5) = 1
 
-    status = nf90_put_var (ncid, time_id, time, start=(/ nout /))
+    status = nf90_put_var (ncid, time_id, time, start=[nout])
+
+    if (wstar_units) then
+       status = nf90_put_var (ncid, time_wstar_id, &
+            time*tunits, start = [1, nout])
+    end if
 
     start(1) = 1
     start(2) = 1
