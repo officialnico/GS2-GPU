@@ -24,6 +24,7 @@ program time_init_advance
 
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   ! Set benchmark_level variable for use in output file names
   if(proc0) then
@@ -34,9 +35,6 @@ program time_init_advance
   end if
 
   if (proc0) call announce_module_test('time_timestep')  
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   ! This initializes the state variable to the lowest initialization level
   call initialize_gs2(state)
