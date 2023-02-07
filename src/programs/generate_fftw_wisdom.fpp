@@ -38,12 +38,13 @@ program generate_fftw_wisdom
   call broadcast (cbuff)
   if (.not. proc0) run_name = cbuff
 
-  if (proc0) call time_message(.false., time_taken, "Init transforms")
+  call time_message(.false., time_taken, "Init transforms")
 
   call init_nonlinear_terms
 
+  call time_message(.false., time_taken, "Init transforms")
+
   if (proc0) then
-     call time_message(.false., time_taken, "Init transforms")
      write(*, '(" Time taken to calculate fftw plans ",I6," procs: ",F3.1," s")') nproc, time_taken(1)
      write(*,*)
      !    call append_output_file(timing_unit, &

@@ -120,7 +120,7 @@ contains
            "1", erridx)
    end if
    
-   if (proc0 .and. gnostics%write_ascii) call write_ascii
+   if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
    deallocate(errest,erridx)
    
  contains

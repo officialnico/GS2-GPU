@@ -165,9 +165,8 @@ The following is the full list of switches the possible options in
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
  - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
- - `USE_HDF5` (defined [undefined]): uses HDF5 library or not
+ - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
- - `USE_POSIX` (defined [undefined]): uses posix routines for argument processing
  - `USE_LOCAL_RAN` (`mt` [undefined]): uses local random number generator
  - `USE_LOCAL_SPFUNC` (defined [undefined]): use local special functions (this overrides
    compiler's intrinsic special functions and NAG library's)
@@ -226,9 +225,6 @@ might expect).
 |                 |               |                                                  |
 | `NETCDF`        | `_NONE_`      | Do not use NetCDF                                |
 |                 |               | Use of -DNETCDF makes netcdf work.               |
-|                 |               |                                                  |
-| `HDF`           | `_NONE_`      | Do not use HDF5                                  |
-|                 |               | Use of -DHDF makes hdf work.                     |
 |                 |               |                                                  |
 | `NO_SIZEOF`     | `_NONE_`      | This is for memory accounting.                   |
 |                 |               | In most compilers, non-standard sizeof function  |
@@ -378,20 +374,19 @@ these restart files get created and how they're named:
   first, as GS2 won't do this for you. You can turn on
   [gs2_diagnostics_knobs::file_safety_check][file_safety_check_option] (default is on) to
   check during initialisation that `restart_dir` exists and that GS2 can write to the
-  directory. (NOTE: `file_safety_check` currently doesn't work for the new diagnostics
-  ([knobs::use_old_diagnostics][use_old_diagnostics] = `.false.`)).
+  directory.
 
 To then restart a simulation, set the following input variables:
 
 - [knobs::delt_option][delt_option] to `check_restart`
-- [init_g_knobs::ginit_option][ginit_option] to `many`
+- [init_g_knobs::ginit_option][ginit_option] to `restart`
 
 ``` Fortran
 &knobs
     delt_option = "check_restart"
 /
 &init_g_knobs
-    ginit_option = "many"
+    ginit_option = "restart"
 /
 ```
 

@@ -260,9 +260,11 @@ contains
   !> FIXME : Add documentation
   subroutine dfit_init
     implicit none
-    real, dimension(nw, nh) :: eqth 
+    real, allocatable :: eqth(:,:)
     integer :: i, j
     
+    if (.not.allocated(eqth)) allocate(eqth(nw,nh))
+
     do i = 1, nw
        do j = 1,nh
           if(dfit_Z(j) == Z_mag .and. dfit_R(i) == R_mag) then
@@ -276,6 +278,8 @@ contains
     call derm(dfit_psi, dpm)
     call tderm(eqth, dtm)
     
+    if (allocated(eqth)) deallocate(eqth)
+
   end subroutine dfit_init
 
   !> FIXME : Add documentation
@@ -351,11 +355,11 @@ contains
   subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
     use splines, only: inter_d_cspl
     implicit none
+    integer, intent(in) :: nth, ntm
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     character(len=1), intent(in) :: char
     real, intent(in) :: rp
-    integer, intent(in) :: nth, ntm
     real :: aa(1), daa(1), rpt(1)
     integer :: i
     
@@ -379,16 +383,17 @@ contains
   subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
-
+    integer, intent(in) :: nth_used, ntm
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     character(len=1), intent(in) :: char
     real, intent(in) :: rp
-    integer, intent(in) :: nth_used, ntm
     real :: tmp(2), aa(1), daa(1), rpt(1)
-    real, dimension(nw, nh, 2) ::  dbish
+    real, allocatable ::  dbish(:,:,:)
     integer :: i
  
+    if (.not.allocated(dbish)) allocate(dbish(nw,nh,2))
+
     dbish(:,:,1) = sqrt(dpm(:,:,1)**2 + dpm(:,:,2)**2)
     dbish(:,:,2) = 0.
     
@@ -421,6 +426,8 @@ contains
           grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0/psi_N
        enddo
     endif
+
+    if (allocated(dbish)) deallocate(dbish)
 
   end subroutine bgradient
 
@@ -713,18 +720,20 @@ contains
     initialize_bound = 1
   end function initialize_bound
 
-  !> FIXME : Add documentation    
+  !> Find the value of the major radius on the plasma boundary
+  !> at given geometric theta.
   function bound(theta) 
-    use splines, only: new_spline, splint, spline
+    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+    use constants, only: twopi
     implicit none
     real, intent(in) :: theta
     real :: bound
-    type (spline), save :: spl
+    type (periodic_spline), save :: spl
 
-    if(init_bound) call new_spline(nbbbs, thetab, r_bound, spl)
+    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
     init_bound = .false.
     
-    bound = splint(theta, spl)
+    bound = periodic_splint(theta, spl)
   end function bound    
 
   !> FIXME : Add documentation    
@@ -750,6 +759,7 @@ contains
     if(allocated(spsi_bar)) deallocate(spsi_bar,sdfit_R,sdfit_Z)
     if(allocated(dfit_psi)) deallocate(dfit_psi)
     if(allocated(dpm)) deallocate(dpm,dtm)
+    if(allocated(thetab)) deallocate(thetab, r_bound)    
   end subroutine dealloc_module_arrays
 
   !> FIXME : Add documentation    

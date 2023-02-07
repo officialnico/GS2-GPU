@@ -31,11 +31,9 @@ program time_redists
 
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   if (proc0) call announce_module_test('time_redists')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
 

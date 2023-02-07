@@ -14,6 +14,7 @@ module hyper
 
   public :: hyper_config_type
   public :: set_hyper_config
+  public :: get_hyper_config
   
 ! D_v, D_eta are hyper coefficients, normalized correctly 
 ! i.e., either by unity or by 1/k_perp**2*nexp
@@ -372,6 +373,10 @@ contains
     call init_gs2_layouts
     call read_parameters(hyper_config_in)
     call allocate_arrays
+
+    ! Initialise module level variables
+    D_v = 0
+    D_eta = 0
 
     select case (hyper_option_switch)
         case(hyper_option_both, hyper_option_res, hyper_option_visc)
@@ -806,7 +811,13 @@ contains
        hyper_config = hyper_config_in
     end if
   end subroutine set_hyper_config
-  
+
+    !> Get the module level config instance
+  function get_hyper_config()
+    type(hyper_config_type) :: get_hyper_config
+    get_hyper_config = hyper_config
+  end function get_hyper_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -818,7 +829,7 @@ contains
     implicit none
     class(hyper_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -852,16 +863,8 @@ contains
     p_hyper3d = self%p_hyper3d
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = hyper_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = hyper_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = hyper_knobs)
 
     ! Now copy from local variables into type members
     self%const_amp = const_amp

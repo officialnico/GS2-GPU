@@ -27,6 +27,7 @@ exclude_dir: ../src/templates
 media_dir: ./media
 favicon: ./media/favicon.ico
 md_extensions: markdown.extensions.toc
+               markdown.extensions.md_in_html
 fpp_extensions: fpp
 fpp_extensions: F90
 predocmark: >
@@ -144,11 +145,12 @@ GS2 has no required external dependencies, but does have the following
 optional ones:
 
 - MPI
-- NetCDF
-- HDF5
-- FFTW
+- NetCDF (requires >= v4.2.0)
+- FFTW (support for v2 will be dropped in the near future)
 - LAPACK
 - NAG
+- python (required for code generation, tests and documentation,
+  requires >= 3.6)
 
 ## Building and running GS2
 

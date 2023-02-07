@@ -35,6 +35,7 @@ module gs2_reinit
 
   public :: reinit_config_type
   public :: set_gs2_reinit_config
+  public :: get_gs2_reinit_config
   
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -116,7 +117,7 @@ contains
     write (unit, fmt="(' /')")       
   end subroutine wnml_gs2_reinit
 
-  !> FIXME : Add documentation  
+  !> Reduces the time step by a factor `delt_adj`.
   subroutine reduce_time_step
     use gs2_time, only: code_dt
     implicit none
@@ -124,12 +125,14 @@ contains
     code_dt = code_dt/delt_adj
   end subroutine reduce_time_step
 
-  !> FIXME : Add documentation  
+  !> Increases the time step by a factor `delt_adj` up to a limit of
+  !> `code_dt_max` set by [[reinit_config_type:dt0]] or from the
+  !> restart file.
   subroutine increase_time_step
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, code_dt_max
     implicit none
     if (first) call init_reinit
-    code_dt = min(code_dt*delt_adj, dt0)
+    code_dt = min(code_dt*delt_adj, code_dt_max)
   end subroutine increase_time_step
 
   !> FIXME : Add documentation  
@@ -137,7 +140,7 @@ contains
     use run_parameters, only: reset
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt, user_time
     use dist_fn_arrays, only: gnew
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use gs2_init, only: init_type, init
     use gs2_init, only: init_level_list
     use mp, only: proc0
@@ -181,7 +184,7 @@ contains
        return
     end if
 
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     !First disable the reset flag so we can call 
     !routines needed in reinit
@@ -213,7 +216,7 @@ contains
        if (code_dt*fac > code_dt_cfl) then
           call reduce_time_step
           ! If timestep is too small, make it bigger
-       else if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) then
+       else if (code_dt*fac < min(code_dt_max, code_dt_cfl/delt_adj/delt_cushion)) then
           call increase_time_step
        else
           exit
@@ -252,7 +255,7 @@ contains
     !call reinit_gk_and_field_equations(reset_antenna=.false.)
     call init(current_init, init_level_list%full)
     
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     istep_last = istep
 
@@ -263,7 +266,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_time_step (reset, exit)
-    use gs2_time, only: code_dt_cfl, code_dt
+    use gs2_time, only: code_dt_cfl, code_dt, code_dt_max
     use nonlinear_terms, only: gryfx_zonal, nb_check_time_step_too_large
     use mp, only: broadcast
     implicit none
@@ -295,7 +298,7 @@ contains
     if (code_dt*fac > code_dt_cfl) reset = .true. !Note this logic is repeated in gs2_time::check_time_step_too_large
        
 ! If timestep is too small, make it bigger
-    if (code_dt*fac < min(dt0, code_dt_cfl/delt_adj/delt_cushion)) reset = .true.
+    if (code_dt*fac < min(code_dt_max, code_dt_cfl/delt_adj/delt_cushion)) reset = .true.
 
   end subroutine check_time_step
 
@@ -315,7 +318,7 @@ contains
   subroutine init_reinit(reinit_config_in)
     use run_parameters, only: code_delt_max
     use file_utils, only: input_unit, input_unit_exist
-    use gs2_time, only: save_dt_min
+    use gs2_time, only: save_dt_min, save_dt_max
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
     type(reinit_config_type), intent(in), optional :: reinit_config_in    
@@ -346,7 +349,8 @@ contains
     exist = reinit_config%exist
     
     call save_dt_min (delt_minimum)
-    
+    call save_dt_max (dt0)
+
     ! Override with the value from gs2 init
     ! This is not transparent to the user - why do we do this?
     in_memory = gs2_init_in_memory
@@ -365,7 +369,13 @@ contains
        reinit_config = gs2_reinit_config_in
     end if
   end subroutine set_gs2_reinit_config
-  
+
+  !> Get the module level config instance
+  function get_gs2_reinit_config()
+    type(reinit_config_type) :: get_gs2_reinit_config
+    get_gs2_reinit_config = reinit_config
+  end function get_gs2_reinit_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -377,7 +387,7 @@ contains
     implicit none
     class(reinit_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -399,16 +409,8 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = reinit_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = reinit_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = reinit_knobs)
 
     ! Now copy from local variables into type members
     self%abort_rapid_time_step_change = abort_rapid_time_step_change

@@ -28,6 +28,7 @@ module fields
 
   public :: fields_config_type
   public :: set_fields_config
+  public :: get_fields_config
   
   ! knobs
   integer :: fieldopt_switch
@@ -243,7 +244,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn, gf_lo_integrate
-    use init_g, only: ginit, init_init_g
     use antenna, only: init_antenna
     use unit_tests, only: debug_message
     use kt_grids, only: naky, ntheta0
@@ -253,15 +253,8 @@ contains
     integer, parameter :: verb=3
     
     call init_fields_parameters(fields_config_in)
-
     call debug_message(verb, "init_fields: init_theta_grid")
     call init_theta_grid
-    
-!CMR,30/3/2009:
-! call init_init_g before init_run_parameters to read delt from restart file
-
-    call debug_message(verb, "init_fields: init_init_g")
-    call init_init_g
     call debug_message(verb, "init_fields: init_run_parameters")
     call init_run_parameters
     call debug_message(verb, "init_fields: init_dist_fn")
@@ -363,7 +356,6 @@ contains
     use theta_grid, only: init_theta_grid
     use run_parameters, only: init_run_parameters
     use dist_fn, only: init_dist_fn
-    use init_g, only: ginit, init_init_g
     use nonlinear_terms, only: nl_finish_init => finish_init
     use antenna, only: init_antenna
     use kt_grids, only: gridopt_switch, gridopt_box, kwork_filter
@@ -464,8 +456,7 @@ contains
     character(20) :: field_option
     character(len=256) :: response_dir
     character(len=256) :: response_file
-    integer :: ierr
-
+    integer :: ierr, ind_slash
 
     if (present(fields_config_in)) fields_config = fields_config_in
 
@@ -500,7 +491,21 @@ contains
     if(trim(response_dir).eq.'')then
        write(real_response_file,'(A)') trim(response_file)
     else
-       write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       ! Need to check if resopnse_file has a directory path in it
+       ! to ensure we merge with response_dir correctly. For example,
+       ! consider response_file = '../../run/input' and response_dir = 'resp'.
+       ! We want to form response_file = '../../run/resp/input' and not
+       ! 'resp/../../run/input' as would happen if just concatenate.
+       ! Check for index of last '/'
+       ind_slash = index(response_file, "/", back = .true.)
+       if (ind_slash == 0) then
+          write(real_response_file,'(A,"/",A)') trim(response_dir),trim(response_file)
+       else
+          write(real_response_file,'(A,A,"/",A)') &
+               response_file(1:ind_slash), &
+               trim(response_dir), &
+               trim(response_file(ind_slash+1:))
+       end if
     endif
 
     !Set the solve type specific flags
@@ -706,7 +711,13 @@ contains
        fields_config = fields_config_in
     end if
   end subroutine set_fields_config
-  
+
+  !> Get the module level config instance
+  function get_fields_config()
+    type(fields_config_type) :: get_fields_config
+    get_fields_config = fields_config
+  end function get_fields_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -718,7 +729,7 @@ contains
     implicit none
     class(fields_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -752,16 +763,8 @@ contains
     response_file = self%response_file
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = fields_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = fields_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = fields_knobs)
 
     ! Now copy from local variables into type members
     self%do_smart_update = do_smart_update
