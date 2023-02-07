@@ -5462,7 +5462,6 @@ endif
 
   !> FIXME : Add documentation
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use, intrinsic :: iso_fortran_env, only: real32
     use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec
@@ -5475,9 +5474,9 @@ endif
 
     implicit none
     integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
-    complex(real32), dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
+    complex*8, dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex(real32), dimension(:), intent(out) :: phi_gryfx
+    complex*8, dimension(:), intent(out) :: phi_gryfx       
     complex, dimension(:,:,:,:), allocatable :: total
 
     !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
@@ -5504,7 +5503,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            density_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            density_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5523,7 +5522,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            upar_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            upar_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5542,7 +5541,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tpar_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            tpar_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5561,7 +5560,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qpar_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            qpar_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5584,7 +5583,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tperp_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            tperp_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5603,7 +5602,7 @@ endif
             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
                             g_lo%naky*g_lo%ntheta0*(iz-1) + &
                             2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qperp_gryfx(index_gryfx) = cmplx(total(ig, it, ik, is), kind=real32)
+            qperp_gryfx(index_gryfx) = total(ig, it, ik, is)
           end do
         end do
       end do
@@ -5614,12 +5613,12 @@ endif
     ! so we multiply all moments and phi by an additional factor of sqrt(2)
     if(proc0 ) then 
       ! normalize to gryfx units
-      density_gryfx = cmplx(sqrt(2.)*density_gryfx, kind=real32)
-      upar_gryfx = cmplx(sqrt(2.)*upar_gryfx, kind=real32)
-      tpar_gryfx = cmplx(sqrt(2.)*tpar_gryfx, kind=real32)
-      tperp_gryfx = cmplx(sqrt(2.)*tperp_gryfx, kind=real32)
-      qpar_gryfx = cmplx(sqrt(2.)*qpar_gryfx, kind=real32)
-      qperp_gryfx = cmplx(sqrt(2.)*qperp_gryfx, kind=real32)
+      density_gryfx = sqrt(2.)*density_gryfx
+      upar_gryfx = sqrt(2.)*upar_gryfx
+      tpar_gryfx = sqrt(2.)*tpar_gryfx
+      tperp_gryfx = sqrt(2.)*tperp_gryfx
+      qpar_gryfx = sqrt(2.)*qpar_gryfx
+      qperp_gryfx = sqrt(2.)*qperp_gryfx
     endif
       
 
@@ -5629,7 +5628,7 @@ endif
       do it = 1, g_lo%ntheta0
         do ik = 1, g_lo%naky
           index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + g_lo%naky*g_lo%ntheta0*(iz-1)
-          phi_gryfx(index_gryfx) = cmplx(phinew(ig, it, ik)*sqrt(2.), kind=real32)
+          phi_gryfx(index_gryfx) = phinew(ig, it, ik)*sqrt(2.)
         end do
       end do
     end do
@@ -5845,10 +5844,10 @@ endif
        do it=1,nakx
           do ik=1,naky
              do is=1,nspec
-                tpar2 = real(tpar(ig,it,ik,is) &
-                     & - dens(ig,it,ik,is)*mom_coeff_npara(it,ik,is))
-                tper2 = real(tper(ig,it,ik,is) &
-                     & - dens(ig,it,ik,is)*mom_coeff_nperp(it,ik,is))
+                tpar2=tpar(ig,it,ik,is) &
+                     & - dens(ig,it,ik,is)*mom_coeff_npara(it,ik,is)
+                tper2=tper(ig,it,ik,is) &
+                     & - dens(ig,it,ik,is)*mom_coeff_nperp(it,ik,is)
 
                 a=mom_coeff_tperp(it,ik,is)
                 b=mom_coeff_tpara(it,ik,is)
@@ -9579,10 +9578,10 @@ endif
           end do
           call integrate_moment(gtmp,coeff0,.true.,full_arr=.true.)
           where(real(coeff0(0,1:nakx,1:naky,1:nspec)) == 0.)
-             mom_coeff(1:nakx,1:naky,1:nspec,i) = 1.
+             mom_coeff(1:nakx,1:naky,1:nspec,i)=1.
           elsewhere
-             mom_coeff(1:nakx,1:naky,1:nspec,i) = &
-                  & real(coeff0(0,1:nakx,1:naky,1:nspec))
+             mom_coeff(1:nakx,1:naky,1:nspec,i)= &
+                  & coeff0(0,1:nakx,1:naky,1:nspec)
           end where
        end do
     endif

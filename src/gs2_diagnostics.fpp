@@ -4047,7 +4047,7 @@ contains
        end do
     end do
 
-    phi2extend = real(phiextend*conjg(phiextend))
+    phi2extend = phiextend*conjg(phiextend)
 
     !    deallocate (dl_over_b, phir, phiextend, phisum)
     deallocate (dl_over_b, phir, phiextend)
