@@ -376,7 +376,7 @@ contains
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
     use gs2_layouts, only: g_lo
-    use array_utils, only: copy, gs2_maxval, gs2_abs
+    use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -439,8 +439,8 @@ contains
 
           ! Calculate the maximum absolute error and the maximum value of the previous solution
           !OpenMP to form gnew - g_work?
-          errors(1) = gs2_maxval(gs2_abs(gnew - g_work))
-          errors(2) = gs2_maxval(gs2_abs(g_work))
+          errors(1) = gs2_max_abs(gnew - g_work)
+          errors(2) = gs2_max_abs(g_work)
           call max_allreduce(errors)
 
           ! Calculate an approximate relative error
@@ -491,7 +491,7 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           !OpenMP to form gexp_1 - gexp_2?
-          errors(1) = gs2_maxval(gs2_abs(gexp_1 - gexp_2)) * (0.5 * 0.5 * actual_dt)
+          errors(1) = gs2_max_abs(gexp_1 - gexp_2) * (0.5 * 0.5 * actual_dt)
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
@@ -561,7 +561,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
-    use array_utils, only: copy, gs2_maxval, gs2_abs
+    use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -657,10 +657,10 @@ contains
        end do
 
        ! Store the absolute error
-       errors(1) = gs2_maxval(gs2_abs(gexp_1)) * (time_step * 0.5)
+       errors(1) = gs2_max_abs(gexp_1) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
-       errors(2) = gs2_maxval(gs2_abs(g))
+       errors(2) = gs2_max_abs(g)
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
 

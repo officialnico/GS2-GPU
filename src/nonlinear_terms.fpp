@@ -646,7 +646,7 @@ contains
   real function estimate_error(g1, g2, g3) result(error)
     use gs2_time, only: get_adams_bashforth_coefficients
     use mp, only: max_allreduce
-    use array_utils, only: gs2_maxval, gs2_abs
+    use array_utils, only: gs2_max_abs
     implicit none
     complex, dimension(:, :, :), intent(in) :: g1, g2, g3
     complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
@@ -673,13 +673,13 @@ contains
     source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
 
     ! Here we find the maximum absolute error
-    intermediate_error(1) = gs2_maxval(gs2_abs(source_order_3 - source_order_2))
+    intermediate_error(1) = gs2_max_abs(source_order_3 - source_order_2)
 
     ! Now we find the maximum of source_order_2 to scale the absolute
     ! error with.  Note we use this rather than source_order_3 as the
     ! higher order method has a smaller region of stability so is
     ! perhaps more likely to blow up.
-    intermediate_error(2) = gs2_maxval(gs2_abs(source_order_2))
+    intermediate_error(2) = gs2_max_abs(source_order_2)
 
     ! Reduce over all processors
     call max_allreduce(intermediate_error)
@@ -1129,14 +1129,14 @@ contains
   !> Calculates an estimate of the current maximum velocity due to the
   !! perturbed potentials. This is currenly a processor local estimate.
   subroutine get_max_vel(scaling)
-    use array_utils, only: gs2_maxval, gs2_abs
+    use array_utils, only: gs2_max_abs
     implicit none
     real, intent(in) :: scaling
     real :: local_max_vel
     if (accelerated) then
-       local_max_vel = gs2_maxval(gs2_abs(aba))
+       local_max_vel = gs2_max_abs(aba)
     else
-       local_max_vel = gs2_maxval(gs2_abs(ba))
+       local_max_vel = gs2_max_abs(ba)
     end if
     
     local_max_vel = local_max_vel * scaling
