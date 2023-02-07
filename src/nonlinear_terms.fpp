@@ -472,6 +472,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -528,8 +529,8 @@ contains
        ! It's possible we might have other explicit sources, in which case we
        ! probably always need to do this shuffling, however in that case this
        ! subroutine probably best belongs in a different module.
-       g3 = g2
-       g2 = g1
+       call copy(g2, g3)
+       call copy(g1, g2)
 
        call debug_message(verb, 'nonlinear_terms::add_explicit copied old terms')
 
@@ -809,6 +810,7 @@ contains
     use constants, only: zi
     use unit_tests, only: debug_message
     use optionals, only: get_option_with_default
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
@@ -839,7 +841,7 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
     !Form g1=i*ky*g_wesson
-    g1 = g_in
+    call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
 
     !$OMP PARALLEL DO DEFAULT(shared) &
@@ -884,7 +886,7 @@ contains
     end if
 
     !Form g1=i*kx*g_wesson
-    g1 = g_in
+    call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
 
     !$OMP PARALLEL DO DEFAULT(shared) &
