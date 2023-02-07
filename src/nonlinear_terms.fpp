@@ -810,7 +810,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     logical, intent(in), optional :: adjust
     logical :: should_adjust
-    real :: dt_cfl
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia

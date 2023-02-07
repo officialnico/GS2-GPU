@@ -1539,10 +1539,7 @@ contains
     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
-!    logical :: alloc = .true.
-!CMR
     logical,parameter :: debug = .false.
-!CMR
 
 ! find totally trapped particles 
 !    if (alloc) allocate (ittp(-ntgrid:ntgrid))
@@ -5298,8 +5295,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
 
-    integer :: iglo
-
     real :: time
     complex :: sourcefac
 
@@ -6743,7 +6738,6 @@ contains
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     logical, optional :: gf_lo
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
-    real, dimension(nspec) :: weights
     real :: phi_weight
     logical :: local_gf_lo
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))

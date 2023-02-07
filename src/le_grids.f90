@@ -2385,7 +2385,6 @@ contains
   subroutine lgridset
     use theta_grid, only: eps_trapped
     implicit none
-    integer :: ig, il
     logical :: has_trapped_points
 
     ! Decide if we need to calculate the trapped lambda integration weights
@@ -2558,12 +2557,12 @@ contains
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
-    real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
+    real, dimension (:), allocatable :: ytmp, yb, wb
     real, dimension (:,:), allocatable :: wberr
-    integer :: npts, ix, ntrap
-    real :: wwo, llim, ulim
+    integer :: npts, ntrap
+    real :: llim, ulim
     logical :: eflag
-    integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
+    integer :: ig, il, ndiv, divmax
 
     ! Initialise the error flag
     eflag = .false.
@@ -2751,7 +2750,7 @@ contains
     real, dimension (:), allocatable :: yberr, wberrtmp
     integer :: ix
     logical :: eflag
-    integer :: ndiv, divmax, divmaxerr, ndiverr
+    integer :: divmaxerr, ndiverr
 
     ! Can't get error estimate for npts = 0 or 1 as we don't have any points
     ! that we can drop.
