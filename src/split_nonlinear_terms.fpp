@@ -193,6 +193,7 @@ contains
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
     use run_parameters, only: fphi, fapar, fbpar
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
@@ -260,28 +261,6 @@ contains
     time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
   end subroutine advance_nonlinear_term
 
-  !> Helper subroutine for copying one 3D complex array into another.
-  !> Doesn't really belong in this module, but only using it here for
-  !> now.
-  subroutine copy(array_in, array_out)
-    implicit none
-    complex, dimension(:, :, :), intent(in) :: array_in
-    complex, dimension(:, :, :), intent(out) :: array_out
-    integer :: counter, start, end
-    ! In a debug build we might want to add a check here that the arrays have
-    ! compatible shape.
-
-    start = lbound(array_in, dim = 3)
-    end = ubound(array_in, dim = 3)
-
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
-    do counter = start, end
-       array_out(:, :, counter) = array_in(:, :, counter)
-    end do
-    !$OMP END PARALLEL DO
-  end subroutine copy
-
   !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> AB scheme of orders up to 3rd.
   subroutine advance_nonlinear_term_ab3(phinew, aparnew, bparnew, dt, &
@@ -292,6 +271,7 @@ contains
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
     use gs2_layouts, only: g_lo
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -396,6 +376,7 @@ contains
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
     use gs2_layouts, only: g_lo
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -580,6 +561,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
