@@ -2527,7 +2527,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> FIXME : Add documentation    
   subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,ier,soln)
     implicit none
-    real, external :: f
+    interface
+      real function f(x_)
+        real, intent(in) :: x_
+      end function f
+    end interface
     real, intent(in) :: fval, a, b, xerrbi, xerrsec
     real, intent(out) :: soln
     integer, intent(in) :: nsolv
@@ -3499,7 +3503,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: x1, x2, rootval, thetroot, tol
-    real, external :: func
+    interface
+      real function func(x_, root_)
+        real, intent(in) :: x_, root_
+      end function func
+    end interface
     real :: zbrent
     real, parameter :: eps = 3.e-8, eps1 = 2.e-8
     integer, parameter :: itmax = 100
