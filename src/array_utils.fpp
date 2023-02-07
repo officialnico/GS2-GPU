@@ -3,7 +3,7 @@ module array_utils
 
   private
 
-  public :: copy, gs2_maxval
+  public :: copy, gs2_maxval, gs2_abs
 
   !> Interface to helper subroutines for copying one array into another.
   interface copy
@@ -15,6 +15,15 @@ module array_utils
      module procedure gs2_maxval_real_array_2
      module procedure gs2_maxval_real_array_3
   end interface gs2_maxval
+
+  !> Interface to helper functions for finding magnitude of an array
+  interface gs2_abs
+     module procedure gs2_abs_real_array_2
+     module procedure gs2_abs_real_array_3
+     module procedure gs2_abs_complex_array_2
+     module procedure gs2_abs_complex_array_3
+  end interface gs2_abs
+
 
 contains
 
@@ -73,5 +82,81 @@ contains
     end do
     !$OMP END PARALLEL DO
   end function gs2_maxval_real_array_3
+
+  !> Return absolute of 2D array
+  function gs2_abs_real_array_2(array_in) result(array_out)
+    implicit none
+    real, dimension(:, :), intent(in) :: array_in
+    real, dimension(:, :), allocatable :: array_out
+    integer :: counter, start, end
+
+    allocate(array_out, mold = array_in)
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_out(:, counter) = abs(array_in(:, counter))
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_abs_real_array_2
+
+  !> Return absolute of 3D array
+  function gs2_abs_real_array_3(array_in) result(array_out)
+    implicit none
+    real, dimension(:, :, :), intent(in) :: array_in
+    real, dimension(:, :, :), allocatable :: array_out
+    integer :: counter, start, end
+
+    allocate(array_out, mold = array_in)
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_out(:, :, counter) = abs(array_in(:, :, counter))
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_abs_real_array_3
+
+  !> Return absolute of 2D array
+  function gs2_abs_complex_array_2(array_in) result(array_out)
+    implicit none
+    complex, dimension(:, :), intent(in) :: array_in
+    real, dimension(:, :), allocatable :: array_out
+    integer :: counter, start, end
+
+    allocate(array_out(size(array_in, dim=1),size(array_in, dim=2)))
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_out(:, counter) = abs(array_in(:, counter))
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_abs_complex_array_2
+
+  !> Return absolute of 3D array
+  function gs2_abs_complex_array_3(array_in) result(array_out)
+    implicit none
+    complex, dimension(:, :, :), intent(in) :: array_in
+    real, dimension(:, :, :), allocatable :: array_out
+    integer :: counter, start, end
+
+    allocate(array_out(size(array_in, dim=1),size(array_in, dim=2),size(array_in, dim=3)))
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_out(:, :, counter) = abs(array_in(:, :, counter))
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_abs_complex_array_3
 
 end module array_utils
