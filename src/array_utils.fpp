@@ -17,6 +17,9 @@ module array_utils
   end interface gs2_maxval
 
   !> Interface to helper functions for finding magnitude of an array
+  !>
+  !> Common to want to do maxval(abs(array)) so may be worth providing
+  !> a gs2_max_abs function as well.
   interface gs2_abs
      module procedure gs2_abs_real_array_2
      module procedure gs2_abs_real_array_3
