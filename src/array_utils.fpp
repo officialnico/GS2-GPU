@@ -3,7 +3,7 @@ module array_utils
 
   private
 
-  public :: copy, gs2_maxval, gs2_abs
+  public :: copy, gs2_maxval, gs2_abs, gs2_max_abs
 
   !> Interface to helper subroutines for copying one array into another.
   interface copy
@@ -17,15 +17,20 @@ module array_utils
   end interface gs2_maxval
 
   !> Interface to helper functions for finding magnitude of an array
-  !>
-  !> Common to want to do maxval(abs(array)) so may be worth providing
-  !> a gs2_max_abs function as well.
   interface gs2_abs
      module procedure gs2_abs_real_array_2
      module procedure gs2_abs_real_array_3
      module procedure gs2_abs_complex_array_2
      module procedure gs2_abs_complex_array_3
   end interface gs2_abs
+
+  !> Interface to helper functions for finding maxval of magnitude of an array
+  interface gs2_max_abs
+     module procedure gs2_max_abs_real_array_2
+     module procedure gs2_max_abs_real_array_3
+     module procedure gs2_max_abs_complex_array_2
+     module procedure gs2_max_abs_complex_array_3
+  end interface gs2_max_abs
 
 
 contains
@@ -161,5 +166,77 @@ contains
     end do
     !$OMP END PARALLEL DO
   end function gs2_abs_complex_array_3
+
+  !> Find maximum of abs 2D array
+  real function gs2_max_abs_real_array_2(array_in) result(the_max)
+    implicit none
+    real, dimension(:, :), intent(in) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+    the_max = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP REDUCTION(max: the_max) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       the_max = max(maxval(abs(array_in(:, counter))), the_max)
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_max_abs_real_array_2
+
+  !> Find maximum of abs 3D array
+  real function gs2_max_abs_real_array_3(array_in) result(the_max)
+    implicit none
+    real, dimension(:, :, :), intent(in) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+    the_max = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP REDUCTION(max: the_max) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       the_max = max(maxval(abs(array_in(:, :, counter))), the_max)
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_max_abs_real_array_3
+
+  !> Find maximum of abs 2D array
+  real function gs2_max_abs_complex_array_2(array_in) result(the_max)
+    implicit none
+    complex, dimension(:, :), intent(in) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+    the_max = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP REDUCTION(max: the_max) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       the_max = max(maxval(abs(array_in(:, counter))), the_max)
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_max_abs_complex_array_2
+
+  !> Find maximum of abs 3D array
+  real function gs2_max_abs_complex_array_3(array_in) result(the_max)
+    implicit none
+    complex, dimension(:, :, :), intent(in) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+    the_max = 0.0
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP REDUCTION(max: the_max) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       the_max = max(maxval(abs(array_in(:, :, counter))), the_max)
+    end do
+    !$OMP END PARALLEL DO
+  end function gs2_max_abs_complex_array_3
 
 end module array_utils
