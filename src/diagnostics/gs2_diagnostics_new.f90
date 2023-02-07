@@ -52,10 +52,6 @@ contains
     use file_utils, only: run_name, error_unit
     use mp, only: mp_comm, proc0, broadcast, mp_abort
     use kt_grids, only: naky, aky
-    !This reference needs removing to allow compilation on systems without netcdf
-    !It should probably be moved to simpledataio as the rest of the diagnostics
-    !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
-    use netcdf, only: NF90_CLOBBER
     use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
     !use simpledataio, only: print_dimensions
     use simpledataio, only: sdatio_init, simpledataio_functional

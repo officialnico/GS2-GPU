@@ -1245,8 +1245,6 @@ contains
   !> calculate the consistent potentials to set the true gnew value.
   subroutine set_gnew_from_nonadiabatic_dfn
     use dist_fn_arrays, only: gnew, g, g_adjust
-    use kt_grids, only: naky, ntheta0
-    use theta_grid, only: ntgrid
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
     use run_parameters, only: fphi, fbpar
     use species, only: spec, has_hybrid_electron_species

@@ -1532,12 +1532,8 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_wdrift
-    use species, only: nspec
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use le_grids, only: negrid, ng2, nlambda, jend, forbid
-!    use le_grids, only: al
-!    use theta_grids, only: bmag
+    use le_grids, only: ng2, nlambda, jend, forbid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: ittp
     implicit none
@@ -5294,7 +5290,6 @@ contains
   !> FIXME : Add documentation
   subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo
     use gs2_time, only: code_time
     use constants, only: zi, pi
     use prof, only: prof_entering, prof_leaving
@@ -6741,7 +6736,7 @@ contains
     use theta_grid, only: ntgrid, bmag
     use run_parameters, only: fphi, fapar, fbpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
-    use species, only: nspec, spec, has_electron_species, has_ion_species
+    use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in

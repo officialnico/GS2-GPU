@@ -2548,7 +2548,7 @@ contains
   !> compatible with radau_gauss_grid or we may decide
   !> radau_gauss_grid should default to false.
   subroutine setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
-    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
+    use theta_grid, only: ntgrid, bmag, bmax
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none

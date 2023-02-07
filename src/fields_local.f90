@@ -4102,7 +4102,7 @@ contains
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
-    use mp, only: proc0, get_mp_times !, barrier
+    use mp, only: get_mp_times
     use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep

@@ -981,7 +981,7 @@ contains
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
 #ifdef WITH_EIG
@@ -1062,7 +1062,7 @@ contains
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new 
 #endif
     use job_manage, only: time_message
-    use mp, only: proc0, mp_abort
+    use mp, only: mp_abort
     use parameter_scan, only: deallocate_target_arrays
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: debug_message
@@ -1100,7 +1100,6 @@ contains
   subroutine finalize_equations(state)
     use gs2_init, only: init
     use job_manage, only: time_message
-    use mp, only: proc0
     use parameter_scan, only: finish_parameter_scan
     use unit_tests, only: debug_message
     use gs2_reinit, only: finish_gs2_reinit
@@ -1576,7 +1575,7 @@ contains
   !> simulations in the same process.
   subroutine run_gs2(state, finalize)
     use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
-    use mp, only: proc0, mp_comm, init_mp
+    use mp, only: proc0, init_mp
     use standard_header, only: standard_header_type
     use optionals, only : get_option_with_default
     implicit none

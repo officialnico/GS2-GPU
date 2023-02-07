@@ -3392,8 +3392,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
-    use theta_grid, only: ntgrid
-    use species, only: nspec
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
@@ -3710,14 +3708,11 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-    use theta_grid, only: ntgrid
-    use species, only: nspec
-    use kt_grids, only: naky
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
+    use le_grids, only: sgn, speed => speed_maxw, nxi, ng2
     use run_parameters, only: ieqzip
-    use le_grids, only: forbid, sgn, speed => speed_maxw, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
     use theta_grid, only: bmag
