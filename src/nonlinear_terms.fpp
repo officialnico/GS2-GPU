@@ -1148,20 +1148,45 @@ contains
   !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
   subroutine calculate_bracket(is_first_term)
     use theta_grid, only: kxfac
+    use gs2_layouts, only: accelx_lo, yxf_lo
     implicit none
     logical :: is_first_term
-    !OpenMP these operations?
+    integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          abracket = aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     else
        if (accelerated) then
-          abracket = abracket - aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = bracket - ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     endif
   end subroutine calculate_bracket
