@@ -2967,24 +2967,6 @@ contains
 
   end subroutine lagrange_coefs
 
-  !> FIXME : Add documentation  
-  subroutine stop_message (message)
-!<DD>WARNING THIS COULD CAUSE A HANG IF NOT CALLED BY ALL PROCS
-!JAB: print an error message and end program
-    use file_utils, only: error_unit
-    use mp, only: proc0, finish_mp
-    implicit none
-    character(*), intent (in) :: message
-    integer :: ierr
-
-    if (proc0) then
-       ierr = error_unit()
-       write (unit=ierr, fmt='(a)') message
-    end if
-    call finish_mp
-    stop
-  end subroutine stop_message
-
   !> FIXME : Add documentation
   !!
   !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
