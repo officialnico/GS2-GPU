@@ -952,7 +952,7 @@ contains
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     logical,parameter:: debug=.false.
 
     if (initialized_dist_fn_parameters) return
@@ -1295,7 +1295,7 @@ contains
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     type (text_option), dimension (4), parameter :: sourceopts = &
          (/ text_option('default', source_option_full), &
             text_option('full', source_option_full), &
@@ -1504,7 +1504,7 @@ contains
     use mp, only: proc0
     use file_utils, only: get_indexed_namelist_unit
     implicit none
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in    
+    type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     integer :: is
     logical :: exist
     real :: fexpr, fexpi
@@ -4113,7 +4113,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     logical, intent (in) :: include_explicit
-    real, dimension(:), intent(in) :: ab_coefficients
+    real, dimension(:), allocatable, intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
@@ -4398,7 +4398,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     logical, intent (in) :: include_explicit
-    real, dimension(:), intent(in) :: ab_coefficients
+    real, dimension(:), allocatable, intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
@@ -10507,7 +10507,7 @@ contains
     use mp, only: mp_abort
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
-    type(dist_fn_species_config_type), intent(in), dimension(:), optional :: dist_fn_species_config_in
+    type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
  
     if (initialized) then
        call mp_abort("Trying to set dist_fn_config when already initialized.", to_screen = .true.)

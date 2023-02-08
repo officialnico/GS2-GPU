@@ -1041,7 +1041,7 @@ contains
     deallocate (aux)
 # elif FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call FFTW_PREFIX(_execute)(xf_fft%plan)
+    call FFTW_PREFIX(_execute_dft)(xf_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
 # endif
 
@@ -1083,7 +1083,7 @@ contains
     deallocate (aux)
 # elif FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call FFTW_PREFIX(_execute)(xb_fft%plan)
+    call FFTW_PREFIX(_execute_dft)(xb_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
 # endif
 
