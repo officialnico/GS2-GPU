@@ -1215,10 +1215,13 @@ contains
     !       e.g. fac in get_volume_average
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
        g(:,:,iglo) = g(:,:,iglo) / 2.0
     end do
+    !$OMP END PARALLEL DO
 
     call transform_x (g, xxf)
     call transform_y (xxf, yxf)
@@ -1231,22 +1234,26 @@ contains
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,:,g_lo%llim_proc:), intent (out) :: g
     integer :: iglo
-
+    real :: scale
     call inverse_y (yxf, xxf)
     call inverse_x (xxf, g)
 
-    g = g * (xb_fft%scale * yb_fft%scale * 2.0)
-
+    scale = xb_fft%scale * yb_fft%scale
     !CMR+GC: 2/9/2013
     ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
     ! (See above comment in transform2_5d.)
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       if (ik_idx(g_lo, iglo) .ne. 1) cycle
-       g(:,:,iglo) = g(:,:,iglo) * 0.5
+       if (ik_idx(g_lo, iglo) .ne. 1) then
+          g(:,:,iglo) = g(:,:,iglo)  * (scale * 2.0)
+       else
+          g(:,:,iglo) = g(:,:,iglo)  * scale
+       end if
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine inverse2_5d
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
