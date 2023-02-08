@@ -4113,7 +4113,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     logical, intent (in) :: include_explicit
-    real, dimension(:), intent(in) :: ab_coefficients
+    real, dimension(:), allocatable, intent(in) :: ab_coefficients
     integer, intent (in) :: isgn, iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:), intent (out) :: source
@@ -4398,7 +4398,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     logical, intent (in) :: include_explicit
-    real, dimension(:), intent(in) :: ab_coefficients
+    real, dimension(:), allocatable, intent(in) :: ab_coefficients
     integer, intent (in) :: iglo, ik, it, il, ie, is
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
