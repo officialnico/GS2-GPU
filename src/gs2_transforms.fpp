@@ -1006,6 +1006,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -1016,8 +1017,11 @@ contains
 
     call prof_entering ("transform_x5d", "gs2_transforms")
 
-    ! intent statement in gather actually makes this next line non-standard: 
-    xxf = 0.
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(xxf)
+
     !CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
     !    local Fourier transform in x, and may also pad with zeros for dealiasing
     !
@@ -1099,6 +1103,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
@@ -1113,9 +1118,13 @@ contains
 
     call prof_entering ("transform_y5d", "gs2_transforms")
 
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(fft)
+
     !Note here we're doing the communication even if we're not using
     !an FFT routine.
-    fft = 0.
     call gather (x2y, xxf, fft)
 
     ! do ffts
