@@ -1,55 +1,30 @@
-!> FIXME : Add documentation
-module old_interface_store
-    integer :: ntspec_store
-    real :: rhoc_store, qval_store, shat_store, rgeo_lcfs_store, rgeo_local_store, aSurf_store
-    real :: shift_store, shiftVert_store, deltam_store, deltan_store
-    real :: deltampri_store, deltanpri_store, thetam_store, thetan_store
-    real :: betaprim_store, gexb_store, mach_store
-    real, dimension (:), allocatable :: dens_store, fprim_store, temp_store, tprim_store, nu_store
-    logical :: use_gs2_geo_store
-    logical :: override_profiles = .false.
-    logical :: override_miller_geometry = .false.
-end module old_interface_store
-
-# ifndef MAKE_LIB
-
 !> This module provides the external interface to gs2. It contains functions
 !! to initialize gs2, functions to run gs2, functions to finalize gs2 and 
 !! functions to override/tweak gs2 parameters. 
 !!
-!! gs2_main contains both the new and the old interface to gs2. The new interface
-!! comprises the gs2_program_state_type object, and functions for manipulating
-!! that object, which are documented individually. 
+!! The main entry point is [[run_gs2]], which takes care of initialising all the
+!! subsystems, solving the equations (either the time advance or eigensolver),
+!! and then finalising all the subsystems. This looks something like:
 !!
-!! The old interface
-!! consists of the functions run_gs2, finish_gs2, trin_finish_gs2, reset_gs2
-!! and gs2_trin_init. These functions have been reimplemented using the 
-!! new interface. They are deprecated and are provided only for backwards
-!! compatibility. 
 !!
-!! The basic flow of a gs2 program can be seen in gs2.fpp, reproduced here:
-!!
+!!     ! An object holding the state of the simulationg
 !!     type(gs2_program_state_type) :: state
+!!     ! Initialisation of subsystems
 !!     call initialize_gs2(state)
 !!     call initialize_equations(state)
 !!     call initialize_diagnostics(state)
+!!     ! Solve the equations
 !!     if (state%do_eigsolve) then 
 !!       call run_eigensolver(state)
 !!     else
 !!       call evolve_equations(state, state%nstep)
 !!     end if
+!!     ! Clean up
 !!     call finalize_diagnostics(state)
 !!     call finalize_equations(state)
 !!     call finalize_gs2(state)
 !!
-!! You can manipulate the gs2_program_state before running gs2. A typical
-!! manipulation is to pass in an external mpi communicator (which also 
-!! means that MPI_Init is not called within initialize_gs2. 
-!!
-!!     state%mp_comm_external = .true
-!!     state%mp_comm = my_mpi_communicator
-!!     call initialize_gs2(state)
-!!     ...
+!! You can manipulate the [[gs2_program_state]] before running gs2.
 !! 
 !! You can also override parameters: typically this is done either before
 !! calling initialize_equations, or between two calls to evolve equations;
@@ -82,8 +57,11 @@ module gs2_main
   use optimisation_config, only: optimisation_type
   use constants, only: run_name_size
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
+  use mp, only: mp_comm_null
   implicit none
-  public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
+  public :: run_gs2
+  public :: finish_gs2
+
   public :: parse_command_line
 
   public :: gs2_program_state_type
@@ -92,14 +70,9 @@ module gs2_main
   public :: initialize_equations
   public :: initialize_diagnostics, evolve_equations, run_eigensolver
   public :: finalize_diagnostics, finalize_equations, finalize_gs2
-  public :: gs2_trin_init
   public :: calculate_outputs
   public :: reset_equations
   public :: write_used_inputs_file
-
-  public :: determine_gs2spec_from_trin
-  public :: gs2spec_from_trin
-  public :: densrefspec
 
   public :: prepare_miller_geometry_overrides
   public :: prepare_profiles_overrides
@@ -108,8 +81,6 @@ module gs2_main
   public :: prepare_initial_values_overrides
   public :: set_initval_overrides_to_current_vals
   public :: finalize_overrides
-
-  public :: old_iface_state
 
   public :: initialize_wall_clock_timer
 
@@ -251,17 +222,15 @@ module gs2_main
 
     !> If true, 
     !! print full timing breakdown. 
-    logical :: print_full_timers = .false.
+    logical :: print_full_timers = .true.
 
     !> If true, print run time or
     !! full timing breakdown, depending
     !! on the value of print_full_timers
     logical :: print_times = .true.
 
-
-    !> Parameters to be used when passing in an external communicator
-    logical :: mp_comm_external = .false.
-    integer :: mp_comm
+    !> MPI communicator. This MUST be set
+    integer :: mp_comm = mp_comm_null
 
     !> This is set in initialize_gs2 to the number
     !! of procs actually used
@@ -280,8 +249,11 @@ module gs2_main
     !! Cannot be used in conjunction with list mode
     integer :: nensembles = 1
 
-    ! Outputs (e.g. for Trinity)
+    !> Outputs (e.g. for Trinity)
     type(gs2_outputs_type) :: outputs
+
+    !> If true, calculate and set [[outputs]]
+    logical :: set_outputs = .false.
 
     ! Optimisation configuration
     type(optimisation_type) :: optim
@@ -292,17 +264,8 @@ module gs2_main
   end type gs2_program_state_type
 
   private
-
-  integer :: densrefspec
-  integer, dimension(:), allocatable :: gs2spec_from_trin
-
-
-  !> This object is used for implementing the old interface
-  !! and should not be modified
-  type(gs2_program_state_type) :: old_iface_state
  
 contains
-# endif
 
   !> Parse some basic command line arguments. Currently just 'version' and 'help'.
   !>
@@ -367,7 +330,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state, header, quiet)
+  subroutine initialize_gs2(state, header_in, header_out, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -387,7 +350,9 @@ contains
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
-    type(standard_header_type), intent(in), optional :: header
+    type(standard_header_type), intent(in), optional :: header_in
+    !> Get the header set by this function. Useful if `header_in` is _not_ used
+    type(standard_header_type), intent(out), optional :: header_out
     !> If true, don't print start-up messages/header
     logical, intent(in), optional :: quiet
 
@@ -408,23 +373,23 @@ contains
 
     call debug_message(4, 'gs2_main::initialize_gs2 starting initialization')
 
-    if (state%mp_comm_external) then
-       call init_mp (state%mp_comm)
-    else
-       call init_mp
-    end if
+    call init_mp(state%mp_comm)
 
-    if (present(header)) then
-      local_header = header
+    if (present(header_in)) then
+      local_header = header_in
     else
       local_header = standard_header_type()
     end if
+
+    if (present(header_out)) header_out = local_header
 
     if (present(quiet)) then
       quiet_value = quiet
     else
       quiet_value = .false.
     end if
+
+    call initialize_wall_clock_timer
 
     oldrank = iproc
     if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
@@ -1209,16 +1174,6 @@ contains
         stop 1
       end if
 
-      !if ((.not. state%gs2_initialized) .or. &
-          !state%equations_initialized .or. &
-          !state%diagnostics_initialized) then
-          !write (*,*) 'ERROR: initialize_gs2 can only be called when &
-          !& gs2_initialized is true, and equations_initialized &
-          !& and diagnostics_initialized, &
-          !& are all false. '
-         !stop 1
-       !end if
-
       call time_message(.false.,state%timers%total,' Total')
 
       call finish_gs2_init(state%init)
@@ -1241,15 +1196,11 @@ contains
 
     call debug_message(state%verb, 'gs2_main::finalize_gs2 calling finish_mp')
 
-    if (.not. state%mp_comm_external) call finish_mp
-
     !state%gs2_initialized = .false.
 
     state%init%level = 0
 
     if (proc0 .and. (.not. quiet_value) ) write(*, '("Run finished at ",A)') date_iso8601()
-
-    !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
 
   !> FIXME : Add documentation  
@@ -1608,412 +1559,98 @@ contains
     end if
   end subroutine deallocate_outputs
 
-  !> This is the main subroutine in which gs2 is initialized, equations are advanced,
-  !!   and the program is finalized.
-  !! \section Basic Structure 
-  !!  This subroutine broadly falls into 3 sections: 
-  !! -# Initialisation -  allocate arrays, calculate the response matrix etc.
-  !! -# Running -  a loop which runs for run_parameters::nstep time steps, unless the code
-  !!  is prematurely halted either through an error, reaching the available 
-  !!  time limit or manually  (by using the command $ touch run_name.stop).
-  !! -# Finishing up:  writing out results, deallocating arrays.
-  !! \section Details
-  !! -# Initialisation
-  !!  - Initialize message passing 
-  !!  - Initialize timer 
-  !!  - Report numer of processors being used 
-  !!  - If it is a Trinity run then filename (the name of the input file) 
-  !!  is passed to  init_file_utils
-  !!  - Otherwise, figure out run name or get list of jobs 
-  !!  - If given a list of jobs, fork  
-  !! \section arguments Arguments
-  !! All arguments are optional and are not used for gs2. 
-  !! (EGH - used for Trinity?)
-  subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
-       pflux, qflux, vflux, heat, dvdrho, grho, trinity_reset, converged)
-    use job_manage, only: trin_reset   
-    use job_manage, only: trin_restart, trin_reset, time_message
-    use unit_tests, only: functional_test_flag
-    use mp, only: proc0
-    use old_interface_store, only: override_profiles, override_miller_geometry
-    use exit_codes, only: EXIT_NSTEP
+  !> The main entry point into GS2, runs a single GS2 simulation
+  !>
+  !> A complete, minimal use of this to run a single, complete
+  !> simulation is:
+  !>
+  !>     program gs2
+  !>       use mp, only: init_mp, mp_comm, finish_mp
+  !>       use gs2_main, only : run_gs2, gs2_program_state_type
+  !>       implicit none
+  !>       type(gs2_program_state_type) :: state
+  !>       call init_mp
+  !>       state%mp_comm = mp_comm
+  !>       call run_gs2(state)
+  !>       call finish_mp
+  !>     end program gs2
+  !>
+  !> This will initialise all the GS2 internals, evolve the equations
+  !> (or run the eigensolver), and then finalise the internals
+  !> (writing files to disk, deallocating memory, and so on).
+  !>
+  !> You can also not finalise the simulation, which can be useful if
+  !> you want read or modify the fields, for example. In this case,
+  !> you *must* call [[finish_gs2]] when you're done:
+  !>
+  !>     ! Optionally modify the state and input options
+  !>     call run_gs2(state, finalize=.false.)
+  !>     ! Do some interesting things
+  !>     call finish_gs2(state)
+  !>
+  !> This pattern is also useful if you want to run many GS2
+  !> simulations in the same process.
+  subroutine run_gs2(state, finalize)
+    use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
+    use mp, only: proc0, mp_comm, init_mp
+    use standard_header, only: standard_header_type
+    use optionals, only : get_option_with_default
     implicit none
+    !> State of the GS2 simulation. Used to modify the behaviour of
+    !> GS2 and/or to programmatically get information about the
+    !> simulation on completion.
+    type(gs2_program_state_type), intent(inout) :: state
+    !> If `.true.` (default), then GS2 is finalised, end-of-simulation
+    !> diagnostics are computed, files are closed, arrays are
+    !> deallocated, and so on.
+    !>
+    !> If this is set to `.false.`, (for example, because you want to
+    !> read the state of the fields before the arrays are deallocated)
+    !> then you MUST pass in `state` and call [[finish_gs2]] with that
+    !> state object to ensure GS2 is finalised correctly.
+    logical, optional, intent(in) :: finalize
 
-    integer, intent (in), optional :: mpi_comm, job_id, nensembles
-    character (*), intent (in), optional :: filename
-    real, dimension (:), intent (out), optional :: pflux, qflux, heat
-    real, intent (out), optional :: vflux
-    real, intent (out), optional :: dvdrho, grho
-    logical, intent (in), optional :: trinity_reset
-    logical, intent (out), optional :: converged
-
-    logical, save :: first_time = .true.
+    logical :: local_finalize
+    type(standard_header_type) :: local_header
 
     call parse_command_line()
 
-    ! HJL tests on Trinity optionals for load balancing
-    old_iface_state%external_job_id = -1
-    if(present(job_id)) then
-      old_iface_state%external_job_id = job_id + 1
-      old_iface_state%is_trinity_job = .true.
-      old_iface_state%is_external_job = .true.
-    end if
-    if(present(trinity_reset)) then
-       old_iface_state%converged = .false.
-       trin_reset = trinity_reset
-       first_time = .true.
-    endif
-    if (present(filename)) then
-      old_iface_state%run_name_external = .true.
-      old_iface_state%run_name = filename
-    end if
-    if (present(mpi_comm)) then
-      old_iface_state%mp_comm_external = .true.
-      old_iface_state%mp_comm = mpi_comm
-    end if
-    if (present(nensembles)) then
-      old_iface_state%nensembles = nensembles
-    end if
-    if(present(trinity_reset)) trin_restart = .true. ! All trinity runs are restarted except the first
+    local_finalize = get_option_with_default(finalize, .true.)
 
-    if (first_time) then
-      call initialize_wall_clock_timer
-      call initialize_gs2(old_iface_state)
-      if (override_profiles .or. override_miller_geometry) then 
-        call time_message(.false., old_iface_state%timers%init,' Initialization')
-        call old_interface_set_overrides
-        call time_message(.false., old_iface_state%timers%init,' Initialization')
-      end if
-      call initialize_equations(old_iface_state)
-      call initialize_diagnostics(old_iface_state)
-      first_time = .false.
-    endif !firstime
+    call initialize_gs2(state, header_out=local_header)
+    call initialize_equations(state)
+    call initialize_diagnostics(state, header=local_header)
 
+    call write_used_inputs_file(header=local_header)
 
-    if(old_iface_state%do_eigsolve)then
-       call run_eigensolver(old_iface_state)
+    state%print_times = .false.
+    if (state%do_eigsolve) then
+      call run_eigensolver(state)
     else
-       call evolve_equations(old_iface_state, old_iface_state%nstep)
-       if (old_iface_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) old_iface_state%exit_reason = EXIT_NSTEP
-    endif
-    if(proc0) call old_iface_state%exit_reason%write_exit_file()
-
-    if (present(converged)) converged = old_iface_state%converged
-
-
-    if (present(pflux) .or. present(dvdrho) .or. present(grho)) then
-      call calculate_outputs(old_iface_state)
+      call evolve_equations(state, state%nstep)
+      if (state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) state%exit_reason = EXIT_NSTEP
     end if
-    if (present(dvdrho)) dvdrho = old_iface_state%outputs%dvdrho
-    if (present(grho)) grho = old_iface_state%outputs%grho
-    if (present(pflux)) then
-      pflux = old_iface_state%outputs%pflux
-      qflux = old_iface_state%outputs%qflux
-      vflux = old_iface_state%outputs%vflux
-      heat = old_iface_state%outputs%heat
-    else
-       if (.not. functional_test_flag ) &
-         call finalize_diagnostics(old_iface_state) 
-    end if
+    if(proc0) call state%exit_reason%write_exit_file()
 
-    if (.not. present(mpi_comm) .and. .not. functional_test_flag) then 
-      call finalize_equations(old_iface_state)
-      call finalize_gs2(old_iface_state)
+    if (state%set_outputs) call calculate_outputs(state)
+
+    if (local_finalize) then
+      state%print_times = .true.
+      call finish_gs2(state)
     end if
-    
   end subroutine run_gs2
-  
-  !> FIXME : Add documentation
-  subroutine trin_finish_gs2
 
-    call finalize_diagnostics(old_iface_state)
-    call finalize_equations(old_iface_state)
-    call finalize_gs2(old_iface_state)
-    call finalize_overrides(old_iface_state)
-
-  end subroutine trin_finish_gs2
-
-  !> FIXME : Add documentation  
-  subroutine finish_gs2
-    use antenna, only: finish_antenna
-    use collisions, only: finish_collisions
-    use dist_fn, only: finish_dist_fn
-    use fields, only: finish_fields
-    use file_utils, only: finish_file_utils
-    use hyper, only: finish_hyper
-    use init_g, only: finish_init_g
-    use kt_grids, only: finish_kt_grids
-    use le_grids, only: finish_le_grids
-    use parameter_scan, only: finish_parameter_scan
-    use mp, only: proc0
-    use nonlinear_terms, only: finish_nonlinear_terms
-    use run_parameters, only: finish_run_parameters
-    use species, only: finish_species
-    use theta_grid, only: finish_theta_grid
-    use gs2_transforms, only: finish_transforms
-    use gs2_save, only: finish_gs2_save
-    use normalisations, only: finish_normalisations
-    implicit none
-
-    call finish_normalisations
-    call finish_antenna
-    call finish_collisions
-    call finish_dist_fn
-    call finish_fields
-    call finish_hyper
-    call finish_init_g
-    call finish_theta_grid
-    call finish_kt_grids
-    call finish_le_grids
-    call finish_nonlinear_terms
-    call finish_run_parameters
-    call finish_species
-    call finish_parameter_scan
-    call finish_transforms
-    call finish_gs2_save
-    if (proc0) call finish_file_utils
-
+  !> Finish and cleanup a complete simulation
+  subroutine finish_gs2(state, quiet)
+    !> An existing, initialisation simulation state
+    type(gs2_program_state_type), intent(inout) :: state
+    logical, intent(in), optional :: quiet
+    call finalize_diagnostics(state)
+    call finalize_equations(state)
+    call finalize_gs2(state, quiet)
   end subroutine finish_gs2
 
-  !> FIXME : Add documentation  
-  subroutine reset_gs2 (ntspec, dens, temp, fprim, tprim, gexb, mach, nu, nensembles)
-    use dist_fn, only: dist_fn_g_exb => g_exb
-    use gs2_init, only: init, init_level_list
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
-    use gs2_diagnostics, only: gd_reset => reset_init
-    use gs2_save, only: gs2_save_for_restart!, gs_reset => reset_init
-    use dist_fn_arrays, only: gnew
-    use gs2_time, only: code_dt, save_dt
-    use mp, only: scope, subprocs, allprocs
-    use mp, only: mp_abort
-    use run_parameters, only: trinity_linear_fluxes
-    use species, only: nspec
-    use species, only: determine_species_order
-    use run_parameters, only: use_old_diagnostics
-#ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: reset_averages_and_counters
-#endif
-
-    implicit none
-
-    integer, intent (in) :: ntspec, nensembles
-    real, intent (in) :: gexb, mach
-    real, dimension (:), intent (in) :: dens, fprim, temp, tprim, nu
-    integer :: is
-    integer :: isg
-    logical :: temp_initval_override_store
-
-    real :: dummy
-
-    !integer :: istatus
-
-    ! doing nothing with gexb or mach for now, but in future will need to when
-    ! using GS2 to evolve rotation profiles in TRINITY
-    ! EGH add a check for this.
-    if (gexb .ne. dist_fn_g_exb) call mp_abort(&
-      "ERROR: Changing g_exb in gs2_reset is not implemented yet.", .true.)
-    if (ntspec .gt. nspec) call mp_abort(&
-      "Cannot pass more species to reset_gs2 than nspec", .true.)
-    ! To prevent compiler warnings
-    dummy = mach
-    dummy = gexb
-
-
-    if (nensembles > 1) call scope (subprocs)
-
-    if (trinity_linear_fluxes.and.nonlinear_mode_switch.eq.nonlinear_mode_none) &
-      call reset_linear_magnitude
-
-
-    call prepare_initial_values_overrides(old_iface_state)
-    call set_initval_overrides_to_current_vals(old_iface_state%init%initval_ov)
-    temp_initval_override_store = old_iface_state%init%initval_ov%override 
-    old_iface_state%init%initval_ov%override = .true.
-
-    ! EGH is this line necessary?
-    gnew = 0.
-    call save_dt (code_dt)
-    ! This call to gs2_diagnostics::reset_init sets some time averages
-    ! and counters to zero... used mainly for trinity convergence checks.
-    if (use_old_diagnostics) then
-      call gd_reset
-    else
-#ifdef NEW_DIAG
-      call reset_averages_and_counters
-#endif
-    end if
-
-    call prepare_profiles_overrides(old_iface_state)
-
-
-    call determine_gs2spec_from_trin(ntspec)
-    do is = 1,nspec
-      isg = gs2spec_from_trin(is)
-      old_iface_state%init%prof_ov%override_dens(isg) = .true.
-      old_iface_state%init%prof_ov%dens(isg) = dens(is)/dens(densrefspec)
-
-      old_iface_state%init%prof_ov%override_temp(isg) = .true.
-      old_iface_state%init%prof_ov%temp(isg) = temp(is)/temp(1)
-
-      old_iface_state%init%prof_ov%override_fprim(isg) = .true.
-      old_iface_state%init%prof_ov%fprim(isg) = fprim(is)
-
-      old_iface_state%init%prof_ov%override_tprim(isg) = .true.
-      old_iface_state%init%prof_ov%tprim(isg) = tprim(is)
-
-      old_iface_state%init%prof_ov%override_vnewk(isg) = .true.
-      old_iface_state%init%prof_ov%vnewk(isg) = nu(is)
-
-      !call override(old_iface_state, odens, gs2spec_from_trin(is), dens(is)/dens(densrefspec))
-      !! Temp is always normalised to the main ions
-      !call override(old_iface_state, otemp, gs2spec_from_trin(is), temp(is)/temp(1))
-      !call override(old_iface_state, ofprim, gs2spec_from_trin(is), fprim(is))
-      !call override(old_iface_state, otprim, gs2spec_from_trin(is), tprim(is))
-      !call override(old_iface_state, ovnewk, gs2spec_from_trin(is), nu(is))
-    end do
-
-    !old_iface_state%init%prof_ov%override_g_exb = .true.
-    !old_iface_state%init%prof_ov%g_exb = gexb
-    !old_iface_state%init%prof_ov%override_mach = .true.
-    !old_iface_state%init%prof_ov%mach = mach
-
-    !call override(old_iface_state, og_exb, gexb)
-    ! mach doesn't do anything atm
-    !call override(old_iface_state, omach, mach)
-
-    call init(old_iface_state%init, init_level_list%full)
-    old_iface_state%istep_end = 1
-    old_iface_state%init%initval_ov%override = temp_initval_override_store
-    if (nensembles > 1) call scope (allprocs)
-
-
-  end subroutine reset_gs2
-
-  !> FIXME : Add documentation  
-  subroutine old_interface_set_overrides
-    use old_interface_store
-    use gs2_init, only: init
-    implicit none
-    integer :: is, isg
-
-    if (override_miller_geometry) then 
-      call prepare_miller_geometry_overrides(old_iface_state)
-      old_iface_state%init%mgeo_ov%override_rhoc = .true.
-      old_iface_state%init%mgeo_ov%rhoc = rhoc_store
-      old_iface_state%init%mgeo_ov%override_qinp = .true.
-      old_iface_state%init%mgeo_ov%qinp = qval_store
-      old_iface_state%init%mgeo_ov%override_shat = .true.
-      old_iface_state%init%mgeo_ov%shat = shat_store
-      old_iface_state%init%mgeo_ov%override_rgeo_lcfs = .true.
-      old_iface_state%init%mgeo_ov%rgeo_lcfs = rgeo_lcfs_store
-      old_iface_state%init%mgeo_ov%override_rgeo_local = .true.
-      old_iface_state%init%mgeo_ov%rgeo_local = rgeo_local_store
-      old_iface_state%init%mgeo_ov%override_aSurf = .true.
-      old_iface_state%init%mgeo_ov%aSurf = aSurf_store
-      old_iface_state%init%mgeo_ov%override_shift = .true.
-      old_iface_state%init%mgeo_ov%shift = shift_store
-      old_iface_state%init%mgeo_ov%override_shiftVert = .true.
-      old_iface_state%init%mgeo_ov%shiftVert = shiftVert_store
-      old_iface_state%init%mgeo_ov%override_deltam = .true.
-      old_iface_state%init%mgeo_ov%deltam = deltam_store
-      old_iface_state%init%mgeo_ov%override_deltan = .true.
-      old_iface_state%init%mgeo_ov%deltan = deltan_store
-      old_iface_state%init%mgeo_ov%override_deltampri = .true.
-      old_iface_state%init%mgeo_ov%deltampri = deltampri_store
-      old_iface_state%init%mgeo_ov%override_deltanpri = .true.
-      old_iface_state%init%mgeo_ov%deltanpri = deltanpri_store
-      old_iface_state%init%mgeo_ov%override_thetam = .true.
-      old_iface_state%init%mgeo_ov%thetam = thetam_store
-      old_iface_state%init%mgeo_ov%override_thetan = .true.
-      old_iface_state%init%mgeo_ov%thetan = thetan_store
-      old_iface_state%init%mgeo_ov%override_betaprim = .true.
-      old_iface_state%init%mgeo_ov%betaprim = betaprim_store
-    end if
-
-
-    if (override_profiles) then
-      call prepare_profiles_overrides(old_iface_state)
-      call determine_gs2spec_from_trin(ntspec_store)
-      do is = 1,ntspec_store
-        isg = gs2spec_from_trin(is)
-        old_iface_state%init%prof_ov%override_dens(isg) = .true.
-        old_iface_state%init%prof_ov%dens(isg) = dens_store(is)/dens_store(densrefspec)
-
-        old_iface_state%init%prof_ov%override_temp(isg) = .true.
-        old_iface_state%init%prof_ov%temp(isg) = temp_store(is)/temp_store(1)
-
-        old_iface_state%init%prof_ov%override_fprim(isg) = .true.
-        old_iface_state%init%prof_ov%fprim(isg) = fprim_store(is)
-
-        old_iface_state%init%prof_ov%override_tprim(isg) = .true.
-        old_iface_state%init%prof_ov%tprim(isg) = tprim_store(is)
-
-        old_iface_state%init%prof_ov%override_vnewk(isg) = .true.
-        old_iface_state%init%prof_ov%vnewk(isg) = nu_store(is)
-      end do
-    end if
-    override_profiles = .false.
-    override_miller_geometry = .false.
-  end subroutine old_interface_set_overrides
-
-  !> FIXME : Add documentation  
-  subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, impurity, ions
-    use species, only: electrons
-    use mp, only: mp_abort
-    integer, intent(in) :: ntspec
-    !> This is true if we are using multispecies post Sep-2105 Trinity 
-    !! In this case the electrons in Trinity are the first species
-    !! rather than the second
-    logical, intent(in), optional :: trin_multispec_in
-    logical :: trin_multispec
-
-    if (present(trin_multispec_in)) then
-      trin_multispec = trin_multispec_in
-    else
-      trin_multispec = .false.
-    end if
-
-    call determine_species_order
-    if (.not. allocated(gs2spec_from_trin)) allocate(gs2spec_from_trin(ntspec))
-    !write (*,*) 'IONS', ions, 'ELECTRONS', electrons, 'IMPURITY', impurity
-    if (ntspec==1) then
-      ! This is never the case in multispecies Trinity 
-      gs2spec_from_trin(1) = ions
-      ! ref temp is always ions (trin spec 1)
-      ! For one species, reference dens is ions
-      densrefspec = 1
-    else if (ntspec==2) then 
-      if (trin_multispec) then
-        gs2spec_from_trin(1) = electrons
-        gs2spec_from_trin(2) = ions
-        densrefspec = 2 ! The ref density is now the main ions
-      else
-        gs2spec_from_trin(1) = ions
-        gs2spec_from_trin(2) = electrons
-        ! For two species or more, ref dens is electrons (trin spec 2)
-        densrefspec = 2
-      end if
-    else if (ntspec==3) then
-      if (trin_multispec) then
-        gs2spec_from_trin(1) = electrons
-        gs2spec_from_trin(2) = ions
-        gs2spec_from_trin(3) = impurity
-        densrefspec = 2 ! The ref density is now the main ions
-      else
-        gs2spec_from_trin(1) = ions
-        gs2spec_from_trin(2) = electrons
-        gs2spec_from_trin(3) = impurity
-        ! For two species or more, ref dens is electrons (trin spec 2)
-        densrefspec = 2
-      end if
-    else
-      call mp_abort("Can't handle more than 3 species in &
-       & determine_gs2spec_from_trin", .true.)
-    end if
-  end subroutine determine_gs2spec_from_trin
-
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine reset_linear_magnitude
     use dist_fn_arrays, only: g, gnew
     use fields, only: set_init_fields
@@ -2070,60 +1707,6 @@ contains
       end if
   end subroutine write_trinity_parameters
 
-  !> FIXME : Add documentation  
-  subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert, &
-       deltam, deltan, deltampri, deltanpri, thetam, thetan, &
-       betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
-
-    use old_interface_store
-
-    implicit none
-
-    integer, intent (inout) :: ntspec
-    real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert
-    real, intent (inout) :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-    real, intent (inout) :: betaprim, gexb, mach
-    real, dimension (:), intent (inout) :: dens, fprim, temp, tprim, nu
-    logical, intent (inout) :: use_gs2_geo
-
-    ! for now do nothing with gexb or mach, but need to include later if want to use GS2
-    ! with TRINITY to evolve rotation profiles
-     if (.not. allocated(dens_store)) then
-       allocate(dens_store(ntspec))
-       allocate(temp_store(ntspec))
-       allocate(tprim_store(ntspec))
-       allocate(fprim_store(ntspec))
-       allocate(nu_store(ntspec))
-     end if
-     ntspec_store = ntspec
-     dens_store = dens
-     temp_store = temp
-     tprim_store = tprim
-     fprim_store = fprim
-     nu_store = nu
-     override_profiles = .true.
-     if (.not. use_gs2_geo) then
-       rhoc_store = rhoc
-       qval_store = qval
-       shat_store = shat
-       rgeo_lcfs_store = rgeo_lcfs
-       rgeo_local_store = rgeo_local
-       aSurf_store = aSurf
-       shift_store = shift
-       shiftVert_store = shiftVert
-       deltam_store = deltam
-       deltan_store = deltan
-       deltampri_store = deltampri
-       deltanpri_store = deltanpri
-       thetam_store = thetam
-       thetan_store = thetan
-       betaprim_store = betaprim
-       override_miller_geometry = .true.
-     end if
-     
-    
-  end subroutine gs2_trin_init
-
   !> Write an input file containing the current state of all input
   !> parameters
   subroutine write_used_inputs_file(header)
@@ -2163,8 +1746,4 @@ contains
 
   end subroutine write_used_inputs_file
 
-# ifndef MAKE_LIB
 end module gs2_main
-# endif
-
-
