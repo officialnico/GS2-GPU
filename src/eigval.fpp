@@ -631,7 +631,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -1046,7 +1045,7 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
+    use gs2_time, only: user_time
     use collisions, only: vnmult
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only: set_init_fields
@@ -1380,7 +1379,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est
