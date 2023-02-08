@@ -399,6 +399,7 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast, iproc
     use optionals, only: get_option_with_default
+    use run_parameters, only: wstar_units, tunits
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
@@ -408,6 +409,7 @@ contains
     integer :: istep
     integer, save :: istep_last = -1
     logical :: do_force
+    real, dimension(:), allocatable :: t_wstar
     if (.not. gnostics%write_any) return
     
     call broadcast(exit)
@@ -496,7 +498,15 @@ contains
        ! Finally, write time value and update time index
        call create_and_write_variable(gnostics, gnostics%rtype, "t", &
             trim(dim_string(gnostics%dims%time)), &
-            "Values of the time coordinate", "a/v_thr", user_time) 
+            "Values of the time coordinate", "a/v_thr", user_time)
+       if (wstar_units) then
+          t_wstar = tunits * user_time
+          call create_and_write_variable(gnostics, gnostics%rtype, "t_wstar", &
+               dim_string([gnostics%dims%ky, gnostics%dims%time]), &
+               "Values of time (wstar scaled)", "a/v_thr", &
+               t_wstar)
+       end if
+
        gnostics%user_time = user_time
        gnostics%vary_vnew_only = .false.
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting write sequence')
