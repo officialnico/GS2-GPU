@@ -5448,7 +5448,7 @@ contains
     if (fphi > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5471,7 +5471,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5492,7 +5492,7 @@ contains
     if (fbpar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -6566,7 +6566,7 @@ contains
           else
             !$OMP PARALLEL DO DEFAULT(shared) &
             !$OMP PRIVATE(iglo, isgn) &
-            !$OMP SCHEDULE(guided)
+            !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
@@ -6641,7 +6641,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
-             !$OMP SCHEDULE(guided)
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*g_in(:,isgn,iglo)
@@ -6720,7 +6720,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
-             !$OMP SCHEDULE(guided)
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*g_in(:,isgn,iglo)
