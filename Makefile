@@ -81,8 +81,6 @@ USE_LOCAL_SPFUNC ?=
 USE_NAGLIB ?=
 # Use openmp (very limited use currently)
 USE_OPENMP ?=
-# Make GS2 into a library which can be called by external programs
-MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
@@ -524,10 +522,6 @@ endif
 ifdef QUAD
 	DBLE = on
 	MACRO_DEFS += -DQUAD_PRECISION
-endif
-
-ifdef MAKE_LIB
-	MACRO_DEFS += -DMAKE_LIB
 endif
 
 ifdef LOWFLOW

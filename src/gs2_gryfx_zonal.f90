@@ -298,8 +298,6 @@ contains
     integer :: istatus
     real :: delt, delt1, delt2, delt_max
 
-    !gryfx_zonal%on = .true.
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm  
     state%is_trinity_job = .true.
 
