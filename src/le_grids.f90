@@ -867,7 +867,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
        !$OMP REDUCTION(+ : total) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -939,7 +939,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
        !$OMP REDUCTION(+ : total_small) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1163,7 +1163,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
        !$OMP REDUCTION(+ : total_flat) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1186,7 +1186,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
        !$OMP REDUCTION(+ : total_flat) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1256,7 +1256,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1296,7 +1296,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1350,7 +1350,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1656,7 +1656,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
     !$OMP REDUCTION(+ : total_small) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1738,7 +1738,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iplo, is, ik, ie, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
@@ -1783,7 +1783,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1826,7 +1826,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
