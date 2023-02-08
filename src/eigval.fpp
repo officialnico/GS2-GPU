@@ -814,8 +814,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
