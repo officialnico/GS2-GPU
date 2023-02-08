@@ -318,7 +318,7 @@ contains
        case(1)
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
                   ab_coeffs(1) * gexp_1(:, :, iglo)       &
@@ -328,7 +328,7 @@ contains
        case(2)
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
                   ab_coeffs(1) * gexp_1(:, :, iglo) +     &
@@ -339,7 +339,7 @@ contains
        case default
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
                   ab_coeffs(1) * gexp_1(:, :, iglo) +     &
@@ -431,7 +431,7 @@ contains
           ! Calculate the estimate of the new g
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              g_work(:, :, iglo) = g(:, :, iglo) + half_time * gexp_1(:, :, iglo)
           end do
@@ -610,7 +610,7 @@ contains
           do istage_sub = 1, istage-1
              !$OMP PARALLEL DO DEFAULT(SHARED) &
              !$OMP PRIVATE(iglo) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
              end do
@@ -640,7 +640,7 @@ contains
        ! time_step/2 to ensure full consistency.
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo) &
-       !$OMP SCHEDULE(dynamic)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           gexp_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
        end do
@@ -649,7 +649,7 @@ contains
        do istage = 2, nstages
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
           end do
@@ -686,7 +686,7 @@ contains
           !Update the solution
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SCHEDULE(dynamic)
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, iglo, 1)
           end do
@@ -695,7 +695,7 @@ contains
           do istage = 2, nstages
              !$OMP PARALLEL DO DEFAULT(SHARED) &
              !$OMP PRIVATE(iglo) &
-             !$OMP SCHEDULE(dynamic)
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
              end do
