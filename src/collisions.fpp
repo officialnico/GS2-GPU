@@ -4167,7 +4167,7 @@ contains
        call integrate_moment (le_lo, glec, tmp)
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, ig, it, ik, is) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
@@ -4202,7 +4202,7 @@ contains
 
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ile, ig, it, ik, is) &
-          !$OMP SCHEDULE(guided)
+          !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
              it = it_idx(le_lo,ile)
