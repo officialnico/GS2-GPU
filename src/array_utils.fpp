@@ -56,7 +56,7 @@ contains
     end = ubound(array_in, dim = 3)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_out(:, :, counter) = array_in(:, :, counter)
     end do
@@ -74,7 +74,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(array_in(:, counter)), the_max)
     end do
@@ -92,7 +92,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(array_in(:, :, counter)), the_max)
     end do
@@ -111,7 +111,7 @@ contains
     end = ubound(array_in, dim = 2)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_out(:, counter) = abs(array_in(:, counter))
     end do
@@ -130,7 +130,7 @@ contains
     end = ubound(array_in, dim = 3)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_out(:, :, counter) = abs(array_in(:, :, counter))
     end do
@@ -149,7 +149,7 @@ contains
     end = ubound(array_in, dim = 2)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_out(:, counter) = abs(array_in(:, counter))
     end do
@@ -168,7 +168,7 @@ contains
     end = ubound(array_in, dim = 3)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_out(:, :, counter) = abs(array_in(:, :, counter))
     end do
@@ -186,7 +186,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(abs(array_in(:, counter))), the_max)
     end do
@@ -204,7 +204,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(abs(array_in(:, :, counter))), the_max)
     end do
@@ -222,7 +222,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(abs(array_in(:, counter))), the_max)
     end do
@@ -240,7 +240,7 @@ contains
     the_max = 0.0
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP REDUCTION(max: the_max) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        the_max = max(maxval(abs(array_in(:, :, counter))), the_max)
     end do
@@ -257,7 +257,7 @@ contains
     end = ubound(array_in, dim = 2)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_in(:, counter) = 0.0
     end do
@@ -274,7 +274,7 @@ contains
     end = ubound(array_in, dim = 3)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_in(:, :, counter) = 0.0
     end do
@@ -291,7 +291,7 @@ contains
     end = ubound(array_in, dim = 2)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_in(:, counter) = 0.0
     end do
@@ -308,7 +308,7 @@ contains
     end = ubound(array_in, dim = 3)
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do counter = start, end
        array_in(:, :, counter) = 0.0
     end do
