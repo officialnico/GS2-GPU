@@ -4,6 +4,7 @@ module array_utils
   private
 
   public :: copy, gs2_maxval, gs2_abs, gs2_max_abs
+  public :: zero_array
 
   !> Interface to helper subroutines for copying one array into another.
   interface copy
@@ -32,6 +33,13 @@ module array_utils
      module procedure gs2_max_abs_complex_array_3
   end interface gs2_max_abs
 
+  !> Interface to helper functions to zero an array
+  interface zero_array
+     module procedure zero_array_real_array_2
+     module procedure zero_array_real_array_3
+     module procedure zero_array_complex_array_2
+     module procedure zero_array_complex_array_3
+  end interface zero_array
 
 contains
 
@@ -238,5 +246,73 @@ contains
     end do
     !$OMP END PARALLEL DO
   end function gs2_max_abs_complex_array_3
+
+  !> Return absolute of 2D array
+  subroutine zero_array_real_array_2(array_in)
+    implicit none
+    real, dimension(:, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_in(:, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_real_array_2
+
+  !> Return absolute of 3D array
+  subroutine zero_array_real_array_3(array_in)
+    implicit none
+    real, dimension(:, :, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_in(:, :, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_real_array_3
+
+  !> Return absolute of 2D array
+  subroutine zero_array_complex_array_2(array_in)
+    implicit none
+    complex, dimension(:, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 2)
+    end = ubound(array_in, dim = 2)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_in(:, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_complex_array_2
+
+  !> Return absolute of 3D array
+  subroutine zero_array_complex_array_3(array_in)
+    implicit none
+    complex, dimension(:, :, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 3)
+    end = ubound(array_in, dim = 3)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
+    do counter = start, end
+       array_in(:, :, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_complex_array_3
 
 end module array_utils
