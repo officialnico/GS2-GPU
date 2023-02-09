@@ -98,7 +98,7 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, fileopt, &
+       (g, t0, vnm, istatus, fphi, fapar, fbpar, fileopt, &
         save_glo_info_and_grids, save_velocities, header)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -129,8 +129,6 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     !> Current simulation time
     real, intent (in) :: t0
-    !> Current timestep size
-    real, intent (in) :: delt0
     !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
     !> Electrostatic potential, \(\phi\), scaling factor

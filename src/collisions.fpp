@@ -3392,8 +3392,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
-    use theta_grid, only: ntgrid
-    use species, only: nspec
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
@@ -3710,14 +3708,11 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-    use theta_grid, only: ntgrid
-    use species, only: nspec
-    use kt_grids, only: naky
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use le_grids, only: ixi_to_il, ixi_to_isgn
+    use le_grids, only: sgn, speed => speed_maxw, nxi, ng2
     use run_parameters, only: ieqzip
-    use le_grids, only: forbid, sgn, speed => speed_maxw, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
     use theta_grid, only: bmag
@@ -4297,54 +4292,6 @@ contains
     end do
 
   end subroutine solfp_ediffuse_le_layout
-
-  !> FIXME : Add documentation
-  subroutine check_g (str, g)
-    use gs2_layouts, only: g_lo
-    use theta_grid, only: ntgrid
-    implicit none    
-    character (3), intent(in) :: str 
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    integer :: ig, iglo
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do ig = -ntgrid, 0
-          if (g(ig,1,iglo) /= g(-ig,2,iglo)) then
-             if (abs((g(ig,1,iglo)-g(-ig,2,iglo))/g(ig,1,iglo)) > 1.e-8) then
-                write(*,*) str,ig,iglo,g(ig,1,iglo)-g(-ig,2,iglo)
-             endif
-          endif
-       end do
-    end do
-
-  end subroutine check_g
-
-  !> FIXME : Add documentation
-  subroutine check_glz (str, glz)
-    use gs2_layouts, only: lz_lo, ig_idx, ie_idx
-    use le_grids, only: jend
-    use theta_grid, only: ntgrid
-    implicit none
-    character (3), intent(in) :: str 
-    complex, dimension (:,lz_lo%llim_proc:), intent (in) :: glz
-    integer :: il, ilz, ig, ie, je, ilzp, ilp
-
-    do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-       ig = ig_idx (lz_lo, ilz)
-       ie = ie_idx (lz_lo, ilz)
-       je = jend(ig)
-       ilzp = -ig + ntgrid + (ie-1)*(2*ntgrid+1)
-       do il = 1, je
-          ilp = 2*je+1-il
-          if (glz(il,ilz) /= glz(ilp,ilzp)) then
-             if (abs((glz(il,ilz)-glz(ilp,ilzp))/glz(il,ilz)) > 1.e-8) then
-                write(*,*) str,il,ilz,glz(il,ilz),glz(ilp,ilzp)
-             endif
-          endif
-       end do
-    end do
-
-  end subroutine check_glz
 
   !> FIXME : Add documentation
   subroutine init_vpdiff

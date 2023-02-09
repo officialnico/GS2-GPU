@@ -1532,21 +1532,14 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_wdrift
-    use species, only: nspec
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
-    use le_grids, only: negrid, ng2, nlambda, jend, forbid
-!    use le_grids, only: al
-!    use theta_grids, only: bmag
+    use le_grids, only: ng2, nlambda, jend, forbid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: ittp
     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
-!    logical :: alloc = .true.
-!CMR
     logical,parameter :: debug = .false.
-!CMR
 
 ! find totally trapped particles 
 !    if (alloc) allocate (ittp(-ntgrid:ntgrid))
@@ -2867,18 +2860,6 @@ contains
 
   end subroutine init_connected_bc
 
-  !> Create a pass_right object to pass boundary values to the left connection
-  !! for sigma=1 (i.e. rightwards moving particles).
-  subroutine init_pass_right
-    call init_pass_ends(pass_right,'r',1,'c')
-  end subroutine init_pass_right
-
-  !> Create a pass_left object to pass boundary values to the left connection
-  !! for sigma=2 (i.e. leftwards moving particles).
-  subroutine init_pass_left
-    call init_pass_ends(pass_left,'l',2,'c')
-  end subroutine init_pass_left
-  
   !> Copy of CMR's init_pass_right (revision 2085) 
   !! but in customisable direction to aid code reuse and with optional
   !!range in theta (i.e. so can pass more than just boundary points)
@@ -3374,7 +3355,7 @@ contains
   !!   + only applying collisions every nth timestep
   !!
   !!  Author : Joseph Parker, STFC
-  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, mode)
+  subroutine collisions_advance (phi, bpar, phinew, aparnew, bparnew, mode)
     use collisions, only: split_collisions
     use dist_fn_arrays, only: gnew, g, g_work
     use le_derivatives, only: vspace_derivatives
@@ -3383,7 +3364,6 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
     integer :: modep
     integer, parameter :: verb = 3
@@ -4105,8 +4085,6 @@ contains
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
-    use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
-    use nonlinear_terms, only: nonlin
     use hyper, only: D_res
     use constants, only: zi
     implicit none
@@ -4391,8 +4369,6 @@ contains
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
-    use gs2_time, only: dt0 => code_dt, dt1 => code_dt_prev1, dt2 => code_dt_prev2
-    use nonlinear_terms, only: nonlin
     use constants, only: zi
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5311,7 +5287,6 @@ contains
   !> FIXME : Add documentation
   subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo
     use gs2_time, only: code_time
     use constants, only: zi, pi
     use prof, only: prof_entering, prof_leaving
@@ -5319,8 +5294,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
-
-    integer :: iglo
 
     real :: time
     complex :: sourcefac
@@ -6758,14 +6731,13 @@ contains
     use theta_grid, only: ntgrid, bmag
     use run_parameters, only: fphi, fapar, fbpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
-    use species, only: nspec, spec, has_electron_species, has_ion_species
+    use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     logical, optional :: gf_lo
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
-    real, dimension(nspec) :: weights
     real :: phi_weight
     logical :: local_gf_lo
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
@@ -6988,7 +6960,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, user_dt, get_adams_bashforth_coefficients
+    use gs2_time, only: user_time, get_adams_bashforth_coefficients
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
@@ -7039,7 +7011,7 @@ contains
        gtmp(:ntgrid-1, :, iglo) = source
     end do
 
-    call gs2_save_for_restart (gtmp, user_time, user_dt, vnmult, istatus, &
+    call gs2_save_for_restart (gtmp, user_time, vnmult, istatus, &
          fphi, fapar, fbpar, fileopt = extension)
   end subroutine dump_current_source_term
 
@@ -7096,8 +7068,9 @@ contains
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
        call get_flux (g_work, phi, pflux, dnorm)
+#ifdef LOWFLOW
        call get_flux_tormom (g_work, phi, pflux_tormom, dnorm)
-
+#endif
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
@@ -7394,13 +7367,13 @@ contains
 
   end subroutine get_flux_dist
 
+#ifdef LOWFLOW
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx, dnorm)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
-#ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
@@ -7408,7 +7381,6 @@ contains
     use theta_grid, only: rplot, grho
     use kt_grids, only: aky
     use lowflow, only: mach_lab
-#endif
     implicit none
     !> Input weighted distribution    
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
@@ -7418,7 +7390,6 @@ contains
     real, dimension (:,:,:), intent (out) :: flx
     !> Normalisation
     real, dimension (-ntgrid:,:,:) :: dnorm
-#ifdef LOWFLOW 
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
@@ -7439,8 +7410,8 @@ contains
     end if
 
     deallocate (total)
-#endif
   end subroutine get_flux_tormom !JPL
+#endif
 
   !> FIXME : Add documentation
   subroutine get_flux_vs_e (g_in, fld, flx, dnorm)

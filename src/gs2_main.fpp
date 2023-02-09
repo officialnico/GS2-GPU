@@ -470,7 +470,7 @@ contains
     using_measure_scatter=.false.
 
     ! Initialize the gs2 initialization system
-    call init_gs2_init(state%init)
+    call init_gs2_init()
 
     !state%gs2_initialized = .true.
     state%init%level = init_level_list%basic
@@ -734,7 +734,7 @@ contains
     use gs2_reinit, only: reset_time_step
     use gs2_reinit, only: check_time_step
     use gs2_save, only: gs2_save_for_restart
-    use gs2_time, only: user_time, user_dt, update_time, write_dt
+    use gs2_time, only: user_time, update_time, write_dt, user_dt
     use job_manage, only: time_message, checkstop, checktime
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
@@ -845,11 +845,11 @@ contains
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
 #endif
          end if
          call update_time
@@ -981,7 +981,7 @@ contains
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
 #ifdef WITH_EIG
@@ -1062,7 +1062,7 @@ contains
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new 
 #endif
     use job_manage, only: time_message
-    use mp, only: proc0, mp_abort
+    use mp, only: mp_abort
     use parameter_scan, only: deallocate_target_arrays
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: debug_message
@@ -1100,7 +1100,6 @@ contains
   subroutine finalize_equations(state)
     use gs2_init, only: init
     use job_manage, only: time_message
-    use mp, only: proc0
     use parameter_scan, only: finish_parameter_scan
     use unit_tests, only: debug_message
     use gs2_reinit, only: finish_gs2_reinit
@@ -1160,7 +1159,7 @@ contains
 
       call time_message(.false.,state%timers%total,' Total')
 
-      call finish_gs2_init(state%init)
+      call finish_gs2_init()
 
       if (proc0) call finish_file_utils
 
@@ -1263,7 +1262,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
     implicit none
@@ -1309,7 +1308,7 @@ contains
       !not sure that we really need to as we never read in the dumped data.
       if (proc0) call dump_ant_amp
 
-      call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
     endif
 
   end subroutine set_initval_overrides_to_current_vals
@@ -1576,7 +1575,7 @@ contains
   !> simulations in the same process.
   subroutine run_gs2(state, finalize)
     use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
-    use mp, only: proc0, mp_comm, init_mp
+    use mp, only: proc0, init_mp
     use standard_header, only: standard_header_type
     use optionals, only : get_option_with_default
     implicit none
