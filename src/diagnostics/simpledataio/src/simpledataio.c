@@ -505,7 +505,6 @@ void sdatio_create_variable(struct sdatio_file * sfile,
                             char * description,
                             char * units){
   int ndims;
-  int nunlim;
   struct sdatio_variable  * svar;
   int retval;
 
@@ -956,11 +955,9 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
   int is_unlimited;
   char * name_tmp;
   int * vardimids;
-  char * dimension_list;
   nc_type vartype;
   int vartypeint;
   int dummy;
-  int *nunlim;
 
   DEBUG_MESS("starting sdatio_open_file\n");
 

@@ -631,7 +631,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -814,8 +813,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
@@ -1048,7 +1045,7 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
+    use gs2_time, only: user_time
     use collisions, only: vnmult
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only: set_init_fields
@@ -1130,7 +1127,7 @@ contains
              write(restart_unique_string,'(".eig_",I0)') ieig
 
              !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
+             call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
@@ -1138,7 +1135,7 @@ contains
                 call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
+                call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
                 call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
@@ -1382,7 +1379,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est

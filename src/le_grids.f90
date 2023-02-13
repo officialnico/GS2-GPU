@@ -96,7 +96,7 @@ contains
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
-  subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
+  subroutine setvgrid_genquad (negrid, epts, wgts)
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -105,7 +105,6 @@ contains
     implicit none
     
     integer, intent (in) :: negrid
-    integer, intent (in) :: nesub
     real, dimension(:,:), intent (out) :: epts
     real, dimension(:,:), intent (out) :: wgts
     integer :: is
@@ -433,7 +432,7 @@ contains
 
     allocate (energy(negrid,nspec), w(negrid,nspec))
     if (genquad) then
-       call setvgrid_genquad (negrid, energy, w, nesub)
+       call setvgrid_genquad (negrid, energy, w)
     else
        call setvgrid (vcut, negrid, energy, w, nesub)
     end if
@@ -2460,7 +2459,6 @@ contains
   subroutine lgridset
     use theta_grid, only: eps_trapped
     implicit none
-    integer :: ig, il
     logical :: has_trapped_points
 
     ! Decide if we need to calculate the trapped lambda integration weights
@@ -2623,7 +2621,7 @@ contains
   !> compatible with radau_gauss_grid or we may decide
   !> radau_gauss_grid should default to false.
   subroutine setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
-    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
+    use theta_grid, only: ntgrid, bmag, bmax
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none
@@ -2633,12 +2631,12 @@ contains
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
-    real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
+    real, dimension (:), allocatable :: ytmp, yb, wb
     real, dimension (:,:), allocatable :: wberr
-    integer :: npts, ix, ntrap
-    real :: wwo, llim, ulim
+    integer :: npts, ntrap
+    real :: llim, ulim
     logical :: eflag
-    integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
+    integer :: ig, il, ndiv, divmax
 
     ! Initialise the error flag
     eflag = .false.
@@ -2826,7 +2824,7 @@ contains
     real, dimension (:), allocatable :: yberr, wberrtmp
     integer :: ix
     logical :: eflag
-    integer :: ndiv, divmax, divmaxerr, ndiverr
+    integer :: divmaxerr, ndiverr
 
     ! Can't get error estimate for npts = 0 or 1 as we don't have any points
     ! that we can drop.
@@ -3042,24 +3040,6 @@ contains
     end do
 
   end subroutine lagrange_coefs
-
-  !> FIXME : Add documentation  
-  subroutine stop_message (message)
-!<DD>WARNING THIS COULD CAUSE A HANG IF NOT CALLED BY ALL PROCS
-!JAB: print an error message and end program
-    use file_utils, only: error_unit
-    use mp, only: proc0, finish_mp
-    implicit none
-    character(*), intent (in) :: message
-    integer :: ierr
-
-    if (proc0) then
-       ierr = error_unit()
-       write (unit=ierr, fmt='(a)') message
-    end if
-    call finish_mp
-    stop
-  end subroutine stop_message
 
   !> FIXME : Add documentation
   !!
