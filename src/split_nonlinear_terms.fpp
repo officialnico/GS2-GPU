@@ -583,7 +583,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
-    use array_utils, only: copy, gs2_max_abs
+    use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -622,7 +622,7 @@ contains
 
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
-       stages = 0.0
+       call zero_array(stages)
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        do istage = 1, nstages
           call copy(g, gnew)
