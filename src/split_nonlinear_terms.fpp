@@ -392,11 +392,14 @@ contains
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
     logical :: reject_step
+    complex, dimension(:, :, :), allocatable :: error_array
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
     internal_time = 0.0
     time_step = time_step_last
+
+    allocate(error_array(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     ! Keep on advancing until we have advanced by dt
     do while (internal_time < dt)
@@ -438,8 +441,18 @@ contains
           !$OMP END PARALLEL DO
 
           ! Calculate the maximum absolute error and the maximum value of the previous solution
-          !OpenMP to form gnew - g_work?
-          errors(1) = gs2_max_abs(gnew - g_work)
+
+          ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
+          ! so that we only loop over the error_array once (and actually don't
+          ! need to explicitly store the full array)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             error_array(:, :, iglo) = gnew(:, :, iglo) - g_work(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
+          errors(1) = gs2_max_abs(error_array)
           errors(2) = gs2_max_abs(g_work)
           call max_allreduce(errors)
 
@@ -490,8 +503,17 @@ contains
                calculate_cfl_limit = .true.)
           nrhs_calls = nrhs_calls + 1
 
-          !OpenMP to form gexp_1 - gexp_2?
-          errors(1) = gs2_max_abs(gexp_1 - gexp_2) * (0.5 * 0.5 * actual_dt)
+          ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
+          ! so that we only loop over the error_array once (and actually don't
+          ! need to explicitly store the full array)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             error_array(:, :, iglo) = gexp_1(:, :, iglo) - gexp_2(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
+          errors(1) = gs2_max_abs(error_array) * (0.5 * 0.5 * actual_dt)
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
