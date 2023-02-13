@@ -1252,7 +1252,7 @@ contains
     use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
-    integer :: colour, key, cc
+    integer :: colour, cc
     type(comm_type) :: tmp
     logical :: some_empty, some_pd, some_all, head_notfull
     !Exit if we don't have this supercell
@@ -3616,13 +3616,12 @@ contains
 
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
-    use mp, only: comm_type, sum_allreduce_sub, iproc
+    use mp, only: comm_type, sum_allreduce_sub
     use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
     integer :: nrow_tmp, nrow_loc, remainder, np
-    integer :: counter
     integer, dimension(:), allocatable :: nwork, iproc_work
     type(comm_type) :: supercell_comm
     logical :: cell_is_local
@@ -4103,7 +4102,7 @@ contains
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
-    use mp, only: proc0, get_mp_times !, barrier
+    use mp, only: get_mp_times
     use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
@@ -4187,7 +4186,7 @@ contains
          aparnew, bparnew, istep, diagnostics) 
 
     ! Advance collisions, if separate from timeadv
-    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
 
   end subroutine advance_local
 
