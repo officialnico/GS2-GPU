@@ -39,6 +39,7 @@ module array_utils
      module procedure zero_array_real_array_3
      module procedure zero_array_complex_array_2
      module procedure zero_array_complex_array_3
+     module procedure zero_array_complex_array_4
   end interface zero_array
 
 contains
@@ -247,7 +248,7 @@ contains
     !$OMP END PARALLEL DO
   end function gs2_max_abs_complex_array_3
 
-  !> Return absolute of 2D array
+  !> Zero out a 2D array
   subroutine zero_array_real_array_2(array_in)
     implicit none
     real, dimension(:, :), intent(in out) :: array_in
@@ -264,7 +265,7 @@ contains
     !$OMP END PARALLEL DO
   end subroutine zero_array_real_array_2
 
-  !> Return absolute of 3D array
+  !> Zero out a 3D array
   subroutine zero_array_real_array_3(array_in)
     implicit none
     real, dimension(:, :, :), intent(in out) :: array_in
@@ -281,7 +282,7 @@ contains
     !$OMP END PARALLEL DO
   end subroutine zero_array_real_array_3
 
-  !> Return absolute of 2D array
+  !> Zero out a 2D array
   subroutine zero_array_complex_array_2(array_in)
     implicit none
     complex, dimension(:, :), intent(in out) :: array_in
@@ -298,7 +299,7 @@ contains
     !$OMP END PARALLEL DO
   end subroutine zero_array_complex_array_2
 
-  !> Return absolute of 3D array
+  !> Zero out a 3D array
   subroutine zero_array_complex_array_3(array_in)
     implicit none
     complex, dimension(:, :, :), intent(in out) :: array_in
@@ -314,5 +315,22 @@ contains
     end do
     !$OMP END PARALLEL DO
   end subroutine zero_array_complex_array_3
+
+  !> Zero out a 4D array
+  subroutine zero_array_complex_array_4(array_in)
+    implicit none
+    complex, dimension(:, :, :, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 4)
+    end = ubound(array_in, dim = 4)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(static)
+    do counter = start, end
+       array_in(:, :, :, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_complex_array_4
 
 end module array_utils
