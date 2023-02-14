@@ -21,7 +21,7 @@ module rk_schemes
   type :: rk_scheme_type
      integer :: number_of_stages
      integer :: order
-     character(len=20) :: name
+     character(len=30) :: name
      real, dimension(:), allocatable :: lower_order_coeffs
      real, dimension(:), allocatable :: high_order_coeffs
      real, dimension(:), allocatable :: time_points
