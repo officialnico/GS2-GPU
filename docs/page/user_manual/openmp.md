@@ -41,6 +41,15 @@ are 16 cores per NUMA region (sharing main memory) but performance
 often drops considerably when using larger than 4 threads as groups of
 four cores share L3 cache.
 
+If is often recommended to run `ulimit -s unlimited` prior to
+launching OpenMP enabled executables. In addition to this one may need
+to set the
+[OMP_STACKSIZE](https://www.openmp.org/spec-html/5.0/openmpse54.html)
+environement variable to ensure that each thread has a sufficient
+stack size. Failing to set this can lead to "stack smashing detected"
+run time error messages. This is particularly important at higher
+`OMP_NUM_THREADS` values when the local problem size is large.
+
 ## When should I use OpenMP?
 
 There are generally two motivations for using OpenMP in GS2:
