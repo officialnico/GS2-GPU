@@ -6784,6 +6784,7 @@ contains
     use kt_grids, only: naky, ntheta0, kperp2
     use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
+    use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
@@ -6791,6 +6792,7 @@ contains
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real :: phi_weight
     logical :: local_gf_lo
+    integer :: it, ik, ig
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
@@ -6812,25 +6814,52 @@ contains
        else
           phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
        end if
-       phi = antot / phi_weight
+
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             phi(:, it, ik) = antot(:, it, ik) / phi_weight
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       phi = 0
+       call zero_array(phi)
     end if
 
     if (fapar > 0) then
-       where (kperp2 > epsilon(0.0))
-          apar = antota / kperp2
-       elsewhere
-          apar = 0
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+                else
+                   apar(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       apar = 0
+       call zero_array(apar)
     end if
 
     if (fbpar > 0) then
-       bpar = -beta * antotp / (spread(spread(bmag, 2, ntheta0), 3, naky)**2)
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             bpar(:, it, ik) = -beta * antotp(:, it, ik) / bmag**2
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       bpar = 0.0
+       call zero_array(bpar)
     end if
 
   end subroutine calculate_potentials_from_nonadiabatic_dfn
