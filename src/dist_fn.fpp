@@ -6922,7 +6922,7 @@ contains
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
-                numerator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * (antot(:, it, ik)+fl_avg) - (beta * gamtot1(:, it, ik)) * antotp(:, it, ik)
+                numerator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * (antot(:, it, ik)+fl_avg(it, ik)) - (beta * gamtot1(:, it, ik)) * antotp(:, it, ik)
                 denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * gamtot(:, it, ik) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
              end do
           end do
@@ -6936,7 +6936,7 @@ contains
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
-                numerator = antot(:, it, ik)+fl_avg
+                numerator = antot(:, it, ik)+fl_avg(it, ik)
              end do
           end do
           !$OMP END PARALLEL DO
