@@ -3227,8 +3227,6 @@ contains
 
   end subroutine fm_check_an
 
-  
-
   subroutine fm_getfieldeq1_nogath (self,phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
@@ -3244,9 +3242,9 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it, is, ic
-
+    logical :: has_phi, has_apar, has_bpar
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
-    if (.not. has_electron_species(spec)) fl_avg = 0.
+    fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
@@ -3254,7 +3252,17 @@ contains
        end if
     end if
 
-    !Now loop over cells and calculate field equation as required
+    !Now loop over cells and calculate field equation as required.
+    !Note we only populate the parts of the fieldeq arrays which
+    !are local to this processor.
+
+    has_phi = fphi > epsilon(0.0)
+    has_apar = fapar > epsilon(0.0)
+    has_bpar = fbpar > epsilon(0.0)
+
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(ik, it, is, ic) &
+    !$OMP SCHEDULE(dynamic,1)
     do ik=1,self%naky
        !Skip empty cells, note this is slightly different to skipping
        !.not.is_local. Skipping empty is probably faster but may be more dangerous
@@ -3269,24 +3277,27 @@ contains
              if(kwork_filter(it,ik)) cycle
 
              !Now fill in data
-             if(fphi>epsilon(0.0)) then
-                fieldeq(:,it,ik)=antot(:,it,ik)-gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik)
-                if(fbpar.gt.epsilon(0.0)) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
-                if(.not.has_electron_species(spec)) fieldeq(:,it,ik)= fieldeq(:,it,ik)+fl_avg(it,ik)
+             if(has_phi) then
+                fieldeq(:,it,ik) = antot(:,it,ik) - &
+                     gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                     fl_avg(it, ik)
+                if(has_bpar) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
              endif
 
-             if(fapar>epsilon(0.0)) then
-                fieldeqa(:,it,ik)=antota(:,it,ik)-kperp2(:,it,ik)*gridfac1(:,it,ik)*apar(:,it,ik)
+             if(has_apar) then
+                fieldeqa(:,it,ik) = antota(:,it,ik) - &
+                     kperp2(:,it,ik)*gridfac1(:,it,ik)*apar(:,it,ik)
              endif
 
-             if(fbpar>epsilon(0.0))then
-                fieldeqp(:,it,ik)=bpar(:,it,ik)*gridfac1(:,it,ik)+&
+             if(has_bpar)then
+                fieldeqp(:,it,ik) = bpar(:,it,ik)*gridfac1(:,it,ik)+&
                      (antotp(:,it,ik)+bpar(:,it,ik)*gamtot2(:,it,ik)+&
-                     0.5*phi(:,it,ik)*gamtot1(:,it,ik))*beta*apfac/bmag(:)**2
+                     0.5*phi(:,it,ik)*gamtot1(:,it,ik))*(beta*apfac/bmag**2)
              endif
           enddo
        enddo
     enddo
+    !$OMP END PARALLEL DO
   end subroutine fm_getfieldeq1_nogath
 
 !------------------------------------------------------------------------ 
