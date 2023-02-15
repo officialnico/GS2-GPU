@@ -6491,6 +6491,7 @@ contains
     use kt_grids, only: kwork_filter, kperp2
     use redistribute, only: gather
     use mp, only: barrier
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
@@ -6503,9 +6504,9 @@ contains
     ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
     ! with no_gath = .true. may only populate part of these arrays so we initialise to
     ! zero here to avoid later using uninitialised data.
-    antot = 0.0
-    antota = 0.0
-    antotp = 0.0
+    call zero_array(antot)
+    call zero_array(antota)
+    call zero_array(antotp)
 
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
     !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
