@@ -6191,55 +6191,73 @@ contains
     use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it
-!    logical :: first = .true.
-    
-!    if (first) allocate (fl_avg(ntheta0, naky))
+
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-          
           call calculate_flux_surface_average(fl_avg,antot)
        end if
-
     end if
 
     if (fphi > epsilon(0.0)) then
-       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
-
-       if (.not. has_electron_species(spec)) then
-          do ik = 1, naky
-             do it = 1, ntheta0
-                fieldeq(:,it,ik) = fieldeq(:,it,ik) + fl_avg(it,ik)
-             end do
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             fieldeq(:,it,ik) = antot(:,it,ik) + &
+                  bpar(:,it,ik)*gamtot1(:,it,ik) - &
+                  gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                  fl_avg(it,ik)
           end do
-       end if
+       end do
+       !$OMP END PARALLEL DO
+    else
+       call zero_array(fieldeq)
     end if
 
     if (fapar > epsilon(0.0)) then
-       fieldeqa = antota - kperp2*gridfac1*apar
-    end if
-! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
-! in the following
-    if (fbpar > epsilon(0.0)) then
-       fieldeqp = (antotp+bpar*gamtot2+0.5*phi*gamtot1)*beta*apfac
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
-             fieldeqp(:,it,ik) = fieldeqp(:,it,ik)/bmag(:)**2
+             fieldeqa(:, it, ik) = antota(:, it, ik) - &
+                  kperp2(:, it, ik)*gridfac1(:, it, ik)*apar(:, it, ik)
           end do
        end do
-       fieldeqp = fieldeqp + bpar*gridfac1
+       !$OMP END PARALLEL DO
+    else
+       call zero_array(fieldeqa)
     end if
 
-!    first = .false.
-
+    ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
+    ! in the following
+    if (fbpar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             fieldeqp(:,it,ik) = (antotp(:, it, ik) + &
+                  bpar(:, it, ik)*gamtot2(:, it, ik) + &
+                  0.5*phi(:, it, ik)*gamtot1(:, it, ik))*(beta*apfac/bmag**2) + &
+                  bpar(:, it, ik)*gridfac1(:, it, ik)
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       call zero_array(bpar)
+    end if
   end subroutine getfieldeq1
 
   !> FIXME : Add documentation    
