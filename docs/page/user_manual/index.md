@@ -435,18 +435,18 @@ reproduce, before going on to explore new territory.
 Good luck!
 
 [newissue]: https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open
-[readme]: https://bitbucket.org/gyrokinetics/gs2/src/6fbd2a6bc6ac5e5be0e0737f1860a0e0f78026ed/README.md?at=master&fileviewer=file-view-default
+[readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/README.md
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
-[results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
-[append_old]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-append_old
-[save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
-[delt_option]: |url|/page/namelists/index.html#knobs-delt_option
-[ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
-[restart_dir_option]: |url|/page/namelists/index.html#init_g_knobs-restart_dir
-[restart_file_option]: |url|/page/namelists/index.html#init_g_knobs-restart_file
-[file_safety_check_option]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-file_safety_check
-[use_old_diagnostics]: |url|/page/namelists/index.html#knobs-use_old_diagnostics
+[results_diagnostics]: results_diagnostics.html
+[append_old]: ../namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: ../namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: ../namelists/index.html#knobs-delt_option
+[ginit_option]: ../namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: ../namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: ../namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: ../namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: ../namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->
