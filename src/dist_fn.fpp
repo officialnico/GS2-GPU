@@ -5403,6 +5403,7 @@ contains
     use run_parameters, only: beta, fphi, fapar, fbpar
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
+    use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
@@ -5438,7 +5439,7 @@ contains
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
     else
-       antot=0.
+       call zero_array(antot)
     end if
 
     if (fapar > epsilon(0.0)) then
@@ -5459,7 +5460,7 @@ contains
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     else
-       antota=0.
+       call zero_array(antota)
     end if
 
     if (fbpar > epsilon(0.0)) then
@@ -5480,7 +5481,7 @@ contains
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     else
-       antotp=0.
+       call zero_array(antotp)
     end if
 
     call prof_leaving ("getan_from_dfn", "dist_fn")
