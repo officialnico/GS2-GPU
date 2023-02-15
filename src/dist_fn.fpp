@@ -6895,10 +6895,6 @@ contains
 
     local_gf_lo = get_option_with_default(gf_lo, .false.)
 
-    call zero_array(phi)
-    call zero_array(apar)
-    call zero_array(bpar)
-
     if(local_gf_lo) then
        call getan_nogath_from_dfn (g_in, antot, antota, antotp)
     else
@@ -6943,7 +6939,6 @@ contains
           !$OMP END PARALLEL DO
 
           call copy(gamtot, denominator)
-
        end if
 
        !$OMP PARALLEL DO DEFAULT(shared) &
@@ -6954,14 +6949,18 @@ contains
              do ig = -ntgrid, ntgrid
                 !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
                 !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator. Just skip setting field here as we have
-                !already zeroed the entire array.
-                if (abs(denominator(ig, it, ik)) < epsilon(0.0)) cycle
-                phi(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                !not have a zero denominator.
+                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
+                   phi(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                else
+                   phi(ig, it, ik) = 0.0
+                end if
              end do
           end do
        end do
        !$OMP END PARALLEL DO
+    else
+       call zero_array(phi)
     end if
 
     ! get apar
@@ -6974,14 +6973,18 @@ contains
              do ig = -ntgrid, ntgrid
                 !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
                 !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator. Just skip setting field here as we have
-                !already zeroed the entire array.
-                if (abs(kperp2(ig, it, ik)) < epsilon(0.0)) cycle
-                apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+                !not have a zero denominator.
+                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+                else
+                   apar(ig, it, ik) = 0.0
+                end if
              end do
           end do
        end do
        !$OMP END PARALLEL DO
+    else
+       call zero_array(apar)
     end if
 
     ! get bpar
@@ -7024,14 +7027,18 @@ contains
              do ig = -ntgrid, ntgrid
                 !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
                 !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator. Just skip setting field here as we have
-                !already zeroed the entire array.
-                if (abs(denominator(ig, it, ik)) < epsilon(0.0)) cycle
-                bpar(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                !not have a zero denominator.
+                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
+                   bpar(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                else
+                   bpar(ig, it, ik) = 0.0
+                end if
              end do
           end do
        end do
        !$OMP END PARALLEL DO
+    else
+       call zero_array(bpar)
     end if
   end subroutine get_fields_direct_from_dfn
 
