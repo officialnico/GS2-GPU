@@ -6849,6 +6849,8 @@ contains
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
+    use array_utils, only: zero_array, copy
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
@@ -6856,75 +6858,106 @@ contains
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
-    real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: bmagsp
     complex, dimension (ntheta0,naky) :: fl_avg
-    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: fl_avg_sp
     logical :: local_gf_lo
+    integer :: it, ik, ig
 
-    if(present(gf_lo)) then
-       local_gf_lo = gf_lo
-    else
-       local_gf_lo = .false.
-    end if
+    local_gf_lo = get_option_with_default(gf_lo, .false.)
 
+    call zero_array(phi)
+    call zero_array(apar)
+    call zero_array(bpar)
+    call zero_array(antot)
+    call zero_array(antota)
+    call zero_array(antotp)
 
-    phi=0. ; apar=0. ; bpar=0.
-    antot=0.0 ; antota=0.0 ; antotp=0.0
-!CMR, 1/8/2011:  bmagsp is 3D array containing bmag
-    bmagsp=spread(spread(bmag,2,ntheta0),3,naky)
     if(local_gf_lo) then
        call getan_nogath_from_dfn (g_in, antot, antota, antotp)
     else
        call getan_from_dfn (g_in, antot, antota, antotp)
     end if
 
+    ! This is a constant so should perhaps be calculated once during
+    ! initialisiation.
     fl_avg = 0.0
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
       call calculate_flux_surface_average(fl_avg,antot)
     end if
-    fl_avg_sp(-ntgrid:ntgrid,:,:) = spread(fl_avg,1,2*ntgrid+1)
 
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here:
-!BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
+       !CMR, 1/8/2011:  bmag corrections here:
+       !BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
        if (fbpar > epsilon(0.0)) then
-          numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
-          denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                numerator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * (antot(:, it, ik)+fl_avg) - (beta * gamtot1(:, it, ik)) * antotp(:, it, ik)
+                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * gamtot(:, it, ik) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        else
           ! If fbpar = 0 then the terms in earlier branch proportional to beta
           ! should be zero as these terms arrive from the bpar parts of quasineutrality
           ! as expressed in terms of gnew. In this case we get the below.
-          numerator = antot+fl_avg_sp
-          denominator = gamtot
-       end if
-       
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
-          !for example a simulation with beta=0.0 and an adiabatic species does
-          !not have a zero denominator.
-          phi = 0.0
-       elsewhere
-          phi = numerator / denominator
-       end where
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                numerator = antot(:, it, ik)+fl_avg
+             end do
+          end do
+          !$OMP END PARALLEL DO
 
+          call copy(gamtot, denominator)
+
+       end if
+
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator. Just skip setting field here as we have
+                !already zeroed the entire array.
+                if (abs(denominator(ig, it, ik)) < epsilon(0.0)) cycle
+                phi(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     ! get apar
     if (fapar > epsilon(0.0)) then
-       denominator = kperp2
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          apar = 0.0
-       elsewhere
-          apar = antota / denominator
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator. Just skip setting field here as we have
+                !already zeroed the entire array.
+                if (abs(kperp2(ig, it, ik)) < epsilon(0.0)) cycle
+                apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     ! get bpar
     if (fbpar > epsilon(0.0)) then
-!CMR>  bmag corrections here
-
        ! As in our calculation of phi, we see that the equations for
        ! bpar and phi are coupled when written in terms of gnew. This
        ! means we get contributions arising from phi in the expression
@@ -6932,18 +6965,45 @@ contains
        ! gamtot1. However, if we have disabled phi then they should
        ! not appear in our calculation, so handle that here.
        if (fphi > epsilon(0.0)) then
-          numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
-          denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                numerator(:, it, ik) = - (beta * gamtot(:, it, ik)) * antotp(:, it, ik) - (beta/2.0) * gamtot1(:, it, ik) * antot(:, it, ik)
+                denominator(:, it, ik) = gamtot(:, it, ik) * (beta * gamtot2(:, it, ik) + bmag**2) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        else
-          numerator = - beta * antotp
-          denominator = (beta * gamtot2 + bmagsp**2)
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                numerator(:, it, ik) = - beta * antotp(:, it, ik)
+                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        end if
 
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          bpar = 0.0
-       elsewhere
-          bpar = numerator / denominator
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator. Just skip setting field here as we have
+                !already zeroed the entire array.
+                if (abs(denominator(ig, it, ik)) < epsilon(0.0)) cycle
+                bpar(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
   end subroutine get_fields_direct_from_dfn
 
