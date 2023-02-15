@@ -6256,7 +6256,7 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       call zero_array(bpar)
+       call zero_array(fieldeqp)
     end if
   end subroutine getfieldeq1
 
