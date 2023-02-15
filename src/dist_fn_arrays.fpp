@@ -10,13 +10,13 @@ module dist_fn_arrays
 
   private
 
-  public :: g, gnew, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
+  public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
   public :: vperp2, vpar, ittp, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
-  public :: g_adjust, check_g_bouncepoints
+  public :: g_adjust, check_g_bouncepoints, set_h_zero
 #ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
@@ -24,6 +24,12 @@ module dist_fn_arrays
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
+
+#ifndef SHMEM
+  complex, dimension (:,:,:), allocatable :: g_work
+#else
+  complex, dimension (:,:,:), allocatable, target :: g_work
+#endif
 
 #ifndef SHMEM
   complex, dimension (:,:,:), allocatable :: gexp_1, gexp_2, gexp_3
@@ -65,17 +71,17 @@ module dist_fn_arrays
 contains
 
   !> g_adjust transforms between representations of perturbed dist'n func'n.
-  !!    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
-  !!        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
-  !! For numerical convenience the GS2 variable g uses the form g_gs2.
-  !! g_wesson (see Wesson's book, Tokamaks) is often a more convenient form:
-  !!     e.g. for handling collisions, calculating v-space moments in real space.
-  !!
-  !! To transform gnew from g_gs2 to g_wesson form:
-  !!    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-  !! or transform from gnew from g_wesson to g_gs2 form:
-  !!    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-  !! CMR, 17/4/2012: 
+  !>    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
+  !>        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
+  !> For numerical convenience the GS2 variable g uses the form g_gs2.
+  !> g_wesson (see Wesson's book, Tokamaks) is often a more convenient form:
+  !>     e.g. for handling collisions, calculating v-space moments in real space.
+  !>
+  !> To transform gnew from g_gs2 to g_wesson form:
+  !>    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+  !> or transform from gnew from g_wesson to g_gs2 form:
+  !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+  !> CMR, 17/4/2012:
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
@@ -88,30 +94,45 @@ contains
 
     integer :: iglo, ig, ik, it, ie, is, il
     complex :: adj
-    logical :: trapped=.false.
+    logical :: trapped
+    logical :: with_bpar, with_phi
+    real :: phi_factor, bpar_factor
+
+    trapped = .false.
 
     if (minval(jend) .gt. ng2) trapped=.true.
+
+    with_bpar = facbpar /= 0
+    with_phi = facphi /= 0
+
+    phi_factor = 0.0
+
+    if (with_bpar) then
+       bpar_factor = 2.0*facbpar
+    else
+       bpar_factor = 0.0
+    end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
-       ie = ie_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
 
-       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of 
+       if (with_phi) then
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+       end if
+
+       ! BD:  bpar == delta B_parallel / B_0(theta) so no extra factor of
        ! 1/bmag is needed here.
        do ig = -ntgrid, ntgrid
-          !<DD>Don't adjust in the forbidden region as we don't set g/h here
-!CMR, 13/10/2014: attempting minor reduction in memory bandwidth by replacing 
-!         if( forbid(ig,il) ) cycle with 
-!         if ( trapped .and. il > jend(ig))
-          if ( trapped .and. il > jend(ig)) cycle 
+          ! Avoid adjusting in the forbidden region
+          if ( trapped .and. il > jend(ig)) cycle
 
-          adj = 2.0*vperp2(ig,iglo)*aj1(ig,iglo) &
-               *bpar(ig,it,ik)*facbpar &
-               + spec(is)%zt*phi(ig,it,ik)*aj0(ig,iglo) &
-               *facphi*nonmaxw_corr(ie,is)
+          adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
+               + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)
+
           g(ig,1,iglo) = g(ig,1,iglo) + adj
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
@@ -166,4 +187,58 @@ contains
     write(6,fmt='(5i6,1pe12.4)')ik,it,il,ie,is,err
     write(6,*) "-----"
   end subroutine check_g_bouncepoints
+
+  !> Assign $g$ a value corresponding to $h$ (g_wesson of CMR's note
+  !> in [[dist_fn_arrays:g_adjust]]) of $h = 0$ in order to be
+  !> consistent with g_adjust. The correct function call to set h = 0
+  !> is call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
+  !>
+  !> @note This looks like the g_adjust loop kernel, we might be able
+  !> to combine these in some way to avoid duplication.
+  subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
+    use species, only: spec, nonmaxw_corr
+    use theta_grid, only: ntgrid
+    use le_grids, only: is_passing_hybrid_electron
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    implicit none
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
+    complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar
+    real, intent (in) :: facphi, facbpar
+    integer, intent (in) :: iglo
+    integer :: ig, ik, it, ie, is, il
+    complex :: adj
+    real :: phi_factor, bpar_factor
+
+    ! Skip non hybrid electrons
+    is = is_idx(g_lo,iglo)
+    ! Skip zonal modes
+    ik = ik_idx(g_lo,iglo)
+    ! Skip trapped particles
+    il = il_idx(g_lo,iglo)
+    if (.not. is_passing_hybrid_electron(is, ik, il)) return
+    
+    it = it_idx(g_lo,iglo)
+    ie = ie_idx(g_lo,iglo)
+
+    if (facphi /= 0) then
+       phi_factor = spec(is)%zt*nonmaxw_corr(ie,is)*facphi
+    else
+       phi_factor = 0.0
+    end if
+
+    if (facbpar /= 0) then
+       bpar_factor = 2.0*facbpar
+    else
+       bpar_factor = 0.0
+    end if
+    
+    do ig = -ntgrid, ntgrid
+       adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
+            + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)
+       g(ig, 1, iglo) = adj
+       g(ig, 2, iglo) = adj
+    end do
+
+  end subroutine set_h_zero
+
 end module dist_fn_arrays

@@ -120,7 +120,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_transforms &
        (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accelerated)
-    use mp, only: nproc, proc0
+    use mp, only: nproc, iproc, proc0, mp_abort
     use gs2_layouts, only: init_gs2_layouts
     use gs2_layouts, only: pe_layout, init_accel_transform_layouts
     use gs2_layouts, only: init_y_transform_layouts
@@ -141,6 +141,12 @@ contains
     if (initialized) return
     initialized = .true.
 
+    ! If either nx or ny are zero then we cannot setup the transforms so
+    ! detect this and abort with a helpful message
+    if (nx == 0 .or. ny == 0) then
+       call mp_abort("Trying to initialise gs2 transforms but nx and / or ny are zero. Did you remember to set `grid_option = 'box'` in `kt_grids_knobs`?", .true.)
+    end if
+
     if (debug) write (*,*) 'init_transforms: init_gs2_layouts'
     call init_gs2_layouts
 
@@ -156,7 +162,7 @@ contains
 #endif
        accel = .true.
        if (debug) write (*,*) 'init_transforms: init_gs2_layouts (accel)'
-       call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+       call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     else
        !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
        !Could automate selection, though above condition is only fairly rough
@@ -166,9 +172,9 @@ contains
 
     ! need these for movies
     if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
-    call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+    call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
-    call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+    call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
     
     if (debug) write (*,*) 'init_transforms: init_y_fft'
     call init_y_fft (ntgrid)
@@ -483,9 +489,9 @@ contains
 
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the xxf_lo decomposition.
-  subroutine init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    use gs2_layouts, only: init_x_transform_layouts
-    use gs2_layouts, only: g_lo, xxf_lo, gidx2xxfidx, proc_id, idx_local
+  type(redist_type) function setup_x_redist_local(g_lo, xxf_lo) result(g2x)
+    use layouts_type, only: g_layout_type, xxf_layout_type
+    use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
     use mp, only: nproc
@@ -493,23 +499,15 @@ contains
     use redistribute, only: set_redist_character_type, set_xxf_optimised_variables
     use sorting, only: quicksort
     implicit none
+    type(g_layout_type), intent(in) :: g_lo
+    type(xxf_layout_type), intent(in) :: xxf_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
     integer, dimension (2) :: to_high
     integer :: to_low
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
-
     integer :: iglo, isign, ig, it, ixxf, it0
-    integer :: n, ip
-
-    !Early exit if possible
-    if (initialized_x_redist) return
-    initialized_x_redist = .true.
-
-    !Setup the xxf_lo layout object
-    call init_x_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+    integer :: n, ip, il, ik, ie, is
 
     ! count number of elements to be redistributed to/from each processor
     nn_to = 0
@@ -527,15 +525,24 @@ contains
     !Protect against procs with no data
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo = g_lo%llim_proc, g_lo%ulim_alloc
+          il = il_idx(g_lo, iglo)
+
           !Convert iglo,isign=1,ig=-ntgrid into ixxf
-          ixxf=idx(xxf_lo,-ntgrid,1,ik_idx(g_lo,iglo),&
-               il_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          ixxf=idx(xxf_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo),&
+               il, ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Now loop over other local dimensions
           do isign = 1, 2
-             do ig = -ntgrid, ntgrid
-                !Increase the data send count for the proc which has the ixxf
-                nn_from(proc_id(xxf_lo,ixxf))=nn_from(proc_id(xxf_lo,ixxf))+1
+             do ig = -g_lo%ntgrid, g_lo%ntgrid
+                ip = proc_id(xxf_lo, ixxf)
+
+                ! Don't send data from forbidden region, unless it is going to
+                ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+                ! based methods.
+                if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
+                   !Increase the data send count for the proc which has the ixxf
+                   nn_from(ip)=nn_from(ip)+1
+                end if
 
                 !Increase ixxf using knowledge of the xxf_lo layout
                 ixxf=ixxf+xxf_lo%naky
@@ -551,12 +558,23 @@ contains
           !Could split it (or x) domain into two parts to account for
           !difference in it (or x) meaning and order in g_lo and xxf_lo
           !but only interested in how much data we receive and not the
-          !exact indices (yet) so just do 1-->ntheta0 (this is how many 
+          !exact indices (yet) so just do 1-->ntheta0 (this is how many
           !non-zero x's?)
-          do it=1,g_lo%ntheta0
+          ik = ik_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+          ie = ie_idx(xxf_lo, ixxf)
+          is = is_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
+          do it=1,xxf_lo%ntheta0
              !Convert ixxf,it indices into iglo, ig and isign indices
-             iglo=idx(g_lo,ik_idx(xxf_lo,ixxf),it,il_idx(xxf_lo,ixxf),&
-                  ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
+             iglo=idx(g_lo, ik, it, il, ie, is)
+
+             ip = proc_id(g_lo, iglo)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
 
              !Increase the data to receive count for proc with this data
              !Note, we only worry about iglo and not isign/ig because we know that
@@ -591,24 +609,28 @@ contains
     !Protect against procs with no data
     if(g_lo%ulim_proc.ge.g_lo%llim_proc)then
        do iglo=g_lo%llim_proc, g_lo%ulim_alloc
+          il = il_idx(g_lo, iglo)
+
           !Convert iglo,isign=1,ig=-ntgrid into ixxf
-          ixxf=idx(xxf_lo,-ntgrid,1,ik_idx(g_lo,iglo),&
-               il_idx(g_lo,iglo),ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+          ixxf=idx(xxf_lo,-g_lo%ntgrid,1,ik_idx(g_lo,iglo),&
+               il, ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
 
           !Now loop over other local dimensions
           do isign = 1, 2
-             do ig = -ntgrid, ntgrid
+             do ig = -g_lo%ntgrid, g_lo%ntgrid
                 !Get proc id
                 ip=proc_id(xxf_lo,ixxf)
+                if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
 
-                !Increment procs message counter
-                n=nn_from(ip)+1
-                nn_from(ip)=n
+                   !Increment procs message counter
+                   n=nn_from(ip)+1
+                   nn_from(ip)=n
 
-                !Store indices
-                from_list(ip)%first(n) = ig
-                from_list(ip)%second(n) = isign
-                from_list(ip)%third(n) = iglo
+                   !Store indices
+                   from_list(ip)%first(n) = ig
+                   from_list(ip)%second(n) = isign
+                   from_list(ip)%third(n) = iglo
+                end if
 
                 !We could send this information, transformed to the xxf layout to the proc.
 
@@ -623,11 +645,15 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf = xxf_lo%llim_proc, xxf_lo%ulim_alloc
-          !Get ig and isign indices
-          ig=ig_idx(xxf_lo,ixxf)
+          !Get indices
           isign=isign_idx(xxf_lo,ixxf)
+          ik = ik_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+          ie = ie_idx(xxf_lo, ixxf)
+          is = is_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
 
-          !Loop over receiving "it" indices 
+          !Loop over receiving "it" indices
           do it=1,g_lo%ntheta0
              !Convert from g_lo%it to xxf_lo%it
              if(it>(xxf_lo%ntheta0+1)/2) then
@@ -637,11 +663,12 @@ contains
              endif
 
              !Convert ixxf,it indices into iglo indices
-             iglo=idx(g_lo,ik_idx(xxf_lo,ixxf),it,il_idx(xxf_lo,ixxf),&
-                  ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
+             iglo=idx(g_lo, ik, it, il, ie, is)
 
              !Get proc id which has this data
              ip=proc_id(g_lo,iglo)
+
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
 
              !Determine message position index
              n=nn_to(ip)+1
@@ -652,7 +679,7 @@ contains
              to_list(ip)%second(n)=ixxf
 
              !Store index for sorting
-             sort_list(ip)%first(n) = ig+ntgrid-1+xxf_lo%ntgridtotal*(isign-1+2*(iglo-g_lo%llim_world)) 
+             sort_list(ip)%first(n) = ig+g_lo%ntgrid-1+g_lo%ntgridtotal*(isign-1+2*(iglo-g_lo%llim_world))
           enddo
        enddo
     endif
@@ -667,7 +694,7 @@ contains
     enddo
 
     !Setup array range values
-    from_low (1) = -ntgrid
+    from_low (1) = -g_lo%ntgrid
     from_low (2) = 1
     from_low (3) = g_lo%llim_proc
 
@@ -676,13 +703,14 @@ contains
     to_high(1) = xxf_lo%nx
     to_high(2) = xxf_lo%ulim_alloc
 
-    from_high(1) = ntgrid
+    from_high(1) = g_lo%ntgrid
     from_high(2) = 2
     from_high(3) = g_lo%ulim_alloc
 
     call set_redist_character_type(g2x, 'g2x')
-    call set_xxf_optimised_variables(opt_local_copy, naky, ntgrid, ntheta0, &
-         nlambda, negrid, nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
+    call set_xxf_optimised_variables(opt_local_copy, xxf_lo%naky,  &
+         xxf_lo%ntgrid,  xxf_lo%ntheta0, xxf_lo%nlambda,  xxf_lo%negrid, &
+         xxf_lo%nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
 
     !Create g2x redistribute object
     call init_redist (g2x, 'c', to_low, to_high, to_list, &
@@ -693,42 +721,47 @@ contains
     call delete_list (from_list)
     call delete_list(sort_list)
 
+  end function setup_x_redist_local
+
+  !> Setup global xxf_lo and redistribute between global g_lo -> xxf_lo
+  subroutine init_x_redist_local(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+    use gs2_layouts, only: init_x_transform_layouts
+    use gs2_layouts, only: g_lo, xxf_lo
+    use mp, only: nproc, iproc
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
+
+    !Early exit if possible
+    if (initialized_x_redist) return
+    initialized_x_redist = .true.
+
+    !Setup the xxf_lo layout object
+    call init_x_transform_layouts &
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+
+    g2x = setup_x_redist_local(g_lo, xxf_lo)
   end subroutine init_x_redist_local
 
-  !> Constructs the redistribute mapping from the g_lo data
-  !> decomposition to the yxf_lo decomposition. Note this also
-  !> calls [[init_x_redist_local]] in order to setup the
-  !> mapping for g_lo to xxf_lo as well.
-  subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
-    use gs2_layouts, only: init_y_transform_layouts
-    use gs2_layouts, only: xxf_lo, yxf_lo, xxfidx2yxfidx, proc_id, idx_local
+  !> Constructs the redistribute mapping from the xxf_lo data
+  !> decomposition to the yxf_lo decomposition.
+  type(redist_type) function setup_y_redist_local(xxf_lo, yxf_lo) result(x2y)
+    use layouts_type, only: xxf_layout_type, yxf_layout_type
+    use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
     use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
     use redistribute, only: set_yxf_optimised_variables, set_redist_character_type
     use sorting, only: quicksort
     implicit none
+    type(xxf_layout_type), intent(in) :: xxf_lo
+    type(yxf_layout_type), intent(in) :: yxf_lo
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension (2) :: from_low, from_high, to_high
     integer :: to_low
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
-    integer, intent (in) :: nx, ny
-
     integer :: it, ixxf, ik, iyxf
     integer :: ixxf_start, iyxf_start
-    integer :: n, ip
-
-    !Early exit if possible
-    if (initialized_y_redist) return
-    initialized_y_redist = .true.
-
-    !Setup g_lo-->xxf_lo redist object first
-    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
-    !Setup the yxf layout object
-    call init_y_transform_layouts &
-         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+    integer :: n, ip, il, ig
 
     !Initialise counts to zero
     nn_to = 0
@@ -738,17 +771,26 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf=xxf_lo%llim_proc,xxf_lo%ulim_alloc
-          !Get iyxf index for "it"=1 
-          iyxf_start=idx(yxf_lo,ig_idx(xxf_lo,ixxf),&
-               isign_idx(xxf_lo,ixxf),1,il_idx(xxf_lo,ixxf),&
+          il = il_idx(xxf_lo, ixxf)
+          ig = ig_idx(xxf_lo, ixxf)
+
+          !Get iyxf index for "it"=1
+          iyxf_start=idx(yxf_lo, ig,&
+               isign_idx(xxf_lo,ixxf), 1, il,&
                ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
 
           !Loop over "it" range, note that we actually only want to know
           !iyxf in this range and we know that it-->it+1 => iyxf-->iyxf+1
           !so replace loop with one over iyxf
           do iyxf=iyxf_start,iyxf_start+yxf_lo%nx-1
+             ip = proc_id(yxf_lo, iyxf)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
              !Increase the appropriate procs send count
-             nn_from(proc_id(yxf_lo,iyxf))=nn_from(proc_id(yxf_lo,iyxf))+1
+             nn_from(ip)=nn_from(ip)+1
           enddo
        enddo
     endif
@@ -757,17 +799,26 @@ contains
     !Protect against procs with no data
     if(yxf_lo%ulim_proc.ge.yxf_lo%llim_proc)then
        do iyxf=yxf_lo%llim_proc,yxf_lo%ulim_alloc
-          !Get ixxf index for "ik"=1 
-          ixxf_start=idx(xxf_lo,ig_idx(yxf_lo,iyxf),&
-               isign_idx(yxf_lo,iyxf),1,il_idx(yxf_lo,iyxf),&
+          ig = ig_idx(yxf_lo, iyxf)
+          il = il_idx(yxf_lo, iyxf)
+          !Get ixxf index for "ik"=1
+          ixxf_start=idx(xxf_lo, ig,&
+               isign_idx(yxf_lo,iyxf), 1, il,&
                ie_idx(yxf_lo,iyxf),is_idx(yxf_lo,iyxf))
 
           !Loop over "ik" range, note that we actually only want to know
           !ixxf in this range and we know that ik-->ik+1 => ixxf-->ixxf+1
           !so replace loop with one over ixxf
           do ixxf=ixxf_start,ixxf_start+xxf_lo%naky-1
+             ip = proc_id(xxf_lo, ixxf)
+
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (point_is_forbidden_and_not_redistributed(ig, il, ip)) cycle
+
              !Increase the appropriate procs recv count
-             nn_to(proc_id(xxf_lo,ixxf))=nn_to(proc_id(xxf_lo,ixxf))+1
+             nn_to(ip) = nn_to(ip)+1
           enddo
        enddo
     endif
@@ -794,9 +845,12 @@ contains
     !Protect against procs with no data
     if(xxf_lo%ulim_proc.ge.xxf_lo%llim_proc)then
        do ixxf=xxf_lo%llim_proc,xxf_lo%ulim_alloc
+          ig = ig_idx(xxf_lo, ixxf)
+          il = il_idx(xxf_lo, ixxf)
+
           !Get iyxf for "it"=1
-          iyxf=idx(yxf_lo,ig_idx(xxf_lo,ixxf),&
-               isign_idx(xxf_lo,ixxf),1,il_idx(xxf_lo,ixxf),&
+          iyxf=idx(yxf_lo, ig,&
+               isign_idx(xxf_lo,ixxf), 1, il,&
                ie_idx(xxf_lo,ixxf),is_idx(xxf_lo,ixxf))
 
           !Now loop over other local dimension. Note we need "it" here
@@ -805,13 +859,18 @@ contains
              !Get the processor id
              ip=proc_id(yxf_lo,iyxf)
 
-             !Increment the procs message counter
-             n=nn_from(ip)+1
-             nn_from(ip)=n
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
+                !Increment the procs message counter
+                n=nn_from(ip)+1
+                nn_from(ip)=n
 
-             !Store indices
-             from_list(ip)%first(n)=it
-             from_list(ip)%second(n)=ixxf
+                !Store indices
+                from_list(ip)%first(n)=it
+                from_list(ip)%second(n)=ixxf
+             end if
 
              !Increment iyxf
              iyxf=iyxf+1
@@ -823,9 +882,12 @@ contains
     !Protect against procs with no data
     if(yxf_lo%ulim_proc.ge.yxf_lo%llim_proc)then
        do iyxf=yxf_lo%llim_proc,yxf_lo%ulim_alloc
+          ig = ig_idx(yxf_lo, iyxf)
+          il = il_idx(yxf_lo, iyxf)
+
           !Get ixxf for "ik"=1
-          ixxf=idx(xxf_lo,ig_idx(yxf_lo,iyxf),&
-               isign_idx(yxf_lo,iyxf),1,il_idx(yxf_lo,iyxf),&
+          ixxf=idx(xxf_lo, ig,&
+               isign_idx(yxf_lo,iyxf), 1, il,&
                ie_idx(yxf_lo,iyxf),is_idx(yxf_lo,iyxf))
 
           !Now loop over other local dimension. Note we need "ik" here
@@ -834,16 +896,22 @@ contains
              !Get the processor id
              ip=proc_id(xxf_lo,ixxf)
 
-             !Increment the procs message counter
-             n=nn_to(ip)+1
-             nn_to(ip)=n
+             ! Don't send data from forbidden region, unless it is going to
+             ! this processor (i.e. local copy) due to assumptions in opt_local_copy
+             ! based methods.
+             if (.not. point_is_forbidden_and_not_redistributed(ig, il, ip)) then
 
-             !Store indices
-             to_list(ip)%first(n)=ik
-             to_list(ip)%second(n)=iyxf
+                !Increment the procs message counter
+                n=nn_to(ip)+1
+                nn_to(ip)=n
 
-             !Store index for sorting
-             sort_list(ip)%first(n)=it_idx(yxf_lo,iyxf)+ixxf*yxf_lo%nx
+                !Store indices
+                to_list(ip)%first(n)=ik
+                to_list(ip)%second(n)=iyxf
+
+                !Store index for sorting
+                sort_list(ip)%first(n)=it_idx(yxf_lo,iyxf)+ixxf*yxf_lo%nx
+             end if
 
              !Increment ixxf
              ixxf=ixxf+1
@@ -869,7 +937,7 @@ contains
 
     to_high(1) = yxf_lo%ny/2+1
     to_high(2) = yxf_lo%ulim_alloc
-    
+
     from_high(1) = xxf_lo%nx
     from_high(2) = xxf_lo%ulim_alloc
 
@@ -884,7 +952,51 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
+  end function setup_y_redist_local
 
+  !> Small helper function to wrap up logic about if this point corresponds to a forbidden
+  !> point and if we need to transfer it in the redistribute
+  pure logical function point_is_forbidden_and_not_redistributed(ig, il, ip) result(flag)
+    use mp, only: iproc
+    use le_grids, only: forbid
+    use gs2_layouts, only: opt_local_copy
+    implicit none
+    integer, intent(in) :: ig, il, ip
+    !> The following is for debug/testing to force all grid
+    !> points to be communicated if we wish.
+    logical, parameter :: skip_forbidden_region = .true.
+    flag = &
+         !We want to skip the forbidden points
+         skip_forbidden_region .and. &
+         !Point is in forbidden region
+         forbid(ig, il) &
+         !Point will be sent to a different proc, or we are not using opt_local_copy.
+         .and. ((ip/=iproc) .or. .not. opt_local_copy)
+  end function point_is_forbidden_and_not_redistributed
+
+  !> Setup the module level xxf -> yxf redistribute. Note this also
+  !> calls [[init_x_redist_local]] in order to setup the mapping for
+  !> g_lo to xxf_lo as well.
+  subroutine init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+    use gs2_layouts, only: init_y_transform_layouts
+    use gs2_layouts, only: xxf_lo, yxf_lo
+    use mp, only: nproc, iproc
+    implicit none
+    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
+    integer, intent (in) :: nx, ny
+
+    !Early exit if possible
+    if (initialized_y_redist) return
+    initialized_y_redist = .true.
+
+    !Setup g_lo-->xxf_lo redist object first
+    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+
+    !Setup the yxf layout object
+    call init_y_transform_layouts &
+         (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+
+    x2y = setup_y_redist_local(xxf_lo, yxf_lo)
   end subroutine init_y_redist_local
 
   !> FIXME : Add documentation
@@ -892,6 +1004,8 @@ contains
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -921,10 +1035,14 @@ contains
     i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
     allocate (aux(xf_fft%n))
+    call time_message(.false., time_fft, ' FFT')
     call fftw_f77 (xf_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
+    call time_message(.false., time_fft, ' FFT')
     deallocate (aux)
 # elif FFT == _FFTW3_
-    call FFTW_PREFIX(_execute)(xf_fft%plan)
+    call time_message(.false., time_fft, ' FFT')
+    call FFTW_PREFIX(_execute_dft)(xf_fft%plan, xxf, xxf)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call prof_leaving ("transform_x5d", "gs2_transforms")
@@ -935,6 +1053,8 @@ contains
     use gs2_layouts, only: xxf_lo, g_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in out) :: xxf
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
@@ -957,10 +1077,14 @@ contains
     i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
     allocate (aux(xb_fft%n))
+    call time_message(.false., time_fft, ' FFT')
     call fftw_f77 (xb_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
+    call time_message(.false., time_fft, ' FFT')
     deallocate (aux)
 # elif FFT == _FFTW3_
-    call FFTW_PREFIX(_execute)(xb_fft%plan)
+    call time_message(.false., time_fft, ' FFT')
+    call FFTW_PREFIX(_execute_dft)(xb_fft%plan, xxf, xxf)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call scatter (g2x, xxf, g)
@@ -973,6 +1097,8 @@ contains
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
@@ -1002,10 +1128,13 @@ contains
     !JH to be yxf_lo%llim_proc in this situation, and that will give 
     !JH 1 FFT to be calculated which the code can correctly undertake.
     i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+    call time_message(.false., time_fft, ' FFT')
     call rfftwnd_f77_complex_to_real (yf_fft%plan, i, fft, 1, yxf_lo%ny/2+1, yxf, 1, yxf_lo%ny)
+    call time_message(.false., time_fft, ' FFT')
 # elif FFT == _FFTW3_
-
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_c2r) (yf_fft%plan, fft, yxf)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call prof_leaving ("transform_y5d", "gs2_transforms")
@@ -1016,6 +1145,8 @@ contains
     use gs2_layouts, only: xxf_lo, yxf_lo
     use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -1035,9 +1166,13 @@ contains
     !JH to be yxf_lo%llim_proc in this situation, and that will give 
     !JH 1 FFT to be calculated which the code can correctly undertake.
     i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+    call time_message(.false., time_fft, ' FFT')
     call rfftwnd_f77_real_to_complex (yb_fft%plan, i, yxf, 1, yxf_lo%ny, fft, 1, yxf_lo%ny/2+1)
+    call time_message(.false., time_fft, ' FFT')
 # elif FFT == _FFTW3_
+    call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_r2c) (yb_fft%plan, yxf, fft)
+    call time_message(.false., time_fft, ' FFT')
 # endif
 
     call scatter (x2y, fft, xxf)
@@ -1111,6 +1246,8 @@ contains
   subroutine transform2_5d_accel (g, axf, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
     use unit_tests, only: debug_message
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_get_node_pointer, shm_node_barrier, shm_fence
 #endif
@@ -1241,6 +1378,7 @@ contains
     i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
     idx = 1
+    call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_proc, accel_lo%ulim_proc, accel_lo%nxnky
 # if FFT == _FFTW_
        call rfftwnd_f77_complex_to_real (yf_fft%plan, i, ag(:,:,k:), i, 1, &
@@ -1252,7 +1390,7 @@ contains
 # endif
        idx = idx + 1
     end do
-
+    call time_message(.false., time_fft, ' FFT')
 #else
     ! in the following the ranks operate on other data ranges
     call shm_node_barrier
@@ -1264,6 +1402,7 @@ contains
     else
        idx = 1
     endif
+    call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_node, accel_lo%ulim_node, accel_lo%nxnky
        if (use_shm_2d_plan) then
           kk = k + shm_info%id * accel_lo%nxnky
@@ -1283,7 +1422,7 @@ contains
        endif
     end do
     call shm_node_barrier
-
+    call time_message(.false., time_fft, ' FFT')
   contains
 
 # if FFT == _FFTW3_
@@ -1394,6 +1533,8 @@ contains
   !> FIXME : Add documentation
   subroutine inverse2_5d_accel (axf, g, i)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_get_node_pointer, shm_node_barrier, shm_fence
 #endif
@@ -1417,6 +1558,7 @@ contains
 #ifndef SHMEM
     ! transform
     idx = 1
+    call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_proc, accelx_lo%ulim_proc, accelx_lo%nxny
 # if FFT == _FFTW_
        call rfftwnd_f77_real_to_complex (yb_fft%plan, i, axf(:,:,k:), i, 1, &
@@ -1427,6 +1569,7 @@ contains
 # endif
        idx = idx + 1
     end do
+    call time_message(.false., time_fft, ' FFT')
 
     idx = g_lo%llim_proc
     do k = accel_lo%llim_proc, accel_lo%ulim_proc
@@ -1480,6 +1623,7 @@ contains
     else
        idx = 1
     endif
+    call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_node, accelx_lo%ulim_node, accelx_lo%nxny
        if (use_shm_2d_plan) then
           kk = k + shm_info%id * accelx_lo%nxny
@@ -1501,6 +1645,7 @@ contains
 
     ! see comment from _accel
     call shm_node_barrier
+    call time_message(.false., time_fft, ' FFT')
 
     if(firsttime)then
        firsttime=.false.
@@ -1687,6 +1832,8 @@ contains
   subroutine transform2_3d (phi, phixf, nny, nnx)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -1722,11 +1869,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     do it=1,nnx
        do ik=1,nny
@@ -1742,10 +1891,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine inverse2_3d (phixf, phi, nny, nnx)
-    !CMR, 30/4/2010:  
+    !CMR, 30/4/2010:
     ! Fixed up previously buggy handling of dealiasing.
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, dimension (:,:,-ntgrid:), intent(in) :: phixf
     complex, dimension (-ntgrid:,:,:), intent(out) :: phi
@@ -1768,11 +1919,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf3d_rc%plan, i, phix, i, 1, aphi, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf3d_rc%plan, phix, aphi)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     ! dealias and scale
     do it=1,(ntheta0+1)/2
@@ -1806,6 +1959,8 @@ contains
   subroutine transform2_2d (phi, phixf, nny, nnx)
     use fft_work, only: FFTW_BACKWARD, delete_fft, init_crfftw
     use kt_grids, only: naky, nakx => ntheta0, nx, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, intent (in) :: phi(:,:)
@@ -1846,11 +2001,13 @@ contains
     end do
 
     ! transform
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf2d%plan, 1, aphi, 1, 1, phix, 1, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf2d%plan, aphi, phix)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     phixf(:,:)=transpose(phix(:,:))
 
@@ -1865,6 +2022,8 @@ contains
   subroutine inverse2_2d (phixf, phi, nny, nnx)
     use fft_work, only: FFTW_FORWARD, delete_fft, init_rcfftw
     use kt_grids, only: naky, nakx => ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     real, intent(in) :: phixf(:,:)
     complex, intent(out) :: phi(:,:)
@@ -1895,11 +2054,13 @@ contains
     phix(:,:)=transpose(phixf(:,:))
 
     ! transform
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_real_to_complex (xf2d%plan, 1, phix, 1, 1, aphi, 1, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf2d%plan, phix, aphi)
 # endif
+    call time_message(.false., time_fft, ' FFT')
 
     ! scale, dealias and transpose
     do it=1,nakx
@@ -1926,6 +2087,8 @@ contains
     !     anyone who uses this routine should be aware of/fix this!
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
     implicit none
     integer, intent(in) :: nnx, nny
     complex, dimension (-ntgrid:,:,:,:), intent (in) :: den
@@ -1961,12 +2124,13 @@ contains
 
     ! transform
     i = 2*ntgrid+1
+    call time_message(.false., time_fft, ' FFT')
 # if FFT == _FFTW_
     call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
 # endif
-
+    call time_message(.false., time_fft, ' FFT')
     do it=1,nnx
        do ik=1,nny
           do ig=-ntgrid, ntgrid
@@ -1999,17 +2163,20 @@ contains
 
   !> FIXME : Add documentation        
   subroutine kz_spectrum (an, an2)
+    use job_manage, only: time_message
+    use fft_work, only: time_fft
 # if FFT == _FFTW_
     use kt_grids, only: naky, ntheta0
 # endif
     complex, dimension (:,:,:), intent(in)  :: an
     complex, dimension (:,:,:), intent(out) :: an2
-
-# if FFT == _FFTW_    
+    call time_message(.false., time_fft, ' FFT')
+# if FFT == _FFTW_
     call fftw_f77 (zf_fft%plan, ntheta0*naky, an, 1, zf_fft%n+1, an2, 1, zf_fft%n+1)
 # elif FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft)(zf_fft%plan, an, an2)
 # endif
+    call time_message(.false., time_fft, ' FFT')
     an2 = conjg(an2)*an2
 
   end subroutine kz_spectrum

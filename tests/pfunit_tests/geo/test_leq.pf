@@ -408,7 +408,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -440,7 +442,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -476,7 +480,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -511,7 +517,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -548,7 +556,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -584,7 +594,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -621,7 +633,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -657,7 +671,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -693,7 +709,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -728,7 +746,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -766,7 +786,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=triangularity_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -803,7 +825,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=triangularity_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -839,7 +863,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -874,7 +900,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -906,7 +934,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -938,7 +968,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -976,7 +1008,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1015,7 +1049,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1055,7 +1091,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1095,7 +1133,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1136,7 +1176,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1177,7 +1219,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1211,7 +1255,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1244,7 +1290,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1282,7 +1330,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1321,7 +1371,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1361,7 +1413,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1401,7 +1455,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1442,7 +1498,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     R_answer_interpolated = interpolate(R_answer, theta_ellipse, theta)
@@ -1483,7 +1541,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=elongation_rotation, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=2, nMode=0)
+       mMode=2, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     Z_answer = [ (Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     Z_answer_interpolated = interpolate(Z_answer, theta_ellipse, theta)
@@ -1528,7 +1588,9 @@ contains
        delmp=m_derivative, delnp=n_derivative, &
        thm=m_rotation, thn=n_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=m_mode, nMode=n_mode)
+       mMode=m_mode, nMode=n_mode, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_first = [ (Rpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
     Z_first = [ (Zpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
@@ -1541,7 +1603,9 @@ contains
        delmp=n_derivative, delnp=m_derivative, &
        thm=n_rotation, thn=m_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=n_mode, nMode=m_mode)
+       mMode=n_mode, nMode=m_mode, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_second = [ (Rpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
     Z_second = [ (Zpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
@@ -1587,7 +1651,9 @@ contains
        delmp=m_derivative, delnp=n_derivative, &
        thm=m_rotation, thn=n_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=m_mode, nMode=n_mode)
+       mMode=m_mode, nMode=n_mode, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_first = [ (Rpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
     Z_first = [ (Zpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
@@ -1600,7 +1666,9 @@ contains
        delmp=n_derivative, delnp=m_derivative, &
        thm=n_rotation, thn=m_rotation, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=n_mode, nMode=m_mode)
+       mMode=n_mode, nMode=m_mode, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_second = [ (Rpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
     Z_second = [ (Zpos(minor_radius_evaluation, theta(i)), i=1, ntheta) ]
@@ -1634,7 +1702,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
 
@@ -1666,7 +1736,9 @@ contains
        delmp=0.0, delnp=0.0, &
        thm=0.0, thn=0.0, &
        q=0.0, shat=0.0, nt=16, &
-       mMode=0, nMode=0)
+       mMode=0, nMode=0, &
+       thetaShift_in = 0., beta_0_in = 0. &
+       )
 
     R_answer = [ (invR(minor_radius, theta(i)), i=1, ntheta) ]
 

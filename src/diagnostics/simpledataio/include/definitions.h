@@ -10,7 +10,7 @@ typedef int MPI_Comm;
 typedef int MPI_Fint;
 #endif
 #include <netcdf.h>
-#ifdef PARALLEL 
+#ifdef SIMPLEDATAIO_HAS_PARALLEL_NETCDF
 #include "netcdf_par.h"
 #endif
 

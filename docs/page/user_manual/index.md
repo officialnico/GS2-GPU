@@ -165,9 +165,8 @@ The following is the full list of switches the possible options in
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
  - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
- - `USE_HDF5` (defined [undefined]): uses HDF5 library or not
+ - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
- - `USE_POSIX` (defined [undefined]): uses posix routines for argument processing
  - `USE_LOCAL_RAN` (`mt` [undefined]): uses local random number generator
  - `USE_LOCAL_SPFUNC` (defined [undefined]): use local special functions (this overrides
    compiler's intrinsic special functions and NAG library's)
@@ -226,9 +225,6 @@ might expect).
 |                 |               |                                                  |
 | `NETCDF`        | `_NONE_`      | Do not use NetCDF                                |
 |                 |               | Use of -DNETCDF makes netcdf work.               |
-|                 |               |                                                  |
-| `HDF`           | `_NONE_`      | Do not use HDF5                                  |
-|                 |               | Use of -DHDF makes hdf work.                     |
 |                 |               |                                                  |
 | `NO_SIZEOF`     | `_NONE_`      | This is for memory accounting.                   |
 |                 |               | In most compilers, non-standard sizeof function  |
@@ -352,6 +348,58 @@ probably want to issue a command like
 where `nprocs` is the number of processors. If you are running on an HPC system, you will
 need to consult their own manuals.
 
+Restarting a simulation
+-----------------------
+
+By default, GS2 doesn't create the files needed to restart a simulation, as they can get
+very large. In order to create them, you must first set the input variable
+[gs2_diagnostics_knobs::save_for_restart][save_for_restart] to `T` (or `.true.`) in your
+input file:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    save_for_restart = T
+/
+```
+
+This will create one restart file per processor named like `<your input filename>.nc.<N>`
+where `<N>` is the processor rank. There are two other inputs you can use to control where
+these restart files get created and how they're named:
+
+- you can use [init_g_knobs::restart_file][restart_file_option] to change the "base name"
+  of the restart files. By default, this is the same as the input filename.
+- you can change the directory where the restart files are created with
+  [init_g_knobs::restart_dir][restart_dir_option]. `restart_dir` defaults to the directory
+  where you run `gs2`. If you set this option, it's important to create the directory
+  first, as GS2 won't do this for you. You can turn on
+  [gs2_diagnostics_knobs::file_safety_check][file_safety_check_option] (default is on) to
+  check during initialisation that `restart_dir` exists and that GS2 can write to the
+  directory.
+
+To then restart a simulation, set the following input variables:
+
+- [knobs::delt_option][delt_option] to `check_restart`
+- [init_g_knobs::ginit_option][ginit_option] to `restart`
+
+``` Fortran
+&knobs
+    delt_option = "check_restart"
+/
+&init_g_knobs
+    ginit_option = "restart"
+/
+```
+
+Important: by default, GS2 will overwrite existing output files! You may wish to backup
+these files before restarting the simulation. It is possible to get GS2 to append the
+output to the existing files with [gs2_diagnostics_knobs::append_old][append_old]:
+
+``` Fortran
+&gs2_diagnostics_knobs
+    append_old = T
+/
+```
+
 Analysing the Results
 ---------------------
 
@@ -387,10 +435,18 @@ reproduce, before going on to explore new territory.
 Good luck!
 
 [newissue]: https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open
-[readme]: https://bitbucket.org/gyrokinetics/gs2/src/6fbd2a6bc6ac5e5be0e0737f1860a0e0f78026ed/README.md?at=master&fileviewer=file-view-default
+[readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/README.md
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
-[results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
+[results_diagnostics]: results_diagnostics.html
+[append_old]: ../namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: ../namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: ../namelists/index.html#knobs-delt_option
+[ginit_option]: ../namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: ../namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: ../namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: ../namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: ../namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->

@@ -23,7 +23,8 @@ if __name__ == "__main__":
     # Handle case where no files passed as arguments
     if len(sys.argv) < 2:
         probablyFiles = get_all_matching_files(paths=["src/","externals/utils/"],
-                                               patterns=["*.[fF]??"])
+                                               patterns=["*.[fF]??"],
+                                               exclude=["src/templates"])
     else:
         probablyFiles = sys.argv[1:]
 

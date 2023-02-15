@@ -6,6 +6,7 @@ module gs2_gryfx_zonal
 
   use gs2_main, only: gs2_program_state_type
   use iso_c_binding
+  use iso_fortran_env, only: real32
 
   implicit none
   private
@@ -148,10 +149,10 @@ contains
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     real, dimension(:,:), intent(in) :: matrix
-    complex*8, dimension (:), intent (inout) :: &
+    complex(real32), dimension (:), intent (inout) :: &
          array
     logical, intent(in) :: is_field
-    complex*8, dimension (:), allocatable :: array_temp
+    complex(real32), dimension (:), allocatable :: array_temp
     integer :: iz_row, iz_col, is, it, ik, index_gryfx_row, index_gryfx_col
     integer :: spec_max
 
@@ -254,12 +255,12 @@ contains
     use iso_c_binding
     use mp, only: broadcast
     implicit none
+    integer(c_int), intent(in) :: nz
     integer(c_int), intent(in) :: strlen
     character(kind=c_char), intent(in) :: run_name
     integer(c_int), intent(in) :: mp_comm
     real(c_float), intent(in), dimension(nz) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
-    integer(c_int), intent(in) :: nz
     real, dimension(nz) :: gryfx_theta_real
 
     gryfx_theta_real = gryfx_theta
@@ -286,7 +287,7 @@ contains
     use unit_tests, only: debug_message
     use geometry, only: equal_arc
     use gs2_save, only: init_dt
-    use gs2_time, only: init_delt
+    use gs2_time, only: init_delt, dt_not_set
 
     implicit none
     integer, intent(in) :: strlen
@@ -295,10 +296,8 @@ contains
     real, intent(inout), dimension(2*ntgrid) :: gryfx_theta
     type(gryfx_parameters_type), intent(in) :: gryfx_parameters
     integer :: istatus
-    real :: delt, delt1, delt2
+    real :: delt, delt1, delt2, delt_max
 
-    !gryfx_zonal%on = .true.
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm  
     state%is_trinity_job = .true.
 
@@ -329,7 +328,7 @@ contains
     endif
     if (gryfx_parameters%restart==1) then
        ! Load the saved value of dt
-       call init_dt(delt, delt1, delt2, istatus)
+       call init_dt(delt, delt1, delt2, delt_max, istatus, dt_not_set)
        call init_delt(delt, delt1, delt2)
        ! Set up gs2 state so that it reads the
        ! initial values from the restart file.
@@ -450,7 +449,7 @@ contains
   end subroutine init_gs2_gryfx
 
   !> FIXME : Add documentation  
-  subroutine advance_gs2_gryfx_c(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+  subroutine advance_gs2_gryfx_c(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
        qpar_ky0, qprp_ky0, phi_ky0, first_half_step) &
        bind(c, name='advance_gs2')
     use iso_c_binding
@@ -472,20 +471,19 @@ contains
          qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (out) :: phi_ky0(naky*ntheta0*2*ntgrid)
     integer(c_int), intent (in) :: first_half_step
-    integer(c_int), intent (in) :: istep
     logical :: first_half_step_l
 
     first_half_step_l = .false.
     if (first_half_step.eq.1) first_half_step_l = .true.
 
-    call advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+    call advance_gs2_gryfx(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
          qpar_ky0, qprp_ky0, phi_ky0, first_half_step_l)
 
 
   end subroutine advance_gs2_gryfx_c
 
   !> FIXME : Add documentation  
-  subroutine advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+  subroutine advance_gs2_gryfx(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
        qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
 
     use nonlinear_terms, only: gryfx_zonal
@@ -495,11 +493,10 @@ contains
     use unit_tests, only: debug_message
 
     implicit none
-    complex*8, dimension (:), intent (inout) :: &
+    complex(real32), dimension (:), intent (inout) :: &
          dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, qprp_ky0
-    complex*8, dimension (:), intent (inout) :: phi_ky0
+    complex(real32), dimension (:), intent (inout) :: phi_ky0
     logical, intent (in) :: first_half_step
-    integer, intent (in) :: istep
 
     !state%istep_end = istep
     state%print_times = .false.

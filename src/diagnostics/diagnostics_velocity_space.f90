@@ -37,12 +37,10 @@ contains
   end subroutine init_diagnostics_velocity_space
 
   !> FIXME : Add documentation  
-  subroutine finish_diagnostics_velocity_space(gnostics)
+  subroutine finish_diagnostics_velocity_space()
     use le_grids, only: finish_weights
     use mp, only: proc0
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics 
     if (proc0) call finish_weights
   end subroutine finish_diagnostics_velocity_space
 
@@ -122,7 +120,7 @@ contains
            "1", erridx)
    end if
    
-   if (proc0 .and. gnostics%write_ascii) call write_ascii
+   if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
    deallocate(errest,erridx)
    
  contains

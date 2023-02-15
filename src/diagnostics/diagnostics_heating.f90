@@ -83,6 +83,7 @@ contains
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
     use diagnostics_config, only: diagnostics_type
+    use collisions, only: heating
     implicit none
     type(diagnostics_type), intent (in) :: gnostics
     real, dimension(-ntgrid:ntgrid) :: wgt
@@ -93,7 +94,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
     
-    if (proc0) then       
+    if (proc0 .and. heating) then
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
@@ -125,6 +126,7 @@ contains
        end do
     end if
     
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
     
     call avg_h(h, h_hist, gnostics%istep, gnostics%navg)
@@ -209,7 +211,7 @@ contains
     gnostics%current_results%species_heating_avg = gnostics%current_results%species_heating_avg + &
          h%imp_colls*(gnostics%user_time - gnostics%user_time_old)
     
-    if (gnostics%write_ascii .and. proc0) call write_ascii
+    if (gnostics%ascii_files%write_to_heat .and. proc0 .and. (.not. gnostics%create)) call write_ascii
     
   contains
     !> FIXME : Add documentation    
