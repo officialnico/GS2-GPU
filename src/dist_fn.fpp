@@ -6868,9 +6868,6 @@ contains
     call zero_array(phi)
     call zero_array(apar)
     call zero_array(bpar)
-    call zero_array(antot)
-    call zero_array(antota)
-    call zero_array(antotp)
 
     if(local_gf_lo) then
        call getan_nogath_from_dfn (g_in, antot, antota, antotp)
