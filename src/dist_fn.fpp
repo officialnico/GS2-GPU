@@ -6933,7 +6933,7 @@ contains
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
-                numerator = antot(:, it, ik)+fl_avg(it, ik)
+                numerator(:, it, ik) = antot(:, it, ik)+fl_avg(it, ik)
              end do
           end do
           !$OMP END PARALLEL DO
