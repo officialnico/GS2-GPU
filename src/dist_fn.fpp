@@ -6590,9 +6590,9 @@ contains
     ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
     ! with no_gath = .true. may only populate part of these arrays so we initialise to
     ! zero here to avoid later using uninitialised data.
-    call zero_array(antot)
-    call zero_array(antota)
-    call zero_array(antotp)
+    if (gf_lo_integrate .or. (fphi < epsilon(0.0))) call zero_array(antot)
+    if (gf_lo_integrate .or. (fapar < epsilon(0.0))) call zero_array(antota)
+    if (gf_lo_integrate .or. (fbpar < epsilon(0.0))) call zero_array(antotp)
 
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
     !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
