@@ -5422,6 +5422,7 @@ contains
     if (fphi > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
@@ -5445,6 +5446,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
@@ -5466,6 +5468,7 @@ contains
     if (fbpar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
@@ -6211,6 +6214,7 @@ contains
     if (fphi > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6228,6 +6232,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6245,6 +6250,7 @@ contains
     if (fbpar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6338,6 +6344,7 @@ contains
        if (fbpar > epsilon(0.0)) then
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -6352,6 +6359,7 @@ contains
        else
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -6370,6 +6378,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6389,6 +6398,7 @@ contains
        if (fphi > epsilon(0.0)) then
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -6403,6 +6413,7 @@ contains
        else
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -6614,9 +6625,10 @@ contains
              end do
              !$OMP END PARALLEL DO
           else
-            !$OMP PARALLEL DO DEFAULT(shared) &
-            !$OMP PRIVATE(iglo, isgn) &
-            !$OMP SCHEDULE(static)
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
@@ -6691,6 +6703,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
@@ -6770,6 +6783,7 @@ contains
           else
              !$OMP PARALLEL DO DEFAULT(shared) &
              !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
@@ -6893,6 +6907,7 @@ contains
 
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6907,6 +6922,7 @@ contains
     if (fapar > 0) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6927,6 +6943,7 @@ contains
     if (fbpar > 0) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -6991,6 +7008,7 @@ contains
        if (fbpar > epsilon(0.0)) then
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -7005,6 +7023,7 @@ contains
           ! as expressed in terms of gnew. In this case we get the below.
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -7018,6 +7037,7 @@ contains
 
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -7042,6 +7062,7 @@ contains
     if (fapar > epsilon(0.0)) then
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
@@ -7073,6 +7094,7 @@ contains
        if (fphi > epsilon(0.0)) then
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -7084,6 +7106,7 @@ contains
        else
           !$OMP PARALLEL DO DEFAULT(shared) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = 1, naky
              do it = 1, ntheta0
@@ -7096,6 +7119,7 @@ contains
 
        !$OMP PARALLEL DO DEFAULT(shared) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = 1, naky
           do it = 1, ntheta0
