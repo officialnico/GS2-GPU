@@ -507,6 +507,7 @@ void sdatio_create_variable(struct sdatio_file * sfile,
   int ndims;
   struct sdatio_variable  * svar;
   int retval;
+  int nunlim;
 
   svar = (struct sdatio_variable *) malloc(sizeof(struct sdatio_variable));
 
@@ -944,6 +945,7 @@ void sdatio_sync(struct sdatio_file * sfile){
 /* Has to be at the bottom because it uses many
  * other functions */
 void sdatio_open_file(struct sdatio_file * sfile )  {
+  int nunlim;
   int retval;
   int ndims, nvars;
   int i, j;
