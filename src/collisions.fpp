@@ -2236,7 +2236,7 @@ contains
          ! when there are only passing particles plus wfb (and no other trapped particles)
          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
          ! Fixed below
-         if (il_is_passing(je) .and. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
+         if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
@@ -2298,7 +2298,7 @@ contains
          ! when there are only passing particles plus wfb (and no other trapped particles)
          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
          ! Fixed below
-         if (il_is_passing(je) .and. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
+         if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
