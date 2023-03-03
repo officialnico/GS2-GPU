@@ -672,7 +672,7 @@ contains
   elemental logical function il_is_wfb(il) result(is_wfb)
     implicit none
     integer, intent(in) :: il
-    is_wfb = il == ng2
+    is_wfb = il == ng2 + 1
     ! If we want to improve the consistency of the wfb
     ! treatment we should hopefully rarely need to specificaly
     ! identify the wfb
