@@ -2076,7 +2076,7 @@ contains
              end do
              !If we have trapped particles use the precalculated weights
              !in wlmod as above is only for passing particles
-             if (nlambda > ng2) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
+             if (grid_has_trapped_particles()) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
           end do
        end if
 
@@ -2279,7 +2279,7 @@ contains
     allocate (forbid(-ntgrid:ntgrid,nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
     allocate (xloc(-ntgrid:ntgrid,tsize))
-    if (nlambda-ng2 > 0) then
+    if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
     call lgridset
@@ -2370,7 +2370,7 @@ contains
        allocate(trapped_error(-ntgrid:ntgrid))
        trapped_error = 0.0
        ! Only calculate this if we have any trapped pitch angles
-       if (nlambda > ng2) then
+       if (grid_has_trapped_particles()) then
           allocate(expected_trapped(-ntgrid:ntgrid))
           ! We're essentially just subtracting the passing analytic
           ! result from the total expectation, i.e. effectively
@@ -2541,7 +2541,7 @@ contains
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
     if (.not. allocated(xx)) allocate (xx(ng2))
 
-    if(radau_gauss_grid .and. nlambda > ng2 ) then
+    if(radau_gauss_grid .and. grid_has_trapped_particles() ) then
 
        ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
        ! which contributes to the integration over passing particles
@@ -2569,7 +2569,7 @@ contains
     end do
 
     ! Assign the weight for wfb from the radau-gauss grid
-    if (radau_gauss_grid .and. nlambda > ng2 ) then
+    if (radau_gauss_grid .and. grid_has_trapped_particles() ) then
        il=ng2+1
        do ig = -ntgrid, ntgrid
           if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
@@ -4671,7 +4671,9 @@ contains
     implicit none
     integer, intent(in) :: is, ik, il
     is_passing_hybrid_electron = &
-         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 &
+         .and. (il_is_passing(il) .or. il_is_wfb(il))
+    !Note always including wfb as passing here
   end function is_passing_hybrid_electron
 
   !> Set the module level config type
