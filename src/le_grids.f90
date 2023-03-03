@@ -171,6 +171,8 @@ module le_grids
   public :: setup_trapped_lambda_grids_old_finite_difference
   public :: setup_passing_lambda_grids
   public :: passing_wfb, trapped_wfb
+  public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
+  public :: il_is_wfb, il_is_ttp
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -623,6 +625,66 @@ contains
           
 
   end subroutine init_integrations
+
+  !> Returns true if there are trapped particles on the current
+  !> pitch angle grid.
+  pure logical function grid_has_trapped_particles() result(has_trapped)
+    implicit none
+    has_trapped = nlambda > ng2
+  end function grid_has_trapped_particles
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered trapped.
+  elemental logical function il_is_trapped(il) result(is_trapped)
+    implicit none
+    integer, intent(in) :: il
+    is_trapped = il > ng2 + 1
+    ! If we want to improve the consistency of the trapped wfb
+    ! treatment we can replace the above with
+    ! is_trapped = il > ng2
+    ! To be explicit this might look like
+    ! if (trapped_wfb) then
+    !     is_trapped = il > ng2
+    ! else
+    !     is_trapped = il > ng2 + 1
+    ! end if
+  end function il_is_trapped
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered passing.
+  elemental logical function il_is_passing(il) result(is_passing)
+    implicit none
+    integer, intent(in) :: il
+    is_passing = il <= ng2
+    ! If we want to improve the consistency of the passing wfb
+    ! treatment we can replace the above with
+    ! is_passing = il <= ng2 + 1
+    ! To be explicit this might look like
+    ! if (passing_wfb) then
+    !     is_passing = il <= ng2 + 1
+    ! else
+    !     is_passing = il <= ng2
+    ! end if
+  end function il_is_passing
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the wfb.
+  elemental logical function il_is_wfb(il) result(is_wfb)
+    implicit none
+    integer, intent(in) :: il
+    is_wfb = il == ng2
+    ! If we want to improve the consistency of the wfb
+    ! treatment we should hopefully rarely need to specificaly
+    ! identify the wfb
+  end function il_is_wfb
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the totally trapped particle
+  elemental logical function il_is_ttp(il) result(is_ttp)
+    implicit none
+    integer, intent(in) :: il
+    is_ttp = grid_has_trapped_particles() .and. il == nlambda 
+  end function il_is_ttp
 
   !> Calculates energy grid and (untrapped) pitch angle weights for
   !> integrals which drop a point from the energy/lambda
