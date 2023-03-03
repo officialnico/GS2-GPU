@@ -706,7 +706,7 @@ contains
     use dist_fn_arrays, only: ittp
     use gs2_layouts, only: g_lo, il_idx
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, ng2, jend
+    use le_grids, only: forbid, grid_has_trapped_particles, jend
     use mp, only: mp_abort
 
     implicit none
@@ -715,9 +715,7 @@ contains
     integer :: iglo, il, ig
     logical :: trapped
 
-    trapped = .false.
-
-    if (minval(jend) .gt. ng2) trapped=.true.
+    trapped = grid_has_trapped_particles()
 
     ! factor of one-half appears elsewhere
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -747,6 +745,7 @@ contains
           !           except for ttp where upwinding makes no sense!
           !
           if (il >= ittp(ig)) cycle
+          ! The below might be better off using forbid instead of checking jend
           if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
              !
              !CMR, 7/10/2014: 
