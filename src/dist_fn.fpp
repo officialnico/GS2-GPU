@@ -8644,7 +8644,7 @@ contains
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
-    use le_grids, only: ng2, nlambda, new_trap_int
+    use le_grids, only: ng2, nlambda, new_trap_int, grid_has_trapped_particles
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
@@ -8739,7 +8739,7 @@ contains
 
 ! next loop gets error estimate for trapped particles, if there are any
 
-       if (nlambda > ng2 .and. new_trap_int) then
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           phi_t = 0.0
@@ -8763,7 +8763,7 @@ contains
 
        call eint_error (g_work, wgt, apar_e)
        call lint_error (g_work, wgt, apar_l)
-       if (nlambda > ng2 .and. new_trap_int) then
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           apar_t = 0.0
@@ -8798,7 +8798,7 @@ contains
        errest(2,:) = errtmp
        erridx(2,:) = idxtmp
 
-       if (nlambda > ng2 .and. new_trap_int) then       
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           call estimate_error (phi_app, phi_t, kmax, errtmp, idxtmp, trap_flag)
           errest(3,:) = errtmp
           erridx(3,:) = idxtmp
@@ -8875,7 +8875,7 @@ contains
   subroutine estimate_error (app1, app2, kmax_local, errest, erridx, trap)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, jend
+    use le_grids, only: ng2, jend, il_is_trapped
 
     implicit none
 
@@ -8895,7 +8895,7 @@ contains
     do ik = 1, naky
        do it = 1, ntheta0
           do ig=-ntgrid,ntgrid
-             if (.not.present(trap) .or. jend(ig) > ng2+1) then
+             if (.not.present(trap) .or. il_is_trapped(jend(ig))) then
                 gpcnt = 0; gpsum = 0.0
 
                    if (present(trap)) then
@@ -8953,7 +8953,7 @@ contains
   !>
   !> FIXME: finish documentation
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
-    use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend, grid_has_trapped_particles
+    use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend, grid_has_trapped_particles, il_is_trapped
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
@@ -9048,7 +9048,7 @@ contains
                          gnt2(il) = real(gttran(il,ig,it,ik,is)*conjg(gttran(il,ig,it,ik,is)))
                       end do
                       gtnorm = maxval(gnt2(0:2*(jend(ig)-ng2-1)))
-                      if (jend(ig) > ng2+1) then
+                      if (il_is_trapped(jend(ig))) then
                          gtmax = maxval(gnt2(2*(jend(ig)-ng2-1)-2:2*(jend(ig)-ng2-1)))
                       else
                          gtmax = gnt2(0)
