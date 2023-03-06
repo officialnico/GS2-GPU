@@ -173,6 +173,7 @@ module le_grids
   public :: passing_wfb, trapped_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
   public :: il_is_wfb, il_is_ttp
+  public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -222,7 +223,7 @@ module le_grids
   real, dimension (:), allocatable :: al, delal ! (nlambda)
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
-  logical, dimension (:,:), allocatable :: forbid ! (-ntgrid:ntgrid,nlambda)
+  logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
 
   real, dimension (:,:), allocatable :: xi
   integer, dimension (:,:), allocatable :: ixi_to_il, ixi_to_isgn
@@ -483,6 +484,7 @@ contains
        allocate (wl(-ntgrid:ntgrid,nlambda))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
+       allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (xx(ng2))
        allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
        allocate (xloc(-ntgrid:ntgrid,tsize))
@@ -508,6 +510,7 @@ contains
 
     call broadcast(wl)
     call broadcast(forbid)
+    call broadcast(is_bounce_point)
 
     call broadcast(xloc)
     call broadcast(lgrnge)
@@ -2277,6 +2280,7 @@ contains
     allocate (wl(-ntgrid:ntgrid,nlambda))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
+    allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
     allocate (xloc(-ntgrid:ntgrid,tsize))
     if (grid_has_trapped_particles()) then
@@ -2511,6 +2515,10 @@ contains
     ! Calculate the forbid flag indicating which pitch angles are allowed at
     ! various points.
     call calculate_forbidden_region(forbid)
+
+    ! Calculate the is_bounce_point flag indicating which pitch angles are allowed at
+    ! various points.
+    call calculate_bounce_points(is_bounce_point)
 
     ! Calculate the jend values indicating the pitch angle which bounces at
     ! each theta point.
@@ -2930,6 +2938,119 @@ contains
        end if
     end do
   end subroutine calculate_forbidden_region
+
+  !> Determine which theta grid points correspond to bounce points
+  !> for each pitch angle.
+  !>
+  !> For regular trapped particles we _could_ determine this from forbid,
+  !> as we do in other parts of the code, however we prefer a forbid independent
+  !> method to allow for generalisation to wfb and wfb-like particles.
+  subroutine calculate_bounce_points(bounce_points)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    logical, dimension(-ntgrid:, :), intent(out) :: bounce_points
+    integer :: ig, il
+    integer :: il_llim
+
+    bounce_points = .false.
+
+    ! We could set the lower lambda grid index which we consider here
+    ! in order to either include or exclude the wfb if we allow it to
+    ! bounce. For now we will not allow for wfb bounce points, leaving these
+    ! to be handled by special code elsewhere.
+    il_llim = ng2 + 2
+
+    do il = il_llim, nlambda
+       do ig = -ntgrid, ntgrid
+          ! Note, this imposes a requirement that our pitch angle and
+          ! magnetic field grids are calculated consisently to within bouncefuzz.
+          ! In other words we require lambda*bmag = 1 to within bouncefuzz.
+          bounce_points(ig,il) = abs(1.0 - al(il)*bmag(ig)) <= bouncefuzz
+       end do
+    end do
+
+  end subroutine calculate_bounce_points
+
+  !> Returns true if the passed theta grid index, ig, is a lower bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_lower_bounce_point(ig, il) result(is_lower)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_lower = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==-ntgrid we don't
+    ! want to access bmag(ig-1)
+    if (ig == -ntgrid) then
+       is_lower = .true.
+    elseif (ig == ntgrid) then
+       is_lower = .false.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_lower = bmag(ig-1) > bmag(ig)
+
+       ! Instead we simply check if the _next_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_lower = .not. forbid(ig + 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_lower_bounce_point
+
+  !> Returns true if the passed theta grid index, ig, is a upper bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_upper_bounce_point(ig, il) result(is_upper)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_upper = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==ntgrid we don't
+    ! want to access bmag(ig+1)
+    if (ig == -ntgrid) then
+       is_upper = .false.
+    elseif (ig == ntgrid) then
+       is_upper = .true.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_upper = bmag(ig+1) > bmag(ig)
+
+       ! Instead we simply check if the _previous_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_upper = .not. forbid(ig - 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_upper_bounce_point
 
   !> Determine which lambda grid point bounces at this
   !> theta/bmag value.
