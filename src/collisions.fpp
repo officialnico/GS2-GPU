@@ -3398,7 +3398,7 @@ contains
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
+                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)) !Odd that this is not vpa?
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3457,7 +3457,7 @@ contains
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
                    gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
+                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))  !Odd that this is not vpa?
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3491,7 +3491,8 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
+         integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -3573,7 +3574,7 @@ contains
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0, y1 = g1
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*g1(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
@@ -3651,8 +3652,8 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: ixi_to_il, ixi_to_isgn
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al
+    use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
     use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
@@ -3697,7 +3698,7 @@ contains
 
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(SHARED) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
@@ -3707,13 +3708,8 @@ contains
           ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
-                ! We could consider precalculating vpa in the le_lo layout to avoid this
-                ! repeated calculation of constant vpa. This would increase peak memory use.
                 ! Should we use vpdiff here if conservative?
-                vpa = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
-                gtmp(ixi,ie,ile) =  vpa * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                gtmp(ixi,ie,ile) =  vpale(ixi, ie, ile) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -3758,7 +3754,7 @@ contains
              do ixi = 1, nxi_lim
                 il = ixi_to_il(ig,ixi)
                 isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = vpdiff(ig,isgn,il) * sqrt(energy(ie)) &
+                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) &
                      * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
                 gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
@@ -3767,7 +3763,7 @@ contains
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(SHARED) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3777,11 +3773,10 @@ contains
           ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie)) &
-                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpale(ixi, ie, ile) * &
+                     (vnmult(1)*vnew_D(1,ie,is)/tunits(1)) * tunits(ik) * &
+                     aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -4098,7 +4093,7 @@ contains
 ! Now get v1y1
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, il, isgn, vpa, ie, ixi) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4109,10 +4104,7 @@ contains
        do ie=1, negrid
           delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
           do ixi = 1, nxi_lim
-             il = ixi_to_il(ig,ixi)
-             isgn = ixi_to_isgn(ig,ixi)
-             vpa = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
-             gtmp (ixi,ie,ile) = vpa * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp (ixi,ie,ile) = vpale(ixi, ie, ile) * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
