@@ -4166,6 +4166,7 @@ contains
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     use gs2_layouts, only: lz_lo
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -4182,10 +4183,11 @@ contains
     call prof_entering ("solfp_lorentz", "collisions")
 
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-    glz = 0.0
+    call zero_array(glz)
+
     if (heating) then
        allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-       glzc = 0.0
+       call zero_array(glzc)
     end if
 
     call gather (lambda_map, g, glz)
@@ -4193,7 +4195,7 @@ contains
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
@@ -4219,7 +4221,7 @@ contains
        if (hyper_colls) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ilz, ig, je, il, fac) &
-          !$OMP SCHEDULE(guided)
+          !$OMP SCHEDULE(static)
           do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
              ig = ig_idx(lz_lo,ilz)
              
@@ -4243,7 +4245,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
     !$OMP il, gwfb, delta) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
 
        ik = ik_idx(lz_lo,ilz)
@@ -4265,12 +4267,12 @@ contains
        nxi_scatt=je-1
        
        if (je==2*jend(ig) .and. vpar_zero_mean) then 
-       ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
-       ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
-       ! this turns out to be necessary to suppress numerical instability
-       ! when we handle pitch angle scattering physically at theta = +/- pi
-       ! by setting special_wfb_lorentz =.false.
-        glz(jend(ig),ilz)=(glz(jend(ig),ilz)+glz(2*jend(ig),ilz))/2.0
+          ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
+          ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
+          ! this turns out to be necessary to suppress numerical instability
+          ! when we handle pitch angle scattering physically at theta = +/- pi
+          ! by setting special_wfb_lorentz =.false.
+          glz(jend(ig),ilz)=(glz(jend(ig),ilz)+glz(2*jend(ig),ilz))/2.0
        endif 
        
        glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
@@ -4361,7 +4363,7 @@ contains
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
 
@@ -4400,7 +4402,7 @@ contains
        if (hyper_colls) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
           !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
-          !$OMP SCHEDULE(guided)
+          !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
 
@@ -4438,7 +4440,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
     !$OMP gwfb, delta) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -4465,12 +4467,12 @@ contains
 !
        do ie = 1, negrid
           if (je==2*jend(ig) .and. vpar_zero_mean) then
-           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
-           ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
-           ! this turns out to be necessary to suppress numerical instability
-           ! when we handle pitch angle scattering physically at theta = +/- pi
-           ! by setting special_wfb_lorentz =.false.
-            gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
+             ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
+             ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
+             ! this turns out to be necessary to suppress numerical instability
+             ! when we handle pitch angle scattering physically at theta = +/- pi
+             ! by setting special_wfb_lorentz =.false.
+             gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
           endif 
           gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
           if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
