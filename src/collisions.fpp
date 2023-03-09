@@ -2033,16 +2033,17 @@ contains
 
   end function hsg_func
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
     use le_grids, only: negrid, nxi, ng2
     use le_grids, only: forbid, ixi_to_il
     use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
+    use array_utils, only: zero_array
 
     implicit none
-    
+
     real, intent (in), optional :: vnmult_target
 
     integer :: ie, is, ik, il, ig, it
@@ -2053,13 +2054,13 @@ contains
 
     allocate (aa(negrid), bb(negrid), cc(negrid))
     allocate (xe(negrid))
-   
+
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
+       nxi_lim = nxi + 1
     else
-        nxi_lim = nxi
+       nxi_lim = nxi
     endif
-    
+
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
     xe(1:negrid-1) = zeroes
@@ -2070,64 +2071,74 @@ contains
     end if
 
 
-    if(use_le_layout) then    
+    if(use_le_layout) then
 
-      if (.not.allocated(ec1le)) then
-         allocate (ec1le   (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         allocate (ebetaale(nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         allocate (eqle    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         vnmult(2) = max(1.0, vnmult(2))
-      end if
-      ec1le = 0.0 ; ebetaale = 0.0 ; eqle = 0.0
+       if (.not.allocated(ec1le)) then
+          allocate (ec1le   (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (ebetaale(nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (eqle    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          vnmult(2) = max(1.0, vnmult(2))
+       end if
+       call zero_array(ec1le)
+       call zero_array(ebetaale)
+       call zero_array(eqle)
 
-      do ile = le_lo%llim_proc, le_lo%ulim_proc
-         ik = ik_idx(le_lo, ile)
-         it = it_idx(le_lo, ile)
-         is = is_idx(le_lo, ile)
-         ig = ig_idx(le_lo, ile)
-         do ixi=1, nxi_lim
-            il = ixi_to_il(ig,ixi)
-            if (forbid(ig,il)) cycle
-            call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-            ec1le(ixi,:,ile) = cc
-            ebetaale(ixi,1,ile) = 1.0 / bb(1)
-            do ie = 1, negrid-1
-               eqle(ixi,ie+1,ile) = aa(ie+1) * ebetaale(ixi,ie,ile)
-               ebetaale(ixi,ie+1,ile) = 1.0 / ( bb(ie+1) - eqle(ixi,ie+1,ile) &
-                    * ec1le(ixi,ie,ile) )
-            end do
-         end do
-      end do
-
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, ik, it, is, ig, ie, ixi, il, aa, bb, cc) &
+       !$OMP SCHEDULE(static)
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
+          ik = ik_idx(le_lo, ile)
+          it = it_idx(le_lo, ile)
+          is = is_idx(le_lo, ile)
+          ig = ig_idx(le_lo, ile)
+          do ixi=1, nxi_lim
+             il = ixi_to_il(ig,ixi)
+             if (forbid(ig,il)) cycle
+             call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
+             ec1le(ixi,:,ile) = cc
+             ebetaale(ixi,1,ile) = 1.0 / bb(1)
+             do ie = 1, negrid-1
+                eqle(ixi,ie+1,ile) = aa(ie+1) * ebetaale(ixi,ie,ile)
+                ebetaale(ixi,ie+1,ile) = 1.0 / ( bb(ie+1) - eqle(ixi,ie+1,ile) &
+                     * ec1le(ixi,ie,ile) )
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
 
-      if (.not.allocated(ec1)) then
-         allocate (ec1    (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
-         allocate (ebetaa (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
-         allocate (eql    (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
-         vnmult(2) = max(1.0, vnmult(2))
-      endif
-      ec1 = 0.0 ; ebetaa = 0.0 ; eql = 0.0
+       if (.not.allocated(ec1)) then
+          allocate (ec1    (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
+          allocate (ebetaa (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
+          allocate (eql    (negrid,e_lo%llim_proc:e_lo%ulim_alloc))
+          vnmult(2) = max(1.0, vnmult(2))
+       endif
+       call zero_array(ec1)
+       call zero_array(ebetaa)
+       call zero_array(eql)
 
-      do ielo = e_lo%llim_proc, e_lo%ulim_proc
-         is = is_idx(e_lo, ielo)
-         ik = ik_idx(e_lo, ielo)
-         il = il_idx(e_lo, ielo)
-         ig = ig_idx(e_lo, ielo)
-         it = it_idx(e_lo, ielo)
-         if (forbid(ig,il)) cycle
-         call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-         ec1(:,ielo) = cc
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ielo, ik, it, is, ig, ie, ixi, il, aa, bb, cc) &
+       !$OMP SCHEDULE(static)
+       do ielo = e_lo%llim_proc, e_lo%ulim_proc
+          il = il_idx(e_lo, ielo)
+          ig = ig_idx(e_lo, ielo)
+          if (forbid(ig,il)) cycle
+          is = is_idx(e_lo, ielo)
+          ik = ik_idx(e_lo, ielo)
+          it = it_idx(e_lo, ielo)
+          call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
+          ec1(:,ielo) = cc
 
-! fill in the arrays for the tridiagonal
-         ebetaa(1,ielo) = 1.0/bb(1)
-         do ie = 1, negrid-1
-            eql(ie+1,ielo) = aa(ie+1)*ebetaa(ie,ielo)
-            ebetaa(ie+1,ielo) = 1.0/(bb(ie+1)-eql(ie+1,ielo)*ec1(ie,ielo))
-         end do
+          ! fill in the arrays for the tridiagonal
+          ebetaa(1,ielo) = 1.0/bb(1)
+          do ie = 1, negrid-1
+             eql(ie+1,ielo) = aa(ie+1)*ebetaa(ie,ielo)
+             ebetaa(ie+1,ielo) = 1.0/(bb(ie+1)-eql(ie+1,ielo)*ec1(ie,ielo))
+          end do
 
-      end do
-
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     deallocate(aa, bb, cc, xe)
