@@ -3380,7 +3380,7 @@ contains
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3393,12 +3393,12 @@ contains
                 tmp = ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)) !Odd that this is not vpa?
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
+                        tmp * aj0le(ixi,ie,ile) * vpale(ixi,ie,ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3439,7 +3439,7 @@ contains
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3452,12 +3452,10 @@ contains
                 tmp = ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))  !Odd that this is not vpa?
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
+                        tmp * aj0le(ixi,ie,ile) * vpale(ixi, ie, ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
