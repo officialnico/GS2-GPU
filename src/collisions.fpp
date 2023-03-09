@@ -2566,7 +2566,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
-
     use species, only: spec
     use le_grids, only: al, energy => energy_maxw, xi, ng2
     use le_grids, only: jend, al
@@ -3156,6 +3155,7 @@ contains
     use fields_arrays, only: aparnew
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter, kperp2
+    use optionals, only: get_option_with_default
     ! TMP FOR TESTING -- MAB
 !    use mp, only: proc0
 
@@ -3164,7 +3164,7 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc1, gc2
     integer, optional, intent (in) :: diagnostics
     logical, optional, intent (in) :: gtoc, ctog
-    integer :: ig, it, ik, ie, is, iglo
+    integer :: isgn, it, ik, ie, is, iglo
 !CMR, 12/9/2013: 
 !CMR   New logical optional input parameters gtoc, ctog used to set
 !CMR   flags (g_to_c and c_to_g) to control whether redistributes required
@@ -3174,17 +3174,8 @@ contains
 
     logical :: g_to_c, c_to_g
 
-    if (present(gtoc)) then 
-       g_to_c=gtoc 
-    else 
-       g_to_c=.true.
-    endif
-
-    if (present(ctog)) then 
-       c_to_g=ctog 
-    else 
-       c_to_g=.true.
-    endif
+    g_to_c = get_option_with_default(gtoc, .true.)
+    c_to_g = get_option_with_default(ctog, .true.)
 
 
     ! TMP FOR TESTING -- MAB
@@ -3216,6 +3207,9 @@ contains
 !       end if
 
        if (drag) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
              if (.not. is_electron_species(spec(is))) cycle
@@ -3223,16 +3217,17 @@ contains
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik)) cycle
              ie = ie_idx(g_lo,iglo)
-             do ig = -ntgrid, ntgrid
-                g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
+             do isgn = 1, 2
+                g(:, isgn, iglo) = g(:, isgn, iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
-                     * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
+                     * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
              end do
           end do
+          !$OMP END PARALLEL DO
        end if
 
        ! TMP FOR TESTING -- MAB
@@ -3265,6 +3260,9 @@ contains
     case (collision_model_lorentz,collision_model_lorentz_test)
 
        if (drag) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
+          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
              if (.not. is_electron_species(spec(is))) cycle
@@ -3272,16 +3270,17 @@ contains
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik))cycle
              ie = ie_idx(g_lo,iglo)
-             do ig = -ntgrid, ntgrid
-                g(ig,:,iglo) = g(ig,:,iglo) + ieqzip(it,ik) * &
+             do isgn = 1, 2
+                g(:,isgn,iglo) = g(:,isgn,iglo) + ieqzip(it,ik) * &
                      vnmult(1)*spec(is)%vnewk*code_dt &
-                     * vpa(ig,:,iglo)*kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0(ig,iglo) &
+                     * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
              end do
           end do
+          !$OMP END PARALLEL DO
        end if
        
        if (heating_flag) then
@@ -3318,7 +3317,7 @@ contains
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
-
+    complex :: tmp
     integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
     integer :: nxi_lim
 
@@ -3357,6 +3356,9 @@ contains
 !       end if
 
        if (drag) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
              if (.not. is_electron_species(spec(is))) cycle
@@ -3365,13 +3367,14 @@ contains
              if(kwork_filter(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
+                tmp = ieqzip(it,ik) * &
+                        vnmult(1)*spec(is)%vnewk*code_dt &
+                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
@@ -3379,6 +3382,7 @@ contains
                 end do
              end do
           end do
+          !$OMP END PARALLEL DO
        end if
 
        ! TMP FOR TESTING -- MAB
@@ -3411,6 +3415,9 @@ contains
     case (collision_model_lorentz,collision_model_lorentz_test)
 
        if (drag) then
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
              if (.not. is_electron_species(spec(is))) cycle
@@ -3419,13 +3426,14 @@ contains
              if(kwork_filter(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
+                tmp = ieqzip(it,ik) * &
+                        vnmult(1)*spec(is)%vnewk*code_dt &
+                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik)*aj0le(ixi,ie,ile) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)) &
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
                         * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
@@ -3433,6 +3441,7 @@ contains
                 end do
              end do
           end do
+          !$OMP END PARALLEL DO
        end if
 
        if (heating_flag) then
