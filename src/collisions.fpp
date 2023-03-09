@@ -2320,7 +2320,7 @@ contains
 
   end subroutine get_ediffuse_matrix
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
     use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
     use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
@@ -2331,6 +2331,8 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: aj0, aj1
     use species, only: has_hybrid_electron_species, spec
+    use array_utils, only: zero_array
+
     implicit none
 
     real, intent (in), optional :: vnmult_target
@@ -2367,7 +2369,7 @@ contains
 
              ! We need to initialise ctmp as it is used as receiving buffer in
              ! g2le redistribute, which doesn't populate all elements
-             ctmp = 0.
+             call zero_array(ctmp)
 
              ! next set aj0le & aj1l
              z_big(:,1,:) = cmplx(aj0,aj1)
@@ -2386,165 +2388,181 @@ contains
           endif
        endif
 
-      if (heating .and. .not. allocated(glec)) then
-         allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-         glec = 0.0
-      end if
-      if (.not.allocated(c1le)) then
-         allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         allocate (qle     (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-         if (heating) then
-            allocate (d1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-            allocate (h1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-            d1le = 0.0 ; h1le = 0.0
-         end if
-         vnmult(1) = max(1.0, vnmult(1))
-      endif
-      c1le = 0.0 ; betaale = 0.0 ; qle = 0.0
+       if (heating .and. .not. allocated(glec)) then
+          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          call zero_array(glec)
+       end if
+       if (.not.allocated(c1le)) then
+          allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (qle     (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          if (heating) then
+             allocate (d1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+             allocate (h1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+             call zero_array(d1le)
+             call zero_array(h1le)
+          end if
+          vnmult(1) = max(1.0, vnmult(1))
+       endif
+       call zero_array(c1le)
+       call zero_array(betaale)
+       call zero_array(qle)
 
-      if (present(vnmult_target)) then
-         vnmult(1) = max (vnmult_target, 1.0)
-      end if
+       if (present(vnmult_target)) then
+          vnmult(1) = max (vnmult_target, 1.0)
+       end if
 
-      do ile = le_lo%llim_proc, le_lo%ulim_proc
 
-         ig = ig_idx(le_lo,ile)
-         ik = ik_idx(le_lo,ile)
-         it = it_idx(le_lo,ile)
-         is = is_idx(le_lo,ile)
-         je = jend(ig)
-         !if (je <= ng2+1) then
-         ! MRH the above line is likely the original cause of the wfb bug in collisions
-         ! by treating collisions arrays here as if there are only passing particles
-         ! when there are only passing particles plus wfb (and no other trapped particles)
-         ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
-         ! Fixed below
-         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
-            te2 = 2*ng2
-         else
-            te2 = 2*je-1
-         end if
-         do ie = 1, negrid
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP SCHEDULE(static)
+       do ile = le_lo%llim_proc, le_lo%ulim_proc
 
-            call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
-            
-            if (has_hybrid_electron_species(spec)) call set_hzero_collisions_matrix
-            
-            c1le(:,ie,ile) = cc
-            if (allocated(d1le)) then
-               d1le(:,ie,ile) = dd
-               h1le(:,ie,ile) = hh
-            end if
-            
-            qle(1,ie,ile) = 0.0
-            betaale(1,ie,ile) = 1.0/bb(1)
-            do il = 1, te2-1
-               qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
-               betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
-                    * c1le(il,ie,ile) )
-            end do
-            qle(te2+1,ie,ile) = 0.0
-            betaale(te2+1,ie,ile) = 0.0
-         end do
-      end do
+          ig = ig_idx(le_lo,ile)
+          ik = ik_idx(le_lo,ile)
+          it = it_idx(le_lo,ile)
+          is = is_idx(le_lo,ile)
+          je = jend(ig)
+          !if (je <= ng2+1) then
+          ! MRH the above line is likely the original cause of the wfb bug in collisions
+          ! by treating collisions arrays here as if there are only passing particles
+          ! when there are only passing particles plus wfb (and no other trapped particles)
+          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
+          ! Fixed below
+          if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
+             te2 = 2*ng2
+          else
+             te2 = 2*je-1
+          end if
+          do ie = 1, negrid
 
+             call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
+
+             if (has_hybrid_electron_species(spec)) &
+                  call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
+
+             c1le(:,ie,ile) = cc
+             if (allocated(d1le)) then
+                d1le(:,ie,ile) = dd
+                h1le(:,ie,ile) = hh
+             end if
+
+             qle(1,ie,ile) = 0.0
+             betaale(1,ie,ile) = 1.0/bb(1)
+             do il = 1, te2-1
+                qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
+                betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
+                     * c1le(il,ie,ile) )
+             end do
+             qle(te2+1,ie,ile) = 0.0
+             betaale(te2+1,ie,ile) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
 
-      if (.not.allocated(c1)) then
-         allocate (c1(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-         allocate (betaa(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-         allocate (ql(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-         if (heating) then
-            allocate (d1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-            allocate (h1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-            d1 = 0.0 ; h1 = 0.0
-         end if
-         vnmult(1) = max(1.0, vnmult(1))
-      end if
-       
-      c1 = 0.0 ; betaa = 0.0 ; ql = 0.0
+       if (.not.allocated(c1)) then
+          allocate (c1(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          allocate (betaa(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          allocate (ql(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          if (heating) then
+             allocate (d1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+             allocate (h1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+             call zero_array(d1)
+             call zero_array(h1)
+          end if
+          vnmult(1) = max(1.0, vnmult(1))
+       end if
 
-      if (present(vnmult_target)) then
-         vnmult(1) = max (vnmult_target, 1.0)
-      end if
+       call zero_array(c1)
+       call zero_array(betaa)
+       call zero_array(ql)
 
-      do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-         is = is_idx(lz_lo,ilz)
-         ik = ik_idx(lz_lo,ilz)
-         it = it_idx(lz_lo,ilz)
-         ie = ie_idx(lz_lo,ilz)
-         ig = ig_idx(lz_lo,ilz)
-         je = jend(ig)
-         !if (je <= ng2+1) then
-         ! MRH the above line is likely the original cause of the wfb bug in collisions
-         ! by treating collisions arrays here as if there are only passing particles
-         ! when there are only passing particles plus wfb (and no other trapped particles)
-         ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
-         ! Fixed below
-         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
-            te2 = 2*ng2
-         else
-            te2 = 2*je-1
-         end if
+       if (present(vnmult_target)) then
+          vnmult(1) = max (vnmult_target, 1.0)
+       end if
 
-         call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
-         
-         if (has_hybrid_electron_species(spec)) call set_hzero_collisions_matrix
-        
-         c1(:,ilz) = cc
-         if (allocated(d1)) then
-            d1(:,ilz) = dd
-            h1(:,ilz) = hh
-         end if
-         
-         betaa(1,ilz) = 1.0/bb(1)
-         do il = 1, te2-1
-            ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
-            betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
-         end do
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP SCHEDULE(static)
+       do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
+          is = is_idx(lz_lo,ilz)
+          ik = ik_idx(lz_lo,ilz)
+          it = it_idx(lz_lo,ilz)
+          ie = ie_idx(lz_lo,ilz)
+          ig = ig_idx(lz_lo,ilz)
+          je = jend(ig)
+          !if (je <= ng2+1) then
+          ! MRH the above line is likely the original cause of the wfb bug in collisions
+          ! by treating collisions arrays here as if there are only passing particles
+          ! when there are only passing particles plus wfb (and no other trapped particles)
+          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
+          ! Fixed below
+          if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
+             te2 = 2*ng2
+          else
+             te2 = 2*je-1
+          end if
 
-         ql(1,ilz) = 0.0
-         ql(te2+1:,ilz) = 0.0
-         c1(te2+1:,ilz) = 0.0
-         betaa(te2+1:,ilz) = 0.0
-      end do
+          call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
 
+          if (has_hybrid_electron_species(spec)) &
+               call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
+
+          c1(:,ilz) = cc
+          if (allocated(d1)) then
+             d1(:,ilz) = dd
+             h1(:,ilz) = hh
+          end if
+
+          betaa(1,ilz) = 1.0/bb(1)
+          do il = 1, te2-1
+             ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
+             betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
+          end do
+
+          ql(1,ilz) = 0.0
+          ql(te2+1:,ilz) = 0.0
+          c1(te2+1:,ilz) = 0.0
+          betaa(te2+1:,ilz) = 0.0
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     deallocate (aa, bb, cc, dd, hh)
 
-  contains
-
-    !> Special behaviour when h=0 for passing non-zonal electrons
-    !>
-    !> The effect of these changes is to exclude passing electrons
-    !> From pitch angle scattering, and to enforce 0 passing as a
-    !> boundary condition For the trapped particle pitch angle
-    !> scattering.
-    subroutine set_hzero_collisions_matrix
-      use species, only: is_hybrid_electron_species
-      use kt_grids, only: aky
-      implicit none
-      !> il index of 1st non-wfb trapped particle
-      integer :: il_llim
-      !> il index of last non-wfb trapped particle
-      integer :: il_ulim
-
-      il_llim = ng2 + 2
-      il_ulim = 2*je-1 - (ng2+ 1)
-
-      if ( is_hybrid_electron_species(spec(is)) .and. aky(ik) /= 0.) then
-         aa(:il_llim) = 0.
-         bb(:il_llim-1) = 1.
-         cc(:il_llim-1) = 0.
-         aa(il_ulim+1:) = 0.
-         bb(il_ulim+1:) = 1.
-         cc(il_ulim:) = 0.
-      endif
-    end subroutine set_hzero_collisions_matrix
-
   end subroutine init_lorentz
+
+  !> Special behaviour when h=0 for passing non-zonal electrons
+  !>
+  !> The effect of these changes is to exclude passing electrons
+  !> From pitch angle scattering, and to enforce 0 passing as a
+  !> boundary condition For the trapped particle pitch angle
+  !> scattering.
+  subroutine set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
+    use species, only: is_hybrid_electron_species, spec
+    use kt_grids, only: aky
+    use le_grids, only: ng2
+    implicit none
+    real, dimension(:), intent(in out) :: aa, bb, cc
+    integer, intent(in) :: je, ik, is
+    !> il index of 1st non-wfb trapped particle
+    integer :: il_llim
+    !> il index of last non-wfb trapped particle
+    integer :: il_ulim
+
+    il_llim = ng2 + 2
+    il_ulim = 2*je-1 - (ng2+ 1)
+
+    if ( is_hybrid_electron_species(spec(is)) .and. aky(ik) /= 0.) then
+       aa(:il_llim) = 0.
+       bb(:il_llim-1) = 1.
+       cc(:il_llim-1) = 0.
+       aa(il_ulim+1:) = 0.
+       bb(il_ulim+1:) = 1.
+       cc(il_ulim:) = 0.
+    endif
+  end subroutine set_hzero_lorentz_collisions_matrix
 
   !> FIXME : Add documentation
   subroutine get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
