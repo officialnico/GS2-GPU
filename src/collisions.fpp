@@ -1235,7 +1235,7 @@ contains
   end subroutine init_lorentz_conserve
 
   !> Precompute three quantities needed for momentum and energy conservation:
-  !! bz0, bw0, bs0
+  !> bz0, bw0, bs0
   subroutine init_diffuse_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec
@@ -1247,7 +1247,7 @@ contains
     use le_grids, only: g2le, nxi
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (:,:,:), allocatable :: gtmp
@@ -1255,19 +1255,18 @@ contains
     real, dimension (:,:,:,:), allocatable :: vns
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
-    complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp    
+    complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
     logical :: all
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        ! We need to initialise ctmp as it is used as receiving buffer in
        ! g2le redistribute, which doesn't populate all elements
-       ctmp = 0.
+       call zero_array(ctmp)
     end  if
 
-! TO DO: 
+! TO DO:
 ! tunits not included anywhere yet
-
 
     allocate(bs0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(bw0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1277,12 +1276,20 @@ contains
     allocate (duinv(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (dtmp(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (vns(naky,negrid,nspec,2))
-    duinv=0.0 ; dtmp=0.0    
+
+    ! Following might only be needed if any kwork_filter
+    call zero_array(duinv)
+    call zero_array(dtmp)
+
     vns(:,:,:,1) = vnmult(2)*delvnew
     vns(:,:,:,2) = vnmult(2)*vnew_s
 
     ! first obtain 1/du
-!    if (conservative) then
+    !    if (conservative) then
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1291,7 +1298,8 @@ contains
           gtmp(:,isgn,iglo) = energy(ie)*vnmult(2)*vnew_E(ik,ie,is)
        end do
     end do
-       
+    !$OMP END PARALLEL DO
+
     all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
 !    else
@@ -1300,49 +1308,58 @@ contains
 !       end do
 !    end if
 
-   where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
-                                      !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-      duinv = 1./duinv  ! now it is 1/du
-   end where
+    ! Could replace this with OpenMP using an explicit loop. TAG
+    where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
+       !  duinv=0 iff vnew=0 so ok to keep duinv=0.
+       duinv = 1./duinv  ! now it is 1/du
+    end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get z0 (first form)
+    ! Now get z0 (first form)
     if(conserve_forbid_zero) then ! MRH
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           do isgn = 1, 2
-              do ig=-ntgrid,ntgrid
-                  ! u0 = -nu_E E dt J0 f_0 / du
-                  if ( .not. forbid(ig,il) ) then 
-                      bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-                           * aj0(ig,iglo)*duinv(ig,it,ik,is)
-                  else
-                      bz0tmp(ig,isgn,iglo) = 0.
-                  endif
-              end do
-           end do
-        end do
-    else 
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           do isgn = 1, 2
-              ! u0 = -nu_E E dt J0 f_0 / du
-              bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-                   * aj0(:,iglo)*duinv(:,it,ik,is)
-           end do
-        end do
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          do isgn = 1, 2
+             do ig=-ntgrid,ntgrid
+                ! u0 = -nu_E E dt J0 f_0 / du
+                if ( .not. forbid(ig,il) ) then
+                   bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                        * aj0(ig,iglo)*duinv(ig,it,ik,is)
+                else
+                   bz0tmp(ig,isgn,iglo) = 0.
+                endif
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             ! u0 = -nu_E E dt J0 f_0 / du
+             bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                  * aj0(:,iglo)*duinv(:,it,ik,is)
+          end do
+       end do
+       !$OMP END PARALLEL DO
     endif
 
     call zero_out_passing_hybrid_electrons(bz0tmp)
 
-    if(use_le_layout) then    
+    if(use_le_layout) then
        call gather (g2le, bz0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
        call scatter (g2le, ctmp, bz0tmp)   ! bz0 is redefined below
@@ -1353,6 +1370,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1363,12 +1383,16 @@ contains
                * bz0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -1377,80 +1401,96 @@ contains
           bz0tmp(:,isgn,iglo) = bz0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     ! redefine dq = du (for momentum-conserving terms)
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
-!    if (conservative) then
+    !    if (conservative) then
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo)**2
-!             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
+          !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
 
        end do
     end do
-       
+    !$OMP END PARALLEL DO
+
     all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
-!    else
-!       do is = 1, nspec
-!          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
-!       end do
-!    end if
+    !    else
+    !       do is = 1, nspec
+    !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
+    !       end do
+    !    end if
 
-   where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
-                                      !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-      duinv = 1./duinv  ! now it is 1/du
-   end where
+
+    ! Could replace this with OpenMP using an explicit loop. TAG
+    where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
+       !  duinv=0 iff vnew=0 so ok to keep duinv=0.
+       duinv = 1./duinv  ! now it is 1/du
+    end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-    if(conserve_forbid_zero) then 
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           do isgn = 1, 2
-                do ig=-ntgrid,ntgrid
-              ! u1 = -3 nu_s vpa dt J0 f_0 / du
-    !          if (conservative) then
-                    if ( .not. forbid(ig,il) ) then 
-                      bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
-                           * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-                    else 
-                      bs0tmp(ig,isgn,iglo) = 0.
-                    endif
-                end do
-    !          else
-    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-    !          end if
-           end do
-        end do
+    if(conserve_forbid_zero) then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          do isgn = 1, 2
+             do ig=-ntgrid,ntgrid
+                ! u1 = -3 nu_s vpa dt J0 f_0 / du
+                !          if (conservative) then
+                if ( .not. forbid(ig,il) ) then
+                   bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
+                        * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
+                else
+                   bs0tmp(ig,isgn,iglo) = 0.
+                endif
+             end do
+             !          else
+             !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+             !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+             !          end if
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           do isgn = 1, 2
-              ! u1 = -3 nu_s vpa dt J0 f_0 / du
-    !          if (conservative) then
-              bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                   * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-    !          else
-    !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-    !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-    !          end if
-           end do
-        end do
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             ! u1 = -3 nu_s vpa dt J0 f_0 / du
+             !          if (conservative) then
+             bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+             !          else
+             !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
+             !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+             !          end if
+          end do
+       end do
+       !$OMP END PARALLEL DO
     endif
 
     call zero_out_passing_hybrid_electrons(bs0tmp)
@@ -1466,6 +1506,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0s0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1476,12 +1519,16 @@ contains
                * bs0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1491,10 +1538,14 @@ contains
                * bz0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1s0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1505,12 +1556,16 @@ contains
                * bs0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1519,48 +1574,57 @@ contains
           bs0tmp(:,isgn,iglo) = bs0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
     if (conserve_forbid_zero) then
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           do isgn = 1, 2
-            do ig=-ntgrid,ntgrid
-              ! u0 = -3 dt J1 vperp vus a f0 / du
-              if ( .not. forbid(ig,il) ) then
-                  bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                       * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                       / bmag(ig)
-              else
-                  bw0tmp(ig,isgn,iglo) = 0.
-              endif
-            end do
-           end do
-        end do
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             do ig=-ntgrid,ntgrid
+                ! u0 = -3 dt J1 vperp vus a f0 / du
+                if ( .not. forbid(ig,il) ) then
+                   bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                        * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                        / bmag(ig)
+                else
+                   bw0tmp(ig,isgn,iglo) = 0.
+                endif
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-           it = it_idx(g_lo,iglo)
-           ik = ik_idx(g_lo,iglo)
-           ie = ie_idx(g_lo,iglo)
-           il = il_idx(g_lo,iglo)
-           is = is_idx(g_lo,iglo)
-           do isgn = 1, 2
-              ! u0 = -3 dt J1 vperp vus a f0 / du
-              bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                   * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                   / bmag
-           end do
-        end do
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
+          il = il_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             ! u0 = -3 dt J1 vperp vus a f0 / du
+             bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
+                  * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
+                  / bmag
+          end do
+       end do
+       !$OMP END PARALLEL DO
     endif
 
     call zero_out_passing_hybrid_electrons(bw0tmp)
 
-    if(use_le_layout) then    
+    if(use_le_layout) then
        call gather (g2le, bw0tmp, ctmp)
        call solfp_ediffuse_le_layout (ctmp)
        call scatter (g2le, ctmp, bw0tmp)
@@ -1571,6 +1635,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0w0
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1581,12 +1648,16 @@ contains
                * bw0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1595,10 +1666,14 @@ contains
           bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bz0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v1w1
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
@@ -1609,12 +1684,16 @@ contains
                * bw0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1623,27 +1702,35 @@ contains
           bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bs0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v2w2
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          ! v2 = (nus-nud) vperp J1 f0 
+          ! v2 = (nus-nud) vperp J1 f0
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
                * bw0tmp(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, dtmp, all)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1652,11 +1739,12 @@ contains
           bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
        end do
     end do
+    !$OMP END PARALLEL DO
 
     deallocate (gtmp, duinv, dtmp, vns)
 
     if(use_le_layout) then
-       allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))    
+       allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
        z_big=cmplx(real(bs0tmp),real(bw0tmp))
        deallocate (bs0tmp)
        deallocate (bw0tmp)
@@ -1673,7 +1761,7 @@ contains
        bz0le = real(ctmp)
 
        if (.not. allocated(aj0le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))    
+          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
           ! next set aj0le & aj1l
           z_big(:,1,:) = cmplx(aj0,aj1)
           z_big(:,2,:) = z_big(:,1,:)
@@ -1684,7 +1772,7 @@ contains
           aj0le = real(ctmp)
           aj1le = aimag(ctmp)
        end if
-       
+
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
