@@ -647,7 +647,8 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: kperp2, naky, ntheta0, kwork_filter
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
+         integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -721,7 +722,7 @@ contains
                 if ( .not. forbid(ig,il) ) then
                    if (conservative) then
                       z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                           * sqrt(energy(ie))*aj0(ig,iglo)
+                           * speed(ie)*aj0(ig,iglo)
                    else
                       z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
                    end if
@@ -745,7 +746,7 @@ contains
              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
              if (conservative) then
                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
-                     * sqrt(energy(ie))*aj0(:,iglo)
+                     * speed(ie)*aj0(:,iglo)
              else
                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
              end if
@@ -813,7 +814,7 @@ contains
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
              gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                  * vpdiff(:,isgn,il)*sqrt(energy(ie))
+                  * vpdiff(:,isgn,il)*speed(ie)
              !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
           end do
        end do
@@ -864,7 +865,7 @@ contains
                 ! u1 = -3 nu_s vpa dt J0 f_0 / du
                 if ( .not. forbid(ig,il) ) then
                    if (conservative) then
-                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*sqrt(energy(ie)) &
+                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*speed(ie) &
                            * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
                    else
                       s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
@@ -890,7 +891,7 @@ contains
           do isgn = 1, 2
              ! u1 = -3 nu_s vpa dt J0 f_0 / du
              if (conservative) then
-                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*sqrt(energy(ie)) &
+                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*speed(ie) &
                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
              else
                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
@@ -959,7 +960,7 @@ contains
        do isgn = 1, 2
           ! v1 = nu_D vpa J0
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*s0tmp(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
@@ -1102,7 +1103,7 @@ contains
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*w0tmp(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
