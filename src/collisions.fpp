@@ -645,7 +645,7 @@ contains
   subroutine init_lorentz_conserve
     use gs2_layouts, only: g_lo, ie_idx, is_idx, ik_idx, il_idx, it_idx
     use species, only: nspec, spec, is_electron_species
-    use kt_grids, only: kperp2, naky, ntheta0
+    use kt_grids, only: kperp2, naky, ntheta0, kwork_filter
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
@@ -654,7 +654,7 @@ contains
     use le_grids, only: g2le, nxi
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
-
+    use array_utils, only: zero_array
     implicit none
     
     complex, dimension (1,1,1) :: dum1 = 0., dum2 = 0.
@@ -670,7 +670,7 @@ contains
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        ! We need to initialise ctmp as it is used as receiving buffer in
        ! g2le redistribute, which doesn't populate all elements
-       ctmp = 0.
+       call zero_array(ctmp)
     end if
     
 ! TO DO: 
@@ -684,8 +684,12 @@ contains
     allocate (duinv(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (dtmp(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (vns(naky,negrid,nspec,3))
-    
-    duinv=0.0 ; dtmp=0.0; !This initialisation is needed in case kwork_filter is true anywhere
+
+    !This initialisation is needed in case kwork_filter is true anywhere
+    if (any(kwork_filter)) then
+       call zero_array(duinv)
+       call zero_array(dtmp)
+    end if
 
     vns(:,:,:,1) = vnmult(1)*vnew_D
     vns(:,:,:,2) = vnmult(1)*vnew_s
