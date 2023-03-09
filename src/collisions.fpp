@@ -4526,8 +4526,8 @@ contains
   end subroutine solfp_lorentz_le_layout
 
   !> Energy diffusion subroutine used with energy layout (not le_layout)
-  !! this is always the case when initializing the conserving terms,
-  !! otherwise is the case if use_le_layout is no specified in the input file.
+  !> this is always the case when initializing the conserving terms,
+  !> otherwise is the case if use_le_layout is no specified in the input file.
   subroutine solfp_ediffuse_standard_layout (g)
     use species, only: spec
     use theta_grid, only: ntgrid
@@ -4538,7 +4538,7 @@ contains
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
@@ -4548,14 +4548,14 @@ contains
     complex, dimension (:,:), allocatable :: ged
     integer :: ielo
 
-    allocate (ged(negrid+1,e_lo%llim_proc:e_lo%ulim_alloc)) ; ged = 0.0
+    allocate (ged(negrid+1,e_lo%llim_proc:e_lo%ulim_alloc)) ; call zero_array(ged)
 
     call gather (energy_map, g, ged)
 
     ! solve for ged row by row
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
 
        it = it_idx(e_lo,ielo)       
@@ -4612,7 +4612,7 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
        is = is_idx(le_lo,ile)
