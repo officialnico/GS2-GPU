@@ -112,7 +112,7 @@ module collisions
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le
+  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpale
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -1209,6 +1209,13 @@ contains
        aj0le = real(ctmp)
        aj1le = aimag(ctmp)
 
+       if (.not. allocated(vpale)) then
+          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       end if
+       z_big = vpa
+       call gather (g2le, z_big, ctmp)
+       vpale = real(ctmp)
+
        deallocate (ctmp, z_big)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1773,6 +1780,15 @@ contains
           aj1le = aimag(ctmp)
        end if
 
+       if (.not. allocated(vpale)) then
+          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+          z_big = vpa
+          call gather (g2le, z_big, ctmp)
+          deallocate (z_big)
+          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          vpale = real(ctmp)
+       end if
+
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -2329,7 +2345,7 @@ contains
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
     use redistribute, only: gather
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0, aj1
+    use dist_fn_arrays, only: aj0, aj1, vpa
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
 
@@ -2376,7 +2392,6 @@ contains
              z_big(:,2,:) = z_big(:,1,:)
 
              call gather (g2le, z_big, ctmp)
-             deallocate (z_big)
 
              allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
              allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2384,7 +2399,14 @@ contains
              aj0le = real(ctmp)
              aj1le = aimag(ctmp)
 
-             deallocate (ctmp)
+             if (.not. allocated(vpale)) then
+                allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+             end if
+             z_big = vpa
+             call gather (g2le, z_big, ctmp)
+             vpale = real(ctmp)
+
+             deallocate (ctmp, z_big)
           endif
        endif
 
@@ -4749,6 +4771,7 @@ contains
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
       if (allocated(aj1le)) deallocate(aj1le)
+      if (allocated(vpale)) deallocate(vpale)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
       if (allocated(bz0le)) deallocate(bz0le)
