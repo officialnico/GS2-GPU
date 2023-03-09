@@ -3841,7 +3841,7 @@ contains
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
@@ -3864,13 +3864,14 @@ contains
 
     !This is needed to to ensure the it,ik values we don't set aren't included
     !in the integral (can also be enforced in integrate_moment routine)
-    if(any(kwork_filter)) gtmp=0.
+    if(any(kwork_filter)) call zero_array(gtmp)
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3892,7 +3893,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3910,7 +3911,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3930,6 +3931,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3940,13 +3944,14 @@ contains
                * bs0(:,isgn,iglo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -3969,7 +3974,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -3998,7 +4003,7 @@ contains
     use theta_grid, only: bmag
     use run_parameters, only: tunits
     use kt_grids, only: kwork_filter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -4021,7 +4026,7 @@ contains
     !This is needed to to ensure the it,ik values we don't set aren't included
     !in the integral (can also be enforced in integrate_moment routine)
     !if(any(kwork_filter)) gtmp=0.
-    gtmp=0.
+    call zero_array(gtmp)
 
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
@@ -4034,7 +4039,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -4054,7 +4059,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -4071,7 +4076,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, il, isgn, vpa, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -4096,7 +4101,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
@@ -4112,7 +4117,7 @@ contains
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
@@ -4134,7 +4139,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
