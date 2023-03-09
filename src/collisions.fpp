@@ -1809,12 +1809,16 @@ contains
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: arr
     integer :: iglo, is, ik, il
     if (has_hybrid_electron_species(spec)) then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, ik, il, is) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           if (is_passing_hybrid_electron(is, ik, il)) arr(:, :, iglo) = 0.0
        end do
+       !$OMP END PARALLEL DO
     end if
   end subroutine zero_out_passing_hybrid_electrons
 
