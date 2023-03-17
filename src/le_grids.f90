@@ -830,7 +830,7 @@ contains
     use kt_grids, only: kwork_filter
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -839,7 +839,7 @@ contains
     integer :: is, il, ie, ik, it, iglo
 
     !Ensure array is zero to begin
-    total = 0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
@@ -895,6 +895,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array, copy
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -911,7 +912,7 @@ contains
        !total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
-    total_small=0.
+    call zero_array(total_small)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
@@ -970,7 +971,7 @@ contains
     if(intspec_sub)then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -988,6 +989,7 @@ contains
     use kt_grids, only: kwork_filter
     use redistribute, only: gather
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -996,7 +998,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1049,6 +1051,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
@@ -1056,7 +1059,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
@@ -1101,6 +1104,7 @@ contains
     use mp, only: sum_allreduce_sub, allgatherv
     use mp, only: nproc_comm,rank_comm,mp_abort
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -1155,7 +1159,7 @@ contains
     !Allocate array and ensure is zero
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
-    total_flat=0.
+    call zero_array(total_flat)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
@@ -1243,6 +1247,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1251,7 +1256,8 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
+
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
     !$OMP REDUCTION(+ : total) &
@@ -1283,6 +1289,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1291,7 +1298,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
@@ -1336,6 +1343,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1345,7 +1353,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
