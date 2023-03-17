@@ -1627,6 +1627,7 @@ contains
 ! <TT
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce_sub, nproc, sum_allreduce, sum_reduce_sub
+    use array_utils, only: zero_array, copy
 
     implicit none
 
@@ -1658,7 +1659,9 @@ contains
 !       total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky,g_lo%nspec))       
     endif
-    total_small=0.
+
+    call zero_array(total_small)
+
     !Integrate over local velocity space
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
@@ -1712,7 +1715,7 @@ contains
     if(intmom_sub.and.local_all.and.(.not.local_full_arr))then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -1730,6 +1733,7 @@ contains
     use gs2_layouts, only: p_lo, is_idx, ik_idx, ie_idx, il_idx
     use mp, only: sum_reduce, sum_allreduce
     use theta_grid, only: ntgrid
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1739,7 +1743,7 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Ensure zero to start
-    total = 0.
+    call zero_array(total)
 
     !Do local velocity space integral
     !$OMP PARALLEL DO DEFAULT(SHARED) &
@@ -1778,6 +1782,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1786,7 +1791,7 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
     !$OMP REDUCTION(+ : total) &
@@ -1821,6 +1826,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1829,7 +1835,7 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
     !$OMP REDUCTION(+ : total) &
@@ -1875,6 +1881,7 @@ contains
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
@@ -1882,7 +1889,7 @@ contains
     complex, dimension (lo%llim_proc:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
     integer :: nxup
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
     if (nxi .gt. 2*ng2) then
        nxup=nxi+1
     else
@@ -1931,13 +1938,14 @@ contains
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
     !$OMP REDUCTION(+ : total) &
@@ -1978,6 +1986,7 @@ contains
     use constants, only: zi
     use gs2_layouts, only: is_idx, ik_idx, ie_idx, il_idx, p_lo
     use mp, only: sum_reduce, sum_allreduce, nproc
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1990,7 +1999,7 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Initialise both arrays to zero
-    total = 0. ; gksum = 0.
+    call zero_array(total) ; call zero_array(gksum)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
