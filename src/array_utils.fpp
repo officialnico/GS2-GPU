@@ -36,8 +36,10 @@ module array_utils
 
   !> Interface to helper functions to zero an array
   interface zero_array
+     module procedure zero_array_real_array_1
      module procedure zero_array_real_array_2
      module procedure zero_array_real_array_3
+     module procedure zero_array_complex_array_1
      module procedure zero_array_complex_array_2
      module procedure zero_array_complex_array_3
      module procedure zero_array_complex_array_4
@@ -269,6 +271,23 @@ contains
     !$OMP END PARALLEL DO
   end function gs2_max_abs_complex_array_3
 
+  !> Zero out a 1D array
+  subroutine zero_array_real_array_1(array_in)
+    implicit none
+    real, dimension(:), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 1)
+    end = ubound(array_in, dim = 1)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(static)
+    do counter = start, end
+       array_in(counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_real_array_1
+
   !> Zero out a 2D array
   subroutine zero_array_real_array_2(array_in)
     implicit none
@@ -302,6 +321,23 @@ contains
     end do
     !$OMP END PARALLEL DO
   end subroutine zero_array_real_array_3
+
+  !> Zero out a 1D array
+  subroutine zero_array_complex_array_1(array_in)
+    implicit none
+    complex, dimension(:), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 1)
+    end = ubound(array_in, dim = 1)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(static)
+    do counter = start, end
+       array_in(counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_complex_array_1
 
   !> Zero out a 2D array
   subroutine zero_array_complex_array_2(array_in)
