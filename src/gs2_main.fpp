@@ -1576,6 +1576,7 @@ contains
   !> Prints a full breakdown of timing information if `state%print_full_timers`
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
+    use run_parameters, only: save_timer_statistics
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
@@ -1595,7 +1596,7 @@ contains
     real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
     real :: redist_total, redist_mpi, redist_copy
 
-    call write_time_parallel_statistics(timers)
+    if (save_timer_statistics) call write_time_parallel_statistics(timers)
 
     if (.not. proc0) return
 
