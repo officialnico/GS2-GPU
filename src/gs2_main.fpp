@@ -1477,6 +1477,7 @@ contains
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
     implicit none
     !> Timing information
     type(gs2_timers_type), intent(in) :: timers
@@ -1518,6 +1519,7 @@ contains
          timer_data(time_add_explicit_terms(1), "explicit/nl"), &
          timer_data(time_add_explicit_terms_mpi, "explicit/nl mpi"), &
          timer_data(time_fft(1), "explicit/nl fft"), &
+         timer_data(time_add_explicit_terms_field(1), 'explicit/nl fields'), &
          timer_data(timers%diagnostics(1), "diagnostics"), &
          timer_data(time_reinit(1), "Re-initialize"), &
          timer_data(redist_total, "Redistribute"), &
