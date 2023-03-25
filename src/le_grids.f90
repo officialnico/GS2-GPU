@@ -2949,6 +2949,13 @@ contains
     ! Here, with trapped particles, we set:     jend(ig)=  il
     !  where il is the lambda index of the trapped particle bouncing at theta(ig)
 
+    ! Note it might be better to set jend(ig) > nlambda if we have no
+    ! trapped particles so il <= jend(ig) is always true for a particle
+    ! which isn't forbidden. This would require a change in logic elsewhere
+
+    ! Exit now if there are no trapped particles
+    if (.not. grid_has_trapped_particles()) return
+
     do ig = -ntgrid, ntgrid
        ! We could initialise jend to ng2 and start this loop at ng2 + 1
        ! as we assume that all lambda up to and including with ng2 satisfy
