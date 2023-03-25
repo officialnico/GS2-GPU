@@ -1585,6 +1585,7 @@ contains
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
 #endif
@@ -1618,6 +1619,7 @@ contains
       write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
       write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
       write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fields", time_add_explicit_terms_field(1))
       write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
       write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
       write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
