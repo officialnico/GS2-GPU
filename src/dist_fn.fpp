@@ -129,12 +129,6 @@ module dist_fn
 !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
 !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
-  logical :: trapped_wfb, passing_wfb
-! MRH trapped_wfb, passing_wfb control the choice of wfb boundary condition
-  integer :: wfbbc_option_switch
-  integer, parameter :: wfbbc_option_mixed = 1, &
-       wfbbc_option_passing = 2, &
-       wfbbc_option_trapped = 3
        
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
   real :: qparfac_lin, qprpfac_lin, phifac_lin
@@ -469,13 +463,10 @@ module dist_fn
      real :: wfb = 1.0
      !> If true, do NOT save homogeneous solutions for WFB
      logical :: wfb_cmr = .false.
-     !> Set boundary condition for WFB in the linear/parallel solve:
-     !>
-     !> - "default", "mixed": The previous default boundary condition which
-     !>   mixes the passing and trapped boundary conditions
-     !> - "passing": Treats the WFB using a passing particle boundary condition
-     !> - "trapped": Treats the WFB using a trapped particle boundary condition
-     character(len = 20) :: wfbbc_option = 'default'
+     !> Deprecated option, moved to [le_grids]. Setting
+     !> will lead to an error message and abort. To be removed
+     !> entirely in future release
+     character(len = 20) :: wfbbc_option = 'unset'
      !> If true then force `gnew=0` in the forbidden region at the end
      !> of [[invert_rhs_1]] (this is the original behaviour).
      !> Nothing should depend on the forbidden region so `g` should be 0 here
@@ -1286,11 +1277,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
-    use file_utils, only: input_unit, error_unit, input_unit_exist
+    use file_utils, only: error_unit
     use theta_grid, only: shat
     use text_options, only: text_option, get_option_value
     use species, only: nspec
-    use mp, only: proc0, broadcast
+    use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
@@ -1324,12 +1315,6 @@ contains
             text_option('iphi00=2', adiabatic_option_fieldlineavg), &
             text_option('iphi00=3', adiabatic_option_yavg)/)
     character(30) :: adiabatic_option
-    
-    type (text_option), dimension (4), parameter :: wfbbcopts = &
-         (/ text_option('default', wfbbc_option_mixed), &
-            text_option('passing', wfbbc_option_passing), &
-            text_option('trapped', wfbbc_option_trapped), &
-            text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
 
     integer :: ierr, is
@@ -1403,6 +1388,11 @@ contains
     zero_forbid = dist_fn_config%zero_forbid
 
     dfexist = dist_fn_config%exist
+
+    if (trim(adjustl(wfbbc_option)) /= 'unset') then
+       call mp_abort("The input wfbbc_option has been set in 'dist_fn_knobs' but this "// &
+            "input has moved to 'le_grids_knobs'", .true.)
+    end if
     
     if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
 
@@ -1415,30 +1405,11 @@ contains
          ierr, "boundary_option in dist_fn_knobs",.true.)
 
     call get_option_value &
-         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
-         ierr, "wfbbc_option in dist_fn_knobs",.true.)
-
-    call get_option_value &
          (source_option, sourceopts, source_option_switch, &
          ierr, "source_option in source_knobs",.true.)
     call get_option_value &
          (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
          ierr, "adiabatic_option in dist_fn_knobs",.true.)
-
-    trapped_wfb = .false.! flag for treating wfb as a trapped particle
-    passing_wfb = .false.! flag for treating wfb as a passing particle
-
-    select case (wfbbc_option_switch)
-    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
-       passing_wfb =.false.
-       trapped_wfb =.false.
-    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
-       passing_wfb =.true.
-       trapped_wfb =.false.
-    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
-       passing_wfb =.false.
-       trapped_wfb =.true.
-    end select
        
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
 
@@ -2157,7 +2128,7 @@ contains
   subroutine init_connected_bc
     use theta_grid, only: ntgrid, nperiod, ntheta, theta
     use kt_grids, only: naky, ntheta0, aky, theta0
-    use le_grids, only: ng2, nlambda
+    use le_grids, only: ng2, nlambda, passing_wfb, trapped_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use gs2_layouts, only: idx, proc_id
     use mp, only: iproc, nproc, max_allreduce, mp_abort
@@ -4595,7 +4566,8 @@ contains
     use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid, is_passing_hybrid_electron
+    use le_grids, only: nlambda, ng2, lmax, forbid,&
+         is_passing_hybrid_electron, passing_wfb, trapped_wfb
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -5067,8 +5039,10 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2, is_passing_hybrid_electron
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
+    use le_grids, only: energy, al, nlambda, ng2,&
+         is_passing_hybrid_electron, passing_wfb, trapped_wfb
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx,&
+         is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
@@ -10482,7 +10456,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: boundary_option, wfbbc_option
+    character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
@@ -10491,7 +10465,7 @@ contains
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
-         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10536,7 +10510,6 @@ contains
     vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
-    wfbbc_option = self%wfbbc_option
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
@@ -10583,7 +10556,6 @@ contains
     self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
-    self%wfbbc_option = wfbbc_option
     self%zero_forbid = zero_forbid
 
     self%exist = exist
@@ -10641,7 +10613,6 @@ contains
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
-    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
     call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_dist_fn_config
@@ -10701,7 +10672,6 @@ contains
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
-    call broadcast(self%wfbbc_option)
     call broadcast(self%zero_forbid)
 
     call broadcast(self%exist)

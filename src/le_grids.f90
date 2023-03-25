@@ -170,6 +170,7 @@ module le_grids
   public :: is_passing_hybrid_electron
   public :: setup_trapped_lambda_grids_old_finite_difference
   public :: setup_passing_lambda_grids
+  public :: passing_wfb, trapped_wfb
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -256,6 +257,14 @@ module le_grids
   logical :: lzinit = .false.
   logical :: einit = .false.
   logical :: init_weights_init = .false.
+
+  ! MRH trapped_wfb, passing_wfb control the choice of wfb boundary condition
+  logical :: trapped_wfb, passing_wfb
+
+  integer :: wfbbc_option_switch
+  integer, parameter :: wfbbc_option_mixed = 1, &
+       wfbbc_option_passing = 2, &
+       wfbbc_option_trapped = 3
 
   integer :: nmax = 500
   integer :: nterp = 100
@@ -347,6 +356,13 @@ module le_grids
      !> No. of standard deviations from the standard Maxwellian beyond
      !> which the distribution function will be set to 0.
      real :: vcut = 2.5
+     !> Set boundary condition for WFB in the linear/parallel solve:
+     !>
+     !> - "default", "mixed": The previous default boundary condition which
+     !>   mixes the passing and trapped boundary conditions
+     !> - "passing": Treats the WFB using a passing particle boundary condition
+     !> - "trapped": Treats the WFB using a trapped particle boundary condition
+     character(len = 20) :: wfbbc_option = 'default'
      !> Influences the maximum integration weight allowed.
      real :: wgt_fac = 10.0
    contains
@@ -504,8 +520,17 @@ contains
 
   !> FIXME : Add documentation  
   subroutine read_parameters(le_grid_config_in)
+    use file_utils, only: error_unit
+    use text_options, only: text_option, get_option_value
     implicit none
     type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
+    type (text_option), dimension (4), parameter :: wfbbcopts = &
+         (/ text_option('default', wfbbc_option_mixed), &
+            text_option('passing', wfbbc_option_passing), &
+            text_option('trapped', wfbbc_option_trapped), &
+            text_option('mixed', wfbbc_option_mixed)/)
+    character(20) :: wfbbc_option
+    integer :: ierr
     
     if (present(le_grid_config_in)) le_grids_config = le_grid_config_in
 
@@ -526,6 +551,7 @@ contains
     test = le_grids_config%test
     trapped_particles = le_grids_config%trapped_particles
     vcut = le_grids_config%vcut
+    wfbbc_option = le_grids_config%wfbbc_option
     wgt_fac = le_grids_config%wgt_fac
 
     exist = le_grids_config%exist
@@ -546,6 +572,27 @@ contains
     else
        ng2 = npassing
     end if
+
+    ierr = error_unit()
+
+    call get_option_value &
+         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
+         ierr, "wfbbc_option in dist_fn_knobs",.true.)
+
+    trapped_wfb = .false.! flag for treating wfb as a trapped particle
+    passing_wfb = .false.! flag for treating wfb as a passing particle
+
+    select case (wfbbc_option_switch)
+    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
+       passing_wfb =.false.
+       trapped_wfb =.false.
+    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition
+       passing_wfb =.true.
+       trapped_wfb =.false.
+    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition
+       passing_wfb =.false.
+       trapped_wfb =.true.
+    end select
 
   end subroutine read_parameters
 
@@ -4601,11 +4648,12 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: wfbbc_option
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
     logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4625,6 +4673,7 @@ contains
     test = self%test
     trapped_particles = self%trapped_particles
     vcut = self%vcut
+    wfbbc_option = self%wfbbc_option
     wgt_fac = self%wgt_fac
 
     ! Now read in the main namelist
@@ -4646,6 +4695,7 @@ contains
     self%test = test
     self%trapped_particles = trapped_particles
     self%vcut = vcut
+    self%wfbbc_option = wfbbc_option
     self%wgt_fac = wgt_fac
 
     self%exist = exist
@@ -4678,6 +4728,7 @@ contains
     call self%write_key_val("test", self%test, unit_internal)
     call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
     call self%write_key_val("vcut", self%vcut, unit_internal)
+    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
     call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_le_grids_config
@@ -4712,6 +4763,7 @@ contains
     call broadcast(self%test)
     call broadcast(self%trapped_particles)
     call broadcast(self%vcut)
+    call broadcast(self%wfbbc_option)
     call broadcast(self%wgt_fac)
 
     call broadcast(self%exist)
