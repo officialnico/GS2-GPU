@@ -157,7 +157,7 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi
+  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, nterp, new_trap_int, vcut, genquad
   public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
   public :: finish_weights
@@ -171,6 +171,9 @@ module le_grids
   public :: setup_trapped_lambda_grids_old_finite_difference
   public :: setup_passing_lambda_grids
   public :: passing_wfb, trapped_wfb
+  public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
+  public :: il_is_wfb, il_is_ttp
+  public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -219,8 +222,8 @@ module le_grids
   real, dimension (:,:), allocatable :: energy, w, speed, dele
   real, dimension (:), allocatable :: al, delal ! (nlambda)
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
-  integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
-  logical, dimension (:,:), allocatable :: forbid ! (-ntgrid:ntgrid,nlambda)
+  integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
+  logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
 
   real, dimension (:,:), allocatable :: xi
   integer, dimension (:,:), allocatable :: ixi_to_il, ixi_to_isgn
@@ -479,8 +482,10 @@ contains
        allocate(dele(negrid,nspec))
        allocate (al(nlambda), delal(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
+       allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
+       allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (xx(ng2))
        allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
        allocate (xloc(-ntgrid:ntgrid,tsize))
@@ -496,6 +501,7 @@ contains
 
     call broadcast (al)
     call broadcast (delal)
+    call broadcast (ittp)
     call broadcast (jend)
  
     call broadcast (energy_maxw)
@@ -506,6 +512,7 @@ contains
 
     call broadcast(wl)
     call broadcast(forbid)
+    call broadcast(is_bounce_point)
 
     call broadcast(xloc)
     call broadcast(lgrnge)
@@ -623,6 +630,66 @@ contains
           
 
   end subroutine init_integrations
+
+  !> Returns true if there are trapped particles on the current
+  !> pitch angle grid.
+  pure logical function grid_has_trapped_particles() result(has_trapped)
+    implicit none
+    has_trapped = nlambda > ng2
+  end function grid_has_trapped_particles
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered trapped.
+  elemental logical function il_is_trapped(il) result(is_trapped)
+    implicit none
+    integer, intent(in) :: il
+    is_trapped = il > ng2 + 1
+    ! If we want to improve the consistency of the trapped wfb
+    ! treatment we can replace the above with
+    ! is_trapped = il > ng2
+    ! To be explicit this might look like
+    ! if (trapped_wfb) then
+    !     is_trapped = il > ng2
+    ! else
+    !     is_trapped = il > ng2 + 1
+    ! end if
+  end function il_is_trapped
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered passing.
+  elemental logical function il_is_passing(il) result(is_passing)
+    implicit none
+    integer, intent(in) :: il
+    is_passing = il <= ng2
+    ! If we want to improve the consistency of the passing wfb
+    ! treatment we can replace the above with
+    ! is_passing = il <= ng2 + 1
+    ! To be explicit this might look like
+    ! if (passing_wfb) then
+    !     is_passing = il <= ng2 + 1
+    ! else
+    !     is_passing = il <= ng2
+    ! end if
+  end function il_is_passing
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the wfb.
+  elemental logical function il_is_wfb(il) result(is_wfb)
+    implicit none
+    integer, intent(in) :: il
+    is_wfb = il == ng2 + 1
+    ! If we want to improve the consistency of the wfb
+    ! treatment we should hopefully rarely need to specificaly
+    ! identify the wfb
+  end function il_is_wfb
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the totally trapped particle
+  elemental logical function il_is_ttp(il) result(is_ttp)
+    implicit none
+    integer, intent(in) :: il
+    is_ttp = grid_has_trapped_particles() .and. il == nlambda 
+  end function il_is_ttp
 
   !> Calculates energy grid and (untrapped) pitch angle weights for
   !> integrals which drop a point from the energy/lambda
@@ -2014,7 +2081,7 @@ contains
              end do
              !If we have trapped particles use the precalculated weights
              !in wlmod as above is only for passing particles
-             if (nlambda > ng2) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
+             if (grid_has_trapped_particles()) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
           end do
        end if
 
@@ -2213,11 +2280,13 @@ contains
     nxi = max(2*nlambda-1, 2*ng2)
     allocate (al(nlambda), delal(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
+    allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
+    allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
     allocate (xloc(-ntgrid:ntgrid,tsize))
-    if (nlambda-ng2 > 0) then
+    if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
     call lgridset
@@ -2308,7 +2377,7 @@ contains
        allocate(trapped_error(-ntgrid:ntgrid))
        trapped_error = 0.0
        ! Only calculate this if we have any trapped pitch angles
-       if (nlambda > ng2) then
+       if (grid_has_trapped_particles()) then
           allocate(expected_trapped(-ntgrid:ntgrid))
           ! We're essentially just subtracting the passing analytic
           ! result from the total expectation, i.e. effectively
@@ -2450,9 +2519,17 @@ contains
     ! various points.
     call calculate_forbidden_region(forbid)
 
+    ! Calculate the is_bounce_point flag indicating which pitch angles are allowed at
+    ! various points.
+    call calculate_bounce_points(is_bounce_point)
+
     ! Calculate the jend values indicating the pitch angle which bounces at
     ! each theta point.
     call calculate_jend(jend)
+
+    ! Calculate the ittp values indicating which pitch angles are
+    ! considered totally trapped.
+    call calculate_ittp(ittp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -2479,7 +2556,7 @@ contains
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
     if (.not. allocated(xx)) allocate (xx(ng2))
 
-    if(radau_gauss_grid .and. nlambda > ng2 ) then
+    if(radau_gauss_grid .and. grid_has_trapped_particles() ) then
 
        ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
        ! which contributes to the integration over passing particles
@@ -2507,7 +2584,7 @@ contains
     end do
 
     ! Assign the weight for wfb from the radau-gauss grid
-    if (radau_gauss_grid .and. nlambda > ng2 ) then
+    if (radau_gauss_grid .and. grid_has_trapped_particles() ) then
        il=ng2+1
        do ig = -ntgrid, ntgrid
           if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
@@ -2869,6 +2946,119 @@ contains
     end do
   end subroutine calculate_forbidden_region
 
+  !> Determine which theta grid points correspond to bounce points
+  !> for each pitch angle.
+  !>
+  !> For regular trapped particles we _could_ determine this from forbid,
+  !> as we do in other parts of the code, however we prefer a forbid independent
+  !> method to allow for generalisation to wfb and wfb-like particles.
+  subroutine calculate_bounce_points(bounce_points)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    logical, dimension(-ntgrid:, :), intent(out) :: bounce_points
+    integer :: ig, il
+    integer :: il_llim
+
+    bounce_points = .false.
+
+    ! We could set the lower lambda grid index which we consider here
+    ! in order to either include or exclude the wfb if we allow it to
+    ! bounce. For now we will not allow for wfb bounce points, leaving these
+    ! to be handled by special code elsewhere.
+    il_llim = ng2 + 2
+
+    do il = il_llim, nlambda
+       do ig = -ntgrid, ntgrid
+          ! Note, this imposes a requirement that our pitch angle and
+          ! magnetic field grids are calculated consisently to within bouncefuzz.
+          ! In other words we require lambda*bmag = 1 to within bouncefuzz.
+          bounce_points(ig,il) = abs(1.0 - al(il)*bmag(ig)) <= bouncefuzz
+       end do
+    end do
+
+  end subroutine calculate_bounce_points
+
+  !> Returns true if the passed theta grid index, ig, is a lower bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_lower_bounce_point(ig, il) result(is_lower)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_lower = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==-ntgrid we don't
+    ! want to access bmag(ig-1)
+    if (ig == -ntgrid) then
+       is_lower = .true.
+    elseif (ig == ntgrid) then
+       is_lower = .false.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_lower = bmag(ig-1) > bmag(ig)
+
+       ! Instead we simply check if the _next_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_lower = .not. forbid(ig + 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_lower_bounce_point
+
+  !> Returns true if the passed theta grid index, ig, is a upper bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_upper_bounce_point(ig, il) result(is_upper)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_upper = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==ntgrid we don't
+    ! want to access bmag(ig+1)
+    if (ig == -ntgrid) then
+       is_upper = .false.
+    elseif (ig == ntgrid) then
+       is_upper = .true.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_upper = bmag(ig+1) > bmag(ig)
+
+       ! Instead we simply check if the _previous_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_upper = .not. forbid(ig - 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_upper_bounce_point
+
   !> Determine which lambda grid point bounces at this
   !> theta/bmag value.
   subroutine calculate_jend(jend)
@@ -2887,6 +3077,13 @@ contains
     ! Here, with trapped particles, we set:     jend(ig)=  il
     !  where il is the lambda index of the trapped particle bouncing at theta(ig)
 
+    ! Note it might be better to set jend(ig) > nlambda if we have no
+    ! trapped particles so il <= jend(ig) is always true for a particle
+    ! which isn't forbidden. This would require a change in logic elsewhere
+
+    ! Exit now if there are no trapped particles
+    if (.not. grid_has_trapped_particles()) return
+
     do ig = -ntgrid, ntgrid
        ! We could initialise jend to ng2 and start this loop at ng2 + 1
        ! as we assume that all lambda up to and including with ng2 satisfy
@@ -2897,6 +3094,34 @@ contains
        end do
     end do
   end subroutine calculate_jend
+
+  !> Determine which lambda grid point is totally trapped at this
+  !> theta grid point.
+  subroutine calculate_ittp(ittp_indices)
+    use theta_grid, only: ntgrid
+
+    implicit none
+    integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
+    integer :: ig, il
+    ittp_indices = nlambda+1
+    if (.not. grid_has_trapped_particles()) return
+
+    ! Note we exclude the possibility of totally trapped particles
+    ! existing at either end of the theta grid.
+    do ig = -ntgrid+1, ntgrid-1
+       ! all pitch angles greater than or equal to ittp are totally trapped or forbidden
+       do il = ng2+1, nlambda
+          if (forbid(ig-1,il) .and. forbid(ig+1, il) &
+               .and. .not. forbid(ig, il)) then
+             ittp(ig) = il
+
+             ! Record the lowest il which satisfies the condition
+             exit
+          end if
+       end do
+    end do
+
+  end subroutine calculate_ittp
 
   !> FIXME : Add documentation  
   subroutine xigridset
@@ -4550,7 +4775,9 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
+         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+    if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
     if (allocated(w)) deallocate (w,w_maxw)
@@ -4609,7 +4836,9 @@ contains
     implicit none
     integer, intent(in) :: is, ik, il
     is_passing_hybrid_electron = &
-         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 &
+         .and. (il_is_passing(il) .or. il_is_wfb(il))
+    !Note always including wfb as passing here
   end function is_passing_hybrid_electron
 
   !> Set the module level config type

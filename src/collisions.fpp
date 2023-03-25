@@ -1877,7 +1877,9 @@ contains
 
     allocate (aa(negrid), bb(negrid), cc(negrid))
     allocate (xe(negrid))
-   
+
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
     else
@@ -2136,7 +2138,8 @@ contains
   !> FIXME : Add documentation  
   subroutine init_lorentz (vnmult_target)
     use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
-    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
+    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids, &
+         il_is_passing, il_is_wfb
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
@@ -2233,7 +2236,7 @@ contains
          ! when there are only passing particles plus wfb (and no other trapped particles)
          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
          ! Fixed below
-         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
+         if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
@@ -2295,7 +2298,7 @@ contains
          ! when there are only passing particles plus wfb (and no other trapped particles)
          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
          ! Fixed below
-         if (je <= ng2 .or. (je <= ng2+1 .and. special_wfb_lorentz) ) then ! MRH
+         if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
             te2 = 2*ng2
          else
             te2 = 2*je-1
@@ -2364,7 +2367,7 @@ contains
 
     use species, only: spec
     use le_grids, only: al, energy => energy_maxw, xi, ng2
-    use le_grids, only: jend, al
+    use le_grids, only: jend, al, il_is_passing, il_is_wfb
     use gs2_time, only: code_dt
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
@@ -2393,7 +2396,7 @@ contains
 !CMRDDGC, 17/2/2014:
 !   This clause is appropriate for Lorentz collisons with 
 !         SPECIAL (unphysical) treatment of wfb at its bounce point
-       if (je <= ng2+1) then
+       if (il_is_passing(je) .or. il_is_wfb(je)) then
           te = ng2
           te2 = 2*ng2
           teh = ng2
@@ -2406,7 +2409,7 @@ contains
 !CMRDDGC, 17/2/2014:
 !   This clause is appropriate for Lorentz collisons with 
 !         STANDARD treatment of wfb at its bounce point
-       if (je <= ng2) then
+       if (il_is_passing(je)) then
           te = ng2
           te2 = 2*ng2
           teh = ng2
@@ -2521,7 +2524,7 @@ contains
        ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated 
        ! to it at each appearance compared to what the weight should be  
        ! as calculated in the continuum of points xi = (-1,1)
-       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il .eq. ng2+1) then 
+       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il_is_wfb(il)) then
           deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
        endif
        cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(deltaxi*(slb2 - slb1))
@@ -2625,7 +2628,8 @@ contains
   !> FIXME : Add documentation  
   subroutine init_lorentz_error
 
-    use le_grids, only: jend, al, ng2, nlambda
+    use le_grids, only: jend, al, ng2, nlambda, &
+         il_is_wfb, il_is_passing, il_is_trapped
     use theta_grid, only: ntgrid, bmag
     implicit none
     
@@ -2649,7 +2653,7 @@ contains
     do ig=-ntgrid,ntgrid
        je = jend(ig)
        
-       if (je <= ng2+1) then            ! no trapped particles
+       if (il_is_passing(je) .or. il_is_wfb(je)) then            ! no trapped particles
 
 ! calculation of xi and finite difference coefficients for non-boundary points
           do il=2,ng2-1
@@ -2880,7 +2884,7 @@ contains
           d2lcoef(ig,il,ip-il+2) = (1.0-slb(il)**2)*d2lcoef(ig,il,ip-il+2)
        end do
        
-       if (je > ng2+1) then      ! have to handle trapped particles
+       if (il_is_trapped(je)) then      ! have to handle trapped particles
 
           do il=ng2+1,je
              do ip=il-2,il+2
@@ -3117,6 +3121,8 @@ contains
     integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
     integer :: nxi_lim
 
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
     else
@@ -3413,6 +3419,8 @@ contains
     integer :: ile, ixi
     integer :: nxi_lim
 
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
     else
@@ -3743,6 +3751,8 @@ contains
     !if(any(kwork_filter)) gtmp=0.
     gtmp=0.
 
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
     else
@@ -3856,7 +3866,7 @@ contains
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, ng2, lambda_map, nxi
+    use le_grids, only: nlambda, jend, ng2, lambda_map, nxi, il_is_wfb
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx
     use prof, only: prof_entering, prof_leaving
@@ -3958,7 +3968,7 @@ contains
        endif 
        
        glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
-       if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
+       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
@@ -3990,7 +4000,7 @@ contains
 !       ! and insert this point into glz
        ! interpolation described above mysteriously causing numerical instability
        ! stabilized by using old (pre-collision) value of g for wfb
-       if (jend(ig) == ng2+1.and.special_wfb_lorentz) then
+       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
           glz(ng2+2:je-1,ilz) = glz(ng2+1:je-2,ilz)
           glz(ng2+1,ilz) = gwfb
        end if
@@ -4018,7 +4028,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine solfp_lorentz_le_layout (gle, diagnostics)
-    use le_grids, only: jend, ng2, negrid, nxi, integrate_moment
+    use le_grids, only: jend, ng2, negrid, nxi, integrate_moment, il_is_wfb
     use gs2_layouts, only: ig_idx, ik_idx, is_idx, it_idx
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: ieqzip
@@ -4114,7 +4124,7 @@ contains
 !  je-1 = #physical xi values removing duplicate vpar=0 point
        je=max(2*jend(ig),2*ng2+1)
        nxi_scatt=je-1
-       if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
+       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
           nxi_scatt=nxi_scatt-1
        endif
 ! These fixes address previous comment by CMR: 
@@ -4133,7 +4143,7 @@ contains
             gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
           endif 
           gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
-          if (jend(ig) == ng2+1 .and.special_wfb_lorentz) then
+          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
@@ -4162,7 +4172,7 @@ contains
 !       ! and insert this point into glz
           ! interpolation described above mysteriously causing numerical instability
           ! stabilized by using old (pre-collision) value of g for wfb
-          if (jend(ig) == ng2+1.and.special_wfb_lorentz) then
+          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
              gle(ng2+2:je-1,ie,ile)=gle(ng2+1:je-2,ie,ile)
              gle(ng2+1,ie,ile)=gwfb
 !          gle(ng2+1,ie,ile) = 0.5*(gle(ng2,ie,ile)+gle(ng2+1,ie,ile))
@@ -4257,6 +4267,8 @@ contains
     integer :: ile, ixi, ik, it
     integer :: nxi_lim
     
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
     if(le_nxilim_fix .and. nxi > 2*ng2 ) then
         nxi_lim = nxi + 1
     else
@@ -4295,7 +4307,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
     use theta_grid, only: ntgrid, bmag
 
     implicit none
@@ -4311,7 +4323,7 @@ contains
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)
-          if (je <= ng2+1) then
+          if (il_is_passing(je) .or. il_is_wfb(je)) then
              te = ng2
           else
              te = je
