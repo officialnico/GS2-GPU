@@ -16,7 +16,7 @@ module nonlinear_terms
   public :: add_explicit_terms, nonlinear_mode_switch, split_nonlinear
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
-  public :: nonlinear_mode_none, nonlinear_mode_on
+  public :: time_add_explicit_terms_field, nonlinear_mode_none, nonlinear_mode_on
   public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
@@ -86,6 +86,7 @@ module nonlinear_terms
   logical :: include_apar, include_bpar, include_phi
 
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
+  real :: time_add_explicit_terms_field(2) = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.

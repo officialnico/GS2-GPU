@@ -1898,7 +1898,7 @@ contains
     use dist_fn_arrays, only: vpar
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, ittp
+    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, ittp
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -1967,7 +1967,7 @@ contains
 !  trapped particles. Part of multiple trapped particle algorithm
 !  NB not applicable to ttp or wfb!
                 if( isgn.eq.1 )then
-                   if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+                   if (is_lower_bounce_point(ig+1, il)) then
                       ainv(ig,isgn,iglo) = 1.0 + ainv(ig,isgn,iglo)
                    end if
                 endif
@@ -4545,7 +4545,8 @@ contains
     use le_grids, only: nlambda, ng2, lmax, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
-         grid_has_trapped_particles, ittp
+         grid_has_trapped_particles, is_upper_bounce_point, &
+         is_lower_bounce_point, ittp
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4771,7 +4772,9 @@ contains
           !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
           do ig=-ntgrid,ntgrid-1
              !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-             if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
+             ! Note with use of is_upper_bounce_point we can change ig loop to full
+             ! theta domain if we like. Only relevant once wfb bounce points identified
+             if (is_upper_bounce_point(ig, il)) g2(ig,2) = 1.0
           end do
        end if
 
@@ -4842,7 +4845,9 @@ contains
        if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
-             if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+             ! Note could change ig loop to full theta grid now we are using
+             ! is_lower_bounce_point
+             if (is_lower_bounce_point(ig+1, il)) then
                 !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
                 !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
                 !      but this was handled consistently in integration of g1)
@@ -4922,7 +4927,7 @@ contains
              if (forbid(ig,il)) then
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
-             else if (forbid(ig+1,il)) then
+             else if (forbid(ig+1,il)) then !This could be is_upper_bounce_point(ig, il)?
                 beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
              end if
              gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
