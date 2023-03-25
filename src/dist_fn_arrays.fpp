@@ -12,7 +12,7 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, vpar, ittp, aj0, aj1
+  public :: vperp2, vpar, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
@@ -52,9 +52,6 @@ module dist_fn_arrays
 
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: aj0_gf, aj1_gf
-
-  integer, dimension (:), allocatable :: ittp
-  ! (-ntgrid:ntgrid)
 
   ! collisional diagnostic of heating rate
   complex, dimension (:,:,:,:,:), allocatable :: c_rate

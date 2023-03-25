@@ -1229,7 +1229,6 @@ contains
   subroutine finish_dist_fn_level_3
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: vpa, vpac, vpar
-    use dist_fn_arrays, only: ittp
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
     !initializing  = .true.
     if (.not. initialized_dist_fn_level_3) return
@@ -1248,7 +1247,7 @@ contains
     g = 0.
 
     if (allocated(vpa)) deallocate (vpa, vpac, vpar)
-    if (allocated(ittp)) deallocate (ittp, wdrift, wdriftttp)
+    if (allocated(wdrift)) deallocate (wdrift, wdriftttp)
     if (allocated(wstar)) deallocate (wstar)
 !AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
@@ -1505,39 +1504,12 @@ contains
   subroutine init_wdrift
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
-         il_is_wfb, il_is_trapped
+         il_is_wfb, il_is_trapped, ittp
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use dist_fn_arrays, only: ittp
     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
     logical,parameter :: debug = .false.
-
-! find totally trapped particles 
-!    if (alloc) allocate (ittp(-ntgrid:ntgrid))
-    if (.not. allocated(ittp)) allocate (ittp(-ntgrid:ntgrid))
-!    ittp = 0
-     ittp = nlambda+1
-    do ig = -ntgrid+1, ntgrid-1
-!       if (jend(ig) > 0 .and. jend(ig) <= nlambda) then
-!          if (1.0-al(jend(ig))*bmag(ig+1) < 2.0*epsilon(0.0) &
-!               .and. 1.0-al(jend(ig))*bmag(ig-1) < 2.0*epsilon(0.0)) &
-!          then
-!             ittp(ig) = jend(ig)
-!          end if
-!       end if
-
-! all pitch angles greater than or equal to ittp are totally trapped or forbidden
-
-       if (grid_has_trapped_particles()) then
-          do il = ng2+1, nlambda
-             if (forbid(ig-1,il) .and. forbid(ig+1, il) .and. .not. forbid(ig, il)) then
-                ittp(ig) = il
-                exit
-             end if
-          end do
-       end if
-    end do
 
     if (.not. allocated(wdrift)) then
        ! allocate wdrift with sign(vpa) dependence because will contain 
@@ -1923,10 +1895,10 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
-    use dist_fn_arrays, only: vpar, ittp
+    use dist_fn_arrays, only: vpar
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point
+    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, ittp
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -4052,11 +4024,11 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
@@ -4336,11 +4308,11 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, g, ittp
+    use dist_fn_arrays, only: aj0, aj1, vperp2, g
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
@@ -4567,14 +4539,14 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
-    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2, lmax, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
-         is_lower_bounce_point
+         is_lower_bounce_point, ittp
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving

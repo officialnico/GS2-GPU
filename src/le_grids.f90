@@ -157,7 +157,7 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi
+  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, nterp, new_trap_int, vcut, genquad
   public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
   public :: finish_weights
@@ -222,7 +222,7 @@ module le_grids
   real, dimension (:,:), allocatable :: energy, w, speed, dele
   real, dimension (:), allocatable :: al, delal ! (nlambda)
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
-  integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
+  integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
 
   real, dimension (:,:), allocatable :: xi
@@ -482,6 +482,7 @@ contains
        allocate(dele(negrid,nspec))
        allocate (al(nlambda), delal(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
+       allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
@@ -500,6 +501,7 @@ contains
 
     call broadcast (al)
     call broadcast (delal)
+    call broadcast (ittp)
     call broadcast (jend)
  
     call broadcast (energy_maxw)
@@ -2278,6 +2280,7 @@ contains
     nxi = max(2*nlambda-1, 2*ng2)
     allocate (al(nlambda), delal(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
+    allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
@@ -2523,6 +2526,10 @@ contains
     ! Calculate the jend values indicating the pitch angle which bounces at
     ! each theta point.
     call calculate_jend(jend)
+
+    ! Calculate the ittp values indicating which pitch angles are
+    ! considered totally trapped.
+    call calculate_ittp(ittp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -3070,6 +3077,13 @@ contains
     ! Here, with trapped particles, we set:     jend(ig)=  il
     !  where il is the lambda index of the trapped particle bouncing at theta(ig)
 
+    ! Note it might be better to set jend(ig) > nlambda if we have no
+    ! trapped particles so il <= jend(ig) is always true for a particle
+    ! which isn't forbidden. This would require a change in logic elsewhere
+
+    ! Exit now if there are no trapped particles
+    if (.not. grid_has_trapped_particles()) return
+
     do ig = -ntgrid, ntgrid
        ! We could initialise jend to ng2 and start this loop at ng2 + 1
        ! as we assume that all lambda up to and including with ng2 satisfy
@@ -3080,6 +3094,34 @@ contains
        end do
     end do
   end subroutine calculate_jend
+
+  !> Determine which lambda grid point is totally trapped at this
+  !> theta grid point.
+  subroutine calculate_ittp(ittp_indices)
+    use theta_grid, only: ntgrid
+
+    implicit none
+    integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
+    integer :: ig, il
+    ittp_indices = nlambda+1
+    if (.not. grid_has_trapped_particles()) return
+
+    ! Note we exclude the possibility of totally trapped particles
+    ! existing at either end of the theta grid.
+    do ig = -ntgrid+1, ntgrid-1
+       ! all pitch angles greater than or equal to ittp are totally trapped or forbidden
+       do il = ng2+1, nlambda
+          if (forbid(ig-1,il) .and. forbid(ig+1, il) &
+               .and. .not. forbid(ig, il)) then
+             ittp(ig) = il
+
+             ! Record the lowest il which satisfies the condition
+             exit
+          end if
+       end do
+    end do
+
+  end subroutine calculate_ittp
 
   !> FIXME : Add documentation  
   subroutine xigridset
@@ -4733,7 +4775,8 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
+         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)

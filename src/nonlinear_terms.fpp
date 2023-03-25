@@ -704,10 +704,9 @@ contains
     !     BUT source for other trapped particles should NOT enter forbidden region.
     !     if ig or ig+1 forbidden (i.e. ig+1 or ig is bounce point) now return gtmp(ig,:,iglo)=0
     !
-    use dist_fn_arrays, only: ittp
     use gs2_layouts, only: g_lo, il_idx
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, jend
+    use le_grids, only: forbid, grid_has_trapped_particles, jend, ittp
     use mp, only: mp_abort
 
     implicit none
