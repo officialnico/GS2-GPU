@@ -830,7 +830,7 @@ contains
     use kt_grids, only: kwork_filter
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -839,7 +839,7 @@ contains
     integer :: is, il, ie, ik, it, iglo
 
     !Ensure array is zero to begin
-    total = 0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
@@ -866,7 +866,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
        !$OMP REDUCTION(+ : total) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -895,6 +895,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array, copy
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -911,7 +912,7 @@ contains
        !total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
-    total_small=0.
+    call zero_array(total_small)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
@@ -938,7 +939,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
        !$OMP REDUCTION(+ : total_small) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -970,7 +971,7 @@ contains
     if(intspec_sub)then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -988,6 +989,7 @@ contains
     use kt_grids, only: kwork_filter
     use redistribute, only: gather
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -996,7 +998,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1049,6 +1051,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
@@ -1056,7 +1059,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
@@ -1101,6 +1104,7 @@ contains
     use mp, only: sum_allreduce_sub, allgatherv
     use mp, only: nproc_comm,rank_comm,mp_abort
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -1155,14 +1159,14 @@ contains
     !Allocate array and ensure is zero
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
-    total_flat=0.
+    call zero_array(total_flat)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
        !$OMP REDUCTION(+ : total_flat) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1185,7 +1189,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(SHARED) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
        !$OMP REDUCTION(+ : total_flat) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1243,6 +1247,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1251,11 +1256,12 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
+
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1283,6 +1289,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1291,11 +1298,11 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1336,6 +1343,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1345,11 +1353,11 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1619,6 +1627,7 @@ contains
 ! <TT
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce_sub, nproc, sum_allreduce, sum_reduce_sub
+    use array_utils, only: zero_array, copy
 
     implicit none
 
@@ -1650,12 +1659,14 @@ contains
 !       total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky,g_lo%nspec))       
     endif
-    total_small=0.
+
+    call zero_array(total_small)
+
     !Integrate over local velocity space
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
     !$OMP REDUCTION(+ : total_small) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1704,7 +1715,7 @@ contains
     if(intmom_sub.and.local_all.and.(.not.local_full_arr))then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -1722,6 +1733,7 @@ contains
     use gs2_layouts, only: p_lo, is_idx, ik_idx, ie_idx, il_idx
     use mp, only: sum_reduce, sum_allreduce
     use theta_grid, only: ntgrid
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1731,13 +1743,13 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Ensure zero to start
-    total = 0.
+    call zero_array(total)
 
     !Do local velocity space integral
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iplo, is, ik, ie, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
@@ -1770,6 +1782,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1778,11 +1791,11 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1813,6 +1826,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1821,11 +1835,11 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
     !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1867,6 +1881,7 @@ contains
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
@@ -1874,7 +1889,7 @@ contains
     complex, dimension (lo%llim_proc:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
     integer :: nxup
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
     if (nxi .gt. 2*ng2) then
        nxup=nxi+1
     else
@@ -1923,13 +1938,14 @@ contains
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
     !$OMP REDUCTION(+ : total) &
@@ -1970,6 +1986,7 @@ contains
     use constants, only: zi
     use gs2_layouts, only: is_idx, ik_idx, ie_idx, il_idx, p_lo
     use mp, only: sum_reduce, sum_allreduce, nproc
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1982,7 +1999,7 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Initialise both arrays to zero
-    total = 0. ; gksum = 0.
+    call zero_array(total) ; call zero_array(gksum)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
