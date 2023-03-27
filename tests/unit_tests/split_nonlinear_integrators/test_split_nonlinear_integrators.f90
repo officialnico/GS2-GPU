@@ -71,10 +71,10 @@ program test_split_nonlinear_integrators
 
 contains
 
-  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo)
+  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo, local_only)
     complex, dimension (:,:,:), intent(in) :: g_in
     complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
-    logical, optional :: gf_lo
+    logical, optional :: gf_lo, local_only
   end subroutine null_field_op
 
   subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)

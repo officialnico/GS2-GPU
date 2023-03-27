@@ -20,10 +20,10 @@ module split_nonlinear_terms
   !> in the advance_nonlinear_term methods. Used to allow us to pass in these
   !> methods, giving us a way to test the integrators on different problems.
   interface
-     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo)
+     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo, local_only)
        complex, dimension (:,:,:), intent(in) :: g_in
        complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
-       logical, optional :: gf_lo
+       logical, optional :: gf_lo, local_only
      end subroutine invert_field_func
 
      subroutine source_term_func(g_in, g1, phi, apar, bpar, max_vel_local, &
@@ -351,7 +351,7 @@ contains
        end select
 
        ! Calculate the fields consistent with the new g
-       call fields_func(gnew, phinew, aparnew, bparnew)
+       call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -464,7 +464,7 @@ contains
           call copy(g_work, gnew)
 
           ! Update the fields consistently with the current solution
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
        end do
 
        ! Now we need to decide if the last step was successful or not. There are two exit conditions, either the
@@ -537,7 +537,7 @@ contains
           call copy(g, gnew)
           ! If we store the initial field then we could perhaps just copy here instead.
           ! This could be faster as it avoids communications involved in the velocity integration.
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
           nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
@@ -638,7 +638,7 @@ contains
              end do
              !$OMP END PARALLEL DO
           end do
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
 
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
