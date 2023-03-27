@@ -112,7 +112,9 @@ module collisions
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le
+  ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
+  ! le layout shaped arrays.
+  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpale
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -647,7 +649,8 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: kperp2, naky, ntheta0, kwork_filter
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
+         integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: tunits
@@ -721,7 +724,7 @@ contains
                 if ( .not. forbid(ig,il) ) then
                    if (conservative) then
                       z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                           * sqrt(energy(ie))*aj0(ig,iglo)
+                           * speed(ie)*aj0(ig,iglo)
                    else
                       z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
                    end if
@@ -745,7 +748,7 @@ contains
              ! u0 = -2 nu_D^{ei} vpa J0 dt f0
              if (conservative) then
                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
-                     * sqrt(energy(ie))*aj0(:,iglo)
+                     * speed(ie)*aj0(:,iglo)
              else
                 z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
              end if
@@ -813,7 +816,7 @@ contains
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
              gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                  * vpdiff(:,isgn,il)*sqrt(energy(ie))
+                  * vpdiff(:,isgn,il)*speed(ie)
              !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
           end do
        end do
@@ -864,7 +867,7 @@ contains
                 ! u1 = -3 nu_s vpa dt J0 f_0 / du
                 if ( .not. forbid(ig,il) ) then
                    if (conservative) then
-                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*sqrt(energy(ie)) &
+                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*speed(ie) &
                            * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
                    else
                       s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
@@ -890,7 +893,7 @@ contains
           do isgn = 1, 2
              ! u1 = -3 nu_s vpa dt J0 f_0 / du
              if (conservative) then
-                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*sqrt(energy(ie)) &
+                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*speed(ie) &
                      * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
              else
                 s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
@@ -959,7 +962,7 @@ contains
        do isgn = 1, 2
           ! v1 = nu_D vpa J0
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*s0tmp(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
@@ -1102,7 +1105,7 @@ contains
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*w0tmp(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
@@ -1208,6 +1211,13 @@ contains
 
        aj0le = real(ctmp)
        aj1le = aimag(ctmp)
+
+       if (.not. allocated(vpale)) then
+          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       end if
+       z_big = vpa
+       call gather (g2le, z_big, ctmp)
+       vpale = real(ctmp)
 
        deallocate (ctmp, z_big)
     else
@@ -1773,6 +1783,15 @@ contains
           aj1le = aimag(ctmp)
        end if
 
+       if (.not. allocated(vpale)) then
+          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+          z_big = vpa
+          call gather (g2le, z_big, ctmp)
+          deallocate (z_big)
+          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          vpale = real(ctmp)
+       end if
+
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -2329,7 +2348,7 @@ contains
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
     use redistribute, only: gather
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0, aj1
+    use dist_fn_arrays, only: aj0, aj1, vpa
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
 
@@ -2376,7 +2395,6 @@ contains
              z_big(:,2,:) = z_big(:,1,:)
 
              call gather (g2le, z_big, ctmp)
-             deallocate (z_big)
 
              allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
              allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2384,7 +2402,14 @@ contains
              aj0le = real(ctmp)
              aj1le = aimag(ctmp)
 
-             deallocate (ctmp)
+             if (.not. allocated(vpale)) then
+                allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+             end if
+             z_big = vpa
+             call gather (g2le, z_big, ctmp)
+             vpale = real(ctmp)
+
+             deallocate (ctmp, z_big)
           endif
        endif
 
@@ -3357,7 +3382,7 @@ contains
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3370,12 +3395,12 @@ contains
                 tmp = ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
+                        tmp * aj0le(ixi,ie,ile) * vpale(ixi,ie,ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3416,7 +3441,7 @@ contains
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, il, isgn, tmp) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3429,12 +3454,10 @@ contains
                 tmp = ieqzip(it,ik) * &
                         vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie))
+                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * aj0le(ixi,ie,ile) &
-                        * sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0))
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
+                        tmp * aj0le(ixi,ie,ile) * vpale(ixi, ie, ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3468,7 +3491,8 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
+         integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -3550,7 +3574,7 @@ contains
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0, y1 = g1
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*sqrt(energy(ie))*vpdiff(:,isgn,il) &
+             gtmp(:,isgn,iglo) = vns(ik,ie,is)*speed(ie)*vpdiff(:,isgn,il) &
                   * aj0(:,iglo)*g1(:,isgn,iglo)
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
@@ -3628,8 +3652,8 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: ixi_to_il, ixi_to_isgn
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al
+    use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
     use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
@@ -3674,7 +3698,7 @@ contains
 
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(SHARED) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
@@ -3684,13 +3708,8 @@ contains
           ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
-                ! We could consider precalculating vpa in the le_lo layout to avoid this
-                ! repeated calculation of constant vpa. This would increase peak memory use.
                 ! Should we use vpdiff here if conservative?
-                vpa = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie))
-                gtmp(ixi,ie,ile) =  vpa * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                gtmp(ixi,ie,ile) =  vpale(ixi, ie, ile) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -3735,7 +3754,7 @@ contains
              do ixi = 1, nxi_lim
                 il = ixi_to_il(ig,ixi)
                 isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = vpdiff(ig,isgn,il) * sqrt(energy(ie)) &
+                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) &
                      * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
                 gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
@@ -3744,7 +3763,7 @@ contains
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(SHARED) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3754,11 +3773,10 @@ contains
           ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = sgn(isgn)*sqrt(MAX(1.0-al(il)*bmag(ig),0.0)*energy(ie)) &
-                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
+                gtmp(ixi,ie,ile) = vpale(ixi, ie, ile) * &
+                     (vnmult(1)*vnew_D(1,ie,is)/tunits(1)) * tunits(ik) * &
+                     aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -4075,7 +4093,7 @@ contains
 ! Now get v1y1
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, il, isgn, vpa, ie, ixi) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4086,10 +4104,7 @@ contains
        do ie=1, negrid
           delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
           do ixi = 1, nxi_lim
-             il = ixi_to_il(ig,ixi)
-             isgn = ixi_to_isgn(ig,ixi)
-             vpa = sgn(isgn)*sqrt(max(0.0,(1.0-al(il)*bmag(ig)))) * speed(ie)
-             gtmp (ixi,ie,ile) = vpa * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp (ixi,ie,ile) = vpale(ixi, ie, ile) * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4749,6 +4764,7 @@ contains
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
       if (allocated(aj1le)) deallocate(aj1le)
+      if (allocated(vpale)) deallocate(vpale)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
       if (allocated(bz0le)) deallocate(bz0le)
