@@ -1,3 +1,7 @@
+!> Provides wrappers to some simple array operations. We use this
+!> indirection in order to be able to consistently treat performance
+!> concerns. Currently this is limited to adding OpenMP, although in
+!> the future it might allow different approaches as appropriate.
 module array_utils
   implicit none
 
