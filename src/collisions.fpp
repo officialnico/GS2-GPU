@@ -112,6 +112,8 @@ module collisions
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
+  ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
+  ! le layout shaped arrays.
   real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpale
   ! finish
 
