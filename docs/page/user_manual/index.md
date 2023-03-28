@@ -69,48 +69,6 @@ skip this step.
 
 ### Compiling
 
-There are two approaches to compiling GS2:
-
-1. using the `build_gs2` script
-2. using `make` directly
-
-### Compilation using `build_gs2`
-
-The level of difficulty of compiling depends on how much your system is supported.
-
-To use the automated build system try:
-
-``` shell
-./build_gs2 -o ls
-```
-
-This will print a list of systems that are supported by the automated build system. This
-configures your environment and then executes `make` automatically. If your system is
-supported you can simply execute:
-
-``` shell
-./build_gs2 -s <system>
-```
-
-Where your `<system>` is replaced by your system name. If your system is not supported try
-
-``` shell
-./build_gs2 -o update
-```
-
-which will try and update the build system. Then try the previous instructions again.
-
-If your system is still not supported, you can try the older process described below.
-However, if your system is similar to one of the already supported systems, you could try
-copying that system Makefile in the folder Makefiles and editing it to make it work.
-
-Failing that, please [raise a support request][newissue].
-
-### Compilation using `make`
-
-`build_gs2` is essentially just a wrapper around the `Makefiles`, and they can still be
-used manually.
-
 To compile GS2, you must set two environment variables: `GK_SYSTEM` and `MAKEFLAGS`. Since
 system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`, you should
 specify what system you are on. There are many supported systems -- look in `Makefiles` to
@@ -435,18 +393,18 @@ reproduce, before going on to explore new territory.
 Good luck!
 
 [newissue]: https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open
-[readme]: https://bitbucket.org/gyrokinetics/gs2/src/6fbd2a6bc6ac5e5be0e0737f1860a0e0f78026ed/README.md?at=master&fileviewer=file-view-default
+[readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/README.md
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
-[results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
-[append_old]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-append_old
-[save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
-[delt_option]: |url|/page/namelists/index.html#knobs-delt_option
-[ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
-[restart_dir_option]: |url|/page/namelists/index.html#init_g_knobs-restart_dir
-[restart_file_option]: |url|/page/namelists/index.html#init_g_knobs-restart_file
-[file_safety_check_option]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-file_safety_check
-[use_old_diagnostics]: |url|/page/namelists/index.html#knobs-use_old_diagnostics
+[results_diagnostics]: results_diagnostics.html
+[append_old]: ../namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: ../namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: ../namelists/index.html#knobs-delt_option
+[ginit_option]: ../namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: ../namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: ../namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: ../namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: ../namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->

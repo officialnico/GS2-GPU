@@ -96,7 +96,7 @@ contains
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
-  subroutine setvgrid_genquad (negrid, epts, wgts, nesub)
+  subroutine setvgrid_genquad (negrid, epts, wgts)
     use genquad, only: get_quadrature_rule
     use constants, only: pi => dpi
     use gauss_quad, only: get_legendre_grids_from_cheb, get_laguerre_grids
@@ -105,7 +105,6 @@ contains
     implicit none
     
     integer, intent (in) :: negrid
-    integer, intent (in) :: nesub
     real, dimension(:,:), intent (out) :: epts
     real, dimension(:,:), intent (out) :: wgts
     integer :: is
@@ -158,7 +157,7 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi
+  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, nterp, new_trap_int, vcut, genquad
   public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
   public :: finish_weights
@@ -171,6 +170,10 @@ module le_grids
   public :: is_passing_hybrid_electron
   public :: setup_trapped_lambda_grids_old_finite_difference
   public :: setup_passing_lambda_grids
+  public :: passing_wfb, trapped_wfb
+  public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
+  public :: il_is_wfb, il_is_ttp
+  public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type
   public :: set_le_grids_config
@@ -219,8 +222,8 @@ module le_grids
   real, dimension (:,:), allocatable :: energy, w, speed, dele
   real, dimension (:), allocatable :: al, delal ! (nlambda)
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
-  integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
-  logical, dimension (:,:), allocatable :: forbid ! (-ntgrid:ntgrid,nlambda)
+  integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
+  logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
 
   real, dimension (:,:), allocatable :: xi
   integer, dimension (:,:), allocatable :: ixi_to_il, ixi_to_isgn
@@ -257,6 +260,14 @@ module le_grids
   logical :: lzinit = .false.
   logical :: einit = .false.
   logical :: init_weights_init = .false.
+
+  ! MRH trapped_wfb, passing_wfb control the choice of wfb boundary condition
+  logical :: trapped_wfb, passing_wfb
+
+  integer :: wfbbc_option_switch
+  integer, parameter :: wfbbc_option_mixed = 1, &
+       wfbbc_option_passing = 2, &
+       wfbbc_option_trapped = 3
 
   integer :: nmax = 500
   integer :: nterp = 100
@@ -348,6 +359,13 @@ module le_grids
      !> No. of standard deviations from the standard Maxwellian beyond
      !> which the distribution function will be set to 0.
      real :: vcut = 2.5
+     !> Set boundary condition for WFB in the linear/parallel solve:
+     !>
+     !> - "default", "mixed": The previous default boundary condition which
+     !>   mixes the passing and trapped boundary conditions
+     !> - "passing": Treats the WFB using a passing particle boundary condition
+     !> - "trapped": Treats the WFB using a trapped particle boundary condition
+     character(len = 20) :: wfbbc_option = 'default'
      !> Influences the maximum integration weight allowed.
      real :: wgt_fac = 10.0
    contains
@@ -433,7 +451,7 @@ contains
 
     allocate (energy(negrid,nspec), w(negrid,nspec))
     if (genquad) then
-       call setvgrid_genquad (negrid, energy, w, nesub)
+       call setvgrid_genquad (negrid, energy, w)
     else
        call setvgrid (vcut, negrid, energy, w, nesub)
     end if
@@ -464,8 +482,10 @@ contains
        allocate(dele(negrid,nspec))
        allocate (al(nlambda), delal(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
+       allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
+       allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (xx(ng2))
        allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
        allocate (xloc(-ntgrid:ntgrid,tsize))
@@ -481,6 +501,7 @@ contains
 
     call broadcast (al)
     call broadcast (delal)
+    call broadcast (ittp)
     call broadcast (jend)
  
     call broadcast (energy_maxw)
@@ -491,6 +512,7 @@ contains
 
     call broadcast(wl)
     call broadcast(forbid)
+    call broadcast(is_bounce_point)
 
     call broadcast(xloc)
     call broadcast(lgrnge)
@@ -505,8 +527,17 @@ contains
 
   !> FIXME : Add documentation  
   subroutine read_parameters(le_grid_config_in)
+    use file_utils, only: error_unit
+    use text_options, only: text_option, get_option_value
     implicit none
     type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
+    type (text_option), dimension (4), parameter :: wfbbcopts = &
+         (/ text_option('default', wfbbc_option_mixed), &
+            text_option('passing', wfbbc_option_passing), &
+            text_option('trapped', wfbbc_option_trapped), &
+            text_option('mixed', wfbbc_option_mixed)/)
+    character(20) :: wfbbc_option
+    integer :: ierr
     
     if (present(le_grid_config_in)) le_grids_config = le_grid_config_in
 
@@ -527,6 +558,7 @@ contains
     test = le_grids_config%test
     trapped_particles = le_grids_config%trapped_particles
     vcut = le_grids_config%vcut
+    wfbbc_option = le_grids_config%wfbbc_option
     wgt_fac = le_grids_config%wgt_fac
 
     exist = le_grids_config%exist
@@ -547,6 +579,27 @@ contains
     else
        ng2 = npassing
     end if
+
+    ierr = error_unit()
+
+    call get_option_value &
+         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
+         ierr, "wfbbc_option in dist_fn_knobs",.true.)
+
+    trapped_wfb = .false.! flag for treating wfb as a trapped particle
+    passing_wfb = .false.! flag for treating wfb as a passing particle
+
+    select case (wfbbc_option_switch)
+    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
+       passing_wfb =.false.
+       trapped_wfb =.false.
+    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition
+       passing_wfb =.true.
+       trapped_wfb =.false.
+    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition
+       passing_wfb =.false.
+       trapped_wfb =.true.
+    end select
 
   end subroutine read_parameters
 
@@ -577,6 +630,66 @@ contains
           
 
   end subroutine init_integrations
+
+  !> Returns true if there are trapped particles on the current
+  !> pitch angle grid.
+  pure logical function grid_has_trapped_particles() result(has_trapped)
+    implicit none
+    has_trapped = nlambda > ng2
+  end function grid_has_trapped_particles
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered trapped.
+  elemental logical function il_is_trapped(il) result(is_trapped)
+    implicit none
+    integer, intent(in) :: il
+    is_trapped = il > ng2 + 1
+    ! If we want to improve the consistency of the trapped wfb
+    ! treatment we can replace the above with
+    ! is_trapped = il > ng2
+    ! To be explicit this might look like
+    ! if (trapped_wfb) then
+    !     is_trapped = il > ng2
+    ! else
+    !     is_trapped = il > ng2 + 1
+    ! end if
+  end function il_is_trapped
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered passing.
+  elemental logical function il_is_passing(il) result(is_passing)
+    implicit none
+    integer, intent(in) :: il
+    is_passing = il <= ng2
+    ! If we want to improve the consistency of the passing wfb
+    ! treatment we can replace the above with
+    ! is_passing = il <= ng2 + 1
+    ! To be explicit this might look like
+    ! if (passing_wfb) then
+    !     is_passing = il <= ng2 + 1
+    ! else
+    !     is_passing = il <= ng2
+    ! end if
+  end function il_is_passing
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the wfb.
+  elemental logical function il_is_wfb(il) result(is_wfb)
+    implicit none
+    integer, intent(in) :: il
+    is_wfb = il == ng2 + 1
+    ! If we want to improve the consistency of the wfb
+    ! treatment we should hopefully rarely need to specificaly
+    ! identify the wfb
+  end function il_is_wfb
+
+  !> Returns true if the passed pitch angle grid point
+  !> is considered the totally trapped particle
+  elemental logical function il_is_ttp(il) result(is_ttp)
+    implicit none
+    integer, intent(in) :: il
+    is_ttp = grid_has_trapped_particles() .and. il == nlambda 
+  end function il_is_ttp
 
   !> Calculates energy grid and (untrapped) pitch angle weights for
   !> integrals which drop a point from the energy/lambda
@@ -831,7 +944,7 @@ contains
     use kt_grids, only: kwork_filter
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -840,10 +953,14 @@ contains
     integer :: is, il, ie, ik, it, iglo
 
     !Ensure array is zero to begin
-    total = 0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total) &
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -858,7 +975,12 @@ contains
              total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -872,6 +994,7 @@ contains
              total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
     !Reduce sum across all procs to make integral over all velocity space and species
     call sum_allreduce (total) 
@@ -886,6 +1009,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array, copy
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -902,10 +1026,14 @@ contains
        !total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
-    total_small=0.
+    call zero_array(total_small)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total_small) &
+       !$OMP SCHEDULE(guided)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -920,7 +1048,12 @@ contains
              total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP REDUCTION(+ : total_small) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -934,6 +1067,7 @@ contains
              total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
 
     !Reduce sum across all procs in sub communicator to make integral over all velocity space and species
@@ -951,7 +1085,7 @@ contains
     if(intspec_sub)then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -969,6 +1103,7 @@ contains
     use kt_grids, only: kwork_filter
     use redistribute, only: gather
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -977,7 +1112,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1030,6 +1165,7 @@ contains
     use mp, only: sum_allreduce_sub, sum_allreduce
     use kt_grids, only: kwork_filter
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
@@ -1037,7 +1173,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
-    total =0.
+    call zero_array(total)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
@@ -1082,6 +1218,7 @@ contains
     use mp, only: sum_allreduce_sub, allgatherv
     use mp, only: nproc_comm,rank_comm,mp_abort
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
@@ -1136,11 +1273,14 @@ contains
     !Allocate array and ensure is zero
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
-    total_flat=0.
+    call zero_array(total_flat)
 
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
-
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP REDUCTION(+ : total_flat) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1158,7 +1298,12 @@ contains
              total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     else
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP REDUCTION(+ : total_flat) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1176,6 +1321,7 @@ contains
              total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
           end if
        end do
+       !$OMP END PARALLEL DO
     endif
 
     !Reduce sum across all procs in sub communicator to make integral over all velocity space and species
@@ -1215,6 +1361,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1223,7 +1370,12 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1239,6 +1391,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_e
@@ -1250,6 +1403,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
     use species, only: spec, tracer_species
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1258,7 +1412,11 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1282,6 +1440,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_lz
@@ -1298,6 +1457,7 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1307,7 +1467,11 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
-    total = 0.0
+    call zero_array(total)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1330,6 +1494,7 @@ contains
           end do
        end if
     end do
+    !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
 
@@ -1576,6 +1741,7 @@ contains
 ! <TT
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce_sub, nproc, sum_allreduce, sum_reduce_sub
+    use array_utils, only: zero_array, copy
 
     implicit none
 
@@ -1607,8 +1773,14 @@ contains
 !       total=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky,g_lo%nspec))       
     endif
-    total_small=0.
+
+    call zero_array(total_small)
+
     !Integrate over local velocity space
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+    !$OMP REDUCTION(+ : total_small) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1620,6 +1792,7 @@ contains
        total_small(:, it, ik, is) = total_small(:, it, ik, is) + &
             w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
     end do
+    !$OMP END PARALLEL DO
 
     !Not sure that we really need to limit this to nproc>1 as if
     !we run with 1 proc MPI calls should still work ok
@@ -1656,7 +1829,7 @@ contains
     if(intmom_sub.and.local_all.and.(.not.local_full_arr))then
        total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=total_small
     else
-       total=total_small
+       call copy(total_small, total)
     endif
 
     !Deallocate
@@ -1674,6 +1847,7 @@ contains
     use gs2_layouts, only: p_lo, is_idx, ik_idx, ie_idx, il_idx
     use mp, only: sum_reduce, sum_allreduce
     use theta_grid, only: ntgrid
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1683,9 +1857,13 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Ensure zero to start
-    total = 0.
+    call zero_array(total)
 
     !Do local velocity space integral
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iplo, is, ik, ie, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
@@ -1696,6 +1874,7 @@ contains
             w(ie,is)*wl(:,il)*(g(:,1,iplo)+g(:,2,iplo))
 
     end do
+    !$OMP END PARALLEL DO
 
     !Do we really need this if?
     if (nproc > 1) then
@@ -1717,6 +1896,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (e_layout_type), intent (in) :: lo
@@ -1725,7 +1905,11 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, il, ie, ik, it, ig, ielo
 
-    total = 0.0
+    call zero_array(total)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
@@ -1739,6 +1923,7 @@ contains
             w(ie,is)*wl(ig,il)*g(ie,ielo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (present(all)) then
        !Complete vspace integral and get result to all procs
@@ -1755,6 +1940,7 @@ contains
     use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
     use theta_grid, only: ntgrid
     use mp, only: sum_reduce, sum_allreduce
+    use array_utils, only: zero_array
     implicit none
 
     type (lz_layout_type), intent (in) :: lo
@@ -1763,7 +1949,11 @@ contains
     integer, optional, intent(in) :: all
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
-    total = 0.0
+    call zero_array(total)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
@@ -1785,6 +1975,7 @@ contains
             w(ie,is)*wl(ig,il)*g(il,ilzlo)
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (present(all)) then
        !Complete vspace integral and get result to all procs
@@ -1804,6 +1995,7 @@ contains
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
@@ -1811,12 +2003,16 @@ contains
     complex, dimension (lo%llim_proc:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
     integer :: nxup
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
     if (nxi .gt. 2*ng2) then
        nxup=nxi+1
     else
        nxup=nxi
     endif
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
        is = is_idx (lo,ile)
        it = it_idx (lo,ile)
@@ -1837,6 +2033,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
     ! No need for communication since all velocity grid points are together
     ! and each prcessor does not touch the unset place
     ! They actually don't need to keep all 4D array
@@ -1855,13 +2052,18 @@ contains
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use theta_grid, only: ntgrid
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
-    total = cmplx(0.0,0.0)
+    call zero_array(total)
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP REDUCTION(+ : total) &
+    !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
@@ -1882,6 +2084,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
     ! No need for communication since all velocity grid points are together
     ! and each prcessor does not touch the unset place
   end subroutine integrate_moment_le
@@ -1897,6 +2100,7 @@ contains
     use constants, only: zi
     use gs2_layouts, only: is_idx, ik_idx, ie_idx, il_idx, p_lo
     use mp, only: sum_reduce, sum_allreduce, nproc
+    use array_utils, only: zero_array
 
     implicit none
 
@@ -1909,7 +2113,7 @@ contains
     integer :: is, il, ie, ik, iplo
 
     !Initialise both arrays to zero
-    total = 0. ; gksum = 0.
+    call zero_array(total) ; call zero_array(gksum)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
        ik = ik_idx(p_lo,iplo)
        ie = ie_idx(p_lo,iplo)
@@ -1968,7 +2172,7 @@ contains
              end do
              !If we have trapped particles use the precalculated weights
              !in wlmod as above is only for passing particles
-             if (nlambda > ng2) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
+             if (grid_has_trapped_particles()) wlmod(:,ng2+1:,ipt) = wl(:,ng2+1:)
           end do
        end if
 
@@ -2167,11 +2371,13 @@ contains
     nxi = max(2*nlambda-1, 2*ng2)
     allocate (al(nlambda), delal(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
+    allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
+    allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
     allocate (xloc(-ntgrid:ntgrid,tsize))
-    if (nlambda-ng2 > 0) then
+    if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
     call lgridset
@@ -2262,7 +2468,7 @@ contains
        allocate(trapped_error(-ntgrid:ntgrid))
        trapped_error = 0.0
        ! Only calculate this if we have any trapped pitch angles
-       if (nlambda > ng2) then
+       if (grid_has_trapped_particles()) then
           allocate(expected_trapped(-ntgrid:ntgrid))
           ! We're essentially just subtracting the passing analytic
           ! result from the total expectation, i.e. effectively
@@ -2386,7 +2592,6 @@ contains
   subroutine lgridset
     use theta_grid, only: eps_trapped
     implicit none
-    integer :: ig, il
     logical :: has_trapped_points
 
     ! Decide if we need to calculate the trapped lambda integration weights
@@ -2405,9 +2610,17 @@ contains
     ! various points.
     call calculate_forbidden_region(forbid)
 
+    ! Calculate the is_bounce_point flag indicating which pitch angles are allowed at
+    ! various points.
+    call calculate_bounce_points(is_bounce_point)
+
     ! Calculate the jend values indicating the pitch angle which bounces at
     ! each theta point.
     call calculate_jend(jend)
+
+    ! Calculate the ittp values indicating which pitch angles are
+    ! considered totally trapped.
+    call calculate_ittp(ittp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -2434,7 +2647,7 @@ contains
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
     if (.not. allocated(xx)) allocate (xx(ng2))
 
-    if(radau_gauss_grid .and. nlambda > ng2 ) then
+    if(radau_gauss_grid .and. grid_has_trapped_particles() ) then
 
        ! This grid uses a fixed endpoint such that il = ng2+1 has a finite weight at bounce points
        ! which contributes to the integration over passing particles
@@ -2462,7 +2675,7 @@ contains
     end do
 
     ! Assign the weight for wfb from the radau-gauss grid
-    if (radau_gauss_grid .and. nlambda > ng2 ) then
+    if (radau_gauss_grid .and. grid_has_trapped_particles() ) then
        il=ng2+1
        do ig = -ntgrid, ntgrid
           if (bmag(ig) < bmax) then ! i.e. we are not the bounce point for wfb
@@ -2549,7 +2762,7 @@ contains
   !> compatible with radau_gauss_grid or we may decide
   !> radau_gauss_grid should default to false.
   subroutine setup_trapped_lambda_grids_new_trap_int(lambda_grid, weights)
-    use theta_grid, only: ntgrid, bmag, bmax, eps_trapped
+    use theta_grid, only: ntgrid, bmag, bmax
     use file_utils, only: open_output_file, close_output_file, error_unit
     use mp, only: proc0
     implicit none
@@ -2559,12 +2772,12 @@ contains
     !> intent `in out` as we only set a portion of the grid so may
     !> want to keep the rest of the input values.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
-    real, dimension (:), allocatable :: ytmp, yb, yberr, wb, wberrtmp
+    real, dimension (:), allocatable :: ytmp, yb, wb
     real, dimension (:,:), allocatable :: wberr
-    integer :: npts, ix, ntrap
-    real :: wwo, llim, ulim
+    integer :: npts, ntrap
+    real :: llim, ulim
     logical :: eflag
-    integer :: ig, il, ndiv, divmax, divmaxerr, ndiverr
+    integer :: ig, il, ndiv, divmax
 
     ! Initialise the error flag
     eflag = .false.
@@ -2752,7 +2965,7 @@ contains
     real, dimension (:), allocatable :: yberr, wberrtmp
     integer :: ix
     logical :: eflag
-    integer :: ndiv, divmax, divmaxerr, ndiverr
+    integer :: divmaxerr, ndiverr
 
     ! Can't get error estimate for npts = 0 or 1 as we don't have any points
     ! that we can drop.
@@ -2824,6 +3037,119 @@ contains
     end do
   end subroutine calculate_forbidden_region
 
+  !> Determine which theta grid points correspond to bounce points
+  !> for each pitch angle.
+  !>
+  !> For regular trapped particles we _could_ determine this from forbid,
+  !> as we do in other parts of the code, however we prefer a forbid independent
+  !> method to allow for generalisation to wfb and wfb-like particles.
+  subroutine calculate_bounce_points(bounce_points)
+    use theta_grid, only: ntgrid, bmag
+    use mp, only: mp_abort
+    implicit none
+    logical, dimension(-ntgrid:, :), intent(out) :: bounce_points
+    integer :: ig, il
+    integer :: il_llim
+
+    bounce_points = .false.
+
+    ! We could set the lower lambda grid index which we consider here
+    ! in order to either include or exclude the wfb if we allow it to
+    ! bounce. For now we will not allow for wfb bounce points, leaving these
+    ! to be handled by special code elsewhere.
+    il_llim = ng2 + 2
+
+    do il = il_llim, nlambda
+       do ig = -ntgrid, ntgrid
+          ! Note, this imposes a requirement that our pitch angle and
+          ! magnetic field grids are calculated consisently to within bouncefuzz.
+          ! In other words we require lambda*bmag = 1 to within bouncefuzz.
+          bounce_points(ig,il) = abs(1.0 - al(il)*bmag(ig)) <= bouncefuzz
+       end do
+    end do
+
+  end subroutine calculate_bounce_points
+
+  !> Returns true if the passed theta grid index, ig, is a lower bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_lower_bounce_point(ig, il) result(is_lower)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_lower = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==-ntgrid we don't
+    ! want to access bmag(ig-1)
+    if (ig == -ntgrid) then
+       is_lower = .true.
+    elseif (ig == ntgrid) then
+       is_lower = .false.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_lower = bmag(ig-1) > bmag(ig)
+
+       ! Instead we simply check if the _next_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_lower = .not. forbid(ig + 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_lower_bounce_point
+
+  !> Returns true if the passed theta grid index, ig, is a upper bounce point
+  !> for the passed pitch angle index, il.
+  elemental logical function is_upper_bounce_point(ig, il) result(is_upper)
+    use theta_grid, only: ntgrid, bmag
+    implicit none
+    integer, intent(in) :: ig, il
+    is_upper = .false.
+
+    ! A lower bounce point firstly has to be a bounce point
+    if (.not. is_bounce_point(ig, il)) return
+
+    ! Special handling for wfb, only bounce for trapped_wfb Currently
+    ! this doesn't activate as wfb don't have bounce points flagged in
+    ! is_bounce_point.
+    if (il_is_wfb(il) .and. .not. trapped_wfb) return
+
+    ! If we're at the lower end of the grid then it is a lower bounce
+    ! point (if it's a bounce point). If not at the lower end of the
+    ! theta grid, the magnetic field at the previous theta grid point
+    ! must be higher than this one. Note we can't chain checks
+    ! together as there's no short-circuiting so if ig==ntgrid we don't
+    ! want to access bmag(ig+1)
+    if (ig == -ntgrid) then
+       is_upper = .false.
+    elseif (ig == ntgrid) then
+       is_upper = .true.
+    else
+       ! The commented out below code is fine for non-wfb like particles (those
+       ! which have bounce points which are both upper and lower bounce points, i.e.
+       ! those without a fobidden region separating allowed regions).
+       ! is_upper = bmag(ig+1) > bmag(ig)
+
+       ! Instead we simply check if the _previous_ theta grid point is part of an allowed
+       ! region. This works for all pitch angles _except_ totally trapped particles.
+       is_upper = .not. forbid(ig - 1, il) .or. &
+            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+    end if
+
+  end function is_upper_bounce_point
+
   !> Determine which lambda grid point bounces at this
   !> theta/bmag value.
   subroutine calculate_jend(jend)
@@ -2842,6 +3168,13 @@ contains
     ! Here, with trapped particles, we set:     jend(ig)=  il
     !  where il is the lambda index of the trapped particle bouncing at theta(ig)
 
+    ! Note it might be better to set jend(ig) > nlambda if we have no
+    ! trapped particles so il <= jend(ig) is always true for a particle
+    ! which isn't forbidden. This would require a change in logic elsewhere
+
+    ! Exit now if there are no trapped particles
+    if (.not. grid_has_trapped_particles()) return
+
     do ig = -ntgrid, ntgrid
        ! We could initialise jend to ng2 and start this loop at ng2 + 1
        ! as we assume that all lambda up to and including with ng2 satisfy
@@ -2852,6 +3185,34 @@ contains
        end do
     end do
   end subroutine calculate_jend
+
+  !> Determine which lambda grid point is totally trapped at this
+  !> theta grid point.
+  subroutine calculate_ittp(ittp_indices)
+    use theta_grid, only: ntgrid
+
+    implicit none
+    integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
+    integer :: ig, il
+    ittp_indices = nlambda+1
+    if (.not. grid_has_trapped_particles()) return
+
+    ! Note we exclude the possibility of totally trapped particles
+    ! existing at either end of the theta grid.
+    do ig = -ntgrid+1, ntgrid-1
+       ! all pitch angles greater than or equal to ittp are totally trapped or forbidden
+       do il = ng2+1, nlambda
+          if (forbid(ig-1,il) .and. forbid(ig+1, il) &
+               .and. .not. forbid(ig, il)) then
+             ittp(ig) = il
+
+             ! Record the lowest il which satisfies the condition
+             exit
+          end if
+       end do
+    end do
+
+  end subroutine calculate_ittp
 
   !> FIXME : Add documentation  
   subroutine xigridset
@@ -2968,24 +3329,6 @@ contains
     end do
 
   end subroutine lagrange_coefs
-
-  !> FIXME : Add documentation  
-  subroutine stop_message (message)
-!<DD>WARNING THIS COULD CAUSE A HANG IF NOT CALLED BY ALL PROCS
-!JAB: print an error message and end program
-    use file_utils, only: error_unit
-    use mp, only: proc0, finish_mp
-    implicit none
-    character(*), intent (in) :: message
-    integer :: ierr
-
-    if (proc0) then
-       ierr = error_unit()
-       write (unit=ierr, fmt='(a)') message
-    end if
-    call finish_mp
-    stop
-  end subroutine stop_message
 
   !> FIXME : Add documentation
   !!
@@ -3343,7 +3686,7 @@ contains
   end subroutine init_g2gf
 
   !> Construct a redistribute for g_lo -> le_lo
-  type(redist_type) function setup_g2le_redistribute_local(g_lo, le_lo) result(g2le)
+  subroutine setup_g2le_redistribute_local(g_lo, le_lo, g2le)
     use layouts_type, only: g_layout_type, le_layout_type
     use mp, only: nproc
     use gs2_layouts, only: idx_local, proc_id
@@ -3355,6 +3698,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(le_layout_type), intent(in) :: le_lo
+    type(redist_type), intent(in out) :: g2le
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension (0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -3562,7 +3906,7 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-  end function setup_g2le_redistribute_local
+  end subroutine setup_g2le_redistribute_local
 
   !> Constructs the redistribute mapping from the global g_lo data
   !> decomposition to the le_lo decomposition.
@@ -3580,7 +3924,7 @@ contains
     !Setup the le layout object (le_lo)
     call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
 
-    g2le = setup_g2le_redistribute_local(g_lo, le_lo)
+    call setup_g2le_redistribute_local(g_lo, le_lo, g2le)
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
@@ -3678,7 +4022,7 @@ contains
   end subroutine check_g2le
 
   !> Construct the redistribute for g_lo -> gf_lo
-  type(redist_type) function setup_g2gf_redistribute(g_lo, gf_lo) result(g2gf)
+  subroutine setup_g2gf_redistribute(g_lo, gf_lo, g2gf)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, gf_layout_type
     use gs2_layouts, only: idx_local, proc_id
@@ -3690,6 +4034,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(gf_layout_type), intent(in) :: gf_lo
+    type(redist_type), intent(in out) :: g2gf
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list, bak_sort_list
     integer, dimension (0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -3852,7 +4197,7 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
     call delete_list (bak_sort_list)
-  end function setup_g2gf_redistribute
+  end subroutine setup_g2gf_redistribute
 
   !> Setup the module level g2gf instance describing the transformation from
   !> global g_lo to global gf_lo.
@@ -3873,7 +4218,7 @@ contains
     !Setup the le layout object (gf_lo)
     call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
-    g2gf = setup_g2gf_redistribute(g_lo, gf_lo)
+    call setup_g2gf_redistribute(g_lo, gf_lo, g2gf)
   end subroutine init_g2gf_redistribute
 
   !> FIXME : Add documentation  
@@ -3968,7 +4313,7 @@ contains
 
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
-  type(redist_type) function setup_lambda_redistribute_local(g_lo, lz_lo) result(lambda_map)
+  subroutine setup_lambda_redistribute_local(g_lo, lz_lo, lambda_map)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, lz_layout_type
     use gs2_layouts, only: idx_local, proc_id
@@ -3978,6 +4323,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(lz_layout_type), intent(in) :: lz_lo
+    type(redist_type), intent(in out) :: lambda_map
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
@@ -4164,7 +4510,7 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
 
-  end function setup_lambda_redistribute_local
+  end subroutine setup_lambda_redistribute_local
 
   !> Computes the redistribute mapping from the global g_lo data
   !> decomposition to the global lz_lo decomposition
@@ -4185,12 +4531,12 @@ contains
     call init_lambda_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
 
-    lambda_map = setup_lambda_redistribute_local(g_lo, lz_lo)
+    call setup_lambda_redistribute_local(g_lo, lz_lo, lambda_map)
   end subroutine init_lambda_redistribute_local
 
   !> Constructs the redistribute mapping from a g_lo data
   !> decomposition to an e_lo decomposition
-  type(redist_type) function setup_energy_redistribute_local(g_lo, e_lo) result(energy_map)
+  subroutine setup_energy_redistribute_local(g_lo, e_lo,energy_map)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, e_layout_type
     use gs2_layouts, only: ie_idx, ik_idx, it_idx, il_idx, is_idx, ig_idx, isign_idx
@@ -4201,6 +4547,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(e_layout_type), intent(in) :: e_lo
+    type(redist_type), intent(in out) :: energy_map
     type(index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
@@ -4359,7 +4706,7 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-  end function setup_energy_redistribute_local
+  end subroutine setup_energy_redistribute_local
 
   !> Constructs the redistribute mapping from the global g_lo data
   !> decomposition to the global e_lo decomposition
@@ -4381,7 +4728,7 @@ contains
     call init_energy_layouts &
          (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
 
-    energy_map = setup_energy_redistribute_local(g_lo, e_lo)
+    call setup_energy_redistribute_local(g_lo, e_lo, energy_map)
   end subroutine init_energy_redistribute_local
 
   !> Used for testing
@@ -4523,7 +4870,9 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
+         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+    if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
     if (allocated(w)) deallocate (w,w_maxw)
@@ -4582,7 +4931,9 @@ contains
     implicit none
     integer, intent(in) :: is, ik, il
     is_passing_hybrid_electron = &
-         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 .and. il <= ng2 + 1
+         is_hybrid_electron_species( spec(is)) .and. aky(ik) /= 0.0 &
+         .and. (il_is_passing(il) .or. il_is_wfb(il))
+    !Note always including wfb as passing here
   end function is_passing_hybrid_electron
 
   !> Set the module level config type
@@ -4621,11 +4972,12 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
+    character(len = 20) :: wfbbc_option
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
     logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4645,6 +4997,7 @@ contains
     test = self%test
     trapped_particles = self%trapped_particles
     vcut = self%vcut
+    wfbbc_option = self%wfbbc_option
     wgt_fac = self%wgt_fac
 
     ! Now read in the main namelist
@@ -4666,6 +5019,7 @@ contains
     self%test = test
     self%trapped_particles = trapped_particles
     self%vcut = vcut
+    self%wfbbc_option = wfbbc_option
     self%wgt_fac = wgt_fac
 
     self%exist = exist
@@ -4698,6 +5052,7 @@ contains
     call self%write_key_val("test", self%test, unit_internal)
     call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
     call self%write_key_val("vcut", self%vcut, unit_internal)
+    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
     call self%write_key_val("wgt_fac", self%wgt_fac, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_le_grids_config
@@ -4732,6 +5087,7 @@ contains
     call broadcast(self%test)
     call broadcast(self%trapped_particles)
     call broadcast(self%vcut)
+    call broadcast(self%wfbbc_option)
     call broadcast(self%wgt_fac)
 
     call broadcast(self%exist)

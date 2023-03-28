@@ -209,8 +209,8 @@ module fields_gf_local
      procedure :: count_subcom => fm_count_subcom
      procedure :: getfieldeq_nogath => fm_getfieldeq_nogath
      procedure :: getfieldeq1_nogath => fm_getfieldeq1_nogath
-     procedure :: update_fields => fm_update_fields
-     procedure :: update_fields_newstep => fm_update_fields_newstep
+     procedure, nopass :: update_fields => fm_update_fields
+     procedure, nopass :: update_fields_newstep => fm_update_fields_newstep
   end type fieldmat_type
 
   !> This is the type which controls/organises the parallel
@@ -3336,7 +3336,7 @@ contains
   !! only the required updates.
   !! With some refactoring it should be possible to do all the work on a single set of field 
   !! arrays as they are the same size regardless of the layout being used.
-  subroutine fm_update_fields(self,phi,apar,bpar,gf_phi,gf_apar,gf_bpar)
+  subroutine fm_update_fields(phi, apar, bpar, gf_phi, gf_apar, gf_bpar)
     use fields_arrays, only: orig_phi=>phi, orig_apar=>apar, orig_bpar=>bpar
     use fields_arrays, only: orig_gf_phi=>gf_phi, orig_gf_apar=>gf_apar, orig_gf_bpar=>gf_bpar
     use run_parameters, only: fphi, fapar, fbpar
@@ -3345,7 +3345,6 @@ contains
     use gs2_layouts, only: g_lo, gf_lo, ik_idx, it_idx
     use mp, only: proc0
     implicit none
-    class(fieldmat_type), intent(in) ::  self
     complex,dimension(-ntgrid:,:,:),intent(inout) :: phi,apar,bpar
     complex,dimension(-ntgrid:,:,:),intent(inout) :: gf_phi,gf_apar,gf_bpar
     integer :: ik,it,ikit,igf
@@ -3365,7 +3364,7 @@ contains
           gf_bpar=gf_bpar+orig_gf_bpar
        end if
        return
-    else
+    end if
 
     !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
@@ -3387,12 +3386,10 @@ contains
        if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bpar(:,it,ik)+orig_gf_bpar(:,it,ik)       
     end do
 
-    end if
-
   end subroutine fm_update_fields
 
   !> Update the fields using the new fields
-  subroutine fm_update_fields_newstep(self)
+  subroutine fm_update_fields_newstep()
     use fields_arrays, only: phi,apar,bpar,phinew,aparnew,bparnew
     use fields_arrays, only: gf_phi,gf_apar,gf_bpar,gf_phinew,gf_aparnew,gf_bparnew
     use run_parameters, only: fphi, fapar, fbpar
@@ -3400,7 +3397,6 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, gf_lo
     use mp, only: proc0
     implicit none
-    class(fieldmat_type), intent(in) ::  self
     integer :: ik,it,ikit,igf
 
     !If we're proc0 then we need to do full array (for diagnostics)
@@ -3418,7 +3414,7 @@ contains
           gf_bpar=gf_bparnew
        end if
        return
-    else
+    end if
 
     !AJ Iterate through each distinct ik,it point I have in g_lo and update the associated fields
     do ikit=1,g_lo%ikitrange
@@ -3439,7 +3435,6 @@ contains
        if(fapar>epsilon(0.0)) gf_apar(:,it,ik)=gf_aparnew(:,it,ik)
        if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bparnew(:,it,ik)
     end do
-    end if
 
   end subroutine fm_update_fields_newstep
 
@@ -4277,7 +4272,7 @@ contains
          aparnew, bparnew, istep, diagnostics) 
 
     ! Advance collisions, if separate from timeadv
-    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
 
   end subroutine advance_gf_local
 

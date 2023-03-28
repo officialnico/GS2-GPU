@@ -863,15 +863,12 @@ contains
   !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
-    use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx,write_poly, collision_error
-    use dist_fn_arrays, only: g_adjust, gnew
-    use collisions, only: vnmult
+    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use le_grids, only: finish_weights
     use unit_tests, only: debug_message
 
@@ -940,7 +937,6 @@ contains
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
@@ -956,7 +952,7 @@ contains
     integer :: istatus
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
@@ -967,7 +963,7 @@ contains
        call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
@@ -2503,7 +2499,7 @@ contains
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -2528,7 +2524,7 @@ contains
 
        ! write error estimates for ion dist. fn. at outboard midplane with ik=it=1 to ascii files
        if (write_ascii) then
-          if (nlambda - ng2 > 1) then
+          if (grid_has_trapped_particles()) then
              write(lpc_unit,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
           else
              write(lpc_unit,"(3(1x,e13.6))") user_time, geavg, glavg

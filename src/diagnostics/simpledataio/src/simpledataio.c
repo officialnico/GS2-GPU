@@ -505,9 +505,9 @@ void sdatio_create_variable(struct sdatio_file * sfile,
                             char * description,
                             char * units){
   int ndims;
-  int nunlim;
   struct sdatio_variable  * svar;
   int retval;
+  int nunlim;
 
   svar = (struct sdatio_variable *) malloc(sizeof(struct sdatio_variable));
 
@@ -945,6 +945,7 @@ void sdatio_sync(struct sdatio_file * sfile){
 /* Has to be at the bottom because it uses many
  * other functions */
 void sdatio_open_file(struct sdatio_file * sfile )  {
+  int nunlim;
   int retval;
   int ndims, nvars;
   int i, j;
@@ -956,11 +957,9 @@ void sdatio_open_file(struct sdatio_file * sfile )  {
   int is_unlimited;
   char * name_tmp;
   int * vardimids;
-  char * dimension_list;
   nc_type vartype;
   int vartypeint;
   int dummy;
-  int *nunlim;
 
   DEBUG_MESS("starting sdatio_open_file\n");
 

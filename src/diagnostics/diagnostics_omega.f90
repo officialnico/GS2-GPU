@@ -162,7 +162,7 @@ contains
        if (all(sqrt(sum(abs(domega)**2/real(gnostics%navg),dim=1)) &
             .le. min(abs(omega_average),1.0)*gnostics%omegatol)) &
        then
-          if (proc0 .and. gnostics%write_ascii) write (gnostics%ascii_files%out, "('*** omega converged')")
+          if (proc0 .and. gnostics%ascii_files%write_to_out) write (gnostics%ascii_files%out, "('*** omega converged')")
           gnostics%exit = gnostics%exit_when_converged
        end if
        

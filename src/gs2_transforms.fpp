@@ -489,7 +489,7 @@ contains
 
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the xxf_lo decomposition.
-  type(redist_type) function setup_x_redist_local(g_lo, xxf_lo) result(g2x)
+  subroutine setup_x_redist_local(g_lo, xxf_lo, g2x)
     use layouts_type, only: g_layout_type, xxf_layout_type
     use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
     use gs2_layouts, only: opt_local_copy, layout
@@ -501,6 +501,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(xxf_layout_type), intent(in) :: xxf_lo
+    type(redist_type), intent(in out) :: g2x
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -721,7 +722,7 @@ contains
     call delete_list (from_list)
     call delete_list(sort_list)
 
-  end function setup_x_redist_local
+  end subroutine setup_x_redist_local
 
   !> Setup global xxf_lo and redistribute between global g_lo -> xxf_lo
   subroutine init_x_redist_local(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
@@ -739,12 +740,12 @@ contains
     call init_x_transform_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
 
-    g2x = setup_x_redist_local(g_lo, xxf_lo)
+    call setup_x_redist_local(g_lo, xxf_lo, g2x)
   end subroutine init_x_redist_local
 
   !> Constructs the redistribute mapping from the xxf_lo data
   !> decomposition to the yxf_lo decomposition.
-  type(redist_type) function setup_y_redist_local(xxf_lo, yxf_lo) result(x2y)
+  subroutine setup_y_redist_local(xxf_lo, yxf_lo, x2y)
     use layouts_type, only: xxf_layout_type, yxf_layout_type
     use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
@@ -755,6 +756,7 @@ contains
     implicit none
     type(xxf_layout_type), intent(in) :: xxf_lo
     type(yxf_layout_type), intent(in) :: yxf_lo
+    type(redist_type), intent(in out) :: x2y
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension (2) :: from_low, from_high, to_high
@@ -952,7 +954,7 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-  end function setup_y_redist_local
+  end subroutine setup_y_redist_local
 
   !> Small helper function to wrap up logic about if this point corresponds to a forbidden
   !> point and if we need to transfer it in the redistribute
@@ -996,7 +998,7 @@ contains
     call init_y_transform_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 
-    x2y = setup_y_redist_local(xxf_lo, yxf_lo)
+    call setup_y_redist_local(xxf_lo, yxf_lo, x2y)
   end subroutine init_y_redist_local
 
   !> FIXME : Add documentation
@@ -1006,6 +1008,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -1016,8 +1019,11 @@ contains
 
     call prof_entering ("transform_x5d", "gs2_transforms")
 
-    ! intent statement in gather actually makes this next line non-standard: 
-    xxf = 0.
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(xxf)
+
     !CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
     !    local Fourier transform in x, and may also pad with zeros for dealiasing
     !
@@ -1041,7 +1047,7 @@ contains
     deallocate (aux)
 # elif FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call FFTW_PREFIX(_execute)(xf_fft%plan)
+    call FFTW_PREFIX(_execute_dft)(xf_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
 # endif
 
@@ -1083,7 +1089,7 @@ contains
     deallocate (aux)
 # elif FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call FFTW_PREFIX(_execute)(xb_fft%plan)
+    call FFTW_PREFIX(_execute_dft)(xb_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
 # endif
 
@@ -1099,6 +1105,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
@@ -1113,9 +1120,13 @@ contains
 
     call prof_entering ("transform_y5d", "gs2_transforms")
 
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(fft)
+
     !Note here we're doing the communication even if we're not using
     !an FFT routine.
-    fft = 0.
     call gather (x2y, xxf, fft)
 
     ! do ffts
@@ -1206,10 +1217,13 @@ contains
     !       e.g. fac in get_volume_average
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
        g(:,:,iglo) = g(:,:,iglo) / 2.0
     end do
+    !$OMP END PARALLEL DO
 
     call transform_x (g, xxf)
     call transform_y (xxf, yxf)
@@ -1222,22 +1236,26 @@ contains
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,:,g_lo%llim_proc:), intent (out) :: g
     integer :: iglo
-
+    real :: scale
     call inverse_y (yxf, xxf)
     call inverse_x (xxf, g)
 
-    g = g * (xb_fft%scale * yb_fft%scale * 2.0)
-
+    scale = xb_fft%scale * yb_fft%scale
     !CMR+GC: 2/9/2013
     ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
     ! (See above comment in transform2_5d.)
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       if (ik_idx(g_lo, iglo) .ne. 1) cycle
-       g(:,:,iglo) = g(:,:,iglo) * 0.5
+       if (ik_idx(g_lo, iglo) .ne. 1) then
+          g(:,:,iglo) = g(:,:,iglo)  * (scale * 2.0)
+       else
+          g(:,:,iglo) = g(:,:,iglo)  * scale
+       end if
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine inverse2_5d
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

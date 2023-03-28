@@ -61,8 +61,17 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
-# Default to compressed netcdf files?
-USE_NETCDF_COMPRESSION ?= on
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
+endif
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses lapack or compatible library (bin)
@@ -81,8 +90,6 @@ USE_LOCAL_SPFUNC ?=
 USE_NAGLIB ?=
 # Use openmp (very limited use currently)
 USE_OPENMP ?=
-# Make GS2 into a library which can be called by external programs
-MAKE_LIB ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
@@ -112,7 +119,7 @@ USE_FPIC ?=
 # or when executing make. Make sure you rebuild constants.fpp if you want to change this.
 # e.g. 
 #       $ touch utils/constants.fpp
-#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+#       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
@@ -477,6 +484,13 @@ endif
 
 ifdef USE_OPENMP
 	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -517,10 +531,6 @@ endif
 ifdef QUAD
 	DBLE = on
 	MACRO_DEFS += -DQUAD_PRECISION
-endif
-
-ifdef MAKE_LIB
-	MACRO_DEFS += -DMAKE_LIB
 endif
 
 ifdef LOWFLOW
@@ -941,6 +951,7 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))

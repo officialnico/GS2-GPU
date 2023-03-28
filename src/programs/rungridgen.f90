@@ -3,6 +3,7 @@ program rungridgen
   use file_utils
   use gridgen4mod
   use constants, only: pi, twopi
+  use mp, only: init_mp, finish_mp
   implicit none
 
   ! input parameters
@@ -35,6 +36,7 @@ program rungridgen
   real, dimension (:), allocatable :: Zplot, Zprime
   real, dimension (:), allocatable :: aplot, aprime
   
+  call init_mp
   call init_file_utils (list, name="grid")
   call read_parameters
   if (three_dim) then
@@ -48,6 +50,7 @@ program rungridgen
   call generate_grids
   call write_output
   call finish_file_utils
+  call finish_mp
   stop
 
 contains

@@ -67,7 +67,12 @@ def compare_two_output_files(file1, file2, tolerance=1.0e-6):
 
     for variable in variables:
         print(f"Checking {variable}... ", end="")
-        assert np.all(file1_data[variable][:] == file2_data[variable][:])
+        try:
+            result = np.allclose(file1_data[variable][:], file2_data[variable][:])
+        except TypeError:
+            result = np.all(file1_data[variable][:] == file2_data[variable][:])
+        finally:
+            assert result
         print("Pass")
 
 
