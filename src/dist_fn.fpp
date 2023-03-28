@@ -4996,6 +4996,7 @@ contains
     use run_parameters, only: fphi, fbpar
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
+    use le_grids, only: passing_wfb
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: gnew
     complex, dimension(-ntgrid:, :), intent(in) :: g1
