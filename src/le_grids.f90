@@ -3595,7 +3595,7 @@ contains
   end subroutine init_g2gf
 
   !> Construct a redistribute for g_lo -> le_lo
-  type(redist_type) function setup_g2le_redistribute_local(g_lo, le_lo) result(g2le)
+  subroutine setup_g2le_redistribute_local(g_lo, le_lo, g2le)
     use layouts_type, only: g_layout_type, le_layout_type
     use mp, only: nproc
     use gs2_layouts, only: idx_local, proc_id
@@ -3607,6 +3607,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(le_layout_type), intent(in) :: le_lo
+    type(redist_type), intent(in out) :: g2le
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension (0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -3814,7 +3815,7 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-  end function setup_g2le_redistribute_local
+  end subroutine setup_g2le_redistribute_local
 
   !> Constructs the redistribute mapping from the global g_lo data
   !> decomposition to the le_lo decomposition.
@@ -3832,7 +3833,7 @@ contains
     !Setup the le layout object (le_lo)
     call init_le_layouts (ntgrid, naky, ntheta0, nspec, nproc, iproc)
 
-    g2le = setup_g2le_redistribute_local(g_lo, le_lo)
+    call setup_g2le_redistribute_local(g_lo, le_lo, g2le)
   end subroutine init_g2le_redistribute_local
 
   !> FIXME : Add documentation
