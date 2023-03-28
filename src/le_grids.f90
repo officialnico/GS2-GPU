@@ -3931,7 +3931,7 @@ contains
   end subroutine check_g2le
 
   !> Construct the redistribute for g_lo -> gf_lo
-  type(redist_type) function setup_g2gf_redistribute(g_lo, gf_lo) result(g2gf)
+  subroutine setup_g2gf_redistribute(g_lo, gf_lo, g2gf)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, gf_layout_type
     use gs2_layouts, only: idx_local, proc_id
@@ -3943,6 +3943,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(gf_layout_type), intent(in) :: gf_lo
+    type(redist_type), intent(in out) :: g2gf
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list, bak_sort_list
     integer, dimension (0:nproc-1) :: nn_to, nn_from
     integer, dimension (3) :: from_low, from_high
@@ -4105,7 +4106,7 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
     call delete_list (bak_sort_list)
-  end function setup_g2gf_redistribute
+  end subroutine setup_g2gf_redistribute
 
   !> Setup the module level g2gf instance describing the transformation from
   !> global g_lo to global gf_lo.
@@ -4126,7 +4127,7 @@ contains
     !Setup the le layout object (gf_lo)
     call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
-    g2gf = setup_g2gf_redistribute(g_lo, gf_lo)
+    call setup_g2gf_redistribute(g_lo, gf_lo, g2gf)
   end subroutine init_g2gf_redistribute
 
   !> FIXME : Add documentation  
