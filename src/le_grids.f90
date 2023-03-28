@@ -4222,7 +4222,7 @@ contains
 
   !> Computes the redistribute mapping from the g_lo data
   !> decomposition to the lz_lo decomposition
-  type(redist_type) function setup_lambda_redistribute_local(g_lo, lz_lo) result(lambda_map)
+  subroutine setup_lambda_redistribute_local(g_lo, lz_lo, lambda_map)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, lz_layout_type
     use gs2_layouts, only: idx_local, proc_id
@@ -4232,6 +4232,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(lz_layout_type), intent(in) :: lz_lo
+    type(redist_type), intent(in out) :: lambda_map
     type (index_list_type), dimension(0:nproc-1) :: to_list, from_list, sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
@@ -4418,7 +4419,7 @@ contains
     call delete_list (from_list)
     call delete_list (sort_list)
 
-  end function setup_lambda_redistribute_local
+  end subroutine setup_lambda_redistribute_local
 
   !> Computes the redistribute mapping from the global g_lo data
   !> decomposition to the global lz_lo decomposition
@@ -4439,7 +4440,7 @@ contains
     call init_lambda_layouts &
          (ntgrid, naky, ntheta0, nlambda, negrid, nspec, ng2, nproc, iproc)
 
-    lambda_map = setup_lambda_redistribute_local(g_lo, lz_lo)
+    call setup_lambda_redistribute_local(g_lo, lz_lo, lambda_map)
   end subroutine init_lambda_redistribute_local
 
   !> Constructs the redistribute mapping from a g_lo data
