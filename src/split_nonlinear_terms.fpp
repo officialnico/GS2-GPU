@@ -43,7 +43,7 @@ module split_nonlinear_terms
        split_method_rk = 3
   type(rk_scheme_type) :: the_rk_scheme
   logical :: show_statistics, advance_nonadiabatic_dfn
-  real :: convergence_tolerance
+  real :: convergence_tolerance, time_step_safety_factor
   real :: relative_tolerance, absolute_tolerance
 
   !> Used to represent the input configuration of split_nonlinear_terms
@@ -90,6 +90,11 @@ module split_nonlinear_terms
      !>            using rk_method switch. Relative and absolute error controlled time step.
      !>
      character(len = 20) :: split_method = 'default'
+     !> Multiplies the new time step calculated from either the error or
+     !> cfl limits. Smaller values are more conservative but may help avoid
+     !> repeated violation of the error/cfl limits and hence reduce the
+     !> number of failed steps.
+     real :: time_step_safety_factor = 0.9
    contains
      procedure, public :: read => read_split_nonlinear_terms_config
      procedure, public :: write => write_split_nonlinear_terms_config
@@ -145,6 +150,7 @@ contains
     rk_method = split_nonlinear_terms_config%rk_method
     show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
+    time_step_safety_factor = split_nonlinear_terms_config%time_step_safety_factor
 
     exist = split_nonlinear_terms_config%exist
 
@@ -301,6 +307,7 @@ contains
        ! and convert to time_step estimate.
        call max_allreduce(max_vel)
        time_step = 1.0 / max_vel
+       time_step = time_step * time_step_safety_factor
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
@@ -375,6 +382,7 @@ contains
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
+    use run_parameters, only: immediate_reset
     use gs2_layouts, only: g_lo
     use array_utils, only: copy, gs2_max_abs
     implicit none
@@ -386,12 +394,12 @@ contains
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
-    real :: inverse_error, error, actual_dt, half_time
+    real :: inverse_error, error, actual_dt, half_time, cfl_time_step
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
-    logical :: reject_step
+    logical :: reject_step, cfl_limited
     complex, dimension(:, :, :), allocatable :: error_array
 
     ! Initialise internal variables
@@ -517,13 +525,16 @@ contains
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
+          cfl_time_step = 1.0 / errors(3)
 
           !Calculate new time step based on error
-          time_step = min(0.9 * actual_dt * sqrt(inverse_error), 1.0 / errors(3))
+          time_step = min(actual_dt * sqrt(inverse_error), cfl_time_step)
+          cfl_limited = time_step < actual_dt .and. time_step == cfl_time_step
+          time_step = time_step * time_step_safety_factor
 
           ! If error is too large reject the step
-          if ( inverse_error < 1.0) then
-             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
+          if ( inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
+             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error or cfl, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
           else
@@ -583,6 +594,7 @@ contains
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
+    use run_parameters, only: immediate_reset
     use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -590,7 +602,7 @@ contains
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
-    real :: new_time_step
+    real :: new_time_step, cfl_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
     integer :: istage, istage_sub, validity, iglo
@@ -599,6 +611,7 @@ contains
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
+    logical :: cfl_limited
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
@@ -685,10 +698,12 @@ contains
        errors(2) = gs2_max_abs(g)
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
+       cfl_time_step = 1.0 / errors(3)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order),&
-            1.0 / errors(3))
+       new_time_step = min(time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
+       cfl_limited = new_time_step < time_step .and. new_time_step == cfl_time_step
+       new_time_step = new_time_step * time_step_safety_factor
 
        if(proc0 .and. debug) print*,'Inverse error is ',inverse_error,'at internal_time', &
             internal_time,'with step',time_step,'new time step is',new_time_step, &
@@ -700,9 +715,10 @@ contains
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (inverse_error < 1.0) then
-          if(proc0 .and. debug) print*,'Time step with size',time_step,'failed at internal_time', &
-               internal_time,'and counter',counter,'retrying with step',new_time_step
+       if (inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
+          if(proc0.and.debug) print*,'Time step with size',time_step, &
+               'failed at internal_time',internal_time,'and counter',counter, &
+               'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
           !Update the solution
@@ -793,9 +809,9 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
     logical :: advance_nonadiabatic_dfn, show_statistics
-    real :: absolute_tolerance, convergence_tolerance, relative_tolerance
+    real :: absolute_tolerance, convergence_tolerance, relative_tolerance, time_step_safety_factor
 
-    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method
+    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, time_step_safety_factor
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -808,6 +824,7 @@ contains
     rk_method = self%rk_method
     show_statistics = self%show_statistics
     split_method = self%split_method
+    time_step_safety_factor = self%time_step_safety_factor
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -821,6 +838,7 @@ contains
     self%rk_method = rk_method
     self%show_statistics = show_statistics
     self%split_method = split_method
+    self%time_step_safety_factor = time_step_safety_factor
 
     self%exist = exist
   end subroutine read_split_nonlinear_terms_config
@@ -845,6 +863,7 @@ contains
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
     call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
+    call self%write_key_val("time_step_safety_factor", self%time_step_safety_factor, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_split_nonlinear_terms_config
 
@@ -871,6 +890,7 @@ contains
     call broadcast(self%rk_method)
     call broadcast(self%show_statistics)
     call broadcast(self%split_method)
+    call broadcast(self%time_step_safety_factor)
 
     call broadcast(self%exist)
   end subroutine broadcast_split_nonlinear_terms_config
