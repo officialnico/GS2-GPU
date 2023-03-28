@@ -110,6 +110,16 @@ standard_tests:
     PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
+openmp_tests:
+  stage: test
+  image: fedora:35
+  variables:
+    CASENAME: "openmp"
+    EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
+    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
+    OMP_NUM_THREADS: 2
+  script: *default_script
+
 gfortran12_mpich:
   stage: test
   image: fedora:37

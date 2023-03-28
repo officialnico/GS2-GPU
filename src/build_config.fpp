@@ -14,6 +14,12 @@ module build_config
   logical, parameter :: gs2_has_mpi3 = .false.
 #endif
 
+#ifdef OPENMP
+  logical, parameter :: gs2_has_openmp = .true.
+#else
+  logical, parameter :: gs2_has_openmp = .false.
+#endif
+
 #ifdef FFT
   logical, parameter :: gs2_has_fft = .true.
 #else
@@ -103,6 +109,7 @@ contains
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
+    write(output, '(a, l)') trim(output) // nl // "OPENMP: ", gs2_has_openmp
     write(output, '(a, l)') trim(output) // nl // "FFTW: ", gs2_has_fft
     write(output, '(a, l)') trim(output) // nl // "iso_c_binding: ", gs2_has_iso_c_binding
     write(output, '(a, l)') trim(output) // nl // "New diagnostics: ", gs2_has_new_diag

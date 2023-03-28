@@ -484,6 +484,13 @@ endif
 
 ifdef USE_OPENMP
 	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -944,6 +951,7 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))

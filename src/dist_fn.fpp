@@ -4588,6 +4588,11 @@ contains
     ! only be true if have_trapped_particles is true.
     have_trapped_particles = grid_has_trapped_particles()
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, source, g1, use_pass_homog, speriod_flag, &
+    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
+    !$OMP g2, adjright, adjleft, ig, beta1) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
        !// Constants, flags etc.
@@ -4912,7 +4917,7 @@ contains
           if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
        end if
 
-       if (is_self_periodic) call self_periodic
+       if (is_self_periodic) call self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
 
        ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
        !CMR, 24/7/2014:
@@ -4966,55 +4971,65 @@ contains
        endif
 
     end do
+    !$OMP END PARALLEL DO
 
     if (def_parity) call enforce_parity(parity_redist)
 
-  contains
-
-    !> Sets sum of homogeneous and inhomogeneous solutions to give a result
-    !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
-    !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
-    !> ie periodic bcs at the ends of the flux tube.
-    !>
-    !> CMR, 25/7/2014:
-    !> self-periodic applied to zonal modes (makes sense)
-    !>                      and wfb        (seems strange)
-    !> adding adjr, adjl to cope with application of self-periodic to WFB
-    !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
-    !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
-    !> NB this code change will implement this only in ballooning space,
-    !> and not in a linked fluxtube.
-    subroutine self_periodic
-      implicit none
-      complex :: adjl, adjr, dadj
-
-      if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
-         adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-              *bparnew(-ntgrid,it,ik)*fbpar &
-              + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-              *nonmaxw_corr(ie,is)*fphi
-         adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-              *bparnew(ntgrid,it,ik)*fbpar &
-              + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-              *nonmaxw_corr(ie,is)*fphi
-         dadj = adjl-adjr
-      else 
-         dadj = cmplx(0.0,0.0)
-      endif
-
-      if (g1(ntgrid,1) /= 1.) then
-         beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
-         gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
-      end if
-
-      if (g1(-ntgrid,2) /= 1.) then
-         beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
-         gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
-      end if
-      
-    end subroutine self_periodic
-
   end subroutine invert_rhs_1
+
+  !> Sets sum of homogeneous and inhomogeneous solutions to give a result
+  !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
+  !>     gnew(ntgrid,1) = gnew(-ntgrid,1)
+  !> ie periodic bcs at the ends of the flux tube.
+  !>
+  !> CMR, 25/7/2014:
+  !> self-periodic applied to zonal modes (makes sense)
+  !>                      and wfb        (seems strange)
+  !> adding adjr, adjl to cope with application of self-periodic to WFB
+  !>   dadj=adjl-adjr will be ZERO for ky=0 modes, but NOT for WFB.
+  !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
+  !> NB this code change will implement this only in ballooning space,
+  !> and not in a linked fluxtube.
+  subroutine self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
+    use species, only: spec, nonmaxw_corr
+    use dist_fn_arrays, only: vperp2, aj1, aj0
+    use run_parameters, only: fphi, fbpar
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use le_grids, only: passing_wfb
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: gnew
+    complex, dimension(-ntgrid:, :), intent(in) :: g1
+    integer, intent(in) :: iglo, is, ie, it, ik
+    logical, intent(in) :: is_wfb
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
+    complex :: adjl, adjr, dadj, beta1
+
+    if ((is_wfb .and. nonad_zero) .and. .not. passing_wfb) then
+       adjl = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+            *bparnew(-ntgrid,it,ik)*fbpar &
+            + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+            *nonmaxw_corr(ie,is)*fphi
+       adjr = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+            *bparnew(ntgrid,it,ik)*fbpar &
+            + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+            *nonmaxw_corr(ie,is)*fphi
+       dadj = adjl-adjr
+    else
+       dadj = cmplx(0.0,0.0)
+    endif
+
+    if (g1(ntgrid,1) /= 1.) then
+       beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
+       gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
+    end if
+
+    if (g1(-ntgrid,2) /= 1.) then
+       beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
+       gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
+    end if
+
+  end subroutine self_periodic
 
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
@@ -5337,23 +5352,35 @@ contains
   !> Takes `g_in` as \(h_s\)
   !>
   !> FIXME: Get these notes on the website
-  subroutine getan_from_dfn (g_in, antot, antota, antotp)
+  subroutine getan_from_dfn (g_in, antot, antota, antotp, local_only)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
-    use kt_grids, only: kperp2
+    use kt_grids, only: kperp2, naky, ntheta0
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
     use run_parameters, only: beta, fphi, fapar, fbpar
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    logical, optional :: local_only
     real, dimension (nspec) :: wgt
-
-    integer :: isgn, iglo, ig
+    integer :: isgn, iglo, ig, ik, it
+    logical :: local_local_only
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
     call prof_entering ("getan_from_dfn", "dist_fn")
+    local_local_only = get_option_with_default(local_only, .false.)
+
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
+    else
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
+    end if
 
 !Don't do this as integrate_species will fill in all values
 !    antot=0. ; antota=0. ; antotp=0.
@@ -5362,6 +5389,10 @@ contains
 !use the various antots if we're not calculating/using the related field).
 
     if (fphi > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5369,6 +5400,7 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
 
        wgt = spec%z*spec%dens
        call integrate_species (g_work, wgt, antot)
@@ -5377,10 +5409,23 @@ contains
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
     else
-       antot=0.
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antot(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fapar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5388,16 +5433,30 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     else
-       antota=0.
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antota(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fbpar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -5405,12 +5464,23 @@ contains
              end do
           end do
        end do
+       !$OMP END PARALLEL DO
+
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     else
-       antotp=0.
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antotp(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     call prof_leaving ("getan_from_dfn", "dist_fn")
@@ -5426,14 +5496,15 @@ contains
   !> Always uses `gnew` as \(h_s\)
   !>
   !> FIXME: Get these notes on the website
-  subroutine getan (antot, antota, antotp)
+  subroutine getan (antot, antota, antotp, local_only)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
     use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    logical, intent(in), optional :: local_only
     call prof_entering ("getan", "dist_fn")
-    call getan_from_dfn(gnew, antot, antota, antotp)
+    call getan_from_dfn(gnew, antot, antota, antotp, local_only)
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
@@ -6115,78 +6186,140 @@ contains
 
   !> FIXME : Add documentation    
   subroutine getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
-       fieldeq, fieldeqa, fieldeqp)
+       fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar, beta
     use species, only: spec, has_electron_species
+    use optionals, only: get_option_with_default
+    use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-
+    logical, intent(in), optional :: local_only
+    logical :: local_local_only
     integer :: ik, it
-!    logical :: first = .true.
-    
-!    if (first) allocate (fl_avg(ntheta0, naky))
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
+
+    local_local_only = get_option_with_default(local_only, .false.)
+
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
+    else
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
+    end if
+
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
-          
           call calculate_flux_surface_average(fl_avg,antot)
        end if
-
     end if
 
     if (fphi > epsilon(0.0)) then
-       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
-
-       if (.not. has_electron_species(spec)) then
-          do ik = 1, naky
-             do it = 1, ntheta0
-                fieldeq(:,it,ik) = fieldeq(:,it,ik) + fl_avg(it,ik)
-             end do
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeq(:,it,ik) = antot(:,it,ik) + &
+                  bpar(:,it,ik)*gamtot1(:,it,ik) - &
+                  gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                  fl_avg(it,ik)
           end do
-       end if
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeq(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fapar > epsilon(0.0)) then
-       fieldeqa = antota - kperp2*gridfac1*apar
-    end if
-! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
-! in the following
-    if (fbpar > epsilon(0.0)) then
-       fieldeqp = (antotp+bpar*gamtot2+0.5*phi*gamtot1)*beta*apfac
-       do ik = 1, naky
-          do it = 1, ntheta0
-             fieldeqp(:,it,ik) = fieldeqp(:,it,ik)/bmag(:)**2
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqa(:, it, ik) = antota(:, it, ik) - &
+                  kperp2(:, it, ik)*gridfac1(:, it, ik)*apar(:, it, ik)
           end do
        end do
-       fieldeqp = fieldeqp + bpar*gridfac1
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqa(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
-!    first = .false.
-
+    ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
+    ! in the following
+    if (fbpar > epsilon(0.0)) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqp(:,it,ik) = (antotp(:, it, ik) + &
+                  bpar(:, it, ik)*gamtot2(:, it, ik) + &
+                  0.5*phi(:, it, ik)*gamtot1(:, it, ik))*(beta*apfac/bmag**2) + &
+                  bpar(:, it, ik)*gridfac1(:, it, ik)
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqp(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
   end subroutine getfieldeq1
 
   !> FIXME : Add documentation    
-  subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
+  subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    logical, intent(in), optional :: local_only
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
 
     allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
-    call getan (antot, antota, antotp)
+    call getan (antot, antota, antotp, local_only)
     call getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
-         fieldeq, fieldeqa, fieldeqp)
+         fieldeq, fieldeqa, fieldeqp, local_only)
 
     deallocate (antot, antota, antotp)
   end subroutine getfieldeq
@@ -6197,43 +6330,61 @@ contains
   !///////////////////////////////////////
   
   !> FIXME : Add documentation    
-  subroutine getfieldeq_nogath (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
+  subroutine getfieldeq_nogath (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    logical, intent(in), optional :: local_only
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
 
     allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
-    call getan_nogath (antot, antota, antotp)
+    call getan_nogath (antot, antota, antotp, local_only)
 
     call getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
-         fieldeq, fieldeqa, fieldeqp)
+         fieldeq, fieldeqa, fieldeqp, local_only)
 
     deallocate (antot, antota, antotp)
 
   end subroutine getfieldeq_nogath
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
+  !>
+  !> This routine is near identical to getfieldeq1
   subroutine getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
-       fieldeq, fieldeqa, fieldeqp)
+       fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
     use run_parameters, only: fphi, fapar, fbpar, beta
     use kt_grids, only: kwork_filter
     use species, only: spec, has_electron_species
+    use optionals, only: get_option_with_default
+    use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-
+    logical, intent(in), optional :: local_only
+    logical :: local_local_only
     integer :: ik, it
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
+
+    local_local_only = get_option_with_default(local_only, .false.)
+
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
+    else
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
+    end if
+
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
-    if (.not. has_electron_species(spec)) fl_avg = 0.
+    fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
@@ -6242,34 +6393,119 @@ contains
     end if
 
     if (fphi > epsilon(0.0)) then
-!       fieldeq = antot + bpar*gamtot1 - gamtot*gridfac1*phi 
-       fieldeq = antot - gamtot*gridfac1*phi 
-       if(fbpar.gt.epsilon(0.0)) fieldeq=fieldeq + bpar*gamtot1
-
-       if (.not. has_electron_species(spec)) then
-          do ik = 1, naky
-             do it = 1, ntheta0
+       if (fbpar > epsilon(0.0)) then
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
                 if(kwork_filter(it,ik)) cycle
-                fieldeq(:,it,ik) = fieldeq(:,it,ik) + fl_avg(it,ik)
+                fieldeq(:,it,ik) = antot(:,it,ik) + &
+                     bpar(:,it,ik)*gamtot1(:,it,ik) - &
+                     gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                     fl_avg(it,ik)
              end do
           end do
+          !$OMP END PARALLEL DO
+       else
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                if(kwork_filter(it,ik)) cycle
+                fieldeq(:,it,ik) = antot(:,it,ik) - &
+                     gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                     fl_avg(it,ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        end if
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeq(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fapar > epsilon(0.0)) then
-       fieldeqa = antota - kperp2*gridfac1*apar
-    end if
-! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
-! in the following
-    if (fbpar > epsilon(0.0)) then
-       fieldeqp = (antotp+bpar*gamtot2+0.5*phi*gamtot1)*beta*apfac
-       do ik = 1, naky
-          do it = 1, ntheta0
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(ik, it) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
              if(kwork_filter(it,ik)) cycle
-             fieldeqp(:,it,ik) = fieldeqp(:,it,ik)/bmag(:)**2
+             fieldeqa(:, it, ik) = antota(:, it, ik) - &
+                  kperp2(:, it, ik)*gridfac1(:, it, ik)*apar(:, it, ik)
           end do
        end do
-       fieldeqp = fieldeqp + bpar*gridfac1
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqa(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
+
+    ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
+    ! in the following
+    if (fbpar > epsilon(0.0)) then
+       if (fphi > epsilon(0.0)) then
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                if(kwork_filter(it,ik)) cycle
+                fieldeqp(:,it,ik) = (antotp(:, it, ik) + &
+                     bpar(:, it, ik)*gamtot2(:, it, ik) + &
+                     0.5*phi(:, it, ik)*gamtot1(:, it, ik))*(beta*apfac/bmag**2) + &
+                     bpar(:, it, ik)*gridfac1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       else
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(ik, it) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                if(kwork_filter(it,ik)) cycle
+                fieldeqp(:,it,ik) = (antotp(:, it, ik) + &
+                     bpar(:, it, ik)*gamtot2(:, it, ik))*(beta*apfac/bmag**2) + &
+                     bpar(:, it, ik)*gridfac1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       end if
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             fieldeqp(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
   end subroutine getfieldeq1_nogath
 
@@ -6408,7 +6644,7 @@ contains
   !> g_in is used instead and this is in g_lo data distribution.
   !>
   !> AJ
-  subroutine getan_nogath_from_dfn (g_in, antot, antota, antotp)
+  subroutine getan_nogath_from_dfn (g_in, antot, antota, antotp, local_only)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
     use dist_fn_arrays, only: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
     use species, only: nspec, spec
@@ -6417,24 +6653,72 @@ contains
     use run_parameters, only: beta, fphi, fapar, fbpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
     use spfunc, only: j0, j1
-    use kt_grids, only: kwork_filter, kperp2
+    use kt_grids, only: kwork_filter, kperp2, naky, ntheta0
     use redistribute, only: gather
     use mp, only: barrier
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    logical, optional :: local_only
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
     complex, dimension (:, :, :, :, :, :), allocatable :: gfarray
     integer :: ie, il, is
     real, dimension(-ntgrid:ntgrid) :: temparg3
+    logical :: local_local_only
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
+
+    local_local_only = get_option_with_default(local_only, .false.)
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
+    else
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
+    end if
 
     ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
     ! with no_gath = .true. may only populate part of these arrays so we initialise to
     ! zero here to avoid later using uninitialised data.
-    antot = 0.0
-    antota = 0.0
-    antotp = 0.0
+    if (gf_lo_integrate .or. (fphi < epsilon(0.0))) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antot(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
+
+    if (gf_lo_integrate .or. (fapar < epsilon(0.0))) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antota(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
+
+    if (gf_lo_integrate .or. (fbpar < epsilon(0.0))) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             antotp(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
 
     !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
     !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
@@ -6454,6 +6738,9 @@ contains
 
        if(.not. gf_lo_integrate) then
           if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6462,16 +6749,21 @@ contains
                    g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           else
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+            !$OMP END PARALLEL DO
           endif
           call integrate_species (g_work, wgt, antot, nogath=.true.)
        end if
-
 
        if(gf_lo_integrate) then
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
@@ -6522,6 +6814,9 @@ contains
 
        if(.not. gf_lo_integrate) then
           if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6530,12 +6825,18 @@ contains
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           else
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj0(:,iglo)*vpa(:,isgn,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
        end if
@@ -6593,6 +6894,9 @@ contains
        if(.not. gf_lo_integrate) then
 
           if(any(kwork_filter))then
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn, it, ik) &
+             !$OMP SCHEDULE(guided)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6601,12 +6905,18 @@ contains
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           else
+             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PRIVATE(iglo, isgn) &
+             !$OMP COLLAPSE(2) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 do isgn = 1, 2
                    g_work(:,isgn,iglo) = aj1(:,iglo)*vperp2(:,iglo)*g_in(:,isgn,iglo)
                 end do
              end do
+             !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
        end if
@@ -6659,12 +6969,13 @@ contains
 
   !> Calls getan_nogath_from_dfn to calculate antot arrays for
   !> current gnew value
-  subroutine getan_nogath (antot, antota, antotp)
+  subroutine getan_nogath (antot, antota, antotp, local_only)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
-    call getan_nogath_from_dfn(gnew, antot, antota, antotp)
+    logical, intent(in), optional :: local_only
+    call getan_nogath_from_dfn(gnew, antot, antota, antotp, local_only)
   end subroutine getan_nogath
 
 !///////////////////////////////////////
@@ -6683,7 +6994,8 @@ contains
   !> simulation. We should provide a method to calculate these fields even
   !> if they are not included in the evolution (e.g. for diagnostics,
   !> collisions etc.). Perhaps an optional flag here would be enough.
-  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar, gf_lo)
+  subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar, &
+       gf_lo, local_only)
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
     use run_parameters, only: fphi, fapar, fbpar, beta, tite
@@ -6693,22 +7005,33 @@ contains
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
-    logical, optional :: gf_lo
+    logical, optional :: gf_lo, local_only
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real :: phi_weight
-    logical :: local_gf_lo
+    logical :: local_gf_lo, local_local_only
+    integer :: it, ik, ig
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
     allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
     allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
 
     local_gf_lo = get_option_with_default(gf_lo, .false.)
+    local_local_only = get_option_with_default(local_only, .false.)
 
     ! Get the weighted velocity space integrals of the passed
     ! distribution function.
     if(local_gf_lo) then
-       call getan_nogath_from_dfn (f_in, antot, antota, antotp)
+       call getan_nogath_from_dfn (f_in, antot, antota, antotp, local_only)
     else
-       call getan_from_dfn (f_in, antot, antota, antotp)
+       call getan_from_dfn (f_in, antot, antota, antotp, local_only)
+    end if
+
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
+    else
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
     end if
 
     if (fphi > 0) then
@@ -6718,25 +7041,82 @@ contains
        else
           phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
        end if
-       phi = antot / phi_weight
+
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             phi(:, it, ik) = antot(:, it, ik) / phi_weight
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       phi = 0
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             phi(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fapar > 0) then
-       where (kperp2 > epsilon(0.0))
-          apar = antota / kperp2
-       elsewhere
-          apar = 0
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             do ig = -ntgrid, ntgrid
+                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+                else
+                   apar(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       apar = 0
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             apar(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     if (fbpar > 0) then
-       bpar = -beta * antotp / (spread(spread(bmag, 2, ntheta0), 3, naky)**2)
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             bpar(:, it, ik) = -beta * antotp(:, it, ik) / bmag**2
+          end do
+       end do
+       !$OMP END PARALLEL DO
     else
-       bpar = 0.0
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             bpar(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
   end subroutine calculate_potentials_from_nonadiabatic_dfn
@@ -6751,87 +7131,162 @@ contains
   !> TT> Given initial distribution function this obtains consistent fields
   !> MAB> ported from agk
   !> CMR, 1/8/2011> corrections below for inhomogeneous bmag
-  subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo)
+  subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo, local_only)
     use run_parameters, only: beta, fphi, fapar, fbpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
+    use optionals, only: get_option_with_default
+    use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
-    logical, optional :: gf_lo
+    logical, optional :: gf_lo, local_only
     real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
-    real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: bmagsp
     complex, dimension (ntheta0,naky) :: fl_avg
-    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: fl_avg_sp
-    logical :: local_gf_lo
+    logical :: local_gf_lo, local_local_only
+    integer :: it, ik, ig
+    integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
-    if(present(gf_lo)) then
-       local_gf_lo = gf_lo
+    local_gf_lo = get_option_with_default(gf_lo, .false.)
+
+    local_local_only = get_option_with_default(local_only, .false.)
+
+    if (local_local_only) then
+       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
+       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
     else
-       local_gf_lo = .false.
+       it_llim = 1 ; it_ulim = ntheta0
+       ik_llim = 1 ; ik_ulim = naky
     end if
 
-
-    phi=0. ; apar=0. ; bpar=0.
-    antot=0.0 ; antota=0.0 ; antotp=0.0
-!CMR, 1/8/2011:  bmagsp is 3D array containing bmag
-    bmagsp=spread(spread(bmag,2,ntheta0),3,naky)
     if(local_gf_lo) then
-       call getan_nogath_from_dfn (g_in, antot, antota, antotp)
+       call getan_nogath_from_dfn (g_in, antot, antota, antotp, local_only)
     else
-       call getan_from_dfn (g_in, antot, antota, antotp)
+       call getan_from_dfn (g_in, antot, antota, antotp, local_only)
     end if
 
+    ! This is a constant so should perhaps be calculated once during
+    ! initialisiation.
     fl_avg = 0.0
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
       call calculate_flux_surface_average(fl_avg,antot)
     end if
-    fl_avg_sp(-ntgrid:ntgrid,:,:) = spread(fl_avg,1,2*ntgrid+1)
 
     ! get phi
     if (fphi > epsilon(0.0)) then
 
-!CMR, 1/8/2011:  bmag corrections here:
-!BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
+       !CMR, 1/8/2011:  bmag corrections here:
+       !BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
        if (fbpar > epsilon(0.0)) then
-          numerator = (beta * gamtot2 + bmagsp**2) * (antot+fl_avg_sp) - (beta * gamtot1) * antotp
-          denominator = (beta * gamtot2 + bmagsp**2) * gamtot + (beta/2.0) * gamtot1 * gamtot1
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                numerator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * (antot(:, it, ik)+fl_avg(it, ik)) - (beta * gamtot1(:, it, ik)) * antotp(:, it, ik)
+                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * gamtot(:, it, ik) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        else
           ! If fbpar = 0 then the terms in earlier branch proportional to beta
           ! should be zero as these terms arrive from the bpar parts of quasineutrality
           ! as expressed in terms of gnew. In this case we get the below.
-          numerator = antot+fl_avg_sp
-          denominator = gamtot
-       end if
-       
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
-          !for example a simulation with beta=0.0 and an adiabatic species does
-          !not have a zero denominator.
-          phi = 0.0
-       elsewhere
-          phi = numerator / denominator
-       end where
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                numerator(:, it, ik) = antot(:, it, ik)+fl_avg(it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
 
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                denominator(:, it, ik) = gamtot(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       end if
+
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator.
+                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
+                   phi(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                else
+                   phi(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             phi(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     ! get apar
     if (fapar > epsilon(0.0)) then
-       denominator = kperp2
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          apar = 0.0
-       elsewhere
-          apar = antota / denominator
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator.
+                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
+                else
+                   apar(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             apar(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
 
     ! get bpar
     if (fbpar > epsilon(0.0)) then
-!CMR>  bmag corrections here
-
        ! As in our calculation of phi, we see that the equations for
        ! bpar and phi are coupled when written in terms of gnew. This
        ! means we get contributions arising from phi in the expression
@@ -6839,18 +7294,61 @@ contains
        ! gamtot1. However, if we have disabled phi then they should
        ! not appear in our calculation, so handle that here.
        if (fphi > epsilon(0.0)) then
-          numerator = - (beta * gamtot) * antotp - (beta/2.0) * gamtot1 * antot
-          denominator = gamtot * (beta * gamtot2 + bmagsp**2) + (beta/2.0) * gamtot1 * gamtot1
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                numerator(:, it, ik) = - (beta * gamtot(:, it, ik)) * antotp(:, it, ik) - (beta/2.0) * gamtot1(:, it, ik) * antot(:, it, ik)
+                denominator(:, it, ik) = gamtot(:, it, ik) * (beta * gamtot2(:, it, ik) + bmag**2) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        else
-          numerator = - beta * antotp
-          denominator = (beta * gamtot2 + bmagsp**2)
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = ik_llim, ik_ulim
+             do it = it_llim, it_ulim
+                numerator(:, it, ik) = - beta * antotp(:, it, ik)
+                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2)
+             end do
+          end do
+          !$OMP END PARALLEL DO
        end if
 
-       where (abs(denominator) < epsilon(0.0)) ! it == ik == 1 only
-          bpar = 0.0
-       elsewhere
-          bpar = numerator / denominator
-       end where
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             do ig = -ntgrid, ntgrid
+                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
+                !for example a simulation with beta=0.0 and an adiabatic species does
+                !not have a zero denominator.
+                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
+                   bpar(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
+                else
+                   bpar(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    else
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = ik_llim, ik_ulim
+          do it = it_llim, it_ulim
+             bpar(:, it, ik) = 0.0
+          end do
+       end do
+       !$OMP END PARALLEL DO
     end if
   end subroutine get_fields_direct_from_dfn
 

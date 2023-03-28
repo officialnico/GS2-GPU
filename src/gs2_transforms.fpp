@@ -1008,6 +1008,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
@@ -1018,8 +1019,11 @@ contains
 
     call prof_entering ("transform_x5d", "gs2_transforms")
 
-    ! intent statement in gather actually makes this next line non-standard: 
-    xxf = 0.
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(xxf)
+
     !CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
     !    local Fourier transform in x, and may also pad with zeros for dealiasing
     !
@@ -1101,6 +1105,7 @@ contains
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
@@ -1115,9 +1120,13 @@ contains
 
     call prof_entering ("transform_y5d", "gs2_transforms")
 
+    ! Zero out the array as the subsequent gather doesn't populate
+    ! every element as we skip communicating forbidden points and
+    ! we are padding our data
+    call zero_array(fft)
+
     !Note here we're doing the communication even if we're not using
     !an FFT routine.
-    fft = 0.
     call gather (x2y, xxf, fft)
 
     ! do ffts
@@ -1208,10 +1217,13 @@ contains
     !       e.g. fac in get_volume_average
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
        g(:,:,iglo) = g(:,:,iglo) / 2.0
     end do
+    !$OMP END PARALLEL DO
 
     call transform_x (g, xxf)
     call transform_y (xxf, yxf)
@@ -1224,22 +1236,26 @@ contains
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,:,g_lo%llim_proc:), intent (out) :: g
     integer :: iglo
-
+    real :: scale
     call inverse_y (yxf, xxf)
     call inverse_x (xxf, g)
 
-    g = g * (xb_fft%scale * yb_fft%scale * 2.0)
-
+    scale = xb_fft%scale * yb_fft%scale
     !CMR+GC: 2/9/2013
     ! Following large loop can be eliminated if gs2 used standard Fourier coefficients.
     ! (See above comment in transform2_5d.)
     !
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       if (ik_idx(g_lo, iglo) .ne. 1) cycle
-       g(:,:,iglo) = g(:,:,iglo) * 0.5
+       if (ik_idx(g_lo, iglo) .ne. 1) then
+          g(:,:,iglo) = g(:,:,iglo)  * (scale * 2.0)
+       else
+          g(:,:,iglo) = g(:,:,iglo)  * scale
+       end if
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine inverse2_5d
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

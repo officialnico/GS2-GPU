@@ -473,6 +473,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -528,8 +529,8 @@ contains
        ! It's possible we might have other explicit sources, in which case we
        ! probably always need to do this shuffling, however in that case this
        ! subroutine probably best belongs in a different module.
-       g3 = g2
-       g2 = g1
+       call copy(g2, g3)
+       call copy(g1, g2)
 
        call debug_message(verb, 'nonlinear_terms::add_explicit copied old terms')
 
@@ -645,6 +646,7 @@ contains
   real function estimate_error(g1, g2, g3) result(error)
     use gs2_time, only: get_adams_bashforth_coefficients
     use mp, only: max_allreduce
+    use array_utils, only: gs2_max_abs
     implicit none
     complex, dimension(:, :, :), intent(in) :: g1, g2, g3
     complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
@@ -671,13 +673,13 @@ contains
     source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
 
     ! Here we find the maximum absolute error
-    intermediate_error(1) = maxval(abs(source_order_3 - source_order_2))
+    intermediate_error(1) = gs2_max_abs(source_order_3 - source_order_2)
 
     ! Now we find the maximum of source_order_2 to scale the absolute
     ! error with.  Note we use this rather than source_order_3 as the
     ! higher order method has a smaller region of stability so is
     ! perhaps more likely to blow up.
-    intermediate_error(2) = maxval(abs(source_order_2))
+    intermediate_error(2) = gs2_max_abs(source_order_2)
 
     ! Reduce over all processors
     call max_allreduce(intermediate_error)
@@ -718,6 +720,9 @@ contains
     trapped = grid_has_trapped_particles()
 
     ! factor of one-half appears elsewhere
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, il, ig) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
 
@@ -764,6 +769,7 @@ contains
           endif
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine nl_center
 
   !> Calculates the current nonlinear source term by calling add_nl
@@ -803,6 +809,7 @@ contains
     use constants, only: zi
     use unit_tests, only: debug_message
     use optionals, only: get_option_with_default
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
@@ -832,14 +839,19 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
     !Form g1=i*ky*g_wesson
-    g1 = g_in
+    call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ik) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
     enddo
+    !$OMP END PARALLEL DO
 
-    !Transform to real space    
+    !Transform to real space
     if (accelerated) then
        call transform2 (g1, agb, ia)
     else
@@ -872,12 +884,17 @@ contains
     end if
 
     !Form g1=i*kx*g_wesson
-    g1 = g_in
+    call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ik) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
     enddo
+    !$OMP END PARALLEL DO
     
     !Transform to real space
     if (accelerated) then
@@ -924,6 +941,9 @@ contains
     integer :: iglo, it, ik
 
     if (fphi > epsilon(0.0) .and. include_phi) then
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -931,6 +951,7 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
        g1 = 0.
     endif
@@ -950,7 +971,10 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0) .and. include_phi) then
+    if (fphi > epsilon(0.0) .and. include_phi) then      
+       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -958,6 +982,7 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
        g1 = 0.
     endif
@@ -983,6 +1008,9 @@ contains
 
     if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -992,7 +1020,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_apar
 
   !> FIXME : Add documentation    
@@ -1012,6 +1040,9 @@ contains
 
     if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -1021,7 +1052,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_apar
 
   !> FIXME : Add documentation    
@@ -1043,6 +1074,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -1052,7 +1086,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_bpar
 
   !> FIXME : Add documentation    
@@ -1074,6 +1108,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -1083,19 +1120,20 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_bpar
 
   !> Calculates an estimate of the current maximum velocity due to the
   !! perturbed potentials. This is currenly a processor local estimate.
   subroutine get_max_vel(scaling)
+    use array_utils, only: gs2_max_abs
     implicit none
     real, intent(in) :: scaling
     real :: local_max_vel
     if (accelerated) then
-       local_max_vel = maxval(abs(aba))
+       local_max_vel = gs2_max_abs(aba)
     else
-       local_max_vel = maxval(abs(ba))
+       local_max_vel = gs2_max_abs(ba)
     end if
     
     local_max_vel = local_max_vel * scaling
@@ -1107,20 +1145,45 @@ contains
   !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
   subroutine calculate_bracket(is_first_term)
     use theta_grid, only: kxfac
+    use gs2_layouts, only: accelx_lo, yxf_lo
     implicit none
     logical :: is_first_term
-
+    integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          abracket = aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     else
        if (accelerated) then
-          abracket = abracket - aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = bracket - ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     endif
   end subroutine calculate_bracket
