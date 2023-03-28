@@ -4445,7 +4445,7 @@ contains
 
   !> Constructs the redistribute mapping from a g_lo data
   !> decomposition to an e_lo decomposition
-  type(redist_type) function setup_energy_redistribute_local(g_lo, e_lo) result(energy_map)
+  subroutine setup_energy_redistribute_local(g_lo, e_lo,energy_map)
     use mp, only: nproc
     use layouts_type, only: g_layout_type, e_layout_type
     use gs2_layouts, only: ie_idx, ik_idx, it_idx, il_idx, is_idx, ig_idx, isign_idx
@@ -4456,6 +4456,7 @@ contains
     implicit none
     type(g_layout_type), intent(in) :: g_lo
     type(e_layout_type), intent(in) :: e_lo
+    type(redist_type), intent(in out) :: energy_map
     type(index_list_type), dimension(0:nproc-1) :: to_list, from_list,sort_list
     integer, dimension(0:nproc-1) :: nn_to, nn_from
     integer, dimension(3) :: from_low, from_high
@@ -4614,7 +4615,7 @@ contains
     call delete_list (to_list)
     call delete_list (from_list)
     call delete_list (sort_list)
-  end function setup_energy_redistribute_local
+  end subroutine setup_energy_redistribute_local
 
   !> Constructs the redistribute mapping from the global g_lo data
   !> decomposition to the global e_lo decomposition
@@ -4636,7 +4637,7 @@ contains
     call init_energy_layouts &
          (ntgrid, naky, ntheta0, nlambda, nspec, nproc, iproc)
 
-    energy_map = setup_energy_redistribute_local(g_lo, e_lo)
+    call setup_energy_redistribute_local(g_lo, e_lo, energy_map)
   end subroutine init_energy_redistribute_local
 
   !> Used for testing
