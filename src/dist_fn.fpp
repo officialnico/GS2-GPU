@@ -129,12 +129,6 @@ module dist_fn
 !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
 !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
-  logical :: trapped_wfb, passing_wfb
-! MRH trapped_wfb, passing_wfb control the choice of wfb boundary condition
-  integer :: wfbbc_option_switch
-  integer, parameter :: wfbbc_option_mixed = 1, &
-       wfbbc_option_passing = 2, &
-       wfbbc_option_trapped = 3
        
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
   real :: qparfac_lin, qprpfac_lin, phifac_lin
@@ -469,13 +463,10 @@ module dist_fn
      real :: wfb = 1.0
      !> If true, do NOT save homogeneous solutions for WFB
      logical :: wfb_cmr = .false.
-     !> Set boundary condition for WFB in the linear/parallel solve:
-     !>
-     !> - "default", "mixed": The previous default boundary condition which
-     !>   mixes the passing and trapped boundary conditions
-     !> - "passing": Treats the WFB using a passing particle boundary condition
-     !> - "trapped": Treats the WFB using a trapped particle boundary condition
-     character(len = 20) :: wfbbc_option = 'default'
+     !> Deprecated option, moved to [le_grids]. Setting
+     !> will lead to an error message and abort. To be removed
+     !> entirely in future release
+     character(len = 20) :: wfbbc_option = 'unset'
      !> If true then force `gnew=0` in the forbidden region at the end
      !> of [[invert_rhs_1]] (this is the original behaviour).
      !> Nothing should depend on the forbidden region so `g` should be 0 here
@@ -1238,7 +1229,6 @@ contains
   subroutine finish_dist_fn_level_3
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: vpa, vpac, vpar
-    use dist_fn_arrays, only: ittp
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
     !initializing  = .true.
     if (.not. initialized_dist_fn_level_3) return
@@ -1257,7 +1247,7 @@ contains
     g = 0.
 
     if (allocated(vpa)) deallocate (vpa, vpac, vpar)
-    if (allocated(ittp)) deallocate (ittp, wdrift, wdriftttp)
+    if (allocated(wdrift)) deallocate (wdrift, wdriftttp)
     if (allocated(wstar)) deallocate (wstar)
 !AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
@@ -1286,11 +1276,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
-    use file_utils, only: input_unit, error_unit, input_unit_exist
+    use file_utils, only: error_unit
     use theta_grid, only: shat
     use text_options, only: text_option, get_option_value
     use species, only: nspec
-    use mp, only: proc0, broadcast
+    use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
@@ -1324,12 +1314,6 @@ contains
             text_option('iphi00=2', adiabatic_option_fieldlineavg), &
             text_option('iphi00=3', adiabatic_option_yavg)/)
     character(30) :: adiabatic_option
-    
-    type (text_option), dimension (4), parameter :: wfbbcopts = &
-         (/ text_option('default', wfbbc_option_mixed), &
-            text_option('passing', wfbbc_option_passing), &
-            text_option('trapped', wfbbc_option_trapped), &
-            text_option('mixed', wfbbc_option_mixed)/)
     character(20) :: wfbbc_option
 
     integer :: ierr, is
@@ -1403,6 +1387,11 @@ contains
     zero_forbid = dist_fn_config%zero_forbid
 
     dfexist = dist_fn_config%exist
+
+    if (trim(adjustl(wfbbc_option)) /= 'unset') then
+       call mp_abort("The input wfbbc_option has been set in 'dist_fn_knobs' but this "// &
+            "input has moved to 'le_grids_knobs'", .true.)
+    end if
     
     if (tpdriftknob == -9.9e9) tpdriftknob=driftknob
 
@@ -1415,30 +1404,11 @@ contains
          ierr, "boundary_option in dist_fn_knobs",.true.)
 
     call get_option_value &
-         (wfbbc_option, wfbbcopts, wfbbc_option_switch, &
-         ierr, "wfbbc_option in dist_fn_knobs",.true.)
-
-    call get_option_value &
          (source_option, sourceopts, source_option_switch, &
          ierr, "source_option in source_knobs",.true.)
     call get_option_value &
          (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
          ierr, "adiabatic_option in dist_fn_knobs",.true.)
-
-    trapped_wfb = .false.! flag for treating wfb as a trapped particle
-    passing_wfb = .false.! flag for treating wfb as a passing particle
-
-    select case (wfbbc_option_switch)
-    case(wfbbc_option_mixed) ! The previous default boundary condition which mixes the passing and trapped boundary conditions
-       passing_wfb =.false.
-       trapped_wfb =.false.
-    case(wfbbc_option_passing) ! Treats wfb using a passing particle boundary condition 
-       passing_wfb =.true.
-       trapped_wfb =.false.
-    case(wfbbc_option_trapped) ! Treats the wfb using a trapped particle boundary condition 
-       passing_wfb =.false.
-       trapped_wfb =.true.
-    end select
        
     if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
 
@@ -1533,39 +1503,13 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, nlambda, jend, forbid
+    use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
+         il_is_wfb, il_is_trapped, ittp
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use dist_fn_arrays, only: ittp
     implicit none
     integer :: ig, ik, it, il, ie, is
     integer :: iglo
     logical,parameter :: debug = .false.
-
-! find totally trapped particles 
-!    if (alloc) allocate (ittp(-ntgrid:ntgrid))
-    if (.not. allocated(ittp)) allocate (ittp(-ntgrid:ntgrid))
-!    ittp = 0
-     ittp = nlambda+1
-    do ig = -ntgrid+1, ntgrid-1
-!       if (jend(ig) > 0 .and. jend(ig) <= nlambda) then
-!          if (1.0-al(jend(ig))*bmag(ig+1) < 2.0*epsilon(0.0) &
-!               .and. 1.0-al(jend(ig))*bmag(ig-1) < 2.0*epsilon(0.0)) &
-!          then
-!             ittp(ig) = jend(ig)
-!          end if
-!       end if
-
-! all pitch angles greater than or equal to ittp are totally trapped or forbidden
-
-       if (nlambda > ng2) then
-          do il = ng2+1, nlambda
-             if (forbid(ig-1,il) .and. forbid(ig+1, il) .and. .not. forbid(ig, il)) then
-                ittp(ig) = il
-                exit
-             end if
-          end do
-       end if
-    end do
 
     if (.not. allocated(wdrift)) then
        ! allocate wdrift with sign(vpa) dependence because will contain 
@@ -1587,7 +1531,7 @@ contains
           it=it_idx(g_lo,iglo)
           ik=ik_idx(g_lo,iglo)
           is=is_idx(g_lo,iglo)
-          if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. il >= ng2+1 .and. il <= jend(ig)) then
+          if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
              wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik, is)*tpdriftknob
 #ifdef LOWFLOW
              wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
@@ -1951,10 +1895,10 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
-    use dist_fn_arrays, only: vpar, ittp
+    use dist_fn_arrays, only: vpar
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, forbid
+    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, ittp
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
@@ -2011,7 +1955,7 @@ contains
                   = 1.0 - bd &
                   + fexp(is)*spec(is)%tz*(-zi*wd*(1.0-bd) + 2.0*vp)
           
-             if (nlambda > ng2) then
+             if (grid_has_trapped_particles()) then
                 ! zero out forbidden regions
                 if (forbid(ig,il) .or. forbid(ig+1,il)) then
                    r(ig,isgn,iglo) = 0.0
@@ -2023,7 +1967,7 @@ contains
 !  trapped particles. Part of multiple trapped particle algorithm
 !  NB not applicable to ttp or wfb!
                 if( isgn.eq.1 )then
-                   if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+                   if (is_lower_bounce_point(ig+1, il)) then
                       ainv(ig,isgn,iglo) = 1.0 + ainv(ig,isgn,iglo)
                    end if
                 endif
@@ -2157,7 +2101,8 @@ contains
   subroutine init_connected_bc
     use theta_grid, only: ntgrid, nperiod, ntheta, theta
     use kt_grids, only: naky, ntheta0, aky, theta0
-    use le_grids, only: ng2, nlambda
+    use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
+         il_is_trapped, il_is_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use gs2_layouts, only: idx, proc_id
     use mp, only: iproc, nproc, max_allreduce, mp_abort
@@ -2173,11 +2118,12 @@ contains
     integer :: n, n_h, n_links_max, nn_max
     integer :: ng
     integer, dimension(naky*ntheta0) :: n_k
-
+    logical :: has_trapped_particles
     if (connectinit) return
     connectinit = .true.
 
     ng = ntheta/2 + (nperiod-1)*ntheta
+    has_trapped_particles = grid_has_trapped_particles()
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
     ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one 
@@ -2257,8 +2203,8 @@ contains
 
        ! if non-wfb trapped particle, no connections
        ! or if wfb is trapped, no connections
-       if ((nlambda > ng2 .and. il >= ng2+2) .or. &
-            (nlambda > ng2 .and. il == ng2+1 .and. trapped_wfb)) then
+       if (has_trapped_particles .and. (il_is_trapped(il) .or. &
+            (il_is_wfb(il) .and. trapped_wfb))) then
           connections(iglo)%iproc_left = -1
           connections(iglo)%iglo_left = -1
           connections(iglo)%iproc_right = -1
@@ -2308,13 +2254,13 @@ contains
           ! wfb (linked)
           if ( wfb_cmr ) then
              ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
-             if (nlambda > ng2 .and. il == ng2+1) save_h(:,iglo) = .false.
+             if (has_trapped_particles .and. il_is_wfb(il)) save_h(:,iglo) = .false.
           else ! MRH below should not occur if we are treating wfb as standard passing
                ! since save_h for passing particles is handled above
-             if (nlambda > ng2               .and. &
-                  il == ng2+1                .and. &
-                  connections(iglo)%neighbor .and. &
-                  (.not. passing_wfb) .and. & 
+             if (has_trapped_particles               .and. &
+                  il_is_wfb(il)                      .and. &
+                  connections(iglo)%neighbor         .and. &
+                  (.not. passing_wfb)                .and. &
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           endif
@@ -2408,9 +2354,9 @@ contains
           il = il_idx(g_lo,iglo)
           ! Exclude trapped particles (inc wfb)
           if(passing_wfb) then
-            if (nlambda > ng2 .and. il >= ng2+2) cycle
+            if (has_trapped_particles .and. il_is_trapped(il)) cycle
           else 
-            if (nlambda > ng2 .and. il >= ng2+1) cycle
+            if (has_trapped_particles .and. (il_is_trapped(il) .or. il_is_wfb(il))) cycle
           endif
 
           ik = ik_idx(g_lo,iglo)
@@ -2495,10 +2441,11 @@ contains
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
           il = il_idx(g_lo,iglo)
+          ! Exclude trapped particles (inc wfb)
           if(passing_wfb) then
-            if (nlambda > ng2 .and. il >= ng2+2) cycle
+            if (has_trapped_particles .and. il_is_trapped(il)) cycle
           else 
-            if (nlambda > ng2 .and. il >= ng2+1) cycle
+            if (has_trapped_particles .and. (il_is_trapped(il) .or. il_is_wfb(il))) cycle
           endif
 
           ik = ik_idx(g_lo,iglo)
@@ -2630,7 +2577,7 @@ contains
 !
 
           il = il_idx(g_lo,iglo)
-          if (il /= ng2+1) cycle
+          if (.not. il_is_wfb(il)) cycle
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2689,7 +2636,7 @@ contains
        do iglo = g_lo%llim_world, g_lo%ulim_world
 
           il = il_idx(g_lo,iglo)
-          if (il /= ng2+1) cycle
+          if (.not. il_is_wfb(il)) cycle
 
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -2874,7 +2821,7 @@ contains
   !! DD 01/02/2013
   subroutine init_pass_ends(pass_obj,dir,sigma,typestr,ngsend)
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
-    use le_grids, only: ng2
+    use le_grids, only: il_is_trapped
     use mp, only: iproc, nproc, max_allreduce, proc0
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
     use theta_grid, only:ntgrid
@@ -2935,10 +2882,10 @@ contains
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !Get the lambda index so we can skip trapped particles
        il = il_idx(g_lo,iglo)
-       
+
        !Exclude disconnected trapped particles
-       if (il > ng2+1) cycle     
-       
+       if (il_is_trapped(il)) cycle
+
        !Get the processor id for the proc holding the current iglo index
        ip = proc_id(g_lo,iglo)
        
@@ -3028,8 +2975,8 @@ contains
           il = il_idx(g_lo,iglo)
           
           !Exclude disconnected trapped particles
-          if (il > ng2+1) cycle     
-          
+          if (il_is_trapped(il)) cycle
+
           !What's the processor for the current iglo
           ip = proc_id(g_lo,iglo)
           
@@ -4077,11 +4024,11 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g, ittp
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
@@ -4174,7 +4121,7 @@ contains
 
     if (source_option_switch == source_option_full .or. &
         source_option_switch == source_option_phiext_full) then
-       if (nlambda > ng2 .and. isgn == 2) then
+       if (grid_has_trapped_particles() .and. isgn == 2) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig) &
@@ -4361,11 +4308,11 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, g, ittp
+    use dist_fn_arrays, only: aj0, aj1, vperp2, g
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
@@ -4450,7 +4397,7 @@ contains
     isgn=2
     if (source_option_switch == source_option_full .or. &
          source_option_switch == source_option_phiext_full) then
-       if (nlambda > ng2) then
+       if (grid_has_trapped_particles()) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig,isgn) &
@@ -4592,10 +4539,14 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
         sourcefac)
-    use dist_fn_arrays, only: gnew, ittp, vperp2, aj1, aj0, set_h_zero
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid, is_passing_hybrid_electron
+    use le_grids, only: nlambda, ng2, lmax, forbid,&
+         is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
+         il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
+         grid_has_trapped_particles, is_upper_bounce_point, &
+         is_lower_bounce_point, ittp
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4635,7 +4586,7 @@ contains
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
     ! only be true if have_trapped_particles is true.
-    have_trapped_particles = nlambda > ng2
+    have_trapped_particles = grid_has_trapped_particles()
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, source, g1, use_pass_homog, speriod_flag, &
@@ -4720,21 +4671,20 @@ contains
 
        ! ng2+1 is WFB.
        ! This implies have_trapped_particles is true.
-       is_wfb = il == ng2 + 1
+       is_wfb = il_is_wfb(il)
 
        ! Totally trapped particle is last lambda when we have trapped_particles.
        ! This implies have_trapped_particles is true.
-       is_not_ttp = il <= lmax
+       is_not_ttp = .not. il_is_ttp(il)
 
        ! Is this particle passing. Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
-       is_passing = il <= ng2
+       is_passing = il_is_passing(il)
 
        ! Is this particle trapped? Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        ! This implies have_trapped_particles is true.
-       is_trapped = il > ng2 + 1
-
+       is_trapped = il_is_trapped(il)
 
        ! Decide if this point is self periodic
        !CMR, 17/4/2012:
@@ -4827,7 +4777,9 @@ contains
           !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
           do ig=-ntgrid,ntgrid-1
              !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-             if (forbid(ig+1,il).and..not.forbid(ig,il)) g2(ig,2) = 1.0
+             ! Note with use of is_upper_bounce_point we can change ig loop to full
+             ! theta domain if we like. Only relevant once wfb bounce points identified
+             if (is_upper_bounce_point(ig, il)) g2(ig,2) = 1.0
           end do
        end if
 
@@ -4898,7 +4850,9 @@ contains
        if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
-             if (forbid(ig,il) .and. .not. forbid(ig+1,il)) then
+             ! Note could change ig loop to full theta grid now we are using
+             ! is_lower_bounce_point
+             if (is_lower_bounce_point(ig+1, il)) then
                 !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
                 !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
                 !      but this was handled consistently in integration of g1)
@@ -4978,7 +4932,7 @@ contains
              if (forbid(ig,il)) then
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
-             else if (forbid(ig+1,il)) then
+             else if (forbid(ig+1,il)) then !This could be is_upper_bounce_point(ig, il)?
                 beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
              end if
              gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
@@ -5081,8 +5035,11 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, nlambda, ng2, is_passing_hybrid_electron
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
+    use le_grids, only: energy, al, &
+         is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
+         il_is_wfb
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx,&
+         is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
@@ -5145,7 +5102,7 @@ contains
           ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
 ! wfb
-          if ( (nlambda > ng2 .and. il == ng2+1) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          if ( il_is_wfb(il) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
              if (nonad_zero) then
                 is = is_idx(g_lo,iglo)
                 ie = ie_idx(g_lo,iglo)
@@ -9161,7 +9118,7 @@ contains
     use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
-    use le_grids, only: ng2, nlambda, new_trap_int
+    use le_grids, only: ng2, nlambda, new_trap_int, grid_has_trapped_particles
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
@@ -9256,7 +9213,7 @@ contains
 
 ! next loop gets error estimate for trapped particles, if there are any
 
-       if (nlambda > ng2 .and. new_trap_int) then
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           phi_t = 0.0
@@ -9280,7 +9237,7 @@ contains
 
        call eint_error (g_work, wgt, apar_e)
        call lint_error (g_work, wgt, apar_l)
-       if (nlambda > ng2 .and. new_trap_int) then
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
           apar_t = 0.0
@@ -9315,7 +9272,7 @@ contains
        errest(2,:) = errtmp
        erridx(2,:) = idxtmp
 
-       if (nlambda > ng2 .and. new_trap_int) then       
+       if (grid_has_trapped_particles() .and. new_trap_int) then
           call estimate_error (phi_app, phi_t, kmax, errtmp, idxtmp, trap_flag)
           errest(3,:) = errtmp
           erridx(3,:) = idxtmp
@@ -9392,7 +9349,7 @@ contains
   subroutine estimate_error (app1, app2, kmax_local, errest, erridx, trap)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, jend
+    use le_grids, only: ng2, jend, il_is_trapped
 
     implicit none
 
@@ -9412,7 +9369,7 @@ contains
     do ik = 1, naky
        do it = 1, ntheta0
           do ig=-ntgrid,ntgrid
-             if (.not.present(trap) .or. jend(ig) > ng2+1) then
+             if (.not.present(trap) .or. il_is_trapped(jend(ig))) then
                 gpcnt = 0; gpsum = 0.0
 
                    if (present(trap)) then
@@ -9470,7 +9427,7 @@ contains
   !>
   !> FIXME: finish documentation
   subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
-    use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend
+    use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend, grid_has_trapped_particles, il_is_trapped
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
@@ -9507,7 +9464,7 @@ contains
  
     getran = 0.0; gltran = 0.0
 
-    if (nlambda-ng2 > 0) then
+    if (grid_has_trapped_particles()) then
        allocate(gnt2(0:2*(nlambda-ng2-1)))
        allocate(gttran(0:2*(nlambda-ng2-1),-ntgrid:ntgrid,ntheta0,naky,nspec))      
        gtnorm = 0.0 ; gnt2 = 0.0 ; gtmax = 0.0 ; gttran = 0.0
@@ -9560,12 +9517,12 @@ contains
                    glnum = glnum + glmax
                    gldenom = gldenom + glnorm
 
-                   if (nlambda > ng2) then
+                   if (grid_has_trapped_particles()) then
                       do il=0,2*(jend(ig)-ng2-1)
                          gnt2(il) = real(gttran(il,ig,it,ik,is)*conjg(gttran(il,ig,it,ik,is)))
                       end do
                       gtnorm = maxval(gnt2(0:2*(jend(ig)-ng2-1)))
-                      if (jend(ig) > ng2+1) then
+                      if (il_is_trapped(jend(ig))) then
                          gtmax = maxval(gnt2(2*(jend(ig)-ng2-1)-2:2*(jend(ig)-ng2-1)))
                       else
                          gtmax = gnt2(0)
@@ -9581,12 +9538,12 @@ contains
        end do
        geavg = genum/gedenom
        glavg = glnum/gldenom
-       if (nlambda > ng2) gtavg = gtnum/gtdenom
+       if (grid_has_trapped_particles()) gtavg = gtnum/gtdenom
     end if
 
     call broadcast (geavg)
     call broadcast (glavg)
-    if (nlambda > ng2) then
+    if (grid_has_trapped_particles()) then
        call broadcast (gtavg)
        deallocate (gnt2, gttran)
     end if
@@ -10745,7 +10702,7 @@ contains
     !       g(ntgrid,1,iglo)  => g(-ntgrid,1,iglo_right) in right connected cell.
     !       g(-ntgrid,2,iglo) => g(ntgrid,1,iglo_right) in left connected cell.
     use gs2_layouts, only: g_lo, il_idx, idx, proc_id
-    use le_grids, only: ng2
+    use le_grids, only: il_is_wfb
     use mp, only: iproc, nproc, max_allreduce
     use redistribute, only: redist_type
     use redistribute, only: index_list_type, init_fill, delete_list
@@ -10764,8 +10721,8 @@ contains
          nn_to = 0   ! # communicates from ip TO HERE (iproc)
          nn_from = 0 ! # communicates to ip FROM HERE (iproc)
          do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)          
-            if (il /= ng2+1) cycle     ! ONLY consider wfb 
+            il = il_idx(g_lo,iglo)
+            if (.not. il_is_wfb(il)) cycle     ! ONLY consider wfb
             ip = proc_id(g_lo,iglo)
 ! First consider rightward connections 
             call get_right_connection (iglo, iglo_right, ipright)
@@ -10822,10 +10779,10 @@ contains
 ! Now fill the indirect addresses...
          nn_from = 0 ; nn_to = 0          
          do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)          
-            if (il /= ng2+1) cycle     ! ONLY consider wfb 
+            il = il_idx(g_lo,iglo)
+            if (.not. il_is_wfb(il)) cycle     ! ONLY consider wfb
             ip = proc_id(g_lo,iglo)
-! First consider rightward connections 
+! First consider rightward connections
             call get_right_connection (iglo, iglo_right, ipright)
             if (ip .eq. iproc .and. ipright .ge. 0 ) then 
                n=nn_from(ipright)+1 ; nn_from(ipright)=n
@@ -10979,7 +10936,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 20) :: boundary_option, wfbbc_option
+    character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
@@ -10988,7 +10945,7 @@ contains
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
-         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, wfbbc_option, zero_forbid
+         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -11033,7 +10990,6 @@ contains
     vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
-    wfbbc_option = self%wfbbc_option
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
@@ -11080,7 +11036,6 @@ contains
     self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
-    self%wfbbc_option = wfbbc_option
     self%zero_forbid = zero_forbid
 
     self%exist = exist
@@ -11138,7 +11093,6 @@ contains
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
-    call self%write_key_val("wfbbc_option", self%wfbbc_option, unit_internal)
     call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_dist_fn_config
@@ -11198,7 +11152,6 @@ contains
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
-    call broadcast(self%wfbbc_option)
     call broadcast(self%zero_forbid)
 
     call broadcast(self%exist)

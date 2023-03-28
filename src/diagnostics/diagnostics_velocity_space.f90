@@ -48,7 +48,7 @@ contains
   subroutine write_velocity_space_checks(gnostics)
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -126,7 +126,7 @@ contains
  contains
    !> FIXME : Add documentation   
    subroutine write_ascii
-     if (nlambda - ng2 > 1) then
+     if (grid_has_trapped_particles()) then
         write(gnostics%ascii_files%lpc,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
      else
         write(gnostics%ascii_files%lpc,"(3(1x,e13.6))") user_time, geavg, glavg

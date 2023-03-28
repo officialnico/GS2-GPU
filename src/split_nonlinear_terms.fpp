@@ -351,7 +351,7 @@ contains
        end select
 
        ! Calculate the fields consistent with the new g
-       call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
+       call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -537,7 +537,7 @@ contains
           call copy(g, gnew)
           ! If we store the initial field then we could perhaps just copy here instead.
           ! This could be faster as it avoids communications involved in the velocity integration.
-          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
           nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
@@ -638,7 +638,7 @@ contains
              end do
              !$OMP END PARALLEL DO
           end do
-          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
@@ -762,6 +762,18 @@ contains
     inverse_error = (relative_tolerance * errors(2) + absolute_tolerance) / &
          (errors(1) + epsilon(errors(1)))
   end function get_inverse_error
+
+  !> Calculates the fields consistent with the passed distribution function
+  subroutine calculate_fields(fields_func, g_in, phi_out, apar_out, bpar_out)
+    use nonlinear_terms, only: time_add_explicit_terms_field
+    use job_manage, only: time_message
+    procedure(invert_field_func) :: fields_func
+    complex, dimension(:, :, :), intent(in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: phi_out, apar_out, bpar_out
+    call time_message(.false., time_add_explicit_terms_field, 'Explicit terms - field')
+    call fields_func(g_in, phi_out, apar_out, bpar_out, local_only = .true.)
+    call time_message(.false., time_add_explicit_terms_field, 'Explicit terms - field')
+  end subroutine calculate_fields
 
   !---------------------------------------
   ! Following is for the config_type

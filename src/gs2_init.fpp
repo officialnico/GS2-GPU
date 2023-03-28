@@ -43,7 +43,7 @@ module gs2_init
   !> Finalize the module
   public :: finish_gs2_init
 
-  public :: report_init_times, reset_init_times
+  public :: write_init_times, report_init_times, reset_init_times
 
   public :: in_memory
   public :: init_config_type
@@ -225,6 +225,18 @@ contains
     end if
   end function init_level_change_level
 
+  !> Write the init times to <run_name>.init_times
+  subroutine write_init_times()
+    use mp, only: proc0
+    use file_utils, only: open_output_file, close_output_file
+    implicit none
+    integer :: unit
+    if (.not. proc0) return
+    call open_output_file(unit, '.init_times')
+    call report_init_times(unit)
+    call close_output_file(unit)
+  end subroutine write_init_times
+
   !> Report the time spent in each initialisation level
   subroutine report_init_times(unit)
     implicit none
@@ -315,6 +327,9 @@ contains
 
   !> Finish this module
   subroutine finish_gs2_init()
+    use run_parameters, only: save_init_times
+    implicit none
+    if (save_init_times) call write_init_times
     call init_config%reset()
     initialized = .false.
     if (allocated(init_levels)) deallocate(init_levels)

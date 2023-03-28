@@ -61,8 +61,17 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
-# Default to compressed netcdf files?
-USE_NETCDF_COMPRESSION ?= on
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
+endif
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses lapack or compatible library (bin)

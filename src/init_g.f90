@@ -1963,7 +1963,7 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid 
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     implicit none
@@ -2005,7 +2005,7 @@ contains
        g(:,1,iglo) = -phi(:,it,ik)*phiinit*spec(is)%z
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
     gnew = g
   end subroutine ginit_nl
@@ -2022,7 +2022,7 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     implicit none
@@ -2066,7 +2066,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = -phi(:,it,ik)*phiinit*(1.+vpa(:,2,iglo)*sin(theta))*spec(is)%z
 !       g(:,1,iglo)*vpa(:,2,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
 
     gnew = g
@@ -2099,7 +2099,6 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
@@ -2200,7 +2199,6 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use fields_arrays, only: apar
     use fields_arrays, only: aparnew
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
@@ -2406,7 +2404,6 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use gs2_save, only: gs2_restore
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use fields_arrays, only: phi, apar, bpar

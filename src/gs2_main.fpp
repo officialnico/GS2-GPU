@@ -1456,11 +1456,145 @@ contains
     timers%main_loop = 0.
   end subroutine reset_timers
 
+  !> Gets statistics of passed real value across all processes.
+  !> Intended for use with our timers.
+  subroutine get_parallel_statistics(value_in, min_value, max_value,&
+       & mean_value, proc0_value, iproc_min, iproc_max, values_out)
+    use mp, only: nproc, iproc, sum_allreduce
+    implicit none
+    real, intent(in) :: value_in
+    real, intent(out) :: min_value, max_value, mean_value, proc0_value
+    integer, intent(out) :: iproc_min, iproc_max
+    real, dimension(:), allocatable, intent(out), optional :: values_out
+    real, dimension(:), allocatable :: values
+
+    allocate(values(0:nproc-1))
+    values = 0
+    values(iproc) = value_in
+    call sum_allreduce(values)
+    if(present(values_out)) values_out = values
+
+    min_value = minval(values)
+    max_value = maxval(values)
+    mean_value = sum(values)/nproc
+    proc0_value = values(0)
+
+    iproc_min = minloc(values, dim = 1) - 1
+    iproc_max = maxloc(values, dim = 1) - 1
+  end subroutine get_parallel_statistics
+
+  !> Writes the timing information statistics to optional passed unit
+  subroutine write_time_parallel_statistics(timers, report_unit)
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0, get_mp_times
+    use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
+    use fields_arrays, only: time_field, time_field_mpi
+    use gs2_reinit, only: time_reinit
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
+    implicit none
+    !> Timing information
+    type(gs2_timers_type), intent(in) :: timers
+    integer, intent(in), optional :: report_unit
+    integer :: unit
+    real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
+    real :: redist_total, redist_mpi, redist_copy
+    !> Helper type to hold timer data. There might be some
+    !> utility in making this avaiable outside of this routine.
+    type timer_data
+       real :: time
+       character(len=:), allocatable :: name
+    end type timer_data
+    type(timer_data), dimension(:), allocatable :: timer_dat
+    integer :: i
+
+    ! Make sure unit is set on proc0. Open an output file if required
+    if (proc0) then
+       if (present(report_unit)) then
+          unit = report_unit
+       else
+          call open_output_file(unit, '.timing_stats')
+       end if
+    end if
+
+    call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+    call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+    timer_dat = [ &
+         timer_data(timers%init(1), "Initialization"), &
+         timer_data(timers%advance(1), "Advance steps"), &
+#ifdef WITH_EIG
+         timer_data(timers%eigval(1), "Eigensolver"), &
+#endif
+         timer_data(time_field(1), "field solve"), &
+         timer_data(time_field_mpi, "field solve mpi"), &
+         timer_data(time_vspace_derivatives(1), "collisions"), &
+         timer_data(time_vspace_derivatives_mpi, "collisions mpi"), &
+         timer_data(time_add_explicit_terms(1), "explicit/nl"), &
+         timer_data(time_add_explicit_terms_mpi, "explicit/nl mpi"), &
+         timer_data(time_fft(1), "explicit/nl fft"), &
+         timer_data(time_add_explicit_terms_field(1), 'explicit/nl fields'), &
+         timer_data(timers%diagnostics(1), "diagnostics"), &
+         timer_data(time_reinit(1), "Re-initialize"), &
+         timer_data(redist_total, "Redistribute"), &
+         timer_data(redist_mpi, "redistribute mpi"), &
+         timer_data(redist_copy, "redistribute copy"), &
+         timer_data(timers%finish(1), "Finishing"), &
+         timer_data(mp_total, "MPI"), &
+         timer_data(mp_over, "Overheads"), &
+         timer_data(mp_coll, "Collectives"), &
+         timer_data(mp_ptp, "PTP"), &
+         timer_data(mp_sync, "Sync"), &
+         timer_data(timers%total(1), "Total") &
+         ]
+
+    call write_parallel_statistics_header()
+    do i = 1, size(timer_dat)
+       call write_parallel_statistics(timer_dat(i)%time, timer_dat(i)%name)
+    end do
+
+    ! If we opened it in this routine then close the opened output file
+    if (proc0 .and. .not. present(report_unit)) call close_output_file(unit)
+
+  contains
+    subroutine write_parallel_statistics_header()
+      implicit none
+      if (proc0) then
+         write(unit, '(a,T25,4(a9," "),T70,a,T77,a)') "Region", &
+              "Min (s)", "Max (s)", "Mean (s)", "P0 (s)", &
+              "Ip min", "Ip max"
+         write(unit, '(83("-"))')
+      end if
+    end subroutine write_parallel_statistics_header
+
+    subroutine write_parallel_statistics(time_value, name)
+      implicit none
+      real, intent(in) :: time_value
+      character(len=*), intent(in) :: name
+      real :: min_value, max_value, mean_value, proc0_value
+      integer :: iproc_min, iproc_max
+
+      call get_parallel_statistics(time_value, &
+           min_value, max_value, mean_value, proc0_value, &
+           iproc_min, iproc_max)
+
+      if (proc0) then
+         write(unit, '(a,T25,4(0pf9.3," "),T70,I0,T77,I0)') name, &
+           min_value, max_value, mean_value, proc0_value, &
+           iproc_min, iproc_max
+      end if
+    end subroutine write_parallel_statistics
+
+  end subroutine write_time_parallel_statistics
+
   !> Print timing information to standard output.
   !>
   !> Prints a full breakdown of timing information if `state%print_full_timers`
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
+    use run_parameters, only: save_timer_statistics
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
@@ -1469,6 +1603,7 @@ contains
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
 #endif
@@ -1479,6 +1614,9 @@ contains
     type(gs2_timers_type), intent(in) :: timers
     real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
     real :: redist_total, redist_mpi, redist_copy
+
+    if (save_timer_statistics) call write_time_parallel_statistics(timers)
+
     if (.not. proc0) return
 
     if (state%print_full_timers) then
@@ -1499,6 +1637,7 @@ contains
       write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
       write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
       write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fields", time_add_explicit_terms_field(1))
       write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
       write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
       write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
