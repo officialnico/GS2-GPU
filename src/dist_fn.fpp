@@ -4327,7 +4327,7 @@ contains
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-
+    logical :: is_ttp_somewhere
 
     !Temporally weighted fields
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
@@ -4395,9 +4395,10 @@ contains
 ! Source allocated as: source(-ntgrid:ntgrid-1,2), so ntgrid is out of bounds.
 
     isgn=2
+    is_ttp_somewhere = any (il >= ittp)
     if (source_option_switch == source_option_full .or. &
          source_option_switch == source_option_phiext_full) then
-       if (grid_has_trapped_particles()) then
+       if (grid_has_trapped_particles() .and. is_ttp_somewhere) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig,isgn) &
