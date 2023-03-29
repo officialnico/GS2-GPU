@@ -5062,7 +5062,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
+       (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, g_work
     use theta_grid, only: bmag, ntgrid
     use le_grids, only: energy, al, &
@@ -5075,13 +5075,11 @@ contains
     use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2
-
+    use array_utils, only: zero_array
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
-    complex, intent (in) :: sourcefac
-
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:, :, :), intent(in out) :: source
     complex :: b0, fac, facd
     integer :: il, ik, it, n, i, j
     integer :: iglo, ncell
@@ -5095,16 +5093,12 @@ contains
     complex :: adjl, adjr, dadj
     real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
 
-    g_work = 0.
-    call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
-         aparnew, bparnew, istep, sourcefac)
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g_work)
+    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
 
     if (no_comm) then
        ! nothing
     else       
-       g_adj = 0. !This shouldn't be needed
+       call zero_array(g_adj) !This shouldn't be needed
        !<DD>Note these fill routines are often equivalent to an all-to-all type
        !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
        !By only communicating with our direct neighbours we would significantly
@@ -5295,6 +5289,7 @@ contains
     use constants, only: zi, pi
     use prof, only: prof_entering, prof_leaving
     use dist_fn_arrays, only: g_work
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5317,16 +5312,19 @@ contains
        sourcefac = (0.5 - 0.5*cos(pi*time/t0))*exp(-zi*omega0*time+gamma0*time)
     end if
 
+    ! Is this needed?
+    call zero_array(g_work)
+
+    call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
+         aparnew, bparnew, istep, sourcefac)
+
     select case (boundary_option_switch)
     case (boundary_option_linked)
-       call invert_rhs_linked &
-            (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
+       call invert_rhs_linked (phi, apar, bpar, phinew, aparnew, bparnew, &
+            source = g_work)
     case default
-       g_work = 0.
-       call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
-            aparnew, bparnew, istep, sourcefac)
        call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g_work)
+            source = g_work)
     end select
 
     call prof_leaving ("invert_rhs", "dist_fn")
