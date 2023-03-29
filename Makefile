@@ -61,26 +61,35 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
+endif
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
-# uses hdf5 library (bin)
-USE_HDF5 ?=  
 # uses lapack or compatible library (bin)
 USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
-# Use posix for command_line (bin)
-USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
+# Does this compiler support f2008 compiler_version and compiler_options
+GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?= 
-# Make GS2 into a library which can be called by external programs
-MAKE_LIB ?=
+USE_NAGLIB ?=
+# Use openmp (very limited use currently)
+USE_OPENMP ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
@@ -93,6 +102,8 @@ USE_GCOV ?=
 HAS_GCOV=$(USE_GCOV)
 # Name of python exe
 GS2_PYTHON_NAME ?= python3
+# Name of pytest executable
+GS2_PYTEST_NAME ?= pytest
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -108,7 +119,7 @@ USE_FPIC ?=
 # or when executing make. Make sure you rebuild constants.fpp if you want to change this.
 # e.g. 
 #       $ touch utils/constants.fpp
-#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+#       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
@@ -127,6 +138,12 @@ endif
 WITH_COLOUR     ?= $(WITH_COLOR)
 # If defined then show the full path in compilation statements etc.
 SHOW_ABS_PATH ?= yes
+
+###############################################################
+# Experimental features
+###############################################################
+# Do we use the experimental memory usage reporting
+GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE ?=
 
 ###############################################################
 # By default we export all variables defined in this Makefile
@@ -191,8 +208,6 @@ NETCDF_INC ?=
 NETCDF_LIB ?=
 LAPACK_INC ?=
 LAPACK_LIB ?=
-HDF5_INC ?=
-HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
@@ -249,18 +264,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 
 #Patch file
 PATCHFILE:= .patch.make
-
-################################################### SET COMPILE MODE SWITCHES
-
-# It makes no sense to set USE_PARALLEL_NETCDF without
-# setting USE_HDF5... so we set USE_HDF5 here. 
-# If you want to use parallel-netcdf instead of netcdf/hdf5 you can 
-# override this behaviour in the system makefile
-ifdef USE_PARALLEL_NETCDF
-ifndef USE_HDF5
-	USE_HDF5=on
-endif
-endif
 
 ######################################################### PLATFORM DEPENDENCE
 
@@ -337,17 +340,22 @@ MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_UTILS='"$(GIT_HASH_UTILS)"'
 
+# Version string, including current commit if not on a release, plus
+# '-dirty' if there are uncommitted changes
+GIT_VERSION := $(shell git describe --tags --dirty --match "[0-9]*.[0-9]*.[0-9]*")
+MACRO_DEFS += -DGIT_VERSION='"$(GIT_VERSION)"'
+
 #The magic sed esacpes either ( or ) by replacing with \( or \)
 GIT_BRANCH:=$(shell git branch | grep \* | cut -d ' ' -f2- | sed 's|\([()]\)|\\\1|g')
 MACRO_DEFS+=-DGIT_BRANCH='"$(GIT_BRANCH)"'
 
 # Find if there are any modified tracked files (except Makefile.depend)
 ifeq ($(shell git status --short -uno -- . | wc -l), 0)
-	GIT_STATE="clean"
+	GIT_STATE:="clean"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 $(shell touch $(PATCHFILE))
 else
-	GIT_STATE="modified"
+	GIT_STATE:="modified"
 	MACRO_DEFS+=-DGIT_STATE='$(GIT_STATE)'
 
 # Here we make a patch file, which could be read by the program if we wanted to keep a record
@@ -357,11 +365,19 @@ MACRO_DEFS+=-DGIT_PATCH_FILE='"$(PATCHFILE)"'
 
 ######## PYTHON ###############################################################
 
-PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME))
+PYTHON_EXE:=$(shell which $(GS2_PYTHON_NAME) 2>/dev/null)
 GS2_HAS_PYTHON:=$(if $(PYTHON_EXE),yes,no)
 ifeq ($(GS2_HAS_PYTHON),yes)
 PYTHON_VERSION:=$(shell $(PYTHON_EXE) --version 2>&1)
+else
+$(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
+You will not be able to generate some files, or run some tests. \
+Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
 endif
+
+PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
+GS2_HAS_PYTEST := $(if $(PYTEST),yes,no)
 
 ###############################################################################
 
@@ -387,13 +403,6 @@ MACRO_DEFS+=-DRELEASE='"$(RELEASE)"'
 # Define GK_SYSTEM for runtime_tests so that we can get the system name
 # at runtime
 MACRO_DEFS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
-
-ifdef USE_HDF5
-	ifndef USE_MPI
-$(error Currently, USE_HDF5 only works with USE_MPI)
-	endif
-endif
-
 
 ifndef USE_NETCDF
 ifdef USE_NEW_DIAG
@@ -457,25 +466,31 @@ ifdef USE_NETCDF
 	MACRO_DEFS += -DNETCDF
 endif
 
-ifdef USE_HDF5
-	FC = $(H5FC_par)
-	CC = $(H5CC_par)
-	ifdef USE_PARALLEL_NETCDF
-		MACRO_DEFS += -DNETCDF_PARALLEL
-	endif
-	MACRO_DEFS += -DHDF
+ifdef USE_NETCDF_COMPRESSION
+	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
+endif
+
+ifdef USE_PARALLEL_NETCDF
+	MACRO_DEFS += -DNETCDF_PARALLEL
 endif
 
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
-ifdef USE_POSIX
-	MACRO_DEFS += -DPOSIX
-endif
-
 ifdef USE_LAPACK
 	MACRO_DEFS += -DLAPACK
+endif
+
+ifdef USE_OPENMP
+	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -488,6 +503,10 @@ else
 			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
+endif
+
+ifdef GK_HAS_COMPILER_OPTIONS_2008
+	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifdef USE_NAGLIB
@@ -512,10 +531,6 @@ endif
 ifdef QUAD
 	DBLE = on
 	MACRO_DEFS += -DQUAD_PRECISION
-endif
-
-ifdef MAKE_LIB
-	MACRO_DEFS += -DMAKE_LIB
 endif
 
 ifdef LOWFLOW
@@ -561,9 +576,9 @@ endif
 
 ############################################################################# Done dealing with user flags
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
-INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
@@ -576,7 +591,7 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-
 
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
 CPPFLAGS += $(MACRO_DEFS)
 FPPFLAGS += $(MACRO_DEFS)
@@ -611,11 +626,11 @@ DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && ec
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
 
-$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
+$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$@) ($(call processName,$^)))
 	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
+$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
 
 $(SRCDIR)/overrides.f90: $(SRCDIR)/generate_overrides.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
@@ -682,15 +697,15 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 
 # The depend command needs the preprocessed source files. 
 # This is a little clunky, and maybe could be fixed in the future.
-$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR)
+$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(OBJDIR)/%.o: %.c |$(OBJDIR)
+$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
 
@@ -698,6 +713,22 @@ $(OBJDIR)/%.o: %.c |$(OBJDIR)
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
+# Special handling for creating a serial version of the mp module
+$(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
+FPPFLAGS_SERIAL:=$(subst -DHAVE_MPI, ,$(subst -DMPI, ,$(FPPFLAGS)))
+ifdef ONE_STEP_PP
+$(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+else
+$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
+	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
+$(OBJDIR)/mp_serial.o:mp_serial.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
+	$(QUIETSYM)mkdir -p $(MODDIR)/serial
+	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR)/serial -c $< -o $@
+endif
 
 DEPEND:=Makefile.depend
 DEPEND_CMD:=$(PERL) scripts/fortdep
@@ -727,6 +758,26 @@ depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_D
 		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
+
+# Dump the compilation flags to a file, so we can check if they change between
+# invocations of `make`. The `cmp` bit checks if the file contents
+# change. Adding a dependency of a file on `compiler_flags` causes it to be
+# rebuilt when the flags change. Taken from
+# https://stackoverflow.com/a/3237349/2043465
+COMPILER_FLAGS_CONTENTS = "$(GIT_VERSION)"
+.PHONY: force
+compiler_flags: force
+	$(QUIETSYM)echo -e $(COMPILER_FLAGS_CONTENTS) | cmp -s - $@ || echo -e $(COMPILER_FLAGS_CONTENTS) > $@
+
+# Things that should be rebuilt if the compilation flags change (for example, on
+# a new commit). Files that get preprocessed need either the object file or the
+# preprocessed file to depend on compiler_flags, depending on ONE_STEP_PP
+ifdef ONE_STEP_PP
+$(OBJDIR)/git_hash.o: compiler_flags
+else
+$(GENERATED_SRC_DIR)/git_hash.f90: compiler_flags
+endif
+
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
@@ -757,18 +808,6 @@ endif
 # If MUST_INCLUDE_DEPEND isn't empty then we better include the dependency file
 ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
-endif
-
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-ifdef USE_FFT
-    utils_mod += $(OBJDIR)/fft_save_wisdom.o
-    gs2_mod += $(OBJDIR)/fft_save_wisdom.o
-    ingen_mod += $(OBJDIR)/fft_save_wisdom.o
-    dump_response_mod += $(OBJDIR)/fft_save_wisdom.o
-    generate_fftw_wisdom_mod += $(OBJDIR)/fft_save_wisdom.o
-    write_default_input_file_mod += $(OBJDIR)/fft_save_wisdom.o
 endif
 
 geometry_c_interface.o: geometry_c_interface.h
@@ -876,6 +915,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
 	$(call messageKeyVal, "GIT_HASH_UTILS", $(GIT_HASH_UTILS))
@@ -911,11 +951,11 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
-	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
+	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
@@ -984,14 +1024,6 @@ ifdef USE_NETCDF
 	$(call messageKeyVal, "NETCDF_INC", $(NETCDF_INC))
 else
 	$(call messageInfo,"Netcdf: DISABLED")
-endif
-	@echo
-ifdef USE_HDF5
-	$(call messageInfo,"HDF5:")
-	$(call messageKeyVal, "HDF5_LIB", $(HDF5_LIB))
-	$(call messageKeyVal, "HDF5_INC", $(HDF5_INC))
-else
-	$(call messageInfo,"HDF5: DISABLED")
 endif
 	@echo
 ifdef USE_FFT

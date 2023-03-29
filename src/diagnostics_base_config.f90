@@ -259,7 +259,9 @@ module diagnostics_base_config
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation,
     !> time averaged and calculated along the extended domain every
-    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps once istep > nstep/4.
+    !>
+    !> @warning This diagnostic can have large persistent memory cost.
     logical :: write_correlation_extend = .false.
     !> Write the cross phase between electron density and perpendicular
     !> electron temperature every [[gs2_diagnostics_knobs:nwrite]]
@@ -401,22 +403,11 @@ module diagnostics_base_config
     !>
     !> @warning Only to text files
     logical :: write_gyx = .false.
-
     !> Write out various heating, free energy and energy injection
     !> diagnostics. Text file extension is `.heat`
-    !>
-    !> @warning Only in new diagnostics. Equivalent to
-    !> [[gs2_diagnostics_knobs:write_hrate]] in old diagnostics
     logical :: write_heating = .false.
-
-    !> Write out various heating, free energy and energy injection
-    !> diagnostics. Text file extension is `.heat`
-    !>
-    !> @warning Non-functional in new diagnostics. Equivalent to
-    !> [[gs2_diagnostics_knobs:write_heating]] in new diagnostics
-    !>
-    !> @warning Old diagnostics only writes to text files
-    logical :: write_hrate = .false.
+    !> @deprecated Use [[gs2_diagnostics_knobs:write_heating]] instead
+    logical, private :: write_hrate = .false.
 
     !> Write time averaged external current in the antenna,
     !> \(\operatorname{Re}(k_\perp^2 A_\mathrm{antenna})\), as a function of
@@ -622,6 +613,25 @@ contains
     end if
   end subroutine warn_about_nonfunctional_selection
 
+  subroutine warn_about_deprecated_option(old_switch, old_name, new_switch, new_name)
+    use run_parameters, only: use_old_diagnostics
+    use mp, only: proc0
+    !> Deprecated diagnostic switch
+    logical, intent(in) :: old_switch
+    !> Deprecated name of the switch
+    character(len=*), intent(in) :: old_name
+    !> New diagnostic switch
+    logical, intent(in out) :: new_switch
+    !> New name of the switch
+    character(len=*), intent(in) :: new_name
+
+    if (old_switch .and. proc0) then
+      write(*, '(8(a), l)') "WARNING: diagnostic '", old_name, &
+           "' is deprecated. Please use '", new_name, "' instead.",  &
+           " Using ", new_name, " = ", new_switch
+    end if
+  end subroutine warn_about_deprecated_option
+
   !> Reads in the gs2_diagnostics_knobs namelist and populates the member variables
   subroutine read_diagnostics_base_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -629,7 +639,7 @@ contains
     implicit none
     class(diagnostics_base_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -749,16 +759,17 @@ contains
     write_zonal_transfer = self%write_zonal_transfer
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-      call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-      read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
-      exist = .true.
-      if (iostat .ne.0) exist = .false.
-      close(unit = in_file, iostat = iostat)
-    else
-      in_file = input_unit_exist(self%get_name(), exist)
-      if (exist) read(in_file, nml = gs2_diagnostics_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = gs2_diagnostics_knobs)
+
+    !!!!!!!!!!!!!!!!!!!!
+    ! Non-generated code
+    ! write_heating is now correct synonym for write_hrate
+    write_heating = write_heating .or. write_hrate
+
+    call warn_about_deprecated_option(write_hrate, "write_hrate", &
+                                      write_heating, "write_heating")
+    !!!!!!!!!!!!!!!!!!!!
 
     ! Now copy from local variables into type members
     self%append_old = append_old
@@ -920,7 +931,6 @@ contains
     call self%write_key_val("write_gs", self%write_gs, unit_internal)
     call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
     call self%write_key_val("write_heating", self%write_heating, unit_internal)
-    call self%write_key_val("write_hrate", self%write_hrate, unit_internal)
     call self%write_key_val("write_jext", self%write_jext, unit_internal)
     call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
     call self%write_key_val("write_line", self%write_line, unit_internal)
@@ -1021,7 +1031,6 @@ contains
     call broadcast(self%write_gs)
     call broadcast(self%write_gyx)
     call broadcast(self%write_heating)
-    call broadcast(self%write_hrate)
     call broadcast(self%write_jext)
     call broadcast(self%write_kpar)
     call broadcast(self%write_line)

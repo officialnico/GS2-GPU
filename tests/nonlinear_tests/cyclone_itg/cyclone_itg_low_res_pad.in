@@ -70,8 +70,9 @@
 !PITCH ANGLE/ENERGY GRID SETUP  
 !==============================
 &le_grids_knobs
- ngauss = 3 ! Number of untrapped pitch-angles moving in one direction along field line.
- negrid = 12 ! Total number of energy grid points
+ npassing = 3 ! Number of untrapped pitch-angles moving in one direction along field line.
+ nesuper = 3
+ nesub = 3
 /
 
 !==============================

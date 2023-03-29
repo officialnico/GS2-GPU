@@ -1,6 +1,6 @@
 !> Define abstract type to use as a base type for derived types used to represent
-!! the input configuration of a module (actual or logical). In other words it can
-!! be used to represent a namelist state.
+!> the input configuration of a module (actual or logical). In other words it can
+!> be used to represent a namelist state.
 module abstract_config
   implicit none
   private
@@ -10,9 +10,14 @@ module abstract_config
 
   integer, parameter :: CONFIG_MAX_NAME_LEN = 64
   character(len = CONFIG_MAX_NAME_LEN), parameter :: default_name = "Undefined name."
+
+  !> Controls the alignment of key/value pairs when writing config
+  !> namelists. Key is left justified, align = a minimum of
+  !> `key_align_width` characters to right of key start.
+  integer, parameter :: key_align_width = 40
   
   !> Define abstract type to represent the config type,
-  !! allows common code to be moved here
+  !> allows common code to be moved here
   type, abstract :: abstract_config_type
      logical, private :: initialised = .false. !< Have we initialised the instance?
      logical :: exist = .false. !< Does the related namelist exist in the target input file?
@@ -184,7 +189,7 @@ contains
     character(len=*), intent(in) :: key
     character(len=*), intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A40," = "," ",A)') trim(key), '"'//trim(val)//'"'
+    write(unit,'("  ",A," = "," ",A)') format_key(key), '"'//trim(val)//'"'
   end subroutine write_key_val_string
 
   !> Writes a {key,val} pair where the value is of type real
@@ -192,7 +197,7 @@ contains
     character(len=*), intent(in) :: key
     real, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A40," = ",e18.11)') trim(key), val
+    write(unit,'("  ",A," = ",e18.11)') format_key(key), val
   end subroutine write_key_val_real
 
   !> Writes a {key,val} pair where the value is of type real array
@@ -214,7 +219,7 @@ contains
     character(len=*), intent(in) :: key
     complex, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A40," = (",e18.11,", ",e18.11,")")') trim(key), real(val), aimag(val)
+    write(unit,'("  ",A," = (",e18.11,", ",e18.11,")")') format_key(key), real(val), aimag(val)
   end subroutine write_key_val_complex
 
   !> Writes a {key,val} pair where the value is of type complex array
@@ -237,9 +242,9 @@ contains
     integer, intent(in) :: val
     integer, intent(in) :: unit
     if (val.lt.0) then
-       write(unit,'("  ",A40," = ",I0)') trim(key), val
+       write(unit,'("  ",A," = ",I0)') format_key(key), val
     else
-       write(unit,'("  ",A40," = "," ",I0)') trim(key), val
+       write(unit,'("  ",A," = "," ",I0)') format_key(key), val
     endif
   end subroutine write_key_val_integer
 
@@ -262,6 +267,20 @@ contains
     character(len=*), intent(in) :: key
     logical, intent(in) :: val
     integer, intent(in) :: unit
-    write(unit,'("  ",A40," = "," ",L1)') trim(key), val
+    write(unit,'("  ",A," = "," ",L1)') format_key(key), val
   end subroutine write_key_val_logical
+
+  !> Takes a given key and formats it in a consistent style.
+  !> Currently that style is left justified in a character variable
+  !> of minimum length `key_align_width`.
+  pure function format_key(key)
+    implicit none
+    character(len=:), allocatable :: format_key
+    character(len=*), intent(in) :: key
+    integer :: length
+    length = max(key_align_width, len_trim(adjustl(key)))
+    allocate(character(len=length)::format_key)
+    write(format_key, '(A)') trim(adjustl(key))
+  end function format_key
+
 end module abstract_config

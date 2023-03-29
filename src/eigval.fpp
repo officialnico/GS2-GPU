@@ -41,6 +41,7 @@ module eigval
 
   public :: eigval_config_type
   public :: set_eigval_config
+  public :: get_eigval_config
 
   !//////////////////
   !Slepc related configuration parameters
@@ -630,7 +631,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -813,8 +813,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
@@ -1047,7 +1045,7 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
+    use gs2_time, only: user_time
     use collisions, only: vnmult
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only: set_init_fields
@@ -1129,7 +1127,7 @@ contains
              write(restart_unique_string,'(".eig_",I0)') ieig
 
              !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,.true.,fileopt=restart_unique_string)
+             call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
@@ -1137,7 +1135,7 @@ contains
                 call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,.true.,distfn=.true.,fileopt=restart_unique_string)
+                call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
                 call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
@@ -1381,7 +1379,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est
@@ -1423,6 +1420,12 @@ contains
     end if
   end subroutine set_eigval_config
 
+  !> Get the module level config instance
+  function get_eigval_config()
+    type(eigval_config_type) :: get_eigval_config
+    get_eigval_config = eigval_config
+  end function get_eigval_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -1434,7 +1437,7 @@ contains
     implicit none
     class(eigval_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1465,16 +1468,8 @@ contains
     which_option = self%which_option
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = eigval_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = eigval_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = eigval_knobs)
 
     ! Now copy from local variables into type members
     self%analyse_ddt_operator = analyse_ddt_operator

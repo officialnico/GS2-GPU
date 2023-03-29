@@ -2,7 +2,7 @@ program test_field_equations_consistency
   use iso_fortran_env, only: output_unit
   use unit_tests
   use gs2_main, only: gs2_program_state_type
-  use mp, only: init_mp, finish_mp
+  use mp, only: init_mp, finish_mp, mp_comm
   use mp, only: proc0, max_allreduce
   use gs2_main, only: initialize_wall_clock_timer
   use gs2_main, only: initialize_gs2
@@ -22,6 +22,7 @@ program test_field_equations_consistency
   character(len=40) :: name
   
   call init_mp
+  state%mp_comm = mp_comm
   call initialize_wall_clock_timer
   call initialize_gs2(state)
   call initialize_equations(state)
@@ -95,7 +96,7 @@ program test_field_equations_consistency
   name = "flipped g"
   phi = 0.0 ; apar = 0.0  ; bpar = 0.0
   fq = 0.0 ; fqa = 0.0 ; fqp = 0.0
-  gnew(:, 2, :) = gnew(:, 2, g_lo%ulim_proc:g_lo%llim_proc:-1)
+  gnew(:, 2, :) = gnew(:, 2, g_lo%ulim_alloc:g_lo%llim_proc:-1)
 
   call get_init_field(phi, apar, bpar)
   call getfieldeq(phi, apar, bpar, fq, fqa, fqp)

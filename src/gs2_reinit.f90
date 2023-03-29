@@ -35,6 +35,7 @@ module gs2_reinit
 
   public :: reinit_config_type
   public :: set_gs2_reinit_config
+  public :: get_gs2_reinit_config
   
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -183,7 +184,7 @@ contains
        return
     end if
 
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     !First disable the reset flag so we can call 
     !routines needed in reinit
@@ -254,7 +255,7 @@ contains
     !call reinit_gk_and_field_equations(reset_antenna=.false.)
     call init(current_init, init_level_list%full)
     
-    if (proc0 .and. .not. present(job_id)) call time_message(.true.,time_reinit,' Re-initialize')
+    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
 
     istep_last = istep
 
@@ -368,7 +369,13 @@ contains
        reinit_config = gs2_reinit_config_in
     end if
   end subroutine set_gs2_reinit_config
-  
+
+  !> Get the module level config instance
+  function get_gs2_reinit_config()
+    type(reinit_config_type) :: get_gs2_reinit_config
+    get_gs2_reinit_config = reinit_config
+  end function get_gs2_reinit_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
@@ -380,7 +387,7 @@ contains
     implicit none
     class(reinit_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -402,16 +409,8 @@ contains
     in_memory = self%in_memory
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = reinit_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = reinit_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = reinit_knobs)
 
     ! Now copy from local variables into type members
     self%abort_rapid_time_step_change = abort_rapid_time_step_change
