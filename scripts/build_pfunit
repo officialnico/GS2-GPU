@@ -13,6 +13,9 @@ error_bad_arguments=3
 # Should pFUnit use MPI
 pfunit_use_mpi="YES"
 
+# Should pFUnit use OpenMP
+pfunit_use_openmp="NO"
+
 # Which major version of pfunit are we using
 # Version 4+ needs very recent compilers
 pfunit_version_major=3
@@ -29,11 +32,12 @@ pfunit_build_directory="${externals_directory}/pFUnit_build"
 pfunit_install_directory="${externals_directory}/pFUnit_build/install"
 
 function usage {
-    echo "usage: ${0##*/} [-m] [-v ARG] [-b ARG] [-i ARG] [-j ARG] [-r] [-h|--help]"
+    echo "usage: ${0##*/} [-m] [-o] [-v ARG] [-b ARG] [-i ARG] [-j ARG] [-r] [-h|--help]"
     echo "A helper script for building pFUnit for GS2"
     echo ""
     echo "Arguments:"
     echo "  -m              Disable MPI"
+    echo "  -o              Enable OpenMP"
     echo "  -v 3|4          Set which major version of pFUnit to use"
     echo "  -b BUILD_DIR    Directory to build pFUnit in"
     echo "  -i INSTALL_DIR  Directory to install pFUnit in"
@@ -48,12 +52,16 @@ if [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
-while getopts ":mv:b:i:hrj:" OPT; do
+while getopts ":mov:b:i:hrj:" OPT; do
     case $OPT in
         m )
             echo "Disabling MPI"
             echo "WARNING: currently some pFUnit tests require MPI and this might not work"
             pfunit_use_mpi="NO"
+            ;;
+        o )
+            echo "Enabling OpenMP"
+            pfunit_use_openmp="YES"
             ;;
         v )
             if [[ ! "$OPTARG" -eq 3 && ! "$OPTARG" -eq 4 ]]; then
@@ -99,12 +107,20 @@ fi
 if [[ ${pfunit_version_major} == 3 ]]; then
     pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/archive/3.3.3.tar.gz"
     pfunit_version="3.3.3"
-    pfunit_openmp_flag="-DOPENMP=NO"
+    if [[  ${pfunit_use_openmp} == "NO" ]]; then
+	pfunit_openmp_flag="-DOPENMP=NO"
+    else
+	pfunit_openmp_flag="-DOPENMP=YES"
+    fi
     pfunit_mpi_flag="-DMPI=${pfunit_use_mpi}"
 else
     pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.0.0/pFUnit-4.0.tar.gz"
     pfunit_version="4.0.0"
-    pfunit_openmp_flag="-DSKIP_OPENMP=YES"
+    if [[  ${pfunit_use_openmp} == "NO" ]]; then
+	pfunit_openmp_flag="-DSKIP_OPENMP=YES"
+    else
+	pfunit_openmp_flag="-DSKIP_OPENMP=NO"
+    fi
     if [[  ${pfunit_use_mpi} == "NO" ]]; then
         pfunit_mpi_flag="-DSKIP_MPI=YES"
     else

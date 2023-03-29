@@ -119,7 +119,7 @@ USE_FPIC ?=
 # or when executing make. Make sure you rebuild constants.fpp if you want to change this.
 # e.g. 
 #       $ touch utils/constants.fpp
-#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+#       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
@@ -484,6 +484,13 @@ endif
 
 ifdef USE_OPENMP
 	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -944,6 +951,7 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))

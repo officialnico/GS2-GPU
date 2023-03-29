@@ -63,13 +63,13 @@
     npassing = 3
     nesub = 6
     nesuper = 1
+    wfbbc_option = 'passing'
 /
 
 &dist_fn_knobs
     adiabatic_option = 'iphi00=2'
     gridfac = 1.0
     boundary_option = 'default'
-    wfbbc_option = 'passing'
     mult_imp = .true.
 /
 
