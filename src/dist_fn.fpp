@@ -4547,6 +4547,9 @@ contains
 
     ab_coefficients = get_adams_bashforth_coefficients()
 
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)
        it = it_idx(g_lo, iglo)
@@ -4570,6 +4573,7 @@ contains
           end do
        endif
     end do
+    !$OMP END PARALLEL DO
   end subroutine get_source_term_on_local_domain
 
   !> Calculates the "new" distribution function for the passed source
