@@ -4312,7 +4312,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles, ittp
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp, is_never_ttp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
@@ -4327,7 +4327,6 @@ contains
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-    logical :: is_ttp_somewhere
 
     !Temporally weighted fields
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
@@ -4395,10 +4394,9 @@ contains
 ! Source allocated as: source(-ntgrid:ntgrid-1,2), so ntgrid is out of bounds.
 
     isgn=2
-    is_ttp_somewhere = any (il >= ittp)
     if (source_option_switch == source_option_full .or. &
          source_option_switch == source_option_phiext_full) then
-       if (grid_has_trapped_particles() .and. is_ttp_somewhere) then
+       if (grid_has_trapped_particles() .and. .not. is_never_ttp(il)) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig,isgn) &
