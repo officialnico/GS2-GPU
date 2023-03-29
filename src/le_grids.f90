@@ -4149,7 +4149,7 @@ contains
     endif
 
     do ip=0,nproc-1
-       if(associated(sort_list(ip)%first)) then
+       if(allocated(sort_list(ip)%first)) then
           bak_sort_list(ip)%first(:) = sort_list(ip)%first(:)
        end if
     end do
