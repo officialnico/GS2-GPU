@@ -7456,6 +7456,7 @@ contains
     use gs2_time, only: user_time
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
+    use array_utils, only: zero_array
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
