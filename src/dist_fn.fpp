@@ -4545,7 +4545,7 @@ contains
     include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
