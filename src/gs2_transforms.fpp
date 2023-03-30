@@ -222,13 +222,7 @@ contains
     else
        call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
-# if FFT == _FFTW_
-       
-       call init_ccfftw (xf_fft,  1, xxf_lo%nx)
-       call init_ccfftw (xb_fft, -1, xxf_lo%nx)
-       
-# elif FFT == _FFTW3_
-       
+#if FFT == _FFTW3_
        if (.not.allocated(xxf)) then
           allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
        endif
@@ -238,7 +232,7 @@ contains
        
        call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
        call init_ccfftw (xb_fft, -1, xxf_lo%nx, nb_ffts, xxf)
-# endif
+#endif
        
        xfft_initted = .true.
     end if
@@ -314,14 +308,8 @@ contains
        end do
 #endif
 
-             !JH FFTW plan creation for the accelerated 2d transforms
-#if FFT == _FFTW_ 
-
-       call init_crfftw (yf_fft,  1, accel_lo%ny, accel_lo%nx)
-       call init_rcfftw (yb_fft, -1, accel_lo%ny, accel_lo%nx)
-
-#elif FFT == _FFTW3_
-
+#if FFT == _FFTW3_
+       !JH FFTW plan creation for the accelerated 2d transforms
        call init_crfftw (yf_fft,  1, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
        call init_rcfftw (yb_fft, -1, accel_lo%ny, accel_lo%nx, &
@@ -411,12 +399,8 @@ contains
        endif
 
        if (.not. xfft_initted) then
-
+#if FFT == _FFTW3_
           !JH FFTW plan creation for transform x5d and inverse
-# if FFT == _FFTW_
-          call init_ccfftw (xf_fft,  1, xxf_lo%nx)
-          call init_ccfftw (xb_fft, -1, xxf_lo%nx)
-# elif FFT == _FFTW3_
           ! number of ffts to be calculated
           !JH 7th December 2011
           !JH xxf_lo%ulim_alloc is used here rather than xxf_lo%lulim_proc
@@ -429,15 +413,12 @@ contains
 
           call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
           call init_ccfftw (xb_fft, -1,  xxf_lo%nx, nb_ffts, xxf)
-# endif
+#endif
           xfft_initted = .true.
        end if
 
+#if FFT == _FFTW3_
        !JH FFTW plan creation for transform y5d and inverse
-# if FFT == _FFTW_
-       call init_crfftw (yf_fft,  1, yxf_lo%ny)
-       call init_rcfftw (yb_fft, -1, yxf_lo%ny)
-#elif FFT == _FFTW3_
        ! number of ffts to be calculated
        !JH 7th December 2011
        !JH yxf_lo%ulim_alloc is used here rather than yxf_lo%lulim_proc
@@ -1012,10 +993,6 @@ contains
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
-# if FFT == _FFTW_
-    complex, dimension(:), allocatable :: aux
-    integer :: i
-# endif
 
     call prof_entering ("transform_x5d", "gs2_transforms")
 
@@ -1029,27 +1006,11 @@ contains
     !
     call gather (g2x, g, xxf)
 
-    ! do ffts
-# if FFT == _FFTW_
-    !JH 7th December 2011
-    !JH xxf_lo%ulim_alloc is used here rather than xxf_lo%lulim_proc
-    !JH because there are situations where xxf_lo%llim_proc is greater 
-    !JH than xxf_lo%ulim_proc and that would create a negative number 
-    !JH of FFTs to be calculated.  However, xxf_lo%ulim_alloc is set
-    !JH to be xxf_lo%llim_proc in this situation, and that will give 
-    !JH 1 FFT to be calculated which the code can correctly undertake.
-    i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-
-    allocate (aux(xf_fft%n))
-    call time_message(.false., time_fft, ' FFT')
-    call fftw_f77 (xf_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
-    call time_message(.false., time_fft, ' FFT')
-    deallocate (aux)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft)(xf_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
-# endif
+#endif
 
     call prof_leaving ("transform_x5d", "gs2_transforms")
   end subroutine transform_x5d
@@ -1064,34 +1025,14 @@ contains
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in out) :: xxf
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
-# if FFT == _FFTW_
-    complex, dimension(:), allocatable :: aux
-    integer :: i
-# endif
 
     call prof_entering ("inverse_x5d", "gs2_transforms")
 
-    ! do ffts
-# if FFT == _FFTW_
-    !JH 7th December 2011
-    !JH xxf_lo%ulim_alloc is used here rather than xxf_lo%lulim_proc
-    !JH because there are situations where xxf_lo%llim_proc is greater 
-    !JH than xxf_lo%ulim_proc and that would create a negative number 
-    !JH of FFTs to be calculated.  However, xxf_lo%ulim_alloc is set
-    !JH to be xxf_lo%llim_proc in this situation, and that will give 
-    !JH 1 FFT to be calculated which the code can correctly undertake.
-    i = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-
-    allocate (aux(xb_fft%n))
-    call time_message(.false., time_fft, ' FFT')
-    call fftw_f77 (xb_fft%plan, i, xxf, 1, xxf_lo%nx, aux, 0, 0)
-    call time_message(.false., time_fft, ' FFT')
-    deallocate (aux)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft)(xb_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
-# endif
+#endif
 
     call scatter (g2x, xxf, g)
 
@@ -1110,13 +1051,9 @@ contains
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
 # ifdef FFT
     real, dimension (:,yxf_lo%llim_proc:), intent (out) :: yxf
-# if FFT == _FFTW_
-    integer :: i
-# endif
 # else
     real, dimension (:,yxf_lo%llim_proc:), intent(in out) :: yxf
 # endif
-
 
     call prof_entering ("transform_y5d", "gs2_transforms")
 
@@ -1129,24 +1066,11 @@ contains
     !an FFT routine.
     call gather (x2y, xxf, fft)
 
-    ! do ffts
-# if FFT == _FFTW_
-    !JH 7th December 2011
-    !JH yxf_lo%ulim_alloc is used here rather than yxf_lo%lulim_proc
-    !JH because there are situations where yxf_lo%llim_proc is greater 
-    !JH than yxf_lo%ulim_proc and that would create a negative number 
-    !JH of FFTs to be calculated.  However, yxf_lo%ulim_alloc is set
-    !JH to be yxf_lo%llim_proc in this situation, and that will give 
-    !JH 1 FFT to be calculated which the code can correctly undertake.
-    i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
-    call time_message(.false., time_fft, ' FFT')
-    call rfftwnd_f77_complex_to_real (yf_fft%plan, i, fft, 1, yxf_lo%ny/2+1, yxf, 1, yxf_lo%ny)
-    call time_message(.false., time_fft, ' FFT')
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_c2r) (yf_fft%plan, fft, yxf)
     call time_message(.false., time_fft, ' FFT')
-# endif
+#endif
 
     call prof_leaving ("transform_y5d", "gs2_transforms")
   end subroutine transform_y5d
@@ -1161,30 +1085,14 @@ contains
     implicit none
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
-# if FFT == _FFTW_
-    integer :: i 
-# endif
 
     call prof_entering ("inverse_y5d", "gs2_transforms")
 
-    ! do ffts
-# if FFT == _FFTW_
-    !JH 7th December 2011
-    !JH yxf_lo%ulim_alloc is used here rather than yxf_lo%lulim_proc
-    !JH because there are situations where yxf_lo%llim_proc is greater 
-    !JH than yxf_lo%ulim_proc and that would create a negative number 
-    !JH of FFTs to be calculated.  However, yxf_lo%ulim_alloc is set
-    !JH to be yxf_lo%llim_proc in this situation, and that will give 
-    !JH 1 FFT to be calculated which the code can correctly undertake.
-    i = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
-    call time_message(.false., time_fft, ' FFT')
-    call rfftwnd_f77_real_to_complex (yb_fft%plan, i, yxf, 1, yxf_lo%ny, fft, 1, yxf_lo%ny/2+1)
-    call time_message(.false., time_fft, ' FFT')
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
     call FFTW_PREFIX(_execute_dft_r2c) (yb_fft%plan, yxf, fft)
     call time_message(.false., time_fft, ' FFT')
-# endif
+#endif
 
     call scatter (x2y, fft, xxf)
 
@@ -1398,14 +1306,11 @@ contains
     idx = 1
     call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_proc, accel_lo%ulim_proc, accel_lo%nxnky
-# if FFT == _FFTW_
-       call rfftwnd_f77_complex_to_real (yf_fft%plan, i, ag(:,:,k:), i, 1, &
-            axf(:,:,ia(idx):), i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
        ! remember FFTW3 for c2r destroys the contents of ag
        call FFTW_PREFIX(_execute_dft_c2r) (yf_fft%plan, ag(:, :, k:), &
             axf(:, :, ia(idx):))
-# endif
+#endif
        idx = idx + 1
     end do
     call time_message(.false., time_fft, ' FFT')
@@ -1428,12 +1333,9 @@ contains
        else
           kk = k
        endif
-# if FFT == _FFTW_
-       call rfftwnd_f77_complex_to_real (yf_fft%plan, i, ag(:,:,k:), i, 1, &
-            axf(:,:,ia(idx):), i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
        call fft_shm(kk,ia(idx))
-# endif
+#endif
        idx = idx + 1
        if ( use_shm_2d_plan) then
           idx = mod(idx -1, accel_lo%nia) +1
@@ -1578,13 +1480,10 @@ contains
     idx = 1
     call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_proc, accelx_lo%ulim_proc, accelx_lo%nxny
-# if FFT == _FFTW_
-       call rfftwnd_f77_real_to_complex (yb_fft%plan, i, axf(:,:,k:), i, 1, &
-            ag(:,:,iak(idx):), i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
        call FFTW_PREFIX(_execute_dft_r2c)(yb_fft%plan, axf(:, :, k:), &
             ag(:, :, iak(idx):))
-# endif
+#endif
        idx = idx + 1
     end do
     call time_message(.false., time_fft, ' FFT')
@@ -1649,12 +1548,9 @@ contains
        else
           kk = k
        endif
-# if FFT == _FFTW_
-       call rfftwnd_f77_real_to_complex (yb_fft%plan, i, axf(:,:,k:), i, 1, &
-            ag(:,:,iak(idx):), i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
        call fft_shm_inv(kk, iak(idx))
-# endif
+#endif
        idx = idx + 1
        if ( use_shm_2d_plan) then
           idx = mod(idx-1, accel_lo%nia) +1
@@ -1818,11 +1714,9 @@ contains
        if (nnx /= nnx_in .or. nny /= nny_in) then
           call delete_fft(xf3d_cr)
           call delete_fft(xf3d_rc)
-# if FFT == _FFTW3_
        elseif ( how_many /= how_many_in) then
           call delete_fft(xf3d_cr)
           call delete_fft(xf3d_rc)
-# endif
        else
           return
        end if
@@ -1832,16 +1726,9 @@ contains
     nnx = nnx_in
     how_many = how_many_in
 
-#if FFT == _FFTW_    
-
-    call init_crfftw (xf3d_cr,  1, nny, nnx)
-    call init_rcfftw (xf3d_rc, -1, nny, nnx)
-
-#elif FFT == _FFTW3_
-
+#if FFT == _FFTW3_
     call init_crfftw (xf3d_cr,  1, nny, nnx, how_many)
     call init_rcfftw (xf3d_rc, -1, nny, nnx, how_many)
-
 #endif
 
   end subroutine init_3d
@@ -1888,11 +1775,9 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
 
     do it=1,nnx
@@ -1938,11 +1823,9 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call rfftwnd_f77_real_to_complex (xf3d_rc%plan, i, phix, i, 1, aphi, i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf3d_rc%plan, phix, aphi)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
 
     ! dealias and scale
@@ -1992,14 +1875,8 @@ contains
     !May be inefficient to create and destroy this fft plan
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
-#if FFT == _FFTW_
-
-    call init_crfftw (xf2d, FFTW_BACKWARD, nny, nnx)
-
-#elif FFT == _FFTW3_
-
+#if FFT == _FFTW3_
     call init_crfftw (xf2d, FFTW_BACKWARD, nny, nnx, 1)
-
 #endif
 
     allocate (phix (nny, nnx))
@@ -2020,11 +1897,9 @@ contains
 
     ! transform
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call rfftwnd_f77_complex_to_real (xf2d%plan, 1, aphi, 1, 1, phix, 1, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf2d%plan, aphi, phix)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
 
     phixf(:,:)=transpose(phix(:,:))
@@ -2055,14 +1930,8 @@ contains
     !May be inefficient to create and destroy this fft plan
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
-#if FFT == _FFTW_
-
-    call init_rcfftw (xf2d, FFTW_FORWARD, nny, nnx)
-
-#elif FFT == _FFTW3_
-
+#if FFT == _FFTW3_
     call init_rcfftw (xf2d, FFTW_FORWARD, nny, nnx, 1)
-
 #endif    
 
     allocate (aphi (nny/2+1, nnx))
@@ -2073,11 +1942,9 @@ contains
 
     ! transform
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call rfftwnd_f77_real_to_complex (xf2d%plan, 1, phix, 1, 1, aphi, 1, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_r2c) (xf2d%plan, phix, aphi)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
 
     ! scale, dealias and transpose
@@ -2143,11 +2010,9 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call rfftwnd_f77_complex_to_real (xf3d_cr%plan, i, aphi, i, 1, phix, i, 1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft_c2r) (xf3d_cr%plan, aphi, phix)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
     do it=1,nnx
        do ik=1,nny
@@ -2183,17 +2048,12 @@ contains
   subroutine kz_spectrum (an, an2)
     use job_manage, only: time_message
     use fft_work, only: time_fft
-# if FFT == _FFTW_
-    use kt_grids, only: naky, ntheta0
-# endif
     complex, dimension (:,:,:), intent(in)  :: an
     complex, dimension (:,:,:), intent(out) :: an2
     call time_message(.false., time_fft, ' FFT')
-# if FFT == _FFTW_
-    call fftw_f77 (zf_fft%plan, ntheta0*naky, an, 1, zf_fft%n+1, an2, 1, zf_fft%n+1)
-# elif FFT == _FFTW3_
+#if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft)(zf_fft%plan, an, an2)
-# endif
+#endif
     call time_message(.false., time_fft, ' FFT')
     an2 = conjg(an2)*an2
 

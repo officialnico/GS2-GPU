@@ -121,7 +121,7 @@ The following is the full list of switches the possible options in
    (64-bit)
  - `USE_MPI` (defined [defined]): turns on distributed memory parallelization with MPI
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
- - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
+ - `USE_FFT` (`fftw3` [fftw]): turns on support for FFTs using FFTW3
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
  - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
@@ -175,8 +175,8 @@ might expect).
 |                 | `_LAHEY_`     |                                                  |
 |                 |               |                                                  |
 | `FFT`           | `_NONE_`      | We can choose to not compile fftw.               |
-|                 | `_FFTW_`      | At the moment only fftw is the available         |
-|                 | `_FFTW3_`     | fft option.                                      |
+|                 | `_FFTW3_`     | At the moment only fftw3 is the available        |
+|                 |               | fft option.                                      |
 |                 |               |                                                  |
 | `MPI`           | `_NONE_`      | Do not use MPI                                   |
 |                 |               | Use of -DMPI makes mpi work.                     |
