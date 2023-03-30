@@ -90,8 +90,7 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
-    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4
-    use netcdf_utils, only: get_netcdf_code_precision, netcdf_real
+    use netcdf_utils, only: get_netcdf_code_precision
     use netcdf_utils, only: get_netcdf_dim_length
     use constants, only: run_name_size
     use gs2_metadata, only: create_metadata
@@ -669,7 +668,6 @@ contains
     complex, dimension (:), intent (in) :: phi00
     complex, dimension (:,:), intent (in) :: ntot00, density00, upar00, tpar00, tperp00
 #ifdef NETCDF
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: loop_phi_dim = [character(7)::"ri", "kx", "t"]
     character(*), dimension(*), parameter :: loop_mom_dim = [character(7)::"ri", "kx", "species", "t"]
     
@@ -741,8 +739,6 @@ contains
     !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
-
     if (fphi > zero) then
        call neasyf_write (file_id, "es_exchange", exchange_avg, &
             dim_names=flux_dims, start=starts(2, nout))
