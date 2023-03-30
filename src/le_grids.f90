@@ -172,7 +172,7 @@ module le_grids
   public :: setup_passing_lambda_grids
   public :: passing_wfb, trapped_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
-  public :: il_is_wfb, il_is_ttp, is_never_ttp
+  public :: il_is_wfb, il_is_ttp, can_be_ttp
   public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type
@@ -224,7 +224,7 @@ module le_grids
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
-  logical, dimension (:), allocatable :: is_never_ttp
+  logical, dimension (:), allocatable :: can_be_ttp
 
   real, dimension (:,:), allocatable :: xi
   integer, dimension (:,:), allocatable :: ixi_to_il, ixi_to_isgn
@@ -487,7 +487,7 @@ contains
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
-       allocate (is_never_ttp(nlambda))
+       allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
        allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
        allocate (xloc(-ntgrid:ntgrid,tsize))
@@ -515,7 +515,7 @@ contains
     call broadcast(wl)
     call broadcast(forbid)
     call broadcast(is_bounce_point)
-    call broadcast(is_never_ttp)
+    call broadcast(can_be_ttp)
 
     call broadcast(xloc)
     call broadcast(lgrnge)
@@ -693,7 +693,7 @@ contains
   !> of ttp at anything other than the global minimum in B.
   !> For surfaces with multiple local minima this method might
   !> need generalising, with il==nlamdba replaced by something
-  !> like .not. is_never_ttp(il).
+  !> like can_be_ttp(il).
   elemental logical function il_is_ttp(il) result(is_ttp)
     implicit none
     integer, intent(in) :: il
@@ -2384,7 +2384,7 @@ contains
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
-    allocate (is_never_ttp(nlambda))
+    allocate (can_be_ttp(nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
     allocate (xloc(-ntgrid:ntgrid,tsize))
     if (grid_has_trapped_particles()) then
@@ -2630,7 +2630,7 @@ contains
 
     ! Calculate the ittp values indicating which pitch angles are
     ! considered totally trapped.
-    call calculate_ittp(ittp, is_never_ttp)
+    call calculate_ittp(ittp, can_be_ttp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -3198,15 +3198,15 @@ contains
 
   !> Determine which lambda grid point is totally trapped at this
   !> theta grid point.
-  subroutine calculate_ittp(ittp_indices, is_never_ttp_flag)
+  subroutine calculate_ittp(ittp_indices, can_be_ttp_flag)
     use theta_grid, only: ntgrid
 
     implicit none
     integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
-    logical, dimension(nlambda), intent(out) :: is_never_ttp_flag
+    logical, dimension(nlambda), intent(out) :: can_be_ttp_flag
     integer :: ig, il
     ittp_indices = nlambda+1
-    is_never_ttp_flag = .true.
+    can_be_ttp_flag = .false.
     if (.not. grid_has_trapped_particles()) return
 
     ! Note we exclude the possibility of totally trapped particles
@@ -3225,7 +3225,7 @@ contains
     end do
 
     do il = ng2+1, nlambda
-       is_never_ttp_flag(il) = all(il < ittp)
+       can_be_ttp_flag(il) = any(il >= ittp)
     end do
 
   end subroutine calculate_ittp
@@ -4889,7 +4889,7 @@ contains
     if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
          jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
-    if (allocated(is_never_ttp)) deallocate(is_never_ttp)
+    if (allocated(can_be_ttp)) deallocate(can_be_ttp)
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
     if (allocated(w)) deallocate (w,w_maxw)
