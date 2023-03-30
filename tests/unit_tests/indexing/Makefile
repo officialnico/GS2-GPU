@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_indexing
+clean_individual_test: LOCAL_TEST_FILES:=test_indexing
 
 ifdef TESTNORUN
 all: test_indexing

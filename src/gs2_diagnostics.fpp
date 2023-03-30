@@ -2,7 +2,7 @@
 module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
-  use diagnostics_base_config, only: gs2_diagnostics_config_type => diagnostics_base_config_type
+  use diagnostics_base_config, only: diagnostics_base_config_type
 
   ! what about boundary condition contributions?  In the presence 
   ! of magnetic shear, there are not always zero amplitudes at the ends
@@ -22,14 +22,16 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity
-  public :: get_omegaavg
+  public :: get_omegaavg, get_volume_average
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
+  public :: get_gs2_diagnostics_config
   public :: apply_old_defaults
 
   ! Export some functions to be used in the new diagnostics
   public :: save_restart_dist_fn
+  public :: check_restart_file_writeable
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -55,7 +57,7 @@ module gs2_diagnostics
   logical, public :: write_moments, ob_midplane, write_final_db
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
-  logical, public :: write_hrate, write_lorentzian
+  logical, public :: write_heating, write_lorentzian
   logical, public :: write_nl_flux
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
@@ -143,7 +145,10 @@ module gs2_diagnostics
   !> Does the `gs2_diagnostics_knobs` namelist exist in the input file?
   logical :: exist
 
-  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
+  type, extends(diagnostics_base_config_type) :: gs2_diagnostics_config_type
+  end type gs2_diagnostics_config_type
+
+  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
 contains
 
   !> Write the diagnostics namelist to file
@@ -177,7 +182,7 @@ contains
        write (unit, fmt="(' write_omega = ',L1)") write_omega
        write (unit, fmt="(' write_omavg = ',L1)") write_omavg
     end if
-    write (unit, fmt="(' write_hrate = ',L1)") write_hrate
+    write (unit, fmt="(' write_heating = ',L1)") write_heating
     write (unit, fmt="(' write_lorentzian = ',L1)") write_lorentzian
     write (unit, fmt="(' write_eigenfunc = ',L1)") write_eigenfunc
     write (unit, fmt="(' write_final_fields = ',L1)") write_final_fields
@@ -408,7 +413,7 @@ contains
   !> Initialise this module and all its dependencies, including defining NetCDF
   !> vars, call real_init, which calls read_parameters; broadcast all the
   !> different write flags.
-  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in)
+  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in, header)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -423,6 +428,7 @@ contains
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
     use diagnostics_final_routines, only: init_par_filter
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -432,8 +438,17 @@ contains
     integer, intent (in) :: nstep
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
     integer :: nmovie_tot, nwrite_big_tot
-    logical :: writable
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     if (initialized) return
     initialized = .true.
@@ -446,7 +461,7 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list, gs2_diagnostics_config_in)
+    call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
     nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
@@ -457,7 +472,7 @@ contains
     if (write_verr .and. proc0) call init_weights
 
     ! allocate heating diagnostic data structures
-    if (write_hrate) then
+    if (write_heating) then
        allocate (h_hist(0:navg-1))
        call init_htype (h_hist,  nspec)
 
@@ -481,14 +496,14 @@ contains
     end if
 
     call init_gs2_io (append_old, write_nl_flux, write_omega, &
-         write_hrate, write_final_antot, &
+         write_heating, write_final_antot, &
          write_eigenfunc, make_movie, nmovie_tot, write_verr, &
          write_moments, write_full_moments_notgc, &
          write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
          write_correlation, nwrite_big_tot, write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          write_avg_moments, write_final_moments, write_final_epar, &
-         nout, ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane, header=local_header)
 
     call broadcast (nout)
 
@@ -505,34 +520,70 @@ contains
        pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0 ; vflux_avg = 0.0
     endif
 
-    !Verify restart file can be written
-    if((save_for_restart.or.save_distfn).and.(file_safety_check))then
-       !Can we write file?
-       writable=restart_writable()
-
-       !If we can't write the restart file then we should probably quit
-       if((.not.writable).and.save_for_restart) call mp_abort("Cannot write to test file, maybe restart_dir doesn't exist --> Aborting.",to_screen=.true.)
-
-       !If it's just a case of save_distfn then we can carry on but print a useful mesasge
-       if((.not.writable).and.save_distfn)then
-          if(proc0)write(6,'("Warning: Cannot write to test restart_file --> Setting save_distfn=F.")')
-          save_distfn=.false.
-       endif
-    endif
+    call check_restart_file_writeable(file_safety_check, save_for_restart, save_distfn)
 
     !Setup the parallel fft if we're writing/using the parallel spectrum
     if (write_kpar .or. write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
 
+  !> Check if we can write the restart files
+  !>
+  !> If restart files aren't writable, aborts if `need_restart` is
+  !> true, or sets `extra_files` to false. Also prints a warning in
+  !> the second case.
+  subroutine check_restart_file_writeable(check_writable, need_restart, extra_files)
+    use init_g, only: get_restart_dir
+    use gs2_save, only: restart_writable
+    use mp, only: proc0, mp_abort, broadcast
+    implicit none
+    !> Has the user requested this check
+    logical, intent(in) :: check_writable
+    !> Has the user requested restart files
+    logical, intent(in) :: need_restart
+    !> Has the user requested distribution function to be written
+    logical, intent(inout) :: extra_files
+
+    ! Error message from trying to open restart file
+    character(len=:), allocatable :: error_message
+    ! GS2 error message to show user
+    character(len=:), allocatable :: abort_message
+
+    ! Assume everything's fine if we're not checking, or if it's not needed
+    if (.not. check_writable) return
+    if (.not. (need_restart .or. extra_files)) return
+
+    ! If we can write the restart files, we're done
+    if (restart_writable(error_message=error_message)) return
+
+    abort_message = " Cannot write restart files! Error message was:" // new_line('a') &
+         // "    " // error_message // new_line('a') &
+         // " Please check that `init_g_knobs::restart_dir = " // trim(get_restart_dir()) &
+         // "` exists and has the correct permissions."
+
+    ! User has requested restart files, but we can't write them => abort
+    if (need_restart) then
+      abort_message = abort_message // new_line('a') // "    --> Aborting"
+      call mp_abort(trim(abort_message), to_screen=.true.)
+    end if
+
+    ! If it's just a case of save_distfn, then we can carry on but
+    ! disable `save_distfn` and print a useful mesasge
+    if (extra_files) then
+      if(proc0) write(*, '(a, a, a)') abort_message, new_line('a'), "    --> Setting `save_distfn = F`"
+      extra_files = .false.
+    endif
+  end subroutine check_restart_file_writeable
+
   !> Read the input parameters; open the various text output files according to
   !> the relevant input flags; allocate and zero the module-level flux arrays,
   !> [[gs2_diagnostics_knobs:omega]] and [[gs2_diagnostics_knobs:omegaavg]]
-  subroutine real_init(is_list_run, gs2_diagnostics_config_in)
+  subroutine real_init(is_list_run, gs2_diagnostics_config_in, header)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -540,7 +591,16 @@ contains
     logical, intent (in) :: is_list_run
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
-    character(20) :: datestamp, timestamp, zone
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call read_parameters(is_list_run, gs2_diagnostics_config_in)
 
@@ -553,7 +613,7 @@ contains
           call open_output_file (phase_unit, ".phase")
        end if
 
-       if (write_hrate .and. write_ascii) then
+       if (write_heating .and. write_ascii) then
           call open_output_file (heat_unit, ".heat")
           call open_output_file (heat_unit2, ".heat2")
        end if
@@ -577,24 +637,18 @@ contains
           write_jext = .false.
        end if
 
-       if (dump_check1) then
+       if (dump_check1 .and. proc0) then
           call get_unused_unit (dump_check1_unit)
+          ! We should switch to open_output_file here.
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
 
-       if (dump_check2) then
-          call get_unused_unit (dump_check2_unit)
+       if (dump_check2 .and. proc0) then
           call open_output_file (dump_check2_unit, ".dc2")
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt="('gs2')")
-          datestamp(:) = ' '
-          timestamp(:) = ' '
-          zone(:) = ' '
-          call date_and_time (datestamp, timestamp, zone)
-          write (unit=out_unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-               trim(datestamp), trim(timestamp), trim(zone)
+          write (unit=out_unit, fmt='(a)') local_header%to_string(file_description="GS2 output file")
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))
@@ -692,7 +746,6 @@ contains
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_heating, "write_heating")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
@@ -750,7 +803,7 @@ contains
     write_gg = gs2_diagnostics_config%write_gg
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
-    write_hrate = gs2_diagnostics_config%write_hrate
+    write_heating = gs2_diagnostics_config%write_heating
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
@@ -798,7 +851,7 @@ contains
 
     write_any = write_line .or. write_omega     .or. write_omavg &
          .or. write_flux_line                   .or. write_nl_flux  &
-         .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
+         .or. write_kpar   .or. write_heating     .or. write_lorentzian  .or. write_gs
     write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
@@ -811,16 +864,12 @@ contains
   !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
-    use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx,write_poly, collision_error
-    use dist_fn_arrays, only: g_adjust, gnew
-    use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
+    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use le_grids, only: finish_weights
     use unit_tests, only: debug_message
     use diagnostics_final_routines, only: do_write_final_fields, do_write_kpar
@@ -893,7 +942,6 @@ contains
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
@@ -909,8 +957,8 @@ contains
     integer :: istatus
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+            fphi, fapar, fbpar, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
     end if
@@ -920,8 +968,8 @@ contains
        call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., distfn=.true., &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+            fphi, fapar, fbpar, fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 
@@ -937,7 +985,7 @@ contains
     use gs2_heating, only: del_htype
     implicit none
 
-    if (write_hrate) then
+    if (write_heating) then
        call del_htype (h)
        call del_htype (h_hist)
        call del_htype (hk_hist)
@@ -974,8 +1022,8 @@ contains
     end if
     if (write_ascii) call close_output_file (out_unit)
     if (write_ascii .and. write_cross_phase) call close_output_file (phase_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit2)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit2)
     if (write_ascii .and. write_jext) call close_output_file (jext_unit)
     if (dump_check1) call close_output_file (dump_check1_unit)
     if (dump_check2) call close_output_file (dump_check2_unit)
@@ -985,7 +1033,7 @@ contains
   !> Calculate and write the various diagnostic quantities.
   !>
   !> This is the main routine for the "old" diagnostics.
-  subroutine loop_diagnostics (istep, exit, debopt)
+  subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: fapar, fphi, fbpar, nstep
@@ -1003,7 +1051,7 @@ contains
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
-
+    use optionals, only: get_option_with_default
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1011,7 +1059,7 @@ contains
     logical, intent (out) :: exit
     !> If true, turn on some debug prints
     logical, intent (in), optional:: debopt
-
+    logical, intent(in), optional :: force
     real, dimension (ntheta0, naky) :: phitot
     real :: phi2, apar2, bpar2
     real :: t
@@ -1034,18 +1082,23 @@ contains
     real, save :: t_old = 0.
     logical :: last = .false.
     logical:: debug=.false.
-
+    logical :: do_force
+    integer, save :: istep_last = -1
     if (present(debopt)) debug = debopt
     call prof_entering ("loop_diagnostics")
 
     !Set the current time
     t = user_time
+    !Always skip if we've already done this step
+    if (istep == istep_last) return
+
+    do_force = get_option_with_default(force, .false.)
 
     exit = .false.
 
     call do_get_omega(istep,debug,exit)
 
-    if (write_hrate) call heating (istep, h, hk)
+    if (write_heating) call heating (istep, h, hk)
 
     if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
@@ -1065,7 +1118,11 @@ contains
     !########################################################
     !The rest of the routine only happens every nwrite steps
     !########################################################
-    if (mod(istep,nwrite) /= 0 .and. .not. exit) return
+    if (mod(istep,nwrite) /= 0 .and. .not. exit .and. .not. do_force) return
+
+    ! If we get here then we're doing a full set of diagnostics
+    ! so store the step
+    istep_last = istep
 
     if (write_g) call write_f (last)
 
@@ -1201,7 +1258,7 @@ contains
           pflux_avg = pflux_avg + (part_fluxes + mpart_fluxes + bpart_fluxes)*(t-t_old)
           qflux_avg = qflux_avg + (heat_fluxes + mheat_fluxes + bheat_fluxes)*(t-t_old)
           vflux_avg = vflux_avg + (mom_fluxes + mmom_fluxes + bmom_fluxes)*(t-t_old)
-          if (write_hrate) heat_avg = heat_avg + h%imp_colls*(t-t_old)
+          if (write_heating) heat_avg = heat_avg + h%imp_colls*(t-t_old)
           !          t_old = t
        end if
 
@@ -1211,7 +1268,7 @@ contains
        call broadcast (qflux_avg)
        call broadcast (vflux_avg)
 
-       if (write_hrate) call broadcast (heat_avg)
+       if (write_heating) call broadcast (heat_avg)
     end if
 
     if (proc0) then
@@ -1256,7 +1313,7 @@ contains
 
     if (proc0 .and. write_any) then
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_hrate) call do_write_hrate(t)
+       if (write_ascii .and. write_heating) call do_write_heating(t)
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
@@ -1486,7 +1543,7 @@ contains
          phinew(igomega,:,:), phi2, phi2_by_mode, &
          aparnew(igomega,:,:), apar2, apar2_by_mode, &
          bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
+         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -1679,6 +1736,7 @@ contains
     real, dimension(:,:), allocatable ::  j_ext
 
     if (.not.proc0) return
+    if (.not. write_ascii) return
     allocate (j_ext(ntheta0, naky)); j_ext=0.
     call calc_jext(istep, j_ext)
     do ik=1,naky
@@ -1718,7 +1776,7 @@ contains
     !> Current simulation time
     real, intent(in) :: time
     real :: phase_tot, phase_theta
-
+    if (.not. write_ascii) return
     call get_cross_phase (phase_tot, phase_theta)
     if (proc0) write (unit=phase_unit, fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & time, phase_tot, phase_theta
@@ -1733,6 +1791,7 @@ contains
     real, intent(in) :: time, phitot
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: ik, it
+    if (.not. write_ascii) return
     write (out_unit, "('t= ',e17.10,' aky= ',1p,e12.4, ' akx= ',1p,e12.4, &
          &' om= ',1p,2e12.4,' omav= ', 1p,2e12.4,' phtot= ',1p,e12.4,' theta0= ',1p,e12.4)") &
          time, aky(ik), akx(it), &
@@ -1749,7 +1808,7 @@ contains
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omega= (",1p,e12.4,",",1p,e12.4,")",t45,"omega/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omega(it,ik)/tunits(ik), omega(it,ik)*woutunits(ik)
@@ -1760,7 +1819,7 @@ contains
     use run_parameters, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omavg= (",1p,e12.4,",",1p,e12.4,")",t45,"omavg/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
@@ -1776,7 +1835,7 @@ contains
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -1801,7 +1860,7 @@ contains
 
        ! write error estimates for ion dist. fn. at outboard midplane with ik=it=1 to ascii files
        if (write_ascii) then
-          if (nlambda - ng2 > 1) then
+          if (grid_has_trapped_particles()) then
              write(lpc_unit,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
           else
              write(lpc_unit,"(3(1x,e13.6))") user_time, geavg, glavg
@@ -1822,14 +1881,14 @@ contains
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
-  subroutine do_write_hrate(t)
+  subroutine do_write_heating(t)
     use species, only: nspec
     use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
     integer :: is
 
-    if (write_ascii .and. write_hrate) then
+    if (write_ascii .and. write_heating) then
        !
        ! For case with two species:
        !
@@ -1929,7 +1988,7 @@ contains
        !GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot*sqrt(2.)
        !GGH          write (unit=heat_unit, fmt='(a)') ''
     end if
-  end subroutine do_write_hrate
+  end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
@@ -2073,6 +2132,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = time_old
@@ -2099,7 +2161,7 @@ contains
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, iproc, nproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
@@ -2121,9 +2183,11 @@ contains
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
+
+    if (.not. write_ascii) return
 
     allocate (gparity(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (g0(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
@@ -2656,19 +2720,21 @@ contains
 
   !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
 
-    call get_unused_unit (unit)
+    if (.not. proc0) return
+
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
           do ig = -ntg_out, ntg_out
@@ -2680,7 +2746,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file (unit)
   end subroutine do_dump_fields_periodically
 
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
@@ -2688,6 +2754,7 @@ contains
   subroutine flush_files
     use file_utils, only: flush_output_file
     implicit none
+    if (.not. write_ascii) return
     call flush_output_file (out_unit)
     if (write_verr) then
        call flush_output_file (res_unit)
@@ -2769,6 +2836,7 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep
     !> Heating diagnostics summed over space at the current timestep
@@ -2784,7 +2852,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0) then
+    if (proc0 .and. collisions_heating) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
@@ -2817,6 +2885,7 @@ contains
        end do
     end if
 
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
 
     call avg_h(h, h_hist, istep, navg)
@@ -3127,7 +3196,7 @@ contains
        qflux_avg = sum(qflx_global(:,is))
        vflux_avg = sum(vflx_global(:,is))
     end do
-    if (write_hrate) then
+    if (write_heating) then
        call group_to_all (heat_avg, heat_global, nensembles)
        call broadcast (heat_global)
        do is = 1, nspec
@@ -3182,7 +3251,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic.
   subroutine get_cross_phase (phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -3203,7 +3272,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
 
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
@@ -3447,5 +3516,11 @@ contains
        gs2_diagnostics_config = gs2_diagnostics_config_in
     end if
   end subroutine set_gs2_diagnostics_config
+
+  !> Get the module level config instance
+  function get_gs2_diagnostics_config()
+    type(gs2_diagnostics_config_type) :: get_gs2_diagnostics_config
+    get_gs2_diagnostics_config = gs2_diagnostics_config
+  end function get_gs2_diagnostics_config
   
 end module gs2_diagnostics

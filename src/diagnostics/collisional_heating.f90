@@ -25,7 +25,7 @@ contains
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: g_lo, init_dist_fn_layouts
     use hyper, only: init_hyper
-    
+    use mp, only: nproc, iproc
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     logical :: accel_x, accel_v
@@ -39,7 +39,7 @@ contains
     call init_le_grids(accel_x, accel_v)
     ! in order to use fft transform routines
     call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
 !!!!! now need to initiate and assign hypervisc_filter
     call init_hyper
@@ -81,6 +81,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use fields_arrays, only: phi, bpar, phinew, bparnew
     use run_parameters, only: fphi, fbpar
+    use collisions, only: heating
 
     implicit none
 
@@ -106,19 +107,20 @@ contains
 
     !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
-       
-    do is = 1, nspec
-       do ik = 1, naky
-          fac = 0.5
-          if (aky(ik) < epsilon(0.)) fac = 1.0
-          do it = 1, ntheta0
-             do ig= -ntgrid,ntgrid
-                colls_part(it,ik) = colls_part(it,ik) + real(c_rate(ig,it,ik,is,3))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
-                hyper_part_2(it,ik) = hyper_part_2(it,ik) + real(c_rate(ig,it,ik,is,2))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
+    if (heating) then
+       do is = 1, nspec
+          do ik = 1, naky
+             fac = 0.5
+             if (aky(ik) < epsilon(0.)) fac = 1.0
+             do it = 1, ntheta0
+                do ig= -ntgrid,ntgrid
+                   colls_part(it,ik) = colls_part(it,ik) + real(c_rate(ig,it,ik,is,3))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
+                   hyper_part_2(it,ik) = hyper_part_2(it,ik) + real(c_rate(ig,it,ik,is,2))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
+                end do
              end do
           end do
        end do
-    end do
+    end if
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
       is = is_idx(g_lo, iglo)

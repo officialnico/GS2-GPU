@@ -11,7 +11,7 @@ contains
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, shape, theta, ntgrid, Bpol
-    use theta_grid, only: Rplot, Zplot, aplot, Rprime, Zprime, aprime, drhodpsi
+    use theta_grid, only: Rplot, Zplot, aplot, Rprime, Zprime, aprime, drhodpsi, kxfac
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use diagnostics_config, only: diagnostics_type
@@ -80,6 +80,8 @@ contains
          "Values of cdrift0, ", "TBC", cdrift0)
     call create_and_write_variable(gnostics, gnostics%rtype, "qval", "", &
          "Values of qval, ", "TBC", qval)
+    call create_and_write_variable(gnostics, gnostics%rtype, "kxfac", "", &
+         "kxfac factor used in NL term, ", "TBC", kxfac)
 
     call create_and_write_variable(gnostics, gnostics%rtype, "rplot", &
          dim_string([gnostics%dims%theta]), &

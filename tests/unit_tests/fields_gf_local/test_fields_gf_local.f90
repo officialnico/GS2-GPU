@@ -51,7 +51,6 @@ program test_fields_gf_local
   state%init%opt_ov%gf_local_fields = .true.
   state%init%opt_ov%override_simple_gf_decomposition = .true.
   state%init%opt_ov%simple_gf_decomposition = .true.
-  state%mp_comm_external = .true.
   state%mp_comm = mp_comm
 
   call initialize_gs2(state)
@@ -101,7 +100,6 @@ program test_fields_gf_local
   state%init%opt_ov%gf_lo_integrate = .false.
   state%init%opt_ov%override_gf_local_fields = .true.
   state%init%opt_ov%gf_local_fields = .false.
-  state%mp_comm_external = .true.
   state%mp_comm = mp_comm
   call initialize_gs2(state)
   call initialize_equations(state)
