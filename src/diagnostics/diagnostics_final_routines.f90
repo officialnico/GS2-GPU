@@ -163,7 +163,6 @@ contains
     use dist_fn, only: get_epar
     use fields_arrays, only: phi, apar, phinew, aparnew
     use gs2_io, only: nc_final_epar
-    use diagnostics_config, only: diagnostics_type
     implicit none
     !> Write to text file
     logical, intent(in) :: write_text
@@ -264,7 +263,6 @@ contains
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use gs2_io, only: nc_final_moments
-    use diagnostics_config, only: diagnostics_type
     use volume_averages, only: average_theta
     implicit none
     !> Pre-calculated phase
