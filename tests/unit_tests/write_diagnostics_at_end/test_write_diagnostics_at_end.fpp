@@ -1,28 +1,21 @@
 program test_write_diagnostics_at_end
-  use gs2_main, only: run_gs2, finish_gs2, old_iface_state
-  use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2
+  use gs2_main, only: run_gs2, gs2_program_state_type
   use unit_tests, only: functional_test_flag, ilast_step, announce_test, process_test
   use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
-  use gs2_diagnostics, only: finish_gs2_diagnostics
   implicit none
   integer, parameter :: nout_expected = 2
   character(len=*), parameter :: test_name = 'Write diagnostics at end'
+  type(gs2_program_state_type) :: state
 
-  call init_mp
-
+  call init_mp()
+  state%mp_comm = mp_comm
   test_driver_flag = .true.
   functional_test_flag = .true.
-
-  call run_gs2(mp_comm)
-  call finalize_diagnostics(old_iface_state)
+  call run_gs2(state)
 
   call announce_test('results')
   call process_test(check_number_of_time_points(), 'results')
-
-  call finalize_equations(old_iface_state)
-  call finalize_gs2(old_iface_state, quiet=.true.)
-
-  call finish_mp
+  call finish_mp()
     
 contains
 

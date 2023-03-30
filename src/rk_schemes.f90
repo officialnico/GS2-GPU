@@ -8,20 +8,20 @@ module rk_schemes
   public :: get_rk_schemes_as_text_options
   public :: rk_dopri, rk_f45, rk_cashkarp
   public :: rk_heun, rk_ralston, rk_midpoint
-  public :: rk_bs23, rk_bs45
+  public :: rk_bs23, rk_bs45, rk_euler
 
   !> Internal named type to represent scheme ids
   type rk_scheme_id_type
      private
      integer :: id
-     character(len=20) :: name
+     character(len=30) :: name
   end type rk_scheme_id_type
 
   !> Public type storing the data for a particular RK scheme
   type :: rk_scheme_type
      integer :: number_of_stages
      integer :: order
-     character(len=20) :: name
+     character(len=30) :: name
      real, dimension(:), allocatable :: lower_order_coeffs
      real, dimension(:), allocatable :: high_order_coeffs
      real, dimension(:), allocatable :: time_points
@@ -55,6 +55,9 @@ module rk_schemes
   !> Bogacki-Shampine 45 method
   type(rk_scheme_id_type), parameter :: rk_bs45 = rk_scheme_id_type(id=8, name='bs45')
 
+  !> Single step Euler
+  type(rk_scheme_id_type), parameter :: rk_euler = rk_scheme_id_type(id=9, name='euler')
+
 contains
 
   !> Returns an array of text_option values representing the known rk schemes, mapping
@@ -73,6 +76,7 @@ contains
          text_option(rk_midpoint%name, rk_midpoint%id), &
          text_option(rk_bs23%name, rk_bs23%id), &
          text_option(rk_bs45%name, rk_bs45%id), &
+         text_option(rk_euler%name, rk_euler%id), &
          text_option('default', rk_heun%id) &
          ]
   end function get_rk_schemes_as_text_options
@@ -100,6 +104,8 @@ contains
        scheme = get_rk_scheme(rk_bs23)
     case(rk_bs45%id)
        scheme = get_rk_scheme(rk_bs45)
+    case(rk_euler%id)
+       scheme = get_rk_scheme(rk_euler)
     case default
        call mp_abort("Invalid RK scheme id passed to get_rk_scheme_by_id", .true.)
     end select
@@ -130,7 +136,7 @@ contains
        scheme%coeffs(:3, 4) = [44/45.0, -56/15.0, 32/9.0]
        scheme%coeffs(:4, 5) = [19372/6561.0, -25360/2187.0, 64448/6561.0, -212/729.0]
        scheme%coeffs(:5, 6) = [9017/3168.0, -355/33.0, 46732/5247.0, 49/176.0, -5103/18656.0]
-       scheme%coeffs(:6, 7) = [35/384.0, 0.0, 500/1113.0, 125/192.0, -2187/6784.0, 11/84.0, 0.0]
+       scheme%coeffs(:6, 7) = [35/384.0, 0.0, 500/1113.0, 125/192.0, -2187/6784.0, 11/84.0]
 
     case(rk_f45%id)
        scheme%number_of_stages = 6
@@ -229,6 +235,17 @@ contains
             666106/1039181.0, -29421/29068.0, 482048/414219.0]
        scheme%coeffs(:7, 8) = [587/8064.0, 0.0, 4440339/15491840.0, 24353/124800.0, &
             387/44800.0, 2152/5985.0, 7267/94080.0]
+
+    case(rk_euler%id)
+       scheme%number_of_stages = 1
+       scheme%order = 1
+       scheme%lower_order_coeffs = [1.0]
+       scheme%high_order_coeffs = [1.0]
+       scheme%time_points = [0.0]
+       scheme%follow_high_order = .true.
+       allocate(scheme%coeffs(scheme%number_of_stages - 1, scheme%number_of_stages))
+       scheme%coeffs = 0.0
+
     case default
        call mp_abort("Invalid RK scheme passed to get_rk_scheme", .true.)
     end select

@@ -8,6 +8,7 @@ module split_nonlinear_terms
 
   public :: init_split_nonlinear_terms, finish_split_nonlinear_terms
   public :: advance_nonlinear_term, advance_nonadiabatic_dfn
+  public :: split_nonlinear_terms_config_type, get_split_nonlinear_terms_config
 
   logical :: initialized = .false.
 
@@ -19,10 +20,10 @@ module split_nonlinear_terms
   !> in the advance_nonlinear_term methods. Used to allow us to pass in these
   !> methods, giving us a way to test the integrators on different problems.
   interface
-     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo)
+     subroutine invert_field_func (g_in, phi, apar, bpar, gf_lo, local_only)
        complex, dimension (:,:,:), intent(in) :: g_in
        complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
-       logical, optional :: gf_lo
+       logical, optional :: gf_lo, local_only
      end subroutine invert_field_func
 
      subroutine source_term_func(g_in, g1, phi, apar, bpar, max_vel_local, &
@@ -42,7 +43,7 @@ module split_nonlinear_terms
        split_method_rk = 3
   type(rk_scheme_type) :: the_rk_scheme
   logical :: show_statistics, advance_nonadiabatic_dfn
-  real :: convergence_tolerance
+  real :: convergence_tolerance, time_step_safety_factor
   real :: relative_tolerance, absolute_tolerance
 
   !> Used to represent the input configuration of split_nonlinear_terms
@@ -70,6 +71,8 @@ module split_nonlinear_terms
      !>  - 'cashkarp' -- Cash-Karp scheme of order 4(5)
      !>  - 'default' -- Same as heun
      !>  - 'heun' -- Heun scheme of order 1(2)
+     !>
+     !> See [rk_schemes] for other options.
      character(len = 20) :: rk_method = 'default'
      !> If true then reports the number of right hand side (NL term) calculations,
      !> the number of failed internal steps and the number of successful steps at the
@@ -80,12 +83,18 @@ module split_nonlinear_terms
      !> Valid options include:
      !>
      !>  - 'AB3' -- Adams-Bashforth (up to) 3rd order. CLF controlled time step.
-     !>  - 'beuler' -- Backwards Euler. Relative error controlled time step
-     !>  - 'default' -- The same as 'AB3'.
+     !>  - 'beuler' -- Backwards Euler. Relative and absolute error controlled time step.
+     !>            Newton iteration controlled by convergence_tolerance.
+     !>  - 'default' -- The same as 'RK'.
      !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
-     !>            using rk_method switch. Absolute error controlled time step
+     !>            using rk_method switch. Relative and absolute error controlled time step.
      !>
      character(len = 20) :: split_method = 'default'
+     !> Multiplies the new time step calculated from either the error or
+     !> cfl limits. Smaller values are more conservative but may help avoid
+     !> repeated violation of the error/cfl limits and hence reduce the
+     !> number of failed steps.
+     real :: time_step_safety_factor = 0.9
    contains
      procedure, public :: read => read_split_nonlinear_terms_config
      procedure, public :: write => write_split_nonlinear_terms_config
@@ -120,7 +129,7 @@ contains
     type(split_nonlinear_terms_config_type), intent(in), optional :: split_nonlinear_terms_config_in
     type(text_option), dimension (*), parameter :: split_method_opts = &
          [ &
-         text_option('default', split_method_ab3), &
+         text_option('default', split_method_rk), &
          text_option('AB3', split_method_ab3), &
          text_option('RK', split_method_rk), &
          text_option('beuler', split_method_backwards_euler)  &
@@ -141,6 +150,7 @@ contains
     rk_method = split_nonlinear_terms_config%rk_method
     show_statistics = split_nonlinear_terms_config%show_statistics
     split_method = split_nonlinear_terms_config%split_method
+    time_step_safety_factor = split_nonlinear_terms_config%time_step_safety_factor
 
     exist = split_nonlinear_terms_config%exist
 
@@ -180,18 +190,20 @@ contains
          istep, nsuccessful_steps, nfailed_steps, nrhs_calls
   end subroutine report_step_statistics
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by calling
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by calling
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
-  subroutine advance_nonlinear_term(istep, phi, apar, bpar, fields_func, source_func)
+  subroutine advance_nonlinear_term(istep, phi, apar, bpar, dt, fields_func, source_func)
     use dist_fn_arrays, only: gnew, g, g_adjust
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
-    use run_parameters, only: fphi, fbpar
+    use run_parameters, only: fphi, fapar, fbpar
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(in) :: dt
     complex, dimension (:,:,:), allocatable :: phinew, aparnew, bparnew
     real :: mp_total_after, mp_total
     procedure(invert_field_func) :: fields_func
@@ -202,7 +214,12 @@ contains
     call reset_step_statistics
 
     ! Copy current fields to local copies
-    phinew = phi ; aparnew = apar ; bparnew = bpar
+    allocate(phinew, mold = phi)
+    allocate(aparnew, mold = apar)
+    allocate(bparnew, mold = bpar)
+    if (fphi > epsilon(0.0)) call copy(phi, phinew)
+    if (fapar > epsilon(0.0)) call copy(apar, aparnew)
+    if (fbpar > epsilon(0.0)) call copy(bpar, bparnew)
 
     ! If we want to advance h rather than g then adjust
     ! here to get h. Note we rely on the call site also
@@ -212,19 +229,19 @@ contains
     ! from g and a way from h and we then decide here which to use.
     if (advance_nonadiabatic_dfn) then
        call g_adjust(g, phinew, bparnew, fphi, fbpar)
-       gnew = g
+       call copy(g, gnew)
     end if
 
     ! Call requested method for advancing nonlinear term
     select case(split_method_switch)
     case(split_method_ab3)
-       call advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_ab3(phinew, aparnew, bparnew, dt, &
             fields_func, source_func)
     case(split_method_backwards_euler)
-       call advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_beuler(phinew, aparnew, bparnew, dt, &
             fields_func, source_func)
     case(split_method_rk)
-       call advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
+       call advance_nonlinear_term_rk(phinew, aparnew, bparnew, dt, &
             fields_func, source_func)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
@@ -237,33 +254,36 @@ contains
        call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
     end if
 
-    ! Now that we've advanced the explicit terms by code_dt set the
+    ! Now that we've advanced the explicit terms by dt set the
     ! current state to this new result. Note that we do not update the
     ! fields, instead resetting them to their original values. The
     ! update to the fields is calculated as a part of the implicit
     ! field solve and including the NL contribution here leads to
     ! "double counting".
-    g = gnew
+    call copy(gnew, g)
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
     time_add_explicit_terms_mpi = time_add_explicit_terms_mpi + (mp_total_after - mp_total)
   end subroutine advance_nonlinear_term
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> AB scheme of orders up to 3rd.
-  subroutine advance_nonlinear_term_ab3(phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_ab3(phinew, aparnew, bparnew, dt, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use gs2_time, only: get_adams_bashforth_coefficients, code_dt
+    use gs2_time, only: get_adams_bashforth_coefficients
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
+    use gs2_layouts, only: g_lo
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    real :: internal_time, time_step, max_vel
+    real, intent(in) :: dt
+    real :: internal_time, time_step, max_vel, half_time
     real, dimension(:), allocatable :: ab_coeffs
-    integer :: counter
+    integer :: counter, iglo
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
 
@@ -275,8 +295,8 @@ contains
     code_dt_prev1 = dt_not_set
     code_dt_prev2 = dt_not_set
 
-    ! Keep taking explicit steps until we have advanced by code_dt
-    do while (internal_time < code_dt)
+    ! Keep taking explicit steps until we have advanced by dt
+    do while (internal_time < dt)
        ! Get the current nonlinear source term and cfl limit
        call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
             max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
@@ -287,37 +307,58 @@ contains
        ! and convert to time_step estimate.
        call max_allreduce(max_vel)
        time_step = 1.0 / max_vel
+       time_step = time_step * time_step_safety_factor
 
        ! If the cfl time step is too small then abort
        if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! Now make sure we're don't overshoot the target time by limiting time step.
-       time_step = min(time_step, code_dt - internal_time)
+       time_step = min(time_step, dt - internal_time)
 
        ! Get the Adams-Bashforth coefficients for the current collection of time step sizes
        ab_coeffs = get_adams_bashforth_coefficients(target_dt = time_step)
 
+       half_time = 0.5 * time_step
+
        ! Advance solution by time_step
        select case(counter)
        case(1)
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        case(2)
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1 +     &
-               ab_coeffs(2) * gexp_2       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gexp_2(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        case default
-          gnew = gnew + time_step * 0.5 *( &
-               ab_coeffs(1) * gexp_1 +     &
-               ab_coeffs(2) * gexp_2 +     &
-               ab_coeffs(3) * gexp_3       &
-               )
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
+                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gexp_2(:, :, iglo) +     &
+                  ab_coeffs(3) * gexp_3(:, :, iglo)       &
+                  )
+          end do
+          !$OMP END PARALLEL DO
        end select
 
        ! Calculate the fields consistent with the new g
-       call fields_func(gnew, phinew, aparnew, bparnew)
+       call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
        ! Increment internal state
        internal_time = internal_time + time_step
@@ -327,50 +368,58 @@ contains
        ! Shift time history along one point
        code_dt_prev2 = code_dt_prev1
        code_dt_prev1 = time_step
-       gexp_3 = gexp_2
-       gexp_2 = gexp_1
+       call copy(gexp_2, gexp_3)
+       call copy(gexp_1, gexp_2)
     end do
 
   end subroutine advance_nonlinear_term_ab3
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> backwards Euler with fixed-point iteration.
-  subroutine advance_nonlinear_term_beuler(phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_beuler(phinew, aparnew, bparnew, dt, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
-    use gs2_time, only: code_dt_min, code_dt
+    use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
+    use run_parameters, only: immediate_reset
+    use gs2_layouts, only: g_lo
+    use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real, intent(in) :: dt
     real :: internal_time, time_step, max_vel
-    integer :: counter
+    integer :: counter, iglo
     integer, parameter :: iteration_limit = 20
     integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
-    real :: inverse_error, error, actual_dt
+    real :: inverse_error, error, actual_dt, half_time, cfl_time_step
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
-    logical :: reject_step
+    logical :: reject_step, cfl_limited
+    complex, dimension(:, :, :), allocatable :: error_array
 
     ! Initialise internal variables
-    if (time_step_last < 0) time_step_last = code_dt
+    if (time_step_last < 0) time_step_last = dt
     internal_time = 0.0
     time_step = time_step_last
 
-    ! Keep on advancing until we have advanced by code_dt
-    do while (internal_time < code_dt)
+    allocate(error_array(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+
+    ! Keep on advancing until we have advanced by dt
+    do while (internal_time < dt)
        ! Reset counter and error
        counter = 0
        error = 1.0
        errors = 0.0
 
        ! Limit the actual time step that we take to avoid overshooting (i.e.
-       ! to keep internal_time <= code_dt).
-       actual_dt = min(time_step, code_dt - internal_time)
+       ! to keep internal_time <= dt).
+       actual_dt = min(time_step, dt - internal_time)
+       half_time = 0.5 * actual_dt
 
        ! Calculate the current NL source term, for use in error
        ! estimates later.
@@ -391,11 +440,28 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
-          g_work = g + actual_dt * 0.5 * gexp_1
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             g_work(:, :, iglo) = g(:, :, iglo) + half_time * gexp_1(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
 
           ! Calculate the maximum absolute error and the maximum value of the previous solution
-          errors(1) = maxval(abs(gnew - g_work))
-          errors(2) = maxval(abs(g_work))
+
+          ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
+          ! so that we only loop over the error_array once (and actually don't
+          ! need to explicitly store the full array)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             error_array(:, :, iglo) = gnew(:, :, iglo) - g_work(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
+          errors(1) = gs2_max_abs(error_array)
+          errors(2) = gs2_max_abs(g_work)
           call max_allreduce(errors)
 
           ! Calculate an approximate relative error
@@ -403,10 +469,10 @@ contains
 
           ! Update internals -- increment counter and update the 'previous' solution with the new one.
           counter = counter + 1
-          gnew = g_work
+          call copy(g_work, gnew)
 
           ! Update the fields consistently with the current solution
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call fields_func(gnew, phinew, aparnew, bparnew, local_only = .true.)
        end do
 
        ! Now we need to decide if the last step was successful or not. There are two exit conditions, either the
@@ -445,17 +511,30 @@ contains
                calculate_cfl_limit = .true.)
           nrhs_calls = nrhs_calls + 1
 
-          errors(1) = maxval(abs(gexp_1 - gexp_2)) * 0.5 * 0.5 * actual_dt
+          ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
+          ! so that we only loop over the error_array once (and actually don't
+          ! need to explicitly store the full array)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             error_array(:, :, iglo) = gexp_1(:, :, iglo) - gexp_2(:, :, iglo)
+          end do
+          !$OMP END PARALLEL DO
+          errors(1) = gs2_max_abs(error_array) * (0.5 * 0.5 * actual_dt)
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
+          cfl_time_step = 1.0 / errors(3)
 
           !Calculate new time step based on error
-          time_step = min(0.9 * actual_dt * sqrt(inverse_error), 1.0 / errors(3))
+          time_step = min(actual_dt * sqrt(inverse_error), cfl_time_step)
+          cfl_limited = time_step < actual_dt .and. time_step == cfl_time_step
+          time_step = time_step * time_step_safety_factor
 
           ! If error is too large reject the step
-          if ( inverse_error < 1.0) then
-             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error, adapting time step'
+          if ( inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
+             if (proc0 .and. debug) print*,'Attempted beuler step failed due to error or cfl, adapting time step'
              ! Reset as we're retrying the step.
              reject_step = .true.
           else
@@ -466,16 +545,16 @@ contains
        if (reject_step) then
           ! If the time step is now too small then abort
           if (time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
-          gnew = g
+          call copy(g, gnew)
           ! If we store the initial field then we could perhaps just copy here instead.
           ! This could be faster as it avoids communications involved in the velocity integration.
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
           nfailed_steps = nfailed_steps + 1
        else
           ! If we have met the error condition and not taken too many steps
           ! then gnew represents our new solution so make sure we update g to reflect this
           internal_time = internal_time + actual_dt
-          g = gnew
+          call copy(gnew, g)
           nsuccessful_steps = nsuccessful_steps + 1
        end if
 
@@ -488,49 +567,54 @@ contains
 
   end subroutine advance_nonlinear_term_beuler
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control. This method
   !> is a wrapper to the true generic RK implementation.
-  subroutine advance_nonlinear_term_rk(phinew, aparnew, bparnew, &
+  subroutine advance_nonlinear_term_rk(phinew, aparnew, bparnew, dt, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real, intent(in) :: dt
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
 
     call advance_nonlinear_term_rk_implementation( &
-         phinew, aparnew, bparnew, &
+         phinew, aparnew, bparnew, dt, &
          fields_func, source_func, the_rk_scheme)
   end subroutine advance_nonlinear_term_rk
 
-  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+code_dt by using
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
   !> an Runge-Kutta scheme with embedded error estimate for error control
   subroutine advance_nonlinear_term_rk_implementation(phinew, &
-       aparnew, bparnew, fields_func, source_func, scheme)
+       aparnew, bparnew, dt, fields_func, source_func, scheme)
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g, gexp_1
-    use gs2_time, only: code_dt_min, code_dt
+    use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use rk_schemes, only: rk_scheme_type
+    use run_parameters, only: immediate_reset
+    use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real, intent(in) :: dt
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
     real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
-    real :: new_time_step
+    real :: new_time_step, cfl_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
-    integer :: istage, istage_sub, validity
-    real, dimension(:), allocatable :: solution_coeffs
+    integer :: istage, istage_sub, validity, iglo
+    real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
+    logical :: cfl_limited
 
     ! Initialise internal variables
-    if (time_step_last < 0) time_step_last = code_dt
+    if (time_step_last < 0) time_step_last = dt
     internal_time = 0.0
     counter = 1
     time_step = time_step_last
@@ -543,78 +627,129 @@ contains
        solution_coeffs = scheme%lower_order_coeffs
     end if
 
+    ! Get the error coefficients
+    error_coeffs = scheme%high_order_coeffs - scheme%lower_order_coeffs
+
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
 
-    ! Keep taking explicit steps until we have advanced by code_dt
-    do while (internal_time < code_dt)
-       stages = 0.0
+    ! Keep taking explicit steps until we have advanced by dt
+    do while (internal_time < dt)
+       call zero_array(stages)
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        do istage = 1, nstages
-          gnew = g
+          call copy(g, gnew)
+
+          !Could OpenMP reduce here but might be more efficient to distribute calculation
+          !of each stage
           do istage_sub = 1, istage-1
-             gnew = gnew + time_step * scheme%coeffs(istage_sub, istage) * stages(:, :, :, istage_sub)
+             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PRIVATE(iglo) &
+             !$OMP SCHEDULE(static)
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
+             end do
+             !$OMP END PARALLEL DO
           end do
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = (istage == 1))
+
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
-          stages(:, :, :, istage) = 0.5 * gexp_1
+          ! Could we just pass stages(:, :, :, istage) instead of gexp_1
+          ! in above source_func call?
+          call copy(gexp_1, stages(:, :, :, istage))
        end do
 
        ! One can directly form the error by simply forming error =
-       ! time_step * sum(stages_i * (high_order_coeffs_i -
-       ! low_order_coeffs_i)). However we also need to explicitly form one of the low/high
-       ! order solutions in order to be able to construct the solution and the relative error.
-       ! Here we use just the absolute error, stored in gnew,
-       gnew = (scheme%high_order_coeffs(1) - scheme%lower_order_coeffs(1)) * stages(:, :, :, 1)
+       ! time_step * 0.5 * sum(stages_i * (high_order_coeffs_i -
+       ! low_order_coeffs_i)). Here we store this in gexp_1
+       ! without the time_step * 0.5 factor (to avoid extra
+       ! array operations). We multiply the final error by
+       ! time_step/2 to ensure full consistency.
+       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          gexp_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
+       end do
+       !$OMP END PARALLEL DO
+
        do istage = 2, nstages
-          gnew = gnew + (scheme%high_order_coeffs(istage) - scheme%lower_order_coeffs(istage)) * stages(:, :, :, istage)
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
+          end do
+          !$OMP END PARALLEL DO
        end do
 
        ! Store the absolute error
-       errors(1) = maxval(abs(gnew))*time_step
+       errors(1) = gs2_max_abs(gexp_1) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
-       errors(2) = maxval(abs(g))
+       errors(2) = gs2_max_abs(g)
        call max_allreduce(errors)
        inverse_error = get_inverse_error(errors)
+       cfl_time_step = 1.0 / errors(3)
 
        !Calculate the new_time_step
-       new_time_step = min(0.9 * time_step * (inverse_error)**(1.0/scheme%order), 1.0 / errors(3))
+       new_time_step = min(time_step * (inverse_error)**(1.0/scheme%order), cfl_time_step)
+       cfl_limited = new_time_step < time_step .and. new_time_step == cfl_time_step
+       new_time_step = new_time_step * time_step_safety_factor
 
-       if(proc0.and.debug) print*,'Inverse error is ',inverse_error,'at internal_time',internal_time,'with step',time_step,'new time step is',new_time_step,'counter=',counter
+       if(proc0 .and. debug) print*,'Inverse error is ',inverse_error,'at internal_time', &
+            internal_time,'with step',time_step,'new time step is',new_time_step, &
+            'counter=',counter
+
        ! If the cfl time step is too small then abort
-       if (new_time_step < code_dt_min) call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+       if (new_time_step < code_dt_min) &
+            call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
 
        ! If the error is too large we need to retry with a smaller step, so don't
        ! update anything
-       if (inverse_error < 1.0) then
-          if(proc0.and.debug) print*,'Time step with size',time_step,'failed at internal_time',internal_time,'and counter',counter,'retrying with step',new_time_step
+       if (inverse_error < 1.0 .or. (cfl_limited .and. immediate_reset)) then
+          if(proc0.and.debug) print*,'Time step with size',time_step, &
+               'failed at internal_time',internal_time,'and counter',counter, &
+               'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
-         !Update the solution
-          g = g + solution_coeffs(1) * stages(:, :, :, 1) * time_step
+          !Update the solution
+          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, iglo, 1)
+          end do
+          !$OMP END PARALLEL DO
+
           do istage = 2, nstages
-             g = g + solution_coeffs(istage) * stages(:, :, :, istage) * time_step
+             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PRIVATE(iglo) &
+             !$OMP SCHEDULE(static)
+             do iglo = g_lo%llim_proc, g_lo%ulim_proc
+                g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
+             end do
+             !$OMP END PARALLEL DO
           end do
 
           internal_time = internal_time + time_step
           nsuccessful_steps = nsuccessful_steps + 1
        end if
 
-       !Now update the time step, capped to code_dt
-       time_step = min(new_time_step, code_dt)
+       !Now update the time step, capped to dt
+       time_step = min(new_time_step, dt)
 
        ! Make sure we don't overshoot the target time by limiting time step.
-       if(internal_time < code_dt) then
-          time_step = min(time_step, code_dt - internal_time)
+       if(internal_time < dt) then
+          time_step = min(time_step, dt - internal_time)
           counter = counter + 1
        end if
 
@@ -625,7 +760,7 @@ contains
     ! We may be able to avoid this copy and field solve on exit if we restructure the main
     ! loop slightly so gnew represents the new solution. This may require use of g_work
     ! or similar to hold intermediate values.
-    gnew = g
+    call copy(g, gnew)
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
@@ -643,6 +778,18 @@ contains
     inverse_error = (relative_tolerance * errors(2) + absolute_tolerance) / &
          (errors(1) + epsilon(errors(1)))
   end function get_inverse_error
+
+  !> Calculates the fields consistent with the passed distribution function
+  subroutine calculate_fields(fields_func, g_in, phi_out, apar_out, bpar_out)
+    use nonlinear_terms, only: time_add_explicit_terms_field
+    use job_manage, only: time_message
+    procedure(invert_field_func) :: fields_func
+    complex, dimension(:, :, :), intent(in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: phi_out, apar_out, bpar_out
+    call time_message(.false., time_add_explicit_terms_field, 'Explicit terms - field')
+    call fields_func(g_in, phi_out, apar_out, bpar_out, local_only = .true.)
+    call time_message(.false., time_add_explicit_terms_field, 'Explicit terms - field')
+  end subroutine calculate_fields
 
   !---------------------------------------
   ! Following is for the config_type
@@ -662,9 +809,9 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: rk_method, split_method
     logical :: advance_nonadiabatic_dfn, show_statistics
-    real :: absolute_tolerance, convergence_tolerance, relative_tolerance
+    real :: absolute_tolerance, convergence_tolerance, relative_tolerance, time_step_safety_factor
 
-    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method
+    namelist /split_nonlinear_terms_knobs/ absolute_tolerance, advance_nonadiabatic_dfn, convergence_tolerance, relative_tolerance, rk_method, show_statistics, split_method, time_step_safety_factor
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -677,6 +824,7 @@ contains
     rk_method = self%rk_method
     show_statistics = self%show_statistics
     split_method = self%split_method
+    time_step_safety_factor = self%time_step_safety_factor
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -690,6 +838,7 @@ contains
     self%rk_method = rk_method
     self%show_statistics = show_statistics
     self%split_method = split_method
+    self%time_step_safety_factor = time_step_safety_factor
 
     self%exist = exist
   end subroutine read_split_nonlinear_terms_config
@@ -714,6 +863,7 @@ contains
     call self%write_key_val("rk_method", self%rk_method, unit_internal)
     call self%write_key_val("show_statistics", self%show_statistics, unit_internal)
     call self%write_key_val("split_method", self%split_method, unit_internal)
+    call self%write_key_val("time_step_safety_factor", self%time_step_safety_factor, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_split_nonlinear_terms_config
 
@@ -740,6 +890,7 @@ contains
     call broadcast(self%rk_method)
     call broadcast(self%show_statistics)
     call broadcast(self%split_method)
+    call broadcast(self%time_step_safety_factor)
 
     call broadcast(self%exist)
   end subroutine broadcast_split_nonlinear_terms_config

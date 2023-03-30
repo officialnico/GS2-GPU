@@ -22,7 +22,7 @@ module run_parameters
   public :: delt_option_auto, vnm_init
   public :: avail_cpu_time, margin_cpu_time
   public :: rhostar, neo_test
-  public :: do_eigsolve
+  public :: do_eigsolve, save_timer_statistics, save_init_times
   !> If true and nonlinear_mode is "off", return
   !! simple diffusive estimates of fluxes to trinity
   public :: trinity_linear_fluxes
@@ -58,6 +58,7 @@ module run_parameters
   logical :: immediate_reset
   logical :: wstar_units, eqzip
   logical :: secondary, tertiary, harris
+  logical :: save_timer_statistics, save_init_times
   real :: k0
   integer :: delt_option_switch
   integer, parameter :: delt_option_hand = 1, delt_option_auto = 2
@@ -147,6 +148,12 @@ module run_parameters
      !> Normalised gyro-radius, only used for low flow builds
      !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
+     !> If true then save init timer information to
+     !> <run_name>.init_times.
+     logical :: save_init_times = .false.
+     !> If true then save some extra timer information to
+     !> <run_name>.timing_stats giving min/max/mean values.
+     logical :: save_timer_statistics = .true.
      !> See [[knobs:eqzip]]
      logical :: secondary = .true.
      !> Used to set the random seed used in the random number
@@ -471,6 +478,8 @@ contains
     neo_test = knobs_config%neo_test
     nstep = knobs_config%nstep
     rhostar = knobs_config%rhostar
+    save_init_times = knobs_config%save_init_times
+    save_timer_statistics = knobs_config%save_timer_statistics
     secondary = knobs_config%secondary
     seed = knobs_config%seed
     tertiary = knobs_config%tertiary
@@ -695,11 +704,12 @@ contains
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, save_init_times, save_timer_statistics, secondary, tertiary, &
+         trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, teti, tite, zeff
 
     namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
-         secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+         save_init_times, save_timer_statistics, secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -725,6 +735,8 @@ contains
     neo_test = self%neo_test
     nstep = self%nstep
     rhostar = self%rhostar
+    save_init_times = self%save_init_times
+    save_timer_statistics = self%save_timer_statistics
     secondary = self%secondary
     seed = self%seed
     tertiary = self%tertiary
@@ -762,6 +774,8 @@ contains
     self%neo_test = neo_test
     self%nstep = nstep
     self%rhostar = rhostar
+    self%save_init_times = save_init_times
+    self%save_timer_statistics = save_timer_statistics
     self%secondary = secondary
     self%seed = seed
     self%tertiary = tertiary
@@ -810,6 +824,8 @@ contains
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
+    call self%write_key_val("save_init_times", self%save_init_times, unit_internal)
+    call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
     call self%write_key_val("secondary", self%secondary, unit_internal)
     call self%write_key_val("seed", self%seed, unit_internal)
     call self%write_key_val("tertiary", self%tertiary, unit_internal)
@@ -860,6 +876,8 @@ contains
     call broadcast(self%neo_test)
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
+    call broadcast(self%save_init_times)
+    call broadcast(self%save_timer_statistics)
     call broadcast(self%secondary)
     call broadcast(self%seed)
     call broadcast(self%tertiary)

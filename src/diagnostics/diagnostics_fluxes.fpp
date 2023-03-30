@@ -973,7 +973,7 @@ contains
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
     
-    if (proc0 .and. gnostics%write_ascii) write (gnostics%ascii_files%parity,"(19(1x,e12.5))") &
+    if (proc0 .and. gnostics%ascii_files%write_to_parity .and. (.not. gnostics%create)) write (gnostics%ascii_files%parity,"(19(1x,e12.5))") &
          t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
@@ -999,7 +999,6 @@ contains
   subroutine write_nl_flux_dist(gnostics)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0

@@ -1057,7 +1057,7 @@ contains
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fapar, fbpar, wstar_units, tunits
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use neasyf, only: neasyf_write
@@ -1087,6 +1087,11 @@ contains
 # ifdef NETCDF
 
     call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
+
+    if (wstar_units) then
+      call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=["ky", "t "], &
+           start=[1, nout], long_name="Time (wstar)", units="L/vt")
+    end if
 
     if (fphi > zero) then
       call nc_write_field(file_id, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)

@@ -1432,7 +1432,6 @@ contains
     use constants, only: pi
     implicit none
     type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in    
-    integer :: in_file
     logical :: exist
 
     if (parameters_read) return

@@ -52,10 +52,6 @@ contains
     use file_utils, only: run_name, error_unit
     use mp, only: mp_comm, proc0, broadcast, mp_abort
     use kt_grids, only: naky, aky
-    !This reference needs removing to allow compilation on systems without netcdf
-    !It should probably be moved to simpledataio as the rest of the diagnostics
-    !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
-    use netcdf, only: NF90_CLOBBER
     use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
     !use simpledataio, only: print_dimensions
     use simpledataio, only: sdatio_init, simpledataio_functional
@@ -169,7 +165,7 @@ contains
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
-    call read_input_file_and_get_size(gnostics)
+    call read_input_file_and_get_size()
     
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
@@ -323,9 +319,9 @@ contains
     call finish_collisional
     
     call finish_diagnostics_antenna(gnostics)
-    call finish_diagnostics_velocity_space(gnostics)
+    call finish_diagnostics_velocity_space()
     
-    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
+    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
@@ -399,6 +395,7 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast, iproc
     use optionals, only: get_option_with_default
+    use run_parameters, only: wstar_units, tunits
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
@@ -408,6 +405,7 @@ contains
     integer :: istep
     integer, save :: istep_last = -1
     logical :: do_force
+    real, dimension(:), allocatable :: t_wstar
     if (.not. gnostics%write_any) return
     
     call broadcast(exit)
@@ -496,7 +494,15 @@ contains
        ! Finally, write time value and update time index
        call create_and_write_variable(gnostics, gnostics%rtype, "t", &
             trim(dim_string(gnostics%dims%time)), &
-            "Values of the time coordinate", "a/v_thr", user_time) 
+            "Values of the time coordinate", "a/v_thr", user_time)
+       if (wstar_units) then
+          t_wstar = tunits * user_time
+          call create_and_write_variable(gnostics, gnostics%rtype, "t_wstar", &
+               dim_string([gnostics%dims%ky, gnostics%dims%time]), &
+               "Values of time (wstar scaled)", "a/v_thr", &
+               t_wstar)
+       end if
+
        gnostics%user_time = user_time
        gnostics%vary_vnew_only = .false.
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting write sequence')
@@ -591,7 +597,7 @@ contains
     
 ! HJL > reset values for convergence condition
     if (nonlin.and.gnostics%use_nonlin_convergence) &
-      call dnc_reset(gnostics)
+      call dnc_reset()
     call fluxes_reset(gnostics)
     call heating_reset(gnostics)
 

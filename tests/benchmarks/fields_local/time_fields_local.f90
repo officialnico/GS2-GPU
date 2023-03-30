@@ -46,11 +46,9 @@ program time_fields_local
 
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   if (proc0) call announce_module_test('time_fields_local')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
   call init(state%init, init_level_list%fields_level_2)
