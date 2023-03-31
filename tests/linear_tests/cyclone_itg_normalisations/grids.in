@@ -1,0 +1,54 @@
+&parameters
+ beta = 0.0
+ zeff = 1.0
+/
+
+&theta_grid_parameters
+ ntheta = 12
+ nperiod = 1
+ eps = 0.18
+ epsl = 2.0
+ shat = 0.8
+ pk = 1.44
+ shift = 0.0
+/
+
+&theta_grid_knobs
+ equilibrium_option = "s-alpha"
+/
+
+&kt_grids_knobs
+ grid_option = "single"
+/
+
+&theta_grid_salpha_knobs
+ model_option = "default" 
+/
+
+&le_grids_knobs
+ npassing = 5
+ nesub = 10
+ nesuper = 2
+/
+
+&init_g_knobs
+ chop_side = .false.
+ phiinit = 0.001
+ ginit_option = "default"
+/
+
+&dist_fn_knobs
+opt_source = T
+adiabatic_option = 'field-line-average-term'
+/
+&gs2_diagnostics_knobs
+ write_ascii = F
+ print_flux_line = F
+ print_line = F
+ write_line = F
+ write_omega = T
+ write_moments = F
+ nwrite = 2000
+ navg = 1
+ omegatol = -0.001
+/

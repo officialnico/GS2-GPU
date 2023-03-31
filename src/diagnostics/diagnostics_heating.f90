@@ -211,7 +211,7 @@ contains
     gnostics%current_results%species_heating_avg = gnostics%current_results%species_heating_avg + &
          h%imp_colls*(gnostics%user_time - gnostics%user_time_old)
     
-    if (gnostics%write_ascii .and. proc0) call write_ascii
+    if (gnostics%ascii_files%write_to_heat .and. proc0 .and. (.not. gnostics%create)) call write_ascii
     
   contains
     !> FIXME : Add documentation    

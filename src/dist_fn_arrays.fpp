@@ -12,7 +12,7 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, vpar, ittp, aj0, aj1
+  public :: vperp2, vpar, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate
@@ -53,9 +53,6 @@ module dist_fn_arrays
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: aj0_gf, aj1_gf
 
-  integer, dimension (:), allocatable :: ittp
-  ! (-ntgrid:ntgrid)
-
   ! collisional diagnostic of heating rate
   complex, dimension (:,:,:,:,:), allocatable :: c_rate
   ! (-ntgrid:ntgrid,ntheta0,naky,nspecies,2) replicated
@@ -85,7 +82,7 @@ contains
   subroutine g_adjust (g, phi, bpar, facphi, facbpar)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
-    use le_grids, only: jend, ng2
+    use le_grids, only: grid_has_trapped_particles, jend
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
@@ -98,9 +95,7 @@ contains
     logical :: with_bpar, with_phi
     real :: phi_factor, bpar_factor
 
-    trapped = .false.
-
-    if (minval(jend) .gt. ng2) trapped=.true.
+    trapped = grid_has_trapped_particles()
 
     with_bpar = facbpar /= 0
     with_phi = facphi /= 0
@@ -113,6 +108,9 @@ contains
        bpar_factor = 0.0
     end if
 
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(iglo, ig, ik, it, il, ie, is, phi_factor, adj) &
+    !$OMP SCHEDULE(guided)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -137,6 +135,7 @@ contains
           g(ig,2,iglo) = g(ig,2,iglo) + adj
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine g_adjust
 
   !> This routine checks trapped particle bounce conditions: 
@@ -146,7 +145,7 @@ contains
   subroutine check_g_bouncepoints(g, ik,it,il,ie,is,err,tol)
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, idx
-    use le_grids, only: ng2, jend, al
+    use le_grids, only: jend, al, il_is_passing
     use mp, only: mp_abort
     
     implicit none
@@ -165,7 +164,7 @@ contains
        tolerance=1.0e-6
     endif
     iglo=idx(g_lo,ik,it,il,ie,is)
-    if (iglo.lt.g_lo%llim_proc .or. iglo.gt.g_lo%ulim_proc .or. il.le.ng2) then
+    if (iglo.lt.g_lo%llim_proc .or. iglo.gt.g_lo%ulim_proc .or. il_is_passing(il)) then
        return
     endif
     err=0.0

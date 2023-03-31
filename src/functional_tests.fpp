@@ -59,6 +59,7 @@ contains
     logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
+    integer :: ik
 
     check_growth_rate = .true.
 
@@ -73,6 +74,15 @@ contains
        end if
        check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
        call process_check(check_growth_rate, check_result, 'growth rate')
+       if (.not. check_result) then
+          if (naky == 1) then
+             write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, aimag(omegaavg(1,:))
+          else
+             do ik = 1, naky
+                write(*, '("Expected : ",E14.6E3," but got ",E14.6E3," for ik=",I0)') rslt(ik), aimag(omegaavg(1,ik)),ik
+             end do
+          end if
+       end if
     end if
   end function check_growth_rate
 
@@ -91,7 +101,7 @@ contains
     logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
-
+    integer :: ik
     check_frequency = .true.
 
     if (proc0) then
@@ -105,6 +115,15 @@ contains
        end if
        check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
        call process_check(check_frequency, check_result, 'frequency')
+       if (.not. check_result) then
+          if (naky == 1) then
+             write(*, '("Expected : ",E14.6E3," but got ",E14.6E3)') rslt, real(omegaavg(1,:))
+          else
+             do ik = 1, naky
+                write(*, '("Expected : ",E14.6E3," but got ",E14.6E3," for ik=",I0)') rslt(ik), real(omegaavg(1,ik)),ik
+             end do
+          end if
+       end if
     end if
   end function check_frequency
 
@@ -176,46 +195,29 @@ contains
 
   !> FIXME : Add documentation  
   subroutine test_gs2(test_name, test_function)
-    use gs2_main, only: run_gs2, finish_gs2, old_iface_state
-    use gs2_main, only: finalize_diagnostics, finalize_equations, finalize_gs2
-    use unit_tests, only: functional_test_flag, ilast_step
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
-    use gs2_diagnostics, only: finish_gs2_diagnostics
-    use run_parameters, only: use_old_diagnostics
-#ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: finish_gs2_diagnostics_new
-#endif
+    use gs2_main, only: run_gs2, gs2_program_state_type, finish_gs2
+    use unit_tests, only: functional_test_flag
+    use mp, only: init_mp, proc0, test_driver_flag, finish_mp, mp_comm
     implicit none
     character(*), intent(in) :: test_name
     logical, external :: test_function
+    type(gs2_program_state_type) :: state
 
     call init_mp
+    state%mp_comm = mp_comm
 
     test_driver_flag = .true.
     functional_test_flag = .true.
 
     if (proc0) call announce_functional_test(test_name)
 
-    call run_gs2(mp_comm)
+    call run_gs2(finalize=.false., state=state)
 
     call announce_test('results')
     call process_test(test_function(), 'results')
 
-!    if (use_old_diagnostics) then
-!      call finish_gs2_diagnostics(ilast_step)
-!#ifdef NEW_DIAG
-!    else
-!      call finish_gs2_diagnostics_new
-!#endif
-!    end if
-    !call finish_gs2
-    call finalize_diagnostics(old_iface_state)
-    call finalize_equations(old_iface_state)
-    call finalize_gs2(old_iface_state, quiet=.true.)
-
     if (proc0) call close_functional_test(test_name)
-
+    call finish_gs2(state, quiet=.true.)
     call finish_mp
   end subroutine test_gs2
 end module functional_tests
-

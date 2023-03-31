@@ -22,7 +22,7 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity
-  public :: get_omegaavg
+  public :: get_omegaavg, get_volume_average
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
@@ -636,13 +636,13 @@ contains
           write_jext = .false.
        end if
 
-       if (dump_check1) then
+       if (dump_check1 .and. proc0) then
           call get_unused_unit (dump_check1_unit)
+          ! We should switch to open_output_file here.
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
 
-       if (dump_check2) then
-          call get_unused_unit (dump_check2_unit)
+       if (dump_check2 .and. proc0) then
           call open_output_file (dump_check2_unit, ".dc2")
        end if
 
@@ -863,15 +863,12 @@ contains
   !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
-    use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx,write_poly, collision_error
-    use dist_fn_arrays, only: g_adjust, gnew
-    use collisions, only: vnmult
+    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use le_grids, only: finish_weights
     use unit_tests, only: debug_message
 
@@ -940,7 +937,6 @@ contains
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use fields_arrays, only: phinew, bparnew
-    use gs2_time, only: user_dt
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
@@ -956,7 +952,7 @@ contains
     integer :: istatus
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
@@ -967,7 +963,7 @@ contains
        call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             fphi, fapar, fbpar, fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
@@ -1032,7 +1028,7 @@ contains
   !> Calculate and write the various diagnostic quantities.
   !>
   !> This is the main routine for the "old" diagnostics.
-  subroutine loop_diagnostics (istep, exit, debopt)
+  subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: fapar, fphi, fbpar, nstep
@@ -1050,7 +1046,7 @@ contains
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
-
+    use optionals, only: get_option_with_default
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1058,7 +1054,7 @@ contains
     logical, intent (out) :: exit
     !> If true, turn on some debug prints
     logical, intent (in), optional:: debopt
-
+    logical, intent(in), optional :: force
     real, dimension (ntheta0, naky) :: phitot
     real :: phi2, apar2, bpar2
     real :: t
@@ -1081,12 +1077,17 @@ contains
     real, save :: t_old = 0.
     logical :: last = .false.
     logical:: debug=.false.
-
+    logical :: do_force
+    integer, save :: istep_last = -1
     if (present(debopt)) debug = debopt
     call prof_entering ("loop_diagnostics")
 
     !Set the current time
     t = user_time
+    !Always skip if we've already done this step
+    if (istep == istep_last) return
+
+    do_force = get_option_with_default(force, .false.)
 
     exit = .false.
 
@@ -1112,7 +1113,11 @@ contains
     !########################################################
     !The rest of the routine only happens every nwrite steps
     !########################################################
-    if (mod(istep,nwrite) /= 0 .and. .not. exit) return
+    if (mod(istep,nwrite) /= 0 .and. .not. exit .and. .not. do_force) return
+
+    ! If we get here then we're doing a full set of diagnostics
+    ! so store the step
+    istep_last = istep
 
     if (write_g) call write_f (last)
 
@@ -2494,7 +2499,7 @@ contains
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -2519,7 +2524,7 @@ contains
 
        ! write error estimates for ion dist. fn. at outboard midplane with ik=it=1 to ascii files
        if (write_ascii) then
-          if (nlambda - ng2 > 1) then
+          if (grid_has_trapped_particles()) then
              write(lpc_unit,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
           else
              write(lpc_unit,"(3(1x,e13.6))") user_time, geavg, glavg
@@ -2820,7 +2825,7 @@ contains
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, iproc, nproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
@@ -2842,7 +2847,7 @@ contains
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
 
@@ -3379,19 +3384,21 @@ contains
 
   !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
     use theta_grid, only: theta
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
 
-    call get_unused_unit (unit)
+    if (.not. proc0) return
+
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
           do ig = -ntg_out, ntg_out
@@ -3403,7 +3410,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file (unit)
   end subroutine do_dump_fields_periodically
 
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and

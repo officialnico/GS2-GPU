@@ -1,0 +1,5 @@
+&split_nonlinear_terms_knobs
+  split_method = 'AB3'
+/
+
+!include test_split_nonlinear_integrators_base.in

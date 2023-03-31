@@ -15,7 +15,6 @@ end module checks_mod
 program cyclone_itg_low_res
   use functional_tests
   use checks_mod
-  use command_line
   use fields_local, only: fields_local_functional
   use fields_gf_local, only: fields_gf_local_functional
   use mp, only: init_mp, proc0, finish_mp
@@ -32,7 +31,7 @@ program cyclone_itg_low_res
   ! 
   ! If you want to see the minimal linear test look at slab_itg_low_res
   call init_mp
-  call cl_getarg(2, field_type, length, ierr)
+  call get_command_argument(2, field_type, length, ierr)
   if (trim(field_type) == "local" .and. .not. fields_local_functional()) then
     if (proc0) then
       write (*,*)  

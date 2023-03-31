@@ -52,10 +52,6 @@ contains
     use file_utils, only: run_name, error_unit
     use mp, only: mp_comm, proc0, broadcast, mp_abort
     use kt_grids, only: naky, aky
-    !This reference needs removing to allow compilation on systems without netcdf
-    !It should probably be moved to simpledataio as the rest of the diagnostics
-    !doesn't know what backend simpledataio is using (i.e. if it is netcdf or not).
-    use netcdf, only: NF90_CLOBBER
     use simpledataio, only: SDATIO_DOUBLE, SDATIO_FLOAT, SDATIO_INT, SDATIO_CHAR
     !use simpledataio, only: print_dimensions
     use simpledataio, only: sdatio_init, simpledataio_functional
@@ -169,7 +165,7 @@ contains
 
     if (gnostics%write_heating) call init_diagnostics_heating(gnostics)
     if (nonlin.and.gnostics%use_nonlin_convergence) call init_nonlinear_convergence(gnostics)
-    call read_input_file_and_get_size(gnostics)
+    call read_input_file_and_get_size()
     
     call sdatio_init(gnostics%sfile, trim(run_name)//'.out.nc')
     if (gnostics%parallel) then 
@@ -261,7 +257,7 @@ contains
   !! Note that the .out file is always enabled
   subroutine set_ascii_file_switches
     implicit none
-    gnostics%ascii_files%write_to_out   = .true.
+    gnostics%ascii_files%write_to_out   = gnostics%write_ascii
     !gnostics%ascii_files%write_to_fields = gnostics%write_fields  .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat   = gnostics%write_heating .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat2  = gnostics%write_heating .and.  gnostics%write_ascii
@@ -323,9 +319,9 @@ contains
     call finish_collisional
     
     call finish_diagnostics_antenna(gnostics)
-    call finish_diagnostics_velocity_space(gnostics)
+    call finish_diagnostics_velocity_space()
     
-    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
+    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
@@ -364,7 +360,7 @@ contains
   !! istep=-1 --> Create all netcdf variables
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
-  subroutine run_diagnostics(istep_in, exit, read_existing)
+  subroutine run_diagnostics(istep_in, exit, read_existing, force)
     use gs2_time, only: user_time
     use mp, only: proc0
     use simpledataio, only: print_dimensions
@@ -397,19 +393,25 @@ contains
     use simpledataio, only: increment_start, syncfile, closefile, set_parallel, create_file
     use diagnostics_metadata, only: write_input_file
     use unit_tests, only: debug_message
-    use mp,  only: broadcast
+    use mp,  only: broadcast, iproc
+    use optionals, only: get_option_with_default
+    use run_parameters, only: wstar_units, tunits
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
     logical, intent(in) :: read_existing
+    logical, intent(in), optional :: force
     integer, parameter :: verb=3
     integer :: istep
-    
+    integer, save :: istep_last = -1
+    logical :: do_force
+    real, dimension(:), allocatable :: t_wstar
     if (.not. gnostics%write_any) return
     
     call broadcast(exit)
 
     call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting')
+    do_force = get_option_with_default(force, .false.)
     
     gnostics%exit = exit
     
@@ -417,15 +419,15 @@ contains
     ! otherwise, only proc0. Also, creation of variables
     ! happens when istep == -1
     if (gnostics%parallel .or. proc0) then
-      if (read_existing ) then
-       gnostics%create = .false.
-       gnostics%wryte = .false.
-       gnostics%reed = (istep_in>-1)
-     else
-       gnostics%reed = .false.
-       gnostics%create = (istep_in==-1).and..not.gnostics%appending
-       gnostics%wryte = (istep_in>-1) .and. .not. gnostics%replay
-     end if
+       if (read_existing ) then
+          gnostics%create = .false.
+          gnostics%wryte = .false.
+          gnostics%reed = (istep_in>-1)
+       else
+          gnostics%reed = .false.
+          gnostics%create = (istep_in==-1).and..not.gnostics%appending
+          gnostics%wryte = (istep_in>-1) .and. .not. gnostics%replay
+       end if
     else
        gnostics%reed = .false.
        gnostics%create=.false.
@@ -480,11 +482,27 @@ contains
       !call save_restart_dist_fn
     !end if
 
-    if (mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit) then
+    if ( (istep /= istep_last) .and. &
+         (mod(istep, gnostics%nwrite).eq.0.or.gnostics%exit.or.do_force)) then
+       ! If istep_in = -1 (to indicate we're setting things up) then we enter
+       ! this block (by forcing istep=0), but only to define variables - not to write them.
+       ! We intend to write them on the next call when istep_in = 0, but if we were to
+       ! record istep_last = istep when istep_in = -1 then we end up with istep_last = 0
+       ! and we would actually skip the real istep_in = 0 call.
+       if (istep_in > -1) istep_last = istep
+
        ! Finally, write time value and update time index
        call create_and_write_variable(gnostics, gnostics%rtype, "t", &
             trim(dim_string(gnostics%dims%time)), &
-            "Values of the time coordinate", "a/v_thr", user_time) 
+            "Values of the time coordinate", "a/v_thr", user_time)
+       if (wstar_units) then
+          t_wstar = tunits * user_time
+          call create_and_write_variable(gnostics, gnostics%rtype, "t_wstar", &
+               dim_string([gnostics%dims%ky, gnostics%dims%time]), &
+               "Values of time (wstar scaled)", "a/v_thr", &
+               t_wstar)
+       end if
+
        gnostics%user_time = user_time
        gnostics%vary_vnew_only = .false.
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting write sequence')
@@ -579,7 +597,7 @@ contains
     
 ! HJL > reset values for convergence condition
     if (nonlin.and.gnostics%use_nonlin_convergence) &
-      call dnc_reset(gnostics)
+      call dnc_reset()
     call fluxes_reset(gnostics)
     call heating_reset(gnostics)
 

@@ -198,10 +198,9 @@ contains
   subroutine init_antenna(driver_config_in, stir_config_in)
     use species, only: spec, nspec, init_species
     use run_parameters, only: beta
-    use antenna_data, only: init_antenna_data
     implicit none
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in    
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
     integer :: i
     
     if (initialized) return
@@ -228,14 +227,14 @@ contains
 
   !> FIXME : Add documentation
   subroutine read_parameters(driver_config_in, stir_config_in)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit, get_unused_unit
+    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
     use file_utils, only: open_output_file, input_unit
     use mp, only: proc0
     use antenna_data, only: init_antenna_data
     use gs2_save, only: init_ant_amp
     implicit none
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
     complex :: a, b
     integer :: kx, ky, kz, i, ierr
     logical :: exist, travel, ant_off
@@ -319,7 +318,6 @@ contains
     end do
 
     if (proc0) then
-       call get_unused_unit (out_unit)
        call open_output_file (out_unit, ".antenna")
     end if
   end subroutine read_parameters
@@ -328,14 +326,14 @@ contains
   subroutine finish_antenna
     use file_utils, only: close_output_file
     use antenna_data, only: finish_antenna_data
-    
+    use mp, only: proc0
     implicit none
 
     call finish_antenna_data
     if (allocated(w_stir)) deallocate (w_stir)
     if (allocated(kx_stir)) deallocate (kx_stir, ky_stir, kz_stir, trav)
     if (allocated(apar_new)) deallocate (apar_new, apar_old)
-    call close_output_file(out_unit)
+    if (proc0) call close_output_file(out_unit)
     initialized = .false.
     call driver_config%reset()
     if (allocated(stir_config)) deallocate(stir_config)
@@ -552,7 +550,7 @@ contains
   subroutine set_antenna_config(driver_config_in, stir_config_in)
     use mp, only: mp_abort
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
   
     if (initialized) then
        call mp_abort("Trying to set antenna config when already initialized.", to_screen = .true.)

@@ -1,0 +1,52 @@
+&nonlinear_terms_knobs
+  nonlinear_mode                           =  "on"
+/
+
+&collisions_knobs
+  collision_model                          =  "none"
+/
+
+&dist_fn_knobs
+  boundary_option                          =  "linked"
+/
+
+&dist_fn_species_knobs_1
+/
+
+&knobs
+  seed                                     =  100001
+/
+
+&kt_grids_knobs
+  grid_option                              =  "box"
+/
+
+&kt_grids_box_parameters
+  jtwist                                   =  800
+  nx                                       =  32
+  ny                                       =  16
+  y0                                       =  -0.15
+/
+
+&le_grids_knobs
+  nesub                                    =  1
+  nesuper                                  =  1
+  npassing                                 =  1
+/
+
+&species_knobs
+  nspec                                    =  1
+/
+
+&species_parameters_1
+  type                                     =  "ion"
+/
+
+&theta_grid_knobs
+  equilibrium_option                       =  "s-alpha"
+/
+
+&theta_grid_parameters
+  nperiod                                  =  1
+  ntheta                                   =  2
+/

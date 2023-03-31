@@ -1,0 +1,43 @@
+! Standard normalisation options - hot reference = 10 Ti
+! Should match collisionless_ion_baseline    
+! Ion mass, minor radius, ion Larmor radius
+! Scale ky, dt up by sqrt(10), scale temp down by 10, gamma and omega down by sqrt(10)
+! Note also need to set tite to 10.
+&kt_grids_single_parameters
+ aky = 1.5811388300842
+/
+
+&knobs
+ delt = 0.3162277660168379
+ nstep = 2000
+ tite = 10.0 ! This is really tref/te?
+/
+
+&species_parameters_1
+ z = 1.0
+ mass = 1.0
+ dens = 1.0
+ temp = 0.1
+ tprim = 6.9
+ fprim = 2.2
+ uprim = 0.0
+ vnewk = 0.0
+ type = "ion"
+/
+
+&dist_fn_species_knobs_1
+ fexpr = 0.5
+ bakdif = 0.0
+/
+
+&species_knobs
+ nspec = 1
+/
+
+&test_settings
+  tolerance = 1.0e-5
+  omega_expected = 0.2062806726230
+  gamma_expected = 0.0542877739665
+/
+!Include the shared parameters
+!include grids.in
