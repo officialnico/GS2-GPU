@@ -17,7 +17,7 @@ endif
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom
+needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
@@ -25,7 +25,7 @@ ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 #this currently has to be handled specially as it comes from a c source file
 #rather than fortran (so isn't picked up by fortdep).
 needs_fft_wisdom := utils gs2 ingen dump_response \
-	generate_fftw_wisdom write_default_input_file
+	generate_fftw_wisdom write_default_input_file ffttester
 ifdef USE_FFT
 ignored_junk := $(foreach tmp_target, $(needs_fft_wisdom), \
 	$(eval $(tmp_target)_mod += $(OBJDIR)/fft_save_wisdom.o))
@@ -116,7 +116,7 @@ $(BINDIR)/regress: $(drive_mod) | $(BINDIR)
 regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2 | DOES NOT COMPILE
-$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
+$(BINDIR)/ffttester: $(ffttester_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
