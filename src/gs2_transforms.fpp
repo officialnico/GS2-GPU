@@ -195,7 +195,7 @@ contains
     !JH present later in this file.
     
     use mp, only: nproc
-    use fft_work, only: init_ccfftw
+    use fft_work, only: init_ccfftw, FFT_TO_REAL_SPACE, FFT_TO_SPECTRAL_SPACE
     use gs2_layouts, only: xxf_lo, pe_layout
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
@@ -230,8 +230,8 @@ contains
        ! number of ffts to be calculated
        nb_ffts = xxf_lo%ulim_proc - xxf_lo%llim_proc + 1
        
-       call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
-       call init_ccfftw (xb_fft, -1, xxf_lo%nx, nb_ffts, xxf)
+       call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+       call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
 #endif
        
        xfft_initted = .true.
