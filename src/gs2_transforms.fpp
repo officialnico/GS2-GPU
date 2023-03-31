@@ -378,13 +378,13 @@ contains
           yb_fft_shm%ts2=ts2
 
        else
-          call init_crfftw(faccel_shmx, FFTW_BACKWARD, accel_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_crfftw(faccel_shmx, FFTW_BACKWARD, accel_lo%ny, 2*(2*ntgrid+1), .true.)
           allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
-          call init_ccfftw(faccel_shmy, FFTW_BACKWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
+          call init_ccfftw(faccel_shmy, FFTW_BACKWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true., accel_lo%ndky)
           deallocate(dummy)
-          call init_rcfftw(baccel_shmx, FFTW_FORWARD, accelx_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_rcfftw(baccel_shmx, FFTW_FORWARD, accelx_lo%ny, 2*(2*ntgrid+1), .true.)
           allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
-          call init_ccfftw(baccel_shmy, FFTW_FORWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
+          call init_ccfftw(baccel_shmy, FFTW_FORWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true.,accel_lo%ndky)
           deallocate(dummy)
        end if
 #endif
