@@ -411,8 +411,8 @@ contains
           !JH 1 FFT to be calculated which the code can correctly undertake.
           nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
-          call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
-          call init_ccfftw (xb_fft, -1,  xxf_lo%nx, nb_ffts, xxf)
+          call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+          call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
 #endif
           xfft_initted = .true.
        end if
