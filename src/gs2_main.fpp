@@ -279,7 +279,7 @@ contains
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
     character(len=*), parameter :: usage = &
-         "gs2 [--version|-v] [--help|-h] [--build-config] [--ingen] [input file]" // nl // nl // &
+         "gs2 [--version|-v] [--help|-h] [--build-config] [--check-input] [input file]" // nl // nl // &
          "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
          "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
          "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
