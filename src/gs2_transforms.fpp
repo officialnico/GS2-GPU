@@ -156,11 +156,12 @@ contains
     call pe_layout (char)
 
 #ifndef SHMEM
-    if (char == 'v' .and. mod (negrid*nlambda*nspec, nproc) == 0) then  
+    accel = (char == 'v') .and. (mod(negrid * nlambda * nspec, nproc) == 0)
 #else
-    if (char == 'v') then
+    accel = (char == 'v')
 #endif
-       accel = .true.
+
+    if (accel) then
        if (debug) write (*,*) 'init_transforms: init_gs2_layouts (accel)'
        call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     else
@@ -214,12 +215,12 @@ contains
     call pe_layout (char)
 
 #ifndef SHMEM
-    if (char == 'v' .and. mod (negrid*nlambda*nspec, nproc) == 0) then
+    accel = (char == 'v') .and. (mod(negrid * nlambda * nspec, nproc) == 0)
 #else
-    if (char == 'v') then
+    accel = (char == 'v')
 #endif
-       accel = .true.
-    else
+
+    if (.not. accel) then
        call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
 #if FFT == _FFTW3_
