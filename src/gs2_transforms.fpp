@@ -245,7 +245,7 @@ contains
   !> FIXME : Add documentation
   subroutine init_y_fft (ntgrid)
     use gs2_layouts, only: xxf_lo, yxf_lo, accel_lo, accelx_lo, dealiasing
-    use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw
+    use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFTW_FORWARD, FFTW_BACKWARD
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_alloc
     use mp, only : proc0
@@ -310,9 +310,9 @@ contains
 
 #if FFT == _FFTW3_
        !JH FFTW plan creation for the accelerated 2d transforms
-       call init_crfftw (yf_fft,  1, accel_lo%ny, accel_lo%nx, &
+       call init_crfftw (yf_fft, FFTW_BACKWARD, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
-       call init_rcfftw (yb_fft, -1, accel_lo%ny, accel_lo%nx, &
+       call init_rcfftw (yb_fft, FFTW_FORWARD, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
 #ifdef SHMEM
        call get_environment_variable("GS2_SHM_2D_PLAN",VALUE=envval,LENGTH=envlen)
@@ -364,12 +364,11 @@ contains
              stride=2*(2*accel_lo%ntgrid+1)
           endif
 
-          call init_crfftw (yf_fft_shm,  1, accel_lo%ny, accel_lo%nx, &
+          call init_crfftw (yf_fft_shm, FFTW_BACKWARD, accel_lo%ny, accel_lo%nx, &
                howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
 
           ! now the inverse        
-
-          call init_rcfftw (yb_fft_shm, -1, accel_lo%ny, accel_lo%nx, &
+          call init_rcfftw (yb_fft_shm, FFTW_FORWARD, accel_lo%ny, accel_lo%nx, &
                howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
 
           ! init_... has intent out for plan var
@@ -379,13 +378,13 @@ contains
           yb_fft_shm%ts2=ts2
 
        else
-          call init_crfftw(faccel_shmx, 1, accel_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_crfftw(faccel_shmx, FFTW_BACKWARD, accel_lo%ny, 2*(2*ntgrid+1), "t")
           allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
-          call init_ccfftw(faccel_shmy, 1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
+          call init_ccfftw(faccel_shmy, FFTW_BACKWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
           deallocate(dummy)
-          call init_rcfftw(baccel_shmx, -1, accelx_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_rcfftw(baccel_shmx, FFTW_FORWARD, accelx_lo%ny, 2*(2*ntgrid+1), "t")
           allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
-          call init_ccfftw(baccel_shmy, -1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
+          call init_ccfftw(baccel_shmy, FFTW_FORWARD, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
           deallocate(dummy)
        end if
 #endif
@@ -429,8 +428,8 @@ contains
        !JH 1 FFT to be calculated which the code can correctly undertake.
        nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
 
-       call init_crfftw (yf_fft,  1, yxf_lo%ny, nb_ffts)
-       call init_rcfftw (yb_fft, -1,  yxf_lo%ny, nb_ffts)
+       call init_crfftw (yf_fft, FFTW_BACKWARD, yxf_lo%ny, nb_ffts)
+       call init_rcfftw (yb_fft, FFTW_FORWARD,  yxf_lo%ny, nb_ffts)
 #endif
     end if
 
@@ -1705,7 +1704,7 @@ contains
 
   !> FIXME : Add documentation        
   subroutine init_3d (nny_in, nnx_in, how_many_in)
-    use fft_work, only: init_crfftw, init_rcfftw, delete_fft
+    use fft_work, only: init_crfftw, init_rcfftw, delete_fft, FFTW_FORWARD, FFTW_BACKWARD
     implicit none
     integer, intent(in) :: nny_in, nnx_in, how_many_in
     integer, save :: nnx, nny, how_many
@@ -1727,8 +1726,8 @@ contains
     how_many = how_many_in
 
 #if FFT == _FFTW3_
-    call init_crfftw (xf3d_cr,  1, nny, nnx, how_many)
-    call init_rcfftw (xf3d_rc, -1, nny, nnx, how_many)
+    call init_crfftw (xf3d_cr, FFTW_BACKWARD, nny, nnx, how_many)
+    call init_rcfftw (xf3d_rc, FFTW_FORWARD, nny, nnx, how_many)
 #endif
 
   end subroutine init_3d
