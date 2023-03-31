@@ -156,11 +156,12 @@ contains
     call pe_layout (char)
 
 #ifndef SHMEM
-    if (char == 'v' .and. mod (negrid*nlambda*nspec, nproc) == 0) then  
+    accel = (char == 'v') .and. (mod(negrid * nlambda * nspec, nproc) == 0)
 #else
-    if (char == 'v') then
+    accel = (char == 'v')
 #endif
-       accel = .true.
+
+    if (accel) then
        if (debug) write (*,*) 'init_transforms: init_gs2_layouts (accel)'
        call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
     else
@@ -195,7 +196,7 @@ contains
     !JH present later in this file.
     
     use mp, only: nproc
-    use fft_work, only: init_ccfftw
+    use fft_work, only: init_ccfftw, FFT_TO_REAL_SPACE, FFT_TO_SPECTRAL_SPACE
     use gs2_layouts, only: xxf_lo, pe_layout
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
@@ -214,12 +215,12 @@ contains
     call pe_layout (char)
 
 #ifndef SHMEM
-    if (char == 'v' .and. mod (negrid*nlambda*nspec, nproc) == 0) then
+    accel = (char == 'v') .and. (mod(negrid * nlambda * nspec, nproc) == 0)
 #else
-    if (char == 'v') then
+    accel = (char == 'v')
 #endif
-       accel = .true.
-    else
+
+    if (.not. accel) then
        call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
 #if FFT == _FFTW3_
@@ -230,8 +231,8 @@ contains
        ! number of ffts to be calculated
        nb_ffts = xxf_lo%ulim_proc - xxf_lo%llim_proc + 1
        
-       call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
-       call init_ccfftw (xb_fft, -1, xxf_lo%nx, nb_ffts, xxf)
+       call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+       call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
 #endif
        
        xfft_initted = .true.
@@ -245,7 +246,7 @@ contains
   !> FIXME : Add documentation
   subroutine init_y_fft (ntgrid)
     use gs2_layouts, only: xxf_lo, yxf_lo, accel_lo, accelx_lo, dealiasing
-    use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw
+    use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_alloc
     use mp, only : proc0
@@ -310,9 +311,9 @@ contains
 
 #if FFT == _FFTW3_
        !JH FFTW plan creation for the accelerated 2d transforms
-       call init_crfftw (yf_fft,  1, accel_lo%ny, accel_lo%nx, &
+       call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
-       call init_rcfftw (yb_fft, -1, accel_lo%ny, accel_lo%nx, &
+       call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
 #ifdef SHMEM
        call get_environment_variable("GS2_SHM_2D_PLAN",VALUE=envval,LENGTH=envlen)
@@ -364,12 +365,11 @@ contains
              stride=2*(2*accel_lo%ntgrid+1)
           endif
 
-          call init_crfftw (yf_fft_shm,  1, accel_lo%ny, accel_lo%nx, &
+          call init_crfftw (yf_fft_shm, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
                howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
 
           ! now the inverse        
-
-          call init_rcfftw (yb_fft_shm, -1, accel_lo%ny, accel_lo%nx, &
+          call init_rcfftw (yb_fft_shm, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
                howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
 
           ! init_... has intent out for plan var
@@ -379,13 +379,13 @@ contains
           yb_fft_shm%ts2=ts2
 
        else
-          call init_crfftw(faccel_shmx, 1, accel_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_crfftw(faccel_shmx, FFT_TO_REAL_SPACE, accel_lo%ny, 2*(2*ntgrid+1), .true.)
           allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
-          call init_ccfftw(faccel_shmy, 1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t", accel_lo%ndky)
+          call init_ccfftw(faccel_shmy, FFT_TO_REAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true., accel_lo%ndky)
           deallocate(dummy)
-          call init_rcfftw(baccel_shmx, -1, accelx_lo%ny, 2*(2*ntgrid+1), "t")
+          call init_rcfftw(baccel_shmx, FFT_TO_SPECTRAL_SPACE, accelx_lo%ny, 2*(2*ntgrid+1), .true.)
           allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
-          call init_ccfftw(baccel_shmy, -1, accel_lo%nx, 2*(2*ntgrid+1), dummy, "t",accel_lo%ndky)
+          call init_ccfftw(baccel_shmy, FFT_TO_SPECTRAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true.,accel_lo%ndky)
           deallocate(dummy)
        end if
 #endif
@@ -411,8 +411,8 @@ contains
           !JH 1 FFT to be calculated which the code can correctly undertake.
           nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
 
-          call init_ccfftw (xf_fft,  1, xxf_lo%nx, nb_ffts, xxf)
-          call init_ccfftw (xb_fft, -1,  xxf_lo%nx, nb_ffts, xxf)
+          call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+          call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
 #endif
           xfft_initted = .true.
        end if
@@ -429,8 +429,8 @@ contains
        !JH 1 FFT to be calculated which the code can correctly undertake.
        nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
 
-       call init_crfftw (yf_fft,  1, yxf_lo%ny, nb_ffts)
-       call init_rcfftw (yb_fft, -1,  yxf_lo%ny, nb_ffts)
+       call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
+       call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
 #endif
     end if
 
@@ -1705,7 +1705,7 @@ contains
 
   !> FIXME : Add documentation        
   subroutine init_3d (nny_in, nnx_in, how_many_in)
-    use fft_work, only: init_crfftw, init_rcfftw, delete_fft
+    use fft_work, only: init_crfftw, init_rcfftw, delete_fft, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
     implicit none
     integer, intent(in) :: nny_in, nnx_in, how_many_in
     integer, save :: nnx, nny, how_many
@@ -1727,8 +1727,8 @@ contains
     how_many = how_many_in
 
 #if FFT == _FFTW3_
-    call init_crfftw (xf3d_cr,  1, nny, nnx, how_many)
-    call init_rcfftw (xf3d_rc, -1, nny, nnx, how_many)
+    call init_crfftw (xf3d_cr, FFT_TO_REAL_SPACE, nny, nnx, how_many)
+    call init_rcfftw (xf3d_rc, FFT_TO_SPECTRAL_SPACE, nny, nnx, how_many)
 #endif
 
   end subroutine init_3d
@@ -1858,7 +1858,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine transform2_2d (phi, phixf, nny, nnx)
-    use fft_work, only: FFTW_BACKWARD, delete_fft, init_crfftw
+    use fft_work, only: FFT_TO_REAL_SPACE, delete_fft, init_crfftw
     use kt_grids, only: naky, nakx => ntheta0, nx, aky
     use job_manage, only: time_message
     use fft_work, only: time_fft
@@ -1876,7 +1876,7 @@ contains
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
 #if FFT == _FFTW3_
-    call init_crfftw (xf2d, FFTW_BACKWARD, nny, nnx, 1)
+    call init_crfftw (xf2d, FFT_TO_REAL_SPACE, nny, nnx, 1)
 #endif
 
     allocate (phix (nny, nnx))
@@ -1913,7 +1913,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine inverse2_2d (phixf, phi, nny, nnx)
-    use fft_work, only: FFTW_FORWARD, delete_fft, init_rcfftw
+    use fft_work, only: FFT_TO_SPECTRAL_SPACE, delete_fft, init_rcfftw
     use kt_grids, only: naky, nakx => ntheta0, aky
     use job_manage, only: time_message
     use fft_work, only: time_fft
@@ -1931,7 +1931,7 @@ contains
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
 #if FFT == _FFTW3_
-    call init_rcfftw (xf2d, FFTW_FORWARD, nny, nnx, 1)
+    call init_rcfftw (xf2d, FFT_TO_SPECTRAL_SPACE, nny, nnx, 1)
 #endif    
 
     allocate (aphi (nny/2+1, nnx))
