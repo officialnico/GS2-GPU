@@ -15,9 +15,6 @@ module volume_averages
   private
 
   public :: average_all, average_theta, average_ky, average_kx
-  public :: init_volume_averages
-
-  integer :: ntg_out
 
   interface average_all
     module procedure average_all_txy
@@ -55,12 +52,6 @@ module volume_averages
   end interface
 
 contains
-  !> FIXME : Add documentation  
-  subroutine init_volume_averages
-    use theta_grid, only: ntgrid
-    implicit none
-    ntg_out = ntgrid
-  end subroutine init_volume_averages
 
   !> FIXME : Add documentation  
   subroutine average_all_2_complex_txy(a, b, avg, distributed)
@@ -163,7 +154,7 @@ contains
     integer :: ik, it, is
     integer :: ng
 
-    ng = ntg_out
+    ng = ntgrid
     axb_by_mode = 0
 
     do is = 1,nspec
@@ -189,10 +180,10 @@ contains
     logical,intent(in) :: distributed
     integer :: ik, it, is
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
     axb_by_mode = 0
@@ -220,10 +211,10 @@ contains
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -246,10 +237,10 @@ contains
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -263,10 +254,10 @@ contains
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -280,10 +271,10 @@ contains
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -313,10 +304,10 @@ contains
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -343,10 +334,10 @@ contains
     logical,intent(in) :: distributed
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
