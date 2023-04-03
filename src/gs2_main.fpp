@@ -1,55 +1,30 @@
-!> FIXME : Add documentation
-module old_interface_store
-    integer :: ntspec_store
-    real :: rhoc_store, qval_store, shat_store, rgeo_lcfs_store, rgeo_local_store, aSurf_store
-    real :: shift_store, shiftVert_store, deltam_store, deltan_store
-    real :: deltampri_store, deltanpri_store, thetam_store, thetan_store
-    real :: betaprim_store, gexb_store, mach_store
-    real, dimension (:), allocatable :: dens_store, fprim_store, temp_store, tprim_store, nu_store
-    logical :: use_gs2_geo_store
-    logical :: override_profiles = .false.
-    logical :: override_miller_geometry = .false.
-end module old_interface_store
-
-# ifndef MAKE_LIB
-
 !> This module provides the external interface to gs2. It contains functions
 !! to initialize gs2, functions to run gs2, functions to finalize gs2 and 
 !! functions to override/tweak gs2 parameters. 
 !!
-!! gs2_main contains both the new and the old interface to gs2. The new interface
-!! comprises the gs2_program_state_type object, and functions for manipulating
-!! that object, which are documented individually. 
+!! The main entry point is [[run_gs2]], which takes care of initialising all the
+!! subsystems, solving the equations (either the time advance or eigensolver),
+!! and then finalising all the subsystems. This looks something like:
 !!
-!! The old interface
-!! consists of the functions run_gs2, finish_gs2, trin_finish_gs2, reset_gs2
-!! and gs2_trin_init. These functions have been reimplemented using the 
-!! new interface. They are deprecated and are provided only for backwards
-!! compatibility. 
 !!
-!! The basic flow of a gs2 program can be seen in gs2.fpp, reproduced here:
-!!
+!!     ! An object holding the state of the simulationg
 !!     type(gs2_program_state_type) :: state
+!!     ! Initialisation of subsystems
 !!     call initialize_gs2(state)
 !!     call initialize_equations(state)
 !!     call initialize_diagnostics(state)
+!!     ! Solve the equations
 !!     if (state%do_eigsolve) then 
 !!       call run_eigensolver(state)
 !!     else
 !!       call evolve_equations(state, state%nstep)
 !!     end if
+!!     ! Clean up
 !!     call finalize_diagnostics(state)
 !!     call finalize_equations(state)
 !!     call finalize_gs2(state)
 !!
-!! You can manipulate the gs2_program_state before running gs2. A typical
-!! manipulation is to pass in an external mpi communicator (which also 
-!! means that MPI_Init is not called within initialize_gs2. 
-!!
-!!     state%mp_comm_external = .true
-!!     state%mp_comm = my_mpi_communicator
-!!     call initialize_gs2(state)
-!!     ...
+!! You can manipulate the [[gs2_program_state]] before running gs2.
 !! 
 !! You can also override parameters: typically this is done either before
 !! calling initialize_equations, or between two calls to evolve equations;
@@ -82,8 +57,11 @@ module gs2_main
   use optimisation_config, only: optimisation_type
   use constants, only: run_name_size
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
+  use mp, only: mp_comm_null
   implicit none
-  public :: run_gs2, finish_gs2, reset_gs2, trin_finish_gs2
+  public :: run_gs2
+  public :: finish_gs2
+
   public :: parse_command_line
 
   public :: gs2_program_state_type
@@ -92,14 +70,9 @@ module gs2_main
   public :: initialize_equations
   public :: initialize_diagnostics, evolve_equations, run_eigensolver
   public :: finalize_diagnostics, finalize_equations, finalize_gs2
-  public :: gs2_trin_init
   public :: calculate_outputs
   public :: reset_equations
   public :: write_used_inputs_file
-
-  public :: determine_gs2spec_from_trin
-  public :: gs2spec_from_trin
-  public :: densrefspec
 
   public :: prepare_miller_geometry_overrides
   public :: prepare_profiles_overrides
@@ -108,8 +81,6 @@ module gs2_main
   public :: prepare_initial_values_overrides
   public :: set_initval_overrides_to_current_vals
   public :: finalize_overrides
-
-  public :: old_iface_state
 
   public :: initialize_wall_clock_timer
 
@@ -251,17 +222,15 @@ module gs2_main
 
     !> If true, 
     !! print full timing breakdown. 
-    logical :: print_full_timers = .false.
+    logical :: print_full_timers = .true.
 
     !> If true, print run time or
     !! full timing breakdown, depending
     !! on the value of print_full_timers
     logical :: print_times = .true.
 
-
-    !> Parameters to be used when passing in an external communicator
-    logical :: mp_comm_external = .false.
-    integer :: mp_comm
+    !> MPI communicator. This MUST be set
+    integer :: mp_comm = mp_comm_null
 
     !> This is set in initialize_gs2 to the number
     !! of procs actually used
@@ -280,8 +249,11 @@ module gs2_main
     !! Cannot be used in conjunction with list mode
     integer :: nensembles = 1
 
-    ! Outputs (e.g. for Trinity)
+    !> Outputs (e.g. for Trinity)
     type(gs2_outputs_type) :: outputs
+
+    !> If true, calculate and set [[outputs]]
+    logical :: set_outputs = .false.
 
     ! Optimisation configuration
     type(optimisation_type) :: optim
@@ -292,17 +264,8 @@ module gs2_main
   end type gs2_program_state_type
 
   private
-
-  integer :: densrefspec
-  integer, dimension(:), allocatable :: gs2spec_from_trin
-
-
-  !> This object is used for implementing the old interface
-  !! and should not be modified
-  type(gs2_program_state_type) :: old_iface_state
  
 contains
-# endif
 
   !> Parse some basic command line arguments. Currently just 'version' and 'help'.
   !>
@@ -341,6 +304,8 @@ contains
       else if (argument == "--build-config") then
         write(*, '(a)') formatted_build_config()
         stop
+     else if (argument == "--") then
+        exit
       else if (argument(1:1) == "-") then
         write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
         stop 2
@@ -365,7 +330,7 @@ contains
   !! reaches init\%level = basic. If it is desired to provide
   !! an external commuicator or set the input file name externally,
   !! these should be set before calling this function. 
-  subroutine initialize_gs2(state, header, quiet)
+  subroutine initialize_gs2(state, header_in, header_out, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
     use gs2_init, only: init_gs2_init
@@ -379,10 +344,15 @@ contains
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
     use standard_header, only: standard_header_type
+#ifdef OPENMP
+    use omp_lib, only: omp_get_num_threads
+#endif
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> Header for files with build and run information
-    type(standard_header_type), intent(in), optional :: header
+    type(standard_header_type), intent(in), optional :: header_in
+    !> Get the header set by this function. Useful if `header_in` is _not_ used
+    type(standard_header_type), intent(out), optional :: header_out
     !> If true, don't print start-up messages/header
     logical, intent(in), optional :: quiet
 
@@ -391,6 +361,9 @@ contains
     type(standard_header_type) :: local_header
     ! Internal value for optional `quiet` input
     logical :: quiet_value
+#ifdef OPENMP
+    integer :: nthread
+#endif
 
     if (state%init%level .ge. init_level_list%basic) then
       write  (*,*) "ERROR: Called initialize_gs2 twice &
@@ -400,23 +373,23 @@ contains
 
     call debug_message(4, 'gs2_main::initialize_gs2 starting initialization')
 
-    if (state%mp_comm_external) then
-       call init_mp (state%mp_comm)
-    else
-       call init_mp
-    end if
+    call init_mp(state%mp_comm)
 
-    if (present(header)) then
-      local_header = header
+    if (present(header_in)) then
+      local_header = header_in
     else
       local_header = standard_header_type()
     end if
+
+    if (present(header_out)) header_out = local_header
 
     if (present(quiet)) then
       quiet_value = quiet
     else
       quiet_value = .false.
     end if
+
+    call initialize_wall_clock_timer
 
     oldrank = iproc
     if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
@@ -445,19 +418,29 @@ contains
     if (proc0) then
       ! Report number of processors being used
       if (.not. quiet_value) then
-        write(*, '(a)') local_header%to_string(comment_character=" ")
+         write(*, '(a)') local_header%to_string(comment_character=" ")
 
-        if (state%external_job_id >= 0) then
-          write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
-        end if
-        write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
-        if (nproc > 1) then
-          ! Pluralise processor
-          write(*, '(a)') "s" // new_line('a')
-        else
-          ! Make sure we still get a blank line
-          write(*,*) new_line('a')
-        end if
+         if (state%external_job_id >= 0) then
+            write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
+         end if
+         write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
+         if (nproc > 1) then
+            ! Pluralise processor
+            write(*, '(a)', advance="no") "s"
+         end if
+#ifdef OPENMP
+         !$omp parallel
+         nthread = omp_get_num_threads()
+         !$omp end parallel
+         write(*, '(A, I0, A)',advance="no") " with ", nthread, " thread"
+         if (nthread > 1) then
+            ! Pluralise thread
+            write(*, '(a)', advance="no") "s"
+         end if
+#endif
+         ! Make sure we still get a blank line
+         write(*,*) new_line('a')
+
       end if
 
       ! Call init_file_utils, ie. initialize the run_name, checking
@@ -503,7 +486,7 @@ contains
     using_measure_scatter=.false.
 
     ! Initialize the gs2 initialization system
-    call init_gs2_init(state%init)
+    call init_gs2_init()
 
     !state%gs2_initialized = .true.
     state%init%level = init_level_list%basic
@@ -764,24 +747,25 @@ contains
     use gs2_reinit, only: reset_time_step
     use gs2_reinit, only: check_time_step
     use gs2_save, only: gs2_save_for_restart
-    use gs2_time, only: user_time, user_dt, update_time, write_dt
+    use gs2_time, only: user_time, update_time, write_dt, user_dt
     use job_manage, only: time_message, checkstop, checktime
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
-    use run_parameters, only: reset, fphi, fapar, fbpar, nstep
+    use run_parameters, only: reset, fphi, fapar, fbpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
     use standard_header, only: standard_header_type
+    use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store
-    integer :: istep_loop_max
+    integer :: istep_loop_max, istep_offset
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -825,9 +809,7 @@ contains
          exit
        end if
 
-
        call time_message(.false.,state%timers%advance,' Advance time step')
-       !if (proc0) write (*,*) 'advance 1', state%timers%advance
 
        ! If we are doing a replay we don't actually evolve 
        ! the equations
@@ -871,18 +853,16 @@ contains
          end if
          if(state%exit) exit
 
-
-
          call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
 #endif
          end if
          call update_time
@@ -896,31 +876,14 @@ contains
            call loop_diagnostics (istep, state%exit)
 #ifdef NEW_DIAG
          else 
-           !if (state%replay) call broadcast(state%exit)
            call run_diagnostics (istep, state%exit, state%replay)
 #endif
          end if
        end if
-       !if (state%replay) then 
-         !!call debug_message(state%verb+1, &
-           !!'gs2_main::evolve_equations broadcasting exit')
-         !! Necessary with replay because other procs just read garbage and 
-         !! exit may be wrong
-         !!call broadcast(state%exit)
-!#ifdef NEW_DIAG
-         !if (.not. state%exit .and. istep < istep_loop_max ) then
-           !call debug_message(state%verb+1, &
-             !'gs2_main::evolve_equations rereading variable values')
-           !call run_diagnostics (istep, state%exit, .true.)
-         !end if
-!#endif          
-         !call broadcast(state%exit)
-       !end if
 
        if(state%exit) state%converged = .true.
        if (state%exit) call debug_message(state%verb+1, &
          'gs2_main::evolve_equations exit true after diagnostics')
-
 
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
        call time_message(.false.,state%timers%advance,' Advance time step')
@@ -965,8 +928,13 @@ contains
         'gs2_main::evolve_equations after reset and checks')
 
        state%istep_end = istep
-       !if (proc0) write (*,*) 'advance 2', state%timers%advance, state%exit
 
+       ! Check if the next step would exceed the maximum requested simulation time,
+       ! and if so flag that we wish to exit. Only check this if we're not already exiting.
+       if ((.not. state%exit) .and. user_time + user_dt > max_sim_time) then
+          state%exit_reason = EXIT_MAX_SIM_TIME
+          state%exit = .true.
+       end if
 
        if (state%exit) then
            call debug_message(state%verb, &
@@ -975,6 +943,23 @@ contains
        end if
 
     end do
+
+    ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
+    ! even in cases where nstep does not have nwrite as a factor.
+    if (.not. state%skip_diagnostics) then
+       ! Note when we have completed all our iterations we pass istep - 1 as we assume istep has been 
+       ! incremented once from the last step actually taken. In cases where we explicitly exit the loop
+       ! we need to pass istep instead.
+       istep_offset = 1
+       if(state%exit) istep_offset = 0
+       if (use_old_diagnostics) then
+          call loop_diagnostics (istep - istep_offset, state%exit, force = .true.)
+#ifdef NEW_DIAG
+       else
+          call run_diagnostics (istep - istep_offset, state%exit, state%replay, force = .true.)
+#endif
+       end if
+    end if
 
   ! NRM: When running inside GryfX, evolve_equations is called every timestep to
   ! advance a single timestep.
@@ -1009,7 +994,7 @@ contains
     use eigval, only: BasicSolve
 #endif 
     use job_manage, only: time_message
-    use mp, only: mp_abort, proc0
+    use mp, only: mp_abort
     type(gs2_program_state_type), intent(inout) :: state
     if (.not. state%included) return
 #ifdef WITH_EIG
@@ -1090,7 +1075,7 @@ contains
     use gs2_diagnostics_new, only: finish_gs2_diagnostics_new 
 #endif
     use job_manage, only: time_message
-    use mp, only: proc0, mp_abort
+    use mp, only: mp_abort
     use parameter_scan, only: deallocate_target_arrays
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: debug_message
@@ -1128,7 +1113,6 @@ contains
   subroutine finalize_equations(state)
     use gs2_init, only: init
     use job_manage, only: time_message
-    use mp, only: proc0
     use parameter_scan, only: finish_parameter_scan
     use unit_tests, only: debug_message
     use gs2_reinit, only: finish_gs2_reinit
@@ -1186,19 +1170,9 @@ contains
         stop 1
       end if
 
-      !if ((.not. state%gs2_initialized) .or. &
-          !state%equations_initialized .or. &
-          !state%diagnostics_initialized) then
-          !write (*,*) 'ERROR: initialize_gs2 can only be called when &
-          !& gs2_initialized is true, and equations_initialized &
-          !& and diagnostics_initialized, &
-          !& are all false. '
-         !stop 1
-       !end if
-
       call time_message(.false.,state%timers%total,' Total')
 
-      call finish_gs2_init(state%init)
+      call finish_gs2_init()
 
       if (proc0) call finish_file_utils
 
@@ -1218,15 +1192,11 @@ contains
 
     call debug_message(state%verb, 'gs2_main::finalize_gs2 calling finish_mp')
 
-    if (.not. state%mp_comm_external) call finish_mp
-
     !state%gs2_initialized = .false.
 
     state%init%level = 0
 
     if (proc0 .and. (.not. quiet_value) ) write(*, '("Run finished at ",A)') date_iso8601()
-
-    !if (.not. present(mpi_comm) .and. .not. nofin) call finish_mp
   end subroutine finalize_gs2
 
   !> FIXME : Add documentation  
@@ -1305,7 +1275,7 @@ contains
     use run_parameters, only: fphi, fapar, fbpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
     implicit none
@@ -1351,7 +1321,7 @@ contains
       !not sure that we really need to as we never read in the dumped data.
       if (proc0) call dump_ant_amp
 
-      call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar)
+      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
     endif
 
   end subroutine set_initval_overrides_to_current_vals
@@ -1483,18 +1453,154 @@ contains
     timers%main_loop = 0.
   end subroutine reset_timers
 
+  !> Gets statistics of passed real value across all processes.
+  !> Intended for use with our timers.
+  subroutine get_parallel_statistics(value_in, min_value, max_value,&
+       & mean_value, proc0_value, iproc_min, iproc_max, values_out)
+    use mp, only: nproc, iproc, sum_allreduce
+    implicit none
+    real, intent(in) :: value_in
+    real, intent(out) :: min_value, max_value, mean_value, proc0_value
+    integer, intent(out) :: iproc_min, iproc_max
+    real, dimension(:), allocatable, intent(out), optional :: values_out
+    real, dimension(:), allocatable :: values
+
+    allocate(values(0:nproc-1))
+    values = 0
+    values(iproc) = value_in
+    call sum_allreduce(values)
+    if(present(values_out)) values_out = values
+
+    min_value = minval(values)
+    max_value = maxval(values)
+    mean_value = sum(values)/nproc
+    proc0_value = values(0)
+
+    iproc_min = minloc(values, dim = 1) - 1
+    iproc_max = maxloc(values, dim = 1) - 1
+  end subroutine get_parallel_statistics
+
+  !> Writes the timing information statistics to optional passed unit
+  subroutine write_time_parallel_statistics(timers, report_unit)
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0, get_mp_times
+    use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
+    use fields_arrays, only: time_field, time_field_mpi
+    use gs2_reinit, only: time_reinit
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
+    implicit none
+    !> Timing information
+    type(gs2_timers_type), intent(in) :: timers
+    integer, intent(in), optional :: report_unit
+    integer :: unit
+    real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
+    real :: redist_total, redist_mpi, redist_copy
+    !> Helper type to hold timer data. There might be some
+    !> utility in making this avaiable outside of this routine.
+    type timer_data
+       real :: time
+       character(len=:), allocatable :: name
+    end type timer_data
+    type(timer_data), dimension(:), allocatable :: timer_dat
+    integer :: i
+
+    ! Make sure unit is set on proc0. Open an output file if required
+    if (proc0) then
+       if (present(report_unit)) then
+          unit = report_unit
+       else
+          call open_output_file(unit, '.timing_stats')
+       end if
+    end if
+
+    call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+    call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+    timer_dat = [ &
+         timer_data(timers%init(1), "Initialization"), &
+         timer_data(timers%advance(1), "Advance steps"), &
+#ifdef WITH_EIG
+         timer_data(timers%eigval(1), "Eigensolver"), &
+#endif
+         timer_data(time_field(1), "field solve"), &
+         timer_data(time_field_mpi, "field solve mpi"), &
+         timer_data(time_vspace_derivatives(1), "collisions"), &
+         timer_data(time_vspace_derivatives_mpi, "collisions mpi"), &
+         timer_data(time_add_explicit_terms(1), "explicit/nl"), &
+         timer_data(time_add_explicit_terms_mpi, "explicit/nl mpi"), &
+         timer_data(time_fft(1), "explicit/nl fft"), &
+         timer_data(time_add_explicit_terms_field(1), 'explicit/nl fields'), &
+         timer_data(timers%diagnostics(1), "diagnostics"), &
+         timer_data(time_reinit(1), "Re-initialize"), &
+         timer_data(redist_total, "Redistribute"), &
+         timer_data(redist_mpi, "redistribute mpi"), &
+         timer_data(redist_copy, "redistribute copy"), &
+         timer_data(timers%finish(1), "Finishing"), &
+         timer_data(mp_total, "MPI"), &
+         timer_data(mp_over, "Overheads"), &
+         timer_data(mp_coll, "Collectives"), &
+         timer_data(mp_ptp, "PTP"), &
+         timer_data(mp_sync, "Sync"), &
+         timer_data(timers%total(1), "Total") &
+         ]
+
+    call write_parallel_statistics_header()
+    do i = 1, size(timer_dat)
+       call write_parallel_statistics(timer_dat(i)%time, timer_dat(i)%name)
+    end do
+
+    ! If we opened it in this routine then close the opened output file
+    if (proc0 .and. .not. present(report_unit)) call close_output_file(unit)
+
+  contains
+    subroutine write_parallel_statistics_header()
+      implicit none
+      if (proc0) then
+         write(unit, '(a,T25,4(a9," "),T70,a,T77,a)') "Region", &
+              "Min (s)", "Max (s)", "Mean (s)", "P0 (s)", &
+              "Ip min", "Ip max"
+         write(unit, '(83("-"))')
+      end if
+    end subroutine write_parallel_statistics_header
+
+    subroutine write_parallel_statistics(time_value, name)
+      implicit none
+      real, intent(in) :: time_value
+      character(len=*), intent(in) :: name
+      real :: min_value, max_value, mean_value, proc0_value
+      integer :: iproc_min, iproc_max
+
+      call get_parallel_statistics(time_value, &
+           min_value, max_value, mean_value, proc0_value, &
+           iproc_min, iproc_max)
+
+      if (proc0) then
+         write(unit, '(a,T25,4(0pf9.3," "),T70,I0,T77,I0)') name, &
+           min_value, max_value, mean_value, proc0_value, &
+           iproc_min, iproc_max
+      end if
+    end subroutine write_parallel_statistics
+
+  end subroutine write_time_parallel_statistics
+
   !> Print timing information to standard output.
   !>
   !> Prints a full breakdown of timing information if `state%print_full_timers`
   !> is true, otherwise just prints the total time.
   subroutine print_times(state, timers)
+    use run_parameters, only: save_timer_statistics
     use mp, only: proc0, min_reduce, max_reduce, sum_reduce, job
     use mp, only: get_mp_times
     use redistribute, only: get_redist_times
+    use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use gs2_reinit, only: time_reinit
-    use le_derivatives, only: time_vspace_derivatives
-    use nonlinear_terms, only: time_add_explicit_terms
+    use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
+    use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
+    use nonlinear_terms, only: time_add_explicit_terms_field
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     use memory_usage, only: print_memory_usage
 #endif
@@ -1505,51 +1611,42 @@ contains
     type(gs2_timers_type), intent(in) :: timers
     real :: mp_total, mp_over, mp_coll, mp_ptp, mp_sync
     real :: redist_total, redist_mpi, redist_copy
+
+    if (save_timer_statistics) call write_time_parallel_statistics(timers)
+
     if (.not. proc0) return
 
     if (state%print_full_timers) then
-       call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
-       call get_redist_times(redist_total, redist_mpi, redist_copy)
+      call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
+      call get_redist_times(redist_total, redist_mpi, redist_copy)
+
+      !Blank line to force separation from other outputs
+      write(*, '("")')
+      write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
+      write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
-      print '(/,'' Eigensolver'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/)', &
-           timers%eigval(1)/60.,timers%eigval(1)/timers%total(1)
+      write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
 #endif
-      print '(/,'' Initialization'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Advance steps'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(field solve'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(field solve mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(collisions'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(explicit/nl'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(diagnostics'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' Re-initialize'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/, &
-           &'' Redistribute  '',T25,0pf9.3,'' min'',T40,2pf5.1,'' %'',/, &
-           &''(redistribute mpi'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(redistribute copy'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' Finishing'',T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-           &A,T25,0pf8.2,'' min'',T40,2pf5.1,'' %'',/,  &
-           &''(Overheads'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(Collectives'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(PTP'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &''(Sync'',T25,0pf9.3,'' min'',T40,2pf5.1,'' %)'',/, &
-           &'' total from timer is:'', 0pf9.2,'' min'',/)', &
-           timers%init(1)/60.,timers%init(1)/timers%total(1), &
-           timers%advance(1)/60.,timers%advance(1)/timers%total(1), &
-           time_field(1)/60.,time_field(1)/timers%total(1), &
-           time_field_mpi/60.,time_field_mpi/timers%total(1), &
-           time_vspace_derivatives(1)/60.,time_vspace_derivatives(1)/timers%total(1), &
-           time_add_explicit_terms(1)/60.,time_add_explicit_terms(1)/timers%total(1), &
-           timers%diagnostics(1)/60.,timers%diagnostics(1)/timers%total(1), &
-           time_reinit(1)/60.,time_reinit(1)/timers%total(1), &
-           redist_total/60.,redist_total/timers%total(1), &
-           redist_mpi/60.,redist_mpi/timers%total(1), &
-           redist_copy/60.,redist_copy/timers%total(1), &
-           timers%finish(1)/60.,timers%finish(1)/timers%total(1), &
-           " MPI",mp_total/60., mp_total/timers%total(1), &
-           mp_over/60., mp_over/timers%total(1), &
-           mp_coll/60., mp_coll/timers%total(1), &
-           mp_ptp/60., mp_ptp/timers%total(1), &
-           mp_sync/60., mp_sync/timers%total(1), &
-           timers%total(1)/60.
+      write(*, '("(", a, ")")') formatted_time("field solve", time_field(1))
+      write(*, '("(", a, ")")') formatted_time("field solve mpi", time_field_mpi)
+      write(*, '("(", a, ")")') formatted_time("collisions", time_vspace_derivatives(1))
+      write(*, '("(", a, ")")') formatted_time("collisions mpi", time_vspace_derivatives_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl", time_add_explicit_terms(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl mpi", time_add_explicit_terms_mpi)
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fft", time_fft(1))
+      write(*, '("(", a, ")")') formatted_time("explicit/nl fields", time_add_explicit_terms_field(1))
+      write(*, '("(", a, ")")') formatted_time("diagnostics", timers%diagnostics(1))
+      write(*, '(" ", a)') formatted_time("Re-initialize", time_reinit(1))
+      write(*, '(" ", a)') formatted_time("Redistribute", redist_total)
+      write(*, '("(", a, ")")') formatted_time("redistribute mpi", redist_mpi)
+      write(*, '("(", a, ")")') formatted_time("redistribute copy", redist_copy)
+      write(*, '(" ", a)') formatted_time("Finishing", timers%finish(1))
+      write(*, '(" ", a)') formatted_time("MPI" ,mp_total)
+      write(*, '("(", a, ")")') formatted_time("Overheads", mp_over)
+      write(*, '("(", a, ")")') formatted_time("Collectives", mp_coll)
+      write(*, '("(", a, ")")') formatted_time("PTP", mp_ptp)
+      write(*, '("(", a, ")")') formatted_time("Sync", mp_sync)
+      write(*, '(" total from timer is:", 0pf9.2, " min", /)') timers%total(1) / 60.
     else
       if (state%external_job_id >= 0) then
         write(*, '(a, i0, ", ")', advance="no") " External job ID: ", state%external_job_id
@@ -1564,6 +1661,16 @@ contains
 #ifdef GS2_EXPERIMENTAL_ENABLE_MEMORY_USAGE
     call print_memory_usage
 #endif
+  contains
+    !> Print a single formatted timer line
+    character(len=46) function formatted_time(name, timer)
+      !> Name of the timer
+      character(len=*), intent(in) :: name
+      !> Time in seconds
+      real, intent(in) :: timer
+
+      write(formatted_time, "(a, T25, 0pf9.3, ' min', T40, 2pf5.1, ' %')") name, timer / 60., timer/timers%total(1)
+    end function formatted_time
   end subroutine print_times
 
   !> FIXME : Add documentation  
@@ -1587,412 +1694,98 @@ contains
     end if
   end subroutine deallocate_outputs
 
-  !> This is the main subroutine in which gs2 is initialized, equations are advanced,
-  !!   and the program is finalized.
-  !! \section Basic Structure 
-  !!  This subroutine broadly falls into 3 sections: 
-  !! -# Initialisation -  allocate arrays, calculate the response matrix etc.
-  !! -# Running -  a loop which runs for run_parameters::nstep time steps, unless the code
-  !!  is prematurely halted either through an error, reaching the available 
-  !!  time limit or manually  (by using the command $ touch run_name.stop).
-  !! -# Finishing up:  writing out results, deallocating arrays.
-  !! \section Details
-  !! -# Initialisation
-  !!  - Initialize message passing 
-  !!  - Initialize timer 
-  !!  - Report numer of processors being used 
-  !!  - If it is a Trinity run then filename (the name of the input file) 
-  !!  is passed to  init_file_utils
-  !!  - Otherwise, figure out run name or get list of jobs 
-  !!  - If given a list of jobs, fork  
-  !! \section arguments Arguments
-  !! All arguments are optional and are not used for gs2. 
-  !! (EGH - used for Trinity?)
-  subroutine run_gs2 (mpi_comm, job_id, filename, nensembles, &
-       pflux, qflux, vflux, heat, dvdrho, grho, trinity_reset, converged)
-    use job_manage, only: trin_reset   
-    use job_manage, only: trin_restart, trin_reset, time_message
-    use unit_tests, only: functional_test_flag
-    use mp, only: proc0
-    use old_interface_store, only: override_profiles, override_miller_geometry
-    use exit_codes, only: EXIT_NSTEP
+  !> The main entry point into GS2, runs a single GS2 simulation
+  !>
+  !> A complete, minimal use of this to run a single, complete
+  !> simulation is:
+  !>
+  !>     program gs2
+  !>       use mp, only: init_mp, mp_comm, finish_mp
+  !>       use gs2_main, only : run_gs2, gs2_program_state_type
+  !>       implicit none
+  !>       type(gs2_program_state_type) :: state
+  !>       call init_mp
+  !>       state%mp_comm = mp_comm
+  !>       call run_gs2(state)
+  !>       call finish_mp
+  !>     end program gs2
+  !>
+  !> This will initialise all the GS2 internals, evolve the equations
+  !> (or run the eigensolver), and then finalise the internals
+  !> (writing files to disk, deallocating memory, and so on).
+  !>
+  !> You can also not finalise the simulation, which can be useful if
+  !> you want read or modify the fields, for example. In this case,
+  !> you *must* call [[finish_gs2]] when you're done:
+  !>
+  !>     ! Optionally modify the state and input options
+  !>     call run_gs2(state, finalize=.false.)
+  !>     ! Do some interesting things
+  !>     call finish_gs2(state)
+  !>
+  !> This pattern is also useful if you want to run many GS2
+  !> simulations in the same process.
+  subroutine run_gs2(state, finalize)
+    use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
+    use mp, only: proc0, init_mp
+    use standard_header, only: standard_header_type
+    use optionals, only : get_option_with_default
     implicit none
+    !> State of the GS2 simulation. Used to modify the behaviour of
+    !> GS2 and/or to programmatically get information about the
+    !> simulation on completion.
+    type(gs2_program_state_type), intent(inout) :: state
+    !> If `.true.` (default), then GS2 is finalised, end-of-simulation
+    !> diagnostics are computed, files are closed, arrays are
+    !> deallocated, and so on.
+    !>
+    !> If this is set to `.false.`, (for example, because you want to
+    !> read the state of the fields before the arrays are deallocated)
+    !> then you MUST pass in `state` and call [[finish_gs2]] with that
+    !> state object to ensure GS2 is finalised correctly.
+    logical, optional, intent(in) :: finalize
 
-    integer, intent (in), optional :: mpi_comm, job_id, nensembles
-    character (*), intent (in), optional :: filename
-    real, dimension (:), intent (out), optional :: pflux, qflux, heat
-    real, intent (out), optional :: vflux
-    real, intent (out), optional :: dvdrho, grho
-    logical, intent (in), optional :: trinity_reset
-    logical, intent (out), optional :: converged
-
-    logical, save :: first_time = .true.
+    logical :: local_finalize
+    type(standard_header_type) :: local_header
 
     call parse_command_line()
 
-    ! HJL tests on Trinity optionals for load balancing
-    old_iface_state%external_job_id = -1
-    if(present(job_id)) then
-      old_iface_state%external_job_id = job_id + 1
-      old_iface_state%is_trinity_job = .true.
-      old_iface_state%is_external_job = .true.
-    end if
-    if(present(trinity_reset)) then
-       old_iface_state%converged = .false.
-       trin_reset = trinity_reset
-       first_time = .true.
-    endif
-    if (present(filename)) then
-      old_iface_state%run_name_external = .true.
-      old_iface_state%run_name = filename
-    end if
-    if (present(mpi_comm)) then
-      old_iface_state%mp_comm_external = .true.
-      old_iface_state%mp_comm = mpi_comm
-    end if
-    if (present(nensembles)) then
-      old_iface_state%nensembles = nensembles
-    end if
-    if(present(trinity_reset)) trin_restart = .true. ! All trinity runs are restarted except the first
+    local_finalize = get_option_with_default(finalize, .true.)
 
-    if (first_time) then
-      call initialize_wall_clock_timer
-      call initialize_gs2(old_iface_state)
-      if (override_profiles .or. override_miller_geometry) then 
-        call time_message(.false., old_iface_state%timers%init,' Initialization')
-        call old_interface_set_overrides
-        call time_message(.false., old_iface_state%timers%init,' Initialization')
-      end if
-      call initialize_equations(old_iface_state)
-      call initialize_diagnostics(old_iface_state)
-      first_time = .false.
-    endif !firstime
+    call initialize_gs2(state, header_out=local_header)
+    call initialize_equations(state)
+    call initialize_diagnostics(state, header=local_header)
 
+    call write_used_inputs_file(header=local_header)
 
-    if(old_iface_state%do_eigsolve)then
-       call run_eigensolver(old_iface_state)
+    state%print_times = .false.
+    if (state%do_eigsolve) then
+      call run_eigensolver(state)
     else
-       call evolve_equations(old_iface_state, old_iface_state%nstep)
-       if (old_iface_state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) old_iface_state%exit_reason = EXIT_NSTEP
-    endif
-    if(proc0) call old_iface_state%exit_reason%write_exit_file()
-
-    if (present(converged)) converged = old_iface_state%converged
-
-
-    if (present(pflux) .or. present(dvdrho) .or. present(grho)) then
-      call calculate_outputs(old_iface_state)
+      call evolve_equations(state, state%nstep)
+      if (state%exit_reason%is_identical(EXIT_NOT_REQUESTED)) state%exit_reason = EXIT_NSTEP
     end if
-    if (present(dvdrho)) dvdrho = old_iface_state%outputs%dvdrho
-    if (present(grho)) grho = old_iface_state%outputs%grho
-    if (present(pflux)) then
-      pflux = old_iface_state%outputs%pflux
-      qflux = old_iface_state%outputs%qflux
-      vflux = old_iface_state%outputs%vflux
-      heat = old_iface_state%outputs%heat
-    else
-       if (.not. functional_test_flag ) &
-         call finalize_diagnostics(old_iface_state) 
-    end if
+    if(proc0) call state%exit_reason%write_exit_file()
 
-    if (.not. present(mpi_comm) .and. .not. functional_test_flag) then 
-      call finalize_equations(old_iface_state)
-      call finalize_gs2(old_iface_state)
+    if (state%set_outputs) call calculate_outputs(state)
+
+    if (local_finalize) then
+      state%print_times = .true.
+      call finish_gs2(state)
     end if
-    
   end subroutine run_gs2
-  
-  !> FIXME : Add documentation
-  subroutine trin_finish_gs2
 
-    call finalize_diagnostics(old_iface_state)
-    call finalize_equations(old_iface_state)
-    call finalize_gs2(old_iface_state)
-    call finalize_overrides(old_iface_state)
-
-  end subroutine trin_finish_gs2
-
-  !> FIXME : Add documentation  
-  subroutine finish_gs2
-    use antenna, only: finish_antenna
-    use collisions, only: finish_collisions
-    use dist_fn, only: finish_dist_fn
-    use fields, only: finish_fields
-    use file_utils, only: finish_file_utils
-    use hyper, only: finish_hyper
-    use init_g, only: finish_init_g
-    use kt_grids, only: finish_kt_grids
-    use le_grids, only: finish_le_grids
-    use parameter_scan, only: finish_parameter_scan
-    use mp, only: proc0
-    use nonlinear_terms, only: finish_nonlinear_terms
-    use run_parameters, only: finish_run_parameters
-    use species, only: finish_species
-    use theta_grid, only: finish_theta_grid
-    use gs2_transforms, only: finish_transforms
-    use gs2_save, only: finish_gs2_save
-    use normalisations, only: finish_normalisations
-    implicit none
-
-    call finish_normalisations
-    call finish_antenna
-    call finish_collisions
-    call finish_dist_fn
-    call finish_fields
-    call finish_hyper
-    call finish_init_g
-    call finish_theta_grid
-    call finish_kt_grids
-    call finish_le_grids
-    call finish_nonlinear_terms
-    call finish_run_parameters
-    call finish_species
-    call finish_parameter_scan
-    call finish_transforms
-    call finish_gs2_save
-    if (proc0) call finish_file_utils
-
+  !> Finish and cleanup a complete simulation
+  subroutine finish_gs2(state, quiet)
+    !> An existing, initialisation simulation state
+    type(gs2_program_state_type), intent(inout) :: state
+    logical, intent(in), optional :: quiet
+    call finalize_diagnostics(state)
+    call finalize_equations(state)
+    call finalize_gs2(state, quiet)
   end subroutine finish_gs2
 
-  !> FIXME : Add documentation  
-  subroutine reset_gs2 (ntspec, dens, temp, fprim, tprim, gexb, mach, nu, nensembles)
-    use dist_fn, only: dist_fn_g_exb => g_exb
-    use gs2_init, only: init, init_level_list
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
-    use gs2_diagnostics, only: gd_reset => reset_init
-    use gs2_save, only: gs2_save_for_restart!, gs_reset => reset_init
-    use dist_fn_arrays, only: gnew
-    use gs2_time, only: code_dt, save_dt
-    use mp, only: scope, subprocs, allprocs
-    use mp, only: mp_abort
-    use run_parameters, only: trinity_linear_fluxes
-    use species, only: nspec
-    use species, only: determine_species_order
-    use run_parameters, only: use_old_diagnostics
-#ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: reset_averages_and_counters
-#endif
-
-    implicit none
-
-    integer, intent (in) :: ntspec, nensembles
-    real, intent (in) :: gexb, mach
-    real, dimension (:), intent (in) :: dens, fprim, temp, tprim, nu
-    integer :: is
-    integer :: isg
-    logical :: temp_initval_override_store
-
-    real :: dummy
-
-    !integer :: istatus
-
-    ! doing nothing with gexb or mach for now, but in future will need to when
-    ! using GS2 to evolve rotation profiles in TRINITY
-    ! EGH add a check for this.
-    if (gexb .ne. dist_fn_g_exb) call mp_abort(&
-      "ERROR: Changing g_exb in gs2_reset is not implemented yet.", .true.)
-    if (ntspec .gt. nspec) call mp_abort(&
-      "Cannot pass more species to reset_gs2 than nspec", .true.)
-    ! To prevent compiler warnings
-    dummy = mach
-    dummy = gexb
-
-
-    if (nensembles > 1) call scope (subprocs)
-
-    if (trinity_linear_fluxes.and.nonlinear_mode_switch.eq.nonlinear_mode_none) &
-      call reset_linear_magnitude
-
-
-    call prepare_initial_values_overrides(old_iface_state)
-    call set_initval_overrides_to_current_vals(old_iface_state%init%initval_ov)
-    temp_initval_override_store = old_iface_state%init%initval_ov%override 
-    old_iface_state%init%initval_ov%override = .true.
-
-    ! EGH is this line necessary?
-    gnew = 0.
-    call save_dt (code_dt)
-    ! This call to gs2_diagnostics::reset_init sets some time averages
-    ! and counters to zero... used mainly for trinity convergence checks.
-    if (use_old_diagnostics) then
-      call gd_reset
-    else
-#ifdef NEW_DIAG
-      call reset_averages_and_counters
-#endif
-    end if
-
-    call prepare_profiles_overrides(old_iface_state)
-
-
-    call determine_gs2spec_from_trin(ntspec)
-    do is = 1,nspec
-      isg = gs2spec_from_trin(is)
-      old_iface_state%init%prof_ov%override_dens(isg) = .true.
-      old_iface_state%init%prof_ov%dens(isg) = dens(is)/dens(densrefspec)
-
-      old_iface_state%init%prof_ov%override_temp(isg) = .true.
-      old_iface_state%init%prof_ov%temp(isg) = temp(is)/temp(1)
-
-      old_iface_state%init%prof_ov%override_fprim(isg) = .true.
-      old_iface_state%init%prof_ov%fprim(isg) = fprim(is)
-
-      old_iface_state%init%prof_ov%override_tprim(isg) = .true.
-      old_iface_state%init%prof_ov%tprim(isg) = tprim(is)
-
-      old_iface_state%init%prof_ov%override_vnewk(isg) = .true.
-      old_iface_state%init%prof_ov%vnewk(isg) = nu(is)
-
-      !call override(old_iface_state, odens, gs2spec_from_trin(is), dens(is)/dens(densrefspec))
-      !! Temp is always normalised to the main ions
-      !call override(old_iface_state, otemp, gs2spec_from_trin(is), temp(is)/temp(1))
-      !call override(old_iface_state, ofprim, gs2spec_from_trin(is), fprim(is))
-      !call override(old_iface_state, otprim, gs2spec_from_trin(is), tprim(is))
-      !call override(old_iface_state, ovnewk, gs2spec_from_trin(is), nu(is))
-    end do
-
-    !old_iface_state%init%prof_ov%override_g_exb = .true.
-    !old_iface_state%init%prof_ov%g_exb = gexb
-    !old_iface_state%init%prof_ov%override_mach = .true.
-    !old_iface_state%init%prof_ov%mach = mach
-
-    !call override(old_iface_state, og_exb, gexb)
-    ! mach doesn't do anything atm
-    !call override(old_iface_state, omach, mach)
-
-    call init(old_iface_state%init, init_level_list%full)
-    old_iface_state%istep_end = 1
-    old_iface_state%init%initval_ov%override = temp_initval_override_store
-    if (nensembles > 1) call scope (allprocs)
-
-
-  end subroutine reset_gs2
-
-  !> FIXME : Add documentation  
-  subroutine old_interface_set_overrides
-    use old_interface_store
-    use gs2_init, only: init
-    implicit none
-    integer :: is, isg
-
-    if (override_miller_geometry) then 
-      call prepare_miller_geometry_overrides(old_iface_state)
-      old_iface_state%init%mgeo_ov%override_rhoc = .true.
-      old_iface_state%init%mgeo_ov%rhoc = rhoc_store
-      old_iface_state%init%mgeo_ov%override_qinp = .true.
-      old_iface_state%init%mgeo_ov%qinp = qval_store
-      old_iface_state%init%mgeo_ov%override_shat = .true.
-      old_iface_state%init%mgeo_ov%shat = shat_store
-      old_iface_state%init%mgeo_ov%override_rgeo_lcfs = .true.
-      old_iface_state%init%mgeo_ov%rgeo_lcfs = rgeo_lcfs_store
-      old_iface_state%init%mgeo_ov%override_rgeo_local = .true.
-      old_iface_state%init%mgeo_ov%rgeo_local = rgeo_local_store
-      old_iface_state%init%mgeo_ov%override_aSurf = .true.
-      old_iface_state%init%mgeo_ov%aSurf = aSurf_store
-      old_iface_state%init%mgeo_ov%override_shift = .true.
-      old_iface_state%init%mgeo_ov%shift = shift_store
-      old_iface_state%init%mgeo_ov%override_shiftVert = .true.
-      old_iface_state%init%mgeo_ov%shiftVert = shiftVert_store
-      old_iface_state%init%mgeo_ov%override_deltam = .true.
-      old_iface_state%init%mgeo_ov%deltam = deltam_store
-      old_iface_state%init%mgeo_ov%override_deltan = .true.
-      old_iface_state%init%mgeo_ov%deltan = deltan_store
-      old_iface_state%init%mgeo_ov%override_deltampri = .true.
-      old_iface_state%init%mgeo_ov%deltampri = deltampri_store
-      old_iface_state%init%mgeo_ov%override_deltanpri = .true.
-      old_iface_state%init%mgeo_ov%deltanpri = deltanpri_store
-      old_iface_state%init%mgeo_ov%override_thetam = .true.
-      old_iface_state%init%mgeo_ov%thetam = thetam_store
-      old_iface_state%init%mgeo_ov%override_thetan = .true.
-      old_iface_state%init%mgeo_ov%thetan = thetan_store
-      old_iface_state%init%mgeo_ov%override_betaprim = .true.
-      old_iface_state%init%mgeo_ov%betaprim = betaprim_store
-    end if
-
-
-    if (override_profiles) then
-      call prepare_profiles_overrides(old_iface_state)
-      call determine_gs2spec_from_trin(ntspec_store)
-      do is = 1,ntspec_store
-        isg = gs2spec_from_trin(is)
-        old_iface_state%init%prof_ov%override_dens(isg) = .true.
-        old_iface_state%init%prof_ov%dens(isg) = dens_store(is)/dens_store(densrefspec)
-
-        old_iface_state%init%prof_ov%override_temp(isg) = .true.
-        old_iface_state%init%prof_ov%temp(isg) = temp_store(is)/temp_store(1)
-
-        old_iface_state%init%prof_ov%override_fprim(isg) = .true.
-        old_iface_state%init%prof_ov%fprim(isg) = fprim_store(is)
-
-        old_iface_state%init%prof_ov%override_tprim(isg) = .true.
-        old_iface_state%init%prof_ov%tprim(isg) = tprim_store(is)
-
-        old_iface_state%init%prof_ov%override_vnewk(isg) = .true.
-        old_iface_state%init%prof_ov%vnewk(isg) = nu_store(is)
-      end do
-    end if
-    override_profiles = .false.
-    override_miller_geometry = .false.
-  end subroutine old_interface_set_overrides
-
-  !> FIXME : Add documentation  
-  subroutine determine_gs2spec_from_trin(ntspec, trin_multispec_in)
-    use species, only: determine_species_order, impurity, ions
-    use species, only: electrons
-    use mp, only: mp_abort
-    integer, intent(in) :: ntspec
-    !> This is true if we are using multispecies post Sep-2105 Trinity 
-    !! In this case the electrons in Trinity are the first species
-    !! rather than the second
-    logical, intent(in), optional :: trin_multispec_in
-    logical :: trin_multispec
-
-    if (present(trin_multispec_in)) then
-      trin_multispec = trin_multispec_in
-    else
-      trin_multispec = .false.
-    end if
-
-    call determine_species_order
-    if (.not. allocated(gs2spec_from_trin)) allocate(gs2spec_from_trin(ntspec))
-    !write (*,*) 'IONS', ions, 'ELECTRONS', electrons, 'IMPURITY', impurity
-    if (ntspec==1) then
-      ! This is never the case in multispecies Trinity 
-      gs2spec_from_trin(1) = ions
-      ! ref temp is always ions (trin spec 1)
-      ! For one species, reference dens is ions
-      densrefspec = 1
-    else if (ntspec==2) then 
-      if (trin_multispec) then
-        gs2spec_from_trin(1) = electrons
-        gs2spec_from_trin(2) = ions
-        densrefspec = 2 ! The ref density is now the main ions
-      else
-        gs2spec_from_trin(1) = ions
-        gs2spec_from_trin(2) = electrons
-        ! For two species or more, ref dens is electrons (trin spec 2)
-        densrefspec = 2
-      end if
-    else if (ntspec==3) then
-      if (trin_multispec) then
-        gs2spec_from_trin(1) = electrons
-        gs2spec_from_trin(2) = ions
-        gs2spec_from_trin(3) = impurity
-        densrefspec = 2 ! The ref density is now the main ions
-      else
-        gs2spec_from_trin(1) = ions
-        gs2spec_from_trin(2) = electrons
-        gs2spec_from_trin(3) = impurity
-        ! For two species or more, ref dens is electrons (trin spec 2)
-        densrefspec = 2
-      end if
-    else
-      call mp_abort("Can't handle more than 3 species in &
-       & determine_gs2spec_from_trin", .true.)
-    end if
-  end subroutine determine_gs2spec_from_trin
-
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine reset_linear_magnitude
     use dist_fn_arrays, only: g, gnew
     use fields, only: set_init_fields
@@ -2049,65 +1842,11 @@ contains
       end if
   end subroutine write_trinity_parameters
 
-  !> FIXME : Add documentation  
-  subroutine gs2_trin_init (rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert, &
-       deltam, deltan, deltampri, deltanpri, thetam, thetan, &
-       betaprim, ntspec, dens, temp, fprim, tprim, gexb, mach, nu, use_gs2_geo)
-
-    use old_interface_store
-
-    implicit none
-
-    integer, intent (inout) :: ntspec
-    real, intent (inout) :: rhoc, qval, shat, rgeo_lcfs, rgeo_local, aSurf, shift, shiftVert
-    real, intent (inout) :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-    real, intent (inout) :: betaprim, gexb, mach
-    real, dimension (:), intent (inout) :: dens, fprim, temp, tprim, nu
-    logical, intent (inout) :: use_gs2_geo
-
-    ! for now do nothing with gexb or mach, but need to include later if want to use GS2
-    ! with TRINITY to evolve rotation profiles
-     if (.not. allocated(dens_store)) then
-       allocate(dens_store(ntspec))
-       allocate(temp_store(ntspec))
-       allocate(tprim_store(ntspec))
-       allocate(fprim_store(ntspec))
-       allocate(nu_store(ntspec))
-     end if
-     ntspec_store = ntspec
-     dens_store = dens
-     temp_store = temp
-     tprim_store = tprim
-     fprim_store = fprim
-     nu_store = nu
-     override_profiles = .true.
-     if (.not. use_gs2_geo) then
-       rhoc_store = rhoc
-       qval_store = qval
-       shat_store = shat
-       rgeo_lcfs_store = rgeo_lcfs
-       rgeo_local_store = rgeo_local
-       aSurf_store = aSurf
-       shift_store = shift
-       shiftVert_store = shiftVert
-       deltam_store = deltam
-       deltan_store = deltan
-       deltampri_store = deltampri
-       deltanpri_store = deltanpri
-       thetam_store = thetam
-       thetan_store = thetan
-       betaprim_store = betaprim
-       override_miller_geometry = .true.
-     end if
-     
-    
-  end subroutine gs2_trin_init
-
   !> Write an input file containing the current state of all input
   !> parameters
   subroutine write_used_inputs_file(header)
     use mp, only: proc0
-    use file_utils, only: get_unused_unit, run_name
+    use file_utils, only: open_output_file, close_output_file, run_name
     use standard_header, only: standard_header_type
     use config_collection, only : gs2_config_type
 
@@ -2130,8 +1869,7 @@ contains
     end if
 
     call input_config%get_configs()
-    call get_unused_unit(used_inputs_unit)
-    open(unit=used_inputs_unit, action="write", file=trim(run_name)//".used_inputs.in")
+    call open_output_file(used_inputs_unit, ".used_inputs.in")
     write(unit=used_inputs_unit, fmt='(a)') &
          local_header%to_string( &
          comment_character="! ", &
@@ -2139,12 +1877,8 @@ contains
          )
 
     call input_config%write_to_unit(used_inputs_unit)
-    close(used_inputs_unit)
+    call close_output_file(used_inputs_unit)
 
   end subroutine write_used_inputs_file
 
-# ifndef MAKE_LIB
 end module gs2_main
-# endif
-
-

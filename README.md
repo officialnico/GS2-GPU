@@ -1,6 +1,6 @@
 # GS2
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.5772100.svg)](https://doi.org/10.5281/zenodo.5772100)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6882296.svg)](https://doi.org/10.5281/zenodo.6882296)
 
 [![gitlab pipeline status](https://gitlab.com/gyrokinetics/gs2/badges/master/pipeline.svg)](https://gitlab.com/gyrokinetics/gs2/commits/master)
 [![Coverage Status](https://coveralls.io/repos/bitbucket/gyrokinetics/gs2/badge.svg?branch=master)](https://coveralls.io/bitbucket/gyrokinetics/gs2?branch=master)
@@ -33,17 +33,45 @@ along with other tags and branches on the
 
 ## Dependencies
 
+GS2 requires a Fortran compiler that supports at least the F2008 standard. We
+regularly test with gfortran 11 and Intel 2022.
+
+We recommend using at least gfortran 9.3, or Intel 19. Earlier versions may
+still work but we can make no guarantees.
+
 GS2 has no required external dependencies, but does have the following
 optional ones:
 
 - MPI
 - NetCDF (requires >= v4.2.0)
-- HDF5 (only required for parallel netCDF)
 - FFTW (support for v2 will be dropped in the near future)
 - LAPACK
 - NAG
 - python (required for code generation, tests and documentation,
   requires >= 3.6)
+
+### Fortran standard features
+
+Some compilers still only support a subset of the F2003/F2008 standards. The
+below is a non-exhaustive list of features from these standards that
+we require. You can try building the [Fortran
+Features](https://bitbucket.org/gyrokinetics/fortran-features/) repo
+to see if your compiler supports the features we require.
+
+#### Fortran 2003
+
+- object oriented features, including:
+    - type-bound procedures
+    - runtime polymorphism, including `class(*)`
+- allocatable `character`
+- `import` in `interface`
+- `iso_c_binding` intrinsic module
+
+#### Fortran 2008
+
+- `iso_fortran_env` intrinsic module, including:
+    - kind constants
+    - `compiler_version` and `compiler_options`
 
 ## Developing GS2
 

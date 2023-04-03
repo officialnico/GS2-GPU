@@ -1,0 +1,8 @@
+
+&nonlinear_terms_knobs
+  cfl                                      =  1.00000000000E+00
+  nonlinear_mode                           =  "on"
+  split_nonlinear                          =  F
+/
+
+!include test_cyclone_itg_flux_base.in

@@ -37,12 +37,10 @@ contains
   end subroutine init_diagnostics_velocity_space
 
   !> FIXME : Add documentation  
-  subroutine finish_diagnostics_velocity_space(gnostics)
+  subroutine finish_diagnostics_velocity_space()
     use le_grids, only: finish_weights
     use mp, only: proc0
-    use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics 
     if (proc0) call finish_weights
   end subroutine finish_diagnostics_velocity_space
 
@@ -50,7 +48,7 @@ contains
   subroutine write_velocity_space_checks(gnostics)
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -113,13 +111,13 @@ contains
       end if
    end if
    
-   if (proc0 .and. gnostics%write_ascii) call write_ascii
+   if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
    deallocate(errest,erridx)
    
  contains
    !> FIXME : Add documentation   
    subroutine write_ascii
-     if (nlambda - ng2 > 1) then
+     if (grid_has_trapped_particles()) then
         write(gnostics%ascii_files%lpc,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
      else
         write(gnostics%ascii_files%lpc,"(3(1x,e13.6))") user_time, geavg, glavg

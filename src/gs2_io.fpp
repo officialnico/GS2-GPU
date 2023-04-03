@@ -683,7 +683,6 @@ contains
     complex, dimension (:), intent (in) :: phi00
     complex, dimension (:,:), intent (in) :: ntot00, density00, upar00, tpar00, tperp00
 #ifdef NETCDF
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
     character(*), dimension(*), parameter :: loop_phi_dim = [character(7)::"ri", "kx", "t"]
     character(*), dimension(*), parameter :: loop_mom_dim = [character(7)::"ri", "kx", "species", "t"]
     
@@ -755,8 +754,6 @@ contains
     !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: fluxk_dim = [character(7)::"kx", "ky", "species", "t"]
-
     if (fphi > zero) then
        call neasyf_write (file_id, "es_exchange", exchange_avg, &
             dim_names=flux_dims, start=starts(2, nout))
@@ -1071,7 +1068,7 @@ contains
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fapar, fbpar, wstar_units, tunits
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use neasyf, only: neasyf_write
@@ -1101,6 +1098,11 @@ contains
 # ifdef NETCDF
 
     call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
+
+    if (wstar_units) then
+      call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=["ky", "t "], &
+           start=[1, nout], long_name="Time (wstar)", units="L/vt")
+    end if
 
     if (fphi > zero) then
       call nc_write_field(file_id, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)
@@ -1482,7 +1484,7 @@ contains
     use theta_grid, only: bmag, gradpar, gbdrift, gbdrift0, &
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
-         zplot, aplot, rprime, zprime, aprime, bpol !, surfarea
+         zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1494,6 +1496,7 @@ contains
          long_name="Magnitude of magnetic field", units="B_0")
     call neasyf_write(file_id, "bpol", bpol, dim_names=["theta"], &
          long_name="Poloidal magnetic field", units="B_0")
+    call neasyf_write(file_id, "kxfac", kxfac, long_name="kxfac factor used in NL term")
     call neasyf_write(file_id, "gradpar", gradpar, dim_names=["theta"], &
          long_name="Parallel derivative multiplier")
     call neasyf_write(file_id, "gbdrift", gbdrift, dim_names=["theta"], &

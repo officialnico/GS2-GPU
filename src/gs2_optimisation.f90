@@ -16,7 +16,6 @@ contains
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call init_mp
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm
     allocate(state%optim%sorted_optimisations(0))
     allocate(state%optim%sorted_results(0))
@@ -31,12 +30,10 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finalize_gs2_optimisation(state)
-    use mp, only: finish_mp
     use optimisation_config, only: finish_optimisation_config
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     call finish_optimisation_config(state%optim)
-    call finish_mp
   end subroutine finalize_gs2_optimisation
 
   !> FIXME : Add documentation  
@@ -251,6 +248,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine optimise_nprocs(state)
+    use mp, only: proc0
     use ingen_mod, only: init_ingen, finish_ingen, report
     use ingen_mod, only: sweet_spots, n_sweet_spots
     use gs2_main, only: initialize_gs2, initialize_equations, initialize_diagnostics
@@ -267,7 +265,7 @@ contains
     call initialize_gs2(state)
     call initialize_equations(state)
     call initialize_diagnostics(state)
-    call report
+    if (proc0) call report
     call finalize_diagnostics(state)
     call finalize_equations(state)
     call finalize_gs2(state)

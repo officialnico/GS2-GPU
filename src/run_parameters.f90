@@ -15,14 +15,14 @@ module run_parameters
   public :: beta, zeff, tite, reset, immediate_reset
   public :: fphi, fapar, fbpar
   public :: code_delt_max, wunits, woutunits, tunits
-  public :: nstep, wstar_units, eqzip, margin
+  public :: nstep, max_sim_time, wstar_units, eqzip, margin
   public :: secondary, tertiary, harris
   public :: ieqzip, k0
   public :: delt_option_switch, delt_option_hand
   public :: delt_option_auto, vnm_init
   public :: avail_cpu_time, margin_cpu_time
   public :: rhostar, neo_test
-  public :: do_eigsolve
+  public :: do_eigsolve, save_timer_statistics, save_init_times
   !> If true and nonlinear_mode is "off", return
   !! simple diffusive estimates of fluxes to trinity
   public :: trinity_linear_fluxes
@@ -52,11 +52,13 @@ module run_parameters
   real, dimension (:), allocatable :: wunits, woutunits, tunits
   real, dimension (2) :: vnm_init
   real :: avail_cpu_time, margin_cpu_time
+  real :: max_sim_time
   integer :: nstep, seed
   logical :: reset=.false.
   logical :: immediate_reset
   logical :: wstar_units, eqzip
   logical :: secondary, tertiary, harris
+  logical :: save_timer_statistics, save_init_times
   real :: k0
   integer :: delt_option_switch
   integer, parameter :: delt_option_hand = 1, delt_option_auto = 2
@@ -136,6 +138,8 @@ module run_parameters
      real :: margin = 0.05
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
      real :: margin_cpu_time = 300.0
+     !> The simulation time after which the run should stop.
+     real :: max_sim_time = 1.0e6
      !> Lowflow only. If true, GS2 exits after writing out neoclassical
      !> quantities of interest
      logical :: neo_test = .false.
@@ -144,6 +148,12 @@ module run_parameters
      !> Normalised gyro-radius, only used for low flow builds
      !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
+     !> If true then save init timer information to
+     !> <run_name>.init_times.
+     logical :: save_init_times = .false.
+     !> If true then save some extra timer information to
+     !> <run_name>.timing_stats giving min/max/mean values.
+     logical :: save_timer_statistics = .true.
      !> See [[knobs:eqzip]]
      logical :: secondary = .true.
      !> Used to set the random seed used in the random number
@@ -156,8 +166,9 @@ module run_parameters
      !> Deprecated
      !> This gets a smart default from parameters
      real :: teti = -100.0
-     !> Ratio of ion to electron temperature, only used when there is an adiabatic species
-     !> This gets a smart default from parameters
+     !> Only used when there is an adiabatic species. Sets `n q ^2 / T` of the adiabatic
+     !> species, normalised to the reference values.
+     !> This gets a default from the parameters namelist.
      real :: tite = 1.0
      !> If true and running linearly, return linear diffusive flux estimates to Trinity.
      logical :: trinity_linear_fluxes = .false.
@@ -199,7 +210,7 @@ module run_parameters
      real :: rhostar = 3.0e-3
      !> Deprecated
      real :: teti = -100.0
-     !> Ratio of ion to electron temperature, only used when there is an adiabatic species
+     !> See [[knobs:tite]].
      real :: tite = 1.0
      !> Custom description of run to be added to netcdf output (new diagnostics only)
      character(len = 100000) :: user_comments = ''
@@ -325,6 +336,7 @@ contains
        write (unit, fmt="(' fapar  = ',f6.3)") fapar
        write (unit, fmt="(' fbpar = ',f6.3)") fbpar
        write (unit, fmt="(' delt = ',e17.10)") delt
+       write (unit, fmt="(' max_sim_time = ',e17.10)") max_sim_time
        write (unit, fmt="(' nstep = ',i8)") nstep
        write (unit, fmt="(' wstar_units = ',L1)") wstar_units
        if (eqzip) then
@@ -462,9 +474,12 @@ contains
     k0 = knobs_config%k0
     margin = knobs_config%margin
     margin_cpu_time = knobs_config%margin_cpu_time
+    max_sim_time = knobs_config%max_sim_time
     neo_test = knobs_config%neo_test
     nstep = knobs_config%nstep
     rhostar = knobs_config%rhostar
+    save_init_times = knobs_config%save_init_times
+    save_timer_statistics = knobs_config%save_timer_statistics
     secondary = knobs_config%secondary
     seed = knobs_config%seed
     tertiary = knobs_config%tertiary
@@ -552,7 +567,8 @@ contains
 
     ! FOR GRYFX
     if (gryfx()) then
-       delt = sqrt(2.0)*delt/2.0
+       delt = delt/sqrt(2.0)
+       max_sim_time = max_sim_time / sqrt(2.0)
        nstep = nstep*2
     end if
 
@@ -669,21 +685,9 @@ contains
     end if
   end subroutine set_run_parameters_config
 
-  !> Get the module level config instance
-  function get_knobs_config()
-    type(knobs_config_type) :: get_knobs_config
-    get_knobs_config = knobs_config
-  end function get_knobs_config
-
-  !> Get the module level config instance
-  function get_parameters_config()
-    type(parameters_config_type) :: get_parameters_config
-    get_parameters_config = parameters_config
-  end function get_parameters_config
-
   !---------------------------------------
   ! Following is for the knobs config_type
-  !--------------------------------------- 
+  !---------------------------------------
 
   !> Reads in the knobs namelist and populates the member variables
   subroutine read_knobs_config(self)
@@ -700,11 +704,12 @@ contains
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
-    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, rhostar, teti, tite, zeff
+    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, save_init_times, save_timer_statistics, secondary, tertiary, &
+         trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, neo_test, nstep, rhostar, secondary, seed, &
-         tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
+         save_init_times, save_timer_statistics, secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -726,9 +731,12 @@ contains
     k0 = self%k0
     margin = self%margin
     margin_cpu_time = self%margin_cpu_time
+    max_sim_time = self%max_sim_time
     neo_test = self%neo_test
     nstep = self%nstep
     rhostar = self%rhostar
+    save_init_times = self%save_init_times
+    save_timer_statistics = self%save_timer_statistics
     secondary = self%secondary
     seed = self%seed
     tertiary = self%tertiary
@@ -762,9 +770,12 @@ contains
     self%k0 = k0
     self%margin = margin
     self%margin_cpu_time = margin_cpu_time
+    self%max_sim_time = max_sim_time
     self%neo_test = neo_test
     self%nstep = nstep
     self%rhostar = rhostar
+    self%save_init_times = save_init_times
+    self%save_timer_statistics = save_timer_statistics
     self%secondary = secondary
     self%seed = seed
     self%tertiary = tertiary
@@ -809,9 +820,12 @@ contains
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("margin", self%margin, unit_internal)
     call self%write_key_val("margin_cpu_time", self%margin_cpu_time, unit_internal)
+    call self%write_key_val("max_sim_time", self%max_sim_time, unit_internal)
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
+    call self%write_key_val("save_init_times", self%save_init_times, unit_internal)
+    call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
     call self%write_key_val("secondary", self%secondary, unit_internal)
     call self%write_key_val("seed", self%seed, unit_internal)
     call self%write_key_val("tertiary", self%tertiary, unit_internal)
@@ -858,9 +872,12 @@ contains
     call broadcast(self%k0)
     call broadcast(self%margin)
     call broadcast(self%margin_cpu_time)
+    call broadcast(self%max_sim_time)
     call broadcast(self%neo_test)
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
+    call broadcast(self%save_init_times)
+    call broadcast(self%save_timer_statistics)
     call broadcast(self%secondary)
     call broadcast(self%seed)
     call broadcast(self%tertiary)
@@ -889,6 +906,12 @@ contains
     logical :: get_default_requires_index_knobs_config
     get_default_requires_index_knobs_config = .false.
   end function get_default_requires_index_knobs_config
+
+  !> Get the module level config instance
+  pure function get_knobs_config()
+    type(knobs_config_type) :: get_knobs_config
+    get_knobs_config = knobs_config
+  end function get_knobs_config
   
   !---------------------------------------
   ! Following is for the parameters config_type
@@ -1002,4 +1025,11 @@ contains
     logical :: get_default_requires_index_parameters_config
     get_default_requires_index_parameters_config = .false.
   end function get_default_requires_index_parameters_config
+
+  !> Get the module level config instance
+  function get_parameters_config()
+    type(parameters_config_type) :: get_parameters_config
+    get_parameters_config = parameters_config
+  end function get_parameters_config
+
 end module run_parameters

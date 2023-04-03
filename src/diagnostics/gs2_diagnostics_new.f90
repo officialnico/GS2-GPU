@@ -234,7 +234,7 @@ contains
   !! Note that the .out file is always enabled
   subroutine set_ascii_file_switches
     implicit none
-    gnostics%ascii_files%write_to_out   = .true.
+    gnostics%ascii_files%write_to_out   = gnostics%write_ascii
     !gnostics%ascii_files%write_to_fields = gnostics%write_fields  .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat   = gnostics%write_heating .and.  gnostics%write_ascii
     gnostics%ascii_files%write_to_heat2  = gnostics%write_heating .and.  gnostics%write_ascii
@@ -295,9 +295,9 @@ contains
     call finish_collisional
     
     call finish_diagnostics_antenna(gnostics)
-    call finish_diagnostics_velocity_space(gnostics)
+    call finish_diagnostics_velocity_space()
     
-    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence(gnostics)
+    if (nonlin.and.gnostics%use_nonlin_convergence) call finish_nonlinear_convergence()
     if (gnostics%write_heating) call finish_diagnostics_heating(gnostics)
     if (gnostics%parallel .or. proc0) then
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
@@ -336,7 +336,7 @@ contains
   !! istep=-1 --> Create all netcdf variables
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
-  subroutine run_diagnostics(istep_in, exit, read_existing)
+  subroutine run_diagnostics(istep_in, exit, read_existing, force)
     use gs2_time, only: user_time
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
@@ -363,20 +363,25 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast
     use neasyf, only: neasyf_write
+    use optionals, only: get_option_with_default
     use run_parameters, only: nstep
     use gs2_io, only: get_dim_length, nc_sync
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
     logical, intent(in) :: read_existing
+    logical, intent(in), optional :: force
     integer, parameter :: verb=3
     integer :: istep
-    
+    integer, save :: istep_last = -1
+    logical :: do_force
+    real, dimension(:), allocatable :: t_wstar
     if (.not. gnostics%write_any) return
     
     call broadcast(exit)
 
     call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics starting')
+    do_force = get_option_with_default(force, .false.)
     
     gnostics%exit = exit
     
@@ -532,7 +537,7 @@ contains
     
 ! HJL > reset values for convergence condition
     if (nonlin.and.gnostics%use_nonlin_convergence) &
-      call dnc_reset(gnostics)
+      call dnc_reset()
     call fluxes_reset(gnostics)
     call heating_reset(gnostics)
 

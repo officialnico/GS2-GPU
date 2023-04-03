@@ -861,7 +861,7 @@ contains
   !> Routine to read the response matrix for this supercell from netcdf file.
   subroutine sc_read_from_file(self, could_read, suffix)
     use gs2_save, only: gs2_restore_response
-    use mp, only: sum_allreduce_sub, proc0
+    use mp, only: broadcast_sub, proc0
     use fields_arrays, only: get_specific_response_file_name
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
@@ -899,22 +899,21 @@ contains
 
     !Now allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
-    tmp_arr=0.
 
     !Now if on head proc read
     if (self%is_head) then
-       call gs2_restore_response(tmp_arr, file_name)
+       call gs2_restore_response(tmp_arr, file_name, self%condition_number)
     end if
 
     !Now we need to broadcast the data to everyone with supercell.
     !NOTE: Really we would want a supercell bound method which will do
     !this so that this module level routine is insensitive to communicators etc.
-    !Furthermore we are lazy and use a sum_allreduce_sub to send data to everyone
+    !Furthermore we are lazy and use a broadcast_sub to send data to everyone
     !NOTE: The processors which consider this to supercell to be empty (i.e. which
     !don't have any associated work) shouldn't need to take part in this communication.
     !If we can promise that only non-empty processors could be the head that should
     !work fine, provided we have a suitable communicator (sc_sub_pd?).
-    call sum_allreduce_sub(tmp_arr,self%sc_sub_all%id)
+    call broadcast_sub(tmp_arr,self%head_iproc,self%sc_sub_all%id)
 
     !Now push array to local storage
     call self%push_arr_to_rows(tmp_arr)
@@ -1253,7 +1252,7 @@ contains
     use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
     implicit none
     class(supercell_type), intent(inout) :: self
-    integer :: colour, key, cc
+    integer :: colour, cc
     type(comm_type) :: tmp
     logical :: some_empty, some_pd, some_all, head_notfull
     !Exit if we don't have this supercell
@@ -3228,8 +3227,6 @@ contains
 
   end subroutine fm_check_an
 
-  
-
   subroutine fm_getfieldeq1_nogath (self,phi, apar, bpar, antot, antota, antotp, &
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
@@ -3245,9 +3242,9 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it, is, ic
-
+    logical :: has_phi, has_apar, has_bpar
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
-    if (.not. has_electron_species(spec)) fl_avg = 0.
+    fl_avg = 0.
 
     if (.not. has_electron_species(spec)) then
        if (adiabatic_option_switch == adiabatic_option_fieldlineavg) then
@@ -3255,7 +3252,17 @@ contains
        end if
     end if
 
-    !Now loop over cells and calculate field equation as required
+    !Now loop over cells and calculate field equation as required.
+    !Note we only populate the parts of the fieldeq arrays which
+    !are local to this processor.
+
+    has_phi = fphi > epsilon(0.0)
+    has_apar = fapar > epsilon(0.0)
+    has_bpar = fbpar > epsilon(0.0)
+
+    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PRIVATE(ik, it, is, ic) &
+    !$OMP SCHEDULE(dynamic,1)
     do ik=1,self%naky
        !Skip empty cells, note this is slightly different to skipping
        !.not.is_local. Skipping empty is probably faster but may be more dangerous
@@ -3270,24 +3277,27 @@ contains
              if(kwork_filter(it,ik)) cycle
 
              !Now fill in data
-             if(fphi>epsilon(0.0)) then
-                fieldeq(:,it,ik)=antot(:,it,ik)-gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik)
-                if(fbpar.gt.epsilon(0.0)) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
-                if(.not.has_electron_species(spec)) fieldeq(:,it,ik)= fieldeq(:,it,ik)+fl_avg(it,ik)
+             if(has_phi) then
+                fieldeq(:,it,ik) = antot(:,it,ik) - &
+                     gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik) + &
+                     fl_avg(it, ik)
+                if(has_bpar) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
              endif
 
-             if(fapar>epsilon(0.0)) then
-                fieldeqa(:,it,ik)=antota(:,it,ik)-kperp2(:,it,ik)*gridfac1(:,it,ik)*apar(:,it,ik)
+             if(has_apar) then
+                fieldeqa(:,it,ik) = antota(:,it,ik) - &
+                     kperp2(:,it,ik)*gridfac1(:,it,ik)*apar(:,it,ik)
              endif
 
-             if(fbpar>epsilon(0.0))then
-                fieldeqp(:,it,ik)=bpar(:,it,ik)*gridfac1(:,it,ik)+&
+             if(has_bpar)then
+                fieldeqp(:,it,ik) = bpar(:,it,ik)*gridfac1(:,it,ik)+&
                      (antotp(:,it,ik)+bpar(:,it,ik)*gamtot2(:,it,ik)+&
-                     0.5*phi(:,it,ik)*gamtot1(:,it,ik))*beta*apfac/bmag(:)**2
+                     0.5*phi(:,it,ik)*gamtot1(:,it,ik))*(beta*apfac/bmag**2)
              endif
           enddo
        enddo
     enddo
+    !$OMP END PARALLEL DO
   end subroutine fm_getfieldeq1_nogath
 
 !------------------------------------------------------------------------ 
@@ -3617,13 +3627,12 @@ contains
 
   !> Cells are decomposed based on proc || Decomp_type=3
   subroutine pc_decomp_owncells_simplempi(self)
-    use mp, only: comm_type, sum_allreduce_sub, iproc
+    use mp, only: comm_type, sum_allreduce_sub
     use sorting, only: quicksort
     implicit none
     class(pc_type), intent(inout) :: self
     integer :: ik, is, ic, ifq, it, ip, llim, ulim
     integer :: nrow_tmp, nrow_loc, remainder, np
-    integer :: counter
     integer, dimension(:), allocatable :: nwork, iproc_work
     type(comm_type) :: supercell_comm
     logical :: cell_is_local
@@ -4104,7 +4113,7 @@ contains
     use antenna, only: antenna_amplitudes, no_driver
     use gs2_layouts, only: g_lo
     use unit_tests, only: debug_message
-    use mp, only: proc0, get_mp_times !, barrier
+    use mp, only: get_mp_times
     use job_manage, only: time_message
     implicit none
     integer, intent(in) :: istep
@@ -4188,7 +4197,7 @@ contains
          aparnew, bparnew, istep, diagnostics) 
 
     ! Advance collisions, if separate from timeadv
-    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
 
   end subroutine advance_local
 

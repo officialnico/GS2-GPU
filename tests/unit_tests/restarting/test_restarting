@@ -168,6 +168,17 @@ new diagnostics with and without appending"""))
         args.tolerance,
     )
 
+    print("\nChecking old diagnostics without appending - fields only on one proc")
+    run_gs2(args.gs2, "start_half_run_old_diagnostics_iproc_1.in", "half-length simulation")
+    run_gs2(
+        args.gs2, "end_half_run_old_diagnostics_iproc_1.in", "restarted half-length simulation"
+    )
+    success &= compare_two_output_files(
+        "full_run_old_diagnostics.out.nc",
+        "end_half_run_old_diagnostics_iproc_1.out.nc",
+        args.tolerance,
+    )
+
     print("\nChecking new diagnostics without appending")
     run_gs2(args.gs2, "full_run_new_diagnostics.in", "full simulation")
     run_gs2(args.gs2, "start_half_run_new_diagnostics.in", "half-length simulation")

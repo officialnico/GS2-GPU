@@ -105,7 +105,7 @@ contains
     phi0 = get_phi0()
     
     !Do ascii output
-    if (proc0 .and. gnostics%write_ascii) then
+    if (proc0 .and. gnostics%ascii_files%write_to_eigenfunc .and. (.not. gnostics%create)) then
        ntg_out = ntheta/2 + (nperiod-1)*ntheta
        do ik = 1, naky
           do it = 1, ntheta0
