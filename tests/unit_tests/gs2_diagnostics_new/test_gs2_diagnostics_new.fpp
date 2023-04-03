@@ -40,22 +40,27 @@ program test_gs2_diagnostics_new
     use species, only: nspec
     implicit none
     type(gs2_program_state_type) :: state
-    integer :: n_vars, n_file_names
+    integer :: n_vars
     integer :: i
     real :: eps
     real, dimension(:), allocatable :: pfluxav, qfluxav, heatav, vfluxav
     real :: diff
     !real :: vfluxav
 
-    character(len=40), dimension(200) :: variables, new_variables, n_lines, file_names, n_lines_files
-      !variables = (/'lambda', 'phi'/), &
-      !n_lines = (/'3', '30'/)
-  ! General config
+    character(len=40), dimension(200) :: variables, new_variables, n_lines
+    character(len=*), dimension(*), parameter :: file_names = [character(len=9):: &
+         'heat',&
+         'heat2', &
+         'lpc', &
+         'vres', &
+         'phase', &
+         'jext', &
+         'parity', &
+         'eigenfunc' &
+    ]
 
-
-  eps = 1.0e-7
-
-  if (precision(eps).lt. 11) eps = eps * 100.0
+    eps = 1.0e-7
+    if (precision(eps).lt. 11) eps = eps * 100.0
 
     ! n_lines - number of lines at the end of file "run_name.variables(i)" to
     !           compare as part of test
@@ -127,31 +132,6 @@ program test_gs2_diagnostics_new
     n_lines(22) = '20'
 
     n_vars = 22
-
-
-      ! Note that heat and heat2 no longer pass because the comparison
-      ! is no longer between files output from the same run but between
-      ! files output from two successive runs. This causes changes greater
-      ! than the precision of the heat and heat2 files. EGH
-      ! Thus they are skipped.
-    file_names(1) = 'heat'
-    n_lines_files(1) = '16'
-    file_names(2) = 'heat2'
-    n_lines_files(2) = '50'
-    file_names(3) = 'lpc'
-    n_lines_files(3) = '16'
-    file_names(4) = 'vres'
-    n_lines_files(4) = '16'
-    file_names(5) = 'phase'
-    n_lines_files(5) = '16'
-    file_names(6) = 'jext'
-    n_lines_files(6) = '0'
-    file_names(7) = 'parity'
-    n_lines_files(7) = '34'
-    file_names(8) = 'eigenfunc'
-    n_lines_files(8) = '34'
-
-    n_file_names = 8
 
     call init_mp
 
@@ -244,10 +224,9 @@ program test_gs2_diagnostics_new
         ! is no longer between files output from the same run but between
         ! files output from two successive runs. This causes changes greater
         ! than the precision of the heat and heat2 files. EGH
-        do i = 3,n_file_names
+        do i = 3, size(file_names)
           call announce_test("content of "//trim(file_names(i)))
-          call process_test(test_file(trim(file_names(i)), trim(n_lines_files(i))), &
-            "content of "//trim(file_names(i)))
+          call process_test(test_file(trim(file_names(i))), "content of "//trim(file_names(i)))
         end do
       end if
     end if
@@ -292,11 +271,10 @@ contains
 #endif
   end function test_variable
 
-  function test_file(file_name, n_lines)
+  logical function test_file(file_name)
     use unit_tests, only: should_print
-    character(*), intent(in) :: file_name, n_lines
-    logical :: test_file
-    character(1000) ::  command 
+    character(*), intent(in) :: file_name
+    character(1000) ::  command
     
     test_file=.true.
 #ifdef NEW_DIAG
