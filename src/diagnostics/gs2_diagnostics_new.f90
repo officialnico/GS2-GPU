@@ -443,7 +443,14 @@ contains
       !call save_restart_dist_fn
     !end if
 
-    if ((mod(istep, gnostics%nwrite) == 0 .or. gnostics%exit)) then
+    if ((istep /= istep_last) .and. (mod(istep, gnostics%nwrite) == 0 .or. gnostics%exit .or. do_force)) then
+       ! If istep_in = -1 (to indicate we're setting things up) then we enter
+       ! this block (by forcing istep=0), but only to define variables - not to write them.
+       ! We intend to write them on the next call when istep_in = 0, but if we were to
+       ! record istep_last = istep when istep_in = -1 then we end up with istep_last = 0
+       ! and we would actually skip the real istep_in = 0 call.
+       if (istep_in > -1) istep_last = istep
+
        if (gnostics%wryte) then
          call neasyf_write(gnostics%file_id, "t", user_time, dim_names=["t"], start=[gnostics%nout])
        end if
