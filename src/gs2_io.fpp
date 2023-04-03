@@ -233,7 +233,7 @@ contains
     call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
     call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
     call neasyf_dim(file_id, "char200", dim_size=200)
-    call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
+    call neasyf_dim(file_id, "nlines", dim_size=max(1, num_input_lines), long_name="Input file line number")
     call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
          long_name="Complex components", units="(real, imaginary)")
     call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
@@ -364,7 +364,8 @@ contains
     character(line_length), dimension(:), allocatable ::  input_file_array
     integer :: n, unit
 
-    allocate(input_file_array(num_input_lines))
+    allocate(input_file_array(max(1, num_input_lines)))
+    input_file_array(1) = ""
 
     call get_input_unit(unit)
     rewind (unit=unit)
