@@ -113,28 +113,16 @@ module ingen_mod
 
 contains
 
-  !> FIXME : Add documentation  
-  subroutine run_ingen(ingen_config_in)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!      Main code starts here       !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Entry point: initialise needed modules, run checks, and write namelists
+  subroutine run_ingen(ingen_config_in, input_file)
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
     use mp, only : proc0
     implicit none
+    !> Input options. Defaults to reading the 'ingen_knobs' namelist from the input file
     type(ingen_config_type), intent(in), optional :: ingen_config_in
+    !> Filename of input file. Default is to read from the command line
+    character(len=*), intent(in), optional :: input_file
     type(standard_header_type) :: local_header
     logical :: list
     
@@ -142,7 +130,7 @@ contains
 
     local_header = standard_header_type()
 
-    call init_file_utils (list, name="template")
+    call init_file_utils (list, name="template", input_file=input_file)
     call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
@@ -896,6 +884,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     integer :: h, t, u
     character (4) :: suffix
+    character(len=:), allocatable :: filename
     
     if (present(header)) then
       local_header = header
@@ -911,10 +900,13 @@ if (debug) write(6,*) 'get_namelists: returning'
        t = (jr - h * 100) / 10
        u = (jr - h * 100 - t * 10)
        suffix = '_'//achar(48+h)//achar(48+t)//achar(48+u)
-       open (unit=unit, file=trim(run_name)//suffix//".in")
+       filename = trim(run_name) // suffix // ".in"
     else
-       open (unit=unit, file=trim(run_name)//".inp")
+       filename = trim(run_name) // ".inp"
     endif
+
+    open (unit=unit, file=filename)
+    write (*, *) "Writing processed input file to '" // filename // "'"
 
     write (unit, *)
 
@@ -1011,6 +1003,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
     use standard_header, only: standard_header_type
+    use file_utils, only: run_name
 
     implicit none
     !> Header for files with build and run information
@@ -1030,8 +1023,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     end if
 
     call open_output_file (report_unit, ".report")
+    write (*, *) "Writing report to '" // trim(run_name) // ".report'"
 
-    write (report_unit, *) 
+    write (report_unit, *)
 
     write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
