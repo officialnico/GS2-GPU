@@ -54,7 +54,6 @@ program test_gs2_diagnostics_new
          'lpc', &
          'vres', &
          'phase', &
-         'jext', &
          'parity', &
          'eigenfunc' &
     ]
