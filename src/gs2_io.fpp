@@ -89,7 +89,7 @@ module gs2_io
   integer :: cvdrift_id, cvdrift0_id, gds2_id, gds21_id, gds22_id, gds23_id, gds24_id
   integer :: gds24_noq_id, grho_id, jacob_id, shat_id, eps_id, drhodpsi_id, q_id, surfarea_id
   integer :: rplot_id, zplot_id, aplot_id, rprime_id, zprime_id, aprime_id, bpol_id, kxfac_id
-  integer :: beta_id
+  integer :: kperp2_id, beta_id
   integer :: code_id, layout_id
   integer :: h_energy_id, h_energy_dot_id, h_antenna_id
   integer :: h_eapar_id, h_ebpar_id
@@ -769,6 +769,8 @@ contains
     call ensure_netcdf_var_exists(ncid, 'rprime', netcdf_real, nttot_dim, rprime_id)
     call ensure_netcdf_var_exists(ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
     call ensure_netcdf_var_exists(ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
+
+    call ensure_netcdf_var_exists(ncid, 'kperp2', netcdf_real, [nttot_dim, kx_dim, ky_dim], kperp2_id)
 
     call ensure_netcdf_var_exists(ncid, 'kxfac', netcdf_real, kxfac_id)
 
@@ -2721,7 +2723,8 @@ contains
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
-!CMR add qval and beta here too, as they are both useful
+    !CMR add qval and beta here too, as they are both useful
+    use kt_grids, only: kperp2
     use run_parameters, only: beta
     use netcdf, only: nf90_put_var
     implicit none
@@ -2772,6 +2775,9 @@ contains
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, zprime_id)
     status = nf90_put_var (ncid, aprime_id, aprime)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, aprime_id)
+
+    status = nf90_put_var (ncid, kperp2_id, kperp2)
+    if (status /= NF90_NOERR) call netcdf_error (status, ncid, kperp2_id)
 
     status = nf90_put_var (ncid, kxfac_id, kxfac)
     if (status /= NF90_NOERR) call netcdf_error (status, ncid, kxfac_id)

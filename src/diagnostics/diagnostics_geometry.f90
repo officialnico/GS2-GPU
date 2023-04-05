@@ -12,6 +12,7 @@ contains
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, shape, theta, ntgrid, Bpol
     use theta_grid, only: Rplot, Zplot, aplot, Rprime, Zprime, aprime, drhodpsi, kxfac
+    use kt_grids, only: kperp2
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use diagnostics_config, only: diagnostics_type
@@ -102,6 +103,9 @@ contains
          dim_string([gnostics%dims%theta]), &
          "d/dx of the toroidal angle at the centre of the flux tube ", "rad/rho_r", aprime)
 
+    call create_and_write_variable(gnostics, gnostics%rtype, "kperp2", &
+         dim_string([gnostics%dims%theta, gnostics%dims%kx, gnostics%dims%ky]), &
+         "perpendicular wavenumber squared ", "rho_ref", kperp2)
 
     !Write data to ascii file. 
     !Should probably disable this if not write_ascii
