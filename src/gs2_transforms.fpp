@@ -692,7 +692,7 @@ contains
     call set_redist_character_type(g2x, 'g2x')
     call set_xxf_optimised_variables(opt_local_copy, xxf_lo%naky,  &
          xxf_lo%ntgrid,  xxf_lo%ntheta0, xxf_lo%nlambda,  xxf_lo%negrid, &
-         xxf_lo%nx, xxf_lo%ulim_proc, g_lo%ulim, layout)
+         xxf_lo%nx, xxf_lo%ulim_proc, g_lo%ulim_proc, layout)
 
     !Create g2x redistribute object
     call init_redist (g2x, 'c', to_low, to_high, to_list, &
