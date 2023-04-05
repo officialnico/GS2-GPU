@@ -770,7 +770,7 @@ contains
     call ensure_netcdf_var_exists(ncid, 'zprime', netcdf_real, nttot_dim, zprime_id)
     call ensure_netcdf_var_exists(ncid, 'aprime', netcdf_real, nttot_dim, aprime_id)
 
-    call ensure_netcdf_var_exists(ncid, 'kperp2', netcdf_real, [nttot_dim, kx_dim, ky_dim], kperp2_id)
+    call ensure_netcdf_var_exists(ncid, 'kperp2', netcdf_real, [nttot_dim, nakx_dim, naky_dim], kperp2_id)
 
     call ensure_netcdf_var_exists(ncid, 'kxfac', netcdf_real, kxfac_id)
 
