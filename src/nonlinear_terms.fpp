@@ -888,7 +888,7 @@ contains
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
 
     !$OMP PARALLEL DO DEFAULT(shared) &
-    !$OMP PRIVATE(iglo, ik) &
+    !$OMP PRIVATE(iglo, it) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
