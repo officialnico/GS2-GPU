@@ -934,6 +934,7 @@ contains
     use run_parameters, only: fphi
     use kt_grids, only: akx
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
@@ -953,7 +954,7 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
   end subroutine load_kx_phi
 
@@ -965,6 +966,7 @@ contains
     use run_parameters, only: fphi
     use kt_grids, only: aky
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
@@ -984,7 +986,7 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
 
   end subroutine load_ky_phi
