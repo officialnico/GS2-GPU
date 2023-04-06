@@ -15,9 +15,6 @@ module volume_averages
   private
 
   public :: average_all, average_theta, average_ky, average_kx
-  public :: init_volume_averages
-
-  integer :: ntg_out
 
   interface average_all
     module procedure average_all_txy
@@ -55,12 +52,6 @@ module volume_averages
   end interface
 
 contains
-  !> FIXME : Add documentation  
-  subroutine init_volume_averages
-    use theta_grid, only: ntgrid
-    implicit none
-    ntg_out = ntgrid
-  end subroutine init_volume_averages
 
   !> FIXME : Add documentation  
   subroutine average_all_2_complex_txy(a, b, avg, distributed)
@@ -75,7 +66,7 @@ contains
 
     call average_theta(a, b, axb_by_mode, distributed)
     call average_ky(axb_by_mode, axb_by_kx, distributed)
-    avg = sum(axb_by_kx(:))
+    avg = sum(axb_by_kx)
   end subroutine average_all_2_complex_txy
 
   !> FIXME : Add documentation  
@@ -87,8 +78,8 @@ contains
     complex, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), b(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, b, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_2_complex_xy
 
   !> FIXME : Add documentation  
@@ -100,8 +91,8 @@ contains
     complex, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_complex_xy
 
   !> FIXME : Add documentation  
@@ -113,8 +104,8 @@ contains
     real, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_real_xy
 
   !> FIXME : Add documentation  
@@ -161,16 +152,14 @@ contains
     complex, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
-    integer :: ng
 
-    ng = ntg_out
     axb_by_mode = 0
 
     do is = 1,nspec
        do ik = 1, naky
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
-                call average_theta(a(-ng:ng,it,ik,is), axb_by_mode(it,ik,is))
+                call average_theta(a(:, it, ik, is), axb_by_mode(it,ik,is))
              end if
           end do
        end do
@@ -188,12 +177,10 @@ contains
     real, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
     axb_by_mode = 0
 
@@ -202,7 +189,7 @@ contains
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
-                     = sum(real(conjg(a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is))*wgt)/anorm
+                     = sum(real(conjg(a(:, it, ik, is))*b(:, it, ik,is))*wgt)/anorm
              end if
           end do
        end do
@@ -219,12 +206,10 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
     axb_by_mode = 0
@@ -232,8 +217,7 @@ contains
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
-             axb_by_mode(it,ik) &
-                  = sum((a(-ng:ng,it,ik))*wgt)/anorm
+             axb_by_mode(it,ik) = sum(a(:, it, ik) * wgt)/anorm
           end if
        end do
     end do
@@ -245,12 +229,10 @@ contains
     implicit none
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
     axb = sum(a*wgt)/anorm
@@ -262,15 +244,13 @@ contains
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
-    axb = sum(conjg(a(-ng:ng))*b(-ng:ng)*wgt)/anorm
+    axb = sum(conjg(a) * b * wgt)/anorm
   end subroutine average_theta_complex_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -279,15 +259,13 @@ contains
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
-    axb = sum(a(-ng:ng)*wgt)/anorm
+    axb = sum(a * wgt)/anorm
   end subroutine average_theta_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -312,12 +290,10 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
     axb_by_mode = 0
@@ -326,7 +302,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+                  = sum(real(conjg(a(:, it, ik))*b(:, it, ik))*wgt)/anorm
           end if
        end do
     end do
@@ -342,12 +318,10 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
+    wgt = delthet * jacob
     anorm = sum(wgt)
 
     axb_by_mode = 0
@@ -356,7 +330,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)*wgt)/anorm
+                  = sum(conjg(a(:, it, ik))*b(:, it, ik)*wgt)/anorm
           end if
        end do
     end do

@@ -1159,7 +1159,7 @@ contains
 # ifdef NETCDF
     use kt_grids, only: naky, ntheta0
     use neasyf, only: neasyf_write
-    use volume_averages, only: average_theta, average_kx, average_ky, init_volume_averages
+    use volume_averages, only: average_theta, average_kx, average_ky
 # endif
     use theta_grid, only: ntgrid
     !> NetCDF ID of the file
@@ -1187,10 +1187,8 @@ contains
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
     character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
 
-    ! Need to make sure ntg_out is set in the volume averages module.
     ! Note that we're not using `get_vol_average` because we'll end up
     ! with a circular dependency
-    call init_volume_averages()
     call average_theta(field, field, field2_by_mode, distributed=.false.)
 
     if (write_field_over_time) then

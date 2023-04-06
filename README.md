@@ -44,7 +44,7 @@ optional ones:
 
 - MPI
 - NetCDF (requires >= v4.2.0)
-- FFTW (support for v2 will be dropped in the near future)
+- FFTW (requires >= 3.3)
 - LAPACK
 - NAG
 - python (required for code generation, tests and documentation,

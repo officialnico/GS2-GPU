@@ -273,19 +273,21 @@ contains
   subroutine parse_command_line()
     use git_version_mod, only: get_git_version
     use build_config, only : formatted_build_config
+    use ingen_mod, only : run_ingen
     integer :: arg_count, arg_n
     integer :: arg_length
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
     character(len=*), parameter :: usage = &
-         "gs2 [--version|-v] [--help|-h] [--build-config] [input file]" // nl // nl // &
+         "gs2 [--version|-v] [--help|-h] [--build-config] [--check-input] [input file]" // nl // nl // &
          "GS2: A fast, flexible physicist's toolkit for gyrokinetics" // nl // &
          "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
          "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
          nl // &
-         "  -h, --help     Print this message" // nl // &
-         "  -v, --version  Print the GS2 version" // nl // &
-         "  --build-config Print the current build configuration"
+         "  -h, --help           Print this message" // nl // &
+         "  -v, --version        Print the GS2 version" // nl // &
+         "  --build-config       Print the current build configuration" // nl // &
+         "  --check-input FILE   Check input FILE for errors"
 
     arg_count = command_argument_count()
 
@@ -303,6 +305,19 @@ contains
         stop
       else if (argument == "--build-config") then
         write(*, '(a)') formatted_build_config()
+        stop
+      else if (argument == "--check-input") then
+        ! Next argument should be the input file
+        if (arg_n == arg_count) then
+          error stop "Missing input file for '--check-input'" // nl // usage
+        end if
+
+        call get_command_argument(arg_n + 1, length=arg_length)
+        deallocate(argument)
+        allocate(character(len=arg_length)::argument)
+        call get_command_argument(arg_n + 1, argument)
+
+        call run_ingen(input_file=argument)
         stop
      else if (argument == "--") then
         exit

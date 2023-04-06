@@ -1504,7 +1504,7 @@ contains
   subroutine init_wdrift
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
-         il_is_wfb, il_is_trapped, ittp
+         il_is_wfb, il_is_trapped, ittp, can_be_ttp
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
     integer :: ig, ik, it, il, ie, is
@@ -1555,6 +1555,8 @@ contains
     wdriftttp = 0.0
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
+       ! Cycle if this il is never ttp as we only care about ttp here.
+       if (.not. can_be_ttp(il)) cycle
        ie=ie_idx(g_lo,iglo)
        it=it_idx(g_lo,iglo)
        ik=ik_idx(g_lo,iglo)
@@ -4028,7 +4030,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles, ittp
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, wunits
     use gs2_time, only: code_dt
@@ -4121,7 +4123,7 @@ contains
 
     if (source_option_switch == source_option_full .or. &
         source_option_switch == source_option_phiext_full) then
-       if (grid_has_trapped_particles() .and. isgn == 2) then
+       if (grid_has_trapped_particles() .and. isgn == 2 .and. can_be_ttp(il)) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig) &
@@ -4312,7 +4314,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles, ittp
+    use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt
@@ -4327,7 +4329,6 @@ contains
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
-
 
     !Temporally weighted fields
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
@@ -4397,7 +4398,7 @@ contains
     isgn=2
     if (source_option_switch == source_option_full .or. &
          source_option_switch == source_option_phiext_full) then
-       if (grid_has_trapped_particles()) then
+       if (grid_has_trapped_particles() .and. can_be_ttp(il)) then
           do ig = -ntgrid, ntgrid-1
              if (il < ittp(ig)) cycle
              source(ig,isgn) &
@@ -4517,7 +4518,66 @@ contains
 
   end subroutine get_source_term_opt
 
-  !> Calculates the "new" distribution function for the current source
+  !> Calculates the regular source term on the entire local
+  !> domain and stores in the output `source`.
+  !>
+  !> In the future we may wish to move the loop over the domain into the routine
+  !> which calculates the source in order to improve memory locality etc.
+  subroutine get_source_term_on_local_domain(source, phi, apar, bpar, &
+       phinew, aparnew, bparnew, istep, sourcefac)
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use theta_grid, only: ntgrid
+    use gs2_time, only: get_adams_bashforth_coefficients
+    use nonlinear_terms, only: nonlin, split_nonlinear
+    use kt_grids, only: kwork_filter
+    implicit none
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: source
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    integer, intent (in) :: istep
+    complex, intent (in) :: sourcefac
+    logical :: include_explicit
+    integer :: iglo, ik, it, il, ie, is, isgn
+    real, dimension(:), allocatable :: ab_coefficients
+
+    include_explicit = istep > 0
+
+#ifndef LOWFLOW
+    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
+#endif
+
+    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
+
+    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+
+       !Skip work if we're not interested in this ik and it
+       if(kwork_filter(it,ik)) cycle
+
+       il = il_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+
+       if(opt_source)then
+          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
+               include_explicit, ab_coefficients, iglo, ik, it, il, ie, is, &
+               sourcefac, source(:, :, iglo))
+       else
+          do isgn = 1, 2
+             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
+                  include_explicit, ab_coefficients, isgn, iglo, ik, it, il, ie, is, &
+                  sourcefac, source(:, isgn, iglo))
+          end do
+       endif
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine get_source_term_on_local_domain
+
+  !> Calculates the "new" distribution function for the passed source
   !> calculated using the passed fields and current distribution in g.
   !>
   !> Also calculates the homogeneous solution in some cases.
@@ -4529,7 +4589,6 @@ contains
   !> The routine is roughly organised as:
   !>  1. Calculate constants
   !>  2. Loop over domain
-  !>     - Calculate source term
   !>     - Calculate flags
   !>     - Set initial conditions
   !>     - Set parallel boundary conditions
@@ -4537,8 +4596,7 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, &
-        sourcefac)
+       (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
@@ -4554,34 +4612,20 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use gs2_time, only: get_adams_bashforth_coefficients
-    use nonlinear_terms, only: nonlin, split_nonlinear
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
-    complex, intent (in) :: sourcefac
-    real, dimension(:), allocatable :: ab_coefficients
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
     complex, dimension (-ntgrid:ntgrid,2) :: g1, g2
-    complex, dimension (-ntgrid:ntgrid-1,2) :: source
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
-    logical :: include_explicit, have_trapped_particles
+    logical :: have_trapped_particles
     logical :: is_wfb, is_not_ttp, is_passing, is_trapped
     logical :: is_self_periodic
-
-    ! Decide if we want to include the explicit terms or not
-    include_explicit = istep > 0
-
-#ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
-#endif
-
-    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -4589,7 +4633,7 @@ contains
     have_trapped_particles = grid_has_trapped_particles()
 
     !$OMP PARALLEL DO DEFAULT(SHARED) &
-    !$OMP PRIVATE(iglo, ik, it, il, ie, is, source, g1, use_pass_homog, speriod_flag, &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, g1, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
     !$OMP g2, adjright, adjleft, ig, beta1) &
     !$OMP SCHEDULE(dynamic)
@@ -4625,20 +4669,6 @@ contains
           call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
           cycle
        end if
-       
-       !/////////////////////////
-       !// Get the source terms
-       !/////////////////////////
-
-       if(opt_source)then
-          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
-       else
-          do isgn = 1, 2
-             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
-          end do
-       endif
 
        !CMR, 17/4/2012:
        !  use_pass_homog = T  iff one of following applies:
@@ -4826,7 +4856,7 @@ contains
        ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
        ! region and at upper bounce point
        do ig = ntgrid-1, -ntgrid, -1
-          gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2)
+          gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2,iglo)
        end do
 
        ! time advance vpar < 0 homogeneous part: g1
@@ -4861,7 +4891,7 @@ contains
                 !CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped
                 !     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
                 !     where lb is the lower bounce point.
-                source(ig,1) = gnew(ig+1,2,iglo)
+                source(ig,1,iglo) = gnew(ig+1,2,iglo)
              end if
           end do
        end if
@@ -4880,7 +4910,7 @@ contains
        if (is_not_ttp) then
           do ig = -ntgrid, ntgrid-1
              ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
-             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1)
+             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1,iglo)
              gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
           end do
        end if
@@ -5033,8 +5063,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
-       (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac)
-    use dist_fn_arrays, only: gnew
+       (phi, apar, bpar, phinew, aparnew, bparnew, source)
+    use dist_fn_arrays, only: gnew, g_work
     use theta_grid, only: bmag, ntgrid
     use le_grids, only: energy, al, &
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -5046,13 +5076,11 @@ contains
     use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
     use kt_grids, only: kperp2
-
+    use array_utils, only: zero_array
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    integer, intent (in) :: istep
-    complex, intent (in) :: sourcefac
-
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phi,    apar,    bpar
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:, :, :), intent(in out) :: source
     complex :: b0, fac, facd
     integer :: il, ik, it, n, i, j
     integer :: iglo, ncell
@@ -5066,13 +5094,12 @@ contains
     complex :: adjl, adjr, dadj
     real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         istep, sourcefac)
+    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
 
     if (no_comm) then
        ! nothing
     else       
-       g_adj = 0. !This shouldn't be needed
+       call zero_array(g_adj) !This shouldn't be needed
        !<DD>Note these fill routines are often equivalent to an all-to-all type
        !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
        !By only communicating with our direct neighbours we would significantly
@@ -5262,6 +5289,8 @@ contains
     use gs2_time, only: code_time
     use constants, only: zi, pi
     use prof, only: prof_entering, prof_leaving
+    use dist_fn_arrays, only: g_work
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5284,13 +5313,19 @@ contains
        sourcefac = (0.5 - 0.5*cos(pi*time/t0))*exp(-zi*omega0*time+gamma0*time)
     end if
 
+    ! Is this needed?
+    call zero_array(g_work)
+
+    call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
+         aparnew, bparnew, istep, sourcefac)
+
     select case (boundary_option_switch)
     case (boundary_option_linked)
-       call invert_rhs_linked &
-            (phi, apar, bpar, phinew, aparnew, bparnew, istep, sourcefac) 
+       call invert_rhs_linked (phi, apar, bpar, phinew, aparnew, bparnew, &
+            source = g_work)
     case default
        call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-            istep, sourcefac)
+            source = g_work)
     end select
 
     call prof_leaving ("invert_rhs", "dist_fn")
@@ -5560,7 +5595,7 @@ contains
 ! integrate moments over the nonadiabatic part of <delta_f>
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-! set g0= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m 
+! set g_work= J0 g_wesson = nonadiabatic piece of <delta_f>/F_m 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
@@ -7410,63 +7445,32 @@ contains
   !> or a single file depending on if the build uses parallel i/o or
   !> not. These files are automatically overwritten so calling it
   !> repeatedly within a single run might not be useful.
-  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, aparnew, bparnew)
+  subroutine dump_current_source_term(istep, phi, apar, bpar, phinew, &
+       aparnew, bparnew, sourcefac)
     use gs2_save, only: gs2_save_for_restart
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use dist_fn_arrays, only: g_work
+    use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: fphi, fapar, fbpar
-    use gs2_time, only: user_time, get_adams_bashforth_coefficients
+    use gs2_time, only: user_time
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
+    use array_utils, only: zero_array
     implicit none
     integer, intent(in) :: istep
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
-    complex, dimension(:, :, :), allocatable :: gtmp
-    complex, dimension (-ntgrid:ntgrid-1,2) :: source
+    complex, intent(in) :: sourcefac
     character(len = 20), parameter :: extension = '.source'
     integer :: istatus
-    logical :: include_explicit
-    integer :: iglo, ik, it, il, ie, is, isgn
-    real, dimension(:), allocatable :: ab_coefficients
-    complex, parameter :: sourcefac = 0.0
 
-    allocate(gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    gtmp = 0.
+    ! Is this needed?
+    call zero_array(g_work)
 
-    if (istep .eq. 0) then
-       include_explicit = .false.
-    else
-       include_explicit = .true.
-    endif
+    call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
+         aparnew, bparnew, istep, sourcefac)
 
-#ifndef LOWFLOW
-    include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
-#endif
-
-    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo, iglo)
-       it = it_idx(g_lo, iglo)
-       il = il_idx(g_lo, iglo)
-       ie = ie_idx(g_lo, iglo)
-       is = is_idx(g_lo, iglo)
-
-       if(opt_source)then
-          call get_source_term_opt (phi, apar, bpar, phinew, aparnew, bparnew, &
-               include_explicit, ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
-       else
-          do isgn = 1, 2
-             call get_source_term (phi, apar, bpar, phinew, aparnew, bparnew, &
-                  include_explicit, ab_coefficients, isgn, iglo,ik,it,il,ie,is, sourcefac, source(:,isgn))
-          end do
-       endif
-
-       gtmp(:ntgrid-1, :, iglo) = source
-    end do
-
-    call gs2_save_for_restart (gtmp, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
          fphi, fapar, fbpar, fileopt = extension)
   end subroutine dump_current_source_term
 

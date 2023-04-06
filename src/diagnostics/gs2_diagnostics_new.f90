@@ -37,7 +37,6 @@ contains
   !! open output file 'run_name.cdf' and create dimensions.
   subroutine init_gs2_diagnostics_new(init_options, header)
     use diagnostics_config, only: init_diagnostics_config
-    use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
     use diagnostics_omega, only: init_diagnostics_omega
     use diagnostics_velocity_space, only: init_diagnostics_velocity_space
@@ -82,8 +81,6 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
-    call init_volume_averages
-
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new inialized vol avgs')
     
@@ -615,49 +612,56 @@ contains
     use diagnostics_final_routines,only: do_write_final_antot
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
-    use diagnostics_final_routines,only: ntg_out
     use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky
-    use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
     integer, parameter :: verb=3
     
     if(gnostics%write_kpar.or.gnostics%write_gs) call init_par_filter
-    
-    ! ntg_out is imported from diagnostics_final_routines
-    ntg_out = ntgrid
+
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) call do_write_final_fields(gnostics)
+       if (gnostics%write_final_fields) then
+          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+       end if
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
-       if (gnostics%write_kpar) call do_write_kpar(gnostics)
+       if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) call do_write_final_epar(gnostics)
+       if (gnostics%write_final_epar) then
+          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+       end if
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_db')
-       if (gnostics%write_final_db) call do_write_final_db(gnostics)
+       if (gnostics%write_final_db) call do_write_final_db(gnostics%write_ascii)
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
+    if (gnostics%write_final_moments) then
+      call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
+                                  write_text=gnostics%write_ascii, write_netcdf=.false., &
+                                  gnostics%sfile%nc_file_id)
+    end if
+
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) call do_write_final_antot(gnostics)
-    
+    if (gnostics%write_final_antot) then
+      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+    end if
+
     if (proc0) call dump_ant_amp
     
-    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics)
+    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics%write_ascii)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & finished')
     

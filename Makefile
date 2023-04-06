@@ -444,11 +444,6 @@ ifdef USE_SHMEM
 	MACRO_DEFS += -DSHMEM
 endif
 
-ifeq ($(USE_FFT),fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
-	FFT_LIB ?= -lfftw -lrfftw
-endif
-
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
 	FFT_LIB ?= -lfftw -lrfftw
@@ -457,10 +452,6 @@ endif
 ifdef GENQUAD
 	GENQUAD_LIB ?= -llapack 
 	MACRO_DEFS += -DGENQUAD
-endif
-
-ifeq ($(USE_FFT),mkl_fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
 endif
 
 ifdef USE_NETCDF
