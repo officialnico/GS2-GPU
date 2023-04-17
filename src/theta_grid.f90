@@ -2444,22 +2444,16 @@ contains
           read (unit=unit, fmt=*, err=100) aplot(i), aprime(i)
        end do
 
-       ! Leave the if block if no errors
-       exit
-
-100    continue
-       if (proc0) print*,"Error reading Rplot etc. setting to dummy values."
-
-       ! dummy values for backward compatibility
-       Rplot = 1. ; Rprime = 0.
-       Zplot = 1. ; Zprime = 0.
-       aplot = 1. ; aprime = 0.
-    else
-       ! dummy values for backward compatibility
-       Rplot = 1. ; Rprime = 0.
-       Zplot = 1. ; Zprime = 0.
-       aplot = 1. ; aprime = 0.
+       close (unit=unit)    
+!       return
     end if
+
+100 continue
+
+! dummy values for backward compatibility
+    Rplot = 1. ; Rprime = 0.
+    Zplot = 1. ; Zprime = 0.
+    aplot = 1. ; aprime = 0.
 
     close (unit=unit)
 
