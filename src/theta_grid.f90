@@ -2347,6 +2347,7 @@ contains
     use file_utils, only: get_unused_unit
     use constants, only: pi
     use integration, only: trapezoidal_integration
+    use mp, only: proc0
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -2445,11 +2446,11 @@ contains
        end do
 
        close (unit=unit)    
-!       return
+       return
     end if
 
 100 continue
-
+    if (proc0) write(6,*) 'Error reading Rplot etc. setting to dummy values.'
 ! dummy values for backward compatibility
     Rplot = 1. ; Rprime = 0.
     Zplot = 1. ; Zprime = 0.
