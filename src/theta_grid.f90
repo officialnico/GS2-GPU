@@ -2410,6 +2410,10 @@ contains
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
     gbdrift_th = 0. ; cvdrift_th = 0.
 
+    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
+    ! set coriolis drift to zero
+    cdrift = 0. ; cdrift0 = 0.
+
     read (unit=unit, fmt="(a)") line
     do i = -ntgrid, ntgrid
        read (unit=unit, fmt=*) cvdrift0(i), gbdrift0(i)
@@ -2441,12 +2445,8 @@ contains
        end do
 
        close (unit=unit)    
-       return
+!       return
     end if
-
-    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
-    ! set coriolis drift to zero
-    cdrift = 0. ; cdrift0 = 0.
 
 100 continue
 
