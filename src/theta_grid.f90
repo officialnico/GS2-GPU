@@ -2428,6 +2428,12 @@ contains
        end do
     end if
 
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
+
     if (.not. no_geo_info) then
 
        read (unit=unit, fmt="(a)",err=100) line
@@ -2458,11 +2464,6 @@ contains
 
     close (unit=unit)
 
-    ! Possibly crude approximations for file
-    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
-    ! but isn't yet stored here.
-    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
-    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine file_get_grids
 
   !> Set the module level config type
