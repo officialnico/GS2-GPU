@@ -1,5 +1,8 @@
 import numpy as np
 
+def _from_float(number, ndigits=17):
+    return ('{:.'+str(ndigits)+'f}').format(number)
+
 def read_theta_grid_file_into_dictionary(filename):
     def read_four_floats(file, length):
         var1 = np.zeros(length)
@@ -151,24 +154,29 @@ def read_theta_grid_file_into_dictionary(filename):
 def write_theta_grid_data(filename, data):
     def write_four_floats(file, var1, var2, var3, var4):
         for i in range(len(var1)):
-            file.write(' '.join([str(x[i]) for x in [var1, var2, var3, var4]]) + '\n')
+            file.write(' '.join([_from_float(x[i])
+                                 for x in [var1, var2, var3, var4]]) + '\n')
 
     def write_three_floats(file, var1, var2, var3):
         for i in range(len(var1)):
-            file.write(' '.join([str(x[i]) for x in [var1, var2, var3]]) + '\n')
+            file.write(' '.join([_from_float(x[i])
+                                  for x in [var1, var2, var3]]) + '\n')
 
     with open(filename, 'w') as file:
         file.write('nlambda' + '\n')
         file.write(str(data['nlambda']) + '\n')
         file.write('lambda' + '\n')
         for i in range(data['nlambda']):
-            file.write(str(data['lambda_grid'][i]) + '\n')
+            file.write(_from_float(data['lambda_grid'][i]) + '\n')
 
         file.write('ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q' + '\n')
-        file.write(' '.join([str(x) for x in [
-            data['ntgrid'], data['nperiod'], data['ntheta'],
-            data['drhodpsi'], data['rmaj'], data['shat'],
-            data['kxfac'], data['q']]]) + '\n')
+        file.write(' '.join([to_str(x) for to_str, x in zip(
+            [str, str, str, _from_float, _from_float, _from_float,
+             _from_float, _from_float],
+            [data['ntgrid'], data['nperiod'], data['ntheta'],
+             data['drhodpsi'], data['rmaj'], data['shat'],
+             data['kxfac'], data['q']])
+                ]) + '\n')
 
         file.write('gbdrift gradpar grho tgrid' + '\n')
         write_four_floats(file, data['gbdrift'], data['gradpar'],
