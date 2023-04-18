@@ -699,7 +699,6 @@ contains
     gs2_diagnostics_config_in%omegatinst = 1.0
     gs2_diagnostics_config_in%print_line = .true.
     gs2_diagnostics_config_in%write_correlation = .false.
-    gs2_diagnostics_config_in%write_fields = .false.
     gs2_diagnostics_config_in%write_moments = .false.
   end subroutine apply_old_defaults
 
