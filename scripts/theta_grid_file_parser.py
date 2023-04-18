@@ -194,7 +194,8 @@ def write_theta_grid_data(filename, data):
         write_three_floats(file, data['aplot'], data['aprime'], data['theta_grid'])
 
 
-def consistency_check_theta_grid_data(data, min_bounce_tolerance = 1.0e-12):
+def consistency_check_theta_grid_data(data, fix = False,
+                                      min_bounce_tolerance = 1.0e-12, min_bounce_tolerance_large = 1.0e-8):
 
     passing = True
 
@@ -204,7 +205,11 @@ def consistency_check_theta_grid_data(data, min_bounce_tolerance = 1.0e-12):
     if not all(np.diff(data['bset']) < 0):
         print('Bset values not monotonically decreasing :')
         print(data['bset'])
-        passing = False
+        if fix:
+            data['bset'] = sort(data['bset'])[::-1]
+            data['lambda_grid'] = sort(data['lambda_grid'])
+        else:
+            passing = False
 
     # Check bset/lambda values bounce on the grid.
     #
@@ -214,12 +219,20 @@ def consistency_check_theta_grid_data(data, min_bounce_tolerance = 1.0e-12):
     for i in range(data['nbset']):
         min_bounce_value = np.abs(1 - data['bmag']*data['lambda_grid'][i]).min()
         if min_bounce_value > min_bounce_tolerance:
+            min_loc = np.abs(data['bmag']-data['bset'][i]).argmin()
             print('Lambda value not bouncing on grid points:')
             print('Lambda :', data['lambda_grid'][i])
             print('Bset   :', data['bset'][i])
-            print('Nearest bmag :',
-                  data['bmag'][np.abs(data['bmag']-data['bset'][i]).argmin()])
-            passing = False
+            print('Nearest bmag :', data['bmag'][min_loc])
+            if fix:
+                if min_bounce_value > min_bounce_tolerance_large:
+                    print('Lambda grid correction would be too large -- not fixing')
+                    passing = False
+                else:
+                    data['bset'][i] = data['bmag'][min_loc]
+                    data['lambda_grid'][i] = 1/data['bset'][i]
+            else:
+                passing = False
 
     # Check bset is unique -- might want to move this after any potential auto-fixes to data
     if len(set(data['bset'])) < len(data['bset']):
