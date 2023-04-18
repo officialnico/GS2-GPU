@@ -1426,7 +1426,7 @@ contains
     call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
          long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
     call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
-         long_name="Normalised density gradient scale length -1/rho dn/drho", units="1/aref")
+         long_name="Normalised density gradient scale length -Lref/n dn/drho", units="1/aref")
     call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
          long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
     call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
