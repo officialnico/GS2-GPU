@@ -105,7 +105,7 @@ run_test: make_test
       || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
 run_gcov: run_test
-	gcov -p -o $(OBJDIR) $(OBJDIR)/*.o
+	gcov -p -o $(OBJDIR) $(patsubst %.gcda, %.o, $(wildcard $(addsuffix /*.gcda, $(OBJDIR))))
 
 pfunit_tests: check_pfunit_install make_test run_test
 
