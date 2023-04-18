@@ -152,23 +152,27 @@ def consistency_check_theta_grid_data(data, min_bounce_tolerance = 1.0e-12):
 
     passing = True
 
-
     # Check bset values are monotonically decreasing
+    #
     # This is fixable -- we can just sort the data (and lambda_grid)
     if not all(np.diff(data['bset']) < 0):
         print('Bset values not monotonically decreasing :')
         print(data['bset'])
         passing = False
 
-    # Check bset/lambda values bounce on the grid
-    # This is perhaps fixable if the difference isn't too large -- we replace bset with the nearest bmag and then recalculate lambda_grid
+    # Check bset/lambda values bounce on the grid.
+    #
+    # This is perhaps fixable if the difference isn't too large -- we
+    # replace bset with the nearest bmag and then recalculate
+    # lambda_grid
     for i in range(data['nbset']):
         min_bounce_value = np.abs(1 - data['bmag']*data['lambda_grid'][i]).min()
         if min_bounce_value > min_bounce_tolerance:
             print('Lambda value not bouncing on grid points:')
-            print('Lambda :',data['lambda_grid'][i])
-            print('Bset   :',data['bset'][i])
-            print('Nearest bmag :',data['bmag'][np.abs(data['bmag']-data['bset'][i]).argmin()])
+            print('Lambda :', data['lambda_grid'][i])
+            print('Bset   :', data['bset'][i])
+            print('Nearest bmag :',
+                  data['bmag'][np.abs(data['bmag']-data['bset'][i]).argmin()])
             passing = False
 
     # Check bset is unique -- might want to move this after any potential auto-fixes to data
@@ -177,4 +181,25 @@ def consistency_check_theta_grid_data(data, min_bounce_tolerance = 1.0e-12):
         print(data['bset'])
         passing = False
 
+    # Check the maximum magnetic field occurs at the end of the grid
+    if data['bmag'].max() != data['bmag'][0]:
+        print('First value of bmag does not match the maximum field:')
+        print(data['bmag'])
+        passing = False
+    if data['bmag'].max() != data['bmag'][-1]:
+        print('Last value of bmag does not match the maximum field:')
+        print(data['bmag'])
+        passing = False
+
+    # Check grid sizes
+    if (2*data['nperiod']-1) * data['ntheta'] + 1 != (2*data['ntgrid']+1):
+        print('Inconsistent theta grid sizes:')
+        print('nperiod :', data['nperiod'])
+        print('ntheta  :', data['ntheta'])
+        print('ntgrid  :', data['ntgrid'])
+        print('First grid size :', (2*data['nperiod']-1) * data['ntheta'] + 1)
+        print('Second grid size :', (2*data['ntgrid']+1))
+        passing = False
+
     return passing
+
