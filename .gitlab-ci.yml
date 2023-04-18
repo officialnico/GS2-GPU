@@ -91,7 +91,7 @@ default:
 
 formattting_tests:
   stage: test
-  image: fedora:31
+  image: fedora:37
   variables:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
@@ -104,7 +104,7 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:35
+  image: fedora:37
   variables:
     CASENAME: "standard"
     PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
@@ -112,7 +112,7 @@ standard_tests:
 
 openmp_tests:
   stage: test
-  image: fedora:35
+  image: fedora:37
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
@@ -120,11 +120,11 @@ openmp_tests:
     OMP_NUM_THREADS: 2
   script: *default_script
 
-gfortran12_mpich:
+gfortran13_mpich:
   stage: test
-  image: fedora:37
+  image: fedora:38
   variables:
-    CASENAME: "gfortran_12_mpich"
+    CASENAME: "gfortran_13_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
@@ -151,7 +151,7 @@ gfortran9_standard_tests:
 
 initialisation_tests:
   stage: test
-  image: fedora:31
+  image: fedora:37
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
@@ -160,7 +160,7 @@ initialisation_tests:
 
 intel_tests:
   stage: test
-  image: fedora:31
+  image: fedora:37
   artifacts:
   variables:
     CASENAME: "intel"
@@ -180,7 +180,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:34
+  image: fedora:37
   variables:
     CASENAME: "standard+coverage+debug+onestep"
     GK_CI_INTEGRATED: ""
@@ -199,7 +199,7 @@ coverage_standard_tests:
 
 onestep_standard_tests:
   stage: test
-  image: fedora:31
+  image: fedora:37
   variables:
     CASENAME: "standard_one_step_pp"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_NETCDF_COMPRESSION=on"
@@ -208,7 +208,7 @@ onestep_standard_tests:
 
 nodeps_tests:
   stage: test
-  image: fedora:31
+  image: fedora:37
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
@@ -221,7 +221,7 @@ nodeps_tests:
 
 pages:
   stage: test
-  image: fedora:31
+  image: fedora:37
   variables:
     CASENAME: "website"
   script:
