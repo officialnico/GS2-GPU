@@ -105,6 +105,8 @@ run_test: make_test
       || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
 run_gcov: run_test
+#Note we can't just pass $(OBJDIR)/*.o as not all objects are used/generate gcda
+#files, which gcov now indicates as an error, causing make to fail.
 	gcov -p -o $(OBJDIR) $(patsubst %.gcda, %.o, $(wildcard $(addsuffix /*.gcda, $(OBJDIR))))
 
 pfunit_tests: check_pfunit_install make_test run_test
