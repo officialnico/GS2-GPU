@@ -223,9 +223,11 @@ contains
          long_name="Energy/magnetic moment", units="1/(2 B_a)")
     call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
 
-    ! Energy is 2D, and neasyf only handles 1D dimensions
-    call ensure_netcdf_dim_exists(file_id, 'energy', negrid, negrid_dim)
-    call neasyf_write(file_id, "energy", energy, dim_names=["energy ", "species"])
+    ! Energy coordinate is a function of species, but the dimension must be 1D
+    call neasyf_dim(file_id, "egrid", dim_size=negrid, dimid=negrid_dim, &
+         long_name="See 'energy' for energy grid values")
+    call neasyf_write(file_id, "energy", energy, dim_ids=[negrid_dim, nspec_dim], &
+         long_name="Energy grid values")
 
     call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
     call neasyf_dim(file_id, "t", unlimited=.true., dimid=time_dim, &
