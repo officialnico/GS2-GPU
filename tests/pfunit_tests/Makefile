@@ -104,7 +104,7 @@ run_test: make_test
       && cat $(PFUNIT_LOG) \
       || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
-run_gcov:
+run_gcov: run_test
 	gcov *.f90
 
 pfunit_tests: check_pfunit_install make_test run_test
