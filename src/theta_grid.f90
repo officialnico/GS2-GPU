@@ -2450,9 +2450,11 @@ contains
           read (unit=unit, fmt=*, err=100) aplot(i), aprime(i)
        end do
 
-       close (unit=unit)    
-       return
     end if
+
+    close (unit=unit)
+
+    return
 
 100 continue
     write(6,*) 'Error reading Rplot etc. setting to dummy values.'
