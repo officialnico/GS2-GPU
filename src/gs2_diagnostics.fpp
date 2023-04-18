@@ -706,7 +706,6 @@ contains
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: nperiod, ntheta
     use run_parameters, only: fphi
     use nonlinear_terms, only: nonlin
     implicit none
