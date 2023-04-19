@@ -628,7 +628,7 @@ contains
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
        if (gnostics%write_final_fields) then
-          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
        end if
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
@@ -636,7 +636,7 @@ contains
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
        if (gnostics%write_final_epar) then
-          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
        end if
        
        ! definition here assumes we are not using wstar_units
@@ -649,14 +649,14 @@ contains
     if (gnostics%write_final_moments) then
       call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
                                   write_text=gnostics%write_ascii, write_netcdf=.false., &
-                                  gnostics%sfile%nc_file_id)
+                                  file_id=gnostics%sfile%nc_file_id)
     end if
 
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
     if (gnostics%write_final_antot) then
-      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., gnostics%sfile%nc_file_id)
+      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
     end if
 
     if (proc0) call dump_ant_amp
