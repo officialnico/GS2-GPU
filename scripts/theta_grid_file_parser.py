@@ -201,7 +201,6 @@ def write_theta_grid_data(filename, data):
         file.write('aplot aprime tgrid' + '\n')
         write_three_floats(file, data['aplot'], data['aprime'], data['theta_grid'])
 
-
 def consistency_check_theta_grid_data(data, fix = False,
                                       min_bounce_tolerance = 1.0e-12, min_bounce_tolerance_large = 1.0e-8):
 
@@ -270,3 +269,46 @@ def consistency_check_theta_grid_data(data, fix = False,
 
     return passing
 
+def read_gs2_netcdf_into_dictionary(filename):
+    from netCDF4 import Dataset
+
+    # Don't put this in a try block, just let the regular exception
+    # handling take over.
+    data = Dataset(filename)
+
+    result = {}
+
+    # Main arrays
+    result['gbdrift'] = data['gbdrift']
+    result['gradpar'] = data['gradpar']
+    result['grho'] = data['grho']
+    result['theta_grid'] = data['theta']
+    result['cvdrift'] = data['cvdrift']
+    result['gds2'] = data['gds2']
+    result['bmag'] = data['bmag']
+    result['gds21'] = data['gds21']
+    result['gds22'] = data['gds22']
+    result['cvdrift0'] = data['cvdrift0']
+    result['gbdrift0'] = data['gbdrift0']
+    result['rplot'] = data['rplot']
+    result['rprime'] = data['rprime']
+    result['zplot'] = data['zplot']
+    result['zprime'] = data['zprime']
+    result['aplot'] = data['aplot']
+    result['aprime'] = data['aprime']
+    # bset, lambda_grid missing
+
+    #Scalars
+    result['shat'] = data['shat']
+    result['kxfac'] = data['kxfac']
+    result['q'] = data['q']
+    result['drhodpsi'] = data['drhodpsi']
+    # rmaj missing
+
+    #Grid sizes
+    result['ntgrid'] = (data['theta'].shape[0]-1) // 2
+    # nperiod, ntheta, nbset/nlambda missing
+    # Also might be nicer to write out ntgrid rather than
+    # working it out as above.
+
+    return result
