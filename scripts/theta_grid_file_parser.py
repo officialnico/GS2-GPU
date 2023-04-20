@@ -290,7 +290,8 @@ def read_gs2_netcdf_into_dictionary(filename):
     result["zprime"] = data["zprime"][:]
     result["aplot"] = data["aplot"][:]
     result["aprime"] = data["aprime"][:]
-    # bset, lambda_grid missing
+    result["bset"] = data["bset"][:]
+    result["lambda_grid"] = 1.0/result["bset"]
 
     #Scalars
     result["shat"] = data["shat"][:]
@@ -301,8 +302,9 @@ def read_gs2_netcdf_into_dictionary(filename):
 
     #Grid sizes
     result["ntgrid"] = (result["theta_grid"].shape[0]-1) // 2
-    # nperiod, ntheta, nbset/nlambda missing
-    # Also might be nicer to write out ntgrid rather than
-    # working it out as above.
+    result["nperiod"] = data["nperiod"][:]
+    result["ntheta"] = data["ntheta"][:]
+    result["nbset"] = data["nbset"][:]
+    result["nlambda"] = data["nbset"][:]
 
     return result
