@@ -20,12 +20,6 @@ module gs2_io
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
 
-# ifdef NETCDF
-  integer (kind_nf) :: ncid
-  integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
-  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
-  integer (kind_nf) :: nttotext_dim, time_big_dim, bset_dim
-
   character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
   character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
@@ -34,6 +28,12 @@ module gs2_io
   character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
   character(*), dimension(*), parameter :: mom_dims = [character(len=7)::"ri", "kx", "ky", "species", "t"]
   character(*), dimension(*), parameter :: mom_t_dims = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
+
+# ifdef NETCDF
+  integer (kind_nf) :: ncid
+  integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
+  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
+  integer (kind_nf) :: nttotext_dim, time_big_dim, bset_dim
 
   integer, dimension (6) :: lp_dim
   integer, dimension (5) :: err_dim
@@ -44,6 +44,10 @@ module gs2_io
 
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
+#else
+  integer, parameter :: ncid = -1
+  integer, parameter :: ncid_movie = -1
+#endif
   !> Write a `complex` array to netcdf
   !>
   !> Converts the `complex` array to a `real` array with an extra dimension
@@ -52,10 +56,6 @@ module gs2_io
     module procedure write_complex_rank3, write_complex_rank4
   end interface netcdf_write_complex
 
-#else
-  integer, parameter :: ncid = -1
-  integer, parameter :: ncid_movie = -1
-#endif
   real, parameter :: zero = epsilon(0.0)
 
   !> Value to disable netCDF compression
@@ -1555,19 +1555,20 @@ contains
 #endif
   end subroutine nc_geo
 
-#ifdef NETCDF
   !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
   !> detected.
   function get_dim_length(file_id, name) result(length)
+#ifdef NETCDF
     use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_MAX_NAME
     use neasyf, only: neasyf_error
-
+#endif
     integer :: length
     !> NetCDF ID of the file
     integer, intent(in) :: file_id
     !> Name of the dimension
     character(len=*), intent(in) :: name
 
+#ifdef NETCDF
     integer :: dim_id
     ! Temporary variable for the dimension name
     character(len=NF90_MAX_NAME) :: dim_name
@@ -1579,11 +1580,14 @@ contains
 
     status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)
     call neasyf_error(status, file_id, dimid=dim_id, dim=name)
+#endif
   end function get_dim_length
 
   subroutine write_complex_rank1(parent_id, name, values, dim_names, units, long_name, start)
+#ifdef NETCDF
     use neasyf, only: neasyf_write
     use convert, only: c2r
+#endif
     !> Name of the variable
     character(len=*), intent(in) :: name
     !> NetCDF ID of the parent group/file
@@ -1599,15 +1603,19 @@ contains
     !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index 
     integer, dimension(:), optional, intent(in) :: start
 
+#ifdef NETCDF
     real, dimension(2, size(values, 1)) :: real_values
 
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#endif
   end subroutine write_complex_rank1
 
   subroutine write_complex_rank2(parent_id, name, values, dim_names, units, long_name, start)
+#ifdef NETCDF
     use neasyf, only: neasyf_write
     use convert, only: c2r
+#endif
     !> Name of the variable
     character(len=*), intent(in) :: name
     !> NetCDF ID of the parent group/file
@@ -1622,15 +1630,19 @@ contains
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
 
+#ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2)) :: real_values
 
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#endif
   end subroutine write_complex_rank2
 
   subroutine write_complex_rank3(parent_id, name, values, dim_names, units, long_name, start)
+#ifdef NETCDF
     use neasyf, only: neasyf_write
     use convert, only: c2r
+#endif
     !> Name of the variable
     character(len=*), intent(in) :: name
     !> NetCDF ID of the parent group/file
@@ -1645,15 +1657,19 @@ contains
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
 
+#ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3)) :: real_values
 
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
+#endif
   end subroutine write_complex_rank3
 
   subroutine write_complex_rank4(parent_id, name, values, dim_names, units, long_name, start)
+#ifdef NETCDF
     use neasyf, only: neasyf_write
     use convert, only: c2r
+#endif
     !> Name of the variable
     character(len=*), intent(in) :: name
     !> NetCDF ID of the parent group/file
@@ -1668,10 +1684,11 @@ contains
     character(len=*), optional, intent(in) :: long_name
     integer, dimension(:), optional, intent(in) :: start
 
+#ifdef NETCDF
     real, dimension(2, size(values, 1), size(values, 2), size(values, 3), size(values, 4)) :: real_values
 
     call c2r(values, real_values)
     call neasyf_write(parent_id, name, real_values, dim_names=dim_names, units=units, long_name=long_name, start=start)
-  end subroutine write_complex_rank4
 #endif
+  end subroutine write_complex_rank4
 end module gs2_io
