@@ -1390,7 +1390,6 @@ contains
     ! \(\phi, A_\parallel, B_\parallel\) as functions of real space
     real, dimension (:,:,:), allocatable:: yxphi, yxapar, yxbpar
     character(*), dimension(*), parameter :: xmode_dim = [character(6)::"x", "y", "theta", "tm"]
-    logical :: accelerated
 
     call neasyf_write(file_id, "tm", time, dim_names=["tm"], start=[nout_movie])
 

@@ -372,7 +372,6 @@ contains
     integer :: istep
     integer, save :: istep_last = -1
     logical :: do_force
-    real, dimension(:), allocatable :: t_wstar
     if (.not. gnostics%write_any) return
     
     call broadcast(exit)
