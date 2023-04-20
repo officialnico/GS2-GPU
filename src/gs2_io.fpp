@@ -52,6 +52,14 @@ module gs2_io
 #endif
   real, parameter :: zero = epsilon(0.0)
 
+  !> Value to disable netCDF compression
+  integer, parameter :: compression_off = 0
+  !> Level of compression if enabled via
+  !> `GK_NETCDF_DEFAULT_COMPRESSION_ON` macro. Must be a value between
+  !> 1 (faster, less compression) and 9 (slower, more compression), or
+  !> 0 (off)
+  integer, parameter :: default_compression_level = 1
+
 contains
 
   !> Provides read-only access to the netCDF file ID
@@ -95,7 +103,7 @@ contains
     use constants, only: run_name_size
     use gs2_metadata, only: create_metadata
     use run_parameters, only: user_comments
-    use neasyf, only: neasyf_open
+    use neasyf, only: neasyf_open, neasyf_default_compression
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
@@ -126,6 +134,12 @@ contains
     io_write_corr_extend = write_correlation_extend
 
     !----------------
+
+#ifdef GK_NETCDF_DEFAULT_COMPRESSION_ON
+    neasyf_default_compression = default_compression_level
+#else
+    neasyf_default_compression = compression_off
+#endif
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
