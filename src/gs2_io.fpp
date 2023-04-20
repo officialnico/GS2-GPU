@@ -21,7 +21,7 @@ module gs2_io
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
-  integer (kind_nf) :: nttotext_dim, time_big_dim
+  integer (kind_nf) :: nttotext_dim, time_big_dim, bset_dim
 
   character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
   character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
@@ -196,7 +196,7 @@ contains
 # ifdef NETCDF
     use file_utils, only: num_input_lines
     use kt_grids, only: aky, akx, theta0, jtwist_out, ntheta0, naky, nx, ny
-    use theta_grid, only: theta, ntgrid
+    use theta_grid, only: theta, ntgrid, nperiod, ntheta, nbset, bset
     use le_grids, only: al, energy, negrid, nlambda
     use species, only: nspec
     use mp, only: nproc
@@ -241,6 +241,9 @@ contains
     call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
     call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda, dimid=vpa_dim)
 
+    call neasyf_dim(file_id, "bset", values=bset, dimid=bset_dim, &
+         long_name="Bmag at bounce points", units="Bref")
+
     if (create_extended_correlation) then
        call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
        call neasyf_dim(file_id, "tb", unlimited=.true., dimid=time_big_dim)
@@ -254,6 +257,10 @@ contains
     call neasyf_write(file_id, "nspecies", nspec, long_name="Number of species")
     call neasyf_write(file_id, "nenergy", negrid, long_name="Number of energy points")
     call neasyf_write(file_id, "nlambda", nlambda, long_name="Number of lambda points")
+
+    call neasyf_write(file_id, "nperiod", nperiod, long_name="Number of 2 pi theta sections in parallel domain chunk")
+    call neasyf_write(file_id, "ntheta", ntheta, long_name="Number of theta points per 2 pi section")
+    call neasyf_write(file_id, "nbset", nbset, long_name="Number of bounce points")
 
     call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], &
          long_name="Theta_0, poloidal angle where mode radial wavenumber == 0", units="rad")
