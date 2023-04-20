@@ -149,7 +149,7 @@ def read_theta_grid_file_into_dictionary(filename):
             return result
 
     except FileNotFoundError:
-        print(f"File "{filename}" not found.")
+        print(f"File {filename} not found.")
 
 def write_theta_grid_data(filename, data):
     def write_floats(file, *arrays):
