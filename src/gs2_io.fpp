@@ -20,13 +20,21 @@ module gs2_io
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
 
+  !> Names of dimnesions used by flux variables
   character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
+  !> Names of dimnesions used by flux-by-mode variables
   character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
+  !> Names of dimnesions used by snapshots of complex fields
   character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
+  !> Names of dimnesions used by certain fluxes
   character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
+  !> Names of dimnesions used by time-dependent complex fields
   character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
+  !> Names of dimnesions used by time-dependent real fields
   character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
+  !> Names of dimnesions used by moments
   character(*), dimension(*), parameter :: mom_dims = [character(len=7)::"ri", "kx", "ky", "species", "t"]
+  !> Names of dimnesions used by theta-dependent moments
   character(*), dimension(*), parameter :: mom_t_dims = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
 
 # ifdef NETCDF
