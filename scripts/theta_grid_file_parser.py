@@ -296,7 +296,7 @@ def read_gs2_netcdf_into_dictionary(filename):
     #Scalars
     result["shat"] = data["shat"][:]
     result["kxfac"] = data["kxfac"][:]
-    result["q"] = data["q"][:]
+    result["q"] = data["qval"][:]
     result["drhodpsi"] = data["drhodpsi"][:]
     # rmaj missing _but_ this value isn't actually used in GS2
     # so set to some dummy value for now
@@ -310,3 +310,5 @@ def read_gs2_netcdf_into_dictionary(filename):
     result["nlambda"] = data["nbset"][:]
 
     return result
+
+
