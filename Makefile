@@ -444,11 +444,6 @@ ifdef USE_SHMEM
 	MACRO_DEFS += -DSHMEM
 endif
 
-ifeq ($(USE_FFT),fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
-	FFT_LIB ?= -lfftw -lrfftw
-endif
-
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
 	FFT_LIB ?= -lfftw -lrfftw
@@ -457,10 +452,6 @@ endif
 ifdef GENQUAD
 	GENQUAD_LIB ?= -llapack 
 	MACRO_DEFS += -DGENQUAD
-endif
-
-ifeq ($(USE_FFT),mkl_fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
 endif
 
 ifdef USE_NETCDF
@@ -757,7 +748,7 @@ depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM)
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
-		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS):$(NEASYF) \
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 

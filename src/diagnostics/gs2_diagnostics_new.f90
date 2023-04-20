@@ -42,7 +42,6 @@ contains
     use theta_grid, only: ntgrid
     use gs2_transforms, only: init_transforms
     use diagnostics_config, only: init_diagnostics_config
-    use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
     use diagnostics_omega, only: init_diagnostics_omega
     use diagnostics_velocity_space, only: init_diagnostics_velocity_space
@@ -84,8 +83,6 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
-    call init_volume_averages
-
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new inialized vol avgs')
     
@@ -554,31 +551,40 @@ contains
 
   !> FIXME : Add documentation  
   subroutine run_old_final_routines
-    use gs2_diagnostics, only: do_write_final_fields, do_write_kpar, do_write_final_epar, do_write_final_db, &
-         do_write_final_moments, do_write_final_antot, do_write_gs, init_par_filter
+    use diagnostics_final_routines,only: do_write_final_fields
+    use diagnostics_final_routines,only: do_write_kpar
+    use diagnostics_final_routines,only: do_write_final_epar
+    use diagnostics_final_routines,only: do_write_final_db
+    use diagnostics_final_routines,only: do_write_final_moments
+    use diagnostics_final_routines,only: do_write_final_antot
+    use diagnostics_final_routines,only: do_write_gs
+    use diagnostics_final_routines,only: init_par_filter
     use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky
-    use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
     integer, parameter :: verb=3
     
     if(gnostics%write_kpar.or.gnostics%write_gs) call init_par_filter
-    
+
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) call do_write_final_fields(gnostics%file_id, gnostics%write_ascii)
+       if (gnostics%write_final_fields) then
+          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
+       end if
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
        if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) call do_write_final_epar(gnostics%file_id, gnostics%write_ascii)
+       if (gnostics%write_final_epar) then
+          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
+       end if
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
@@ -587,12 +593,19 @@ contains
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) call do_write_final_moments(gnostics%file_id, gnostics%write_ascii, phi0)
+    if (gnostics%write_final_moments) then
+      call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
+                                  write_text=gnostics%write_ascii, write_netcdf=.false., &
+                                  file_id=gnostics%file_id)
+    end if
+
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) call do_write_final_antot(gnostics%file_id, gnostics%write_ascii)
-    
+    if (gnostics%write_final_antot) then
+      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%file_id)
+    end if
+
     if (proc0) call dump_ant_amp
     
     if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics%write_ascii)

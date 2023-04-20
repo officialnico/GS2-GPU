@@ -182,7 +182,7 @@ contains
             vflux_perp, gnostics%distributed)
 
        if (gnostics%wryte) call neasyf_write(gnostics%file_id, "es_flux_vs_e", esflux_vs_e, &
-            dim_names=[character(7)::"energy", "species", "t"], &
+            dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
 
 #ifdef LOWFLOW
@@ -222,7 +222,7 @@ contains
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
 
        if (gnostics%wryte) call neasyf_write(gnostics%file_id, "apar_flux_vs_e", apflux_vs_e, &
-            dim_names=[character(7)::"energy", "species", "t"], &
+            dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Perpendicular magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
     end if
@@ -251,7 +251,7 @@ contains
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
        if (gnostics%wryte) call neasyf_write(gnostics%file_id, "bpar_flux_vs_e", bpflux_vs_e, &
-            dim_names=[character(7)::"energy", "species", "t"], &
+            dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Parallel magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
     end if

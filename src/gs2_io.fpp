@@ -24,7 +24,7 @@ module gs2_io
   integer (kind_nf) :: ncid
   integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
   integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
-  integer (kind_nf) :: nttotext_dim, time_big_dim
+  integer (kind_nf) :: nttotext_dim, time_big_dim, bset_dim
 
   character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
   character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
@@ -57,6 +57,14 @@ module gs2_io
   integer, parameter :: ncid_movie = -1
 #endif
   real, parameter :: zero = epsilon(0.0)
+
+  !> Value to disable netCDF compression
+  integer, parameter :: compression_off = 0
+  !> Level of compression if enabled via
+  !> `GK_NETCDF_DEFAULT_COMPRESSION_ON` macro. Must be a value between
+  !> 1 (faster, less compression) and 9 (slower, more compression), or
+  !> 0 (off)
+  integer, parameter :: default_compression_level = 1
 
 contains
 
@@ -104,7 +112,7 @@ contains
     use constants, only: run_name_size
     use gs2_metadata, only: create_metadata
     use run_parameters, only: user_comments
-    use neasyf, only: neasyf_open
+    use neasyf, only: neasyf_open, neasyf_default_compression
 # endif
     implicit none
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
@@ -134,6 +142,12 @@ contains
     io_write_corr_extend = write_correlation_extend
 
     !----------------
+
+#ifdef GK_NETCDF_DEFAULT_COMPRESSION_ON
+    neasyf_default_compression = default_compression_level
+#else
+    neasyf_default_compression = compression_off
+#endif
 
     !Create file
     filename = trim(trim(run_name)//'.out.nc')
@@ -201,7 +215,7 @@ contains
 # ifdef NETCDF
     use file_utils, only: num_input_lines
     use kt_grids, only: aky, akx, theta0, jtwist_out, ntheta0, naky, nx, ny
-    use theta_grid, only: theta, ntgrid
+    use theta_grid, only: theta, ntgrid, nperiod, ntheta, nbset, bset
     use le_grids, only: al, energy, negrid, nlambda
     use species, only: nspec
     use mp, only: nproc
@@ -228,9 +242,11 @@ contains
          long_name="Energy/magnetic moment", units="1/(2 B_a)")
     call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
 
-    ! Energy is 2D, and neasyf only handles 1D dimensions
-    call ensure_netcdf_dim_exists(file_id, 'energy', negrid, negrid_dim)
-    call neasyf_write(file_id, "energy", energy, dim_names=["energy ", "species"])
+    ! Energy coordinate is a function of species, but the dimension must be 1D
+    call neasyf_dim(file_id, "egrid", dim_size=negrid, dimid=negrid_dim, &
+         long_name="See 'energy' for energy grid values")
+    call neasyf_write(file_id, "energy", energy, dim_ids=[negrid_dim, nspec_dim], &
+         long_name="Energy grid values")
 
     call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
     call neasyf_dim(file_id, "t", unlimited=.true., dimid=time_dim, &
@@ -244,16 +260,18 @@ contains
     call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
     call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
     call neasyf_dim(file_id, "char200", dim_size=200)
-    if (num_input_lines > 0) then
-      ! netCDF interprets zero-sized dimensions as unlimited, which is not what we want
-      call neasyf_dim(file_id, "nlines", dim_size=num_input_lines, long_name="Input file line number")
-    end if
+
+    ! netCDF interprets zero-sized dimensions as unlimited, which is not what we want
+    call neasyf_dim(file_id, "nlines", dim_size=max(1, num_input_lines), long_name="Input file line number")
 
     ! Dimensions for non-physical matrices etc
     call neasyf_dim(file_id, "2", dim_size=2, long_name="Generic dim")
     call neasyf_dim(file_id, "3", dim_size=3, long_name="Generic dim")
     call neasyf_dim(file_id, "4", dim_size=4, long_name="Generic dim")
     call neasyf_dim(file_id, "5", dim_size=5, long_name="Generic dim")
+
+    call neasyf_dim(file_id, "bset", values=bset, dimid=bset_dim, &
+         long_name="Bmag at bounce points", units="Bref")
 
     if (create_extended_correlation) then
        call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
@@ -268,6 +286,10 @@ contains
     call neasyf_write(file_id, "nspecies", nspec, long_name="Number of species")
     call neasyf_write(file_id, "nenergy", negrid, long_name="Number of energy points")
     call neasyf_write(file_id, "nlambda", nlambda, long_name="Number of lambda points")
+
+    call neasyf_write(file_id, "nperiod", nperiod, long_name="Number of 2 pi theta sections in parallel domain chunk")
+    call neasyf_write(file_id, "ntheta", ntheta, long_name="Number of theta points per 2 pi section")
+    call neasyf_write(file_id, "nbset", nbset, long_name="Number of bounce points")
 
     call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], &
          long_name="Theta_0, poloidal angle where mode radial wavenumber == 0", units="rad")
@@ -379,10 +401,8 @@ contains
     character(line_length), dimension(:), allocatable ::  input_file_array
     integer :: n, unit
 
-    ! Don't attempt to write zero-sized arrays
-    if (num_input_lines <= 0) return
-
-    allocate(input_file_array(num_input_lines))
+    allocate(input_file_array(max(1, num_input_lines)))
+    input_file_array(1) = ""
 
     call get_input_unit(unit)
     rewind (unit=unit)
@@ -1173,7 +1193,7 @@ contains
 # ifdef NETCDF
     use kt_grids, only: naky, ntheta0
     use neasyf, only: neasyf_write
-    use volume_averages, only: average_theta, average_kx, average_ky, init_volume_averages
+    use volume_averages, only: average_theta, average_kx, average_ky
 # endif
     use theta_grid, only: ntgrid
     !> NetCDF ID of the file
@@ -1201,10 +1221,8 @@ contains
     character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
     character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
 
-    ! Need to make sure ntg_out is set in the volume averages module.
     ! Note that we're not using `get_vol_average` because we'll end up
     ! with a circular dependency
-    call init_volume_averages()
     call average_theta(field, field, field2_by_mode, distributed=.false.)
 
     if (write_field_over_time) then
@@ -1463,7 +1481,7 @@ contains
     call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
          long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
     call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
-         long_name="Normalised density gradient scale length -1/rho dn/drho", units="1/aref")
+         long_name="Normalised density gradient scale length -Lref/n dn/drho", units="1/aref")
     call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
          long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
     call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
