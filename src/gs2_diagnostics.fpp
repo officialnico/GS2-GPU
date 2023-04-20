@@ -1307,7 +1307,7 @@ contains
 
     if (proc0 .and. write_any) then
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_heating) call do_write_heating(t, heat_unit, heat_unit2, h, hk)
+       if (write_ascii .and. write_heating) call do_write_heating(t, heat_unit, heat_unit2, h)
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
@@ -1831,7 +1831,7 @@ contains
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
-  subroutine do_write_heating(t, file_unit, file_unit2, h, hk)
+  subroutine do_write_heating(t, file_unit, file_unit2, h)
     use species, only: nspec
     use file_utils, only: flush_output_file
     implicit none
@@ -1839,8 +1839,6 @@ contains
     integer, intent(in) :: file_unit, file_unit2
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
-    !> Heating per-mode
-    type(heating_diagnostics), dimension(:,:), intent (in) :: hk
 
     integer :: is
 

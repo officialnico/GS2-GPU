@@ -67,7 +67,7 @@ contains
   end subroutine finish_collisional
 
   !> FIXME : Add documentation  
-  subroutine calculate_collisional(gnostics)
+  subroutine calculate_collisional()
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
     use dist_fn_arrays, only: c_rate, g_adjust
@@ -85,7 +85,6 @@ contains
 
     implicit none
 
-    type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(-ntgrid:ntgrid) :: wgt !< weights for theta integration
     complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !< two parts of c_rate array: collisions and hypervisocity
     !complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: tot

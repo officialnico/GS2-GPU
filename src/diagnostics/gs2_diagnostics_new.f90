@@ -495,7 +495,7 @@ contains
        end if 
 
        if (gnostics%write_collisional) then  !< new diagnostic, calulate and write in new variable
-          call calculate_collisional(gnostics)
+          call calculate_collisional()
           call write_collisional(gnostics)
        end if
 

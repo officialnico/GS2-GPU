@@ -149,7 +149,7 @@ contains
          h%imp_colls*(gnostics%user_time - gnostics%user_time_old)
     
     if (gnostics%write_ascii .and. proc0) then
-      call do_write_heating(gnostics%user_time, gnostics%ascii_files%heat, gnostics%ascii_files%heat2, h, hk)
+      call do_write_heating(gnostics%user_time, gnostics%ascii_files%heat, gnostics%ascii_files%heat2, h)
     end if
   end subroutine write_heating
 end module diagnostics_heating
