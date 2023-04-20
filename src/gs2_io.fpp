@@ -1372,10 +1372,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: yxf_lo
     use gs2_transforms, only: transform2
-    use kt_grids, only: nx, ny, naky, ntheta0
-    use le_grids, only: nlambda, negrid
     use run_parameters, only: fphi, fapar, fbpar
-    use species, only: nspec
     use theta_grid, only: ntgrid
     use neasyf, only: neasyf_write
 # endif

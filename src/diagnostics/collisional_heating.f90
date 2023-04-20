@@ -79,7 +79,7 @@ contains
     use gs2_time, only: code_dt
     use hyper, only: hyper_diff, hypervisc_filter
     use le_derivatives, only: vspace_derivatives
-    use fields_arrays, only: phi, bpar, phinew, bparnew
+    use fields_arrays, only: phi, bpar
     use run_parameters, only: fphi, fbpar
     use collisions, only: heating
 
@@ -105,7 +105,6 @@ contains
   
     call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
-    !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
     if (heating) then
        do is = 1, nspec
