@@ -3,6 +3,7 @@ module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
   use diagnostics_base_config, only: diagnostics_base_config_type
+  use gs2_io, only: get_netcdf_file_id
 
   ! what about boundary condition contributions?  In the presence 
   ! of magnetic shear, there are not always zero amplitudes at the ends
@@ -137,7 +138,7 @@ module gs2_diagnostics
   real, dimension (:), allocatable :: pflux_avg, qflux_avg, heat_avg, vflux_avg
   real :: conv_test_multiplier
 
-  integer :: ntg_out, ntg_extend, nth0_extend
+  integer :: ntg_extend, nth0_extend
   integer :: nout = 1
   integer :: nout_movie = 1
   integer :: nout_big = 1
@@ -442,7 +443,7 @@ contains
     type(standard_header_type), intent(in), optional :: header
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
-    integer :: nmovie_tot, nwrite_big_tot
+    integer :: nmovie_tot
 
     if (present(header)) then
       local_header = header
@@ -464,8 +465,6 @@ contains
     call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
-    nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
-    if(nwrite_big_tot .le. 0) nwrite_big_tot = 1
 
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
@@ -495,14 +494,9 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (append_old, write_nl_flux, write_omega, &
-         write_heating, write_final_antot, &
-         write_eigenfunc, make_movie, nmovie_tot, write_verr, &
-         write_moments, write_full_moments_notgc, &
-         write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
-         write_correlation, nwrite_big_tot, write_correlation_extend, &
+    call init_gs2_io (append_old, make_movie, write_verr, &
+         write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-         write_avg_moments, write_final_moments, write_final_epar, &
          nout, ob_midplane=ob_midplane, header=local_header)
 
     call broadcast (nout)
@@ -705,7 +699,6 @@ contains
     gs2_diagnostics_config_in%omegatinst = 1.0
     gs2_diagnostics_config_in%print_line = .true.
     gs2_diagnostics_config_in%write_correlation = .false.
-    gs2_diagnostics_config_in%write_fields = .false.
     gs2_diagnostics_config_in%write_moments = .false.
   end subroutine apply_old_defaults
 
@@ -713,7 +706,6 @@ contains
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: nperiod, ntheta
     use run_parameters, only: fphi
     use nonlinear_terms, only: nonlin
     implicit none
@@ -826,6 +818,7 @@ contains
     !CMR, 12/8/2014: 
     ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
     ! to avoid a conflict.  
+    ! FIXME: These two diagnostics do almost the same thing. Do we actually want both?
     if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
 
     !Override flags
@@ -856,8 +849,6 @@ contains
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
          .or. write_full_moments_notgc
-
-    ntg_out = ntheta/2 + (nperiod-1)*ntheta
   end subroutine read_parameters
 
   !> Finalise the diagnostics module, writing final timestep diagnostics and
@@ -896,10 +887,14 @@ contains
     call close_files
 
     if (proc0) then
-       if (write_eigenfunc) call do_write_eigenfunc(phi0)
-       if (write_final_fields) call do_write_final_fields(write_ascii, write_netcdf=.true.)
+       if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), phi0)
+       if (write_final_fields) then
+          call do_write_final_fields(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
+       end if
        if (write_kpar) call do_write_kpar(write_ascii)
-       if (write_final_epar) call do_write_final_epar(write_ascii, write_netcdf=.true.)
+       if (write_final_epar) then
+          call do_write_final_epar(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
+       end if
 
        ! definition here assumes we are not using wstar_units
        if (write_final_db) call do_write_final_db(write_ascii)
@@ -908,9 +903,12 @@ contains
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
     if (write_final_moments) call do_write_final_moments(phi0, use_normalisation=write_eigenfunc, &
-                                                         write_text=write_ascii, write_netcdf=.true.)
+                                                         write_text=write_ascii, write_netcdf=.true.,&
+                                                         file_id=get_netcdf_file_id())
 
-    if (write_final_antot) call do_write_final_antot(write_ascii, write_netcdf=.true.)
+    if (write_final_antot) then
+       call do_write_final_antot(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
+    end if
 
     call save_restart_dist_fn(save_for_restart, save_distfn, &
                               save_glo_info_and_grids=save_glo_info_and_grids, &
@@ -1139,7 +1137,7 @@ contains
     !Instead replace with a call to nc_final_fields to keep the phi, apar and bpar
     !output arrays up to date.
 
-    if (write_fields .and. proc0) call nc_final_fields
+    if (write_fields .and. proc0) call nc_final_fields(get_netcdf_file_id())
 
     if (write_moments) call do_write_moments
 
@@ -1383,18 +1381,18 @@ contains
           if (write_ascii) write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, &
                & ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
           if (write_nl_flux) then
-             call nc_qflux (nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
+             call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
                   heat_par, mheat_par, bheat_par, &
                   heat_perp, mheat_perp, bheat_perp, &
                   heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
-             call nc_exchange (nout, exchange, energy_exchange)
+             call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
              ! Update the target array in parameter_scan_arrays
              !Do you really want the scan parameter to rely on a diagnostic flag?
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_hflux(nout) = hflux_tot
              scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
 
-             call nc_vflux (nout, vflux, vmflux, vbflux, &
+             call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
                   mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
                   vflux_par, vflux_perp, vflux0, vflux1)
              ! Update the target array in parameter_scan_arrays
@@ -1402,11 +1400,11 @@ contains
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_momflux(nout) = vflux_tot
              scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
-             call nc_pflux (nout, pflux, pmflux, pbflux, &
+             call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
                   part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
           end if
 
-          if (write_pflux_tormom) call nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
+          if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
 
           ! below line gives out-of-bounds array for runs inside trinity
           !               scan_phi2_tot(nout) = phi2
@@ -1438,11 +1436,11 @@ contains
 
     if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t, t_old, istep)
 
-    if (write_parity) call do_write_parity(t)
+    if (write_parity) call do_write_parity(t, parity_unit, write_ascii)
 
     if (write_avg_moments) call do_write_avg_moments
 
-    if (write_full_moments_notgc) call do_write_full_moments_notgc(t)
+    if (write_full_moments_notgc) call do_write_full_moments_notgc
 
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
@@ -1504,9 +1502,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar, woutunits
-    use kt_grids, only: naky, ntheta0
+    use run_parameters, only: woutunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1518,31 +1514,13 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (naky) :: fluxfac
-    real, dimension (ntheta0, naky) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
-    if (fphi > epsilon(0.0)) then
-       call get_vol_average (phinew, phinew, phi2, phi2_by_mode)
-    endif
-    if (fapar > epsilon(0.0)) then
-       call get_vol_average (aparnew, aparnew, apar2, apar2_by_mode)
-    end if
-    if (fbpar > epsilon(0.0)) then
-       call get_vol_average (bparnew, bparnew, bpar2, bpar2_by_mode)
-    end if
 
-    fluxfac = 0.5
-    !This is only correct if running in box mode surely?
-    !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
-    fluxfac(1) = 1.0
-
-    if(proc0) call nc_loop (nout, time, fluxfac, &
-         phinew(igomega,:,:), phi2, phi2_by_mode, &
-         aparnew(igomega,:,:), apar2, apar2_by_mode, &
-         bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
+    if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
+         phi2, apar2, bpar2, igomega, &
          h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
@@ -1572,16 +1550,18 @@ contains
   !> \(\phi\) at the outboard midplane
   !>
   !> Writes to text file `<runname>.eigenfunc` and/or netCDF
-  subroutine do_write_eigenfunc(phi0)
+  subroutine do_write_eigenfunc(file_id, phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use gs2_io, only: nc_eigenfunc
     use dist_fn, only: def_parity, even
     use run_parameters, only: fapar
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> The normalising factor for the fields that is actually used. See
     !> [[gs2_diagnostics_knobs:write_eigenfunc]] for more details
     complex, dimension (:,:), intent(inout) :: phi0
@@ -1612,7 +1592,7 @@ contains
        call open_output_file (unit, ".eigenfunc")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
+             do ig = -ntgrid, ntgrid
                 write (unit, "(9(1x,e12.5))") &
                      theta(ig), theta0(it,ik), aky(ik), &
                      phi(ig,it,ik)/phi0(it,ik), &
@@ -1625,7 +1605,7 @@ contains
        call close_output_file (unit)
     end if
 
-    call nc_eigenfunc (phi0)
+    call nc_eigenfunc (file_id, phi0)
   end subroutine do_write_eigenfunc
 
   !> Write some geometry information to text file `<runname>.g`
@@ -1764,7 +1744,7 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, &
+    if(proc0) call nc_write_moments(get_netcdf_file_id(), nout, ntot, density, upar, tpar, tperp,qparflux, &
          pperpj1, qpperpj1, ob_midplane=ob_midplane)
   end subroutine do_write_moments
 
@@ -2005,7 +1985,7 @@ contains
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call flux_vs_theta_vs_vpa (phinew, vflx_sym)
-    if (proc0) call nc_loop_sym (nout, vflx_sym)
+    if (proc0) call nc_loop_sym (get_netcdf_file_id(), nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
@@ -2065,7 +2045,8 @@ contains
           end do
        end if
     end if
-    if (proc0) call nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+    if (proc0) call nc_loop_dist (get_netcdf_file_id(), nout, part_fluxes_dist, mom_fluxes_par_dist, &
+         mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
     deallocate (part_fluxes_dist)
     deallocate (mom_fluxes_par_dist)
     deallocate (mom_fluxes_perp_dist)
@@ -2091,7 +2072,7 @@ contains
 
     allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call pflux_vs_theta_vs_vpa (pflux_sym)
-    if (proc0) call nc_loop_partsym_tormom (nout, pflux_sym)
+    if (proc0) call nc_loop_partsym_tormom (get_netcdf_file_id(), nout, pflux_sym)
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
@@ -2105,7 +2086,7 @@ contains
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
     call correlation (phi_corr_2pi)
-    if (proc0) call nc_loop_corr (nout,phi_corr_2pi)
+    if (proc0) call nc_loop_corr (get_netcdf_file_id(), nout, phi_corr_2pi)
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
@@ -2146,7 +2127,7 @@ contains
     phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
     phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
     if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (nout_big, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
+       call nc_loop_corr_extend (get_netcdf_file_id(), nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)
@@ -2154,7 +2135,7 @@ contains
 
   !> Calculate average parity of distribution function under \((\theta, k_x,
   !> v_\parallel) \to (-\theta, -k_x, -v_\parallel)\), and write to [[parity_unit]]
-  subroutine do_write_parity(t)
+  subroutine do_write_parity(t, file_unit, write_text)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, nlambda, integrate_moment, integrate_kysum
@@ -2167,7 +2148,11 @@ contains
     use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
-    real, intent(in) :: t 
+    real, intent(in) :: t
+    !> Open formatted file to write text to
+    integer, intent(in) :: file_unit
+    !> If false, don't calculate or write parity
+    logical, intent(in) :: write_text
     integer :: iplo, iglo, sgn2, isgn, il, ie, ig, ik, it, is
     complex, dimension (:,:,:,:), allocatable :: gparity, gmx, gpx
     complex, dimension (:,:,:), allocatable :: g0, gm, gp
@@ -2179,15 +2164,15 @@ contains
     real, dimension (:), allocatable :: gmtot, gptot, gtot, gmnormtot
     real, dimension (:), allocatable :: gm_nokx_tot, gp_nokx_tot, gmnorm_nokx_tot
     real, dimension (:), allocatable :: gm_nosig_tot, gp_nosig_tot, gmnorm_nosig_tot
-    logical :: first = .true.
+    logical, save :: first = .true.
+
+    if (.not. write_text) return
 
     ! initialize layouts for parity diagnostic
     if (first) then
        call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
-
-    if (.not. write_ascii) return
 
     allocate (gparity(-ntgrid:ntgrid,ntheta0,2,p_lo%llim_proc:p_lo%ulim_alloc))
     allocate (g0(-ntgrid:ntgrid,2,p_lo%llim_proc:p_lo%ulim_alloc))
@@ -2567,7 +2552,7 @@ contains
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
 
-    if (proc0) write (parity_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
+    if (proc0) write (file_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
          real(g_nosig_tot), aimag(g_nosig_tot), real(gnorm_nosig_tot), aimag(gnorm_nosig_tot)
@@ -2610,16 +2595,16 @@ contains
     if (proc0) then
        do is = 1, nspec
           do it = 1, ntheta0
-             call get_fldline_avg(ntot(-ntg_out:ntg_out,it,1,is),ntot00(it,is))
-             call get_fldline_avg(density(-ntg_out:ntg_out,it,1,is),density00(it,is))
-             call get_fldline_avg(upar(-ntg_out:ntg_out,it,1,is),upar00(it,is))
-             call get_fldline_avg(tpar(-ntg_out:ntg_out,it,1,is),tpar00(it,is))
-             call get_fldline_avg(tperp(-ntg_out:ntg_out,it,1,is),tperp00(it,is))
+             call get_fldline_avg(ntot(-ntgrid:ntgrid,it,1,is),ntot00(it,is))
+             call get_fldline_avg(density(-ntgrid:ntgrid,it,1,is),density00(it,is))
+             call get_fldline_avg(upar(-ntgrid:ntgrid,it,1,is),upar00(it,is))
+             call get_fldline_avg(tpar(-ntgrid:ntgrid,it,1,is),tpar00(it,is))
+             call get_fldline_avg(tperp(-ntgrid:ntgrid,it,1,is),tperp00(it,is))
           end do
        end do
 
        do it = 1, ntheta0
-          call get_fldline_avg(phinew(-ntg_out:ntg_out,it,1),phi00(it))
+          call get_fldline_avg(phinew(-ntgrid:ntgrid,it,1),phi00(it))
        end do
 
        do is = 1, nspec
@@ -2636,7 +2621,7 @@ contains
                ntot20(is), ntot20_by_mode(:,:,is))
        end do
 
-       call nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, &
+       call nc_loop_moments (get_netcdf_file_id(), nout, ntot2, ntot2_by_mode, ntot20, &
             ntot20_by_mode, phi00, ntot00, density00, upar00, &
             tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
 
@@ -2645,7 +2630,7 @@ contains
 
   !> Calculate moments (density, parallel flow, and parallel and perpendicular
   !> temperatures) in non-guiding centre coordinates and write to netCDF
-  subroutine do_write_full_moments_notgc(t)
+  subroutine do_write_full_moments_notgc()
     use dist_fn, only: getmoms_notgc
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -2654,12 +2639,11 @@ contains
     use gs2_io, only: nc_loop_fullmom
     use fields_arrays, only: phinew, bparnew
     implicit none
-    real, intent(in) :: t
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
          upar, tpar, tperp
     call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
     if(proc0) then
-       call nc_loop_fullmom(nout,t, &
+       call nc_loop_fullmom(get_netcdf_file_id(), nout, &
             & ntot(igomega,:,:,:),density(igomega,:,:,:), &
             & upar(igomega,:,:,:), &
             & tpar(igomega,:,:,:),tperp(igomega,:,:,:) )
@@ -2670,7 +2654,7 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
@@ -2690,10 +2674,10 @@ contains
     !theta grid point which we don't seem to want here
     do ik = 1, naky
        do it = 1, ntheta0
-          denom=sum(delthet(-ntg_out:ntg_out-1)*jacob(-ntg_out:ntg_out-1))
-          tmp=sum(phinew(-ntg_out:ntg_out-1,it,ik) &
-               *delthet(-ntg_out:ntg_out-1) &
-               *jacob(-ntg_out:ntg_out-1))/denom
+          denom=sum(delthet(-ntgrid:ntgrid-1)*jacob(-ntgrid:ntgrid-1))
+          tmp=sum(phinew(-ntgrid:ntgrid-1,it,ik) &
+               *delthet(-ntgrid:ntgrid-1) &
+               *jacob(-ntgrid:ntgrid-1))/denom
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -2722,7 +2706,7 @@ contains
   subroutine do_dump_fields_periodically(t)
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
     use mp, only: proc0
@@ -2737,7 +2721,7 @@ contains
     call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
-          do ig = -ntg_out, ntg_out
+          do ig = -ntgrid, ntgrid
              write (unit=unit, fmt="(20(1x,e12.5))") &
                   theta(ig), aky(ik), theta0(it,ik), &
                   phinew(ig,it,ik), aparnew(ig,it,ik), &
@@ -3061,10 +3045,10 @@ contains
 
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -3207,15 +3191,15 @@ contains
 
   !> Calculate the field-line average (real values)
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    real, dimension (-ntg_out:), intent (in) :: fld_in
+    real, dimension (-ntgrid:), intent (in) :: fld_in
     real, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -3226,15 +3210,15 @@ contains
 
   !> Calculate the field-line average (complex values)
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    complex, dimension (-ntg_out:), intent (in) :: fld_in
+    complex, dimension (-ntgrid:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -3300,10 +3284,10 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -3362,7 +3346,7 @@ contains
   subroutine correlation_extend (cfnc, phi2extend)
     !    use constants, only: pi
     use fields_arrays, only: phinew
-    use theta_grid, only: ntgrid, jacob, delthet
+    use theta_grid, only: ntgrid, jacob, delthet, ntgrid
     !   use theta_grid, only: theta
     use kt_grids, only: ntheta0, naky, jtwist_out
 

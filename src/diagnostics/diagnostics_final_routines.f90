@@ -41,7 +41,7 @@ contains
   end subroutine par_spectrum
 
   !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
-  subroutine do_write_final_fields(write_text, write_netcdf)
+  subroutine do_write_final_fields(write_text, write_netcdf, file_id)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use gs2_io, only: nc_final_fields
@@ -54,6 +54,8 @@ contains
     logical, intent(in) :: write_text
     !> Write to netcdf file
     logical, intent(in) :: write_netcdf
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 
     integer :: ik, it, ig, unit
 
@@ -79,7 +81,7 @@ contains
        call close_output_file (unit)
     end if
 
-    if (write_netcdf) call nc_final_fields()
+    if (write_netcdf) call nc_final_fields(file_id)
 
   end subroutine do_write_final_fields
 
@@ -155,7 +157,7 @@ contains
   end subroutine do_write_kpar
 
   !> Calculate and write \(E_\parallel\), overwriting existing values
-  subroutine do_write_final_epar(write_text, write_netcdf)
+  subroutine do_write_final_epar(write_text, write_netcdf, file_id)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, theta0, aky, akx
@@ -168,6 +170,8 @@ contains
     logical, intent(in) :: write_text
     !> Write to netcdf file
     logical, intent(in) :: write_netcdf
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 
     complex, dimension (:,:,:), allocatable :: epar
     integer :: ik, it, ig, unit
@@ -195,7 +199,7 @@ contains
        call close_output_file (unit)
     end if
 
-    if (write_netcdf) call nc_final_epar (epar)
+    if (write_netcdf) call nc_final_epar (file_id, epar)
 
     deallocate (epar)
   end subroutine do_write_final_epar
@@ -254,7 +258,7 @@ contains
   !> field-line averages.
   !>
   !> NetCDF files contain just the full values
-  subroutine do_write_final_moments(phi0_in, use_normalisation, write_text, write_netcdf)
+  subroutine do_write_final_moments(phi0_in, use_normalisation, write_text, write_netcdf, file_id)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
@@ -273,6 +277,8 @@ contains
     logical, intent(in) :: write_text
     !> Write to netcdf file
     logical, intent(in) :: write_netcdf
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 
     complex, dimension (:,:,:,:), allocatable :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), allocatable :: qparflux, pperpj1, qpperpj1
@@ -376,14 +382,16 @@ contains
       deallocate(phi0,phi02)
     end if
 
-    if (write_netcdf) call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-
+    if (write_netcdf) then
+      call nc_final_moments (file_id, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
+    end if
+    
     deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
   end subroutine do_write_final_moments
 
   !> Write the right-hand sides of the field equations, overwriting
   !> existing values
-  subroutine do_write_final_antot(write_text, write_netcdf)
+  subroutine do_write_final_antot(write_text, write_netcdf, file_id)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky, theta0, aky
@@ -395,6 +403,8 @@ contains
     logical, intent(in) :: write_text
     !> Write to netcdf file
     logical, intent(in) :: write_netcdf
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
 
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
@@ -425,7 +435,7 @@ contains
       call close_output_file (unit)
     end if
 
-    if (write_netcdf) call nc_final_an (antot, antota, antotp)
+    if (write_netcdf) call nc_final_an (file_id, antot, antota, antotp)
 
     deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
