@@ -298,7 +298,9 @@ def read_gs2_netcdf_into_dictionary(filename):
     result["kxfac"] = data["kxfac"][:]
     result["q"] = data["q"][:]
     result["drhodpsi"] = data["drhodpsi"][:]
-    # rmaj missing
+    # rmaj missing _but_ this value isn't actually used in GS2
+    # so set to some dummy value for now
+    result["rmaj"] = -1.2345
 
     #Grid sizes
     result["ntgrid"] = (result["theta_grid"].shape[0]-1) // 2
