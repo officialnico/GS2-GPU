@@ -152,15 +152,6 @@ def read_theta_grid_file_into_dictionary(filename):
         print(f"File '{filename}' not found.")
 
 def write_theta_grid_data(filename, data):
-    def write_four_floats(file, var1, var2, var3, var4):
-        for i in range(len(var1)):
-            file.write(' '.join([_from_float(x[i])
-                                 for x in [var1, var2, var3, var4]]) + '\n')
-
-    def write_three_floats(file, var1, var2, var3):
-        for i in range(len(var1)):
-            file.write(' '.join([_from_float(x[i])
-                                  for x in [var1, var2, var3]]) + '\n')
 
     with open(filename, 'w') as file:
         file.write('nlambda' + '\n')
@@ -171,6 +162,10 @@ def write_theta_grid_data(filename, data):
 
         file.write('ntgrid nperiod ntheta drhodpsi rmaj shat kxfac q' + '\n')
         file.write(' '.join([to_str(x) for to_str, x in zip(
+    def write_floats(file, *arrays):
+        for line in zip(*arrays):
+            file.write(" ".join(map(_from_float, line)) + "\n")
+
             [str, str, str, _from_float, _from_float, _from_float,
              _from_float, _from_float],
             [data['ntgrid'], data['nperiod'], data['ntheta'],
@@ -178,28 +173,28 @@ def write_theta_grid_data(filename, data):
              data['kxfac'], data['q']])
                 ]) + '\n')
 
-        file.write('gbdrift gradpar grho tgrid' + '\n')
-        write_four_floats(file, data['gbdrift'], data['gradpar'],
-                          data['grho'], data['theta_grid'])
+        file.write("gbdrift gradpar grho tgrid" + "\n")
+        write_floats(file, data["gbdrift"], data["gradpar"],
+                          data["grho"], data["theta_grid"])
 
-        file.write('cvdrift gds2 bmag tgrid' + '\n')
-        write_four_floats(file, data['cvdrift'], data['gds2'],
-                          data['bmag'], data['theta_grid'])
+        file.write("cvdrift gds2 bmag tgrid" + "\n")
+        write_floats(file, data["cvdrift"], data["gds2"],
+                          data["bmag"], data["theta_grid"])
 
-        file.write('gds21 gds22 tgrid' + '\n')
-        write_three_floats(file, data['gds21'], data['gds22'], data['theta_grid'])
+        file.write("gds21 gds22 tgrid" + "\n")
+        write_floats(file, data["gds21"], data["gds22"], data["theta_grid"])
 
-        file.write('cvdrift0 gbdrift0 tgrid' + '\n')
-        write_three_floats(file, data['cvdrift0'], data['gbdrift0'], data['theta_grid'])
+        file.write("cvdrift0 gbdrift0 tgrid" + "\n")
+        write_floats(file, data["cvdrift0"], data["gbdrift0"], data["theta_grid"])
 
-        file.write('rplot rprime tgrid' + '\n')
-        write_three_floats(file, data['rplot'], data['rprime'], data['theta_grid'])
+        file.write("rplot rprime tgrid" + "\n")
+        write_floats(file, data["rplot"], data["rprime"], data["theta_grid"])
 
-        file.write('zplot zprime tgrid' + '\n')
-        write_three_floats(file, data['zplot'], data['zprime'], data['theta_grid'])
+        file.write("zplot zprime tgrid" + "\n")
+        write_floats(file, data["zplot"], data["zprime"], data["theta_grid"])
 
-        file.write('aplot aprime tgrid' + '\n')
-        write_three_floats(file, data['aplot'], data['aprime'], data['theta_grid'])
+        file.write("aplot aprime tgrid" + "\n")
+        write_floats(file, data["aplot"], data["aprime"], data["theta_grid"])
 
 def consistency_check_theta_grid_data(data, fix = False,
                                       min_bounce_tolerance = 1.0e-12, min_bounce_tolerance_large = 1.0e-8):
