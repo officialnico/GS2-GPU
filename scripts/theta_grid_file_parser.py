@@ -1,7 +1,7 @@
 import numpy as np
 
 def _from_float(number, ndigits=17):
-    return f"{{number}:.{ndigits}f}"
+    return f"{number:.{ndigits}f}"
 
 def read_theta_grid_file_into_dictionary(filename):
     def read_four_floats(file, length):
