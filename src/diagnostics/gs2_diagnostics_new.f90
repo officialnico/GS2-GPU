@@ -671,11 +671,10 @@ contains
   subroutine create_dimensions(add_to_file)
     use simpledataio_write, only: real_imaginary_dimension_name
     use kt_grids, only: naky, ntheta0, nx, ny, jtwist_out, box
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, nbset
     use le_grids, only: negrid, nlambda
     use species, only: nspec
     use diagnostics_metadata, only: inputfile_length
-
     implicit none
     logical, intent(in) :: add_to_file
 
@@ -741,20 +740,27 @@ contains
     ! Special dimension for the input file
     call gnostics%dims%input_file_dim%init("input_file_dim", inputfile_length, "Length of input file", "")
     if(add_to_file) call gnostics%dims%input_file_dim%add_to_file(gnostics%sfile)
+
+    call gnostics%dims%bset%init("bset", nbset, "The bounce points", "")
+    if(add_to_file) call gnostics%dims%bset%add_to_file(gnostics%sfile)
+
   end subroutine create_dimensions
 
   !> FIXME : Add documentation  
   subroutine write_dimensions
-    use kt_grids, only: aky, akx, theta0
-    use theta_grid, only: theta
-    use le_grids, only: al, energy
+    use kt_grids, only: aky, akx, theta0, ntheta0, naky, nx, ny
+    use theta_grid, only: theta, bset, nperiod, ntgrid, ntheta, nbset
+    use le_grids, only: al, energy, nlambda, negrid
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use species, only: nspec, spec
     use run_parameters, only: beta
     use gs2_layouts, only: layout
+    use nonlinear_terms, only: nonlin
+    use mp, only: nproc
     implicit none
     character, dimension(5) :: layout_split
+    integer :: nmesh, nttot
     call create_and_write_variable(gnostics, gnostics%rtype, "kx", dim_string(gnostics%dims%kx),  &
          "Values of kx, the wavenumber perpendicular to the flux surface ", "1/rho_r", akx)
     call create_and_write_variable(gnostics, gnostics%rtype, "ky", dim_string(gnostics%dims%ky),  &
@@ -768,6 +774,10 @@ contains
          "Values of the energy grid. ", "T_s", energy)
     call create_and_write_variable(gnostics, gnostics%rtype, "lambda", dim_string(gnostics%dims%lambda),  &
          "Values of lambda = energy/magnetic moment", "1/ (2 B_a)", al)
+
+    call create_and_write_variable(gnostics, gnostics%rtype, "bset", dim_string(gnostics%dims%bset),  &
+         "Values of Bmag at bounce points. ", "Bref", bset)
+
     call create_and_write_variable(gnostics, gnostics%rtype, "charge", dim_string(gnostics%dims%species),  &
          "Values of charge for each species", "e", spec(1:nspec)%z)
     call create_and_write_variable(gnostics, gnostics%rtype, "mass", dim_string(gnostics%dims%species),  &
@@ -791,5 +801,31 @@ contains
     layout_split = [layout(1:1), layout(2:2), layout(3:3), layout(4:4), layout(5:5)]
     call create_and_write_variable(gnostics, gnostics%ctype, "layout", dim_string(gnostics%dims%generic_5),  &
          "Decomposition layout for g_lo", "", layout_split)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nperiod", "",  &
+         "Number of 2 pi theta sections in parallel domain chunk", "", nperiod)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "ntheta", "",  &
+         "Number of theta points per 2 pi section", "", ntheta)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nbset", "",  &
+         "Number of bounce points", "", nbset)
+
+    nttot = 2*ntgrid+1
+    call create_and_write_variable(gnostics, gnostics%itype, "ntheta_tot", "",  &
+         "Number of theta points per parallel domain chunk", "", nttot)
+
+    if (nonlin) then
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
+    else
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec
+    end if
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nmesh", "",  &
+         "Total number of mesh points", "", nmesh)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nproc", "",  &
+         "Number of processors", "", nproc)
+
   end subroutine write_dimensions
 end module gs2_diagnostics_new
