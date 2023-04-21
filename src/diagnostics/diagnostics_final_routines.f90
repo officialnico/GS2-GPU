@@ -596,19 +596,19 @@ contains
     allocate (zx1(nny4), zxm(nny4), zy1(nnx4), zyn(nnx4))
 
     do ig=-ntgrid, ntgrid
-       call fitp_surf1(nnx4, nny4, xx, yy, bxfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, bxfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, bxs(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, byfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, byfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, bys(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, vxfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, vxfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, vxs(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, vyfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, vyfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, vys(:,ig), stemp, 1., ierr)
     end do
