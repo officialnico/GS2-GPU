@@ -1,0 +1,234 @@
+!=================================================================
+!                        GS2 INPUT FILE
+!=================================================================
+!
+!  GS2 is a gyrokinetic flux tube initial value turbulence code
+!  which can be used for fusion or astrophysical plasmas.
+!
+!  Website:
+!            https://gyrokinetics.gitlab.io/gs2/
+!  Repo:
+!            https://bitbucket.org/gyrokinetics/gs2/
+!  Citation:
+!            https://zenodo.org/record/2551066
+!  doi:
+!            10.5281/zenodo.2551066
+!
+!=================================================================
+
+!==============================
+!GENERAL PARAMETERS  
+!==============================
+&parameters
+ beta = 0.0 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
+ zeff = 1.0 ! Effective ionic charge.
+/
+
+&kt_grids_knobs
+ grid_option = "box" ! The general layout of the perpendicular grid.
+/
+
+!==============================
+!  
+!==============================
+&kt_grids_box_parameters
+ ny = 16
+ nx = 8
+ y0 = 5.0
+/
+
+!==============================
+!  
+!==============================
+&theta_grid_parameters
+ ntheta = 6 ! Number of points along field line (theta) per 2 pi segment
+ nperiod = 1 ! Number of 2 pi segments along equilibrium magnetic field.
+ eps = 0.18 ! eps=r/R
+ epsl = 2.0 ! epsl=2 a/R
+ shat = 0.8 ! 
+ pk = 1.44 ! pk = 2 a / q R
+ shift = 0.0 ! shift = -R q**2 dbeta/drho (>0)
+/
+
+!==============================
+!  
+!==============================
+&theta_grid_knobs
+ equilibrium_option = "s-alpha" ! Controls which geometric assumptions are used in the run.
+/
+
+!==============================
+!  
+!==============================
+&theta_grid_salpha_knobs
+ model_option = "default" 
+/
+
+!==============================
+!PITCH ANGLE/ENERGY GRID SETUP  
+!==============================
+&le_grids_knobs
+ npassing = 3 ! Number of untrapped pitch-angles moving in one direction along field line.
+ nesuper = 3
+ nesub = 3 
+/
+
+!==============================
+!BOUNDARY CONDITIONS  
+!==============================
+&dist_fn_knobs
+ gridfac = 1.0 ! Affects boundary condition at end of theta grid.
+ omprimfac = 1.0 
+ boundary_option = "linked" ! Sets the boundary condition along the field line (i.e. the boundary conditions at theta = +- pi).
+ adiabatic_option = "iphi00=2" ! The form of the adiabatic response (if a species is being modeled as adiabatic).
+ g_exb = 0.0 
+ nonad_zero = .true. ! If true switches on new parallel boundary condition where h=0 at incoming boundary instead of g=0.
+/
+
+!==============================
+!ALGORITHMIC CHOICES  
+!==============================
+&fields_knobs
+ field_option = "implicit" ! Controls which time-advance algorithm is used for the linear terms.
+/
+
+!==============================
+!  
+!==============================
+&knobs
+ wstar_units = .false. ! For linear runs only. Evolves each k_y with a different timestep.
+ fphi = 1.0 ! Multiplies Phi (electrostatic potential).
+ fapar = 0.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
+ faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
+ delt = 0.05 !0.05 ! Time step
+ nstep = 2 ! Maximum number of timesteps
+ use_old_diagnostics = .true.
+/
+
+!==============================
+!  
+!==============================
+&reinit_knobs
+ delt_adj = 2.0 ! When the time step needs to be changed, it is adjusted 
+ delt_minimum = 1.0e-06 ! The minimum time step is delt_minimum.
+/
+
+!==============================
+!  
+!==============================
+&layouts_knobs
+ layout = "xyles" 
+/
+
+!==============================
+!COLLISIONS  
+!==============================
+&collisions_knobs
+ collision_model = "none" ! Collision model used in the simulation. Options: 'default', 'none', 'lorentz', 'ediffuse'
+/
+
+!==============================
+!NONLINEARITY  
+!==============================
+&nonlinear_terms_knobs
+ nonlinear_mode = "on" ! Include nonlinear terms? ('on','off')
+ cfl = 0.5 ! The maximum delt < cfl * min(Delta_perp/v_perp)
+/
+
+!==============================
+!EVOLVED SPECIES  
+!==============================
+&species_knobs
+ nspec = 1 ! Number of kinetic species evolved.
+/
+
+!==============================
+!SPECIES PARAMETERS 1 
+!==============================
+&species_parameters_1
+ z = 1.0 ! Charge
+ mass = 1.0 ! Mass
+ dens = 1.0 ! Density	
+ temp = 1.0 ! Temperature
+ tprim = 6.9 ! -1/T (dT/drho)
+ fprim = 2.2 ! -1/n (dn/drho)
+ uprim = 0.0 ! ?
+ vnewk = 0.01 ! collisionality parameter
+ type = "ion" ! Type of species, e.g. 'ion', 'electron', 'beam'
+/
+
+!==============================
+! 1 
+!==============================
+&dist_fn_species_knobs_1
+ fexpr = 0.45 ! Temporal implicitness parameter. Recommended value: 0.48
+ bakdif = 0.05 ! Spatial implicitness parameter. Recommended value: 0.05
+/
+
+!==============================
+!INITIAL CONDITIONS  
+!==============================
+&init_g_knobs
+ chop_side = .false. ! Rarely needed. Forces asymmetry into initial condition.
+ phiinit = 0.1 ! Average amplitude of initial perturbation of each Fourier mode.
+ ginit_option = "default" ! Sets the way that the distribution function is initialized.
+/
+
+!==============================
+!DIAGNOSTICS  
+!==============================
+&gs2_diagnostics_knobs
+ print_flux_line = .true. ! Instantaneous fluxes output to screen
+ write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
+ print_line = .true. ! Estimated frequencies and growth rates to the screen/stdout
+ write_verr = .true. ! Write velocity space diagnostics to '.lpc' and '.verr' files
+ write_g = .true. ! Write the distribution function to the '.dist' (NetCDF?)
+ write_line = .true. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
+ write_gyx = .true. ! Write dist fn at a given physical spacial point to a file
+ write_hrate = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
+ write_final_epar = .true. ! If (write_ascii = T) E_parallel(theta) written to runname.eigenfunc
+ write_avg_moments = .true. ! Write flux surface averaged low-order moments of g to runname.out.nc and runname.moments (if write_ascii = T)
+ write_lorentzian = .true. ! Frequency Sweep Data
+ write_omega = .true. ! If (write_ascii = T) instantaneous omega to output file. Very heavy output
+ write_omavg = .true. ! If (write_ascii = T) time-averaged growth rate and frequency to the output file.
+ write_eigenfunc = .true. ! If (write_ascii = T) Normalized phi written to runname.eigenfunc
+ write_final_fields = .true. ! If (write_ascii = T) Phi(theta) written to '.fields'
+ write_final_moments = .true. ! write final n, T
+ write_parity = .true. ! Writes parities in dist fn and particle fluxes
+ nsave = 2 ! Write restart files every nsave timesteps
+ nwrite = 1 ! Output diagnostic data every nwrite
+ navg = 10 ! Any time averages performed over navg
+ omegatol = -0.001 ! The convergence has to be better than one part in 1/omegatol
+ omegatinst = 500.0 ! Recommended value: 500.
+ save_for_restart = .true. ! Write restart files.
+ write_flux_line = .true. ! 
+ write_ascii = .true. ! 
+ write_kpar = .true. ! 
+ write_gs = .true. ! 
+ write_gg = .true. ! 
+ write_lpoly = .true. ! 
+ write_fields = .true. ! 
+ write_final_antot = .true. ! 
+ write_cerr = .true. ! 
+ write_max_verr = .true. ! 
+ nmovie = 1 ! 
+ igomega = 0 ! 
+ exit_when_converged = .false. ! 
+ write_full_moments_notgc = .true. ! 
+ write_cross_phase = .true. ! 
+ dump_check1 = .true. ! 
+ dump_check2 = .true. ! 
+ dump_fields_periodically = .true. ! 
+ make_movie = .true. ! 
+ write_phi_over_time = .true. ! Write entire Phi field to NetCDF file every nwrite.
+ write_apar_over_time = .true. ! Write entire A_parallel field to NetCDF file every nwrite.
+ write_bpar_over_time = .true. ! Write entire B_parallel field to NetCDF file every nwrite.
+ write_symmetry = .true. ! Test the symmetry properties of the GK eqn.
+ save_distfn = .true. ! Save dist_fn with lots of detail.
+ write_correlation_extend = .true. ! Extend domain of correlation function calculation.
+ nwrite_mult = 2 ! Large datasets written every nwrite_mult * nwrite timesteps.
+ write_correlation = .true. ! Write parallel correlation.
+ write_moments = .true. ! 
+ write_final_db = .true. ! Write final delta B.
+/
+
