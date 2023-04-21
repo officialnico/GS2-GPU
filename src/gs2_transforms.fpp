@@ -2050,6 +2050,7 @@ contains
     use fft_work, only: time_fft
     complex, dimension (:,:,:), intent(in)  :: an
     complex, dimension (:,:,:), intent(out) :: an2
+    an2 = 0.0
     call time_message(.false., time_fft, ' FFT')
 #if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft)(zf_fft%plan, an, an2)
