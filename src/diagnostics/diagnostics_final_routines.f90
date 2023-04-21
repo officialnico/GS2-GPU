@@ -409,13 +409,14 @@ contains
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
 
-    if (.not. proc0) return
     if (.not. (write_text .or. write_netcdf)) return
 
     allocate ( antot(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
     call getan (antot, antota, antotp)
+
+    if (.not. proc0) return
 
     if (write_text) then
       call open_output_file (unit, ".antot")
@@ -467,7 +468,6 @@ contains
     integer :: nnx, nny, nnx4, nny4, ulim, llim, iblock, i, unit
     integer :: ik, it, ig, ierr
 
-    if (.not. proc0) return
     if (.not. write_text) return
 
     nny = 2*ny
@@ -719,6 +719,8 @@ contains
 
     call par_spectrum (vx, vx2)
     call par_spectrum (vy, vy2)
+
+    if (.not. proc0) return
 
     call open_output_file (unit, ".gs")
     do ig = 1, ntgrid
