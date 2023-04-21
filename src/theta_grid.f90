@@ -3207,7 +3207,11 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     ! CMR, 2/2/2011: set itor_over_B=0 if rhoc=0
     !                Dropping parallel sheared flow source term in GKE
     !                using itor_over_B=0 is safer than itor_over_B=NaN!
-       if (rhoc /= 0.) itor_over_B = qval / rhoc * IoB
+       if (rhoc /= 0.) then
+          itor_over_B = qval / rhoc * IoB
+       else
+          itor_over_B = btor_slab
+       end if
      endif
   end subroutine get_grids
 
