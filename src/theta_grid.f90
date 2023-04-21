@@ -2277,7 +2277,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
-    use theta_grid_params, only: init_theta_grid_params
+    use theta_grid_params, only: init_theta_grid_params, rhoc
+    use geometry, only: rhoc_geo => rhoc
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
     
@@ -2285,6 +2286,11 @@ contains
     initialized = .true.
 
     call init_theta_grid_params
+
+    ! As the eqfile doesn't specify rhoc we simply set from the value
+    ! from theta_grid_params here.
+    rhoc_geo = rhoc
+
     call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
