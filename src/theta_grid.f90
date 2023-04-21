@@ -2866,6 +2866,7 @@ contains
     call broadcast (gds24_noq)
     call broadcast (grho)
     call broadcast (jacob)
+    call broadcast (field_line_average_weight)
     call broadcast (Rplot)
     call broadcast (Zplot)
     call broadcast (aplot)
