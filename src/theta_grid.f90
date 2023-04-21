@@ -2277,7 +2277,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
-    use theta_grid_params, only: init_theta_grid_params
+    use theta_grid_params, only: init_theta_grid_params, rhoc
+    use geometry, only: rhoc_geo => rhoc
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
     
@@ -2285,6 +2286,11 @@ contains
     initialized = .true.
 
     call init_theta_grid_params
+
+    ! As the eqfile doesn't specify rhoc we simply set from the value
+    ! from theta_grid_params here.
+    rhoc_geo = rhoc
+
     call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
@@ -3204,7 +3210,11 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     ! CMR, 2/2/2011: set itor_over_B=0 if rhoc=0
     !                Dropping parallel sheared flow source term in GKE
     !                using itor_over_B=0 is safer than itor_over_B=NaN!
-       if (rhoc /= 0.) itor_over_B = qval / rhoc * IoB
+       if (rhoc /= 0.) then
+          itor_over_B = qval / rhoc * IoB
+       else
+          itor_over_B = btor_slab
+       end if
      endif
   end subroutine get_grids
 
