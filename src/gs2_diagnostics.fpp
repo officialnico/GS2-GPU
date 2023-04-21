@@ -708,6 +708,7 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     use run_parameters, only: fphi
     use nonlinear_terms, only: nonlin
+    use antenna, only: no_driver
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -829,6 +830,11 @@ contains
     if (is_list_run) then
        print_line = .false.
        print_flux_line = .false.
+    end if
+
+    if (no_driver .and. write_lorentzian) then
+      write(*, "(a)") "WARNING: 'write_lorentzian = .true.' but antenna not enabled. Turning off 'write_lorentzian'"
+      write_lorentzian = .false.
     end if
 
     !These don't store any data if fphi=0 so don't bother
