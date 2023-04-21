@@ -2277,7 +2277,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
-    use theta_grid_params, only: init_theta_grid_params
+    use theta_grid_params, only: init_theta_grid_params, rhoc
+    use geometry, only: rhoc_geo => rhoc
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
     
@@ -2285,6 +2286,11 @@ contains
     initialized = .true.
 
     call init_theta_grid_params
+
+    ! As the eqfile doesn't specify rhoc we simply set from the value
+    ! from theta_grid_params here.
+    rhoc_geo = rhoc
+
     call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
@@ -2410,6 +2416,10 @@ contains
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
     gbdrift_th = 0. ; cvdrift_th = 0.
 
+    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
+    ! set coriolis drift to zero
+    cdrift = 0. ; cdrift0 = 0.
+
     read (unit=unit, fmt="(a)") line
     do i = -ntgrid, ntgrid
        read (unit=unit, fmt=*) cvdrift0(i), gbdrift0(i)
@@ -2422,6 +2432,12 @@ contains
           gbdrift_th(i) = cvdrift_th(i)
        end do
     end if
+
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
 
     if (.not. no_geo_info) then
 
@@ -2440,16 +2456,14 @@ contains
           read (unit=unit, fmt=*, err=100) aplot(i), aprime(i)
        end do
 
-       close (unit=unit)    
-       return
     end if
 
-    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
-    ! set coriolis drift to zero
-    cdrift = 0. ; cdrift0 = 0.
+    close (unit=unit)
+
+    return
 
 100 continue
-
+    write(6,*) 'Error reading Rplot etc. setting to dummy values.'
 ! dummy values for backward compatibility
     Rplot = 1. ; Rprime = 0.
     Zplot = 1. ; Zprime = 0.
@@ -2457,11 +2471,6 @@ contains
 
     close (unit=unit)
 
-    ! Possibly crude approximations for file
-    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
-    ! but isn't yet stored here.
-    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
-    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine file_get_grids
 
   !> Set the module level config type
@@ -3201,7 +3210,11 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     ! CMR, 2/2/2011: set itor_over_B=0 if rhoc=0
     !                Dropping parallel sheared flow source term in GKE
     !                using itor_over_B=0 is safer than itor_over_B=NaN!
-       if (rhoc /= 0.) itor_over_B = qval / rhoc * IoB
+       if (rhoc /= 0.) then
+          itor_over_B = qval / rhoc * IoB
+       else
+          itor_over_B = btor_slab
+       end if
      endif
   end subroutine get_grids
 
