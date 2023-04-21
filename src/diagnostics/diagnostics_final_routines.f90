@@ -228,6 +228,12 @@ contains
     !Calculate db
     do ik = 1, naky
       do it = 1, ntheta0
+        if (abs(apar(1, it, ik)) <= epsilon(0.0) &
+            .or. abs(aparnew(1, it, ik)) <= epsilon(0.0)) then
+          db(:, it, ik) = 0.0
+          cycle
+        end if
+
         dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
              * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
         ig = -ntgrid
