@@ -170,7 +170,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       cfnc(:,it,1) = cfnc(:,it,1) / cfnc(1,it,1)
+       where (abs(cfnc(:, it, 1)) > epsilon(0.0))
+         cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
+       end where
     end do
     
     do ik = 2, naky
