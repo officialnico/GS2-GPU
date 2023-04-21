@@ -185,9 +185,8 @@ contains
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
-                     = field_line_average(real(conjg(&
-                     a(:,it,ik,is))*b(:,it,ik,is)))
-            end if
+                     = field_line_average(real(conjg(a(:,it,ik,is))*b(:,it,ik,is)))
+             end if
           end do
        end do
     end do
