@@ -14,8 +14,9 @@
 # define _COMPAQ_ 21
 # define _CRAY_ 22
 # define _SUN_ 23
+# define _FUJ_ 24
+# define _NEC_ 25
 
-# define _FFTW_ 41
 # define _FFTW3_ 42
 
 # define _SPLOCAL_ 51

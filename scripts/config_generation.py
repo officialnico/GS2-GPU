@@ -37,7 +37,7 @@ subroutine read_{module}_config(self)
   implicit none
   class({module}_config_type), intent(in out) :: self
   logical :: exist
-  integer :: in_file, iostat
+  integer :: in_file
 
   ! Note: When this routine is in the module where these variables live
   ! we shadow the module level variables here. This is intentional to provide
@@ -53,16 +53,7 @@ subroutine read_{module}_config(self)
 {COPYOUT_LIST}
 
   ! Now read in the main namelist
-  if (self%get_requires_index()) then
-    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-    read(in_file, nml = {namelist}, iostat = iostat)
-    exist = .true.
-    if (iostat .ne.0) exist = .false.
-    close(unit = in_file, iostat = iostat)
-  else
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = {namelist})
-  endif
+  {READ_NML}
 
   ! Now copy from local variables into type members
 {COPYIN_LIST}
@@ -70,12 +61,23 @@ subroutine read_{module}_config(self)
   self%exist = exist
 end subroutine read_{module}_config"""
 
+readNMLSubStringIndexed = """
+  call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+  if (exist) read(in_file, nml = {namelist})
+  close(unit = in_file)
+"""
+
+readNMLSubString = """
+  in_file = input_unit_exist(self%get_name(), exist)
+  if (exist) read(in_file, nml = {namelist})
+"""
+
 writeSubString = """
 !> Writes out a namelist representing the current state of the config object
 subroutine write_{module}_config(self, unit)
   implicit none
   class({module}_config_type), intent(in) :: self
-  integer, intent(in) , optional:: unit
+  integer, intent(in), optional:: unit
   integer :: unit_internal
 
   unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -135,6 +137,28 @@ function get_default_requires_index_{module}_config()
   logical :: get_default_requires_index_{module}_config
   get_default_requires_index_{module}_config = {requires_index}
 end function get_default_requires_index_{module}_config"""
+
+getModuleConfigSubString = """
+!> Get the module level config instance
+pure function get_{module}_config()
+  type({module}_config_type) :: get_{module}_config
+  get_{module}_config = {module}_config
+end function get_{module}_config
+"""
+
+getModuleIndexedConfigSubString = """
+!> Get the array of module level config instances. If it isn't allocated,
+!> then return a zero-length array
+pure function get_{module}_config()
+  type({module}_config_type), allocatable, dimension(:) :: get_{module}_config
+  if (allocated({module}_config)) then
+    get_{module}_config = {module}_config
+  else
+    allocate(get_{module}_config(0))
+  end if
+end function get_{module}_config
+"""
+
 
 class var():
     assignInString = "{instanceName}%{name} = {name}"
@@ -340,9 +364,14 @@ class config():
                                           instance_name = instance_name, config_in = config_in, att = att, req=req)
     
     def readConfig(self, **kwargs):
+        if self.requires_index:
+            read_nml = readNMLSubStringIndexed.format(namelist = self.namelistName).strip()
+        else:
+            read_nml = readNMLSubString.format(namelist = self.namelistName).strip()
+
         return readSubString.format(namelist = self.namelistName, module = self.moduleName,
                                     COPYIN_LIST = self.copyInList(**kwargs), COPYOUT_LIST = self.copyOutList(**kwargs),
-                                    NAMELIST_LIST = self.namelistList(**kwargs), DECL_LIST=self.declarationList(**kwargs))
+                                    NAMELIST_LIST = self.namelistList(**kwargs), DECL_LIST=self.declarationList(**kwargs), READ_NML = read_nml)
 
     def writeConfig(self, **kwargs):
         return writeSubString.format(namelist = self.namelistName, module = self.moduleName,KEYVAL_LIST = self.keyValList(**kwargs))
@@ -362,7 +391,11 @@ class config():
         if self.requires_index: requires_index = ".true."
         return getDefaultRequiresIndexSubString.format(module = self.moduleName, requires_index = requires_index)
 
-    
+    def getModuleConfig(self):
+        if self.requires_index:
+            return getModuleIndexedConfigSubString.format(module=self.moduleName)
+        return getModuleConfigSubString.format(module=self.moduleName)
+
     def printAll(self,**kwargs):
         st = []
         st.append(self.decl(**kwargs))
@@ -375,6 +408,7 @@ class config():
         st.append(self.broadcastConfig())
         st.append(self.defaultNameConfig())
         st.append(self.defaultRequiresIndexConfig())
+        st.append(self.getModuleConfig())
         return "\n".join(st)
 
     def dumpToFile(self,fileOut=None):
@@ -395,7 +429,7 @@ class config():
 
         # Table header
         st.append("<html>")
-        st.append('<table class="divNamelistTable">')
+        st.append('<table class="divNamelistTable" markdown="1">')
         st.append("<thead><tr>")
         header_cell = "<th> {val} </th>"
         st.append(header_cell.format(val = "Name"))
@@ -405,16 +439,16 @@ class config():
         st.append("</tr></thead>")
 
         # Table body
-        st.append("<tbody>")
+        st.append("<tbody markdown='1'>")
         # Note the double new lines in the following are very important as it ensures the markdown content
         # is treated as a separate paragraph, which ensures that any generated div elements and similar are
         # correctly closed here. This avoids strange issues with div tag mismatches in the generated html
-        row_cell = "<td>\n\n{val}\n\n</td>"
+        row_cell = "<td markdown='block'>\n\n{val}\n\n</td>"
         full_row = "\n".join([row_cell.format(val="{nm}"), row_cell.format(val="{ty}"), row_cell.format(val="{de}"), row_cell.format(val="{co}")])
 
-        name_link = "[{name}](./index.html#{namelist}-{name})"
+        name_link = "<a href='./index.html#{namelist}-{name}'>{name}</a>"
         for var in self.varList:
-            st.append('<tr id="{}-{}">'.format(self.namelistName, var.name))
+            st.append('<tr id="{}-{}" markdown="1">'.format(self.namelistName, var.name))
             st.append(full_row.format(nm =
                                       name_link.format(namelist = self.namelistName, name = var.name),
                                       ty = var.typ, de = var.default.split("!")[0], co = "\n".join(var.comment)))
@@ -443,7 +477,7 @@ class config():
         st.append("")
         return st
     
-def constructFromFile(fileIn=None, verbose=False):
+def constructFromFile(fileIn=None, verbose=False, quiet=False):
     # Currently not able to get value of requires_index automatically.
 
     if fileIn is None:
@@ -503,7 +537,8 @@ def constructFromFile(fileIn=None, verbose=False):
     theConfigs = OrderedDict()
     
     with open(fileIn, 'r') as f:
-        print("Processing file '{f}'".format(f=fileIn))
+        if not quiet:
+            print("Processing file '{f}'".format(f=fileIn))
         found = False
         currName = 'ERROR'
         otherLines = []

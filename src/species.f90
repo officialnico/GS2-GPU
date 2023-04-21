@@ -10,20 +10,23 @@ module species
   public :: write_trinity_parameters
   public :: wnml_species, check_species
   public :: nspec, specie, spec
-  public :: ion_species, electron_species, tracer_species
+  public :: tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species, has_hybrid_electron_species
+  public :: is_electron_species, is_hybrid_electron_species
   public :: calculate_slowingdown_parameters
   public :: ions, electrons, impurity
   public :: set_overrides
   public :: determine_species_order
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
   public :: nonmaxw_corr, f0_values, dlnf0drho
-
+  
   public :: species_config_type
   public :: species_element_config_type
   public :: set_species_config
-  
+  public :: get_species_config
+  public :: get_species_element_config
+
   !> FIXME : Add documentation 
   type :: specie
      real :: z
@@ -49,6 +52,10 @@ module species
   integer, parameter :: ion_species = 1
   integer, parameter :: electron_species = 2 ! for collision operator
   integer, parameter :: tracer_species = 3 ! for test particle diffusion studies
+  integer, parameter :: hybrid_electron_species = 4 ! Adibatic passing, non-adiabatic trapped
+
+  integer, dimension(*), parameter :: electron_like_species = &
+       [electron_species, hybrid_electron_species]
 
   integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
                         f0_tabulated = 2, &            !< f0 determined from table in external input file
@@ -58,7 +65,7 @@ module species
   !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
   !! adiabatic
   real:: me, ZI_fac
-
+  
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
   integer:: is_global = -1
 
@@ -67,6 +74,7 @@ module species
 
   integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
+
 
   logical :: initialized = .false.
   logical :: exist
@@ -158,6 +166,10 @@ module species
      !> - 'electron' : Thermal electron species
      !> - 'e' : Same as 'electron'
      !> - 'trace' : Tracer species
+     !> - 'hybrid_electron' : Adiabatic passing electrons, full
+     !>    trapped electron treatment. *NOTE: This option is currently
+     !>    considered experimental and is intended for use in
+     !>    electrostatic simulations.*
      !>
      !> This primarily controls the treatment in the collision
      !> operator, the detection of adiabatic species. Tracer species
@@ -228,9 +240,10 @@ contains
     do is=1, nspec
        write (report_unit, *) 
        write (report_unit, fmt="('  Species ',i3)") is
-       if (spec(is)%type == 1) write (report_unit, fmt="('    Type:             Ion')")
-       if (spec(is)%type == 2) write (report_unit, fmt="('    Type:             Electron')")
-       if (spec(is)%type == 3) write (report_unit, fmt="('    Type:             Slowing-down')")
+       if (spec(is)%type == ion_species) write (report_unit, fmt="('    Type:             Ion')")
+       if (spec(is)%type == electron_species) write (report_unit, fmt="('    Type:             Electron')")
+       if (spec(is)%type == tracer_species) write (report_unit, fmt="('    Type:             Trace')")
+       if (spec(is)%type == hybrid_electron_species) write (report_unit, fmt="('    Type:             Hybrid-Electron')")       
        write (report_unit, fmt="('    Charge:         ',f7.3)") spec(is)%z
        write (report_unit, fmt="('    Mass:             ',es11.4)") spec(is)%mass
        write (report_unit, fmt="('    Density:        ',f7.3)") spec(is)%dens
@@ -311,8 +324,16 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
     end if
-    
-    write (report_unit, *) 
+
+    if (has_hybrid_electron_species(spec)) then
+       write (report_unit, *)
+       write (report_unit, fmt="('################# WARNING #######################')")
+       write (report_unit, fmt="('You are using a hybrid electron species.')")
+       write (report_unit, fmt="('This is currently considered experimental.')")
+       write (report_unit, fmt="('################# WARNING #######################')")
+    end if
+
+    write (report_unit, *)
     write (report_unit, fmt="('------------------------------------------------------------')")
     
     write (report_unit, *) 
@@ -356,6 +377,8 @@ contains
             write (unit, fmt="(a)") ' type = "ion" /'
        if (spec(i)%type == electron_species) &
             write (unit, fmt="(a)") ' type = "electron"  /'
+       if (spec(i)%type == hybrid_electron_species) &
+            write (unit, fmt="(a)") ' type = "hybrid_electron"  /'
        if (spec(i)%type == tracer_species) &
             write (unit, fmt="(a)") ' type = "trace"  /'
        if (spec(i)%f0type == f0_maxwellian) &
@@ -374,7 +397,7 @@ contains
   subroutine init_species(species_config_in, species_elements_config_in)
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
 
     if (initialized) return
     initialized = .true.
@@ -390,7 +413,7 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
@@ -398,17 +421,20 @@ contains
     integer :: is
     integer :: ierr
 
-    type (text_option), dimension (5), parameter :: typeopts = &
-         (/ text_option('default', ion_species), &
-            text_option('ion', ion_species), &
-            text_option('electron', electron_species), &
-            text_option('e', electron_species), &
-            text_option('trace', tracer_species) /)
+    type (text_option), dimension (*), parameter :: typeopts = [ &
+         text_option('default', ion_species), &
+         text_option('ion', ion_species), &
+         text_option('electron', electron_species), &
+         text_option('e', electron_species), &
+         text_option('trace', tracer_species), &
+         text_option('hybrid_electron', hybrid_electron_species) &
+         ]
 
-    type (text_option), dimension (3), parameter :: f0_opts = &
-         (/ text_option('maxwellian', f0_maxwellian), &
-            text_option('tabulated', f0_tabulated), &
-            text_option('sdanalytic', f0_sdanalytic) /)
+    type (text_option), dimension (3), parameter :: f0_opts = [ &
+         text_option('maxwellian', f0_maxwellian), &
+         text_option('tabulated', f0_tabulated), &
+         text_option('sdanalytic', f0_sdanalytic) &
+         ]
 
     if (present(species_config_in)) species_config = species_config_in
 
@@ -528,18 +554,9 @@ contains
     tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
     tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
     deallocate(tmp_bcast)
-
   end subroutine read_parameters
 
-  !> FIXME : Add documentation   
-  pure function has_ion_species (spec)
-    implicit none
-    type (specie), dimension (:), intent (in) :: spec
-    logical :: has_ion_species
-    has_ion_species = any(spec%type == ion_species)
-  end function has_ion_species
-
-  !> FIXME : Add documentation   
+  !> FIXME : Add documentation
   subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
     use constants, only: pi
     use mp, only: proc0
@@ -553,8 +570,8 @@ contains
     main_ion_species = -1
 
     do is = 1,nspec
-       if (spec(is)%type .eq. electron_species)                            electron_spec = is
-       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species)      main_ion_species = is
+       if (is_electron_species(spec(is))) electron_spec = is
+       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species) main_ion_species = is
     end do
 
     if (electron_spec .GT. 0) then
@@ -649,7 +666,6 @@ contains
      integer, intent(in):: is
      is_global = is
   end subroutine set_current_f0_species
-
 
   !> FIXME : Add documentation
   !!
@@ -980,23 +996,64 @@ contains
 
   end subroutine calculate_f0_arrays_tabulated
 
-  !> FIXME : Add documentation   
-  pure function has_electron_species (spec)
+  !> Determine if any of the known species are electron like
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_electron_species
-    has_electron_species = any(spec%type == electron_species)
+    has_electron_species = any(is_electron_species(spec))
   end function has_electron_species
 
-  !> FIXME : Add documentation   
-  pure function has_nonmaxw_species (spec)
+  !> Determine if any of the known species are hybrid electrons
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_hybrid_electron_species (spec)
     implicit none
     type (specie), dimension (:), intent (in) :: spec
-    logical :: has_nonmaxw_species
+    has_hybrid_electron_species = any(is_hybrid_electron_species(spec))
+  end function has_hybrid_electron_species
+
+  !> Determine if any of the known species are ion like
+  !>
+  !> @note This should be effectively constant, could cache during init
+  pure logical function has_ion_species (spec)
+    implicit none
+    type (specie), dimension (:), intent (in) :: spec
+    has_ion_species = any(is_ion_species(spec))
+  end function has_ion_species
+
+  !> Determine if the passed species instance is considered electron
+  !> like. In other words if spec%type matches any of the recognised
+  !> electron like types (electron, hybrid_electron)
+  elemental logical function is_electron_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_electron_species = any(spec%type == electron_like_species)
+  end function is_electron_species
+
+  !> Determine if the passed species instance corresponds to hybrid electrons
+  elemental logical function is_hybrid_electron_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_hybrid_electron_species = spec%type == hybrid_electron_species
+  end function is_hybrid_electron_species
+
+  !> Determine if the passed species instance corresponds to ions
+  elemental logical function is_ion_species(spec)
+    implicit none
+    type(specie), intent(in) :: spec
+    is_ion_species = spec%type == ion_species
+  end function is_ion_species
+
+  !> Determine if any of the known species are non-Maxwellian
+  pure logical function has_nonmaxw_species (spec)
+    implicit none
+    type (specie), dimension (:), intent (in) :: spec
     has_nonmaxw_species = .NOT. all(spec%f0type == f0_maxwellian)
   end function has_nonmaxw_species
 
-  !> FIXME : Add documentation   
+  !> FIXME : Add documentation
   subroutine finish_species
     implicit none
     if(allocated(spec)) deallocate (spec)
@@ -1124,7 +1181,7 @@ contains
   subroutine set_species_config(species_config_in, species_element_config_in)
     use mp, only: mp_abort
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_element_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_element_config_in
 
     if (initialized) then
        call mp_abort("Trying to set species_config when already initialized.", to_screen = .true.)
@@ -1136,11 +1193,27 @@ contains
        species_element_config = species_element_config_in
     end if    
   end subroutine set_species_config   
-  
+
+  !> Get the module level config instance
+  function get_species_config()
+    type(species_config_type) :: get_species_config
+    get_species_config = species_config
+  end function get_species_config
+
+  !> Get the module level config instance
+  function get_species_element_config()
+    type(species_element_config_type), allocatable :: get_species_element_config(:)
+    if (allocated(species_element_config)) then
+      get_species_element_config = species_element_config
+    else
+      allocate(get_species_element_config(0))
+    end if
+  end function get_species_element_config
+
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
+
   !> Reads in the species_knobs namelist and populates the member variables
   subroutine read_species_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -1148,7 +1221,7 @@ contains
     implicit none
     class(species_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1167,16 +1240,8 @@ contains
     zi_fac = self%zi_fac
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = species_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = species_knobs)
-    endif
+    in_file = input_unit_exist(self%get_name(), exist)
+    if (exist) read(in_file, nml = species_knobs)
 
     ! Now copy from local variables into type members
     self%me = me
@@ -1227,7 +1292,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_species_config
-    
+
   !> Gets the default name for this namelist
   function get_default_name_species_config()
     implicit none
@@ -1253,7 +1318,7 @@ contains
     implicit none
     class(species_element_config_type), intent(in out) :: self
     logical :: exist
-    integer :: in_file, iostat
+    integer :: in_file
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
@@ -1290,16 +1355,9 @@ contains
     z = self%z
 
     ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = species_parameters, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = species_parameters)
-    endif
+    call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index, exist)
+    if (exist) read(in_file, nml = species_parameters)
+    close(unit = in_file)
 
     ! Now copy from local variables into type members
     self%bess_fac = bess_fac

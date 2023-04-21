@@ -5,7 +5,9 @@ module le_derivatives
 
   private
   
-  public :: vspace_derivatives
+  public :: vspace_derivatives, time_vspace_derivatives, time_vspace_derivatives_mpi
+
+  real :: time_vspace_derivatives(2) = 0., time_vspace_derivatives_mpi = 0.
 
 contains
 
@@ -19,6 +21,8 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, nxi, negrid, g2le
     use collisions, only: solfp1, colls, adjust, heating, hyper_colls, use_le_layout
+    use job_manage, only: time_message
+    use mp, only: get_mp_times
 # ifdef LOWFLOW
     use gs2_layouts, only: ig_idx, is_idx
     use theta_grid, only: gradpar, theta
@@ -57,7 +61,10 @@ contains
     complex, dimension (:,:,:), allocatable :: gle
     complex, dimension (:,:,:), allocatable :: gc1, gc2, gc3
     logical :: heating_flag
-    
+    real :: mp_total, mp_total_after
+
+    call time_message(.false., time_vspace_derivatives, "Vspace derivative")
+    call get_mp_times(total_time = mp_total)
     if (present(gtoc)) then 
        g_to_c=gtoc 
     else 
@@ -129,7 +136,12 @@ contains
           deallocate (gle)
           if (heating_flag) then
             ! form (h_i+1 + h_i)/2 * C(h_i+1) and integrate.  
-             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt          
+             gc3 = 0.5*conjg(g+gold)*(g-gc3)/code_dt
+             ! We only want the real part of this result so we could
+             ! either provide a real argument overload or reduce to
+             ! a complex temporary before storing just the real part.
+             ! This would allow c_rate to be declared real, halving the
+             ! memory requirements.
              call integrate_moment (gc3, c_rate(:,:,:,:,3))
              deallocate (gc3)
           endif
@@ -176,6 +188,11 @@ contains
             call integrate_moment (gc1, c_rate(:,:,:,:,1))
             deallocate (gc1)
           
+            ! We only want the real part of this result so we could
+            ! either provide a real argument overload or reduce to
+            ! a complex temporary before storing just the real part.
+            ! This would allow c_rate to be declared real, halving the
+            ! memory requirements.
             if (hyper_colls) call integrate_moment (gc2, c_rate(:,:,:,:,2))
             deallocate (gc2)
           
@@ -194,6 +211,10 @@ contains
       end if
 
    end if
+
+   call time_message(.false., time_vspace_derivatives, "Vspace derivative")
+   call get_mp_times(total_time = mp_total_after)
+   time_vspace_derivatives_mpi = time_vspace_derivatives_mpi + (mp_total_after - mp_total)
 
  contains
    

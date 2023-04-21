@@ -1,0 +1,31 @@
+!include basic_settings.in
+
+!include ke_high_coll.in
+
+&species_knobs
+    nspec = 2
+/
+
+&species_parameters_1
+    z = 1.0
+    mass = 1.0
+    dens = 1.0
+    temp = 1.0
+    tprim = 2.3
+    fprim = 0.733
+    uprim = 0.0
+    vnewk = 0.1643167
+    type = 'ion'
+/
+
+&species_parameters_2
+    z = -1.0
+    mass = 0.00027
+    dens = 1.0
+    temp = 1.0
+    tprim = 2.3
+    fprim = 0.733
+    uprim = 0.0
+    vnewk = 10.0
+    type = 'electron'
+/

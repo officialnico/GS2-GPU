@@ -15,9 +15,6 @@ module volume_averages
   private
 
   public :: average_all, average_theta, average_ky, average_kx
-  public :: init_volume_averages
-
-  integer :: ntg_out
 
   interface average_all
     module procedure average_all_txy
@@ -55,12 +52,6 @@ module volume_averages
   end interface
 
 contains
-  !> FIXME : Add documentation  
-  subroutine init_volume_averages
-    use theta_grid, only: ntgrid
-    implicit none
-    ntg_out = ntgrid
-  end subroutine init_volume_averages
 
   !> FIXME : Add documentation  
   subroutine average_all_2_complex_txy(a, b, avg, distributed)
@@ -75,7 +66,7 @@ contains
 
     call average_theta(a, b, axb_by_mode, distributed)
     call average_ky(axb_by_mode, axb_by_kx, distributed)
-    avg = sum(axb_by_kx(:))
+    avg = sum(axb_by_kx)
   end subroutine average_all_2_complex_txy
 
   !> FIXME : Add documentation  
@@ -87,8 +78,8 @@ contains
     complex, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), b(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, b, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_2_complex_xy
 
   !> FIXME : Add documentation  
@@ -100,8 +91,8 @@ contains
     complex, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_complex_xy
 
   !> FIXME : Add documentation  
@@ -113,8 +104,8 @@ contains
     real, intent(out) :: avg
     logical,intent(in) :: distributed
 
-    call average_ky(a(:,:), axb_by_kx(:), distributed)
-    avg = sum(axb_by_kx(:))
+    call average_ky(a, axb_by_kx, distributed)
+    avg = sum(axb_by_kx)
   end subroutine average_all_real_xy
 
   !> FIXME : Add documentation  
@@ -161,16 +152,14 @@ contains
     complex, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
-    integer :: ng
 
-    ng = ntg_out
     axb_by_mode = 0
 
     do is = 1,nspec
        do ik = 1, naky
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
-                call average_theta(a(-ng:ng,it,ik,is), axb_by_mode(it,ik,is))
+                call average_theta(a(:, it, ik, is), axb_by_mode(it,ik,is))
              end if
           end do
        end do
@@ -188,9 +177,7 @@ contains
     real, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
-    integer :: ng
 
-    ng = ntg_out
     axb_by_mode = 0
 
     do is = 1,nspec
@@ -199,8 +186,8 @@ contains
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
                      = field_line_average(real(conjg(&
-                     a(-ng:ng,it,ik,is))*b(-ng:ng,it,ik,is)))
-             end if
+                     a(:,it,ik,is))*b(:,it,ik,is)))
+            end if
           end do
        end do
     end do
@@ -216,9 +203,6 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
-
-    ng = ntg_out
 
     axb_by_mode = 0
 
@@ -226,7 +210,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = field_line_average(a(-ng:ng,it,ik))
+                  = field_line_average(a(:,it,ik))
           end if
        end do
     end do
@@ -238,8 +222,6 @@ contains
     implicit none
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
-    integer :: ng
-    ng = ntg_out
     axb = field_line_average(a)
   end subroutine average_theta_real_real_t
 
@@ -249,9 +231,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
-    integer :: ng
-    ng = ntg_out
-    axb = field_line_average(conjg(a(-ng:ng))*b(-ng:ng))
+    axb = field_line_average(conjg(a)*b)
   end subroutine average_theta_complex_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -260,9 +240,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    integer :: ng
-    ng = ntg_out
-    axb = field_line_average(a(-ng:ng))
+    axb = field_line_average(a)
   end subroutine average_theta_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -287,16 +265,14 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
 
-    ng = ntg_out
     axb_by_mode = 0
 
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = field_line_average(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)))
+                  = field_line_average(real(conjg(a(:,it,ik))*b(:,it,ik)))
           end if
        end do
     end do
@@ -312,16 +288,14 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    integer :: ng
 
-    ng = ntg_out
     axb_by_mode = 0
 
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = field_line_average(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))
+                  = field_line_average(conjg(a(:,it,ik))*b(:,it,ik))
           end if
        end do
     end do

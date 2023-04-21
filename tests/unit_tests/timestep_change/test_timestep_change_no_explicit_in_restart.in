@@ -1,0 +1,9 @@
+&init_g_knobs
+                                 chop_side =  F
+                                clean_init =  T
+                              ginit_option =  "default"
+        include_explicit_source_in_restart =  F
+                                   phiinit =  1.0e-3
+/
+
+!include test_timestep_change.in

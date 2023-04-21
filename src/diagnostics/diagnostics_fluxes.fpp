@@ -564,7 +564,7 @@ contains
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, nproc, iproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
@@ -591,7 +591,7 @@ contains
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
     
@@ -973,7 +973,7 @@ contains
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
     
-    if (proc0 .and. gnostics%write_ascii) write (gnostics%ascii_files%parity,"(19(1x,e12.5))") &
+    if (proc0 .and. gnostics%ascii_files%write_to_parity .and. (.not. gnostics%create)) write (gnostics%ascii_files%parity,"(19(1x,e12.5))") &
          t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
@@ -999,7 +999,6 @@ contains
   subroutine write_nl_flux_dist(gnostics)
     use dist_fn, only: flux_dist
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid
     use species, only: nspec, spec
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0
