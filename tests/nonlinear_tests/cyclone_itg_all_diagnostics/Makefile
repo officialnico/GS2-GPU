@@ -19,8 +19,8 @@ all:
 else
 
 all: test_cyclone_all_diagnostics
-	@$(TESTCOMMAND)../../../bin/gs2 cyclone_itg_low_res_old.in > OUTPUT.OLD
-	@$(TESTCOMMAND)../../../bin/gs2 cyclone_itg_low_res_new.in > OUTPUT.NEW
+	$(call RUNCOMMAND,../../../bin/gs2,cyclone_itg_low_res_old.in)
+	$(call RUNCOMMAND,../../../bin/gs2,cyclone_itg_low_res_new.in)
 endif
 endif
 endif
