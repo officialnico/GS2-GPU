@@ -3205,15 +3205,23 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
 ! (which effectively depends on the angle the field lines make with the flow)
 ! note that the following is only valid in a torus!
 ! itor_over_B = (q/rho) * Rmaj*Btor/(a*B)
-       IoB = sqrt(Rplot**2 - (grho/(bmag*drhodpsi))**2)
+
+       if (qval == 0.) then
+          ! because of grid file precision, the definition of IoB below may be invalid
+          ! for shearless case (q = 0)
+          itor_over_B = 0.
+       else
+          IoB = sqrt(Rplot**2 - (grho/(bmag*drhodpsi))**2)
+
     ! RN> 2011/1/25: fix here avoids dividing by rhoc if rhoc=0
     ! CMR, 2/2/2011: set itor_over_B=0 if rhoc=0
     !                Dropping parallel sheared flow source term in GKE
     !                using itor_over_B=0 is safer than itor_over_B=NaN!
-       if (rhoc /= 0.) then
-          itor_over_B = qval / rhoc * IoB
-       else
-          itor_over_B = btor_slab
+          if (rhoc /= 0.) then
+             itor_over_B = qval / rhoc * IoB
+          else
+             itor_over_B = btor_slab
+          end if
        end if
      endif
   end subroutine get_grids
