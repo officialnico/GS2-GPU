@@ -3415,9 +3415,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       where (abs(cfnc(:, it, 1)) > epsilon(0.0))
+       if (abs(cfnc(1, it, 1)) > epsilon(0.0)) then
          cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
-       end where
+       end if
     end do
 
     do ik = 2, naky
