@@ -100,7 +100,7 @@ contains
     phicorr_sum = phicorr_sum + phi_corr*(t-t_old)
     phiextend_sum = phiextend_sum + phi2_extend*(t-t_old)
 
-    ! This is a dumb hack because this function gets called first at t ! == tcorr0
+    ! This is a dumb hack because this function gets called first at t == tcorr0
     ! just to create the variable in the netcdf file. Luckily when the
     ! two diagnostic modules are merged, this can go
     if (abs(t - tcorr0) < epsilon(0.0)) then
