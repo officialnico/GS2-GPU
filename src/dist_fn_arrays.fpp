@@ -108,9 +108,11 @@ contains
        bpar_factor = 0.0
     end if
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ig, ik, it, il, ie, is, phi_factor, adj) &
-    !$OMP SCHEDULE(guided)
+    !$OMP SHARED(g_lo, with_phi, spec, nonmaxw_corr, facphi, ntgrid, trapped, &
+    !$OMP jend, bpar_factor, vperp2, aj1, bpar, phi, aj0, g) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
