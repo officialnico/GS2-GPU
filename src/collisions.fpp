@@ -710,8 +710,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
     if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
@@ -736,8 +737,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+       !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
@@ -770,8 +772,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
     !$OMP COLLAPSE(2) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -787,8 +790,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, z0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -806,8 +810,9 @@ contains
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
     if (conservative) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+       !$OMP SHARED(g_lo, gtmp, vns, vpa, vpdiff, speed) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
@@ -823,13 +828,13 @@ contains
        !$OMP END PARALLEL DO
        call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
-       !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+       !$OMP SHARED(g_lo, gtmp, vpa, vns) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
              gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo)**2
@@ -853,8 +858,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
     if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, vns, vpdiff, speed, aj0, code_dt, duinv, vpa, s0tmp) &       
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -881,8 +887,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, conservative, s0tmp, vns, vpdiff, speed, aj0, code_dt, duinv, vpa) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -917,8 +924,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0s0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vpa, aj0, s0tmp) &
     !$OMP COLLAPSE(2) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -934,8 +942,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, s0tmp, dtmp, z0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -951,8 +960,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1s0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, conservative, gtmp, vns, speed, vpdiff, aj0, s0tmp, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -977,8 +987,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, s0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -993,8 +1004,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
     if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, w0tmp, vns, energy, al , aj1, code_dt, &
+       !$OMP spec, kperp2, duinv, bmag) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1011,6 +1024,7 @@ contains
                            * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
                            / bmag(ig)
                    else
+                      !This is identical to the other branch, should it be?
                       w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
                            * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
                            / bmag(ig)
@@ -1023,8 +1037,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, conservative, w0tmp, vns, energy, al, aj1, code_dt, spec, kperp2, duinv, bmag) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1039,6 +1054,7 @@ contains
                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
                      / bmag
              else
+                !This is identical to the other branch, should it be?
                 w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
                      * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
                      / bmag
@@ -1061,8 +1077,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0w0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vpa, aj0, w0tmp) &
     !$OMP COLLAPSE(2) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1078,8 +1095,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, w0tmp, z0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1094,8 +1112,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v1w1
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, conservative, gtmp, vns, speed, vpdiff, aj0, w0tmp, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1120,8 +1139,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, w0tmp, s0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1136,8 +1156,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v2w2
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vns, energy, al, aj1, w0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1157,8 +1178,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn, ig) &
+    !$OMP SHARED(g_lo, w0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1297,8 +1319,9 @@ contains
     ! first obtain 1/du
     !    if (conservative) then
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, energy, vnmult, vnew_E) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1327,8 +1350,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Now get z0 (first form)
     if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, bz0tmp, code_dt, vnmult, vnew_E, aj0, duinv) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1350,8 +1374,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
+       !$OMP SHARED(g_lo, bz0tmp, code_dt, vnmult, vnew_E, aj0, duinv) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1380,8 +1405,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vnmult, vnew_E, aj0, bz0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1400,8 +1426,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bz0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1420,8 +1447,9 @@ contains
     ! duinv = 1/du
     !    if (conservative) then
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vns, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1453,8 +1481,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
     if(conserve_forbid_zero) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, bs0tmp, vns, vpa, aj0, code_dt, duinv) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1481,8 +1510,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
+       !$OMP SHARED(g_lo, bs0tmp, vns, vpa, aj0, code_dt, duinv) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1516,8 +1546,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0s0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vnmult, vnew_E, aj0, bs0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1536,8 +1567,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bs0tmp, dtmp, bz0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1553,8 +1585,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1s0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vns, vpa, aj0, bs0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1573,8 +1606,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bs0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1589,8 +1623,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
     if (conserve_forbid_zero) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, forbid, bw0tmp, vns, energy, al, aj1, code_dt, &
+       !$OMP spec, kperp2, duinv, bmag) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1613,8 +1649,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn) &
+       !$OMP SHARED(g_lo, bw0tmp, vns, energy, al, aj1, code_dt, spec, kperp2, duinv, bmag) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1645,8 +1682,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0w0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vnmult, vnew_E, aj0, bw0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1665,8 +1703,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bw0tmp, bz0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1681,8 +1720,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v1w1
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vns, vpa, aj0, bw0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1701,8 +1741,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bw0tmp, bs0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1717,8 +1758,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get v2w2
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, gtmp, vns, energy, al, aj1, bw0tmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1738,8 +1780,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+    !$OMP SHARED(g_lo, bw0tmp, dtmp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1828,8 +1871,9 @@ contains
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: arr
     integer :: iglo, is, ik, il
     if (has_hybrid_electron_species(spec)) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, il, is) &
+       !$OMP SHARED(g_lo, arr) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
@@ -2104,8 +2148,9 @@ contains
        call zero_array(ebetaale)
        call zero_array(eqle)
 
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ik, it, is, ig, ie, ixi, il, aa, bb, cc) &
+       !$OMP SHARED(le_lo, nxi_lim, forbid, ec1le, ebetaale, negrid, eqle, ixi_to_il, xe) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo, ile)
@@ -2138,8 +2183,9 @@ contains
        call zero_array(ebetaa)
        call zero_array(eql)
 
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ielo, ik, it, is, ig, ie, ixi, il, aa, bb, cc) &
+       !$OMP SHARED(e_lo, forbid, xe, ec1, ebetaa, negrid, eql) &
        !$OMP SCHEDULE(static)
        do ielo = e_lo%llim_proc, e_lo%ulim_proc
           il = il_idx(e_lo, ielo)
@@ -2441,8 +2487,9 @@ contains
        end if
 
 
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP SHARED(le_lo, jend, special_wfb_lorentz, ng2, negrid, spec, c1le, d1le, h1le, qle, betaale) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
@@ -2509,8 +2556,9 @@ contains
           vnmult(1) = max (vnmult_target, 1.0)
        end if
 
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP SHARED(lz_lo, jend, special_wfb_lorentz, spec, c1, d1, h1, betaa, ql, ng2) &
        !$OMP SCHEDULE(static)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           is = is_idx(lz_lo,ilz)
@@ -3235,8 +3283,10 @@ contains
 !       end if
 
        if (drag) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
+          !$OMP SHARED(g_lo, spec, kwork_filter, g, ieqzip, vnmult, code_dt, vpa, &
+          !$OMP kperp2, aparnew, aj0, beta, energy) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
@@ -3288,8 +3338,10 @@ contains
     case (collision_model_lorentz,collision_model_lorentz_test)
 
        if (drag) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
+          !$OMP SHARED(g_lo, spec, kwork_filter, g, ieqzip, vnmult, code_dt, &
+          !$OMP vpa, kperp2, aparnew, aj0, beta, energy) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              is = is_idx(g_lo,iglo)
@@ -3386,8 +3438,10 @@ contains
 !       end if
 
        if (drag) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, isgn, il) &
+          !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
+          !$OMP aparnew, beta, energy, nxi_lim, ixi_to_il, ixi_to_isgn, gle, aj0le, vpale) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3445,8 +3499,10 @@ contains
     case (collision_model_lorentz,collision_model_lorentz_test)
 
        if (drag) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, il, isgn) &
+          !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
+          !$OMP aparnew, beta, energy, nxi_lim, gle, aj0le, vpale) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3526,8 +3582,9 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, isgn) &
+       !$OMP SHARED(g_lo, kwork_filter, gtmp, vpa, aj0, g) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -3543,9 +3600,11 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+       !$OMP SHARED(g_lo, kwork_filter, g1, g, ieqzip, v0y0, z0) &
        !$OMP SCHEDULE(static)
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3566,8 +3625,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, conservative, gtmp, vns, speed, vpdiff, aj0, g1, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3594,8 +3654,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, g1, ieqzip, v1y1, s0) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -3612,8 +3673,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, gtmp, vns, energy, al, aj1, g1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -3635,8 +3697,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, g, g1, ieqzip, v2y2, w0) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -3704,8 +3767,9 @@ contains
        allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
 
        ! v0 = vpa J0 f0, y0 = gle
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, aj0le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
@@ -3726,8 +3790,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, it, ik, ixi, ie) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, z0le, v0y0) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
@@ -3748,8 +3813,10 @@ contains
 
     ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
+       !$OMP speed, vnmult, vnew_D, tunits, gtmp, aj0le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3769,8 +3836,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, vnmult, vnew_D, tunits, aj0le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3795,8 +3863,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, s0le, v1y1) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -3814,8 +3883,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, aj1le, energy, al, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -3838,8 +3908,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, w0le, v2y2) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -3894,8 +3965,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, gtmp, vnmult, vnew_E, aj0, g) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3916,8 +3988,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, g1, g, ieqzip, v0y0, bz0) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -3934,8 +4007,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, gtmp, vns, vpa, aj0, g1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3956,8 +4030,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, g1, ieqzip, v1y1, bs0) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -3974,8 +4049,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, gtmp, vns, energy, al, aj1, g1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3997,8 +4073,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, g, g1, ieqzip, v2y2, bw0) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -4064,8 +4141,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vnmult, vnew_E, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4084,8 +4162,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, v0y0, bz0le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -4101,8 +4180,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, tunits, nxi_lim, gtmp, &
+    !$OMP vpale, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4123,8 +4204,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bs0le, v1y1) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -4139,8 +4221,9 @@ contains
     !$OMP END PARALLEL DO
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, energy, al, aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4161,8 +4244,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, ie, ixi) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bw0le, v2y2) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -4217,8 +4301,9 @@ contains
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
+       !$OMP SHARED(lz_lo, jend, ng2, glz, glzc, d1) &
        !$OMP SCHEDULE(static)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
@@ -4243,8 +4328,9 @@ contains
        call scatter (lambda_map, glzc, gc)
 
        if (hyper_colls) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ilz, ig, je, il, fac) &
+          !$OMP SHARED(lz_lo, jend, ng2, glz, glzc, h1) &
           !$OMP SCHEDULE(static)
           do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
              ig = ig_idx(lz_lo,ilz)
@@ -4266,9 +4352,11 @@ contains
     end if
 
     ! solve for glz row by row
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
     !$OMP il, gwfb, delta) &
+    !$OMP SHARED(lz_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, vpar_zero_mean, &
+    !$OMP glz, special_wfb_lorentz, ql, c1, betaa) &
     !$OMP SCHEDULE(static)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
 
@@ -4385,8 +4473,9 @@ contains
     allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
 
     if (heating .and. present(diagnostics)) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
+       !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
@@ -4411,8 +4500,9 @@ contains
        !$OMP END PARALLEL DO
 
        call integrate_moment (le_lo, glec, tmp)
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, it, ik, is) &
+       !$OMP SHARED(le_lo, c_rate, tmp) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
@@ -4424,8 +4514,9 @@ contains
        !$OMP END PARALLEL DO
 
        if (hyper_colls) then
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
+          !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, h1le) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
@@ -4446,8 +4537,9 @@ contains
 
           call integrate_moment (le_lo, glec, tmp)
 
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ile, ig, it, ik, is) &
+          !$OMP SHARED(le_lo, c_rate, tmp) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              ig = ig_idx(le_lo,ile)
@@ -4461,9 +4553,11 @@ contains
     end if
 
     ! solve for gle row by row
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
     !$OMP gwfb, delta) &
+    !$OMP SHARED(le_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, special_wfb_lorentz, &
+    !$OMP vpar_zero_mean, negrid, gle, qle, betaale, c1le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -4577,8 +4671,9 @@ contains
     call gather (energy_map, g, ged)
 
     ! solve for ged row by row
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
+    !$OMP SHARED(e_lo, kwork_filter, ieqzip, spec, force_collisions, forbid, negrid, ged, eql, ec1, ebetaa) &
     !$OMP SCHEDULE(static)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
 
@@ -4636,8 +4731,10 @@ contains
     endif
     
     ! solve for gle row by row
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
+    !$OMP SHARED(le_lo, spec, force_collisions, kwork_filter, ieqzip, ixi_to_il, forbid, gle, negrid, &
+    !$OMP eqle, ec1le, ebetaale, nxi_lim) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
 
