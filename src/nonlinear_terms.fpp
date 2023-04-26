@@ -1162,16 +1162,18 @@ contains
     integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
@@ -1180,16 +1182,18 @@ contains
        endif
     else
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
