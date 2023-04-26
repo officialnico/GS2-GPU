@@ -3260,9 +3260,12 @@ contains
     has_apar = fapar > epsilon(0.0)
     has_bpar = fbpar > epsilon(0.0)
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, it, is, ic) &
-    !$OMP SCHEDULE(dynamic,1)
+    !$OMP SHARED(self, kwork_filter, has_phi, antot, gamtot, gridfac1, fl_avg, &
+    !$OMP fieldeq, bpar, gamtot1, has_apar, has_bpar, fieldeqa, antota, kperp2, apar, &
+    !$OMP fieldeqp, gamtot2, beta, apfac, bmag, phi, antotp) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip empty cells, note this is slightly different to skipping
        !.not.is_local. Skipping empty is probably faster but may be more dangerous
