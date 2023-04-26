@@ -1125,7 +1125,8 @@ contains
     !       e.g. fac in get_volume_average
     !
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP SHARED(g_lo, g) &
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
@@ -1154,7 +1155,8 @@ contains
     ! (See above comment in transform2_5d.)
     !
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP SHARED(g_lo, g, scale) &
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) .ne. 1) then
