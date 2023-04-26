@@ -323,8 +323,9 @@ contains
        ! Advance solution by time_step
        select case(counter)
        case(1)
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
@@ -333,8 +334,9 @@ contains
           end do
           !$OMP END PARALLEL DO
        case(2)
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1, gexp_2) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
@@ -344,8 +346,9 @@ contains
           end do
           !$OMP END PARALLEL DO
        case default
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1, gexp_2, gexp_3) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
@@ -440,8 +443,9 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           ! Calculate the estimate of the new g
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, g_work, g, half_time, gexp_1) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              g_work(:, :, iglo) = g(:, :, iglo) + half_time * gexp_1(:, :, iglo)
@@ -453,8 +457,9 @@ contains
           ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
           ! so that we only loop over the error_array once (and actually don't
           ! need to explicitly store the full array)
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, error_array, gnew, g_work) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              error_array(:, :, iglo) = gnew(:, :, iglo) - g_work(:, :, iglo)
@@ -514,8 +519,9 @@ contains
           ! Note we _could_ merge the following loop witth the gs2_max_abs kernel
           ! so that we only loop over the error_array once (and actually don't
           ! need to explicitly store the full array)
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, error_array, gexp_1, gexp_2) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              error_array(:, :, iglo) = gexp_1(:, :, iglo) - gexp_2(:, :, iglo)
@@ -643,8 +649,9 @@ contains
           !Could OpenMP reduce here but might be more efficient to distribute calculation
           !of each stage
           do istage_sub = 1, istage-1
-             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo) &
+             !$OMP SHARED(g_lo, gnew, time_step, scheme, stages, istage_sub, istage) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
@@ -673,8 +680,9 @@ contains
        ! without the time_step * 0.5 factor (to avoid extra
        ! array operations). We multiply the final error by
        ! time_step/2 to ensure full consistency.
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(g_lo, gexp_1, error_coeffs, stages) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           gexp_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
@@ -682,8 +690,9 @@ contains
        !$OMP END PARALLEL DO
 
        do istage = 2, nstages
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, gexp_1, error_coeffs, istage, stages) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
@@ -722,8 +731,9 @@ contains
           nfailed_steps = nfailed_steps + 1
        else
           !Update the solution
-          !$OMP PARALLEL DO DEFAULT(SHARED) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, time_step, stages) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, iglo, 1)
@@ -731,8 +741,9 @@ contains
           !$OMP END PARALLEL DO
 
           do istage = 2, nstages
-             !$OMP PARALLEL DO DEFAULT(SHARED) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo) &
+             !$OMP SHARED(g_lo, g, solution_coeffs, istage, time_step, stages) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
