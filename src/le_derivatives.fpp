@@ -9,6 +9,12 @@ module le_derivatives
 
   real :: time_vspace_derivatives(2) = 0., time_vspace_derivatives_mpi = 0.
 
+#ifdef LOWFLOW
+  logical, parameter :: has_lowflow_in_build = .true.
+#else
+  logical, parameter :: has_lowflow_in_build = .false.
+#endif
+
 contains
 
   !> FIXME : Add documentation
@@ -67,10 +73,7 @@ contains
 
     if(use_le_layout) then
 
-# ifndef LOWFLOW
-       if (colls) then
-# endif
-
+       if (colls .or. has_lowflow_in_build) then
           if (adjust) then
              call g_adjust (g, phinew, bparnew, fphi, fbpar)
              if (heating_flag) call g_adjust (gold, phi, bpar, fphi, fbpar)
@@ -88,15 +91,12 @@ contains
 
 # ifdef LOWFLOW
           call get_and_set_gvpa(gle)
-
-          if (colls) then
 # endif
+          if (colls) then
              ! update distribution function to take into account collisions
              call solfp1 (gle, diagnostics)
-
-# ifdef LOWFLOW
           end if
-# endif
+
           ! remap from le_layout to g_layout
           if (c_to_g) call scatter (g2le, gle, g)
           deallocate (gle)
@@ -115,14 +115,9 @@ contains
           if (adjust) then
              call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
              if (heating_flag) call g_adjust (gold, phi, bpar, -fphi, -fbpar)
-          endif
-
-# ifndef LOWFLOW
-       endif
-# endif
-
+          end if
+       end if
     else
-
        if (colls) then
           if (heating_flag) then
              allocate (gc1(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
