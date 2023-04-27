@@ -708,6 +708,7 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     use run_parameters, only: fphi
     use nonlinear_terms, only: nonlin
+    use antenna, only: no_driver
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -829,6 +830,11 @@ contains
     if (is_list_run) then
        print_line = .false.
        print_flux_line = .false.
+    end if
+
+    if (no_driver .and. write_lorentzian) then
+      write(*, "(a)") "WARNING: 'write_lorentzian = .true.' but antenna not enabled. Turning off 'write_lorentzian'"
+      write_lorentzian = .false.
     end if
 
     !These don't store any data if fphi=0 so don't bother
@@ -3409,7 +3415,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       cfnc(:,it,1) = cfnc(:,it,1) / cfnc(1,it,1)
+       if (abs(cfnc(1, it, 1)) > epsilon(0.0)) then
+         cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
+       end if
     end do
 
     do ik = 2, naky
@@ -3441,9 +3449,8 @@ contains
        end do
     end do
 
-    phi2extend = phiextend*conjg(phiextend)
+    phi2extend = real(phiextend*conjg(phiextend))
 
-    !    deallocate (dl_over_b, phir, phiextend, phisum)
     deallocate (dl_over_b, phir, phiextend)
 
   end subroutine correlation_extend

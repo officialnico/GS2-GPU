@@ -228,6 +228,12 @@ contains
     !Calculate db
     do ik = 1, naky
       do it = 1, ntheta0
+        if (abs(apar(1, it, ik)) <= epsilon(0.0) &
+            .or. abs(aparnew(1, it, ik)) <= epsilon(0.0)) then
+          db(:, it, ik) = 0.0
+          cycle
+        end if
+
         dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
              * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
         ig = -ntgrid
@@ -409,13 +415,14 @@ contains
     complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
 
-    if (.not. proc0) return
     if (.not. (write_text .or. write_netcdf)) return
 
     allocate ( antot(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
     call getan (antot, antota, antotp)
+
+    if (.not. proc0) return
 
     if (write_text) then
       call open_output_file (unit, ".antot")
@@ -467,7 +474,6 @@ contains
     integer :: nnx, nny, nnx4, nny4, ulim, llim, iblock, i, unit
     integer :: ik, it, ig, ierr
 
-    if (.not. proc0) return
     if (.not. write_text) return
 
     nny = 2*ny
@@ -590,19 +596,19 @@ contains
     allocate (zx1(nny4), zxm(nny4), zy1(nnx4), zyn(nnx4))
 
     do ig=-ntgrid, ntgrid
-       call fitp_surf1(nnx4, nny4, xx, yy, bxfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, bxfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, bxs(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, byfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, byfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, bys(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, vxfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, vxfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, vxs(:,ig), stemp, 1., ierr)
 
-       call fitp_surf1(nnx4, nny4, xx, yy, vyfs(:,:,ig), &
+       call fitp_surf1(nnx4, nny4, xx4, yy4, vyfs(:,:,ig), &
             nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
             255, vys(:,ig), stemp, 1., ierr)
     end do
@@ -719,6 +725,8 @@ contains
 
     call par_spectrum (vx, vx2)
     call par_spectrum (vy, vy2)
+
+    if (.not. proc0) return
 
     call open_output_file (unit, ".gs")
     do ig = 1, ntgrid
