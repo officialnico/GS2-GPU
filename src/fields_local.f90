@@ -434,7 +434,7 @@ contains
   !! Note still need to reduce across other cells in this
   !! supercell.
   subroutine c_get_field_update(self,fq,fqa,fqp)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     class(cell_type), intent(inout) :: self
     complex, dimension(self%ncol), intent(in) :: fq,fqa,fqp
@@ -445,15 +445,15 @@ contains
 
     !First do the multiplication at rowblock level
     ifq=0
-    if(fphi.gt.epsilon(0.0)) then
+    if(has_phi) then
        ifq=ifq+1
        call self%mv_mult_rb(fq,ifq)
     endif
-    if(fapar.gt.epsilon(0.0)) then
+    if(has_apar) then
        ifq=ifq+1
        call self%mv_mult_rb(fqa,ifq)
     endif
-    if(fbpar.gt.epsilon(0.0)) then
+    if(has_bpar) then
        ifq=ifq+1
        call self%mv_mult_rb(fqp,ifq)
     endif
@@ -925,7 +925,7 @@ contains
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
@@ -963,7 +963,7 @@ contains
        ulim=self%cells(ic)%ncol
        
        ifq=0
-       if(fphi.gt.epsilon(0.0))then
+       if(has_phi)then
           !Increment counter
           ifq=ifq+1
 
@@ -974,7 +974,7 @@ contains
           self%cells(ic)%rb(ifq)%data(:,ir)=fq(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
        endif
 
-       if(fapar.gt.epsilon(0.0))then
+       if(has_apar)then
           !Increment counter
           ifq=ifq+1
 
@@ -985,7 +985,7 @@ contains
           self%cells(ic)%rb(ifq)%data(:,ir)=fqa(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
        endif
 
-       if(fbpar.gt.epsilon(0.0))then
+       if(has_bpar)then
           !Increment counter
           ifq=ifq+1
 
@@ -1682,7 +1682,7 @@ contains
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: itright, get_leftmost_it
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     use mp, only: mp_request_null
     implicit none
@@ -1698,9 +1698,9 @@ contains
 
     !Count the fields
     nfield=0
-    if(fphi.gt.epsilon(0.0)) nfield=nfield+1
-    if(fapar.gt.epsilon(0.0)) nfield=nfield+1
-    if(fbpar.gt.epsilon(0.0)) nfield=nfield+1
+    if(has_phi) nfield=nfield+1
+    if(has_apar) nfield=nfield+1
+    if(has_bpar) nfield=nfield+1
     nfq=nfield
 
     !Allocate temp arrays
@@ -1869,7 +1869,7 @@ contains
   !> Find the response of g to delta-fn field perturbations 
   !! and store at the row level
   subroutine fm_populate(self)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
@@ -1892,7 +1892,7 @@ contains
     ifl=0
 
     !Do phi
-    if(fphi.gt.epsilon(0.0)) then
+    if(has_phi) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -1918,7 +1918,7 @@ contains
     endif
 
     !Do apar
-    if(fapar.gt.epsilon(0.0)) then
+    if(has_apar) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -1944,7 +1944,7 @@ contains
     endif
 
     !Do bpar
-    if(fbpar.gt.epsilon(0.0)) then
+    if(has_bpar) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -2218,7 +2218,7 @@ contains
   !! full field arrays
   subroutine fm_unpack_to_field(self,ph,ap,bp)
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi,fapar,fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use mp, only: proc0
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2234,7 +2234,7 @@ contains
              
              iex=0
              ifl=0
-             if(fphi.gt.0)then
+             if(has_phi)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2256,7 +2256,7 @@ contains
                 
              endif
              
-             if(fapar.gt.0)then
+             if(has_apar)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2278,7 +2278,7 @@ contains
                 
              endif
              
-             if(fbpar.gt.0)then
+             if(has_bpar)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2464,7 +2464,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use mp, only: broadcast, sum_reduce_sub, sum_allreduce, sum_allreduce_sub
     use mp, only: rank_comm, comm_type, proc0
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, intspec_sub
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2633,15 +2633,15 @@ contains
     !Finally, unpack tmp and deallocate arrays
     if(self%fm_sub_all%proc0.or.to_all.or.do_allreduce)then
        ifl=0
-       if(fphi.gt.epsilon(0.0)) then
+       if(has_phi) then
           ifl=ifl+1
           ph=tmp(:,:,:,ifl)
        endif
-       if(fapar.gt.epsilon(0.0)) then
+       if(has_apar) then
           ifl=ifl+1
           ap=tmp(:,:,:,ifl)
        endif
-       if(fbpar.gt.epsilon(0.0)) then
+       if(has_bpar) then
           ifl=ifl+1
           bp=tmp(:,:,:,ifl)
        endif
@@ -2657,16 +2657,16 @@ contains
     !It is possible that for some values of nfield to_all is faster than
     !.not.to_all, this is also likely to depend on the machine
     if(.not.(to_all.or.do_allreduce)) then
-       if(fphi.gt.0) call broadcast(ph)
-       if(fapar.gt.0) call broadcast(ap)
-       if(fbpar.gt.0) call broadcast(bp)
+       if(has_phi) call broadcast(ph)
+       if(has_apar) call broadcast(ap)
+       if(has_bpar) call broadcast(bp)
     endif
   end subroutine fm_gather_fields
 
   !> Update the fields using calculated update
   subroutine fm_update_fields(self,phi,apar,bpar)
     use fields_arrays, only: orig_phi=>phi, orig_apar=>apar, orig_bpar=>bpar
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use mp, only: proc0
     implicit none
@@ -2676,9 +2676,9 @@ contains
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(fphi>epsilon(0.0)) phi=phi+orig_phi
-       if(fapar>epsilon(0.0)) apar=apar+orig_apar
-       if(fbpar>epsilon(0.0)) bpar=bpar+orig_bpar
+       if(has_phi) phi=phi+orig_phi
+       if(has_apar) apar=apar+orig_apar
+       if(has_bpar) bpar=bpar+orig_bpar
        return
     endif
 
@@ -2696,9 +2696,9 @@ contains
              if(kwork_filter(it,ik)) cycle
 
              !Increment fields
-             if(fphi>epsilon(0.0)) phi(:,it,ik)=phi(:,it,ik)+orig_phi(:,it,ik)
-             if(fapar>epsilon(0.0)) apar(:,it,ik)=apar(:,it,ik)+orig_apar(:,it,ik)
-             if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bpar(:,it,ik)+orig_bpar(:,it,ik)
+             if(has_phi) phi(:,it,ik)=phi(:,it,ik)+orig_phi(:,it,ik)
+             if(has_apar) apar(:,it,ik)=apar(:,it,ik)+orig_apar(:,it,ik)
+             if(has_bpar) bpar(:,it,ik)=bpar(:,it,ik)+orig_bpar(:,it,ik)
           enddo
        enddo
     enddo
@@ -2708,7 +2708,7 @@ contains
   !> Update the fields using the new fields
   subroutine fm_update_fields_newstep(self)
     use fields_arrays, only: phi,apar,bpar,phinew,aparnew,bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use mp, only: proc0
     implicit none
@@ -2717,9 +2717,9 @@ contains
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(fphi>epsilon(0.0)) phi=phinew
-       if(fapar>epsilon(0.0)) apar=aparnew
-       if(fbpar>epsilon(0.0)) bpar=bparnew
+       if(has_phi) phi=phinew
+       if(has_apar) apar=aparnew
+       if(has_bpar) bpar=bparnew
        return
     endif
 
@@ -2737,9 +2737,9 @@ contains
              if(kwork_filter(it,ik)) cycle
 
              !Increment fields 
-             if(fphi>epsilon(0.0)) phi(:,it,ik)=phinew(:,it,ik)
-             if(fapar>epsilon(0.0)) apar(:,it,ik)=aparnew(:,it,ik)
-             if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bparnew(:,it,ik)
+             if(has_phi) phi(:,it,ik)=phinew(:,it,ik)
+             if(has_apar) apar(:,it,ik)=aparnew(:,it,ik)
+             if(has_bpar) bpar(:,it,ik)=bparnew(:,it,ik)
          enddo
        enddo
     enddo
@@ -2964,7 +2964,7 @@ contains
   subroutine fm_reduce_an_head_send_broadcast (self,antot, antota, antotp)
     use mp, only: broadcast, iproc, nbsend, nbrecv, initialise_requests, waitall, broadcast_sub
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: gf_lo, proc_id, idx, ik_idx, it_idx
     use kt_grids, only: kwork_filter
     implicit none
@@ -3018,36 +3018,36 @@ contains
                 
                    tag = ik*self%ntheta0 + it
                 
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       call nbrecv(tempdata(:,tempit,1,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
 
                    tag = tag + taglim
                    
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       call nbrecv(tempdata(:,tempit,2,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
                    
                    tag = tag + taglim
                    
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       call nbrecv(tempdata(:,tempit,3,ik,is),sender,tag,recv_handles(recvreqnum))
                       recvreqnum = recvreqnum + 1
                    end if
 
                 else
 
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       tempdata(:,tempit,1,ik,is) = antot(:,it,ik)
                    end if
 
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       tempdata(:,tempit,2,ik,is) = antota(:,it,ik)
                    end if
 
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       tempdata(:,tempit,3,ik,is) = antotp(:,it,ik)
                    end if
 
@@ -3077,21 +3077,21 @@ contains
 
        if(iproc .ne. receiver) then
 
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              call nbsend(antot(:,it,ik),receiver,tag,send_handles(sendreqnum))
              sendreqnum = sendreqnum + 1
           end if
           
           tag = tag + taglim
           
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              call nbsend(antota(:,it,ik),receiver,tag,send_handles(sendreqnum))
              sendreqnum = sendreqnum + 1
           end if
           
           tag = tag + taglim
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              call nbsend(antotp(:,it,ik),receiver,tag,send_handles(sendreqnum))
              sendreqnum = sendreqnum + 1
           end if
@@ -3123,7 +3123,7 @@ contains
 
           call broadcast_sub(tempdata(:,1:tempit,1:nfield,ik,is),root,self%kyb(ik)%supercells(is)%sc_sub_pd%id)
 
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              tempit = 1
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it = self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -3135,7 +3135,7 @@ contains
              end do
           end if
              
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              tempit = 1
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it = self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -3147,7 +3147,7 @@ contains
              end do
           end if
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              tempit = 1
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it = self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -3170,7 +3170,7 @@ contains
   subroutine fm_check_an (self,antot, tempantot, antota, tempantota, antotp, tempantotp)
     use mp, only: broadcast_sub, iproc, sum_allreduce_sub, mp_abort
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: proc_id, idx
     use kt_grids, only: kwork_filter
     implicit none
@@ -3191,7 +3191,7 @@ contains
              it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
              if(kwork_filter(it,ik)) cycle
              
-             if(fphi>epsilon(0.0)) then
+             if(has_phi) then
                 do ig=-ntgrid,ntgrid
                    if(abs(aimag(antot(ig,it,ik)-tempantot(ig,it,ik))).gt.aimag(tol) .or. abs(real(antot(ig,it,ik)-tempantot(ig,it,ik))).gt.real(tol)) then
                       write(*,*) iproc,'problem with antot',it,ik,antot(ig,it,ik),tempantot(ig,it,ik)
@@ -3201,7 +3201,7 @@ contains
                 end do
              endif
              
-             if(fapar>epsilon(0.0)) then
+             if(has_apar) then
                 do ig=-ntgrid,ntgrid
                    if(abs(aimag(antota(ig,it,ik)-tempantota(ig,it,ik))).gt.aimag(tol) .or. abs(real(antota(ig,it,ik)-tempantota(ig,it,ik))).gt.real(tol)) then
                       write(*,*) iproc,'problem with antota',it,ik,antota(ig,it,ik),tempantota(ig,it,ik)
@@ -3211,7 +3211,7 @@ contains
                 end do
              endif
              
-             if(fbpar>epsilon(0.0))then
+             if(has_bpar)then
                 do ig=-ntgrid,ntgrid
                    if(abs(aimag(antotp(ig,it,ik)-tempantotp(ig,it,ik))).gt.aimag(tol) .or. abs(real(antotp(ig,it,ik)-tempantotp(ig,it,ik))).gt.real(tol)) then
                       write(*,*) iproc,'problem with antotp',it,ik,antotp(ig,it,ik),tempantotp(ig,it,ik)
@@ -3231,7 +3231,7 @@ contains
        fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot,gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
@@ -3242,7 +3242,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it, is, ic
-    logical :: has_phi, has_apar, has_bpar
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
     fl_avg = 0.
 
@@ -3255,10 +3254,6 @@ contains
     !Now loop over cells and calculate field equation as required.
     !Note we only populate the parts of the fieldeq arrays which
     !are local to this processor.
-
-    has_phi = fphi > epsilon(0.0)
-    has_apar = fapar > epsilon(0.0)
-    has_bpar = fbpar > epsilon(0.0)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, it, is, ic) &
@@ -4106,7 +4101,7 @@ contains
 
   !> This routine advances the solution by one full time step
   subroutine advance_local(istep, remove_zonal_flows_switch)
-    use run_parameters, only: fphi, fapar, fbpar, reset
+    use run_parameters, only: has_phi, has_apar, has_bpar, reset
     use fields_implicit, only: remove_zonal_flows
     use fields_arrays, only: phi, apar, bpar, phinew, time_field
     use fields_arrays, only: aparnew, bparnew, apar_ext, time_field_mpi
@@ -4147,9 +4142,9 @@ contains
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
-       if(fphi.gt.0) phi=phinew
-       if(fapar.gt.0) apar=aparnew
-       if(fbpar.gt.0) bpar=bparnew
+       if (has_phi) phi = phinew
+       if (has_apar) apar = aparnew
+       if (has_bpar) bpar = bparnew
     endif
 
     call debug_message(verb, &
@@ -4177,9 +4172,9 @@ contains
 
     !If we do the update in getfield_local don't do it here
     if(.not.do_update)then
-       if(fphi.gt.0) phinew=phinew+phi
-       if(fapar.gt.0) aparnew=aparnew+apar
-       if(fbpar.gt.0) bparnew=bparnew+bpar
+       if (has_phi) phinew = phinew + phi
+       if (has_apar) aparnew = aparnew + apar
+       if (has_bpar) bparnew = bparnew + bpar
     endif
 
     !For timing
