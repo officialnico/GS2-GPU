@@ -720,8 +720,9 @@ contains
     trapped = grid_has_trapped_particles()
 
     ! factor of one-half appears elsewhere
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ig) &
+    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, ittp, jend, trapped, bd) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
@@ -842,8 +843,9 @@ contains
     call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
+    !$OMP SHARED(g_lo, g1, aky) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -887,8 +889,9 @@ contains
     call copy(g_in, g1)
     if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it) &
+    !$OMP SHARED(g_lo, g1, akx) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -942,8 +945,9 @@ contains
     integer :: iglo, it, ik
 
     if (fphi > epsilon(0.0) .and. include_phi) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, akx, aj0, phi, fphi) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -974,8 +978,9 @@ contains
     integer :: iglo, it, ik
 
     if (fphi > epsilon(0.0) .and. include_phi) then      
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, aky, aj0, phi, fphi) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -1010,8 +1015,9 @@ contains
 
     if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, akx, aj0, spec, apar, fapar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1042,8 +1048,9 @@ contains
 
     if(fapar <= epsilon(0.0) .or. .not. include_apar) return
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, aky, aj0, spec, apar, fapar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1076,8 +1083,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, akx, aj1, vperp2, spec, bpar, fbpar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1110,8 +1118,9 @@ contains
 
     ! Is this factor of two from the old normalization?
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, aky, aj1, vperp2, spec, bpar, fbpar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1153,16 +1162,18 @@ contains
     integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
@@ -1171,16 +1182,18 @@ contains
        endif
     else
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac

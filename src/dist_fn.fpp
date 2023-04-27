@@ -4548,8 +4548,10 @@ contains
 
     if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
+    !$OMP SHARED(g_lo, kwork_filter, phi, apar, bpar, phinew, aparnew, bparnew, &
+    !$OMP include_explicit, ab_coefficients, sourcefac, source, opt_source) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo, iglo)
@@ -4632,10 +4634,15 @@ contains
     ! only be true if have_trapped_particles is true.
     have_trapped_particles = grid_has_trapped_particles()
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, g1, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
     !$OMP g2, adjright, adjleft, ig, beta1) &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, eqzip, secondary, tertiary, harris, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
+    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, save_h, g_h,zero_forbid, &
+    !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
+    !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
@@ -5424,8 +5431,9 @@ contains
 !use the various antots if we're not calculating/using the related field).
 
     if (fphi > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, g_work, aj0, g_in) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -5444,8 +5452,9 @@ contains
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antot) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -5457,8 +5466,9 @@ contains
     end if
 
     if (fapar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, g_work, aj0, vpa, g_in) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -5475,8 +5485,9 @@ contains
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -5488,8 +5499,9 @@ contains
     end if
 
     if (fbpar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
+       !$OMP SHARED(g_lo, ntgrid, g_work, aj1, vperp2, g_in) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -5506,8 +5518,9 @@ contains
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antotp) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6257,8 +6270,10 @@ contains
     end if
 
     if (fphi > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq, antot, &
+       !$OMP bpar, gamtot1, gamtot, gridfac1, phi, fl_avg) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6271,8 +6286,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6284,8 +6300,10 @@ contains
     end if
 
     if (fapar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa, antota, &
+       !$OMP kperp2, gridfac1, apar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6296,8 +6314,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6311,8 +6330,10 @@ contains
     ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
     ! in the following
     if (fbpar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp, antotp, bpar, &
+       !$OMP gamtot2, phi, gamtot1, beta, apfac, bmag, gridfac1)  &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6325,8 +6346,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6429,8 +6451,10 @@ contains
 
     if (fphi > epsilon(0.0)) then
        if (fbpar > epsilon(0.0)) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, fieldeq, &
+          !$OMP antot, bpar, gamtot1, gamtot, gridfac1, phi, fl_avg) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -6444,8 +6468,10 @@ contains
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, fieldeq, &
+          !$OMP antot, gamtot, gridfac1, phi, fl_avg) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -6459,8 +6485,9 @@ contains
           !$OMP END PARALLEL DO
        end if
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6472,8 +6499,10 @@ contains
     end if
 
     if (fapar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, fieldeqa, &
+       !$OMP antota, kperp2, gridfac1, apar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6485,8 +6514,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6501,8 +6531,10 @@ contains
     ! in the following
     if (fbpar > epsilon(0.0)) then
        if (fphi > epsilon(0.0)) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, gridfac1, &
+          !$OMP fieldeqp, antotp, bpar, gamtot2, phi, gamtot1, beta, apfac, bmag) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -6516,8 +6548,10 @@ contains
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, &
+          !$OMP fieldeqp, antotp, bpar, gamtot2, beta, apfac, bmag, gridfac1) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -6531,8 +6565,9 @@ contains
           !$OMP END PARALLEL DO
        end if
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6717,8 +6752,9 @@ contains
     ! with no_gath = .true. may only populate part of these arrays so we initialise to
     ! zero here to avoid later using uninitialised data.
     if (gf_lo_integrate .or. (fphi < epsilon(0.0))) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antot) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6730,8 +6766,9 @@ contains
     end if
 
     if (gf_lo_integrate .or. (fapar < epsilon(0.0))) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6743,8 +6780,9 @@ contains
     end if
 
     if (gf_lo_integrate .or. (fbpar < epsilon(0.0))) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antotp) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -6773,9 +6811,10 @@ contains
 
        if(.not. gf_lo_integrate) then
           if(any(kwork_filter))then
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn, it, ik) &
-             !$OMP SCHEDULE(guided)
+             !$OMP SHARED(g_lo, kwork_filter, g_work, aj0, g_in) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6786,8 +6825,9 @@ contains
              end do
              !$OMP END PARALLEL DO
           else
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn) &
+             !$OMP SHARED(g_lo, g_work, aj0, g_in) &
              !$OMP COLLAPSE(2) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6849,9 +6889,10 @@ contains
 
        if(.not. gf_lo_integrate) then
           if(any(kwork_filter))then
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn, it, ik) &
-             !$OMP SCHEDULE(guided)
+             !$OMP SHARED(g_lo, kwork_filter, g_work, aj0, vpa, g_in) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6862,8 +6903,9 @@ contains
              end do
              !$OMP END PARALLEL DO
           else
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn) &
+             !$OMP SHARED(g_lo, g_work, aj0, vpa, g_in) &
              !$OMP COLLAPSE(2) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6929,9 +6971,10 @@ contains
        if(.not. gf_lo_integrate) then
 
           if(any(kwork_filter))then
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn, it, ik) &
-             !$OMP SCHEDULE(guided)
+             !$OMP SHARED(g_lo, kwork_filter, g_work, aj1, vperp2, g_in) &
+             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 it=it_idx(g_lo,iglo)
                 ik=ik_idx(g_lo,iglo)
@@ -6942,8 +6985,9 @@ contains
              end do
              !$OMP END PARALLEL DO
           else
-             !$OMP PARALLEL DO DEFAULT(shared) &
+             !$OMP PARALLEL DO DEFAULT(none) &
              !$OMP PRIVATE(iglo, isgn) &
+             !$OMP SHARED(g_lo, g_work, aj1, vperp2, g_in) &
              !$OMP COLLAPSE(2) &
              !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -7077,8 +7121,9 @@ contains
           phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
        end if
 
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, phi, antot, phi_weight) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7088,8 +7133,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, phi) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7101,8 +7147,9 @@ contains
     end if
 
     if (fapar > 0) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, apar, antota) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7118,8 +7165,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, apar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7131,8 +7179,9 @@ contains
     end if
 
     if (fbpar > 0) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar, beta, antotp, bmag) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7142,8 +7191,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7216,8 +7266,10 @@ contains
        !CMR, 1/8/2011:  bmag corrections here:
        !BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
        if (fbpar > epsilon(0.0)) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot2, &
+          !$OMP bmag, antot, fl_avg, gamtot1, antotp, denominator, gamtot) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -7231,8 +7283,9 @@ contains
           ! If fbpar = 0 then the terms in earlier branch proportional to beta
           ! should be zero as these terms arrive from the bpar parts of quasineutrality
           ! as expressed in terms of gnew. In this case we get the below.
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, antot, fl_avg) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -7242,8 +7295,9 @@ contains
           end do
           !$OMP END PARALLEL DO
 
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, denominator, gamtot) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -7254,8 +7308,10 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, denominator, phi, &
+       !$OMP numerator) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7274,8 +7330,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, phi) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7288,8 +7345,9 @@ contains
 
     ! get apar
     if (fapar > epsilon(0.0)) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, antota, apar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7308,8 +7366,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, apar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7329,8 +7388,10 @@ contains
        ! gamtot1. However, if we have disabled phi then they should
        ! not appear in our calculation, so handle that here.
        if (fphi > epsilon(0.0)) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot, &
+          !$OMP antotp, gamtot1, antot, denominator, gamtot2, bmag) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -7341,8 +7402,10 @@ contains
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, antotp, &
+          !$OMP denominator, gamtot2, bmag) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
@@ -7354,8 +7417,10 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, &
+       !$OMP denominator, numerator, bpar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
@@ -7374,8 +7439,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(shared) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
