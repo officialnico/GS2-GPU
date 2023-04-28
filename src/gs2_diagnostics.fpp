@@ -1,8 +1,9 @@
 !> A module for calculating and writing the main GS2 outputs.
 module gs2_diagnostics
-  use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
+  use diagnostics_base_config, only: diagnostics_base_config_type
+  use gs2_io, only: get_netcdf_file_id
 
   ! what about boundary condition contributions?  In the presence 
   ! of magnetic shear, there are not always zero amplitudes at the ends
@@ -22,11 +23,17 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity
-  public :: get_omegaavg
+  public :: get_omegaavg, get_volume_average
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
-  
+  public :: get_gs2_diagnostics_config
+  public :: apply_old_defaults
+
+  ! Export some functions to be used in the new diagnostics
+  public :: save_restart_dist_fn
+  public :: check_restart_file_writeable
+
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
   end interface get_vol_average
@@ -51,7 +58,7 @@ module gs2_diagnostics
   logical, public :: write_moments, ob_midplane, write_final_db
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
-  logical, public :: write_hrate, write_lorentzian
+  logical, public :: write_heating, write_lorentzian
   logical, public :: write_nl_flux
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
@@ -60,6 +67,8 @@ module gs2_diagnostics
   logical, public :: dump_fields_periodically, make_movie
   logical, public :: save_for_restart
   logical, public :: save_distfn
+  logical, public :: save_glo_info_and_grids
+  logical, public :: save_velocities
   logical, public :: write_symmetry, write_correlation_extend, write_correlation
   logical, public :: write_pflux_sym, write_nl_flux_dist, write_pflux_tormom
   logical :: file_safety_check
@@ -68,6 +77,7 @@ module gs2_diagnostics
 
   logical, public :: write_phi_over_time, write_apar_over_time, write_bpar_over_time !EGH
 
+  logical :: append_old
   logical :: write_jext=.true.
 
   !> Variables for convergence condition testing
@@ -128,7 +138,7 @@ module gs2_diagnostics
   real, dimension (:), allocatable :: pflux_avg, qflux_avg, heat_avg, vflux_avg
   real :: conv_test_multiplier
 
-  integer :: ntg_out, ntg_extend, nth0_extend
+  integer :: ntg_extend, nth0_extend
   integer :: nout = 1
   integer :: nout_movie = 1
   integer :: nout_big = 1
@@ -136,614 +146,10 @@ module gs2_diagnostics
   !> Does the `gs2_diagnostics_knobs` namelist exist in the input file?
   logical :: exist
 
-  !> Used to represent the input configuration of
-  !> gs2_diagnostics. This is the version used by the original
-  !> diagnostics module.
-  type, extends(abstract_config_type) :: gs2_diagnostics_config_type
-     ! namelist : gs2_diagnostics_knobs
-     ! indexed : false     
-
-     !> If true, and a copy of the .out.nc already exists,
-     !> open it and append to it. Obviously grid sizes must be
-     !> unchanged.
-     !>
-     !> @warning Only present in new diagnostics
-     ! logical :: append_old = .false.
-
-     !> Used for Trinity nonlinear convergence
-     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The maximum number
-     !> of Trinity steps, after which consider the run converged regardless
-     integer :: conv_max_step = 80000
-     !> Used for the Trinity nonlinear convergence check
-     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The minimum number
-     !> of Trinity steps before checking convergence condition
-     integer :: conv_min_step = 4000
-     !> Used for the Trinity nonlinear convergence check
-     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The number of
-     !> timesteps the convergence condition averages over
-     integer :: conv_nstep_av = 4000
-     !> Used for the Trinity nonlinear convergence check
-     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The number of steps
-     !> where convergence is true before convergence is accepted
-     integer :: conv_nsteps_converged = 10000
-     !> Used for the Trinity nonlinear convergence check
-     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). Multiplier for the
-     !> cumulative average of the heat flux
-     real :: conv_test_multiplier = 4e-1
-     !> Write out the field-line average of \(\phi\) to `dump.check1`. This option
-     !> is usually used for Rosenbluth-Hinton calculations.
-     !>
-     !> @warning You probably don't want this?
-     !>
-     !> @warning Non-functional in new diagnostics
-     logical :: dump_check1 = .false.
-     !> Write out \(A_\parallel(k_x, k_y)\) at `igomega` to `<run name>.dc2`.
-     !>
-     !> @warning You probably don't want this?
-     !>
-     !> @warning Non-functional in new diagnostics
-     logical :: dump_check2 = .false.
-     !> Write out \(\phi, A_\parallel, B_\parallel\) to `dump.fields.t=(time)`
-     !> every `10 * nwrite` timesteps.
-     !>
-     !> @warning You probably don't want this?  Expensive.
-     logical :: dump_fields_periodically = .false.
-
-     !> If built with parallel IO capability enable parallel IO. Currently
-     !> disabled by default because of problems on Helios: parallel IO seems to
-     !> work on 1 node but not on >1. This problem does not affect parallel IO
-     !> for the single restart file because it only affects output with infinite
-     !> dimensions
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: enable_parallel = .false. ! Only in new diagnostics
-
-     !> Exit when the run has reached convergence
-     logical :: exit_when_converged = .true.
-     !> Verify that the restart file(s) can be written before starting the
-     !> run.
-     !>
-     !> @warning Currently non-functional in new diagnostics
-     logical :: file_safety_check = .true.
-     !> Index in \(\theta\) to measure various diagnostics at. By default, this
-     !> is the outboard midplane \(\theta = 0\), but it may be useful to set
-     !> this to a non-zero value for tearing parity modes.
-     integer :: igomega = 0
-     !> Write out \(\phi, A_\parallel, B_\parallel\) in real space over time,
-     !> suitable for creating animations. Timestep period is controlled with
-     !> [[gs2_diagnostics_knobs:nmovie]]
-     !>
-     !>
-     !> @warning This option can write a lot of data! Consider doing the Fourier
-     !> transforms of the fields in post-processing instead.
-     !>
-     !> @warning In new diagnostics, the timestep period is controlled with
-     !> [[gs2_diagnostics_knobs:nwrite]]
-     logical :: make_movie = .false.
-     !> Number of timesteps to average over for time-averaged diagnostics
-     !>
-     !> @warning Default value differs between old (100) and new (10)
-     !> diagnostics
-     integer :: navg = 100
-
-     !> FIXME: Timestep period of which to check velocity space resolution and
-     !> correction by varying collisionality. But doesn't happen on timesteps
-     !> when diagnostics are written.
-     !>
-     !> @warning Only in new diagnostics
-     !>
-     !> @warning This value "shadows" the `ncheck` input of the
-     !> collisions namelist.
-     ! integer :: ncheck = 10
-
-     !> Sets the number of output steps between syncing the netcdf file.
-     !> Higher values may reduce disk overheads but increase the risk of
-     !> data loss on unclean exit.
-     !>
-     !> @warning Not present in new diagnostics
-     integer :: nc_sync_freq = 10
-     !> Timestep period to write real space fields \(\phi, A_\parallel,
-     !> B_\parallel\)
-     !>
-     !> @warning Non-functional in new diagnostics. Instead use
-     !> [[gs2_diagnostics_knobs:nwrite]]
-     !>
-     !> @warning Default value differs between old (1000) and new (-1)
-     !> diagnostics
-     integer :: nmovie = 1000
-     !> Timestep period for writing restart data if
-     !> [[gs2_diagnostics_knobs:save_for_restart]] is `.true.`. Negative values
-     !> disable the periodic checkpoints.
-     integer :: nsave = -1
-     !> Timestep period for writing outputs
-     !>
-     !> @warning Default value differs between old (`== 100`) and new (`== 10`)
-     !> diagnostics!
-     integer :: nwrite = 100
-     !> Timestep period multiplier for certain "large" diagnostics, which are
-     !> written every `nwrite_mult * nwrite` timesteps.
-     !>
-     !> FIXME: What datasets? `phicorr_sum`, `phiextend_sum` in old diagnostics,
-     !> `f` and `fyx` in new diagnostics?
-     !>
-     !> @warning Controls different diagnostics in new diagnostics
-     integer :: nwrite_mult = 10
-     !> If `.true.`, write moments at the outboard midplane only, as opposed to
-     !> along the entire flux surface
-     !>
-     !> @warning Non-functional in new diagnostics
-     !>
-     !> @warning Default value differs between old (.true.) and new (.false.) diagnostics
-     logical :: ob_midplane = .true.
-     !> Threshold complex frequency (\(\Omega\)) for detecting a numerical
-     !> instability. If \(\abs(\Omega)\) averaged over
-     !> [[gs2_diagnostics_knobs:navg]] timesteps is greater than `omegatinst`,
-     !> abort the run.
-     !>
-     !> @warning Default value differs between old (1.0) and new (1.0e6)
-     !> diagnostics
-     real :: omegatinst = 1.0
-     !> Frequency (\(\omega\)) convergence tolerance. Consider the simulation
-     !> converged and finish the run if \(\omega\) has changed by less than
-     !> `omegatol` over the last [[gs2_diagnostics_knobs:navg]] timesteps.
-     !>
-     !> More explicitly, the convergence criterion is:
-     !>
-     !> $$\sqrt{\sum_t^{n_{avg}} |\bar{\omega} - \omega|^2} < \min{\bar{\omega}, 1.0}\cdot\omega_{tol}$$
-     !>
-     !> where \(\bar{\omega}\) is \(\omega\) averaged over the last `navg`
-     !> timesteps.
-     real :: omegatol = 1e-3
-     !> Print the instantaneous fluxes to screen/stdout every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     logical :: print_flux_line = .false.
-     !> Print estimated frequencies and growth rates to screen/stdout every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Default value differs between old (`.true.`) and new
-     !> (`.false.`) diagnostics
-     logical :: print_line = .true.
-     !> Write the distribution function to `<rootname>.nc.dfn.<processor>`
-     !> files. Only written at end of simulation
-     logical :: save_distfn = .false.
-     !> Write restart files at the end of the simulation. If
-     !> [[gs2_diagnostics_knobs:nsave]] is positive, then also enable
-     !> checkpoints by writing restart files every `nsave` timesteps.
-     logical :: save_for_restart = .false.
-
-     !> Save some layout and distribution information in restart files
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: save_glo_info_and_grids = .false.
-
-     !> If `.true.`, write one restart file per processor, otherwise write a
-     !> single restart file.
-     !>
-     !> If `gs2` has not been built with parallel netCDF, `save_many` is ignored
-     !> and there is always one file per processor (equivalent to `save_many =
-     !> .true.`).
-     !>
-     !> If `write_many` is enabled, you probably want to also set
-     !> [[init_g_knobs:read_many]] in order to restart from multiple files.
-     logical :: save_many = .false.
-
-     !> Save parallel and perpendicular velocities in final restart and/or
-     !> distribution function files
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: save_velocities = .false.
-     !> @warning Not used
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: serial_netcdf4 = .false.
-
-     !> For nonlinear runs, stop the run when the averaged differential of the
-     !> summed averaged heat flux drops below a threshold for a period of time,
-     !> controlled by [[gs2_diagnostics_knobs:conv_test_multiplier]],
-     !> [[gs2_diagnostics_knobs:conv_nsteps_converged]],
-     !> [[gs2_diagnostics_knobs:conv_nsteps_av]],
-     !> [[gs2_diagnostics_knobs:conv_max_step]], and
-     !> [[gs2_diagnostics_knobs:conv_min_step]].
-     logical :: use_nonlin_convergence = .false.
-
-     !> If `.false.`, skip writing any diagnostics
-     !>
-     !> @warning Only in new diagnostics
-     !>
-     !> @warning This also turns off checking the linear convergence
-     ! logical :: write_any = .true.
-
-     !> Write the entire \(A_\parallel\) field every
-     !> [gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning New diagnostics requires
-     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
-     !> (the default) to enable this
-     logical :: write_apar_over_time = .false.
-     !> Write diagnostics to text files. Generally this creates a different text
-     !> file for each diagnostic. Note that this independent of whether or not
-     !> netCDF files are used.
-     !>
-     !> FIXME: Verify old and new diagnostics write these files in same format
-     logical :: write_ascii = .true.
-     !> Write flux surface averaged low-order moments of \(g\) every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Prints a warning that this is ignored unless
-     !> `grid_option==box`, but this doesn't appear to be the case?
-     logical :: write_avg_moments = .false.
-     !> Write the entire \(B_\parallel\) field every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning New diagnostics requires
-     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
-     !> (the default) to enable this
-     logical :: write_bpar_over_time = .false.
-     !> Write the collision error every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps to text file with suffix `.cres`
-     !>
-     !> FIXME: What does this mean?
-     !>
-     !> @warning In new diagnostics, only writes to ascii
-     !>
-     !> @warning This is expensive
-     logical :: write_cerr = .false.
-
-     !> Write collisional heating (collisional and hyper viscous rate of loss of
-     !> free energy for each mode) every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_collisional = .false.
-
-     !> Write two point parallel correlation function calculated from the
-     !> electric potential as a function of \(k_y\) and parallel separation
-     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Default value differs between old (`.false.`) and new
-     !> (`.true.`) diagnostics
-     logical :: write_correlation = .false.
-     !> Write two point parallel correlation function calculated from the
-     !> electric potential as a function of \(k_y\) and parallel separation,
-     !> time averaged and calculated along the extended domain every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     logical :: write_correlation_extend = .false.
-     !> Write the cross phase between electron density and perpendicular
-     !> electron temperature every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps. Calculated at both the outboard midplane, averaged across
-     !> \(x\) and \(y\); and averaged across all space
-     !>
-     !> @warning In old diagnostics, only written to text files
-     logical :: write_cross_phase = .false.
-
-     !> Write the whole non-adiabatic part of the density moment every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
-     !> `.true.`
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_density_over_time = .false.
-
-     !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
-     !> \(\phi\) at the outboard midplane every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps.
-     !>
-     !> If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the text file is
-     !> `<runname>.eigenfunc`.
-     !>
-     !> @note The normalising factor for a given \((\theta, k_y)\) point may not
-     !> be exactly \(\phi\) at the outboard midplane if this value is zero
-     !> there. If the adjacent point in \(\theta\) is also zero, then the fields
-     !> will be unnormalised at that \((\theta, k_y)\).
-     !>
-     !> @warning If this option is turned on, the same normalising factor will
-     !> also be used for the text output in
-     !> [[gs2_diagnostics_knobs:write_final_moments]]
-     !>
-     !> @warning In old diagnostics, this is only done on exit, not every
-     !> `nwrite` timesteps!
-     !>
-     !> @warning The text output is normalised (see note above), but the netCDF
-     !> output is not
-     logical :: write_eigenfunc = .false.
-     !> Enable writing \(\phi, A_\parallel, B_\parallel\) every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning In old diagnostics, this only writes them on exit and
-     !> [[gs2_diagnostics_knobs:write_phi_over_time]],
-     !> [[gs2_diagnostics_knobs:write_apar_over_time]] and
-     !> [[gs2_diagnostics_knobs:write_bpar_over_time]] instead control writing
-     !> the fields over time, respectively. In new diagnostics, this will disable
-     !> writing all three fields if set to `.false.`
-     !>
-     !> @warning Default value differs between old (`.false.`) and new
-     !> (`.true.`) diagnostics
-     logical :: write_fields = .false.
-     !> Write the right-hand sides of the field equations at the final
-     !> timestep. If [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file
-     !> suffix is `.antot`
-     !>
-     !> @warning In new diagnostics, this is not written to netCDF!
-     logical :: write_final_antot = .false.
-     !> Write \(\delta B\) at the final timestep. If
-     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
-     !> `.db`
-     !>
-     !> @warning In new diagnostics, this is not written to netCDF!
-     logical :: write_final_db = .false.
-     !> Write \(E_\parallel\) at the final timestep. If
-     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
-     !> `.epar`
-     !>
-     !> @warning In new diagnostics, this is not written to netCDF!
-     logical :: write_final_epar = .false.
-     !> Write \(\phi, A_\parallel, B_\parallel\) at the final timestep. If
-     !> [[gs2_diagnostics_knobs:write_ascii]] is enabled, the file suffix is
-     !> `.fields`
-     !>
-     !> @warning In new diagnostics, this is not written to netCDF!
-     logical :: write_final_fields = .false.
-     !> Write various moments (densities, parallel and perpendicular
-     !> velocities and temperatures, and heat and momentum fluxes) at
-     !> the final timestep. If [[gs2_diagnostics_knobs:write_ascii]]
-     !> is enabled, the file suffix is `.fields` and contains the
-     !> moments, their magnitudes, and field-line averages. The netCDF
-     !> output has only the values.
-     !>
-     !> @warning If [[gs2_diagnostics_knobs:write_eigenfunc]] is
-     !> enabled, then the same normalising factor is used for the
-     !> final moments. Otherwise, the moments are unnormalised.
-     !>
-     !> @warning In new diagnostics, this is not written to netCDF!
-     !>
-     !> @warning The text output is normalised (see note above), but
-     !> the netCDF output is not
-     logical :: write_final_moments = .false.
-     !> Write instantaneous fluxes to output file every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Output formats and quantities differ between old and new
-     !> diagnostics
-     logical :: write_flux_line = .true.
-
-     !> Write fluxes (heat, momentum and particle; total and per-species) every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
-     !>
-     !> If run is nonlinear, this defaults to true
-     !>
-     !> @warning Only in new diagnostics. In old diagnostics, this is combined
-     !> with write_fluxes_by_mode and called write_nl_flux.
-     ! logical :: write_fluxes = .false.
-     !> Write fluxes (heat, momentum and particle; total and per-species) as a
-     !> function of Fourier mode every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps.
-     !>
-     !> If run is nonlinear, this defaults to true
-     !>
-     !> @warning Only in new diagnostics. In old diagnostics, this is combined
-     !> with write_fluxes and called write_nl_flux.
-     ! logical :: write_fluxes_by_mode = .false.
-
-     !> Write moments (density, parallel flow, and parallel and perpendicular
-     !> temperatures) in non-guiding centre coordinates every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     logical :: write_full_moments_notgc = .false.
-     !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file
-     !> `<runname>.dist`
-     !>
-     !> @warning Only to text files
-     logical :: write_g = .false.
-     !> @warning Unused
-     !>
-     !> FIXME: Delete
-     logical :: write_gg = .false.
-     !> FIXME: Add documentation
-     !>
-     !> @warning Only outputs to text files
-     logical :: write_gs = .false.
-     !> Write \(g\) as a function of real space every
-     !> [[gs2_diagnostics_knobs:nmovie]] timesteps to text file
-     !> "<runname>.yxdist"
-     !>
-     !> @warning Only to text files
-     logical :: write_gyx = .false.
-
-     !> Write out various heating, free energy and energy injection
-     !> diagnostics. Text file extension is `.heat`
-     !>
-     !> @warning Only in new diagnostics. Equivalent to
-     !> [[gs2_diagnostics_knobs:write_hrate]] in old diagnostics
-     ! logical :: write_heating = .false.
-
-     !> Write out various heating, free energy and energy injection
-     !> diagnostics. Text file extension is `.heat`
-     !>
-     !> @warning Non-functional in new diagnostics. Equivalent to
-     !> [[gs2_diagnostics_knobs:write_heating]] in new diagnostics
-     !>
-     !> @warning Old diagnostics only writes to text files
-     logical :: write_hrate = .false.
-
-     !> Write time averaged external current in the antenna,
-     !> \(\operatorname{Re}(k_\perp^2 A_\mathrm{antenna})\), as a function of
-     !> \(k_x, k_y\). File suffix is `.jext`
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_jext = .false.
-
-     !> Write the parallel spectrum of \(\phi, A_\parallel,
-     !> B_\parallel\) at final timestep. File suffix is `.kpar`
-     !>
-     !> @warning Output only to text files
-     logical :: write_kpar = .false.
-     !> Print estimated frequencies and growth rates to text file every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     logical :: write_line = .true.
-     !> Write `antenna_w` every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
-     !>
-     !> FIXME: Define `antenna_w`
-     !>
-     !> @warning Old diagnostics only writes to text files
-     !>
-     !> @warning New diagnostics only writes to netCDF
-     logical :: write_lorentzian = .false.
-     !> Write Lagrange interpolating function value at interpolating
-     !> points specified by `xloc` to text file with suffix `.interp`
-     !>
-     !> FIXME: Define `xloc`
-     logical :: write_lpoly = .false.
-     !> Write the estimated maximum error from velocity space
-     !> integrals for various quantities
-     !>
-     !> @warning Old diagnostics only outputs to text file
-     logical :: write_max_verr = .false.
-     !> Write various moments (total and non-adiabatic part of perturbed species
-     !> density, perturbed parallel flow, perturbed parallel and perpendicular
-     !> temperatures, parallel heat flux, particule flux and heat flux) every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Only outputs to netCDF files
-     !>
-     !> @warning New diagnostics writes various averages of the moments. To get
-     !> the same output as old diagnostics, **also** set
-     !> [[gs2_diagnostics_knobs:write_ntot_over_time]],
-     !> [[gs2_diagnostics_knobs:write_density_over_time]],
-     !> [[gs2_diagnostics_knobs:write_upar_over_time]],
-     !> [[gs2_diagnostics_knobs:write_tperp_over_time]] to `.true.`
-     !>
-     !> @warning Default value differs between old (`.false.`) and new
-     !> (`.true.`) diagnostics
-     logical :: write_moments = .false.
-     !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
-     !>
-     !> @warning Non-functional in new diagnostics
-     logical :: write_nl_flux = .false.
-     !> Write the poloidal distributions of the fluxes of particles,
-     !> parallel momentum, perpendicular momentum, and energy every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
-     !>
-     !> See section 3.1 and appendix A of [Ball et al. PPCF 58 (2016)
-     !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as
-     !> section 5 of "GS2 analytic geometry specification"
-     logical :: write_nl_flux_dist = .false.
-
-     !> Write the whole total density moment every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
-     !> `.true.`
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_ntot_over_time = .false.
-
-     !> Write time-averaged growth rate and frequency to the output text file
-     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps. Time average is
-     !> rolling window over the previous [[gs2_diagnostics_knobs:navg]]
-     !> timesteps
-     !>
-     !> @warning Non-functional in new diagnostics, time-average is also written
-     !> with [[gs2_diagnostics_knobs:write_omega]] instead
-     logical :: write_omavg = .true.
-     !> Write instantaneous growth rate and frequency every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Old diagnostics only writes to output text file
-     !>
-     !> @warning New diagnostics only writes to netCDF file
-     !>
-     !> @warning New diagnostics also writes time-average with this
-     !> option. Output is the complex frequency, rather than separate growth
-     !> rate and real frequency
-     logical :: write_omega = .true.
-     !> Write parities in distribution and particle fluxes to text file with the
-     !> suffix `.parity`
-     !>
-     !> FIXME: Clarify what this means
-     logical :: write_parity = .false.
-     !> Write particle flux density as a function of \(\theta\) and velocity
-     !> space every [[gs2_diagnostics_knobs:nwrite]] timesteps. Used for looking
-     !> at the effect of asymmetry. See [Parra et al POP 18 062501
-     !> 2011](https://doi.org/10.1063/1.3586332) and ask Jung-Pyo Lee
-     !>
-     !> @warning Only outputs to netCDF
-     !>
-     !> @warning Non-functional in new diagnostics, use
-     !> [[gs2_diagnostics_knobs:write_symmetry]] instead
-     logical :: write_pflux_sym = .false. 
-     !> Write toroidal angular momentum flux carried by particle flux every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps. Only calculated if `gs2` is
-     !> built with `LOWFLOW` on.
-     !>
-     !> @warning Only outputs to netCDF
-     !>
-     !> @warning Non-functional in new diagnostics
-     logical :: write_pflux_tormom = .false. 
-     !> Write the entire \(\phi\) field every [gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
-     !>
-     !> @warning New diagnostics requires
-     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
-     !> (the default) to enable this
-     logical :: write_phi_over_time = .false.
-     !> Write the particle and momentum flux as a function of \(\theta\) and
-     !> velocity space. See [[gs2_diagnostics_knobs:write_pflux_sym]] and
-     !> [[gs2_diagnostics_knobs:write_pflux_tormom]]
-     !>
-     !> @warning Only outputs to netCDF
-     !>
-     !> @warning Old diagnostics does not write the particle flux, use
-     !> [[gs2_diagnostics_knobs:write_pflux_sym]] instead
-     logical :: write_symmetry = .false.
-
-     !> Write the whole perturbed perpendicular temperature moment every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
-     !> `.true.`
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_tperp_over_time = .false.
-     !> Write the whole perturbed parallel velocity moment every
-     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
-     !>
-     !> @warning Requires [[gs2_diagnostics_knobs:write_moments]] to also be
-     !> `.true.`
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_upar_over_time = .false.
-
-     !> Write estimates of error resulting from velocity space integrals in the
-     !> calculation of various quantities every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps.
-     !>
-     !> @warning Output only to text file
-     !>
-     !> @warning New diagnostics also writes to netCDF every
-     !> [[gs2_diagnostics_knobs:ncheck]] timesteps, along with some other
-     !> quantities such as collisionality
-     !>
-     !> @warning This is expensive
-     logical :: write_verr = .false.
-
-     !> Write the transfer of free energy, \(\tau\), as a function of \((k_x,
-     !> k_y)\), averaged over \(\theta\), every [[gs2_diagnostics_knobs:nwrite]]
-     !> timesteps
-     !>
-     !> @warning Only in new diagnostics
-     ! logical :: write_zonal_transfer = .false.
-   contains
-     procedure, public :: read => read_gs2_diagnostics_config
-     procedure, public :: write => write_gs2_diagnostics_config
-     procedure, public :: reset => reset_gs2_diagnostics_config
-     procedure, public :: broadcast => broadcast_gs2_diagnostics_config
-     procedure, public, nopass :: get_default_name => get_default_name_gs2_diagnostics_config
-     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_gs2_diagnostics_config
+  type, extends(diagnostics_base_config_type) :: gs2_diagnostics_config_type
   end type gs2_diagnostics_config_type
 
-  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config  
+  type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
 contains
 
   !> Write the diagnostics namelist to file
@@ -777,7 +183,7 @@ contains
        write (unit, fmt="(' write_omega = ',L1)") write_omega
        write (unit, fmt="(' write_omavg = ',L1)") write_omavg
     end if
-    write (unit, fmt="(' write_hrate = ',L1)") write_hrate
+    write (unit, fmt="(' write_heating = ',L1)") write_heating
     write (unit, fmt="(' write_lorentzian = ',L1)") write_lorentzian
     write (unit, fmt="(' write_eigenfunc = ',L1)") write_eigenfunc
     write (unit, fmt="(' write_final_fields = ',L1)") write_final_fields
@@ -1008,7 +414,7 @@ contains
   !> Initialise this module and all its dependencies, including defining NetCDF
   !> vars, call real_init, which calls read_parameters; broadcast all the
   !> different write flags.
-  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in)
+  subroutine init_gs2_diagnostics (list, nstep, gs2_diagnostics_config_in, header)
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids, ntheta0, naky
     use run_parameters, only: init_run_parameters
@@ -1022,6 +428,8 @@ contains
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
+    use diagnostics_final_routines, only: init_par_filter
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -1031,8 +439,17 @@ contains
     integer, intent (in) :: nstep
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
-    integer :: nmovie_tot, nwrite_big_tot
-    logical :: writable
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+    integer :: nmovie_tot
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     if (initialized) return
     initialized = .true.
@@ -1045,18 +462,16 @@ contains
     call init_init_g
     call init_dist_fn
 
-    call real_init (list, gs2_diagnostics_config_in)
+    call real_init (list, gs2_diagnostics_config_in, header=local_header)
 
     nmovie_tot = nstep/nmovie
-    nwrite_big_tot = nstep/(nwrite*nwrite_mult)-nstep/4/(nwrite*nwrite_mult)
-    if(nwrite_big_tot .le. 0) nwrite_big_tot = 1
 
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
     if (write_verr .and. proc0) call init_weights
 
     ! allocate heating diagnostic data structures
-    if (write_hrate) then
+    if (write_heating) then
        allocate (h_hist(0:navg-1))
        call init_htype (h_hist,  nspec)
 
@@ -1079,15 +494,12 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (write_nl_flux, write_omega, &
-         write_hrate, write_final_antot, &
-         write_eigenfunc, make_movie, nmovie_tot, write_verr, &
-         write_moments, write_full_moments_notgc, &
-         write_symmetry, write_pflux_sym, write_nl_flux_dist, write_pflux_tormom, &
-         write_correlation, nwrite_big_tot, write_correlation_extend, &
+    call init_gs2_io (append_old, make_movie, write_verr, &
+         write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
-         write_avg_moments, write_final_moments, write_final_epar, &
-         ob_midplane=ob_midplane)
+         nout, ob_midplane=ob_midplane, header=local_header)
+
+    call broadcast (nout)
 
     if (write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then
@@ -1102,34 +514,70 @@ contains
        pflux_avg = 0.0 ; qflux_avg = 0.0 ; heat_avg = 0.0 ; vflux_avg = 0.0
     endif
 
-    !Verify restart file can be written
-    if((save_for_restart.or.save_distfn).and.(file_safety_check))then
-       !Can we write file?
-       writable=restart_writable()
-
-       !If we can't write the restart file then we should probably quit
-       if((.not.writable).and.save_for_restart) call mp_abort("Cannot write to test file, maybe restart_dir doesn't exist --> Aborting.",to_screen=.true.)
-
-       !If it's just a case of save_distfn then we can carry on but print a useful mesasge
-       if((.not.writable).and.save_distfn)then
-          if(proc0)write(6,'("Warning: Cannot write to test restart_file --> Setting save_distfn=F.")')
-          save_distfn=.false.
-       endif
-    endif
+    call check_restart_file_writeable(file_safety_check, save_for_restart, save_distfn)
 
     !Setup the parallel fft if we're writing/using the parallel spectrum
-    if(write_kpar.or.write_gs) call init_par_filter
+    if (write_kpar .or. write_gs) call init_par_filter
   end subroutine init_gs2_diagnostics
+
+  !> Check if we can write the restart files
+  !>
+  !> If restart files aren't writable, aborts if `need_restart` is
+  !> true, or sets `extra_files` to false. Also prints a warning in
+  !> the second case.
+  subroutine check_restart_file_writeable(check_writable, need_restart, extra_files)
+    use init_g, only: get_restart_dir
+    use gs2_save, only: restart_writable
+    use mp, only: proc0, mp_abort, broadcast
+    implicit none
+    !> Has the user requested this check
+    logical, intent(in) :: check_writable
+    !> Has the user requested restart files
+    logical, intent(in) :: need_restart
+    !> Has the user requested distribution function to be written
+    logical, intent(inout) :: extra_files
+
+    ! Error message from trying to open restart file
+    character(len=:), allocatable :: error_message
+    ! GS2 error message to show user
+    character(len=:), allocatable :: abort_message
+
+    ! Assume everything's fine if we're not checking, or if it's not needed
+    if (.not. check_writable) return
+    if (.not. (need_restart .or. extra_files)) return
+
+    ! If we can write the restart files, we're done
+    if (restart_writable(error_message=error_message)) return
+
+    abort_message = " Cannot write restart files! Error message was:" // new_line('a') &
+         // "    " // error_message // new_line('a') &
+         // " Please check that `init_g_knobs::restart_dir = " // trim(get_restart_dir()) &
+         // "` exists and has the correct permissions."
+
+    ! User has requested restart files, but we can't write them => abort
+    if (need_restart) then
+      abort_message = abort_message // new_line('a') // "    --> Aborting"
+      call mp_abort(trim(abort_message), to_screen=.true.)
+    end if
+
+    ! If it's just a case of save_distfn, then we can carry on but
+    ! disable `save_distfn` and print a useful mesasge
+    if (extra_files) then
+      if(proc0) write(*, '(a, a, a)') abort_message, new_line('a'), "    --> Setting `save_distfn = F`"
+      extra_files = .false.
+    endif
+  end subroutine check_restart_file_writeable
 
   !> Read the input parameters; open the various text output files according to
   !> the relevant input flags; allocate and zero the module-level flux arrays,
   !> [[gs2_diagnostics_knobs:omega]] and [[gs2_diagnostics_knobs:omegaavg]]
-  subroutine real_init(is_list_run, gs2_diagnostics_config_in)
+  subroutine real_init(is_list_run, gs2_diagnostics_config_in, header)
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
     use mp, only: proc0
+    use standard_header, only: standard_header_type
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -1137,7 +585,16 @@ contains
     logical, intent (in) :: is_list_run
     !> Input parameters for this module
     type(gs2_diagnostics_config_type), intent(in), optional :: gs2_diagnostics_config_in    
-    character(20) :: datestamp, timestamp, zone
+    !> Header for files with build and run information
+    type(standard_header_type), intent(in), optional :: header
+    ! Actual value for optional `header` input
+    type(standard_header_type) :: local_header
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
 
     call read_parameters(is_list_run, gs2_diagnostics_config_in)
 
@@ -1150,7 +607,7 @@ contains
           call open_output_file (phase_unit, ".phase")
        end if
 
-       if (write_hrate .and. write_ascii) then
+       if (write_heating .and. write_ascii) then
           call open_output_file (heat_unit, ".heat")
           call open_output_file (heat_unit2, ".heat2")
        end if
@@ -1174,24 +631,18 @@ contains
           write_jext = .false.
        end if
 
-       if (dump_check1) then
+       if (dump_check1 .and. proc0) then
           call get_unused_unit (dump_check1_unit)
+          ! We should switch to open_output_file here.
           open (unit=dump_check1_unit, file="dump.check1", status="unknown")
        end if
 
-       if (dump_check2) then
-          call get_unused_unit (dump_check2_unit)
+       if (dump_check2 .and. proc0) then
           call open_output_file (dump_check2_unit, ".dc2")
        end if
 
        if (write_ascii) then
-          write (unit=out_unit, fmt="('gs2')")
-          datestamp(:) = ' '
-          timestamp(:) = ' '
-          zone(:) = ' '
-          call date_and_time (datestamp, timestamp, zone)
-          write (unit=out_unit, fmt="('Date: ',a,' Time: ',a,1x,a)") &
-               trim(datestamp), trim(timestamp), trim(zone)
+          write (unit=out_unit, fmt='(a)') local_header%to_string(file_description="GS2 output file")
        end if
 
        allocate (omegahist(0:navg-1,ntheta0,naky))
@@ -1231,12 +682,33 @@ contains
 
   end subroutine real_init
 
+  !> Set values according to the old diagnostics defaults.
+  !>
+  !> Will overwrite existing values, unless the config object has
+  !> already been initialised, in which case returns without changing
+  !> any values
+  subroutine apply_old_defaults(gs2_diagnostics_config_in)
+    type(gs2_diagnostics_config_type), intent(inout) :: gs2_diagnostics_config_in
+
+    if (gs2_diagnostics_config_in%is_initialised()) return
+
+    gs2_diagnostics_config_in%navg = 100
+    gs2_diagnostics_config_in%nmovie = 1000
+    gs2_diagnostics_config_in%nwrite = 100
+    gs2_diagnostics_config_in%ob_midplane = .true.
+    gs2_diagnostics_config_in%omegatinst = 1.0
+    gs2_diagnostics_config_in%print_line = .true.
+    gs2_diagnostics_config_in%write_correlation = .false.
+    gs2_diagnostics_config_in%write_moments = .false.
+  end subroutine apply_old_defaults
+
   !> Read the input parameters for the diagnostics module
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
+    use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
-    use theta_grid, only: nperiod, ntheta
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
+    use antenna, only: no_driver
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -1250,14 +722,30 @@ contains
 
     ! Smart defaults
     if (.not. gs2_diagnostics_config%is_initialised()) then
-       if (nonlin) then
-          gs2_diagnostics_config%write_nl_flux = .true.
-       end if
+      if (nonlin) then
+        gs2_diagnostics_config%write_nl_flux = .true.
+      end if
+      call apply_old_defaults(gs2_diagnostics_config)
     end if
 
     call gs2_diagnostics_config%init(name = 'gs2_diagnostics_knobs', requires_index = .false.)
 
+    ! Print some health warnings if switches are not their default
+    ! values and are not available in this diagnostics module
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%enable_parallel, "enable_parallel")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%ncheck /= 10, "ncheck")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%serial_netcdf4, "serial_netcdf4")
+    call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
+    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_zonal_transfer, "write_zonal_transfer")
+
     ! Copy out internal values into module level parameters
+    append_old = gs2_diagnostics_config%append_old
     conv_max_step = gs2_diagnostics_config%conv_max_step
     conv_min_step = gs2_diagnostics_config%conv_min_step
     conv_nstep_av = gs2_diagnostics_config%conv_nstep_av
@@ -1283,6 +771,8 @@ contains
     print_line = gs2_diagnostics_config%print_line
     save_distfn = gs2_diagnostics_config%save_distfn
     save_for_restart = gs2_diagnostics_config%save_for_restart
+    save_glo_info_and_grids = gs2_diagnostics_config%save_glo_info_and_grids
+    save_velocities = gs2_diagnostics_config%save_velocities
     save_many = gs2_diagnostics_config%save_many
     use_nonlin_convergence = gs2_diagnostics_config%use_nonlin_convergence
     write_apar_over_time = gs2_diagnostics_config%write_apar_over_time
@@ -1306,7 +796,7 @@ contains
     write_gg = gs2_diagnostics_config%write_gg
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
-    write_hrate = gs2_diagnostics_config%write_hrate
+    write_heating = gs2_diagnostics_config%write_heating
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
@@ -1329,6 +819,7 @@ contains
     !CMR, 12/8/2014: 
     ! Ensure write_full_moments_notgc=.false. if (write_moments .and. ob_midplane)
     ! to avoid a conflict.  
+    ! FIXME: These two diagnostics do almost the same thing. Do we actually want both?
     if (write_moments .and. ob_midplane) write_full_moments_notgc=.false.
 
     !Override flags
@@ -1341,49 +832,51 @@ contains
        print_flux_line = .false.
     end if
 
-    !These don't store any data if fphi=0 so don't bother
+    if (no_driver .and. write_lorentzian) then
+      write(*, "(a)") "WARNING: 'write_lorentzian = .true.' but antenna not enabled. Turning off 'write_lorentzian'"
+      write_lorentzian = .false.
+    end if
+
+    !These don't store any data if we don't have phi so don't bother
     !calculating it.
-    if(fphi.eq.0) write_symmetry = .false.
-    if(fphi.eq.0) write_pflux_sym = .false.
-    if(fphi.eq.0) write_nl_flux_dist = .false.
-    if(fphi.eq.0) write_correlation = .false.
-    if(fphi.eq.0) write_correlation_extend = .false.
+    if(.not. has_phi) write_symmetry = .false.
+    if(.not. has_phi) write_pflux_sym = .false.
+    if(.not. has_phi) write_nl_flux_dist = .false.
+    if(.not. has_phi) write_correlation = .false.
+    if(.not. has_phi) write_correlation_extend = .false.
 
     if (.not. save_for_restart) nsave = -1
     write_avg_moments = write_avg_moments
 
     write_any = write_line .or. write_omega     .or. write_omavg &
          .or. write_flux_line                   .or. write_nl_flux  &
-         .or. write_kpar   .or. write_hrate     .or. write_lorentzian  .or. write_gs
+         .or. write_kpar   .or. write_heating     .or. write_lorentzian  .or. write_gs
     write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
          .or. write_full_moments_notgc
-
-    ntg_out = ntheta/2 + (nperiod-1)*ntheta
   end subroutine read_parameters
 
   !> Finalise the diagnostics module, writing final timestep diagnostics and
   !> closing any open files
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
-    use run_parameters, only: fphi, fapar, fbpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx,write_poly, collision_error
-    use dist_fn_arrays, only: g_adjust, gnew
-    use collisions, only: vnmult
-    use gs2_save, only: gs2_save_for_restart
+    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
-    use gs2_time, only: user_time, user_dt
+    use gs2_time, only: user_time
     use le_grids, only: finish_weights
     use unit_tests, only: debug_message
-
+    use diagnostics_final_routines, only: do_write_final_fields, do_write_kpar
+    use diagnostics_final_routines, only: do_write_final_epar, do_write_final_db
+    use diagnostics_final_routines, only: do_write_final_antot, do_write_final_moments
+    use diagnostics_final_routines, only: do_write_gs
     implicit none
     !> The current (final) timestep
     integer, intent (in) :: istep
-    integer :: istatus
+
     complex, dimension (ntheta0, naky) :: phi0
     logical :: last = .true.
 
@@ -1400,44 +893,40 @@ contains
     call close_files
 
     if (proc0) then
-       if (write_eigenfunc) call do_write_eigenfunc(phi0)
-       if (write_final_fields) call do_write_final_fields
-       if (write_kpar) call do_write_kpar
-       if (write_final_epar) call do_write_final_epar
+       if (write_eigenfunc) call do_write_eigenfunc(get_netcdf_file_id(), phi0)
+       if (write_final_fields) then
+          call do_write_final_fields(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
+       end if
+       if (write_kpar) call do_write_kpar(write_ascii)
+       if (write_final_epar) then
+          call do_write_final_epar(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
+       end if
 
        ! definition here assumes we are not using wstar_units
-       if (write_final_db) call do_write_final_db
+       if (write_final_db) call do_write_final_db(write_ascii)
     end if
 
     !Note pass in phase factor phi0 which may not be initialised
     !this is ok as phi0 will be set in routine if not already set
-    if (write_final_moments) call do_write_final_moments(phi0)
+    if (write_final_moments) call do_write_final_moments(phi0, use_normalisation=write_eigenfunc, &
+                                                         write_text=write_ascii, write_netcdf=.true.,&
+                                                         file_id=get_netcdf_file_id())
 
-    if (write_final_antot) call do_write_final_antot
-
-    if (save_for_restart) then
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true.)
+    if (write_final_antot) then
+       call do_write_final_antot(write_ascii, write_netcdf=.true., file_id=get_netcdf_file_id())
     end if
 
-    if (save_distfn) then
-       !Convert h to distribution function
-       call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-
-       !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart (gnew, user_time, user_dt, vnmult, istatus, &
-            fphi, fapar, fbpar, exit_in=.true., distfn=.true.)
-
-       !Convert distribution function back to h
-       call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-    end if
+    call save_restart_dist_fn(save_for_restart, save_distfn, &
+                              save_glo_info_and_grids=save_glo_info_and_grids, &
+                              save_velocities=save_velocities, &
+                              user_time=user_time)
 
     !Finalise the netcdf file
     call nc_finish
 
     if (proc0) call dump_ant_amp
 
-    if (write_gs) call do_write_gs
+    if (write_gs) call do_write_gs(write_ascii)
 
     if (proc0) call do_write_geom
 
@@ -1449,6 +938,50 @@ contains
     call gs2_diagnostics_config%reset()
   end subroutine finish_gs2_diagnostics
 
+  !> Save some extra information in final restart files
+  subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
+                                  save_glo_info_and_grids, &
+                                  save_velocities, user_time)
+    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
+    use collisions, only: vnmult
+    use gs2_save, only: gs2_save_for_restart
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew
+    use dist_fn_arrays, only: g_adjust
+    !> See [[gs2_diagnostics_knobs:save_for_restart]]
+    logical, intent(in) :: save_for_restart
+    !> See [[gs2_diagnostics_knobs:save_distfn]]
+    logical, intent(in) :: save_distfn
+    !> See [[gs2_diagnostics_knobs:save_glo_info_and_grids]]
+    logical, intent(in) :: save_glo_info_and_grids
+    !> See [[gs2_diagnostics_knobs:save_velocities]]
+    logical, intent(in) :: save_velocities
+    !> Current simulation time
+    real, intent(in) :: user_time
+    integer :: istatus
+
+    if (save_for_restart) then
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+            has_phi, has_apar, has_bpar, &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+    end if
+
+    if (save_distfn) then
+       !Convert h to distribution function
+       call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+
+       !Save dfn, fields and velocity grids to file
+       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+            has_phi, has_apar, has_bpar, fileopt=".dfn", &
+            save_glo_info_and_grids=save_glo_info_and_grids, &
+            save_velocities=save_velocities)
+
+       !Convert distribution function back to h
+       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+    end if
+  end subroutine save_restart_dist_fn
+
   !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays
     use mp, only: proc0
@@ -1456,7 +989,7 @@ contains
     use gs2_heating, only: del_htype
     implicit none
 
-    if (write_hrate) then
+    if (write_heating) then
        call del_htype (h)
        call del_htype (h_hist)
        call del_htype (hk_hist)
@@ -1493,8 +1026,8 @@ contains
     end if
     if (write_ascii) call close_output_file (out_unit)
     if (write_ascii .and. write_cross_phase) call close_output_file (phase_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit)
-    if (write_ascii .and. write_hrate) call close_output_file (heat_unit2)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit)
+    if (write_ascii .and. write_heating) call close_output_file (heat_unit2)
     if (write_ascii .and. write_jext) call close_output_file (jext_unit)
     if (dump_check1) call close_output_file (dump_check1_unit)
     if (dump_check2) call close_output_file (dump_check2_unit)
@@ -1504,10 +1037,10 @@ contains
   !> Calculate and write the various diagnostic quantities.
   !>
   !> This is the main routine for the "old" diagnostics.
-  subroutine loop_diagnostics (istep, exit, debopt)
+  subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fapar, fphi, fbpar, nstep
+    use run_parameters, only: fphi, fbpar, nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, aparnew, bparnew, phi
     use dist_fn, only: flux, write_f, write_fyx,lf_flux, eexchange
     use dist_fn, only: write_poly, collision_error
@@ -1522,7 +1055,7 @@ contains
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
-
+    use optionals, only: get_option_with_default
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1530,7 +1063,7 @@ contains
     logical, intent (out) :: exit
     !> If true, turn on some debug prints
     logical, intent (in), optional:: debopt
-
+    logical, intent(in), optional :: force
     real, dimension (ntheta0, naky) :: phitot
     real :: phi2, apar2, bpar2
     real :: t
@@ -1553,18 +1086,23 @@ contains
     real, save :: t_old = 0.
     logical :: last = .false.
     logical:: debug=.false.
-
+    logical :: do_force
+    integer, save :: istep_last = -1
     if (present(debopt)) debug = debopt
     call prof_entering ("loop_diagnostics")
 
     !Set the current time
     t = user_time
+    !Always skip if we've already done this step
+    if (istep == istep_last) return
+
+    do_force = get_option_with_default(force, .false.)
 
     exit = .false.
 
     call do_get_omega(istep,debug,exit)
 
-    if (write_hrate) call heating (istep, h, hk)
+    if (write_heating) call heating (istep, h, hk)
 
     if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
@@ -1584,7 +1122,11 @@ contains
     !########################################################
     !The rest of the routine only happens every nwrite steps
     !########################################################
-    if (mod(istep,nwrite) /= 0 .and. .not. exit) return
+    if (mod(istep,nwrite) /= 0 .and. .not. exit .and. .not. do_force) return
+
+    ! If we get here then we're doing a full set of diagnostics
+    ! so store the step
+    istep_last = istep
 
     if (write_g) call write_f (last)
 
@@ -1601,7 +1143,7 @@ contains
     !Instead replace with a call to nc_final_fields to keep the phi, apar and bpar
     !output arrays up to date.
 
-    if (write_fields .and. proc0) call nc_final_fields
+    if (write_fields .and. proc0) call nc_final_fields(get_netcdf_file_id())
 
     if (write_moments) call do_write_moments
 
@@ -1632,13 +1174,13 @@ contains
        call lf_flux (phinew, vflux0, vflux1)
 #endif
        call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
-       if (fphi > epsilon(0.0) .and. &
+       if (has_phi .and. &
             (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
          call eexchange (phinew, phi, exchange1, exchange)
        end if
 
        if (proc0) then
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              do is = 1, nspec
                 qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,1), heat_fluxes(is))
@@ -1679,7 +1221,7 @@ contains
 #endif
              end do
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              do is = 1, nspec
                 qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,1), mheat_fluxes(is))
@@ -1699,7 +1241,7 @@ contains
                 call get_volume_average (vmflux(:,:,is), mmom_fluxes(is))
              end do
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              do is = 1, nspec
                 qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,1), bheat_fluxes(is))
@@ -1720,7 +1262,7 @@ contains
           pflux_avg = pflux_avg + (part_fluxes + mpart_fluxes + bpart_fluxes)*(t-t_old)
           qflux_avg = qflux_avg + (heat_fluxes + mheat_fluxes + bheat_fluxes)*(t-t_old)
           vflux_avg = vflux_avg + (mom_fluxes + mmom_fluxes + bmom_fluxes)*(t-t_old)
-          if (write_hrate) heat_avg = heat_avg + h%imp_colls*(t-t_old)
+          if (write_heating) heat_avg = heat_avg + h%imp_colls*(t-t_old)
           !          t_old = t
        end if
 
@@ -1730,12 +1272,12 @@ contains
        call broadcast (qflux_avg)
        call broadcast (vflux_avg)
 
-       if (write_hrate) call broadcast (heat_avg)
+       if (write_heating) call broadcast (heat_avg)
     end if
 
     if (proc0) then
        if (print_flux_line) then
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
                   & ' heat fluxes: ', 5(1x,e13.6))") &
                   t, phi2, heat_fluxes(1:min(nspec,5))
@@ -1743,12 +1285,12 @@ contains
                   & ' energy exchange: ', 5(1x,e13.6))") &
                   t, phi2, energy_exchange(1:min(nspec,5))
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              write (unit=*, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
                   & ' heat flux m: ', 5(1x,e11.4))") &
                   t, apar2, mheat_fluxes(1:min(nspec,5))
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              write (unit=*, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
                   & ' heat flux b: ', 5(1x,e11.4))") &
                   t, bpar2, bheat_fluxes(1:min(nspec,5))
@@ -1775,7 +1317,7 @@ contains
 
     if (proc0 .and. write_any) then
        if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_hrate) call do_write_hrate(t)
+       if (write_ascii .and. write_heating) call do_write_heating(t)
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
@@ -1784,7 +1326,7 @@ contains
           hflux_tot = 0.
           zflux_tot = 0.
           vflux_tot = 0.
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              if (write_ascii) then
                 write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
                      & ' heat fluxes: ', 5(1x,e11.4))") &
@@ -1809,7 +1351,7 @@ contains
              vflux_tot = sum(mom_fluxes)
              zflux_tot = sum(part_fluxes*spec%z)
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              if (write_lorentzian .and. write_ascii) then
                 wtmp_new = antenna_w()
                 if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
@@ -1829,7 +1371,7 @@ contains
              vflux_tot = vflux_tot + sum(mmom_fluxes)
              zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              if (write_ascii) then
                 write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
                      & ' heat bluxes: ', 5(1x,e11.4))") &
@@ -1845,18 +1387,18 @@ contains
           if (write_ascii) write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, &
                & ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
           if (write_nl_flux) then
-             call nc_qflux (nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
+             call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
                   heat_par, mheat_par, bheat_par, &
                   heat_perp, mheat_perp, bheat_perp, &
                   heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
-             call nc_exchange (nout, exchange, energy_exchange)
+             call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
              ! Update the target array in parameter_scan_arrays
              !Do you really want the scan parameter to rely on a diagnostic flag?
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_hflux(nout) = hflux_tot
              scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
 
-             call nc_vflux (nout, vflux, vmflux, vbflux, &
+             call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
                   mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
                   vflux_par, vflux_perp, vflux0, vflux1)
              ! Update the target array in parameter_scan_arrays
@@ -1864,11 +1406,11 @@ contains
              ! below line gives out-of-bounds array for runs inside trinity
              !                  scan_momflux(nout) = vflux_tot
              scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
-             call nc_pflux (nout, pflux, pmflux, pbflux, &
+             call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
                   part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
           end if
 
-          if (write_pflux_tormom) call nc_pflux_tormom (nout, pflux_tormom, part_tormom_fluxes)
+          if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
 
           ! below line gives out-of-bounds array for runs inside trinity
           !               scan_phi2_tot(nout) = phi2
@@ -1900,11 +1442,11 @@ contains
 
     if (write_correlation_extend .and. istep > nstep/4) call do_write_correlation_extend(t, t_old, istep)
 
-    if (write_parity) call do_write_parity(t)
+    if (write_parity) call do_write_parity(t, parity_unit, write_ascii)
 
     if (write_avg_moments) call do_write_avg_moments
 
-    if (write_full_moments_notgc) call do_write_full_moments_notgc(t)
+    if (write_full_moments_notgc) call do_write_full_moments_notgc
 
     if (dump_check1) call do_write_dump_1(t)
     if (dump_check2) call do_write_dump_2(t)
@@ -1966,9 +1508,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar, woutunits
-    use kt_grids, only: naky, ntheta0
+    use run_parameters, only: woutunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1980,32 +1520,14 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (naky) :: fluxfac
-    real, dimension (ntheta0, naky) :: phi2_by_mode, apar2_by_mode, bpar2_by_mode
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
-    if (fphi > epsilon(0.0)) then
-       call get_vol_average (phinew, phinew, phi2, phi2_by_mode)
-    endif
-    if (fapar > epsilon(0.0)) then
-       call get_vol_average (aparnew, aparnew, apar2, apar2_by_mode)
-    end if
-    if (fbpar > epsilon(0.0)) then
-       call get_vol_average (bparnew, bparnew, bpar2, bpar2_by_mode)
-    end if
 
-    fluxfac = 0.5
-    !This is only correct if running in box mode surely?
-    !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
-    fluxfac(1) = 1.0
-
-    if(proc0) call nc_loop (nout, time, fluxfac, &
-         phinew(igomega,:,:), phi2, phi2_by_mode, &
-         aparnew(igomega,:,:), apar2, apar2_by_mode, &
-         bparnew(igomega,:,:), bpar2, bpar2_by_mode, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_hrate)
+    if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
+         phi2, apar2, bpar2, igomega, &
+         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -2034,16 +1556,18 @@ contains
   !> \(\phi\) at the outboard midplane
   !>
   !> Writes to text file `<runname>.eigenfunc` and/or netCDF
-  subroutine do_write_eigenfunc(phi0)
+  subroutine do_write_eigenfunc(file_id, phi0)
     use mp, only: proc0
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use gs2_io, only: nc_eigenfunc
     use dist_fn, only: def_parity, even
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
     !> The normalising factor for the fields that is actually used. See
     !> [[gs2_diagnostics_knobs:write_eigenfunc]] for more details
     complex, dimension (:,:), intent(inout) :: phi0
@@ -2057,7 +1581,7 @@ contains
 
     !This looks like a hack for the case where we know we've forced phi(theta=0) to be 0
     !this could probably be better addressed by the use of igomega above
-    if (def_parity .and. fapar > 0 .and. (.not. even)) phi0 = apar(0, :, :)
+    if (def_parity .and. has_apar .and. (.not. even)) phi0 = apar(0, :, :)
 
     !Address locations where phi0=0 by using next point
     where (abs(phi0) < 10.0*epsilon(0.0)) 
@@ -2074,7 +1598,7 @@ contains
        call open_output_file (unit, ".eigenfunc")
        do ik = 1, naky
           do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
+             do ig = -ntgrid, ntgrid
                 write (unit, "(9(1x,e12.5))") &
                      theta(ig), theta0(it,ik), aky(ik), &
                      phi(ig,it,ik)/phi0(it,ik), &
@@ -2087,677 +1611,8 @@ contains
        call close_output_file (unit)
     end if
 
-    call nc_eigenfunc (phi0)
+    call nc_eigenfunc (file_id, phi0)
   end subroutine do_write_eigenfunc
-
-  !> Write \(\phi, A_\parallel, B_\parallel\), overwriting existing values
-  subroutine do_write_final_fields
-    use mp, only: proc0
-    use file_utils, only: open_output_file, close_output_file
-    use gs2_io, only: nc_final_fields
-    use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use theta_grid, only: theta
-    use fields_arrays, only: phi, apar, bpar
-    implicit none
-    integer :: ik, it, ig, unit
-
-    if(.not.proc0) return
-
-    if (write_ascii) then
-       call open_output_file (unit, ".fields")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out
-                write (unit, "(15(1x,e12.5))") &
-                     theta(ig), aky(ik), akx(it), &
-                     phi(ig,it,ik), &
-                     apar(ig,it,ik), &
-                     bpar(ig,it,ik), &
-                     theta(ig) - theta0(it,ik), &
-                     abs(phi(ig,it,ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-
-    !Do netcdf output
-    call nc_final_fields
-  end subroutine do_write_final_fields
-
-  !> Write the parallel spectrum of \(\phi, A_\parallel, B_\parallel\), overwriting existing values
-  !>
-  !> @note No netCDF output
-  subroutine do_write_kpar
-    use mp, only: proc0
-    use file_utils, only: open_output_file, close_output_file
-    use theta_grid, only: ntgrid, gradpar, nperiod
-    use kt_grids, only: naky, ntheta0, aky, akx
-    use run_parameters, only: fphi,fapar,fbpar
-    use fields_arrays, only: phi, apar, bpar
-    implicit none
-    complex, dimension (:,:,:), allocatable :: phi2, apar2, bpar2
-    real, dimension (2*ntgrid) :: kpar
-    integer :: ig, ik, it, unit
-
-    if(.not.proc0) return
-
-    allocate (phi2(-ntgrid:ntgrid,ntheta0,naky)) 
-    allocate (apar2(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (bpar2(-ntgrid:ntgrid,ntheta0,naky))
-
-    if (fphi > epsilon(0.0)) then
-       call par_spectrum(phi, phi2)
-    else
-       phi2=0.
-    end if
-    if (fapar > epsilon(0.0)) then
-       call par_spectrum(apar, apar2)
-    else
-       apar2=0.
-    endif
-    if (fbpar > epsilon(0.0)) then
-       call par_spectrum(bpar, bpar2)
-    else
-       bpar2=0.
-    endif
-
-    if(write_ascii)then
-       call open_output_file (unit, ".kpar")
-       do ig = 1, ntgrid
-          kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
-          kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
-       end do
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = ntgrid+1,2*ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)                        
-             end do
-             do ig = 1, ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     phi2(ig-ntgrid-1,it,ik), &
-                     apar2(ig-ntgrid-1,it,ik), &
-                     bpar2(ig-ntgrid-1,it,ik)
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    endif
-
-    deallocate (phi2, apar2, bpar2)
-  end subroutine do_write_kpar
-
-  !> Calculate and write \(E_\parallel\), overwriting existing values
-  subroutine do_write_final_epar
-    use mp, only: proc0
-    use file_utils, only: open_output_file, close_output_file
-    use kt_grids, only: naky, ntheta0, theta0, aky, akx
-    use theta_grid, only: theta, ntgrid
-    use dist_fn, only: get_epar
-    use fields_arrays, only: phi, apar, phinew, aparnew
-    use gs2_io, only: nc_final_epar
-    implicit none
-    complex, dimension (:,:,:), allocatable :: epar
-    integer :: ik, it, ig, unit
-
-    if(.not.proc0) return
-
-    allocate (epar(-ntgrid:ntgrid,ntheta0,naky))
-
-    call get_epar (phi, apar, phinew, aparnew, epar)
-
-    if (write_ascii) then
-       call open_output_file (unit, ".epar")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
-                write (unit, "(6(1x,e12.5))") &
-                     theta(ig), aky(ik), akx(it), &
-                     epar(ig,it,ik), &
-                     theta(ig) - theta0(it,ik)
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-
-    call nc_final_epar (epar)
-
-    deallocate (epar)
-  end subroutine do_write_final_epar
-
-  !> Calculate and write \(\delta B\), overwriting existing values
-  !>
-  !> @note No netCDF output
-  subroutine do_write_final_db
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
-    use theta_grid, only: ntgrid, gradpar, delthet, bmag, theta
-    use kt_grids, only: ntheta0, naky, aky, akx
-    use fields_arrays, only: phinew, aparnew, apar
-    use gs2_time, only: code_dt
-    implicit none
-    complex, dimension (-ntgrid:ntgrid, ntheta0, naky) :: db
-    complex, dimension (ntheta0, naky) :: dbfac
-    integer :: ik, it, ig, unit
-
-    if (.not.proc0) return
-
-    if (.not.write_ascii) return
-
-    !Calculate db
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dbfac(it,ik) = 1./sum(delthet/bmag/gradpar)/maxval(abs(phinew(:,it,ik)),1) &
-               * abs(log(aparnew(1,it,ik)/apar(1,it,ik)))/code_dt
-          ig = -ntg_out
-          db(ig, it, ik) = aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
-          do ig = -ntg_out+1, ntg_out-1
-             db(ig, it, ik) = db(ig-1, it, ik) + aparnew(ig,it,ik)*delthet(ig)/bmag(ig)/gradpar(ig)*dbfac(it,ik)
-          end do
-       end do
-    end do
-
-    if (write_ascii) then
-       call open_output_file (unit, ".db")
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntg_out, ntg_out-1
-                write (unit, "(5(1x,e12.5))") &
-                     theta(ig), aky(ik), akx(it), real(db(ig, it,ik)), aimag(db(ig, it, ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-    end if
-
-  end subroutine do_write_final_db
-
-  !> Calculate and write the various low-order moments, overwriting existing values
-  !>
-  !> Text files contain moments normalised by phase factor (see
-  !> [[gs2_diagnostics_knobs:write_eigenfunc]] for details), the magnitudes, and
-  !> field-line averages.
-  !>
-  !> NetCDF files contain just the full values
-  subroutine do_write_final_moments(phi0_in)
-    use theta_grid, only: ntgrid, theta
-    use kt_grids, only: ntheta0, naky, aky, akx, theta0
-    use species, only: nspec, spec
-    use dist_fn, only: getmoms
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
-    use fields_arrays, only: phinew, bparnew
-    use gs2_io, only: nc_final_moments
-    implicit none
-    !> Pre-calculated normalising phase factor
-    complex, dimension (:, :), intent(in) :: phi0_in
-
-    complex, dimension (:,:), allocatable :: phi0
-    complex, dimension (:,:,:,:), allocatable :: ntot, density, upar, tpar, tperp
-    complex, dimension (:,:,:,:), allocatable :: qparflux, pperpj1, qpperpj1
-    complex :: phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
-    real, dimension (:, :), allocatable :: phi02
-    integer :: is, ik, it, ig, unit
-
-    !Make storage
-    allocate (ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (density(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (upar(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (tpar(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (tperp(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (qparflux(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (pperpj1(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    allocate (qpperpj1(-ntgrid:ntgrid,ntheta0,naky,nspec))
-
-    !Calculate moments
-    call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-
-    if (proc0) then
-       if (write_ascii) then
-          !Setup the phase factor
-          allocate(phi0(ntheta0,naky),phi02(ntheta0,naky))
-          if(.not.write_eigenfunc) then
-             phi0 = 1.
-          else
-             phi0 = phi0_in
-          endif
-          phi02=real(phi0*conjg(phi0))
-
-          !Write out the moments normalised by phase factor
-          call open_output_file (unit, ".moments")          
-          do is  = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
-                      write (unit, "(15(1x,e12.5))") &
-                           theta(ig), aky(ik), akx(it), &
-                           ntot(ig,it,ik,is)/phi0(it,ik), &
-                           density(ig,it,ik,is)/phi0(it,ik), &
-                           upar(ig,it,ik,is)/phi0(it,ik), &
-                           tpar(ig,it,ik,is)/phi0(it,ik), &
-                           tperp(ig,it,ik,is)/phi0(it,ik), &
-                           theta(ig) - theta0(it,ik), &
-                           real(is)
-                   end do
-                   write (unit, "()")
-                end do
-             end do
-          end do
-          call close_output_file (unit)          
-
-          !Write out magnitude of moments
-          call open_output_file (unit, ".mom2")
-          do is  = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   do ig = -ntg_out, ntg_out
-                      write (unit, "(15(1x,e12.5))") &
-                           theta(ig), aky(ik), akx(it), &
-                           real(ntot(ig,it,ik,is)*conjg(ntot(ig,it,ik,is)))/phi02(it,ik), &
-                           real(density(ig,it,ik,is)*conjg(density(ig,it,ik,is)))/phi02(it,ik), &
-                           real(upar(ig,it,ik,is)*conjg(upar(ig,it,ik,is)))/phi02(it,ik), &
-                           real(tpar(ig,it,ik,is)*conjg(tpar(ig,it,ik,is)))/phi02(it,ik), &
-                           real(tperp(ig,it,ik,is)*conjg(tperp(ig,it,ik,is)))/phi02(it,ik), &
-                           theta(ig) - theta0(it,ik), &
-                           real(is)
-                   end do
-                   write (unit, "()")
-                end do
-             end do
-          end do
-          call close_output_file (unit)          
-
-          !Write out the field line averaged moments
-          call open_output_file (unit, ".amoments")
-          write (unit,*) 'type    kx     re(phi)    im(phi)    re(ntot)   im(ntot)   ',&
-               &'re(dens)   im(dens)   re(upar)   im(upar)   re(tpar)',&
-               &'   im(tpar)   re(tperp)  im(tperp)'
-
-          do is  = 1, nspec
-             do it = 2, ntheta0/2+1
-                call get_fldline_avg(phinew(-ntg_out:ntg_out,it,1),phi_tmp)
-                call get_fldline_avg(ntot(-ntg_out:ntg_out,it,1,is),ntot_tmp)
-                call get_fldline_avg(density(-ntg_out:ntg_out,it,1,is),density_tmp)
-                call get_fldline_avg(upar(-ntg_out:ntg_out,it,1,is),upar_tmp)
-                call get_fldline_avg(tpar(-ntg_out:ntg_out,it,1,is),tpar_tmp)
-                call get_fldline_avg(tperp(-ntg_out:ntg_out,it,1,is),tperp_tmp)
-
-                write (unit, "(i2,14(1x,e10.3))") spec(is)%type, akx(it), &
-                     phi_tmp, ntot_tmp, density_tmp, upar_tmp, tpar_tmp, tperp_tmp
-             end do
-          end do
-          call close_output_file (unit)          
-
-          deallocate(phi0,phi02)
-       end if
-
-       !Do the netcdf output -- Note we don't have the phi0 phase factor here
-       call nc_final_moments (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    end if
-
-    deallocate (ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-  end subroutine do_write_final_moments
-
-  !> Write the right-hand sides of the field equations, overwriting existing
-  !> values
-  subroutine do_write_final_antot
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
-    use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta, ntgrid
-    use gs2_io, only: nc_final_an
-    use dist_fn, only: getan
-    implicit none
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-    integer :: ik, it, ig, unit
-
-    allocate ( antot(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
-    call getan (antot, antota, antotp)
-
-    if (proc0) then
-       if (write_ascii) then
-          call open_output_file (unit, ".antot")
-          do ik = 1, naky
-             do it = 1, ntheta0
-                do ig = -ntg_out, ntg_out
-                   write (unit, "(10(1x,e12.5))") &
-                        theta(ig), theta0(it,ik), aky(ik), &
-                        antot(ig,it,ik), &
-                        antota(ig,it,ik), &
-                        antotp(ig,it,ik), &
-                        theta(ig) - theta0(it,ik)
-                end do
-                write (unit, "()")
-             end do
-          end do
-          call close_output_file (unit)
-       end if
-
-       call nc_final_an (antot, antota, antotp)
-    end if
-
-    deallocate (antot, antota, antotp)
-  end subroutine do_write_final_antot
-
-  !> FIXME : Add documentation  
-  subroutine do_write_gs
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0, sum_reduce, iproc, nproc
-    use gs2_transforms, only: transform2, inverse2
-    use fields_arrays, only: apar, phi
-    use kt_grids, only: naky, ntheta0, akx, aky, nx, ny
-    use theta_grid, only: ntgrid, delthet, jacob, gradpar, nperiod
-    use constants, only: pi, zi
-    use splines, only: fitp_surf1, fitp_surf2
-    implicit none
-    real, dimension (:), allocatable :: total
-    real, dimension (:,:,:), allocatable :: bxf, byf, vxf, vyf, bxfsavg, byfsavg
-    real, dimension (:,:,:), allocatable :: bxfs, byfs, vxfs, vyfs, rvx, rvy, rx, ry
-    real, dimension (:), allocatable :: xx4, yy4, dz
-    real, dimension (:,:), allocatable :: bxs, bys, vxs, vys
-    real, dimension (:,:), allocatable :: bxsavg, bysavg
-    complex, dimension (:,:,:), allocatable :: bx, by, vx, vy, vx2, vy2
-    real, dimension (:), allocatable :: stemp, zx1, zxm, zy1, zyn, xx, yy
-    real :: zxy11, zxym1, zxy1n, zxymn, rxt, ryt, bxt, byt, L_x, L_y
-    real, dimension (2*ntgrid) :: kpar
-    integer :: nnx, nny, nnx4, nny4, ulim, llim, iblock, i, unit
-    integer :: ik, it, ig, ierr
-
-    !Note no netcdf output so if not write_ascii then exit now
-    if(.not.write_ascii) return
-
-    nny = 2*ny
-    nnx = 2*nx
-    nnx4 = nnx+4
-    nny4 = nny+4
-
-    allocate (bx(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (by(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (vx(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (vy(-ntgrid:ntgrid,ntheta0,naky))
-
-    do ik=1,naky
-       do it=1,ntheta0
-          do ig=-ntgrid, ntgrid
-             bx(ig,it,ik) =  zi*aky(ik)*apar(ig,it,ik)
-             by(ig,it,ik) = -zi*akx(it)*apar(ig,it,ik)
-             vx(ig,it,ik) = -zi*aky(ik)*phi(ig,it,ik)
-             vy(ig,it,ik) =  zi*akx(it)*phi(ig,it,ik)
-          end do
-       end do
-    end do
-
-    allocate (bxf(nnx,nny,-ntgrid:ntgrid))
-    allocate (byf(nnx,nny,-ntgrid:ntgrid))
-    allocate (vxf(nnx,nny,-ntgrid:ntgrid))
-    allocate (vyf(nnx,nny,-ntgrid:ntgrid))
-
-    call transform2 (bx, bxf, nny, nnx)
-    call transform2 (by, byf, nny, nnx)
-    call transform2 (vx, vxf, nny, nnx)
-    call transform2 (vy, vyf, nny, nnx)
-
-    ! fields come out as (x, y, z)
-
-    deallocate (bx, by)
-
-    allocate (   bxfs(nnx4, nny4, -ntgrid:ntgrid))
-    allocate (   byfs(nnx4, nny4, -ntgrid:ntgrid))
-    allocate (bxfsavg(nnx4, nny4, -ntgrid:ntgrid))
-    allocate (byfsavg(nnx4, nny4, -ntgrid:ntgrid))
-    allocate (   vxfs(nnx4, nny4, -ntgrid:ntgrid))
-    allocate (   vyfs(nnx4, nny4, -ntgrid:ntgrid))
-
-    do ig=-ntgrid,ntgrid
-       do ik=1,2
-          do it=3,nnx4-2
-             bxfs(it,ik,ig) = bxf(it-2,nny-2+ik,ig)
-             byfs(it,ik,ig) = byf(it-2,nny-2+ik,ig)
-             vxfs(it,ik,ig) = vxf(it-2,nny-2+ik,ig)
-             vyfs(it,ik,ig) = vyf(it-2,nny-2+ik,ig)
-
-             bxfs(it,nny4-2+ik,ig) = bxf(it-2,ik,ig)
-             byfs(it,nny4-2+ik,ig) = byf(it-2,ik,ig)
-             vxfs(it,nny4-2+ik,ig) = vxf(it-2,ik,ig)
-             vyfs(it,nny4-2+ik,ig) = vyf(it-2,ik,ig)
-          end do
-       end do
-       do ik=3,nny4-2
-          do it=3,nnx4-2
-             bxfs(it,ik,ig) = bxf(it-2,ik-2,ig)
-             byfs(it,ik,ig) = byf(it-2,ik-2,ig)
-             vxfs(it,ik,ig) = vxf(it-2,ik-2,ig)
-             vyfs(it,ik,ig) = vyf(it-2,ik-2,ig)
-          end do
-       end do
-       do ik=1,nny4
-          do it=1,2
-             bxfs(it,ik,ig) = bxfs(nnx4-4+it,ik,ig)
-             byfs(it,ik,ig) = byfs(nnx4-4+it,ik,ig)
-             vxfs(it,ik,ig) = vxfs(nnx4-4+it,ik,ig)
-             vyfs(it,ik,ig) = vyfs(nnx4-4+it,ik,ig)
-
-             bxfs(nnx4-2+it,ik,ig) = bxfs(it+2,ik,ig)
-             byfs(nnx4-2+it,ik,ig) = byfs(it+2,ik,ig)
-             vxfs(nnx4-2+it,ik,ig) = vxfs(it+2,ik,ig)
-             vyfs(nnx4-2+it,ik,ig) = vyfs(it+2,ik,ig)
-          end do
-       end do
-    end do
-
-    deallocate (vxf, vyf)
-
-    allocate (xx4(nnx4), xx(nnx))
-    allocate (yy4(nny4), yy(nny))
-
-    L_x = 2.0*pi/akx(2)
-    L_y = 2.0*pi/aky(2)
-
-    do it = 1, nnx
-       xx4(it+2) = real(it-1)*L_x/real(nnx)
-       xx(it) = real(it-1)*L_x/real(nnx)
-    end do
-    do it=1,2
-       xx4(it) = xx4(nnx4-4+it)-L_x
-       xx4(nnx4-2+it) = xx4(it+2)+L_x
-    end do
-
-    do ik = 1, nny
-       yy4(ik+2) = real(ik-1)*L_y/real(nny)
-       yy(ik)    = real(ik-1)*L_y/real(nny)
-    end do
-    do ik=1,2
-       yy4(ik) = yy4(nny4-4+ik)-L_y
-       yy4(nny4-2+ik) = yy4(ik+2)+L_y
-    end do
-
-    allocate (dz(-ntgrid:ntgrid))
-    dz = delthet*jacob
-
-    allocate (   bxs(3*nnx4*nny4,-ntgrid:ntgrid)) ; bxs = 0.
-    allocate (   bys(3*nnx4*nny4,-ntgrid:ntgrid)) ; bys = 0.
-    allocate (   vxs(3*nnx4*nny4,-ntgrid:ntgrid)) ; vxs = 0.
-    allocate (   vys(3*nnx4*nny4,-ntgrid:ntgrid)) ; vys = 0.
-
-    allocate (bxsavg(3*nnx4*nny4,-ntgrid:ntgrid))
-    allocate (bysavg(3*nnx4*nny4,-ntgrid:ntgrid))
-
-    allocate (stemp(nnx4+2*nny4))
-    allocate (zx1(nny4), zxm(nny4), zy1(nnx4), zyn(nnx4))
-
-    do ig=-ntgrid, ntgrid
-       call fitp_surf1(nnx4, nny4, xx, yy, bxfs(:,:,ig), &
-            nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-            255, bxs(:,ig), stemp, 1., ierr)
-
-       call fitp_surf1(nnx4, nny4, xx, yy, byfs(:,:,ig), &
-            nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-            255, bys(:,ig), stemp, 1., ierr)
-
-       call fitp_surf1(nnx4, nny4, xx, yy, vxfs(:,:,ig), &
-            nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-            255, vxs(:,ig), stemp, 1., ierr)
-
-       call fitp_surf1(nnx4, nny4, xx, yy, vyfs(:,:,ig), &
-            nnx4, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-            255, vys(:,ig), stemp, 1., ierr)
-    end do
-
-    deallocate (zx1, zxm, zy1, zyn, stemp)
-
-    do ig=-ntgrid, ntgrid-1
-       bxsavg(:,ig) = 0.5*(bxs(:,ig)+bxs(:,ig+1))
-       bysavg(:,ig) = 0.5*(bys(:,ig)+bys(:,ig+1))
-
-       bxfsavg(:,:,ig) = 0.5*(bxfs(:,:,ig)+bxfs(:,:,ig+1))
-       byfsavg(:,:,ig) = 0.5*(byfs(:,:,ig)+byfs(:,:,ig+1))
-    end do
-
-    ! now, integrate to find a field line
-
-    allocate ( rx(nnx,nny,-ntgrid:ntgrid))
-    allocate ( ry(nnx,nny,-ntgrid:ntgrid))
-    allocate (rvx(nnx,nny,-ntgrid:ntgrid)) ; rvx = 0.
-    allocate (rvy(nnx,nny,-ntgrid:ntgrid)) ; rvy = 0.
-
-    do ik=1,nny
-       do it=1,nnx
-          rx(it,ik,-ntgrid) = xx(it)
-          ry(it,ik,-ntgrid) = yy(ik)
-       end do
-    end do
-
-    !Should these not come from layouts object?
-    iblock = (nnx*nny-1)/nproc + 1
-    llim = 1 + iblock * iproc  
-    ulim = min(nnx*nny, llim+iblock-1)
-
-    do i=llim, ulim
-       it = 1 + mod(i-1, nnx)
-       ik = 1 + mod((i-1)/nnx, nny)
-
-       ig = -ntgrid
-
-       rxt = rx(it,ik,ig)
-       ryt = ry(it,ik,ig)
-
-       rvx(it,ik,ig) = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, vxfs(:,:,ig), nnx4, vxs(:,ig), 1.)
-       rvy(it,ik,ig) = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, vyfs(:,:,ig), nnx4, vys(:,ig), 1.)
-
-       do ig=-ntgrid,ntgrid-1
-
-          bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfs(:,:,ig), nnx4, bxs(:,ig), 1.)
-          byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfs(:,:,ig), nnx4, bys(:,ig), 1.)
-
-          rxt = rx(it,ik,ig) + 0.5*dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + 0.5*dz(ig)*byt  
-
-          if (rxt > L_x) rxt = rxt - L_x
-          if (ryt > L_y) ryt = ryt - L_y
-
-          if (rxt < 0.) rxt = rxt + L_x
-          if (ryt < 0.) ryt = ryt + L_y
-
-          bxt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, bxfsavg(:,:,ig), nnx4, bxsavg(:,ig), 1.)
-          byt = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, byfsavg(:,:,ig), nnx4, bysavg(:,ig), 1.)
-
-          rxt = rx(it,ik,ig) + dz(ig)*bxt  
-          ryt = ry(it,ik,ig) + dz(ig)*byt  
-
-          if (rxt > L_x) rxt = rxt - L_x
-          if (ryt > L_y) ryt = ryt - L_y
-
-          if (rxt < 0.) rxt = rxt + L_x
-          if (ryt < 0.) ryt = ryt + L_y
-
-          rx(it,ik,ig+1) = rxt
-          ry(it,ik,ig+1) = ryt
-
-          rvx(it,ik,ig+1) = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, vxfs(:,:,ig+1), nnx4, vxs(:,ig+1), 1.)
-          rvy(it,ik,ig+1) = fitp_surf2(rxt, ryt, nnx4, nny4, xx4, yy4, vyfs(:,:,ig+1), nnx4, vys(:,ig+1), 1.)
-       end do
-    end do
-
-    deallocate (bxfs, byfs, bxfsavg, byfsavg, vxfs, vyfs)
-    deallocate (rx, ry, bxs, bys, vxs, vys, bxsavg, bysavg)
-
-    allocate (total(2*nnx*nny*(2*ntgrid+1)))
-
-    i=1
-    do ig=-ntgrid,ntgrid
-       do ik=1,nny
-          do it=1,nnx
-             total(i) = rvx(it,ik,ig)
-             total(i+1) = rvy(it,ik,ig)
-             i = i + 2
-          end do
-       end do
-    end do
-
-    call sum_reduce(total, 0)
-
-    i=1
-    do ig=-ntgrid,ntgrid
-       do ik=1,nny
-          do it=1,nnx
-             rvx(it,ik,ig) = total(i)
-             rvy(it,ik,ig) = total(i+1)
-             i = i + 2
-          end do
-       end do
-    end do
-
-    if (proc0) then
-       call inverse2 (rvx, vx, nny, nnx)
-       call inverse2 (rvy, vy, nny, nnx)
-
-       allocate (vx2(-ntgrid:ntgrid,ntheta0,naky))
-       allocate (vy2(-ntgrid:ntgrid,ntheta0,naky))
-
-       call par_spectrum (vx, vx2)
-       call par_spectrum (vy, vy2)
-
-       call open_output_file (unit, ".gs")
-       do ig = 1, ntgrid
-          kpar(ig) = (ig-1)*gradpar(ig)/real(2*nperiod-1)
-          kpar(2*ntgrid-ig+1)=-(ig)*gradpar(ig)/real(2*nperiod-1)
-       end do
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = ntgrid+1,2*ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     real(vx2(ig-ntgrid-1,it,ik)), &
-                     real(vy2(ig-ntgrid-1,it,ik))
-             end do
-             do ig = 1, ntgrid
-                write (unit, "(9(1x,e12.5))") &
-                     kpar(ig), aky(ik), akx(it), &
-                     real(vx2(ig-ntgrid-1,it,ik)), &
-                     real(vy2(ig-ntgrid-1,it,ik))
-             end do
-             write (unit, "()")
-          end do
-       end do
-       call close_output_file (unit)
-       deallocate (vx2, vy2)
-    end if
-
-    if (allocated(bxf)) deallocate (bxf, byf, xx4, xx, yy4, yy, dz, total)
-    deallocate (vx, vy, rvx, rvy)
-  end subroutine do_write_gs
 
   !> Write some geometry information to text file `<runname>.g`
   subroutine do_write_geom
@@ -2788,7 +1643,7 @@ contains
   subroutine do_write_movie(time)
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_transforms, only: transform2
     use gs2_io, only: nc_loop_movie
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -2802,17 +1657,17 @@ contains
     nnx = yxf_lo%nx
     nny = yxf_lo%ny
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
        call transform2 (phinew, yxphi, nny, nnx)
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        allocate (yxapar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (aparnew, yxapar, nny, nnx)
     end if
 
-    if (fbpar > epsilon(0.0)) then 
+    if (has_bpar) then
        allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (bparnew, yxbpar, nny, nnx)
     end if
@@ -2821,9 +1676,9 @@ contains
        call nc_loop_movie(nout_movie, time, yxphi, yxapar, yxbpar)
     end if
 
-    if (fphi > epsilon(0.0)) deallocate (yxphi)
-    if (fapar > epsilon(0.0)) deallocate (yxapar)
-    if (fbpar > epsilon(0.0)) deallocate (yxbpar)
+    if (has_phi) deallocate (yxphi)
+    if (has_apar) deallocate (yxapar)
+    if (has_bpar) deallocate (yxbpar)
     nout_movie = nout_movie + 1
   end subroutine do_write_movie
 
@@ -2867,6 +1722,7 @@ contains
     real, dimension(:,:), allocatable ::  j_ext
 
     if (.not.proc0) return
+    if (.not. write_ascii) return
     allocate (j_ext(ntheta0, naky)); j_ext=0.
     call calc_jext(istep, j_ext)
     do ik=1,naky
@@ -2894,7 +1750,7 @@ contains
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
     call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    if(proc0) call nc_write_moments(nout, ntot, density, upar, tpar, tperp,qparflux, &
+    if(proc0) call nc_write_moments(get_netcdf_file_id(), nout, ntot, density, upar, tpar, tperp,qparflux, &
          pperpj1, qpperpj1, ob_midplane=ob_midplane)
   end subroutine do_write_moments
 
@@ -2906,7 +1762,7 @@ contains
     !> Current simulation time
     real, intent(in) :: time
     real :: phase_tot, phase_theta
-
+    if (.not. write_ascii) return
     call get_cross_phase (phase_tot, phase_theta)
     if (proc0) write (unit=phase_unit, fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & time, phase_tot, phase_theta
@@ -2921,6 +1777,7 @@ contains
     real, intent(in) :: time, phitot
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: ik, it
+    if (.not. write_ascii) return
     write (out_unit, "('t= ',e17.10,' aky= ',1p,e12.4, ' akx= ',1p,e12.4, &
          &' om= ',1p,2e12.4,' omav= ', 1p,2e12.4,' phtot= ',1p,e12.4,' theta0= ',1p,e12.4)") &
          time, aky(ik), akx(it), &
@@ -2937,7 +1794,7 @@ contains
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omega= (",1p,e12.4,",",1p,e12.4,")",t45,"omega/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omega(it,ik)/tunits(ik), omega(it,ik)*woutunits(ik)
@@ -2948,7 +1805,7 @@ contains
     use run_parameters, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
-
+    if (.not. write_ascii) return
     write (out_unit,&
          fmt='(" omavg= (",1p,e12.4,",",1p,e12.4,")",t45,"omavg/(vt/a)= (",1p,e12.4,",",1p,e12.4,")")') &
          omegaavg(it,ik)/tunits(ik), omegaavg(it,ik)*woutunits(ik)               
@@ -2964,7 +1821,7 @@ contains
   subroutine do_write_verr
     use dist_fn, only: get_verr, get_gtran
     use mp, only: proc0
-    use le_grids, only: nlambda, ng2
+    use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
@@ -2989,7 +1846,7 @@ contains
 
        ! write error estimates for ion dist. fn. at outboard midplane with ik=it=1 to ascii files
        if (write_ascii) then
-          if (nlambda - ng2 > 1) then
+          if (grid_has_trapped_particles()) then
              write(lpc_unit,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
           else
              write(lpc_unit,"(3(1x,e13.6))") user_time, geavg, glavg
@@ -3010,14 +1867,14 @@ contains
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
-  subroutine do_write_hrate(t)
+  subroutine do_write_heating(t)
     use species, only: nspec
     use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
     integer :: is
 
-    if (write_ascii .and. write_hrate) then
+    if (write_ascii .and. write_heating) then
        !
        ! For case with two species:
        !
@@ -3117,7 +1974,7 @@ contains
        !GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot*sqrt(2.)
        !GGH          write (unit=heat_unit, fmt='(a)') ''
     end if
-  end subroutine do_write_hrate
+  end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
@@ -3134,7 +1991,7 @@ contains
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call flux_vs_theta_vs_vpa (phinew, vflx_sym)
-    if (proc0) call nc_loop_sym (nout, vflx_sym)
+    if (proc0) call nc_loop_sym (get_netcdf_file_id(), nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
@@ -3153,8 +2010,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew, g_adjust
-    use run_parameters, only: fphi, fbpar
-
+    use run_parameters, only: fphi, fbpar, has_phi
     implicit none
     real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (:,:), allocatable :: phi_dist
@@ -3177,7 +2033,7 @@ contains
     call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
     call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
     if (proc0) then
-       if (fphi > epsilon(0.0)) then
+       if (has_phi) then
           do ig = -ntgrid, ntgrid
              do is = 1, nspec
                 pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens
@@ -3194,7 +2050,8 @@ contains
           end do
        end if
     end if
-    if (proc0) call nc_loop_dist (nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
+    if (proc0) call nc_loop_dist (get_netcdf_file_id(), nout, part_fluxes_dist, mom_fluxes_par_dist, &
+         mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
     deallocate (part_fluxes_dist)
     deallocate (mom_fluxes_par_dist)
     deallocate (mom_fluxes_perp_dist)
@@ -3220,7 +2077,7 @@ contains
 
     allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call pflux_vs_theta_vs_vpa (pflux_sym)
-    if (proc0) call nc_loop_partsym_tormom (nout, pflux_sym)
+    if (proc0) call nc_loop_partsym_tormom (get_netcdf_file_id(), nout, pflux_sym)
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
@@ -3234,7 +2091,7 @@ contains
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
     call correlation (phi_corr_2pi)
-    if (proc0) call nc_loop_corr (nout,phi_corr_2pi)
+    if (proc0) call nc_loop_corr (get_netcdf_file_id(), nout, phi_corr_2pi)
     deallocate (phi_corr_2pi)
   end subroutine do_write_correlation
 
@@ -3261,6 +2118,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = time_old
@@ -3272,7 +2132,7 @@ contains
     phicorr_sum = phicorr_sum + phi_corr*(time-time_old)
     phiextend_sum = phiextend_sum + phi2_extend*(time-time_old)
     if (proc0 .and. mod(istep,nwrite_mult*nwrite)==0) then
-       call nc_loop_corr_extend (nout_big, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
+       call nc_loop_corr_extend (get_netcdf_file_id(), nout_big, time, phicorr_sum/(time-tcorr0), phiextend_sum/(time-tcorr0))
        nout_big = nout_big + 1
     end if
     deallocate (phi_corr, phi2_extend)
@@ -3280,20 +2140,24 @@ contains
 
   !> Calculate average parity of distribution function under \((\theta, k_x,
   !> v_\parallel) \to (-\theta, -k_x, -v_\parallel)\), and write to [[parity_unit]]
-  subroutine do_write_parity(t)
+  subroutine do_write_parity(t, file_unit, write_text)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid, nlambda, integrate_moment, integrate_kysum
     use species, only: nspec
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
-    use mp, only: send, receive, proc0
+    use mp, only: send, receive, proc0, iproc, nproc
     use dist_fn_arrays, only: gnew, g_adjust, aj0
     use fields_arrays, only: phinew, bparnew
     use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
-    real, intent(in) :: t 
+    real, intent(in) :: t
+    !> Open formatted file to write text to
+    integer, intent(in) :: file_unit
+    !> If false, don't calculate or write parity
+    logical, intent(in) :: write_text
     integer :: iplo, iglo, sgn2, isgn, il, ie, ig, ik, it, is
     complex, dimension (:,:,:,:), allocatable :: gparity, gmx, gpx
     complex, dimension (:,:,:), allocatable :: g0, gm, gp
@@ -3305,11 +2169,13 @@ contains
     real, dimension (:), allocatable :: gmtot, gptot, gtot, gmnormtot
     real, dimension (:), allocatable :: gm_nokx_tot, gp_nokx_tot, gmnorm_nokx_tot
     real, dimension (:), allocatable :: gm_nosig_tot, gp_nosig_tot, gmnorm_nosig_tot
-    logical :: first = .true.
+    logical, save :: first = .true.
+
+    if (.not. write_text) return
 
     ! initialize layouts for parity diagnostic
     if (first) then
-       call init_parity_layouts (naky, nlambda, negrid, nspec)
+       call init_parity_layouts (naky, nlambda, negrid, nspec, nproc, iproc)
        first = .false.
     end if
 
@@ -3691,7 +2557,7 @@ contains
        g_nosig_tot = gtmp + zi*sqrt(aimag(g_nosig_tot))
     end where
 
-    if (proc0) write (parity_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
+    if (proc0) write (file_unit,"(19(1x,e12.5))") t, gmtot, gptot, real(g_all_tot), aimag(g_all_tot), &
          real(gnorm_all_tot), aimag(gnorm_all_tot), gm_nokx_tot, gp_nokx_tot, real(g_nokx_tot), aimag(g_nokx_tot), &
          real(gnorm_nokx_tot), aimag(gnorm_nokx_tot), gm_nosig_tot, gp_nosig_tot, &
          real(g_nosig_tot), aimag(g_nosig_tot), real(gnorm_nosig_tot), aimag(gnorm_nosig_tot)
@@ -3734,16 +2600,16 @@ contains
     if (proc0) then
        do is = 1, nspec
           do it = 1, ntheta0
-             call get_fldline_avg(ntot(-ntg_out:ntg_out,it,1,is),ntot00(it,is))
-             call get_fldline_avg(density(-ntg_out:ntg_out,it,1,is),density00(it,is))
-             call get_fldline_avg(upar(-ntg_out:ntg_out,it,1,is),upar00(it,is))
-             call get_fldline_avg(tpar(-ntg_out:ntg_out,it,1,is),tpar00(it,is))
-             call get_fldline_avg(tperp(-ntg_out:ntg_out,it,1,is),tperp00(it,is))
+             call get_fldline_avg(ntot(-ntgrid:ntgrid,it,1,is),ntot00(it,is))
+             call get_fldline_avg(density(-ntgrid:ntgrid,it,1,is),density00(it,is))
+             call get_fldline_avg(upar(-ntgrid:ntgrid,it,1,is),upar00(it,is))
+             call get_fldline_avg(tpar(-ntgrid:ntgrid,it,1,is),tpar00(it,is))
+             call get_fldline_avg(tperp(-ntgrid:ntgrid,it,1,is),tperp00(it,is))
           end do
        end do
 
        do it = 1, ntheta0
-          call get_fldline_avg(phinew(-ntg_out:ntg_out,it,1),phi00(it))
+          call get_fldline_avg(phinew(-ntgrid:ntgrid,it,1),phi00(it))
        end do
 
        do is = 1, nspec
@@ -3760,7 +2626,7 @@ contains
                ntot20(is), ntot20_by_mode(:,:,is))
        end do
 
-       call nc_loop_moments (nout, ntot2, ntot2_by_mode, ntot20, &
+       call nc_loop_moments (get_netcdf_file_id(), nout, ntot2, ntot2_by_mode, ntot20, &
             ntot20_by_mode, phi00, ntot00, density00, upar00, &
             tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
 
@@ -3769,7 +2635,7 @@ contains
 
   !> Calculate moments (density, parallel flow, and parallel and perpendicular
   !> temperatures) in non-guiding centre coordinates and write to netCDF
-  subroutine do_write_full_moments_notgc(t)
+  subroutine do_write_full_moments_notgc()
     use dist_fn, only: getmoms_notgc
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -3778,12 +2644,11 @@ contains
     use gs2_io, only: nc_loop_fullmom
     use fields_arrays, only: phinew, bparnew
     implicit none
-    real, intent(in) :: t
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
          upar, tpar, tperp
     call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
     if(proc0) then
-       call nc_loop_fullmom(nout,t, &
+       call nc_loop_fullmom(get_netcdf_file_id(), nout, &
             & ntot(igomega,:,:,:),density(igomega,:,:,:), &
             & upar(igomega,:,:,:), &
             & tpar(igomega,:,:,:),tperp(igomega,:,:,:) )
@@ -3794,7 +2659,7 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
@@ -3814,10 +2679,10 @@ contains
     !theta grid point which we don't seem to want here
     do ik = 1, naky
        do it = 1, ntheta0
-          denom=sum(delthet(-ntg_out:ntg_out-1)*jacob(-ntg_out:ntg_out-1))
-          tmp=sum(phinew(-ntg_out:ntg_out-1,it,ik) &
-               *delthet(-ntg_out:ntg_out-1) &
-               *jacob(-ntg_out:ntg_out-1))/denom
+          denom=sum(delthet(-ntgrid:ntgrid-1)*jacob(-ntgrid:ntgrid-1))
+          tmp=sum(phinew(-ntgrid:ntgrid-1,it,ik) &
+               *delthet(-ntgrid:ntgrid-1) &
+               *jacob(-ntgrid:ntgrid-1))/denom
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -3844,22 +2709,24 @@ contains
 
   !> Write out \(\phi, A_\parallel, B_\parallel\) to text file
   subroutine do_dump_fields_periodically(t)
-    use file_utils, only: get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, aky, theta0, akx
-    use theta_grid, only: theta
+    use theta_grid, only: theta, ntgrid
     use fields_arrays, only: phinew, aparnew, bparnew
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     real, intent(in) :: t
     character(run_name_size) :: filename
     integer :: ik, it, ig, unit
 
-    call get_unused_unit (unit)
+    if (.not. proc0) return
+
     write (filename, "('dump.fields.t=',e13.6)") t
-    open (unit=unit, file=filename, status="unknown")
+    call open_output_file(unit, '.'//filename)
     do ik = 1, naky
        do it = 1, ntheta0
-          do ig = -ntg_out, ntg_out
+          do ig = -ntgrid, ntgrid
              write (unit=unit, fmt="(20(1x,e12.5))") &
                   theta(ig), aky(ik), theta0(it,ik), &
                   phinew(ig,it,ik), aparnew(ig,it,ik), &
@@ -3868,7 +2735,7 @@ contains
           write (unit, "()")
        end do
     end do
-    close (unit=unit)
+    call close_output_file (unit)
   end subroutine do_dump_fields_periodically
 
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
@@ -3876,6 +2743,7 @@ contains
   subroutine flush_files
     use file_utils, only: flush_output_file
     implicit none
+    if (.not. write_ascii) return
     call flush_output_file (out_unit)
     if (write_verr) then
        call flush_output_file (res_unit)
@@ -3957,6 +2825,7 @@ contains
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep
     !> Heating diagnostics summed over space at the current timestep
@@ -3972,7 +2841,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0) then
+    if (proc0 .and. collisions_heating) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
@@ -4005,6 +2874,7 @@ contains
        end do
     end if
 
+    ! We may be able to skip this work as well if heating is false.
     call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
 
     call avg_h(h, h_hist, istep, navg)
@@ -4180,10 +3050,10 @@ contains
 
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -4315,7 +3185,7 @@ contains
        qflux_avg = sum(qflx_global(:,is))
        vflux_avg = sum(vflx_global(:,is))
     end do
-    if (write_hrate) then
+    if (write_heating) then
        call group_to_all (heat_avg, heat_global, nensembles)
        call broadcast (heat_global)
        do is = 1, nspec
@@ -4326,15 +3196,15 @@ contains
 
   !> Calculate the field-line average (real values)
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    real, dimension (-ntg_out:), intent (in) :: fld_in
+    real, dimension (-ntgrid:), intent (in) :: fld_in
     real, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -4345,15 +3215,15 @@ contains
 
   !> Calculate the field-line average (complex values)
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob
+    use theta_grid, only: delthet, jacob, ntgrid
     implicit none
     real, dimension (:), allocatable :: dl_over_b
-    complex, dimension (-ntg_out:), intent (in) :: fld_in
+    complex, dimension (-ntgrid:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
 
-    allocate (dl_over_b(-ntg_out:ntg_out))
+    allocate (dl_over_b(-ntgrid:ntgrid))
 
-    dl_over_b = delthet(-ntg_out:ntg_out)*jacob(-ntg_out:ntg_out)
+    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
     dl_over_b = dl_over_b / sum(dl_over_b)
 
     fld_out = sum(fld_in*dl_over_b)
@@ -4370,7 +3240,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic.
   subroutine get_cross_phase (phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -4391,7 +3261,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
 
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
@@ -4419,10 +3289,10 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntg_out:ntg_out) :: wgt
+    real, dimension (-ntgrid:ntgrid) :: wgt
     real :: anorm
 
-    ng = ntg_out
+    ng = ntgrid
     wgt = delthet(-ng:ng)*jacob(-ng:ng)
     anorm = sum(wgt)
 
@@ -4481,7 +3351,7 @@ contains
   subroutine correlation_extend (cfnc, phi2extend)
     !    use constants, only: pi
     use fields_arrays, only: phinew
-    use theta_grid, only: ntgrid, jacob, delthet
+    use theta_grid, only: ntgrid, jacob, delthet, ntgrid
     !   use theta_grid, only: theta
     use kt_grids, only: ntheta0, naky, jtwist_out
 
@@ -4544,7 +3414,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       cfnc(:,it,1) = cfnc(:,it,1) / cfnc(1,it,1)
+       if (abs(cfnc(1, it, 1)) > epsilon(0.0)) then
+         cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
+       end if
     end do
 
     do ik = 2, naky
@@ -4576,9 +3448,8 @@ contains
        end do
     end do
 
-    phi2extend = phiextend*conjg(phiextend)
+    phi2extend = real(phiextend*conjg(phiextend))
 
-    !    deallocate (dl_over_b, phir, phiextend, phisum)
     deallocate (dl_over_b, phir, phiextend)
 
   end subroutine correlation_extend
@@ -4622,33 +3493,6 @@ contains
 
   end subroutine reorder_kx
 
-  !> Setup the FFTs for calculating the parallel spectrum
-  subroutine init_par_filter
-    use theta_grid, only: ntgrid
-    use gs2_transforms, only: init_zf
-    use kt_grids, only: naky, ntheta0
-
-    if ( naky*ntheta0 .eq. 0 ) then
-       print *,"WARNING: kt_grids used in init_par_filter before initialised?"
-    endif
-
-    call init_zf (ntgrid, ntheta0*naky)
-
-  end subroutine init_par_filter
-
-  !> Calculate the parallel spectrum
-  subroutine par_spectrum(an, an2)
-    use gs2_transforms, only: kz_spectrum
-    use theta_grid, only: ntgrid
-    complex, dimension(:,:,:), intent(in) :: an
-    complex, dimension(:,:,:), intent(out) :: an2
-    real :: scale
-
-    call kz_spectrum (an, an2)
-    scale = 1./real(4*ntgrid**2)
-    an2 = an2*scale
-  end subroutine par_spectrum
-
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
@@ -4662,367 +3506,11 @@ contains
        gs2_diagnostics_config = gs2_diagnostics_config_in
     end if
   end subroutine set_gs2_diagnostics_config
+
+  !> Get the module level config instance
+  function get_gs2_diagnostics_config()
+    type(gs2_diagnostics_config_type) :: get_gs2_diagnostics_config
+    get_gs2_diagnostics_config = gs2_diagnostics_config
+  end function get_gs2_diagnostics_config
   
-  !---------------------------------------
-  ! Following is for the config_type
-  !---------------------------------------
-  
-  !> Reads in the gs2_diagnostics_knobs namelist and populates the member variables
-  subroutine read_gs2_diagnostics_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(gs2_diagnostics_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file, iostat
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    integer :: conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, igomega, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult
-    logical :: dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, make_movie, ob_midplane, print_flux_line, print_line, save_distfn, save_for_restart, save_many
-    logical :: use_nonlin_convergence, write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc
-    logical :: write_fields, write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx
-    logical :: write_hrate, write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym
-    logical :: write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
-    real :: conv_test_multiplier, omegatinst, omegatol
-
-    namelist /gs2_diagnostics_knobs/ conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, conv_test_multiplier, dump_check1, dump_check2, dump_fields_periodically, exit_when_converged, file_safety_check, igomega, &
-         make_movie, navg, nc_sync_freq, nmovie, nsave, nwrite, nwrite_mult, ob_midplane, omegatinst, omegatol, print_flux_line, print_line, save_distfn, save_for_restart, save_many, use_nonlin_convergence, &
-         write_apar_over_time, write_ascii, write_avg_moments, write_bpar_over_time, write_cerr, write_correlation, write_correlation_extend, write_cross_phase, write_eigenfunc, write_fields, &
-         write_final_antot, write_final_db, write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_hrate, &
-         write_kpar, write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_omavg, write_omega, write_parity, write_pflux_sym, &
-         write_pflux_tormom, write_phi_over_time, write_symmetry, write_verr
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    conv_max_step = self%conv_max_step
-    conv_min_step = self%conv_min_step
-    conv_nstep_av = self%conv_nstep_av
-    conv_nsteps_converged = self%conv_nsteps_converged
-    conv_test_multiplier = self%conv_test_multiplier
-    dump_check1 = self%dump_check1
-    dump_check2 = self%dump_check2
-    dump_fields_periodically = self%dump_fields_periodically
-    exit_when_converged = self%exit_when_converged
-    file_safety_check = self%file_safety_check
-    igomega = self%igomega
-    make_movie = self%make_movie
-    navg = self%navg
-    nc_sync_freq = self%nc_sync_freq
-    nmovie = self%nmovie
-    nsave = self%nsave
-    nwrite = self%nwrite
-    nwrite_mult = self%nwrite_mult
-    ob_midplane = self%ob_midplane
-    omegatinst = self%omegatinst
-    omegatol = self%omegatol
-    print_flux_line = self%print_flux_line
-    print_line = self%print_line
-    save_distfn = self%save_distfn
-    save_for_restart = self%save_for_restart
-    save_many = self%save_many
-    use_nonlin_convergence = self%use_nonlin_convergence
-    write_apar_over_time = self%write_apar_over_time
-    write_ascii = self%write_ascii
-    write_avg_moments = self%write_avg_moments
-    write_bpar_over_time = self%write_bpar_over_time
-    write_cerr = self%write_cerr
-    write_correlation = self%write_correlation
-    write_correlation_extend = self%write_correlation_extend
-    write_cross_phase = self%write_cross_phase
-    write_eigenfunc = self%write_eigenfunc
-    write_fields = self%write_fields
-    write_final_antot = self%write_final_antot
-    write_final_db = self%write_final_db
-    write_final_epar = self%write_final_epar
-    write_final_fields = self%write_final_fields
-    write_final_moments = self%write_final_moments
-    write_flux_line = self%write_flux_line
-    write_full_moments_notgc = self%write_full_moments_notgc
-    write_g = self%write_g
-    write_gg = self%write_gg
-    write_gs = self%write_gs
-    write_gyx = self%write_gyx
-    write_hrate = self%write_hrate
-    write_kpar = self%write_kpar
-    write_line = self%write_line
-    write_lorentzian = self%write_lorentzian
-    write_lpoly = self%write_lpoly
-    write_max_verr = self%write_max_verr
-    write_moments = self%write_moments
-    write_nl_flux = self%write_nl_flux
-    write_nl_flux_dist = self%write_nl_flux_dist
-    write_omavg = self%write_omavg
-    write_omega = self%write_omega
-    write_parity = self%write_parity
-    write_pflux_sym = self%write_pflux_sym
-    write_pflux_tormom = self%write_pflux_tormom
-    write_phi_over_time = self%write_phi_over_time
-    write_symmetry = self%write_symmetry
-    write_verr = self%write_verr
-
-    ! Now read in the main namelist
-    if (self%get_requires_index()) then
-       call get_indexed_namelist_unit(in_file, trim(self%get_name()), self%index)
-       read(in_file, nml = gs2_diagnostics_knobs, iostat = iostat)
-       exist = .true.
-       if (iostat .ne.0) exist = .false.
-       close(unit = in_file, iostat = iostat)
-    else
-       in_file = input_unit_exist(self%get_name(), exist)
-       if (exist) read(in_file, nml = gs2_diagnostics_knobs)
-    endif
-
-    ! Now copy from local variables into type members
-    self%conv_max_step = conv_max_step
-    self%conv_min_step = conv_min_step
-    self%conv_nstep_av = conv_nstep_av
-    self%conv_nsteps_converged = conv_nsteps_converged
-    self%conv_test_multiplier = conv_test_multiplier
-    self%dump_check1 = dump_check1
-    self%dump_check2 = dump_check2
-    self%dump_fields_periodically = dump_fields_periodically
-    self%exit_when_converged = exit_when_converged
-    self%file_safety_check = file_safety_check
-    self%igomega = igomega
-    self%make_movie = make_movie
-    self%navg = navg
-    self%nc_sync_freq = nc_sync_freq
-    self%nmovie = nmovie
-    self%nsave = nsave
-    self%nwrite = nwrite
-    self%nwrite_mult = nwrite_mult
-    self%ob_midplane = ob_midplane
-    self%omegatinst = omegatinst
-    self%omegatol = omegatol
-    self%print_flux_line = print_flux_line
-    self%print_line = print_line
-    self%save_distfn = save_distfn
-    self%save_for_restart = save_for_restart
-    self%save_many = save_many
-    self%use_nonlin_convergence = use_nonlin_convergence
-    self%write_apar_over_time = write_apar_over_time
-    self%write_ascii = write_ascii
-    self%write_avg_moments = write_avg_moments
-    self%write_bpar_over_time = write_bpar_over_time
-    self%write_cerr = write_cerr
-    self%write_correlation = write_correlation
-    self%write_correlation_extend = write_correlation_extend
-    self%write_cross_phase = write_cross_phase
-    self%write_eigenfunc = write_eigenfunc
-    self%write_fields = write_fields
-    self%write_final_antot = write_final_antot
-    self%write_final_db = write_final_db
-    self%write_final_epar = write_final_epar
-    self%write_final_fields = write_final_fields
-    self%write_final_moments = write_final_moments
-    self%write_flux_line = write_flux_line
-    self%write_full_moments_notgc = write_full_moments_notgc
-    self%write_g = write_g
-    self%write_gg = write_gg
-    self%write_gs = write_gs
-    self%write_gyx = write_gyx
-    self%write_hrate = write_hrate
-    self%write_kpar = write_kpar
-    self%write_line = write_line
-    self%write_lorentzian = write_lorentzian
-    self%write_lpoly = write_lpoly
-    self%write_max_verr = write_max_verr
-    self%write_moments = write_moments
-    self%write_nl_flux = write_nl_flux
-    self%write_nl_flux_dist = write_nl_flux_dist
-    self%write_omavg = write_omavg
-    self%write_omega = write_omega
-    self%write_parity = write_parity
-    self%write_pflux_sym = write_pflux_sym
-    self%write_pflux_tormom = write_pflux_tormom
-    self%write_phi_over_time = write_phi_over_time
-    self%write_symmetry = write_symmetry
-    self%write_verr = write_verr
-
-    self%exist = exist
-  end subroutine read_gs2_diagnostics_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_gs2_diagnostics_config(self, unit)
-    implicit none
-    class(gs2_diagnostics_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("conv_max_step", self%conv_max_step, unit_internal)
-    call self%write_key_val("conv_min_step", self%conv_min_step, unit_internal)
-    call self%write_key_val("conv_nstep_av", self%conv_nstep_av, unit_internal)
-    call self%write_key_val("conv_nsteps_converged", self%conv_nsteps_converged, unit_internal)
-    call self%write_key_val("conv_test_multiplier", self%conv_test_multiplier, unit_internal)
-    call self%write_key_val("dump_check1", self%dump_check1, unit_internal)
-    call self%write_key_val("dump_check2", self%dump_check2, unit_internal)
-    call self%write_key_val("dump_fields_periodically", self%dump_fields_periodically, unit_internal)
-    call self%write_key_val("exit_when_converged", self%exit_when_converged, unit_internal)
-    call self%write_key_val("file_safety_check", self%file_safety_check, unit_internal)
-    call self%write_key_val("igomega", self%igomega, unit_internal)
-    call self%write_key_val("make_movie", self%make_movie, unit_internal)
-    call self%write_key_val("navg", self%navg, unit_internal)
-    call self%write_key_val("nc_sync_freq", self%nc_sync_freq, unit_internal)
-    call self%write_key_val("nmovie", self%nmovie, unit_internal)
-    call self%write_key_val("nsave", self%nsave, unit_internal)
-    call self%write_key_val("nwrite", self%nwrite, unit_internal)
-    call self%write_key_val("nwrite_mult", self%nwrite_mult, unit_internal)
-    call self%write_key_val("ob_midplane", self%ob_midplane, unit_internal)
-    call self%write_key_val("omegatinst", self%omegatinst, unit_internal)
-    call self%write_key_val("omegatol", self%omegatol, unit_internal)
-    call self%write_key_val("print_flux_line", self%print_flux_line, unit_internal)
-    call self%write_key_val("print_line", self%print_line, unit_internal)
-    call self%write_key_val("save_distfn", self%save_distfn, unit_internal)
-    call self%write_key_val("save_for_restart", self%save_for_restart, unit_internal)
-    call self%write_key_val("save_many", self%save_many, unit_internal)
-    call self%write_key_val("use_nonlin_convergence", self%use_nonlin_convergence, unit_internal)
-    call self%write_key_val("write_apar_over_time", self%write_apar_over_time, unit_internal)
-    call self%write_key_val("write_ascii", self%write_ascii, unit_internal)
-    call self%write_key_val("write_avg_moments", self%write_avg_moments, unit_internal)
-    call self%write_key_val("write_bpar_over_time", self%write_bpar_over_time, unit_internal)
-    call self%write_key_val("write_cerr", self%write_cerr, unit_internal)
-    call self%write_key_val("write_correlation", self%write_correlation, unit_internal)
-    call self%write_key_val("write_correlation_extend", self%write_correlation_extend, unit_internal)
-    call self%write_key_val("write_cross_phase", self%write_cross_phase, unit_internal)
-    call self%write_key_val("write_eigenfunc", self%write_eigenfunc, unit_internal)
-    call self%write_key_val("write_fields", self%write_fields, unit_internal)
-    call self%write_key_val("write_final_antot", self%write_final_antot, unit_internal)
-    call self%write_key_val("write_final_db", self%write_final_db, unit_internal)
-    call self%write_key_val("write_final_epar", self%write_final_epar, unit_internal)
-    call self%write_key_val("write_final_fields", self%write_final_fields, unit_internal)
-    call self%write_key_val("write_final_moments", self%write_final_moments, unit_internal)
-    call self%write_key_val("write_flux_line", self%write_flux_line, unit_internal)
-    call self%write_key_val("write_full_moments_notgc", self%write_full_moments_notgc, unit_internal)
-    call self%write_key_val("write_g", self%write_g, unit_internal)
-    call self%write_key_val("write_gg", self%write_gg, unit_internal)
-    call self%write_key_val("write_gs", self%write_gs, unit_internal)
-    call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
-    call self%write_key_val("write_hrate", self%write_hrate, unit_internal)
-    call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
-    call self%write_key_val("write_line", self%write_line, unit_internal)
-    call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
-    call self%write_key_val("write_lpoly", self%write_lpoly, unit_internal)
-    call self%write_key_val("write_max_verr", self%write_max_verr, unit_internal)
-    call self%write_key_val("write_moments", self%write_moments, unit_internal)
-    call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
-    call self%write_key_val("write_nl_flux_dist", self%write_nl_flux_dist, unit_internal)
-    call self%write_key_val("write_omavg", self%write_omavg, unit_internal)
-    call self%write_key_val("write_omega", self%write_omega, unit_internal)
-    call self%write_key_val("write_parity", self%write_parity, unit_internal)
-    call self%write_key_val("write_pflux_sym", self%write_pflux_sym, unit_internal)
-    call self%write_key_val("write_pflux_tormom", self%write_pflux_tormom, unit_internal)
-    call self%write_key_val("write_phi_over_time", self%write_phi_over_time, unit_internal)
-    call self%write_key_val("write_symmetry", self%write_symmetry, unit_internal)
-    call self%write_key_val("write_verr", self%write_verr, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_gs2_diagnostics_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_gs2_diagnostics_config(self)
-    class(gs2_diagnostics_config_type), intent(in out) :: self
-    type(gs2_diagnostics_config_type) :: empty
-    select type (self)
-    type is (gs2_diagnostics_config_type)
-       self = empty
-    end select
-  end subroutine reset_gs2_diagnostics_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_gs2_diagnostics_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(gs2_diagnostics_config_type), intent(in out) :: self
-    call broadcast(self%conv_max_step)
-    call broadcast(self%conv_min_step)
-    call broadcast(self%conv_nstep_av)
-    call broadcast(self%conv_nsteps_converged)
-    call broadcast(self%conv_test_multiplier)
-    call broadcast(self%dump_check1)
-    call broadcast(self%dump_check2)
-    call broadcast(self%dump_fields_periodically)
-    call broadcast(self%exit_when_converged)
-    call broadcast(self%file_safety_check)
-    call broadcast(self%igomega)
-    call broadcast(self%make_movie)
-    call broadcast(self%navg)
-    call broadcast(self%nc_sync_freq)
-    call broadcast(self%nmovie)
-    call broadcast(self%nsave)
-    call broadcast(self%nwrite)
-    call broadcast(self%nwrite_mult)
-    call broadcast(self%ob_midplane)
-    call broadcast(self%omegatinst)
-    call broadcast(self%omegatol)
-    call broadcast(self%print_flux_line)
-    call broadcast(self%print_line)
-    call broadcast(self%save_distfn)
-    call broadcast(self%save_for_restart)
-    call broadcast(self%save_many)
-    call broadcast(self%use_nonlin_convergence)
-    call broadcast(self%write_apar_over_time)
-    call broadcast(self%write_ascii)
-    call broadcast(self%write_avg_moments)
-    call broadcast(self%write_bpar_over_time)
-    call broadcast(self%write_cerr)
-    call broadcast(self%write_correlation)
-    call broadcast(self%write_correlation_extend)
-    call broadcast(self%write_cross_phase)
-    call broadcast(self%write_eigenfunc)
-    call broadcast(self%write_fields)
-    call broadcast(self%write_final_antot)
-    call broadcast(self%write_final_db)
-    call broadcast(self%write_final_epar)
-    call broadcast(self%write_final_fields)
-    call broadcast(self%write_final_moments)
-    call broadcast(self%write_flux_line)
-    call broadcast(self%write_full_moments_notgc)
-    call broadcast(self%write_g)
-    call broadcast(self%write_gg)
-    call broadcast(self%write_gs)
-    call broadcast(self%write_gyx)
-    call broadcast(self%write_hrate)
-    call broadcast(self%write_kpar)
-    call broadcast(self%write_line)
-    call broadcast(self%write_lorentzian)
-    call broadcast(self%write_lpoly)
-    call broadcast(self%write_max_verr)
-    call broadcast(self%write_moments)
-    call broadcast(self%write_nl_flux)
-    call broadcast(self%write_nl_flux_dist)
-    call broadcast(self%write_omavg)
-    call broadcast(self%write_omega)
-    call broadcast(self%write_parity)
-    call broadcast(self%write_pflux_sym)
-    call broadcast(self%write_pflux_tormom)
-    call broadcast(self%write_phi_over_time)
-    call broadcast(self%write_symmetry)
-    call broadcast(self%write_verr)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_gs2_diagnostics_config
-
-  !> Gets the default name for this namelist
-  function get_default_name_gs2_diagnostics_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_gs2_diagnostics_config
-    get_default_name_gs2_diagnostics_config = "gs2_diagnostics_knobs"
-  end function get_default_name_gs2_diagnostics_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_gs2_diagnostics_config()
-    implicit none
-    logical :: get_default_requires_index_gs2_diagnostics_config
-    get_default_requires_index_gs2_diagnostics_config = .false.
-  end function get_default_requires_index_gs2_diagnostics_config
 end module gs2_diagnostics

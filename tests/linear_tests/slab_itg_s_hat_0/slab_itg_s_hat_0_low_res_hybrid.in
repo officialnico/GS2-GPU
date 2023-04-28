@@ -1,0 +1,31 @@
+!==============================
+!EVOLVED SPECIES  
+!==============================
+&species_knobs
+ nspec = 2 ! Number of kinetic species evolved.
+/
+
+!==============================
+!SPECIES PARAMETERS 1 
+!==============================
+&species_parameters_2
+ z = -1.0 ! Charge
+ mass = 2.7e-4
+ dens = 1.0 ! Density	
+ temp = 1.0 ! Temperature
+ tprim = 6.0 ! -1/T (dT/drho)
+ fprim = 1.0 ! -1/n (dn/drho)
+ uprim = 0.0 ! ?
+ vnewk = 0.0 ! collisionality parameter
+ type = "hybrid_electron" ! Type of species, e.g. 'ion', 'electron', 'beam'
+/
+
+!==============================
+! 1 
+!==============================
+&dist_fn_species_knobs_2
+ fexpr = 0.49 ! Temporal implicitness parameter. Recommended value: 0.48
+ bakdif = 0.01 ! Spatial implicitness parameter. Recommended value: 0.05
+/
+
+!include slab_itg_s_hat_0_low_res.in

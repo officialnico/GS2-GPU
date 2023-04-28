@@ -48,44 +48,44 @@ program dump_grids
   !/Theta
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init theta_grids")',advance='no')
-     call time_message(.false.,time_measure,'init-theta')
   endif
+  call time_message(.false.,time_measure,'init-theta')
   call init_theta_grid
+  call time_message(.false.,time_measure,'init-theta')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-theta')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/KT
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init kt_grids   ")',advance='no')
-     call time_message(.false.,time_measure,'init-kt')
   endif
+  call time_message(.false.,time_measure,'init-kt')
   call init_kt_grids
+  call time_message(.false.,time_measure,'init-kt')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-kt')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/SPECIES
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init species   ")',advance='no')
-     call time_message(.false.,time_measure,'init-species')
   endif
+  call time_message(.false.,time_measure,'init-species')
   call init_species
+  call time_message(.false.,time_measure,'init-species')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-species')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
   !/LE
   if(proc0.and.(.not.quiet)) then
      write(*,'("Init le_grids   ")',advance='no')
-     call time_message(.false.,time_measure,'init-le')
   endif
+  call time_message(.false.,time_measure,'init-le')
   call init_le_grids(accel_x,accel_y)
+  call time_message(.false.,time_measure,'init-le')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'init-le')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
@@ -93,12 +93,12 @@ program dump_grids
   !Now write to file
   if(proc0.and.(.not.quiet)) then
      write(*,'("Write to file   ")',advance='no')
-     call time_message(.false.,time_measure,'write-file')
   endif
+  call time_message(.false.,time_measure,'write-file')
   filename=trim(adjustl(run_name))
   if(proc0) call write_grids_to_file(filename)
+  call time_message(.false.,time_measure,'write-file')
   if(proc0.and.(.not.quiet)) then
-     call time_message(.false.,time_measure,'write-file')
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)
   endif
   time_measure=0.
@@ -110,7 +110,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
-    use netcdf, only: NF90_CLOBBER
+    use netcdf, only: NF90_CLOBBER, NF90_NETCDF4
     use netcdf, only: nf90_create, nf90_close
     use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
     use netcdf, only: nf90_put_var
@@ -129,6 +129,7 @@ contains
     use theta_grid, only: rprime, zprime, aprime
     use le_grids, only: al, energy, negrid, wl, w
     use species, only: nspec
+    use gs2_metadata, only: create_metadata
 
     implicit none
     character(len=*), intent(in) :: fname
@@ -143,11 +144,9 @@ contains
     integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
     integer :: wl_varid, w_varid
 
-    !First get precisions
-    if(netcdf_real==0) netcdf_real=get_netcdf_code_precision()
-
     !First create a file
-    ierr=nf90_create(trim(adjustl(fname))//".grids.nc",NF90_CLOBBER,ncid)
+    ierr=nf90_create(trim(adjustl(fname))//".grids.nc", ior(NF90_CLOBBER, NF90_NETCDF4), ncid)
+    call create_metadata(ncid, "GS2 grids")
 
     !Define dimensions
     ierr=nf90_def_dim(ncid,'aky',size(aky),ky_dimid)
@@ -190,8 +189,8 @@ contains
     ierr=nf90_def_var(ncid,'rprime',netcdf_real,[theta_dimid], rprime_varid)
     ierr=nf90_def_var(ncid,'zprime',netcdf_real,[theta_dimid], zprime_varid)
     ierr=nf90_def_var(ncid,'aprime',netcdf_real,[theta_dimid], aprime_varid)
-    ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid],wl_varid)
-    ierr=nf90_def_var(ncid,'w',netcdf_real,[species_dimid, energy_dimid],w_varid)
+    ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid], wl_varid)
+    ierr=nf90_def_var(ncid,'w',netcdf_real,[energy_dimid, species_dimid], w_varid)
 
     !End definitions
     ierr=nf90_enddef(ncid)
@@ -228,8 +227,8 @@ contains
     ierr=nf90_put_var(ncid, rprime_varid, rprime)
     ierr=nf90_put_var(ncid, zprime_varid, zprime)
     ierr=nf90_put_var(ncid, aprime_varid, aprime)
-    ierr=nf90_put_var(ncid,wl_varid,wl)
-    ierr=nf90_put_var(ncid,w_varid,w)
+    ierr=nf90_put_var(ncid, wl_varid, wl)
+    ierr=nf90_put_var(ncid, w_varid, w)
 
     !Now close file
     ierr=nf90_close(ncid)

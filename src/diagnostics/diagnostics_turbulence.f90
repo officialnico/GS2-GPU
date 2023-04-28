@@ -21,7 +21,12 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     complex, dimension(:,:), allocatable :: phi_corr_2pi
     allocate (phi_corr_2pi(-ntgrid:ntgrid,naky))
-    if (.not. gnostics%replay) call correlation (phi_corr_2pi)
+    if (.not. gnostics%replay) then
+       call correlation (phi_corr_2pi)
+    else
+       phi_corr_2pi = 0.
+    end if
+
     call create_and_write_variable(gnostics, gnostics%rtype, "phi_corr_2pi", &
          dim_string([gnostics%dims%ri,gnostics%dims%theta,gnostics%dims%ky,gnostics%dims%time]), &
          "2 point correlation function calculated from the electric potential &
@@ -72,6 +77,7 @@ contains
     complex, dimension (:,:,:), allocatable :: phi_corr
     real, dimension (:,:,:), allocatable :: phi2_extend
     real, save :: tcorr0 = 0.0
+    real :: time_diff
     
     t= gnostics%user_time
     t_old = gnostics%user_time_old
@@ -80,6 +86,9 @@ contains
     if (.not. allocated(phicorr_sum)) then
        ntg_extend = (2*ntgrid+1)*((ntheta0-1)/jtwist_out+1)
        nth0_extend = min(ntheta0,jtwist_out*(naky-1))
+       ! Warning: For ntheta=ntheta0=naky=128 and jtwist = 6 these two arrays
+       ! will require 750 MB and 375 MB respectively and they are not freed
+       ! after leaving the routine.
        allocate (phicorr_sum(ntg_extend,ntheta0,naky)) ; phicorr_sum = 0.0
        allocate (phiextend_sum(ntg_extend,ntheta0,naky)) ; phiextend_sum = 0.0
        tcorr0 = t_old
@@ -90,12 +99,24 @@ contains
     call correlation_extend (phi_corr, phi2_extend)
     phicorr_sum = phicorr_sum + phi_corr*(t-t_old)
     phiextend_sum = phiextend_sum + phi2_extend*(t-t_old)
+
+    ! This is a dumb hack because this function gets called first at t == tcorr0
+    ! just to create the variable in the netcdf file. Luckily when the
+    ! two diagnostic modules are merged, this can go
+    if (abs(t - tcorr0) < epsilon(0.0)) then
+      time_diff = 1
+    else
+      time_diff = (t - tcorr0)
+    end if
+
     call create_and_write_variable_noread(gnostics, gnostics%rtype, "phi_corr", &
          dim_string([gnostics%dims%ri,gnostics%dims%theta_ext,gnostics%dims%kx,&
          gnostics%dims%ky,gnostics%dims%time]), &
          "2 point correlation function calculated from the electric potential &
          & as a function of ky and parallel sep... time averaged and &
-         & calculated along the extended domain. ", "1", phicorr_sum/(t-tcorr0))
+         & calculated along the extended domain. ", "1", phicorr_sum/time_diff)
+    ! Note we do not appear to use phiextend_sum here, unlike in the old
+    ! diagnostics which also writes the extened version
     deallocate (phi_corr, phi2_extend)
   end subroutine write_correlation_extend
 
@@ -160,7 +181,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       cfnc(:,it,1) = cfnc(:,it,1) / cfnc(1,it,1)
+       if (abs(cfnc(1, it, 1)) > epsilon(0.0)) then
+         cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
+       end if
     end do
     
     do ik = 2, naky
@@ -235,7 +258,7 @@ contains
          "Cross phase between electron density and perpendicular electron temperature, &
          & averaged across all space", "radians", phase_tot)
     
-    if (proc0 .and. gnostics%write_ascii) write (unit=gnostics%ascii_files%phase, &
+    if (proc0 .and. gnostics%ascii_files%write_to_phase .and. (.not. gnostics%create)) write (unit=gnostics%ascii_files%phase, &
          fmt="('t= ',e17.10,' phase_tot= ',e11.4,' phase_theta= ',e11.4)") &
          & t, phase_tot, phase_theta
   end subroutine write_cross_phase
@@ -248,7 +271,7 @@ contains
   !! other fields at some point, but for now this is just a skeleton for 
   !! a more realistic synthetic diagnostic. 
   subroutine get_cross_phase (gnostics, phase_tot, phase_theta)
-    use species, only: nspec, spec, electron_species
+    use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getemoms
@@ -271,7 +294,7 @@ contains
     call getemoms (phinew, bparnew, ntot, tperp)
     
     do is = 1,nspec
-       if (spec(is)%type == electron_species) then
+       if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           !call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           call average_all(ntot(0,:,:,is), tperp(0,:,:,is), nTp, gnostics%distributed)

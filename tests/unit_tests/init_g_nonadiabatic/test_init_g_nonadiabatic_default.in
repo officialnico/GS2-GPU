@@ -1,0 +1,69 @@
+  &knobs
+  fphi = 1.0
+  fapar = 1.0
+  fbpar = 1.0
+  /
+
+  &parameters
+  beta = 0.1
+  /
+
+  &init_g_knobs
+  ginit_option = 'default'
+  phiinit = 1.0
+  clean_init = T
+  chop_side = F
+  /
+
+  &species_parameters_1
+  type = 'ion'
+  z = 1.0
+  temp = 1.0
+  dens = 1.0
+  mass = 1.0
+  tprim = 0.0
+  fprim = 0.0
+  vnewk = 0.0
+/
+
+&species_parameters_2
+  type = 'electron'
+  z = -1.0
+  temp = 1.0
+  dens = 1.0
+  tprim = 0.0
+  fprim = 0.0
+  mass = 1.0
+  vnewk = 0.0
+/
+
+&species_knobs
+  nspec = 2
+/
+
+&le_grids_knobs
+nesuper = 8
+nesub = 20
+npassing = 41
+radau_gauss_grid = F
+new_trap_int = T
+/
+
+&theta_grid_parameters
+  nperiod = 2
+  ntheta = 64
+/
+
+&dist_fn_species_knobs_1
+/
+&dist_fn_species_knobs_2
+/
+
+&kt_grids_knobs
+grid_option="single"
+/
+
+&kt_grids_single_parameters
+aky = 0.3
+theta0 = 0.0
+/

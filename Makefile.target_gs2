@@ -1,5 +1,29 @@
+# Replace the parallel mp with serial version in dependencies of codes
+# we want to be serial
+ifdef GK_BUILD_SERIAL_TOOLS_AS_SERIAL
+serial_targets := ingen write_default_input_file dump_grids
+make_serial = $(subst $(OBJDIR)/mp.o,$(OBJDIR)/mp_serial.o,$(1))
+# Call make_serial on each of serial_targets to replace mp.o with mp_serial.o
+ignored_junk := $(foreach tmp_target, $(serial_targets), $(eval $(tmp_target)_mod := $(call make_serial, $($(tmp_target)_mod))))
+SERIAL_LDFLAGS:=-I$(MODDIR)/serial $(LDFLAGS)
+else
+SERIAL_LDFLAGS:=$(LDFLAGS)
+endif
+# undefined reference to `get_git_state` or `get_git_hash`? You need
+# to manually add the affected binary name to needs_git_hash
+# below. This file needs to be first in the list of dependencies so
+# that the file that needs the functions can find them. Yes this is
+# unpleasant, no we (probably?) can`t automate this like for the other
+# dependencies. `fortdep` searches for module `use` statements, and
+# we`re deliberately _not_ using a module for `git_hash`, otherwise
+# basically the entire project needs to be rebuilt on new commits.
+needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester
+ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
+	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
+
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
+gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
 $(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
@@ -17,10 +41,18 @@ $(BINDIR)/gs2.x: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 .PHONY: gs2.x
 gs2.x: $(BINDIR)/gs2.x
 
+#Mat inv benchmark
+$(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: mat_inv_benchmark
+mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
+
 #Input file checker
 $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: ingen
 ingen: $(BINDIR)/ingen
@@ -44,7 +76,7 @@ dump_response: $(BINDIR)/dump_response
 #Initialises theta, kx, ky, lambda and energy grids and writes to file
 $(BINDIR)/dump_grids: $(dump_grids_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: dump_grids
 dump_grids: $(BINDIR)/dump_grids
@@ -74,7 +106,7 @@ $(BINDIR)/regress: $(drive_mod) | $(BINDIR)
 regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2 | DOES NOT COMPILE
-$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
+$(BINDIR)/ffttester: $(ffttester_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -89,7 +121,7 @@ $(BINDIR)/ball: $(ball_mod) | $(BINDIR)
 .PHONY: ball
 ball: $(BINDIR)/ball
 
-#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file | DOES NOT COMPILE
+#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
 $(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
@@ -100,7 +132,7 @@ eiktest: $(BINDIR)/eiktest
 #Writes an instance of each namelist with default values
 $(BINDIR)/write_default_input_file: $(write_default_input_file_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
 .PHONY: write_default_input_file
 write_default_input_file: $(BINDIR)/write_default_input_file
@@ -117,7 +149,10 @@ modules: utils.a geo.a libgs2.a diagnostics
 utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
-UTIL_OBJ_LIST := spl.o constants.o file_utils.o netcdf_utils.o command_line.o runtime_tests.o constant_random.o
+UTIL_OBJ_LIST := spl.o constants.o file_utils.o runtime_tests.o constant_random.o
+ifdef USE_NETCDF
+UTIL_OBJ_LIST += netcdf_utils.o
+endif
 UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
 $(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
 $(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)

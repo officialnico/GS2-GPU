@@ -29,6 +29,8 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
+    if (.not. gnostics%write_ascii) return
+    if (gnostics%create) return
     call output_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_line
 
@@ -95,6 +97,8 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
+    if (.not. gnostics%ascii_files%write_to_out) return
+    if (gnostics%create) return
     call output_flux_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_flux_line
     
@@ -109,13 +113,13 @@ contains
 
   !> FIXME : Add documentation  
   subroutine output_flux_line(gnostics, outunit)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use species, only: nspec
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     integer, intent(in) :: outunit
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        write (unit=outunit, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
             & ' heat fluxes: ', 5(1x,e13.6))") &
             gnostics%user_time, &
@@ -127,14 +131,14 @@ contains
             gnostics%current_results%phi2, &
             gnostics%current_results%species_energy_exchange(1:min(nspec,5))
     end if
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        write (unit=outunit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
             & ' heat flux m: ', 5(1x,e11.4))") &
             gnostics%user_time, &
             gnostics%current_results%apar2, &
             gnostics%current_results%species_apar_heat_flux(1:min(nspec,5))
     end if
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        write (unit=outunit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
             & ' heat flux b: ', 5(1x,e11.4))") &
             gnostics%user_time, &

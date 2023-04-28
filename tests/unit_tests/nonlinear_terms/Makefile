@@ -1,7 +1,7 @@
 
 sinclude ../Makefile.tests_common
 
-CLEANCOMMAND+= test_nonlinear_terms
+clean_individual_test: LOCAL_TEST_FILES:=test_nonlinear_terms
 
 ifdef TESTNORUN
 all: test_nonlinear_terms 

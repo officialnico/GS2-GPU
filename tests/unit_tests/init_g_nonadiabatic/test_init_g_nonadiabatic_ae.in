@@ -1,0 +1,5 @@
+&species_knobs
+  nspec = 1
+/
+
+!include test_init_g_nonadiabatic_default.in
