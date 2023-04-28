@@ -198,7 +198,7 @@ contains
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
@@ -217,9 +217,9 @@ contains
     allocate(phinew, mold = phi)
     allocate(aparnew, mold = apar)
     allocate(bparnew, mold = bpar)
-    if (fphi > epsilon(0.0)) call copy(phi, phinew)
-    if (fapar > epsilon(0.0)) call copy(apar, aparnew)
-    if (fbpar > epsilon(0.0)) call copy(bpar, bparnew)
+    if (has_phi) call copy(phi, phinew)
+    if (has_apar) call copy(apar, aparnew)
+    if (has_bpar) call copy(bpar, bparnew)
 
     ! If we want to advance h rather than g then adjust
     ! here to get h. Note we rely on the call site also

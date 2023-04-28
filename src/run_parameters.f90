@@ -13,7 +13,7 @@ module run_parameters
   public :: check_run_parameters, wnml_run_parameters
   public :: write_trinity_parameters
   public :: beta, zeff, tite, reset, immediate_reset
-  public :: fphi, fapar, fbpar
+  public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
   public :: code_delt_max, wunits, woutunits, tunits
   public :: nstep, max_sim_time, wstar_units, eqzip, margin
   public :: secondary, tertiary, harris
@@ -47,6 +47,7 @@ module run_parameters
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
+  logical :: has_phi, has_apar, has_bpar
   real :: delt, delt_prev1, delt_prev2
   real :: code_delt_max, user_delt_max, margin
   real, dimension (:), allocatable :: wunits, woutunits, tunits
@@ -517,12 +518,16 @@ contains
        fbpar = 0.
     endif
 
+    has_phi = fphi > epsilon(0.0)
+    has_apar = fapar > epsilon(0.0)
+    has_bpar = fbpar > epsilon(0.0)
+
     !> If we have non-zero beta then alert the user that they have some
     !! of the perturbed magnetic fields disabled. This may be intended
     !! behaviour, so we throw a warning. However, if both are disabled,
     !! we set beta=0. This will make the simulation electrostatic, as 
     !! probably intended if both apar and bpar are set to zero.
-    if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+    if( beta /= 0.0 .and. .not. (has_apar .or. has_bpar)) then
        if(proc0) then
           ierr = error_unit()
           write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
@@ -531,8 +536,8 @@ contains
     endif
     if((beta.ne.0).and.proc0) then
        ierr = error_unit()
-       if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
-       if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+       if(.not. has_apar) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+       if(.not. has_bpar) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
     endif
     
     if (eqzip) then

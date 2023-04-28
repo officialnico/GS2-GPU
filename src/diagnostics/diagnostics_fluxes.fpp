@@ -97,7 +97,7 @@ contains
     use dist_fn_arrays, only: g_adjust, gnew
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_config, only: diagnostics_type
@@ -137,7 +137,7 @@ contains
     end if ! if (.not. gnostics%replay)
       
       !write (*,*) 'fphi is', fphi
-      if (fphi > epsilon(0.0)) then
+      if (has_phi) then
          do is = 1, nspec
             qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
             qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -196,7 +196,7 @@ contains
 #endif
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        do is = 1, nspec
           qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
           qmheat(:,:,is,2)=qmheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -227,7 +227,7 @@ contains
             "Perpendicular magnetic flux, as function of energy", &
             "flux_es(E) = ", apflux_vs_e)
     end if
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        do is = 1, nspec
           qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
           qbheat(:,:,is,2)=qbheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -1004,7 +1004,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew, g_adjust
-    use run_parameters, only: fphi, fbpar
+    use run_parameters, only: fphi, fbpar, has_phi
     use volume_averages, only: average_all
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
@@ -1028,7 +1028,7 @@ contains
     call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
     call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
     if (proc0) then
-       if (fphi > epsilon(0.0)) then
+       if (has_phi) then
           do ig = -ntgrid, ntgrid
              do is = 1, nspec
                 pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens

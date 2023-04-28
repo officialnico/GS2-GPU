@@ -12,18 +12,18 @@ contains
   !> FIXME : Add documentation
   subroutine write_fields(gnostics)
     use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
 
     if (gnostics%replay) return 
 
-    if (fphi >epsilon(0.0)) call write_standard_field_properties(gnostics, &
+    if (has_phi) call write_standard_field_properties(gnostics, &
       'phi',  'The electrostatic potential', 'T_r/e', phinew)
-    if (fapar>epsilon(0.0)) call write_standard_field_properties(gnostics, &
+    if (has_apar) call write_standard_field_properties(gnostics, &
       'apar', 'The parallel magnetic potential', '...', aparnew)
-    if (fbpar>epsilon(0.0)) call write_standard_field_properties(gnostics, &
+    if (has_bpar) call write_standard_field_properties(gnostics, &
       'bpar', 'The parallel magnetic potential', '...', bparnew)
   end subroutine write_fields
 
@@ -163,7 +163,7 @@ contains
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_transforms, only: transform2
     use fields_arrays, only: phinew, aparnew, bparnew
     use mp, only: proc0, mp_abort
@@ -197,7 +197,7 @@ contains
        warning = .true.
     endif
     
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
        call transform2 (phinew, yxphi, nny, nnx)
        call create_and_write_variable(gnostics, gnostics%rtype, "phi_by_xmode", &
@@ -206,7 +206,7 @@ contains
        deallocate (yxphi)
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        allocate (yxapar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (aparnew, yxapar, nny, nnx)
        call create_and_write_variable(gnostics, gnostics%rtype, "apar_by_xmode", &
@@ -215,7 +215,7 @@ contains
        deallocate (yxapar)
     end if
 
-    if (fbpar > epsilon(0.0)) then 
+    if (has_bpar) then
        allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (bparnew, yxbpar, nny, nnx)
        call create_and_write_variable(gnostics, gnostics%rtype, "bpar_by_xmode", &
@@ -264,7 +264,7 @@ contains
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
     use theta_grid, only: theta, nperiod, ntheta, ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use diagnostics_config, only: diagnostics_type
     use diagnostics_dimensions, only: dim_string
     use diagnostics_create_and_write, only: create_and_write_variable
@@ -273,7 +273,6 @@ contains
     complex, dimension (ntheta0, naky) :: phi0
     complex, dimension (-ntgrid:ntgrid, ntheta0, naky) :: tmp
     integer :: it, ik, ig, ntg_out
-    real, parameter :: zero = epsilon(0.0)
     
     if(.not.proc0 .or. gnostics%replay) return
 
@@ -301,7 +300,7 @@ contains
          dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky]),&
          "Normalizing phase", "", phi0)
 
-    if(fphi > zero) then
+    if(has_phi) then
       do ig = -ntgrid, ntgrid
          tmp(ig,:,:) = phi(ig,:,:)/phi0(:,:)
       end do
@@ -311,7 +310,7 @@ contains
            "Normalized phi", "", tmp)
     end if
 
-    if(fapar > zero) then
+    if(has_apar) then
       do ig = -ntgrid, ntgrid
          tmp(ig,:,:) = apar(ig,:,:)/phi0(:,:)
       end do
@@ -321,7 +320,7 @@ contains
            "Normalized apar", "", tmp)
     end if
 
-    if(fbpar > zero) then
+    if(has_bpar) then
       do ig = -ntgrid, ntgrid
          tmp(ig,:,:) = bpar(ig,:,:)/phi0(:,:)
       end do

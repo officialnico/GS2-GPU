@@ -67,7 +67,7 @@ contains
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
     use gs2_layouts, only: init_gs2_layouts
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use unit_tests, only: should_print
     use mp, only: mp_abort
 !    use parameter_scan_arrays, only: run_scan
@@ -83,7 +83,7 @@ contains
     !Check we have at least one field. If not abort.
     !Note, we do this here rather than as soon as we read input file
     !as other field types may support operation with no fields (e.g. 'local' does)
-    if((fphi.lt.epsilon(0.0)).and.(fapar.lt.epsilon(0.0)).and.(fbpar.lt.epsilon(0.0)))then
+    if(.not. (has_phi .or. has_apar .or. has_bpar)) then
        call mp_abort("Field_option='implicit' requires at least one field is non-zero",.true.)
     endif
 
@@ -144,7 +144,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -162,19 +162,19 @@ contains
 
     ifin = 0
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeq
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeqa
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeqp
@@ -190,7 +190,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: jf_lo, ij_idx
     use prof, only: prof_entering, prof_leaving
     implicit none
@@ -201,7 +201,7 @@ contains
 
     ifield = 0
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -212,7 +212,7 @@ contains
        end do
     endif
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -223,7 +223,7 @@ contains
        end do
     endif
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -488,7 +488,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: g
     use dist_fn, only: M_class, N_class, i_class
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use prof, only: prof_entering, prof_leaving
@@ -501,9 +501,9 @@ contains
     call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
-    if (fphi > epsilon(0.0)) nfield = nfield + 1
-    if (fapar > epsilon(0.0)) nfield = nfield + 1
-    if (fbpar > epsilon(0.0)) nfield = nfield + 1
+    if (has_phi) nfield = nfield + 1
+    if (has_apar) nfield = nfield + 1
+    if (has_bpar) nfield = nfield + 1
     nidx = (2*ntgrid+1)*nfield
 
     call init_fields_layouts (nfield, nidx, naky, ntheta0, M_class, N_class, i_class, nproc, iproc)
@@ -600,7 +600,7 @@ contains
                 ifield = 0
 
                 !Find response to phi
-                if (fphi > epsilon(0.0)) then
+                if (has_phi) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -621,7 +621,7 @@ contains
                 end if
 
                 !Find response to apar
-                if (fapar > epsilon(0.0)) then
+                if (has_apar) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -642,7 +642,7 @@ contains
                 end if
 
                 !Find response to bpar
-                if (fbpar > epsilon(0.0)) then
+                if (has_bpar) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -684,7 +684,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq, timeadv, M_class, N_class
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: f_lo, idx, idx_local
     use prof, only: prof_entering, prof_leaving
     implicit none
@@ -735,19 +735,19 @@ contains
              !Where abouts in the supercell does this 2pi*nfield section start
              istart = 0 + nidx*(nn-1)
              
-             if (fphi > epsilon(0.0)) then
+             if (has_phi) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeq(:,it,ik) 
              end if
              
-             if (fapar > epsilon(0.0)) then
+             if (has_apar) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeqa(:,it,ik)
              end if
              
-             if (fbpar > epsilon(0.0)) then
+             if (has_bpar) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeqp(:,it,ik)

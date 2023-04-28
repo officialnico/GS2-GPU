@@ -934,7 +934,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: akx
     use constants, only: zi
     use array_utils, only: zero_array
@@ -944,7 +944,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0) .and. include_phi) then
+    if (has_phi .and. include_phi) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
        !$OMP SHARED(g_lo, g1, akx, aj0, phi, fphi) &
@@ -967,7 +967,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: aky
     use constants, only: zi
     use array_utils, only: zero_array
@@ -977,7 +977,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0) .and. include_phi) then      
+    if (has_phi .and. include_phi) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
        !$OMP SHARED(g_lo, g1, aky, aj0, phi, fphi) &
@@ -1004,7 +1004,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -1013,7 +1013,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
+    if(.not. (include_apar .and. has_apar) ) return
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
@@ -1037,7 +1037,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -1046,7 +1046,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
+    if(.not. (include_apar .and. has_apar)) return
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
@@ -1070,7 +1070,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -1079,7 +1079,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 
@@ -1105,7 +1105,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -1114,7 +1114,7 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 

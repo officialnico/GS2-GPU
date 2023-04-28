@@ -343,7 +343,7 @@ contains
     use file_utils, only: error_unit
     use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
     implicit none
     type (init_type), intent(in) :: current
@@ -393,17 +393,17 @@ contains
     else
 
        if(current%initval_ov%override .and. current%initval_ov%in_memory) then
-          if(fphi.gt.0) then
+          if(has_phi) then
              phinew=current%initval_ov%phi
           else
              phinew = 0.
           endif
-          if(fapar.gt.0) then
+          if(has_apar) then
              aparnew=current%initval_ov%apar
           else
              aparnew = 0.
           endif
-          if(fbpar.gt.0) then
+          if(has_bpar) then
              bparnew=current%initval_ov%bpar
           else
              bparnew = 0.
