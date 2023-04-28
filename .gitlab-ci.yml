@@ -227,7 +227,7 @@ pages:
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
-    - make ${EXTRA_MAKE_FLAGS} doc
+    - su -c "make ${EXTRA_MAKE_FLAGS} doc" theuser
     - mv docs/html ./public
     - BUILD_STATUS=passed  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   after_script:
