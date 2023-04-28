@@ -1047,7 +1047,7 @@ contains
     use mp, only: proc0
     use gs2_time, only: user_time
     use collisions, only: vnmult
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use fields, only: set_init_fields
     use fields_arrays, only: phinew, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
@@ -1090,7 +1090,8 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", &
+            has_phi, has_apar, has_bpar, io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1
@@ -1119,7 +1120,7 @@ contains
           call set_init_fields
 
           !Add to file
-          if(proc0)call add_eigenpair_to_file(EigVal,fphi,fapar,fbpar,io_ids)
+          if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
 
           !Save restart file
           if(save_restarts) then
@@ -1127,7 +1128,8 @@ contains
              write(restart_unique_string,'(".eig_",I0)') ieig
 
              !Save restart files
-             call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
+             call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+                  has_phi, has_apar, has_bpar,fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
@@ -1135,7 +1137,9 @@ contains
                 call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
 
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
+                call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+                     has_phi, has_apar, has_bpar, &
+                     fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
                 call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)

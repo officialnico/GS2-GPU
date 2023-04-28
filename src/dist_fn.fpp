@@ -3364,7 +3364,7 @@ contains
     use kt_grids, only: akx, aky, naky, ikx, ntheta0, box, theta0
     use le_grids, only: negrid, nlambda
     use species, only: nspec
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
     use gs2_time, only: code_dt, code_dt_old, code_time
     use constants, only: twopi
@@ -3485,9 +3485,9 @@ contains
     !THIS IS A TEMPORARY FIX AND WE SHOULD PROBABLY DO SOMETHING BETTER
     field_local_loc = get_option_with_default(field_local, .false.)
     if(any(jump.ne.0).and.(.not.g_lo%x_local).and.field_local_loc) then
-       if(fphi>epsilon(0.0)) call broadcast(phi)
-       if(fapar>epsilon(0.0)) call broadcast(apar)
-       if(fbpar>epsilon(0.0)) call broadcast(bpar)
+       if(has_phi) call broadcast(phi)
+       if(has_apar) call broadcast(apar)
+       if(has_bpar) call broadcast(bpar)
     endif
 
     ! We should note that the following branches contain loops over the entire
@@ -3520,7 +3520,7 @@ contains
           iit=ntheta0+1-abs(j) ; iib=abs(j)
           ileft = -ntgrid+ntheta ; iright=ntgrid-ntheta
 
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              if (j < 0) then
                 temp2 = phi(:,:iib,ik)
                 do i=1,iit-1
@@ -3537,7 +3537,7 @@ contains
                 phi(iright+1:ntgrid,:iib,:) = 0.0
              endif
           endif
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              if (j < 0) then
                 temp2 = apar(:,:iib,ik)
                 do i=1,iit-1
@@ -3554,7 +3554,7 @@ contains
                 apar(iright+1:ntgrid,:iib,:) = 0.0
              endif
           endif
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              if (j < 0) then
                 temp2 = bpar(:,:iib,ik)
                 do i=1,iit-1
@@ -3658,7 +3658,7 @@ contains
        ! should_use_kx = .true.
        do ik = naky, 2, -1
           if (jump(ik) < 0) then
-             if (fphi > epsilon(0.0)) then
+             if (has_phi) then
                 do it = 1, ntheta0 + jump(ik)
                    phi(:,ikx_indexed(it),ik) = phi(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -3666,7 +3666,7 @@ contains
                    phi(:,ikx_indexed(it),ik) = 0.
                 end do
              end if
-             if (fapar > epsilon(0.0)) then
+             if (has_apar) then
                 do it = 1, ntheta0 + jump(ik)
                    apar(:,ikx_indexed(it),ik) = apar(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -3674,7 +3674,7 @@ contains
                    apar (:,ikx_indexed(it),ik) = 0.
                 end do
              end if
-             if (fbpar > epsilon(0.0)) then 
+             if (has_bpar) then
                 do it = 1, ntheta0 + jump(ik)
                    bpar(:,ikx_indexed(it),ik) = bpar(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -3711,7 +3711,7 @@ contains
           endif
 
           if (jump(ik) > 0) then 
-             if (fphi > epsilon(0.0)) then
+             if (has_phi) then
                 do it = ntheta0, 1+jump(ik), -1
                    phi(:,ikx_indexed(it),ik) = phi(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -3719,7 +3719,7 @@ contains
                    phi(:,ikx_indexed(it),ik) = 0.
                 end do
              end if
-             if (fapar > epsilon(0.0)) then
+             if (has_apar) then
                 do it = ntheta0, 1+jump(ik), -1
                    apar(:,ikx_indexed(it),ik) = apar(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -3727,7 +3727,7 @@ contains
                    apar(:,ikx_indexed(it),ik) = 0.
                 end do
              end if
-             if (fbpar > epsilon(0.0)) then
+             if (has_bpar) then
                 do it = ntheta0, 1+jump(ik), -1
                    bpar(:,ikx_indexed(it),ik) = bpar(:,ikx_indexed(it-jump(ik)),ik)
                 end do
@@ -4316,7 +4316,7 @@ contains
     use kt_grids, only: aky
     use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
     use gs2_time, only: code_dt
     use constants, only: zi
     implicit none
@@ -4334,13 +4334,13 @@ contains
     phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
                 *aj0(:,iglo)*fphi
 
-    if(fbpar.gt.0)then
+    if(has_bpar)then
        phigavg=phigavg+&
             (fexp(is)*bpar(:,it,ik) + (1.0-fexp(is))*bparnew(:,it,ik))&
             *aj1(:,iglo)*fbpar*2.0*vperp2(:,iglo)*spec(is)%tz
     endif
 
-    if(fapar.gt.0)then
+    if(has_apar)then
        apargavg = (fexp(is)*apar(:,it,ik)  + (1.0-fexp(is))*aparnew(:,it,ik)) &
             *aj0(:,iglo)*fapar
     endif
@@ -4467,7 +4467,7 @@ contains
       bdfac_p = 1.+bd*(3.-2.*real(isgn))
       bdfac_m = 1.-bd*(3.-2.*real(isgn))
 
-      if(fapar.gt.0)then
+      if(has_apar)then
          do ig = -ntgrid, ntgrid-1
             phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
             phi_m = phigavg(ig+1)-phigavg(ig)
@@ -5400,7 +5400,7 @@ contains
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
-    use run_parameters, only: beta, fphi, fapar, fbpar
+    use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     use optionals, only: get_option_with_default
@@ -5430,7 +5430,7 @@ contains
 !that field. (NOTE this probably isn't actually needed as we shouldn't
 !use the various antots if we're not calculating/using the related field).
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
        !$OMP SHARED(g_lo, ntgrid, g_work, aj0, g_in) &
@@ -5465,7 +5465,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
        !$OMP SHARED(g_lo, ntgrid, g_work, aj0, vpa, g_in) &
@@ -5498,7 +5498,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, isgn, ig) &
        !$OMP SHARED(g_lo, ntgrid, g_work, aj1, vperp2, g_in) &
@@ -6237,7 +6237,7 @@ contains
        fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use species, only: spec, has_electron_species
     use optionals, only: get_option_with_default
     use gs2_layouts, only: g_lo
@@ -6269,7 +6269,7 @@ contains
        end if
     end if
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq, antot, &
@@ -6299,7 +6299,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa, antota, &
@@ -6329,7 +6329,7 @@ contains
 
     ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
     ! in the following
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp, antotp, bpar, &
@@ -6416,7 +6416,7 @@ contains
        fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use kt_grids, only: kwork_filter
     use species, only: spec, has_electron_species
     use optionals, only: get_option_with_default
@@ -6449,8 +6449,8 @@ contains
        end if
     end if
 
-    if (fphi > epsilon(0.0)) then
-       if (fbpar > epsilon(0.0)) then
+    if (has_phi) then
+       if (has_bpar) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, fieldeq, &
@@ -6498,7 +6498,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ik, it) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, fieldeqa, &
@@ -6529,8 +6529,8 @@ contains
 
     ! bpar == delta B_parallel / B_0(theta) b/c of the factor of 1/bmag(theta)**2
     ! in the following
-    if (fbpar > epsilon(0.0)) then
-       if (fphi > epsilon(0.0)) then
+    if (has_bpar) then
+       if (has_phi) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ik, it) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, kwork_filter, gridfac1, &
@@ -6583,7 +6583,7 @@ contains
   subroutine check_getan (antot, antota, antotp, tempantot, tempantota, tempantotp)
     use mp, only : iproc
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, it_idx, ik_idx, gf_lo, idx, proc_id
 
@@ -6594,7 +6594,7 @@ contains
     complex :: tol = (1e-14,1e-14)
     integer :: it, ik, igf, ig, iglo
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
 
        if(any(kwork_filter))then
           loop1: do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6629,7 +6629,7 @@ contains
 
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
 
        if(any(kwork_filter))then
           loop3: do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6666,7 +6666,7 @@ contains
     end if
 
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
 
        if(any(kwork_filter))then
           loop5: do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -6720,7 +6720,7 @@ contains
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species, g2gf, negrid, nlambda, w, wl
-    use run_parameters, only: beta, fphi, fapar, fbpar
+    use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
     use spfunc, only: j0, j1
     use kt_grids, only: kwork_filter, kperp2, naky, ntheta0
@@ -6751,7 +6751,7 @@ contains
     ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
     ! with no_gath = .true. may only populate part of these arrays so we initialise to
     ! zero here to avoid later using uninitialised data.
-    if (gf_lo_integrate .or. (fphi < epsilon(0.0))) then
+    if (gf_lo_integrate .or. (.not. has_phi)) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antot) &
@@ -6765,7 +6765,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (gf_lo_integrate .or. (fapar < epsilon(0.0))) then
+    if (gf_lo_integrate .or. (.not. has_apar)) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota) &
@@ -6779,7 +6779,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (gf_lo_integrate .or. (fbpar < epsilon(0.0))) then
+    if (gf_lo_integrate .or. (.not. has_bpar)) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antotp) &
@@ -6801,7 +6801,7 @@ contains
        call gather(g2gf, g_in, gfarray, ntgrid)
     end if
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        !<DD>NOTE: It's possible to rewrite this loop as simply
        !g_work=g_in*spread(aj0,2,2)
        !but this seems to be slower than an explicit loop and
@@ -6883,7 +6883,7 @@ contains
        !have the full data
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
 
        wgt = 2.0*beta*spec%z*spec%dens*spec%stm
 
@@ -6964,7 +6964,7 @@ contains
        !have the full data
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
 
        wgt = spec%temp*spec%dens
 
@@ -7077,7 +7077,7 @@ contains
        gf_lo, local_only)
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
-    use run_parameters, only: fphi, fapar, fbpar, beta, tite
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta, tite
     use kt_grids, only: naky, ntheta0, kperp2
     use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
@@ -7113,7 +7113,7 @@ contains
        ik_llim = 1 ; ik_ulim = naky
     end if
 
-    if (fphi > 0) then
+    if (has_phi) then
        ! We could add in kperp2*poisfac to the weight to retain this feature
        if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
           phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp) + tite
@@ -7146,7 +7146,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fapar > 0) then
+    if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, apar, antota) &
@@ -7178,7 +7178,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    if (fbpar > 0) then
+    if (has_bpar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar, beta, antotp, bmag) &
@@ -7217,7 +7217,7 @@ contains
   !> MAB> ported from agk
   !> CMR, 1/8/2011> corrections below for inhomogeneous bmag
   subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo, local_only)
-    use run_parameters, only: beta, fphi, fapar, fbpar
+    use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: ntheta0, naky, kperp2
@@ -7261,11 +7261,11 @@ contains
     end if
 
     ! get phi
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
 
        !CMR, 1/8/2011:  bmag corrections here:
        !BSP 20/04/2021: Check if fbpar= 0.0 as beta terms should not be present in this case.
-       if (fbpar > epsilon(0.0)) then
+       if (has_bpar) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot2, &
@@ -7344,7 +7344,7 @@ contains
     end if
 
     ! get apar
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, antota, apar) &
@@ -7380,14 +7380,14 @@ contains
     end if
 
     ! get bpar
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        ! As in our calculation of phi, we see that the equations for
        ! bpar and phi are coupled when written in terms of gnew. This
        ! means we get contributions arising from phi in the expression
        ! for B|| here. In particular, they are the terms involving
        ! gamtot1. However, if we have disabled phi then they should
        ! not appear in our calculation, so handle that here.
-       if (fphi > epsilon(0.0)) then
+       if (has_phi) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot, &
@@ -7467,7 +7467,7 @@ contains
   !> potentials. Returns the maximum relative error for each
   !> potential.
   subroutine get_field_inconsistency(g_in, phi_in, apar_in, bpar_in, phi_err, apar_err, bpar_err)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     complex, dimension(:,:,:), intent(in) :: g_in, phi_in, apar_in, bpar_in
     real, intent(out) :: phi_err, apar_err, bpar_err
@@ -7483,9 +7483,9 @@ contains
 
     call get_fields_direct_from_dfn(g_in, phi_new, apar_new, bpar_new)
 
-    if (fphi > epsilon(0.0)) phi_err = get_field_relative_error(phi_in, phi_new)
-    if (fapar > epsilon(0.0)) apar_err = get_field_relative_error(apar_in, apar_new)
-    if (fbpar > epsilon(0.0)) bpar_err = get_field_relative_error(bpar_in, bpar_new)
+    if (has_phi) phi_err = get_field_relative_error(phi_in, phi_new)
+    if (has_apar) apar_err = get_field_relative_error(apar_in, apar_new)
+    if (has_bpar) bpar_err = get_field_relative_error(bpar_in, bpar_new)
 
   contains
 
@@ -7517,7 +7517,7 @@ contains
     use dist_fn_arrays, only: g_work
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_time, only: user_time
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
@@ -7537,7 +7537,7 @@ contains
          aparnew, bparnew, istep, sourcefac)
 
     call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
-         fphi, fapar, fbpar, fileopt = extension)
+         has_phi, has_apar, has_bpar, fileopt = extension)
   end subroutine dump_current_source_term
 
   !> Calculate various fluxes
@@ -7562,7 +7562,7 @@ contains
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
     use constants, only: zi
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: Rplot, Bpol
@@ -7588,7 +7588,7 @@ contains
        end do
     end do
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
@@ -7637,7 +7637,7 @@ contains
        vflux = 0.
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7687,7 +7687,7 @@ contains
        vmflux = 0.
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7748,7 +7748,7 @@ contains
     use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, fphi, fapar, fbpar
+    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
@@ -7768,7 +7768,7 @@ contains
        end do
     end do
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
@@ -7778,7 +7778,7 @@ contains
        pflux = 0.
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7792,7 +7792,7 @@ contains
        pmflux = 0.
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -7994,7 +7994,7 @@ contains
     use theta_grid, only: ntgrid, gradpar, delthet, jacob
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use species, only: spec, nspec
     use nonlinear_terms, only: nonlin
     use hyper, only: hypervisc_filter
@@ -8024,7 +8024,7 @@ contains
        end do
     end do
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        g_work = 0.
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -8124,7 +8124,7 @@ contains
 !    use dist_fn_arrays, only: vpac
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, fphi, rhostar
+    use run_parameters, only: woutunits, has_phi, rhostar
     use constants, only: zi
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -8155,7 +8155,7 @@ contains
     ! not sure if this is the right way to handle ntgrid point -- MAB
     dphi(ntgrid,:,:) = (phi(ntgrid,:,:)-phi(ntgrid-1,:,:))/delthet(-ntgrid)
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        ! this is the second term in Pi_0^{tb} in toroidal_flux.pdf notes
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
@@ -8354,7 +8354,7 @@ contains
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, fphi
+    use run_parameters, only: woutunits, has_phi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
@@ -8379,7 +8379,7 @@ contains
        end do
     end do
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
@@ -9194,10 +9194,10 @@ contains
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
     use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta, fphi, fbpar
     use gs2_layouts, only: g_lo
-    use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
-    use collisions, only: etol, ewindow, etola, ewindowa
+    use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve
+    use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve
     use collisions, only: vnmult, vary_vnew
 
     implicit none
@@ -9232,13 +9232,13 @@ contains
     !as calculation triggered in gs2_diagnostics and only called by proc0.
     if (.not. allocated(kmax)) call broadcast (wdim)  ! Odd-looking statement.  BD
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        allocate(phi_app(-ntgrid:ntgrid,ntheta0,naky))
        allocate(phi_e(-ntgrid:ntgrid,ntheta0,naky,wdim))
        allocate(phi_l(-ntgrid:ntgrid,ntheta0,naky,ng2))
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        allocate(apar_app(-ntgrid:ntgrid,ntheta0,naky))
        allocate(apar_e(-ntgrid:ntgrid,ntheta0,naky,wdim))
        allocate(apar_l(-ntgrid:ntgrid,ntheta0,naky,ng2))
@@ -9250,7 +9250,7 @@ contains
     call g_adjust (gnew, phi, bpar, fphi, fbpar)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ! TEMP FOR TESTING -- MAB
 !          il = il_idx(g_lo,iglo)
@@ -9293,7 +9293,7 @@ contains
 
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           do isgn = 1, 2
              do ig=-ntgrid, ntgrid
@@ -9333,7 +9333,7 @@ contains
     errest = 0.0
     erridx = 0
     
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
 
        call estimate_error (phi_app, phi_e, kmax, errtmp, idxtmp)
        errest(1,:) = errtmp
@@ -9352,7 +9352,7 @@ contains
 
     end if
     
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
 
        call estimate_error (apar_app, apar_e, kmax, errtmp, idxtmp)
        errest(4,:) = errtmp
@@ -9392,8 +9392,8 @@ contains
     end if
     
     deallocate (wgt, errtmp, idxtmp)
-    if (fphi > epsilon(0.0)) deallocate(phi_app, phi_e, phi_l)
-    if (fapar > epsilon(0.0)) deallocate(apar_app, apar_e, apar_l)
+    if (has_phi) deallocate(phi_app, phi_e, phi_l)
+    if (has_apar) deallocate(apar_app, apar_e, apar_l)
 
   end subroutine get_verr
 
