@@ -50,7 +50,6 @@ module gs2_io
 #else
   integer, parameter :: ncid = 0
 #endif
-  real, parameter :: zero = epsilon(0.0)
 
   !> Value to disable netCDF compression
   integer, parameter :: compression_off = 0
@@ -499,7 +498,7 @@ contains
   subroutine nc_eigenfunc(file_id, phase)
 #ifdef NETCDF
     use convert, only: c2r
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields_arrays, only: phi, apar, bpar
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -516,21 +515,21 @@ contains
 
     call netcdf_write_complex(file_id, "phase", phase, ["ri", "kx", "ky"], long_name="Normalising phase")
 
-    if (fphi > zero) then
+    if (has_phi) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = phi(ig,:,:)/phase(:,:)
        end do
        call netcdf_write_complex(file_id, "phi_norm", tmp, final_field_dims)
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = apar(ig,:,:)/phase(:,:)
        end do
        call netcdf_write_complex(file_id, "apar_norm", tmp, final_field_dims)
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        do ig = -ntgrid, ntgrid
           tmp(ig,:,:) = bpar(ig,:,:)/phase(:,:)
        end do
@@ -617,23 +616,23 @@ contains
   subroutine nc_final_fields(file_id)
 #ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
 #endif
     implicit none
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 #ifdef NETCDF
-    if (fphi > zero) then
+    if (has_phi) then
        call netcdf_write_complex(file_id, "phi", phinew, final_field_dims, &
             long_name="Electrostatic Potential", units="T/q rho/L")
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        call netcdf_write_complex(file_id, "apar", aparnew, final_field_dims, &
             long_name="Parallel Magnetic Potential")
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        call netcdf_write_complex(file_id, "bpar", bparnew, final_field_dims, &
             long_name="delta B Parallel")
     end if
@@ -723,24 +722,24 @@ contains
   !> overwriting existing values
   subroutine nc_final_an (file_id, antot, antota, antotp)
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
 # endif
     implicit none
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
     complex, dimension (:,:,:), intent(in) :: antot, antota, antotp
 # ifdef NETCDF
-    if (fphi > zero) then
+    if (has_phi) then
        call netcdf_write_complex(file_id, "antot", antot, final_field_dims, &
             long_name="Velocity moment of g used in calculating phi")
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        call netcdf_write_complex(file_id, "antota", antota, final_field_dims, &
             long_name="Velocity space moment of g used in calculating apar")
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        call netcdf_write_complex(file_id, "antotp", antotp, final_field_dims, &
             long_name="Velocity space moment of g used in calculating bpar")
     end if
@@ -750,7 +749,7 @@ contains
   !> Write the energy exchange to netCDF
   subroutine nc_exchange (file_id, nout, exchange, exchange_avg)
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -763,7 +762,7 @@ contains
     !> Volume-averaged energy exchange
     real, dimension (:), intent (in) :: exchange_avg
 # ifdef NETCDF
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write (file_id, "es_exchange", exchange_avg, &
             dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write (file_id, "es_exchange_by_k", exchange, &
@@ -778,7 +777,7 @@ contains
        heat_perp, mheat_perp, bheat_perp, &
        heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -795,14 +794,14 @@ contains
 # ifdef NETCDF
     character(*), dimension(*), parameter :: fluxx_dim = [character(7)::"kx", "species", "t"]
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_heat_flux", heat_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_heat_par", heat_par, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_heat_perp", heat_perp, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_heat_by_k", qheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        call neasyf_write(file_id, "apar_heat_flux", mheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "apar_heat_par", mheat_par, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "apar_heat_perp", mheat_perp, dim_names=flux_dims, start=starts(2, nout))
@@ -810,7 +809,7 @@ contains
        call neasyf_write(file_id, "apar_heat_by_x", x_qmflux, dim_names=fluxx_dim, start=starts(3, nout))
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        call neasyf_write(file_id, "bpar_heat_flux", bheat_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "bpar_heat_par", bheat_par, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "bpar_heat_perp", bheat_perp, dim_names=flux_dims, start=starts(2, nout))
@@ -825,7 +824,7 @@ contains
   subroutine nc_pflux (file_id, nout, pflux, pmflux, pbflux, &
        part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -838,17 +837,17 @@ contains
     real, intent (in) :: zflux_tot
 # ifdef NETCDF
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_part_flux", part_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_part_by_k", pflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        call neasyf_write(file_id, "apar_part_flux", mpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "apar_part_by_k", pmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        call neasyf_write(file_id, "bpar_part_flux", bpart_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "bpar_part_by_k", pbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
@@ -860,7 +859,7 @@ contains
   !> Write toroidal angular momentum flux to netCDF
   subroutine nc_pflux_tormom (file_id, nout, pflux_tormom, part_tormom_fluxes)
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -872,7 +871,7 @@ contains
     real, dimension(:), intent (in) :: part_tormom_fluxes
 # ifdef NETCDF
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_part_tormom_flux", part_tormom_fluxes, &
             dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_part_tormom_by_k", pflux_tormom, &
@@ -887,7 +886,7 @@ contains
        mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
        vflux_par, vflux_perp, vflux0, vflux1)
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -902,7 +901,7 @@ contains
     real, intent (in) :: vflux_tot
 # ifdef NETCDF
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_mom_flux", mom_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "es_mom_by_k", vflux, dim_names=fluxk_dims, start=starts(4, nout))
        call neasyf_write(file_id, "es_parmom_by_k", vflux_par, dim_names=fluxk_dims, start=starts(4, nout))
@@ -911,12 +910,12 @@ contains
        call neasyf_write(file_id, "es_mom1_by_k", vflux1, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
        call neasyf_write(file_id, "apar_mom_flux", mmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "apar_mom_by_k", vmflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
        call neasyf_write(file_id, "bpar_mom_flux", bmom_fluxes, dim_names=flux_dims, start=starts(2, nout))
        call neasyf_write(file_id, "bpar_mom_by_k", vbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
@@ -928,7 +927,7 @@ contains
   !> Output the poloidal distributions of the fluxes of particles, perpendicular
   !> momentum, parallel momentum, and energy ! JRB
   subroutine nc_loop_dist (file_id, nout, part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist, phi_dist)
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use theta_grid, only: ntgrid
 # ifdef NETCDF
     use neasyf, only: neasyf_write
@@ -943,7 +942,7 @@ contains
     character(*), dimension(*), parameter :: flux_dist_dim = [character(7)::"theta", "species", "t"]
     character(*), dimension(*), parameter :: phi_dist_dim = [character(5)::"ri", "theta", "t"]
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_part_flux_dist", part_fluxes_dist, &
             dim_names=flux_dist_dim, start=starts(3, nout), &
             long_name= "Particle flux density, see Ball et al PPCF 58 045023 2016")
@@ -967,7 +966,7 @@ contains
   subroutine nc_loop_sym (file_id, nout, vflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
     implicit none
 # endif
@@ -978,7 +977,7 @@ contains
     real, dimension (-ntgrid:,:,:), intent (in) :: vflx_sym
 # ifdef NETCDF
     
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_mom_sym", vflx_sym, &
             dim_names=sym_dims, start=starts(4, nout), &
             long_name="Momentum flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
@@ -992,7 +991,7 @@ contains
   subroutine nc_loop_partsym_tormom (file_id, nout, partflx_sym)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -1003,7 +1002,7 @@ contains
     real, dimension (-ntgrid:,:,:), intent (in) :: partflx_sym
 # ifdef NETCDF
 
-    if (fphi > zero) then
+    if (has_phi) then
        call neasyf_write(file_id, "es_part_tormom_sym", partflx_sym, &
             dim_names=sym_dims, start=starts(4, nout), &
             long_name="Particle flux density as a function theta and vspace, used for looking at the effect of asymmetry, &
@@ -1017,7 +1016,7 @@ contains
   subroutine nc_loop_corr (file_id, nout, phi_2pi_corr)
     use theta_grid, only: ntgrid
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
 # endif
     implicit none
     !> NetCDF ID of the file to write to
@@ -1028,7 +1027,7 @@ contains
     complex, dimension (-ntgrid:,:), intent (in) :: phi_2pi_corr
 # ifdef NETCDF
 
-    if (fphi > zero) then
+    if (has_phi) then
        call netcdf_write_complex(file_id, "phi_corr_2pi", phi_2pi_corr, &
             dim_names=[character(5)::"ri", "theta", "ky", "t"], start=starts(4, nout), &
             long_name="2 point correlation function calculated from the electric potential")
@@ -1040,7 +1039,7 @@ contains
   !> Write the correlation function over the extended domain to netCDF
   subroutine nc_loop_corr_extend (file_id, nout_big, time, phi_corr, phi2_extend)
 # ifdef NETCDF
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -1058,7 +1057,7 @@ contains
     character(*), dimension(*), parameter :: phi2_extend_dims = &
          [character(9)::"theta_ext", "kx", "ky", "tb"]
 
-    if (fphi > zero) then
+    if (has_phi) then
       call neasyf_write(file_id, "tb", time, dim_names=["tb"], start=[nout_big])
 
        call netcdf_write_complex(file_id, "phi_corr", phi_corr, &
@@ -1077,7 +1076,7 @@ contains
        h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar, wstar_units, tunits
+    use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units, tunits
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use neasyf, only: neasyf_write
@@ -1109,20 +1108,23 @@ contains
     call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
 
     if (wstar_units) then
-      call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=["ky", "t "], &
-           start=[1, nout], long_name="Time (wstar)", units="L/vt")
+       call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=["ky", "t "], &
+            start=[1, nout], long_name="Time (wstar)", units="L/vt")
     end if
 
-    if (fphi > zero) then
-      call nc_write_field(file_id, nout, phinew, "phi", "Electrostatic potential", igomega, write_phi_t, phi2)
+    if (has_phi) then
+       call nc_write_field(file_id, nout, phinew, "phi", "Electrostatic potential", &
+            igomega, write_phi_t, phi2)
     end if
 
-    if (fapar > zero) then
-      call nc_write_field(file_id, nout, aparnew, "apar", "Parallel magnetic potential", igomega, write_apar_t, apar2)
+    if (has_apar) then
+       call nc_write_field(file_id, nout, aparnew, "apar", "Parallel magnetic potential", &
+            igomega, write_apar_t, apar2)
     end if
 
-    if (fbpar > zero) then
-      call nc_write_field(file_id, nout, bparnew, "bpar", "Parallel magnetic field", igomega, write_bpar_t, bpar2)
+    if (has_bpar) then
+       call nc_write_field(file_id, nout, bparnew, "bpar", "Parallel magnetic field", &
+            igomega, write_bpar_t, bpar2)
     end if
 
     if (write_heating) call nc_write_heating(file_id, nout, h, hk)
@@ -1356,7 +1358,7 @@ contains
   !> Write \(\phi, A_\parallel, B_\parallel\) as functions of real space
   subroutine nc_loop_movie (nout_movie, time, yxphi, yxapar, yxbpar)
 # ifdef NETCDF
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use neasyf, only: neasyf_write
 # endif
     implicit none
@@ -1371,17 +1373,17 @@ contains
 
     call neasyf_write(ncid_movie, "tm", time, dim_names=["tm"], start=[nout_movie])
 
-    if ( fphi > zero) then
+    if (has_phi) then
        call neasyf_write(ncid_movie, "phi_by_xmode", yxphi, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
 
-    if ( fapar > zero) then
+    if (has_apar) then
        call neasyf_write(ncid_movie, "apar_by_xmode", yxapar, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
 
-    if ( fbpar > zero) then
+    if (has_bpar) then
        call neasyf_write(ncid_movie, "bpar_by_xmode", yxbpar, &
             dim_names=xmode_dim, start=starts(4, nout_movie))
     end if
