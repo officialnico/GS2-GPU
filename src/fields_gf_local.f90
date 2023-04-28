@@ -399,7 +399,7 @@ contains
   !! Note still need to reduce across other cells in this
   !! supercell.
   subroutine c_get_field_update(self,fq,fqa,fqp)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     class(cell_type), intent(inout) :: self
     complex, dimension(self%ncol), intent(in) :: fq,fqa,fqp
@@ -410,15 +410,15 @@ contains
 
     !First do the multiplication at rowblock level
     ifq=0
-    if(fphi.gt.epsilon(0.0)) then
+    if(has_phi) then
        ifq=ifq+1
        call self%mv_mult_rb(fq,ifq)
     endif
-    if(fapar.gt.epsilon(0.0)) then
+    if(has_apar) then
        ifq=ifq+1
        call self%mv_mult_rb(fqa,ifq)
     endif
-    if(fbpar.gt.epsilon(0.0)) then
+    if(has_bpar) then
        ifq=ifq+1
        call self%mv_mult_rb(fqp,ifq)
     endif
@@ -772,7 +772,7 @@ contains
   !> Store the field equations at row level
   subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
@@ -810,7 +810,7 @@ contains
        ulim=self%cells(ic)%ncol
        
        ifq=0
-       if(fphi.gt.epsilon(0.0))then
+       if(has_phi)then
           !Increment counter
           ifq=ifq+1
 
@@ -821,7 +821,7 @@ contains
           self%cells(ic)%rb(ifq)%data(:,ir)=fq(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
        endif
 
-       if(fapar.gt.epsilon(0.0))then
+       if(has_apar)then
           !Increment counter
           ifq=ifq+1
 
@@ -832,7 +832,7 @@ contains
           self%cells(ic)%rb(ifq)%data(:,ir)=fqa(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
        endif
 
-       if(fbpar.gt.epsilon(0.0))then
+       if(has_bpar)then
           !Increment counter
           ifq=ifq+1
 
@@ -1498,7 +1498,7 @@ contains
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: itright, get_leftmost_it
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -1513,9 +1513,9 @@ contains
 
     !Count the fields
     nfield=0
-    if(fphi.gt.epsilon(0.0)) nfield=nfield+1
-    if(fapar.gt.epsilon(0.0)) nfield=nfield+1
-    if(fbpar.gt.epsilon(0.0)) nfield=nfield+1
+    if(has_phi) nfield=nfield+1
+    if(has_apar) nfield=nfield+1
+    if(has_bpar) nfield=nfield+1
     nfq=nfield
 
     !Allocate temp arrays
@@ -1680,7 +1680,7 @@ contains
   !> Find the response of g to delta-fn field perturbations 
   !! and store at the row level
   subroutine fm_populate(self)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
@@ -1703,7 +1703,7 @@ contains
     ifl=0
 
     !Do phi
-    if(fphi.gt.epsilon(0.0)) then
+    if(has_phi) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -1729,7 +1729,7 @@ contains
     endif
 
     !Do apar
-    if(fapar.gt.epsilon(0.0)) then
+    if(has_apar) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -1755,7 +1755,7 @@ contains
     endif
 
     !Do bpar
-    if(fbpar.gt.epsilon(0.0)) then
+    if(has_bpar) then
        !Set the number of points left
        pts_remain=self%npts-self%nbound
 
@@ -2010,7 +2010,7 @@ contains
   !! full field arrays
   subroutine fm_unpack_to_field(self,ph,ap,bp)
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi,fapar,fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use mp, only: proc0
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2029,7 +2029,7 @@ contains
              
              iex=0
              ifl=0
-             if(fphi.gt.0)then
+             if(has_phi)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2051,7 +2051,7 @@ contains
                 
              endif
              
-             if(fapar.gt.0)then
+             if(has_apar)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2073,7 +2073,7 @@ contains
                 
              endif
              
-             if(fbpar.gt.0)then
+             if(has_bpar)then
                 ifl=ifl+1
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
@@ -2253,7 +2253,7 @@ contains
     use kt_grids, only: naky, ntheta0, kwork_filter
     use mp, only: nbsend, nbrecv, waitall, broadcast_sub
     use mp, only: rank_comm, comm_type, proc0, iproc, initialise_requests
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2321,17 +2321,17 @@ contains
                 tag = ik*self%ntheta0 + it
                 
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    tempdata(:,tempfield,it,ik) = ph(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    tempdata(:,tempfield,it,ik) = ap(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                    
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    tempdata(:,tempfield,it,ik) = bp(:,it,ik)
                 end if
                 
@@ -2364,31 +2364,31 @@ contains
              if(sender .ne. iproc) then
                 
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    gf_ph(:,it,ik) = tempdata(:,tempfield,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    gf_ap(:,it,ik) = tempdata(:,tempfield,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    gf_bp(:,it,ik) = tempdata(:,tempfield,it,ik)
                 end if
                 
              else
                 
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    gf_ph(:,it,ik) = ph(:,it,ik)
                 end if
                 
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    gf_ap(:,it,ik) = ap(:,it,ik)
                 end if
                 
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    gf_bp(:,it,ik) = bp(:,it,ik)
                 end if
                 
@@ -2442,17 +2442,17 @@ contains
 
                 tempfield = 1
 
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    tempdata(:,tempfield,it,ik) = ph(:,it,ik)
                    tempfield = tempfield + 1
                 end if
           
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    tempdata(:,tempfield,it,ik) = ap(:,it,ik)
                    tempfield = tempfield + 1
                 end if
           
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    tempdata(:,tempfield,it,ik) = bp(:,it,ik)
                 end if
 
@@ -2480,33 +2480,33 @@ contains
        if(sender .ne. iproc) then
 
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              gf_ph(:,it,ik) = tempdata(:,tempfield,it,ik)
              tempfield = tempfield + 1
           end if
           
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              gf_ap(:,it,ik) = tempdata(:,tempfield,it,ik)
              tempfield = tempfield + 1
           end if
           
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              gf_bp(:,it,ik) = tempdata(:,tempfield,it,ik)
           end if
 
        else
 
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              gf_ph(:,it,ik) = ph(:,it,ik)
           end if
           
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              gf_ap(:,it,ik) = ap(:,it,ik)
           end if
           
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              gf_bp(:,it,ik) = bp(:,it,ik)
           end if
           
@@ -2529,7 +2529,7 @@ contains
     use kt_grids, only: naky, ntheta0, kwork_filter
     use mp, only: nbsend, nbrecv, waitall, broadcast_sub, sum_reduce_sub, proc0
     use mp, only: rank_comm, comm_type, initialise_requests, iproc
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2576,7 +2576,7 @@ contains
              tag = ik*self%ntheta0 + it
              if(sender .eq. iproc .and. receiver .ne. iproc) then
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    tempdata(:,tempfield,it,ik) = phnew(:,it,ik)
                    !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
                    !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
@@ -2585,7 +2585,7 @@ contains
                    gf_phnew(:,it,ik) = phnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    tempdata(:,tempfield,it,ik) = apnew(:,it,ik)
                    !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
                    !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
@@ -2594,7 +2594,7 @@ contains
                    gf_apnew(:,it,ik) = apnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    tempdata(:,tempfield,it,ik) = bpnew(:,it,ik)
                    !AJ This copy ensures that the field data is also up to date in the gf_lo data structures 
                    !AJ (the implicit field initialise calculates it in the g_lo data structures.  This could be
@@ -2613,7 +2613,7 @@ contains
                 !AJ (gf_phi, gf_apar, gf_bpar).  Copy it across so it is in the correct array.
              else if(receiver .eq. iproc .and. sender .eq. iproc) then
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    gf_phnew(:,it,ik) = phnew(:,it,ik)
                    gf_ph(:,it,ik) = phnew(:,it,ik)
                    !AJ This copy is necessary so the data is in the correct place for the next 
@@ -2622,7 +2622,7 @@ contains
                    tempdata(:,tempfield,it,ik) = phnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    gf_apnew(:,it,ik) = apnew(:,it,ik)
                    gf_ap(:,it,ik) = apnew(:,it,ik)
                    !AJ This copy is necessary so the data is in the correct place for the next 
@@ -2631,7 +2631,7 @@ contains
                    tempdata(:,tempfield,it,ik) = apnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    gf_bpnew(:,it,ik) = bpnew(:,it,ik)
                    gf_bp(:,it,ik) = bpnew(:,it,ik)
                    !AJ This copy is necessary so the data is in the correct place for the next 
@@ -2657,17 +2657,17 @@ contains
              sender = proc_id(gf_lo,idx(gf_lo,ik,it))
              if(sender .ne. iproc) then
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    gf_phnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                    gf_ph(:,it,ik) = gf_phnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    gf_apnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                    gf_ap(:,it,ik) = gf_apnew(:,it,ik)
                    tempfield = tempfield + 1
                 end if
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    gf_bpnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                    gf_bp(:,it,ik) = gf_bpnew(:,it,ik)
                 end if
@@ -2690,7 +2690,7 @@ contains
        if(proc0) then
           
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              ph = tempdata(:,tempfield,:,:)
              phnew = ph
              gf_ph = ph
@@ -2698,7 +2698,7 @@ contains
              tempfield = tempfield + 1
           end if
              
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              ap = tempdata(:,tempfield,:,:)
              apnew = ap 
              gf_ap = ap
@@ -2706,7 +2706,7 @@ contains
              tempfield = tempfield + 1
           end if
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              bp = tempdata(:,tempfield,:,:)
              bpnew = bp
              gf_bp = bp
@@ -2756,15 +2756,15 @@ contains
                 !AJ If I'm to be sending to myself then just copy the data from gf_lo arrays (where 
                 !AJ is was put in the communication to get it to supercell heads) to the correct g_lo arrays.
                 else if(receiver .eq. iproc .and. .not. proc0) then
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       phnew(:,it,ik) = gf_ph(:,it,ik)
                       ph(:,it,ik) = phnew(:,it,ik)
                    end if
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       apnew(:,it,ik) = gf_ap(:,it,ik)
                       ap(:,it,ik) = apnew(:,it,ik)
                    end if
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       bpnew(:,it,ik) = gf_bp(:,it,ik)
                       bp(:,it,ik) = bpnew(:,it,ik)
                    end if
@@ -2784,17 +2784,17 @@ contains
        receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
        if(sender .ne. iproc .and. receiver .eq. iproc .and. .not. proc0) then
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              phnew(:,it,ik) = tempdata(:,tempfield,it,ik)
              ph(:,it,ik) = phnew(:,it,ik)
              tempfield = tempfield + 1
           end if
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              apnew(:,it,ik) = tempdata(:,tempfield,it,ik)
              ap(:,it,ik) = apnew(:,it,ik)
              tempfield = tempfield + 1
           end if
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              bpnew(:,it,ik) = tempdata(:,tempfield,it,ik)
              bp(:,it,ik) = bpnew(:,it,ik)
           end if
@@ -2824,17 +2824,17 @@ contains
                 !AJ (providing sender .ne. receiver in the above calls)
                 if(sender .eq. local_iproc .and. .not. proc0) then
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       tempdata(:,tempfield,it,ik) = phnew(:,it,ik)
                       tempfield = tempfield + 1
                    end if
                    
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       tempdata(:,tempfield,it,ik) = apnew(:,it,ik)
                       tempfield = tempfield + 1
                    end if
                    
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       tempdata(:,tempfield,it,ik) = bpnew(:,it,ik)
                    end if
                    
@@ -2843,19 +2843,19 @@ contains
                 
                 if(sender .ne. local_iproc .and. .not. proc0) then
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       phnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                       ph(:,it,ik) = phnew(:,it,ik)
                       tempfield = tempfield + 1
                    end if
                    
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       apnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                       ap(:,it,ik) = apnew(:,it,ik)
                       tempfield = tempfield + 1
                    end if
                    
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       bpnew(:,it,ik) = tempdata(:,tempfield,it,ik)
                       bp(:,it,ik) = bpnew(:,it,ik)
                    end if
@@ -2878,7 +2878,7 @@ contains
     use kt_grids, only: naky, ntheta0, kwork_filter
     use mp, only: nbsend, nbrecv, waitall, broadcast_sub, sum_reduce_sub
     use mp, only: rank_comm, comm_type, proc0, iproc, initialise_requests
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: gf_lo, g_lo, proc_id, idx, ik_idx, it_idx
     implicit none
     class(fieldmat_type), intent(inout) :: self
@@ -2911,7 +2911,7 @@ contains
           
           iex=0
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                 bnd=0
@@ -2924,7 +2924,7 @@ contains
              tempfield = tempfield + 1
           end if
           
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                 bnd=0
@@ -2937,7 +2937,7 @@ contains
              tempfield = tempfield + 1
           end if
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              do ic=1,self%kyb(ik)%supercells(is)%ncell
                 it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                 bnd=0
@@ -2955,21 +2955,21 @@ contains
           !<DD>TAGGED:Worth looking at improving this bad memory pattern
           !/Now fix boundary points
           if(self%kyb(ik)%supercells(is)%ncell.gt.1) then
-             if(fphi>epsilon(0.0)) then
+             if(has_phi) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
                    tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
                         tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
                 enddo
                 tempfield = tempfield + 1
              end if
-             if(fapar>epsilon(0.0)) then
+             if(has_apar) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
                    tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
                         tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
                 enddo
                 tempfield = tempfield + 1
              end if
-             if(fbpar>epsilon(0.0)) then
+             if(has_bpar) then
                 do ic=1,self%kyb(ik)%supercells(is)%ncell-1
                    tempdata(ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=&
                         tempdata(-ntgrid,tempfield,self%kyb(ik)%supercells(is)%cells(ic+1)%it_ind,ik)
@@ -3005,19 +3005,19 @@ contains
        if(proc0) then
           
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              ph = tempdata(:,tempfield,:,:)
              gf_ph = ph
              tempfield = tempfield + 1
           end if
              
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              ap = tempdata(:,tempfield,:,:)
              gf_ap = ap
              tempfield = tempfield + 1
           end if
           
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              bp = tempdata(:,tempfield,:,:)
              gf_bp = bp
           end if
@@ -3057,15 +3057,15 @@ contains
                 do ic=1,self%kyb(ik)%supercells(is)%ncell                
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       tempdata2(:,tempfield,ic) = tempdata(:,tempfield,it,ik)
                    end if
                 end do
@@ -3076,15 +3076,15 @@ contains
                 do ic=1,self%kyb(ik)%supercells(is)%ncell
                    it=self%kyb(ik)%supercells(is)%cells(ic)%it_ind
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       gf_ph(:,it,ik) = tempdata2(:,tempfield,ic)
                       tempfield = tempfield + 1
                    end if
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       gf_ap(:,it,ik) = tempdata2(:,tempfield,ic)
                       tempfield = tempfield + 1
                    end if
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       gf_bp(:,it,ik) = tempdata2(:,tempfield,ic)
                    end if
                 end do
@@ -3125,15 +3125,15 @@ contains
                    !AJ the data directly from my buffer into the gf fields array.
                    else if(receiver .eq. iproc .and. receiver .ne. 0) then
                       tempfield = 1
-                      if(fphi>epsilon(0.0)) then
+                      if(has_phi) then
                          gf_ph(:,it,ik) = tempdata(:,tempfield,it,ik)
                          tempfield = tempfield + 1
                       end if
-                      if(fapar>epsilon(0.0)) then
+                      if(has_apar) then
                          gf_ap(:,it,ik) = tempdata(:,tempfield,it,ik)
                          tempfield = tempfield + 1
                       end if
-                      if(fbpar>epsilon(0.0)) then
+                      if(has_bpar) then
                          gf_bp(:,it,ik) = tempdata(:,tempfield,it,ik)
                       end if
                    end if
@@ -3158,15 +3158,15 @@ contains
                 receiver = proc_id(gf_lo,idx(gf_lo,ik,it))
                 if(receiver .eq. iproc .and. receiver .ne. 0) then                
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       gf_ph(:,it,ik) = tempdata3(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       gf_ap(:,it,ik) = tempdata3(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       gf_bp(:,it,ik) = tempdata3(:,tempfield,it,ik)
                    end if
                 end if
@@ -3221,15 +3221,15 @@ contains
                 else if(receiver .eq. iproc .and. receiver .ne. 0) then
 !CMR: unpack data supercell head sends to ITSELF in g_lo
                    tempfield = 1
-                   if(fphi>epsilon(0.0)) then
+                   if(has_phi) then
                       ph(:,it,ik) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fapar>epsilon(0.0)) then
+                   if(has_apar) then
                       ap(:,it,ik) = tempdata(:,tempfield,it,ik)
                       tempfield = tempfield + 1
                    end if
-                   if(fbpar>epsilon(0.0)) then
+                   if(has_bpar) then
                       bp(:,it,ik) = tempdata(:,tempfield,it,ik)
                    end if
                 end if
@@ -3249,15 +3249,15 @@ contains
        receiver = g_lo%ikit_procs_assignment(it,ik)%proc_list(1) 
        if(sender .ne. iproc .and. receiver .eq. iproc .and. .not. proc0) then
           tempfield = 1
-          if(fphi>epsilon(0.0)) then
+          if(has_phi) then
              ph(:,it,ik) = tempdata3(:,tempfield,it,ik)
              tempfield = tempfield + 1
           end if
-          if(fapar>epsilon(0.0)) then
+          if(has_apar) then
              ap(:,it,ik) = tempdata3(:,tempfield,it,ik)
              tempfield = tempfield + 1
           end if
-          if(fbpar>epsilon(0.0)) then
+          if(has_bpar) then
              bp(:,it,ik) = tempdata3(:,tempfield,it,ik)
           end if
        end if
@@ -3287,17 +3287,17 @@ contains
 
              if(sender .eq. local_iproc) then
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    tempdata(:,tempfield,it,ik) = ph(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    tempdata(:,tempfield,it,ik) = ap(:,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    tempdata(:,tempfield,it,ik) = bp(:,it,ik)
                 end if
                 
@@ -3307,17 +3307,17 @@ contains
              
              if(sender .ne. local_iproc .and. .not. proc0) then
                 tempfield = 1
-                if(fphi>epsilon(0.0)) then
+                if(has_phi) then
                    ph(:,it,ik) = tempdata(:,tempfield,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fapar>epsilon(0.0)) then
+                if(has_apar) then
                    ap(:,it,ik) = tempdata(:,tempfield,it,ik)
                    tempfield = tempfield + 1
                 end if
                 
-                if(fbpar>epsilon(0.0)) then
+                if(has_bpar) then
                    bp(:,it,ik) = tempdata(:,tempfield,it,ik)
                 end if
              end if
@@ -3339,7 +3339,7 @@ contains
   subroutine fm_update_fields(phi, apar, bpar, gf_phi, gf_apar, gf_bpar)
     use fields_arrays, only: orig_phi=>phi, orig_apar=>apar, orig_bpar=>bpar
     use fields_arrays, only: orig_gf_phi=>gf_phi, orig_gf_apar=>gf_apar, orig_gf_bpar=>gf_bpar
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, gf_lo, ik_idx, it_idx
@@ -3351,15 +3351,15 @@ contains
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(fphi>epsilon(0.0)) then
+       if(has_phi) then
           phi=phi+orig_phi
           gf_phi=gf_phi+orig_gf_phi
        end if
-       if(fapar>epsilon(0.0)) then
+       if(has_apar) then
           apar=apar+orig_apar
           gf_apar=gf_apar+orig_gf_apar
        end if
-       if(fbpar>epsilon(0.0)) then
+       if(has_bpar) then
           bpar=bpar+orig_bpar
           gf_bpar=gf_bpar+orig_gf_bpar
        end if
@@ -3371,19 +3371,19 @@ contains
        ik = g_lo%local_ikit_points(ikit)%ik 
        it = g_lo%local_ikit_points(ikit)%it
        if(kwork_filter(it,ik)) cycle
-       if(fphi>epsilon(0.0)) phi(:,it,ik)=phi(:,it,ik)+orig_phi(:,it,ik)
-       if(fapar>epsilon(0.0)) apar(:,it,ik)=apar(:,it,ik)+orig_apar(:,it,ik)
-       if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bpar(:,it,ik)+orig_bpar(:,it,ik)       
+       if(has_phi) phi(:,it,ik)=phi(:,it,ik)+orig_phi(:,it,ik)
+       if(has_apar) apar(:,it,ik)=apar(:,it,ik)+orig_apar(:,it,ik)
+       if(has_bpar) bpar(:,it,ik)=bpar(:,it,ik)+orig_bpar(:,it,ik)
     end do
 
     !AJ Iterate through each gf_lo point I have and update the associated fields
     do igf=gf_lo%llim_proc,gf_lo%ulim_proc
        ik = ik_idx(gf_lo,igf)
        it = it_idx(gf_lo,igf)
-       if(kwork_filter(it,ik)) cycle       
-       if(fphi>epsilon(0.0)) gf_phi(:,it,ik)=gf_phi(:,it,ik)+orig_gf_phi(:,it,ik)
-       if(fapar>epsilon(0.0)) gf_apar(:,it,ik)=gf_apar(:,it,ik)+orig_gf_apar(:,it,ik)
-       if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bpar(:,it,ik)+orig_gf_bpar(:,it,ik)       
+       if(kwork_filter(it,ik)) cycle
+       if(has_phi) gf_phi(:,it,ik)=gf_phi(:,it,ik)+orig_gf_phi(:,it,ik)
+       if(has_apar) gf_apar(:,it,ik)=gf_apar(:,it,ik)+orig_gf_apar(:,it,ik)
+       if(has_bpar) gf_bpar(:,it,ik)=gf_bpar(:,it,ik)+orig_gf_bpar(:,it,ik)
     end do
 
   end subroutine fm_update_fields
@@ -3392,7 +3392,7 @@ contains
   subroutine fm_update_fields_newstep()
     use fields_arrays, only: phi,apar,bpar,phinew,aparnew,bparnew
     use fields_arrays, only: gf_phi,gf_apar,gf_bpar,gf_phinew,gf_aparnew,gf_bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, gf_lo
     use mp, only: proc0
@@ -3401,15 +3401,15 @@ contains
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(fphi>epsilon(0.0)) then
+       if(has_phi) then
           phi=phinew
           gf_phi=gf_phinew
        end if
-       if(fapar>epsilon(0.0)) then
+       if(has_apar) then
           apar=aparnew
           gf_apar=gf_aparnew
        end if
-       if(fbpar>epsilon(0.0)) then 
+       if(has_bpar) then
           bpar=bparnew
           gf_bpar=gf_bparnew
        end if
@@ -3421,9 +3421,9 @@ contains
        ik = g_lo%local_ikit_points(ikit)%ik 
        it = g_lo%local_ikit_points(ikit)%it
        if(kwork_filter(it,ik)) cycle
-       if(fphi>epsilon(0.0)) phi(:,it,ik)=phinew(:,it,ik)
-       if(fapar>epsilon(0.0)) apar(:,it,ik)=aparnew(:,it,ik)
-       if(fbpar>epsilon(0.0)) bpar(:,it,ik)=bparnew(:,it,ik)
+       if(has_phi) phi(:,it,ik)=phinew(:,it,ik)
+       if(has_apar) apar(:,it,ik)=aparnew(:,it,ik)
+       if(has_bpar) bpar(:,it,ik)=bparnew(:,it,ik)
     end do
 
     !AJ Iterate through each gf_lo point I have and update the associated fields
@@ -3431,9 +3431,9 @@ contains
        ik = ik_idx(gf_lo,igf)
        it = it_idx(gf_lo,igf)
        if(kwork_filter(it,ik)) cycle       
-       if(fphi>epsilon(0.0)) gf_phi(:,it,ik)=gf_phinew(:,it,ik)
-       if(fapar>epsilon(0.0)) gf_apar(:,it,ik)=gf_aparnew(:,it,ik)
-       if(fbpar>epsilon(0.0)) gf_bpar(:,it,ik)=gf_bparnew(:,it,ik)
+       if(has_phi) gf_phi(:,it,ik)=gf_phinew(:,it,ik)
+       if(has_apar) gf_apar(:,it,ik)=gf_aparnew(:,it,ik)
+       if(has_bpar) gf_bpar(:,it,ik)=gf_bparnew(:,it,ik)
     end do
 
   end subroutine fm_update_fields_newstep
@@ -3596,7 +3596,7 @@ contains
     use gs2_layouts, only: ik_idx, it_idx
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0, kperp2, kwork_filter
-    use run_parameters, only: fphi, fapar, fbpar, beta
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use species, only: spec, has_electron_species
     use dist_fn, only: gamtot, gamtot1, gamtot2, fl_avg, gridfac1, apfac
     use dist_fn, only: adiabatic_option_switch, adiabatic_option_fieldlineavg, calculate_flux_surface_average
@@ -3633,17 +3633,17 @@ contains
              if(kwork_filter(it,ik)) cycle
 
              !Now fill in data
-             if(fphi>epsilon(0.0)) then
+             if(has_phi) then
                 fieldeq(:,it,ik)=antot(:,it,ik)-gamtot(:,it,ik)*gridfac1(:,it,ik)*phi(:,it,ik)
-                if(fbpar.gt.epsilon(0.0)) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
+                if(has_bpar) fieldeq(:,it,ik)=fieldeq(:,it,ik)+bpar(:,it,ik)*gamtot1(:,it,ik)
                 if(.not.has_electron_species(spec)) fieldeq(:,it,ik)= fieldeq(:,it,ik)+fl_avg(it,ik)
              endif
 
-             if(fapar>epsilon(0.0)) then
+             if(has_apar) then
                 fieldeqa(:,it,ik)=antota(:,it,ik)-kperp2(:,it,ik)*gridfac1(:,it,ik)*apar(:,it,ik)
              endif
 
-             if(fbpar>epsilon(0.0))then
+             if(has_bpar)then
                 fieldeqp(:,it,ik)=bpar(:,it,ik)*gridfac1(:,it,ik)+&
                      (antotp(:,it,ik)+bpar(:,it,ik)*gamtot2(:,it,ik)+&
                      0.5*phi(:,it,ik)*gamtot1(:,it,ik))*beta*apfac/bmag(:)**2
@@ -4165,7 +4165,7 @@ contains
 
   !> This routine advances the solution by one full time step
   subroutine advance_gf_local(istep, remove_zonal_flows_switch)
-    use run_parameters, only: fphi, fapar, fbpar, reset
+    use run_parameters, only: has_phi, has_apar, has_bpar, reset
     use fields_implicit, only: remove_zonal_flows
     use fields_arrays, only: phi, apar, bpar, phinew
     use fields_arrays, only: aparnew, bparnew, apar_ext
@@ -4207,15 +4207,15 @@ contains
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
-       if(fphi.gt.0) then
+       if(has_phi) then
           phi=phinew
           gf_phi=gf_phinew
        end if
-       if(fapar.gt.0) then
+       if(has_apar) then
           apar=aparnew
           gf_apar=gf_aparnew
        end if
-       if(fbpar.gt.0) then
+       if(has_bpar) then
           bpar=bparnew
           gf_bpar=gf_bparnew
        end if
@@ -4242,15 +4242,15 @@ contains
 
     !If we do the update in getfield_gf_local don't do it here
     if(.not.do_update)then
-       if(fphi.gt.0) then
+       if(has_phi) then
           phinew=phinew+phi
           gf_phinew=gf_phinew+gf_phi
        end if
-       if(fapar.gt.0) then
+       if(has_apar) then
           aparnew=aparnew+apar
           gf_aparnew=gf_aparnew+gf_apar
        end if
-       if(fbpar.gt.0) then
+       if(has_bpar) then
           bparnew=bparnew+bpar
           gf_bparnew=gf_bparnew+gf_bpar
        end if
