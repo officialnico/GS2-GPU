@@ -2000,14 +2000,19 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, il_idx
     use kt_grids, only: aky
-    use le_grids, only: nlambda, ng2, lmax, forbid, passing_wfb, trapped_wfb
+    use le_grids, only: forbid, passing_wfb, trapped_wfb, &
+         il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
+         grid_has_trapped_particles, is_upper_bounce_point, &
+         is_lower_bounce_point, ng2
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
     complex, dimension(-ntgrid:ntgrid, 2) :: g2
     integer :: ig, iglo
     integer :: ik, il
     integer :: ilmin
-    logical :: use_pass_homog
+    logical :: use_pass_homog_boundary, use_pass_homog
+    logical :: have_trapped_particles
+    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
 
     ! Initialise entire array to 0, for this reason we can take g_h as
     ! intent(out) as we don't use any existing values on input.
@@ -2019,50 +2024,69 @@ contains
     ! homogeneous solution.
     select case (boundary_option_switch)
     case (boundary_option_self_periodic)
-       use_pass_homog = .true.
+       use_pass_homog_boundary = .true.
     case (boundary_option_linked)
-       use_pass_homog = .true.
+       use_pass_homog_boundary = .true.
     case default
-       use_pass_homog = .false.
+       use_pass_homog_boundary = .false.
     end select
 
+    ! Note this variable is probably redundant in the later conditionals as it is
+    ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
+    ! only be true if have_trapped_particles is true.
+    have_trapped_particles = grid_has_trapped_particles()
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, il, g2, use_pass_homog, ig, &
+    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped) &
+    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, &
+    !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo, iglo)
+       !/////////////////////////
+       !// Constants, flags etc.
+       !/////////////////////////
+
+       ik = ik_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
 
-       ! Decide which pitch angles need to calculate the homogeneous solution
-       if (use_pass_homog .or. aky(ik) == 0.0) then
-          ilmin = 1
+       use_pass_homog = use_pass_homog_boundary .or. aky(ik) == 0.0
 
-          ! ng2+1 is WFB so here we set the boundary/initial condition
-          ! for the homogeneous solution for strictly passing particles
-          if (il < ng2+1) then
-             g_h(-ntgrid, 1, iglo) = 1.0
-             g_h( ntgrid, 2, iglo) = 1.0
-          end if
+       if (use_pass_homog) then
+          ilmin = 1
        else
-          ! Include wfb and all clearly trapped particles
           ilmin = ng2 + 1
        end if
 
        ! If il < il min then g_h has 0 boundary/initial condition and hence should be
        ! exactly zero everywhere, and therefore there is no further work to do so cycle
+       ! We might still want to consider calculating the homogeneous solution in this
+       ! case "for interest". To do this we would remove this cycle and always set the boundary
+       ! values for passing particles.
        if (il < ilmin) cycle
 
-       ! Handle the homogeneous wfb boundary conditions separately from anything else
-       if (il == ng2+1 .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-          ! wfb should be unity here; variable is for testing
-          g_h(-ntgrid, 1, iglo) = wfb
-          g_h( ntgrid, 2, iglo) = wfb
-       else if (il == ng2+1 .and. trapped_wfb) then
-          ! MRH Only set the upper bounce point initial condition
-          g_h( ntgrid, 2, iglo) = wfb
-       else if (il == ng2+1 .and. passing_wfb) then
-          ! MRH give the passing initial condition
-          g_h(-ntgrid, 1, iglo) = wfb
-          g_h( ntgrid, 2, iglo) = wfb
-       endif
+       ! ng2+1 is WFB.
+       ! This implies have_trapped_particles is true.
+       is_wfb = il_is_wfb(il)
 
+       ! Totally trapped particle is last lambda when we have trapped_particles.
+       ! This implies have_trapped_particles is true.
+       is_not_ttp = .not. il_is_ttp(il)
+
+       ! Is this particle passing. Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       is_passing = il_is_passing(il)
+
+       ! Is this particle trapped? Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       ! This implies have_trapped_particles is true.
+       is_trapped = il_is_trapped(il)
+
+       !/////////////////////////
+       !// Initialisation
+       !/////////////////////////
+
+       !CMR
        ! g2 simply stores trapped homogeneous boundary conditions at bounce points
        !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
        !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
@@ -2071,52 +2095,106 @@ contains
        !      -- g2 = 0 for wfb as forbid always false
        !      -- g2 = 0 for ttp too
        ! g2 NOT used for totally trapped particles at il=nlambda
-
+       !
        ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
-
        g2 = 0.0
-       if (nlambda > ng2 .and. il >= ng2+1 .and. il <= lmax) then
+
+       !/////////////////////////
+       !// Boundaries
+       !/////////////////////////
+
+       if (use_pass_homog .and. is_passing) then
+          g_h(-ntgrid, 1, iglo) = 1.0
+          g_h( ntgrid, 2, iglo) = 1.0
+       end if
+
+       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          ! wfb should be unity here; variable is for testing
+          g_h(-ntgrid, 1, iglo) = wfb
+          g_h( ntgrid, 2, iglo) = wfb
+       else if (is_wfb .and. trapped_wfb) then
+          ! MRH Only set the upper bounce point initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
+          g_h( ntgrid, 2, iglo) = 1.0
+       else if (is_wfb .and. passing_wfb) then
+          ! MRH give the passing initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
+          g_h(-ntgrid, 1, iglo) = 1.0
+          g_h( ntgrid, 2, iglo) = 1.0
+       endif
+
+       ! Do we need the following conditional? If it is not true then
+       ! we just find that forbid is false everywhere. The only
+       ! difference would the the totally trapped particle where we
+       ! have forbid everywhere except at a single point, but then we
+       ! don't use g2 for the ttp.
+       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
           !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
-          !      ... but does not matter.
-          ! The above would probably be cleaner with `il > ng2 + 1`.
+          !      ... but does not matter
+          !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
           do ig=-ntgrid,ntgrid-1
              !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-             if (forbid(ig+1, il).and..not.forbid(ig, il)) g2(ig, 2) = 1.0
+             ! Note with use of is_upper_bounce_point we can change ig loop to full
+             ! theta domain if we like. Only relevant once wfb bounce points identified
+             if (is_upper_bounce_point(ig, il)) g2(ig,2) = 1.0
           end do
        end if
 
-       ! time advance vpar < 0 homogeneous part: g1
+       !/////////////////////////
+       !// Time advance
+       !/////////////////////////
+
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar < 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+       ! time advance vpar < 0 homogeneous part: g_h
        do ig = ntgrid-1, -ntgrid, -1
-          g_h(ig, 2, iglo) = -g_h(ig+1, 2, iglo)*r(ig, 2, iglo) + g2(ig, 2)
+          g_h(ig, 2, iglo) = -g_h(ig+1, 2, iglo) * r(ig,2,iglo) + g2(ig,2)
        end do
 
-       ! Deal with trapped particle boundary condition for isgn = 1
-       ! Note il <= lmax excludes the ttp
-       if (nlambda > ng2 .and. il <= lmax) then
-          if (il > ng2+1) then ! Not wfb
-             ! match boundary conditions at lower bounce point             
-             do ig = -ntgrid, ntgrid-1
-                if (forbid(ig, il) .and. .not. forbid(ig+1, il)) then
-                   !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
-                   !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
-                   !      but this was handled consistently in integration of g1)
-                   !
-                   g2(ig+1, 1) = g_h(ig+1, 2, iglo)
-                end if
-             end do
-          else if (il == ng2+1 .and. trapped_wfb) then ! Wfb if treated as trapped particle
-             ! If trapped wfb enforce the bounce condition at the lower bounce point
-             g_h(-ntgrid, 1, iglo) = g_h(-ntgrid, 2, iglo)
-          end if
-          
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar > 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! First set BCs for trapped particles at lower bounce point
+       ! (excluding wfb and ttp)
+
+       !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
+       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
+          ! match boundary conditions at lower bounce point
+          do ig = -ntgrid, ntgrid-1
+             ! Note could change ig loop to full theta grid now we are using
+             ! is_lower_bounce_point
+             if (is_lower_bounce_point(ig+1, il)) then
+                !CMR, 17/4/2012: set g2=(ig+1,1) = g_h(ig+1,2, iglo) where ig+1
+                !     is LOWER bounce point (previously g2 was set to 1 at ig
+                !      just LEFT of lower bounce point but this was handled
+                !      consistently in integration of g1)
+                !
+                g2(ig+1,1) = g_h(ig+1, 2, iglo)
+             end if
+          end do
        end if
 
+       ! If trapped wfb enforce the bounce condition at the lower bounce point
+       ! Note this treats the wfb as bouncing at the end of the parallel domain.
+       ! For nperiod > 1 this means the wfb does not bounce at the interior points
+       ! where bmag = bmax
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
+          ig = -ntgrid
+          g_h(ig, 1, iglo) = g_h(ig, 2, iglo)
+       endif
+
        ! time advance vpar > 0 homogeneous part
-       do ig = -ntgrid, ntgrid-1
-          !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
-          g_h(ig+1, 1, iglo) = -g_h(ig, 1, iglo)*r(ig, 1, iglo) + g2(ig+1, 1)
-       end do
+       if (is_not_ttp) then
+          do ig = -ntgrid, ntgrid-1
+             !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
+             g_h(ig+1, 1, iglo) = -g_h(ig, 1, iglo) * r(ig, 1, iglo) + g2(ig+1, 1)
+          end do
+       end if
+
     end do
+    !$OMP END PARALLEL DO
 
   end subroutine init_homogeneous_g
 
