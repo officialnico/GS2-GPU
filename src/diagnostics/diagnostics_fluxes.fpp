@@ -97,7 +97,7 @@ contains
     use dist_fn_arrays, only: g_adjust, gnew
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
-    use run_parameters, only: has_phi, has_apar, has_bpar
+    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_config, only: diagnostics_type
