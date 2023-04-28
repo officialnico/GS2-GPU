@@ -229,8 +229,9 @@ pages:
     - *install_main_packages
     - su -c "make ${EXTRA_MAKE_FLAGS} doc" theuser
     - mv docs/html ./public
-    - BUILD_STATUS=passed  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
+    - *report_pass
   after_script:
+    - *push_status
     - echo "Website created and pushed, it may take a while before the changes are reflected."
   artifacts:
     paths:
