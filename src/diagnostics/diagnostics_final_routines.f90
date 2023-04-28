@@ -93,7 +93,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use theta_grid, only: ntgrid, gradpar, nperiod
     use kt_grids, only: naky, ntheta0, aky, akx
-    use run_parameters, only: fphi,fapar,fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields_arrays, only: phi, apar, bpar
     implicit none
 
@@ -111,17 +111,17 @@ contains
     allocate (apar2(-ntgrid:ntgrid,ntheta0,naky))
     allocate (bpar2(-ntgrid:ntgrid,ntheta0,naky))
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
       call par_spectrum(phi, phi2)
     else
       phi2=0.
     end if
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
       call par_spectrum(apar, apar2)
     else
       apar2=0.
     endif
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
       call par_spectrum(bpar, bpar2)
     else
       bpar2=0.
