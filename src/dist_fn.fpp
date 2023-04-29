@@ -7663,6 +7663,21 @@ contains
          has_phi, has_apar, has_bpar, fileopt = extension)
   end subroutine dump_current_source_term
 
+  !> Routine to dump the homogeneous solution
+  subroutine dump_homogeneous_solution
+    use gs2_save, only: gs2_save_for_restart
+    use dist_fn_arrays, only: g_work
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use gs2_time, only: user_time
+    use collisions, only: vnmult
+    implicit none
+    character(len = 20), parameter :: extension = '.homogeneous'
+    integer :: istatus
+    call init_homogeneous_g(g_work)
+    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+         has_phi, has_apar, has_bpar, fileopt = extension)
+  end subroutine dump_homogeneous_solution
+
   !> Calculate various fluxes
   !>
   !> FIXME: add documentation of exactly what fluxes
