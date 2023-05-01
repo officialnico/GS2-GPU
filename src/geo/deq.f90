@@ -57,13 +57,14 @@ contains
   !! rwid       total width of the domain
   !! rleft      position of leftmost point of domain
   !! zhei       total height of domain
-  subroutine dfitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq)
+  subroutine dfitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, eqnormfile)
     use mp, only: mp_abort
     use constants, only: pi, twopi
     use splines, only: inter_cspl
     implicit none
 
     character(len=80), intent(in) :: eqfile
+    character(len=80), intent(in) :: eqnormfile
     real, intent(out) :: psi_0, psi_a, B_T, amin, rmaj
     integer, intent(in) :: initeq
     real :: p_0
@@ -74,6 +75,10 @@ contains
     
     integer :: i, j, init, nhb, nwb
     integer :: jmin, jmax
+
+    real :: lref = 0., bref = 0.
+    logical :: eqnorm_exists
+
 !What is the following for?    
     data init /1/
     save init
@@ -88,7 +93,15 @@ contains
     ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     init=0
-    
+
+    ! read eqnorm file if exists
+    inquire(file=trim(eqnormfile), exist = eqnorm_exists)
+    if (eqnorm_exists) then
+       open(unit=5,file=trim(eqnormfile),status='old',form='formatted')
+       read(5,*) lref, bref
+       close(5)
+    end if
+
     i=index(eqfile,' ')-1
     filename = eqfile(1:i)
     open(unit=5,file=filename,status='old',form='formatted')
@@ -216,7 +229,12 @@ contains
     enddo
     deallocate (rbbbs, zbbbs)
 
-    aminor=R_mag
+    if (lref /= 0.) then
+       aminor = lref
+       write(6,*) 'aminor = ', aminor, lref
+    else
+       aminor=R_mag
+    end if
     amin=aminor
 
     close(5)
@@ -232,7 +250,12 @@ contains
     
     ! should rmaj be R_mag? use R_mag for now.  
     rmaj = R_mag
-    B_T0 = abs(bcentr)
+    if (bref /= 0.) then
+       B_T0 = bref
+       write(6,*) 'B_T0 = ', B_T0, bref
+    else
+       B_T0 = abs(bcentr)
+    end if
     B_T = B_T0
     psi_a = psi_a / (B_T0*aminor**2)
     psi_0 = psi_0 / (B_T0*aminor**2)

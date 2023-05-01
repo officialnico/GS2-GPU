@@ -1134,6 +1134,9 @@ module theta_grid_eik
      logical :: efit_eq = .false.
      !> Name of file with numerical equilibrium data (if required)
      character(len = 800) :: eqfile = "default_unset_value"
+     !> Name of file with numerical equilibrium normalization data (if required)
+     !> currently, only used for dipole equilibrium (deq)
+     character(len = 800) :: eqnormfile = "default_unset_value"
      !> Change field-line coordinate. Recommended value: F
      !> @note We recommend `.false.` but default to `.true.`. We should consider
      !> changing the default.
@@ -1214,6 +1217,7 @@ contains
     use geometry, only: delrho, dp_mult, rmin, rmax
     use geometry, only: bishop, iflux, irho, itor, isym
     use geometry, only: eqfile
+    use geometry, only: eqnormfile
     !  use geometry, only: idfit_eq
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc
@@ -1247,6 +1251,7 @@ contains
     write (unit, fmt="(' isym =  ',i1)") isym
     write (unit, fmt="(' writelots =  ',L1)") writelots
     write (unit, fmt="(' eqfile = ',a)") '"'//trim(eqfile)//'"'
+    write (unit, fmt="(' eqnormfile = ',a)") '"'//trim(eqnormfile)//'"'
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_eik
 
@@ -1260,6 +1265,7 @@ contains
     use geometry, only: rhoc, rmaj, r_geo, qinp
     use geometry, only: bishop, iflux, irho
     use geometry, only: eqfile, chs_eq
+    use geometry, only: eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
     implicit none
     integer, intent(in) :: report_unit
@@ -1413,6 +1419,7 @@ contains
           write (report_unit, *) 
           write (report_unit, fmt="('Dipole equilibrium information obtained from file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
+          write (report_unit, fmt="(a)") trim(eqnormfile)
        end if
        if (idfit_eq) then
           write (report_unit, *) 
@@ -1867,6 +1874,7 @@ contains
     use geometry, only: rhoc
     use geometry, only: itor, iflux, irho
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
+    use geometry, only: eqnormfile
     use geometry, only: equal_arc, transp_eq, idfit_eq
     use geometry, only: bishop
     use geometry, only: s_hat_input
@@ -1934,6 +1942,7 @@ contains
     dp_mult = theta_grid_eik_config%dp_mult
     efit_eq = theta_grid_eik_config%efit_eq
     eqfile = theta_grid_eik_config%eqfile
+    eqnormfile = theta_grid_eik_config%eqnormfile
     equal_arc = theta_grid_eik_config%equal_arc
     gen_eq = theta_grid_eik_config%gen_eq
     gs2d_eq = theta_grid_eik_config%gs2d_eq
@@ -1992,12 +2001,14 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 800) :: eqfile
+    character(len = 800) :: eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
 
     namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
-         rmax, rmin, s_hat_input, transp_eq, writelots
+         rmax, rmin, s_hat_input, transp_eq, writelots, &
+         eqnormfile
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -2012,6 +2023,7 @@ contains
     dp_mult = self%dp_mult
     efit_eq = self%efit_eq
     eqfile = self%eqfile
+    eqnormfile = self%eqnormfile
     equal_arc = self%equal_arc
     gen_eq = self%gen_eq
     gs2d_eq = self%gs2d_eq
@@ -2044,6 +2056,7 @@ contains
     self%dp_mult = dp_mult
     self%efit_eq = efit_eq
     self%eqfile = eqfile
+    self%eqnormfile = eqnormfile
     self%equal_arc = equal_arc
     self%gen_eq = gen_eq
     self%gs2d_eq = gs2d_eq
@@ -2087,6 +2100,7 @@ contains
     call self%write_key_val("dp_mult", self%dp_mult, unit_internal)
     call self%write_key_val("efit_eq", self%efit_eq, unit_internal)
     call self%write_key_val("eqfile", self%eqfile, unit_internal)
+    call self%write_key_val("eqnormfile", self%eqnormfile, unit_internal)
     call self%write_key_val("equal_arc", self%equal_arc, unit_internal)
     call self%write_key_val("gen_eq", self%gen_eq, unit_internal)
     call self%write_key_val("gs2d_eq", self%gs2d_eq, unit_internal)
@@ -2132,6 +2146,7 @@ contains
     call broadcast(self%dp_mult)
     call broadcast(self%efit_eq)
     call broadcast(self%eqfile)
+    call broadcast(self%eqnormfile)
     call broadcast(self%equal_arc)
     call broadcast(self%gen_eq)
     call broadcast(self%gs2d_eq)
