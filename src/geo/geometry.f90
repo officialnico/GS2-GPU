@@ -1436,6 +1436,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     Bpol = bpolmag
 
+    if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
+       shat = max(1.e-7, shat)
+       kxfac = - 1./drhodpsin
+       gds22 = grho**2/drhodpsin**2
+    end if
+
     call dealloc_local_arrays
 
     !Close output files
