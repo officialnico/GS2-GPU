@@ -84,12 +84,9 @@ module dist_fn
   public :: flux_vs_e
   
   public :: gamtot,gamtot1,gamtot2
-  public :: getmoms_notgc
-  public :: mom_coeff, ncnt_mom_coeff
-  public :: mom_coeff_npara, mom_coeff_nperp
-  public :: mom_coeff_tpara, mom_coeff_tperp
-  public :: mom_shift_para, mom_shift_perp
-!CMR, 25/1/13: 
+  public :: getmoms_notgc, init_mom_coeff
+
+!CMR, 25/1/13:
 !  add public variables below for init_g
   public :: boundary_option_switch, boundary_option_linked
   public :: boundary_option_self_periodic, boundary_option_zero
@@ -267,16 +264,6 @@ module dist_fn
   logical :: lpolinit = .false.
   logical :: fyxinit = .false.
   logical :: cerrinit = .false.
-  logical :: mominit = .false.
-
-  !The following variables are used if write_full_moments_notgc=T
-  !or ginit_options='recon3'. These arrays are currently always initialised
-  !even if they are not to be used. Can we improve this?
-  real, allocatable :: mom_coeff(:,:,:,:)
-  real, allocatable :: mom_coeff_npara(:,:,:), mom_coeff_nperp(:,:,:)
-  real, allocatable :: mom_coeff_tpara(:,:,:), mom_coeff_tperp(:,:,:)
-  real, allocatable :: mom_shift_para(:,:,:), mom_shift_perp(:,:,:)
-  integer, parameter :: ncnt_mom_coeff=8
 
 #ifdef NETCDF_PARALLEL
   logical, parameter :: moment_to_allprocs = .true.
@@ -1097,9 +1084,6 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_hyper"
     call init_hyper
 
-    if (debug) write(6,*) "init_dist_fn: init_mom_coeff"
-    call init_mom_coeff
-
     if (debug) write(6,*) "init_dist_fn: init_source_term"
     call init_source_term
 
@@ -1162,7 +1146,7 @@ contains
     accelerated_x = .false. ; accelerated_v = .false.
     no_comm = .false.
     connectinit = .false.
-    lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false. ; mominit = .false.
+    lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
     increase = .true. ; decrease = .false.
     exb_first = .true.
 
@@ -1179,8 +1163,6 @@ contains
     if (allocated(fl_avg)) deallocate (fl_avg)
     if (allocated(awgt)) deallocate (awgt)
     if (allocated(kmax)) deallocate (kmax)
-    if (allocated(mom_coeff)) deallocate (mom_coeff, mom_coeff_npara, mom_coeff_nperp, &
-         mom_coeff_tpara, mom_coeff_tperp, mom_shift_para, mom_shift_perp)
 
     call delete_redist(gc_from_left)
     call delete_redist(gc_from_right)
@@ -6016,7 +5998,6 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: nakx => ntheta0, naky
     use le_grids, only: integrate_moment
-
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     complex, intent (out) :: &
@@ -6025,15 +6006,29 @@ contains
     complex, intent (out), optional :: ntot(-ntgrid:,:,:,:)
     complex, intent (out), optional :: jpar(-ntgrid:,:,:)
     complex, dimension(-ntgrid:,:,:), intent(in) :: phinew, bparnew
+    real, dimension(:, :, :, :), allocatable, save :: mom_coeff
+    real, dimension(:, :, :), allocatable, save :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable, save :: mom_shift_para, mom_shift_perp
 
     integer :: isgn, iglo, is, ie
 
     real :: a, b, tpar2, tper2
     integer :: it, ik, ig
 
-! returns moment integrals to PE 0
+    ! returns moment integrals to PE 0
 
-! not guiding center n_total
+    ! Note we mark mom_coeff* as 'save' so that the result of this call is cached
+    ! and not recalculated each time. This can help save overhead and should be
+    ! fine. The result of this call should only depend on the velocity grids, the
+    ! wavenumbers and the species parameters (and the derived Bessel functions).
+    ! These should not change during a single standard run, but if we wish to enable
+    ! more exotic behaviour we might want to remove the save from above declarations and
+    ! recalculate these coefficients each time.
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+       mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
+    ! not guiding center n_total
     if(present(ntot)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -10358,29 +10353,33 @@ contains
     favg_x = 0.5*(fl+fr)
   end function favg_x
 
-  !> FIXME : Add documentation  
-  subroutine init_mom_coeff
+  !> FIXME : Add documentation
+  !>
+  !> The returned variables are used if write_full_moments_notgc=T
+  !> or ginit_options='recon3'.
+  subroutine init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+       mom_coeff_tperp, mom_shift_para, mom_shift_perp)
     use gs2_layouts, only: g_lo
     use species, only: nspec, spec
     use kt_grids, only: nakx => ntheta0, naky, kperp2
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0,aj1,vperp2
-    use dist_fn_arrays, only: vpa, vperp2
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use le_grids, only: integrate_moment
-    integer :: i
-    integer :: isgn, iglo
-    integer :: it,ik,is
-    complex, allocatable :: coeff0(:,:,:,:)
-    complex, allocatable :: gtmp(:,:,:)
-    real, allocatable :: wgt(:)
-!    logical, parameter :: analytical = .false.
-    logical, parameter :: analytical = .true.
-!    logical, save :: initialized=.false.
+    use array_utils, only: zero_array
+    implicit none
+    real, dimension(:, :, :, :), allocatable, intent(in out) :: mom_coeff
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_shift_para, mom_shift_perp
+    integer :: i, isgn, iglo, it, ik, is
     real :: bsq
-    
-!    if (initialized) return
-    if (mominit) return
-    mominit = .true.
+    complex, dimension(:, :, :, :), allocatable :: coeff0
+    complex, dimension(:, :, :), allocatable :: gtmp
+    real, dimension(:), allocatable :: wgt
+    logical, parameter :: analytical = .true.
+    integer, parameter :: ncnt_mom_coeff=8
+
+    if (allocated(mom_coeff)) return
 
     if(.not.allocated(mom_coeff)) &
          & allocate(mom_coeff(nakx,naky,nspec,ncnt_mom_coeff))
@@ -10397,17 +10396,17 @@ contains
     if(.not.allocated(mom_shift_perp)) &
          & allocate(mom_shift_perp(nakx,naky,nspec))
 
-    mom_coeff(:,:,:,:)=0.
-    mom_coeff_npara(:,:,:)=0. ; mom_coeff_nperp(:,:,:)=0.
-    mom_coeff_tpara(:,:,:)=0. ; mom_coeff_tperp(:,:,:)=0.
-    mom_shift_para(:,:,:)=0.  ; mom_shift_perp(:,:,:)=0.
+    call zero_array(mom_coeff)
+    call zero_array(mom_coeff_npara) ; call zero_array(mom_coeff_nperp)
+    call zero_array(mom_coeff_tpara) ; call zero_array(mom_coeff_tperp)
+    call zero_array(mom_shift_para) ; call zero_array(mom_shift_perp)
 
     allocate(wgt(-ntgrid:ntgrid))
     allocate(coeff0(-ntgrid:ntgrid,nakx,naky,nspec))
     allocate(gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-    wgt(:)=0.
-    coeff0(:,:,:,:)=cmplx(0.,0.)
-    gtmp(:,:,:)=cmplx(0.,0.)
+    wgt = 0.
+    call zero_array(coeff0)
+    call zero_array(gtmp)
 
     if (analytical) then
        do it=1,nakx
@@ -10451,22 +10450,20 @@ contains
     endif
 
     !<DD>Currently below could include divide by zero if analytical=.true.
-    mom_shift_para(:,:,:)=mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
-    mom_shift_perp(:,:,:)=mom_coeff(:,:,:,3)/mom_coeff(:,:,:,1)
+    mom_shift_para=mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_shift_perp=mom_coeff(:,:,:,3)/mom_coeff(:,:,:,1)
 
-    mom_coeff_npara(:,:,:)=2.*mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
-    mom_coeff_nperp(:,:,:)=2.*mom_coeff(:,:,:,6)/mom_coeff(:,:,:,1)
+    mom_coeff_npara=2.*mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_coeff_nperp=2.*mom_coeff(:,:,:,6)/mom_coeff(:,:,:,1)
 
-    mom_coeff_tperp(:,:,:)= &
-         & (mom_coeff(:,:,:,5)-mom_shift_perp(:,:,:)*mom_coeff(:,:,:,2)) / &
-         & (mom_coeff(:,:,:,8)-mom_shift_perp(:,:,:)*mom_coeff(:,:,:,6))
-    mom_coeff_tpara(:,:,:)= &
-         & (mom_coeff(:,:,:,7)-mom_shift_para(:,:,:)*mom_coeff(:,:,:,6)) / &
-         & (mom_coeff(:,:,:,4)-mom_shift_para(:,:,:)*mom_coeff(:,:,:,2))
+    mom_coeff_tperp= &
+         & (mom_coeff(:,:,:,5)-mom_shift_perp*mom_coeff(:,:,:,2)) / &
+         & (mom_coeff(:,:,:,8)-mom_shift_perp*mom_coeff(:,:,:,6))
+    mom_coeff_tpara= &
+         & (mom_coeff(:,:,:,7)-mom_shift_para*mom_coeff(:,:,:,6)) / &
+         & (mom_coeff(:,:,:,4)-mom_shift_para*mom_coeff(:,:,:,2))
 
     deallocate(gtmp,coeff0,wgt)
-    
-!    initialized=.true.
   end subroutine init_mom_coeff
 
 #ifdef LOWFLOW

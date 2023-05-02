@@ -3260,15 +3260,18 @@ contains
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
     use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: mom_coeff, mom_shift_para, mom_shift_perp
+    use dist_fn, only: init_mom_coeff
     use dist_fn, only: gamtot, gamtot1, gamtot2
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
     implicit none
+    real, dimension(:, :, :, :), allocatable :: mom_coeff
+    real, dimension(:, :, :), allocatable :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable :: mom_shift_para, mom_shift_perp
     integer :: iglo
-!    integer :: ig, ik, it, is, is2
     integer :: ig, ik, it, is
     integer :: i,j
 
@@ -3616,6 +3619,10 @@ contains
 
     allocate(nnrm(nakx,naky,nspec),unrm(nakx,naky,nspec))
     allocate(tparanrm(nakx,naky,nspec),tperpnrm(nakx,naky,nspec))
+
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+         mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
     do is=1,nspec
        nnrm(:,:,is)=mom_coeff(:,:,is,1)
        unrm(:,:,is)=2.*mom_coeff(:,:,is,2)
