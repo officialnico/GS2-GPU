@@ -59,21 +59,15 @@ module dist_fn
     module procedure set_optimisations_overrides
   end interface set_overrides
 
-  !!> init_vpar is called by init_dist_fn should only be called separately 
-  !!! for testing purposes
-  !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: g_exb_error_limit
-  public :: g_exb_start_timestep, g_exb_start_time
-  public :: init_bessel, init_fieldeq
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
   public :: flux, flux_dist, lf_flux, eexchange
   public :: get_epar, get_heat
-  public :: t0, omega0, gamma0, source0
-  public :: reset_init, write_f, reset_physics, write_poly
+  public :: omega0, gamma0
+  public :: reset_init, write_f, write_poly
   public :: M_class, N_class, i_class
   public :: l_links, r_links, itright, itleft, boundary
   public :: get_jext !GGH
@@ -92,11 +86,10 @@ module dist_fn
   public :: boundary_option_self_periodic, boundary_option_zero
   public :: pass_right, pass_left, init_pass_ends
   public :: init_enforce_parity, get_leftmost_it
-  public :: gridfac1, awgt, gamtot3, fl_avg, apfac
+  public :: gridfac1, fl_avg, apfac
   public :: adiabatic_option_switch, adiabatic_option_fieldlineavg
 
   public :: gf_lo_integrate
-  public :: check_getan
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
@@ -153,16 +146,6 @@ module dist_fn
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
   logical :: increase = .true., decrease = .false. 
-  
-!! k_parallel filter items
-!  real, dimension(:), allocatable :: work, tablekp
-!  real :: scale
-!  integer :: nwork, ntablekp
-
-  ! internal arrays
-
-!  real, dimension (:,:), allocatable :: wdrift, wcurv
-!  ! (-ntgrid:ntgrid, -g-layout-)
 
 #ifdef LOWFLOW
   real, dimension (:,:), allocatable :: wcurv
@@ -9168,11 +9151,6 @@ contains
   subroutine reset_init
     call finish_dist_fn_level_3
   end subroutine reset_init
-
-  !> FIXME : Add documentation    
-  subroutine reset_physics
-    call init_wstar
-  end subroutine reset_physics
 
   !> Error estimate obtained by comparing standard integral with less-accurate integral
   !>
