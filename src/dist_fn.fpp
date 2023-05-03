@@ -7512,7 +7512,7 @@ contains
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
     use array_utils, only: zero_array
@@ -7531,7 +7531,8 @@ contains
          aparnew, bparnew, istep, sourcefac)
 
     call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
-         has_phi, has_apar, has_bpar, fileopt = extension)
+         has_phi, has_apar, has_bpar, &
+         code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
 
   !> Calculate various fluxes

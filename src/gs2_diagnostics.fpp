@@ -945,6 +945,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
@@ -963,6 +964,7 @@ contains
     if (save_for_restart) then
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
     end if
@@ -973,7 +975,9 @@ contains
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
-            has_phi, has_apar, has_bpar, fileopt=".dfn", &
+            has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+            fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 
