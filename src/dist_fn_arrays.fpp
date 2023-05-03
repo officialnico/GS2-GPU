@@ -15,7 +15,7 @@ module dist_fn_arrays
   public :: vperp2, vpar, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
-  public :: c_rate
+  public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
 #ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -83,26 +83,34 @@ module dist_fn_arrays
   !> CMR, 17/4/2012:
   interface g_adjust
      module procedure g_adjust_floats
-     module procedure g_adjust_logical
+     module procedure g_adjust_direction
   end interface g_adjust
+
+  type g_adjust_direction_type
+     private
+     logical :: to_g_gs2
+  end type g_adjust_direction_type
+
+  type(g_adjust_direction_type), parameter :: to_g_gs2 = g_adjust_direction_type(.true.)
+  type(g_adjust_direction_type), parameter :: from_g_gs2 = g_adjust_direction_type(.false.)
 
 contains
 
   !> Transform between g_gs2 and g_wesson with direction indicated
   !> by passed logical [to_g_gs2].
-  subroutine g_adjust_logical (g, phi, bpar, to_g_gs2)
+  subroutine g_adjust_direction (g, phi, bpar, direction)
     use run_parameters, only: fphi, fbpar
     implicit none
     complex, dimension (:,:,:), intent (in out) :: g
     complex, dimension (:,:,:), intent (in) :: phi, bpar
-    logical, intent(in) :: to_g_gs2
+    type(g_adjust_direction_type), intent(in) :: direction
 
-    if (to_g_gs2) then
+    if (direction%to_g_gs2) then
        call g_adjust(g, phi, bpar, -fphi, -fbpar)
     else
        call g_adjust(g, phi, bpar, fphi, fbpar)
     end if
-  end subroutine g_adjust_logical
+  end subroutine g_adjust_direction
 
   !> Transform between g_gs2 and g_wesson with direction indicated
   !> by passed floats [facphi] and [facbpar].
