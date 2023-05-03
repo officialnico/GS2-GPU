@@ -975,6 +975,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use gs2_time, only: init_gs2_time
     use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts
     use nonlinear_terms, only: init_nonlinear_terms
@@ -1000,6 +1001,9 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: run_parameters"
     call init_run_parameters
+
+    if (debug) write(6,*) "init_dist_fn: gs2_time"
+    call init_gs2_time
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
