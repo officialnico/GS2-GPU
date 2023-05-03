@@ -43,7 +43,26 @@ contains
   !> Note this doesn't actually initialise everything (for example
   !> it doesn't call init_tstart) due to module dependencies.
   subroutine init_gs2_time
+    use run_parameters, only: delt_option_switch, delt_option_auto, delt
+    use gs2_save, only: init_dt
     implicit none
+    real :: delt_prev1, delt_prev2, delt0, delt1, delt2, delt_max, user_delt_max
+    integer :: istatus
+
+    user_delt_max = delt
+    delt_prev1 = dt_not_set
+    delt_prev2 = dt_not_set
+
+    if (delt_option_switch == delt_option_auto) then
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
+    endif
+
+    call init_delt (delt, delt_prev1, delt_prev2)
+    call user2code (user_delt_max, code_dt_max)
 
     ! omega_* normalization of time:
     call adjust_time_norm
