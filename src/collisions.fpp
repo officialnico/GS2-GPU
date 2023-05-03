@@ -87,6 +87,7 @@ module collisions
   real :: etol, ewindow, etola, ewindowa
   integer :: timesteps_between_collisions
   logical :: force_collisions
+  real, dimension (2) :: vnm_init = 1.0
 
   real, dimension (:,:,:), allocatable :: dtot
   ! (-ntgrid:ntgrid,nlambda,max(ng2,nlambda-ng2)) lagrange coefficients for derivative error estimate
@@ -1890,19 +1891,27 @@ contains
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
-    use run_parameters, only: zeff, vnm_init
+    use run_parameters, only: zeff, delt_option_switch, delt_option_auto
     use gs2_time, only: tunits
-    use constants
+    use constants, only: pi
+    use gs2_save, only: init_vnm
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
     real,dimension (negrid)::heevth, hsg, hsgvth
     integer :: ik, ie, is, it, ig
+    integer :: istatus
     real :: k4max
     real :: vl, vr, dv2l, dv2r
+    real, dimension (2) :: vnm_saved
+
+    if (delt_option_switch == delt_option_auto) then
+       call init_vnm (vnm_saved, istatus)
+       if (istatus == 0) vnm_init = vnm_saved
+    endif
 
     ! Initialise vnmult from the values in run_parameters. This is
     ! either what has been restored from the restart file  if
-    ! `delt_option /= 'check_restart'` or 1 otherwise.
+    ! `delt_option == 'check_restart'` or 1 otherwise.
     if (all(vnmult == -1)) then
        vnmult = vnm_init
     end if
@@ -4836,7 +4845,6 @@ contains
   !! when timestep changes.
   subroutine finish_collisions
     use dist_fn_arrays, only: c_rate
-    use run_parameters, only: vnm_init
     implicit none
 
     ! This is a bit of a hack to make sure that we get the correct vnmult

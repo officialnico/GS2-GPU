@@ -18,7 +18,7 @@ module run_parameters
   public :: secondary, tertiary, harris
   public :: ieqzip, k0
   public :: delt_option_switch, delt_option_hand
-  public :: delt_option_auto, vnm_init
+  public :: delt_option_auto
   public :: avail_cpu_time, margin_cpu_time
   public :: rhostar, neo_test
   public :: do_eigsolve, save_timer_statistics, save_init_times
@@ -48,7 +48,6 @@ module run_parameters
   real :: fphi, fapar, fbpar, faperp
   logical :: has_phi, has_apar, has_bpar
   real :: margin, delt
-  real, dimension (2) :: vnm_init
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
   integer :: nstep, seed
@@ -388,7 +387,6 @@ contains
   subroutine read_parameters(knobs_config_in, parameters_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
-    use gs2_save, only: init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     use ran, only: set_seed_from_single_integer
@@ -407,12 +405,8 @@ contains
             text_option('set_by_hand', delt_option_hand), &
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
-    integer :: ierr, istatus
-    real :: delt0, delt1, delt2, delt_max
-    real, dimension (2) :: vnm_saved
-
+    integer :: ierr
     real :: teti  ! for back-compatibility
-
 
     if (present(parameters_config_in)) parameters_config = parameters_config_in
 
@@ -562,13 +556,6 @@ contains
        max_sim_time = max_sim_time / sqrt(2.0)
        nstep = nstep*2
     end if
-
-    vnm_init = 1.0
-    
-    if (delt_option_switch == delt_option_auto) then
-       call init_vnm (vnm_saved, istatus)
-       if (istatus == 0) vnm_init = vnm_saved
-    endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
