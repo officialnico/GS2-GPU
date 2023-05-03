@@ -651,9 +651,8 @@ contains
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
          integrate_moment, negrid, forbid
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use run_parameters, only: tunits
     use le_grids, only: g2le, nxi
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
@@ -1891,7 +1890,8 @@ contains
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
-    use run_parameters, only: zeff, tunits, vnm_init
+    use run_parameters, only: zeff, vnm_init
+    use gs2_time, only: tunits
     use constants
     use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
@@ -2215,13 +2215,12 @@ contains
   !> FIXME : Add documentation
   subroutine get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
     use species, only: spec
-    use run_parameters, only: tunits
     use theta_grid, only: bmag
     use le_grids, only: al, negrid, w=>w_maxw
     use spfunc, only: erf => erf_ext
     use constants, only: pi
     use kt_grids, only: kperp2
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
 
     implicit none
 
@@ -2644,10 +2643,9 @@ contains
     use species, only: spec
     use le_grids, only: al, energy => energy_maxw, xi, ng2
     use le_grids, only: jend, al, il_is_passing, il_is_wfb
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-    use run_parameters, only: tunits
 
     implicit none
 
@@ -3726,10 +3724,10 @@ contains
     use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
-    use run_parameters, only: tunits
     use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
+    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -4103,9 +4101,9 @@ contains
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
     use theta_grid, only: bmag
-    use run_parameters, only: tunits
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
+    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle

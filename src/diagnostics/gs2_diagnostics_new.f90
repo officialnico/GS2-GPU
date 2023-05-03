@@ -358,7 +358,7 @@ contains
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
   subroutine run_diagnostics(istep_in, exit, read_existing, force)
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use simpledataio, only: print_dimensions
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
@@ -392,7 +392,7 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast, iproc
     use optionals, only: get_option_with_default
-    use run_parameters, only: wstar_units, tunits
+    use run_parameters, only: wstar_units
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit

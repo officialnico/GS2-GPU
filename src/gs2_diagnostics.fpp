@@ -1508,7 +1508,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1527,7 +1527,7 @@ contains
 
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -1686,7 +1686,7 @@ contains
   subroutine do_print_line(phitot)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Total magnitude of all the fields
     real, dimension (:, :), intent(in) :: phitot
@@ -1771,7 +1771,7 @@ contains
   !> Write estimated frequency and growth rates to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_line(time,it,ik,phitot)
     use kt_grids, only: aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Simulation time
     real, intent(in) :: time, phitot
@@ -1790,7 +1790,7 @@ contains
 
   !> Write instantaneous growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omega(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
@@ -1802,7 +1802,7 @@ contains
 
   !> Write time-averaged growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omavg(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
     if (.not. write_ascii) return
