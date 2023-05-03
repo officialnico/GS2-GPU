@@ -21,10 +21,9 @@ contains
   subroutine vspace_derivatives (g, gold, g1, phi, bpar, phinew, bparnew, diagnostics, gtoc, ctog)
     use array_utils, only: copy, zero_array
     use redistribute, only: gather, scatter
-    use dist_fn_arrays, only: c_rate, g_adjust
+    use dist_fn_arrays, only: c_rate, g_adjust, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo, le_lo
     use gs2_time, only: code_dt
-    use run_parameters, only: fphi, fbpar
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, nxi, negrid, g2le
     use collisions, only: solfp1, colls, adjust, heating, hyper_colls, use_le_layout
@@ -75,8 +74,8 @@ contains
 
        if (colls .or. has_lowflow_in_build) then
           if (adjust) then
-             call g_adjust (g, phinew, bparnew, fphi, fbpar)
-             if (heating_flag) call g_adjust (gold, phi, bpar, fphi, fbpar)
+             call g_adjust (g, phinew, bparnew, direction = from_g_gs2)
+             if (heating_flag) call g_adjust (gold, phi, bpar, direction = from_g_gs2)
           end if
           if (heating_flag) then
              allocate (gc3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -113,8 +112,8 @@ contains
           endif
 
           if (adjust) then
-             call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
-             if (heating_flag) call g_adjust (gold, phi, bpar, -fphi, -fbpar)
+             call g_adjust (g, phinew, bparnew,  direction = to_g_gs2)
+             if (heating_flag) call g_adjust (gold, phi, bpar, direction = to_g_gs2)
           end if
        end if
     else
@@ -137,8 +136,8 @@ contains
           call zero_array(gc3)
 
           if (adjust) then
-             call g_adjust (g, phinew, bparnew, fphi, fbpar)
-             if (heating_flag) call g_adjust (gold, phi, bpar, fphi, fbpar)
+             call g_adjust (g, phinew, bparnew, direction = from_g_gs2)
+             if (heating_flag) call g_adjust (gold, phi, bpar, direction = from_g_gs2)
           end if
 
           if (heating_flag) call copy(g, gc3)
@@ -167,8 +166,8 @@ contains
           end if
 
           if (adjust) then
-             call g_adjust (g, phinew, bparnew, -fphi, -fbpar)
-             if (heating_flag) call g_adjust (gold, phi, bpar, -fphi, -fbpar)
+             call g_adjust (g, phinew, bparnew, direction = to_g_gs2)
+             if (heating_flag) call g_adjust (gold, phi, bpar, direction = to_g_gs2)
           end if
        end if
 
