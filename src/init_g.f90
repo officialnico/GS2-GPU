@@ -1244,9 +1244,8 @@ contains
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
   !> calculate the consistent potentials to set the true gnew value.
   subroutine set_gnew_from_nonadiabatic_dfn
-    use dist_fn_arrays, only: gnew, g, g_adjust
+    use dist_fn_arrays, only: gnew, g, g_adjust, to_g_gs2
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
-    use run_parameters, only: fphi, fbpar
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
@@ -1268,7 +1267,7 @@ contains
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
 
     ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
-    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! Ensure both timesteps are set correctly
     g = gnew

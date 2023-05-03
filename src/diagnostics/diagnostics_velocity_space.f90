@@ -149,9 +149,8 @@ contains
    use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use fields_arrays, only: phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx, g_lo
     use collisions, only: dtot, fdf, fdb
@@ -189,12 +188,12 @@ contains
     !end if
 
 ! convert gnew from g to h
-    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
 
     g0 = gnew
 
 ! convert gnew from h back to g
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
 ! map from g0(ig,isgn,iglo) to glze(il,ilz)
     call gather (lambda_map, g0, glze)

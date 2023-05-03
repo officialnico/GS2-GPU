@@ -5556,14 +5556,12 @@ contains
 
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, to_g_gs2, from_g_gs2, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
-
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Total perturbed density
@@ -5600,7 +5598,7 @@ contains
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
-    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! integrate moments over the nonadiabatic part of <delta_f>
@@ -5706,14 +5704,14 @@ contains
     end do
 
 ! return gnew to its initial state, the variable evolved in GS2
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
     call prof_leaving ("getmoms", "dist_fn")
   end subroutine getmoms
 
   !> FIXME : Add documentation
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -5918,13 +5916,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine getemoms (phinew, bparnew, ntot, tperp)
-    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
 
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -5965,7 +5962,7 @@ contains
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
-    call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc       
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
@@ -6001,7 +5998,7 @@ contains
     end do
 
 ! return gnew to its initial state, the variable evolved in GS2
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
     call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
@@ -8485,7 +8482,7 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc
 #endif
-    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_heating, only: heating_diagnostics
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
     use le_grids, only: integrate_moment
@@ -8535,8 +8532,8 @@ contains
 !!! until the end of this procedure!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    call g_adjust (g,    phi,    bpar,    fphi, fbpar)
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (g,    phi,    bpar,    direction = from_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
@@ -9164,8 +9161,8 @@ contains
 !!
 !! Put g, gnew back to their usual meanings
 !!
-    call g_adjust (g,    phi,    bpar,    -fphi, -fbpar)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (g,    phi,    bpar,    direction = to_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
   end subroutine get_heat
 
@@ -9193,8 +9190,8 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
-    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work
-    use run_parameters, only: has_phi, has_apar, has_bpar, beta, fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use gs2_layouts, only: g_lo
     use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve
     use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve
@@ -9247,7 +9244,7 @@ contains
 ! first call to g_adjust converts gyro-averaged dist. fn. (g)
 ! into nonadiabatic part of dist. fn. (h)
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
     if (has_phi) then
@@ -9319,7 +9316,7 @@ contains
 
 ! second call to g_adjust converts from h back to g
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (.not. allocated(kmax)) then
        allocate (kmax(ntheta0, naky))
@@ -9502,8 +9499,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo
     use mp, only: proc0, broadcast
 
@@ -9542,7 +9538,7 @@ contains
     end if
 
 ! transform from g to h
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
@@ -9561,7 +9557,7 @@ contains
     end if
 
 ! transform from h back to g
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (proc0) then
        do is=1,nspec
@@ -9628,8 +9624,7 @@ contains
   !> points specified by `xloc` to text file with suffix `.interp`
   subroutine write_poly (phi, bpar, last, istep)
     use file_utils, only: open_output_file, close_output_file
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo
     use mp, only: proc0
     use le_grids, only: nterp, negrid, lagrange_interp, xloc
@@ -9658,7 +9653,7 @@ contains
        end if
     end if
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -9673,7 +9668,7 @@ contains
 !<DD>WARNING: THIS ROUTINE DOESN'T USE g_work FOR ANYTHING IS THIS CORRECT?
     call lagrange_interp (g_work, lpoly, istep)
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     tsize = 2*nterp-1
 
@@ -9771,10 +9766,9 @@ contains
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
     use theta_grid, only: bmag, ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, g_work
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use nonlinear_terms, only: accelerated
     use gs2_transforms, only: transform2, init_transforms
-    use run_parameters, only: fphi, fbpar
 #ifdef SHMEM
     use shm_mpi3, only: shm_alloc, shm_free
 #endif
@@ -9829,7 +9823,7 @@ contains
        fyxinit = .true.
     end if
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 #ifndef SHMEM
     g_work = gnew
@@ -9850,7 +9844,7 @@ contains
        if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
     end do
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
        call transform2 (g_work, agzf, ia)
@@ -9872,7 +9866,7 @@ contains
        if (ik == 1) g0_ptr(:,:,iglo) = gnew(:,:,iglo)
     end do
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
        call transform2 (g0_ptr, agzf, ia)
@@ -9973,8 +9967,7 @@ contains
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx
     use collisions, only: dtot, fdf, fdb
@@ -10012,12 +10005,12 @@ contains
     end if
 
 ! convert gnew from g to h
-    call g_adjust(gnew,phi,bpar,fphi,fbpar)
+    call g_adjust(gnew,phi,bpar, direction = from_g_gs2)
 
     g_work = gnew
 
 ! convert gnew from h back to g
-    call g_adjust(gnew,phi,bpar,-fphi,-fbpar)
+    call g_adjust(gnew,phi,bpar, direction = to_g_gs2)
 
 ! map from g_work(ig,isgn,iglo) to glze(il,ilz)
     call gather (lambda_map, g_work, glze)
