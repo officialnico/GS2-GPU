@@ -226,23 +226,27 @@ contains
   !> Assign $g$ a value corresponding to $h$ (g_wesson of CMR's note
   !> in [[dist_fn_arrays:g_adjust]]) of $h = 0$ in order to be
   !> consistent with g_adjust. The correct function call to set h = 0
-  !> is call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
+  !> is call set_h_zero(g, phi, bpar, iglo)
   !>
   !> @note This looks like the g_adjust loop kernel, we might be able
   !> to combine these in some way to avoid duplication.
-  subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
+  subroutine set_h_zero (g, phi, bpar, iglo)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    use run_parameters, only: fphi, fbpar
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar
-    real, intent (in) :: facphi, facbpar
     integer, intent (in) :: iglo
+    real :: facphi, facbpar
     integer :: ig, ik, it, ie, is, il
     complex :: adj
     real :: phi_factor, bpar_factor
+
+    facphi = -fphi
+    facbpar = -fbpar
 
     ! Skip non hybrid electrons
     is = is_idx(g_lo,iglo)
@@ -251,7 +255,7 @@ contains
     ! Skip trapped particles
     il = il_idx(g_lo,iglo)
     if (.not. is_passing_hybrid_electron(is, ik, il)) return
-    
+
     it = it_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)
 
@@ -266,7 +270,7 @@ contains
     else
        bpar_factor = 0.0
     end if
-    
+
     do ig = -ntgrid, ntgrid
        adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
             + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)

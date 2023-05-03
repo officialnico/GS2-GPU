@@ -4671,7 +4671,7 @@ contains
        !/////////////////////////
        
        if (is_passing_hybrid_electron(is, ik, il))  then
-          call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
+          call set_h_zero (gnew, phinew, bparnew, iglo)
           cycle
        end if
 
