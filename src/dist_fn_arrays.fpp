@@ -65,8 +65,6 @@ module dist_fn_arrays
   ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspecies,2)
 #endif
 
-contains
-
   !> g_adjust transforms between representations of perturbed dist'n func'n.
   !>    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
   !>        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
@@ -76,10 +74,39 @@ contains
   !>
   !> To transform gnew from g_gs2 to g_wesson form:
   !>    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+  !> or
+  !>    call g_adjust(gnew,phinew,bparnew, to_g_gs2 = .false.)
   !> or transform from gnew from g_wesson to g_gs2 form:
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+  !> or
+  !>    call g_adjust(gnew,phinew,bparnew, to_g_gs2 = .true. )
   !> CMR, 17/4/2012:
-  subroutine g_adjust (g, phi, bpar, facphi, facbpar)
+  interface g_adjust
+     module procedure g_adjust_floats
+     module procedure g_adjust_logical
+  end interface g_adjust
+
+contains
+
+  !> Transform between g_gs2 and g_wesson with direction indicated
+  !> by passed logical [to_g_gs2].
+  subroutine g_adjust_logical (g, phi, bpar, to_g_gs2)
+    use run_parameters, only: fphi, fbpar
+    implicit none
+    complex, dimension (:,:,:), intent (in out) :: g
+    complex, dimension (:,:,:), intent (in) :: phi, bpar
+    logical, intent(in) :: to_g_gs2
+
+    if (to_g_gs2) then
+       call g_adjust(g, phi, bpar, -fphi, -fbpar)
+    else
+       call g_adjust(g, phi, bpar, fphi, fbpar)
+    end if
+  end subroutine g_adjust_logical
+
+  !> Transform between g_gs2 and g_wesson with direction indicated
+  !> by passed floats [facphi] and [facbpar].
+  subroutine g_adjust_floats (g, phi, bpar, facphi, facbpar)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: grid_has_trapped_particles, jend
@@ -88,7 +115,6 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     real, intent (in) :: facphi, facbpar
-
     integer :: iglo, ig, ik, it, ie, is, il
     complex :: adj
     logical :: trapped
@@ -138,7 +164,7 @@ contains
        end do
     end do
     !$OMP END PARALLEL DO
-  end subroutine g_adjust
+  end subroutine g_adjust_floats
 
   !> This routine checks trapped particle bounce conditions: 
   !!     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)
