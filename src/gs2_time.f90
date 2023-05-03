@@ -5,6 +5,7 @@ module gs2_time
 
   private
 
+  public :: init_gs2_time, finish_gs2_time
   public :: user_dt, code_dt, update_time, code_dt_old
   public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
@@ -34,7 +35,17 @@ module gs2_time
 
 contains
 
-  !> FIXME : Add documentation  
+  !> Initialise the gs2_time module
+  subroutine init_gs2_time
+    implicit none
+  end subroutine init_gs2_time
+
+  !> Finalise the gs2_time module
+  subroutine finish_gs2_time
+    implicit none
+  end subroutine finish_gs2_time
+
+  !> FIXME : Add documentation
   subroutine init_tstart (tstart)
     implicit none
     real, intent (in) :: tstart
