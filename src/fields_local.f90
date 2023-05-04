@@ -1873,6 +1873,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
@@ -1880,13 +1881,13 @@ contains
     if(self%no_populate) return
 
     !First initialise everything to 0
-    g=0
-    phi=0.0
-    phinew=0.0
-    apar=0.0
-    aparnew=0.0
-    bpar=0.0
-    bparnew=0.0
+    call zero_array(g)
+    call zero_array(phi)
+    call zero_array(phinew)
+    call zero_array(apar)
+    call zero_array(aparnew)
+    call zero_array(bpar)
+    call zero_array(bparnew)
 
     !Initialise field counter
     ifl=0
