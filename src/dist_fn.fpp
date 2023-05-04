@@ -10922,6 +10922,13 @@ contains
   !> and not a general average of any field shaped array (e.g. as
   !> gamtot3 is only allocated/set in a special case and the gamtot
   !> factor is not required in the general flux surface average).
+  !>
+  !> @note antot/gamtot is the expression for phi when beta = 0
+  !> and this reflects what is averaged in this routine. As such we
+  !> appear to be assuming beta = 0 here. This is probably fine as
+  !> we should only use the result for adiabatic electrons (where
+  !> one would expect to be ignoring EM perturbations) but perhaps
+  !> there should be a consistency check?
   subroutine calculate_flux_surface_average (fl_avg,antot)
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
