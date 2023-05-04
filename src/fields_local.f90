@@ -1981,6 +1981,7 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
@@ -1990,13 +1991,21 @@ contains
     complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is, iex, ic, iex_init, ig, it
     integer :: it_cur, ig_cur, found_it, found_ig
+    integer :: pts_set_here
     !Allocate the fieldeq arrays, should look at just allocating
     !these things once (maybe store at fieldmat level)
     allocate(fq(-ntgrid:ntgrid, ntheta0, naky))
     allocate(fqa(-ntgrid:ntgrid, ntheta0, naky))
     allocate(fqp(-ntgrid:ntgrid, ntheta0, naky))
 
+    pts_set_here = 0
+
     !Loop over all ik
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, iex_init, iex, ig, it) &
+    !$OMP SHARED(self, kwork_filter, field, ntgrid) &
+    !$OMP REDUCTION(+:pts_set_here) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Technically should be able to skip ik values which are not local (though could be empty)
        !/would have to remember to decrease pts_remain
@@ -2043,8 +2052,8 @@ contains
           !Mark this point as initialised
           self%kyb(ik)%supercells(is)%initialised(iex_init)=.true.
 
-          !Decrease the points remaining count
-          pts_remain=pts_remain-1
+          !Increment the number of points handled in this call
+          pts_set_here = pts_set_here + 1
 
           !Get the ig and it indices corresponding to this point
           call self%kyb(ik)%supercells(is)%iex_to_ig(iex_init,ig)
@@ -2065,6 +2074,10 @@ contains
        self%kyb(ik)%initdone=all(self%kyb(ik)%supercells%initdone)
 
     enddo !Ends loop over ik
+    !$OMP END PARALLEL DO
+
+    ! Update the number of points remaining
+    pts_remain = pts_remain - pts_set_here
 
     !Now do the time advance
     call timeadv(phi,apar,bpar,phinew,aparnew,bparnew,0)
