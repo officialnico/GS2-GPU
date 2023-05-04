@@ -2183,6 +2183,10 @@ contains
     complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is) &
+    !$OMP SHARED(self) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        if(.not.self%kyb(ik)%is_local) cycle
        do is=1,self%kyb(ik)%nsupercell
@@ -2190,6 +2194,7 @@ contains
           self%kyb(ik)%supercells(is)%tmp_sum=0.0
        enddo
     enddo
+    !$OMP END PARALLEL DO
 
     !Allocate storage, may want to put these inside fieldmat
     !object to avoid continual allocation/deallocation
@@ -2206,6 +2211,10 @@ contains
     endif
 
     !Now get the field update for each ik
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik) &
+    !$OMP SHARED(self, fq, fqa, fqp) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip non-local ky
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2217,12 +2226,16 @@ contains
 
     !AJ Wait for collective comms here (these are setup in get_field_update
     if(field_local_nonblocking_collectives) then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik) &
+       !$OMP SHARED(self) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           !Skip non-local ky
           if(.not.self%kyb(ik)%is_local) cycle          
           call self%kyb(ik)%wait_for_nonblocking_collectives()
-    enddo
- 
+       enddo
+       !$OMP END PARALLEL DO
     end if
 
     !Free memory
