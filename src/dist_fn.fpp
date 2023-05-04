@@ -10901,21 +10901,27 @@ contains
       endif
   end subroutine init_pass_wfb
   
-  !> Calculate the flux surface average term for the adiabatic response. 
-  !!
-  !! If using adiabatic electrons and the option
-  !! dist_fn_knobs
-  !!   adiabatic_option = "iphi00=2"
-  !! /
-  !! the field solve should subtract the flux surface average 
-  !! from the perturbed electron distribution function,
-  !! i.e. include the term <phi> in
-  !!
-  !!   f1e = q( phi - <phi>) f0e / Te
-  !!
-  !! This function calculates <phi> and returns it as fl_avg.
-  !!
-  !! Joseph Parker, STFC  
+  !> Calculate the flux surface average term for the adiabatic response.
+  !>
+  !> If using adiabatic electrons and the option
+  !> dist_fn_knobs
+  !>   adiabatic_option = "iphi00=2"
+  !> /
+  !> the field solve should subtract the flux surface average
+  !> from the perturbed electron distribution function,
+  !> i.e. include the term <phi> in
+  !>
+  !>   f1e = q( phi - <phi>) f0e / Te
+  !>
+  !> This function calculates <phi> and returns it as fl_avg.
+  !>
+  !> Joseph Parker, STFC
+  !>
+  !> @note We might want to rename this routine to reflect
+  !> that it only calculates a very specific flux surface average
+  !> and not a general average of any field shaped array (e.g. as
+  !> gamtot3 is only allocated/set in a special case and the gamtot
+  !> factor is not required in the general flux surface average).
   subroutine calculate_flux_surface_average (fl_avg,antot)
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
