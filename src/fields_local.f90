@@ -2151,10 +2151,6 @@ contains
     enddo !Ends loop over ky
     !$OMP END PARALLEL DO
 
-    !Make sure field has been reset -- this cannot be needed as the above loop
-    !continues until sum(field) == 0!
-    call zero_array(field)
-
     !Deallocate field arrays
     deallocate(fq,fqa,fqp)
   end subroutine fm_init_next_field_points
