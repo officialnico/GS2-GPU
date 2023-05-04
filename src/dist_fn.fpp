@@ -4645,7 +4645,7 @@ contains
     !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, save_h, g_h,zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
-    !$OMP SCHEDULE(dynamic)
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
        !// Constants, flags etc.
