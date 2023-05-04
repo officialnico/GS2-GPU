@@ -2256,6 +2256,10 @@ contains
 
     !We don't need to unpack if we're proc0 as we've done this already
     if(.not.proc0)then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik, is, iex, ifl, ic, it, bnd, ig) &
+       !$OMP SHARED(self, ph, ap, bp, has_phi, has_apar, has_bpar, ntgrid) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           if(.not.self%kyb(ik)%is_local) cycle
           do is=1,self%kyb(ik)%nsupercell
@@ -2330,6 +2334,7 @@ contains
              endif
           enddo
        enddo
+       !$OMP END PARALLEL DO
     endif
   end subroutine fm_unpack_to_field
 
