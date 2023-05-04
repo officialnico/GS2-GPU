@@ -5120,7 +5120,14 @@ contains
           call fill (wfb_p, gnew, g_adj)
           call fill (wfb_h, g_h, g_adj)
        endif
-       
+
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
+       !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
+       !$OMP SHARED(g_lo, r_links, l_links, trapped_wfb, passing_wfb, nonad_zero, &
+       !$OMP bmag, ntgrid, al, energy, spec, kperp2, bparnew, fbpar, nonmaxw_corr, &
+       !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
@@ -5280,7 +5287,7 @@ contains
           end if
 
        end do
-       
+       !$OMP END PARALLEL DO
     end if
 
   end subroutine invert_rhs_linked
