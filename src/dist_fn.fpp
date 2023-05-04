@@ -2109,6 +2109,7 @@ contains
     use gs2_layouts, only: idx, proc_id
     use mp, only: iproc, nproc, max_allreduce, mp_abort
     use redistribute, only: index_list_type, init_fill, delete_list
+    use array_utils, only: zero_array
     implicit none
     type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
@@ -2728,7 +2729,8 @@ contains
     endif
     
 ! n_links_max is typically 2 * number of cells in largest supercell
-       allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    call zero_array(g_adj)
 !################################
 !End of linked comms setup
 !################################
@@ -5106,7 +5108,6 @@ contains
     if (no_comm) then
        ! nothing
     else       
-       call zero_array(g_adj) !This shouldn't be needed
        !<DD>Note these fill routines are often equivalent to an all-to-all type
        !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
        !By only communicating with our direct neighbours we would significantly
