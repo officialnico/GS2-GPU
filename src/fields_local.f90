@@ -1171,6 +1171,9 @@ contains
        !Now use MPI to get the rest of the data from other procs
        !<DD>FOR NOW USE ALL_REDUCE AS EASIER, BUT SHOULD BE ABLE
        !TO DO THIS WITH ALL_GATHERV WHICH SHOULD BE FASTER
+       ! We only actually need the result on the head of the supercell
+       ! as this is the only process which operates on the result.
+       ! We could therefore replace allreduce with reduce.
        if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(arr,self%sc_sub_pd%id)
     endif
 
@@ -1506,6 +1509,13 @@ contains
     if(.not.self%is_local) return
 
     !Tell each supercell to prepare
+    ! This might be a good place to add OpenMP pragmas
+    ! however it's possible that this could increase peak
+    ! memory consumption due to now having to hold
+    ! multiple matrices in memory at once, thereby
+    ! potentially negating some of the benefit of using OpenMP
+    ! to get more memory per process. More testing would
+    ! be required to explore this further.
     do is=1,self%nsupercell
        call self%supercells(is)%prepare(prepare_type)
     enddo
