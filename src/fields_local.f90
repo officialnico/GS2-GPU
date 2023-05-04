@@ -2500,6 +2500,7 @@ contains
     use mp, only: rank_comm, comm_type, proc0
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, intspec_sub
+    use array_utils, only: zero_array, copy
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: ph,ap,bp
@@ -2558,13 +2559,17 @@ contains
           allocate(tmp_tmp(-ntgrid:ntgrid,ntheta0,naky,nfield))
        endif
        allocate(tmp(-ntgrid:ntgrid,ntheta0,naky,nfield))
-       tmp_tmp=0
-       if(use_sub) tmp=0 !Only need to zero if tmp_tmp is not same size as tmp
+       call zero_array(tmp_tmp)
+       if(use_sub) call zero_array(tmp) !Only need to zero if tmp_tmp is not same size as tmp
     endif
 
     !Now loop over supercells, and store sections
     !on procs which are part of the head subcom
     if(self%fm_sub_headsc_p0%nproc.gt.0)then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik, is, iex, ifl, it, bnd, ig) &
+       !$OMP SHARED(self, nfield, ntgrid, tmp_tmp) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           do is=1,self%kyb(ik)%nsupercell
              !Skip if we're not the head supercell
@@ -2593,6 +2598,7 @@ contains
              endif
           enddo
        enddo
+       !$OMP END PARALLEL DO
 
        !Now reduce
        !Really we should be able to do some form of gather here
@@ -2637,7 +2643,7 @@ contains
           !increment the field before diagnostics are called.
           if(sub_has_proc0) call sum_reduce_sub(tmp,0,les_comm) 
        else
-          tmp=tmp_tmp !It would be nice to avoid this copy if possible
+          call copy(tmp_tmp, tmp) !It would be nice to avoid this copy if possible
        endif
     endif
 
@@ -2665,6 +2671,9 @@ contains
     endif
 
     !Finally, unpack tmp and deallocate arrays
+    ! We could perhaps use copy here to add OpenMP acceleration
+    ! but I worry this could result in the creation of a temporary
+    ! in some cases, leading to double copying?
     if(self%fm_sub_all%proc0.or.to_all.or.do_allreduce)then
        ifl=0
        if(has_phi) then
