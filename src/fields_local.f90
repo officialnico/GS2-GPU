@@ -2167,6 +2167,11 @@ contains
     if(self%no_prepare) return
 
     !Tell each ky to prepare
+    !This might be a good place to add OpenMP as each prepare (inversion)
+    !has the potential to be quite slow. However, as the cost per inversion
+    !can be quite variable (due to very variable length supercell domains)
+    !it may make more sense to OpenMP at the next level down (i.e. the kyb)
+    !so we're more likely to be sharing work a bit more fairly.
     do ik=1,self%naky
        call self%kyb(ik)%prepare(self%prepare_type)
     enddo
