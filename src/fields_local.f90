@@ -2093,6 +2093,10 @@ contains
     endif
 
     !Now we need to store the field equations in the appropriate places
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, ig_cur, it_cur, found_ig, found_it, it, is) &
+    !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fq, fqa, fqp) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !If no data then skip ik
        if(self%kyb(ik)%is_empty) cycle
@@ -2145,9 +2149,11 @@ contains
           call self%kyb(ik)%store_fq(fq,fqa,fqp,ifl,it_cur,ig_cur)
        enddo !Ends loop over points
     enddo !Ends loop over ky
+    !$OMP END PARALLEL DO
 
-    !Make sure field has been reset
-    field=0
+    !Make sure field has been reset -- this cannot be needed as the above loop
+    !continues until sum(field) == 0!
+    call zero_array(field)
 
     !Deallocate field arrays
     deallocate(fq,fqa,fqp)
