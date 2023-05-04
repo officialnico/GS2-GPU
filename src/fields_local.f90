@@ -2098,12 +2098,15 @@ contains
     !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fq, fqa, fqp) &
     !$OMP SCHEDULE(static)
     do ik=1,self%naky
-       !If no data then skip ik -- because we mark the ky=kx=0 mode
-       !as empty this line means we don't zero out this mode. As such
-       !we may need to zero out the field after this loop to ensure
-       !the field is fully reset. We could try to skip setting this mode
-       !in the first loop instead or remove the below line (adding extra
-       !work).
+       !If no data then skip ik -- because we don't skip setting
+       !the field in the first loop of this routine but we do skip
+       !zeroing it out here on processors which don't have any interest
+       !in this ky, we need to zero the field after this loop to
+       !ensure it has been fully reset to 0 on all procs. We might
+       !consider skipping the setting of the field in the first loop
+       !instead, although this could mean the field is different on
+       !different processors (which should be fine) and might complicate
+       !how we track the number of points we need to visit etc.
        if(self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
