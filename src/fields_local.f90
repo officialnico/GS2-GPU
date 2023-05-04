@@ -2760,19 +2760,25 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use mp, only: proc0
+    use array_utils, only: copy
     implicit none
     class(fieldmat_type), intent(in) ::  self
     integer :: ik,it,is,ic
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(has_phi) phi=phinew
-       if(has_apar) apar=aparnew
-       if(has_bpar) bpar=bparnew
+       if(has_phi) call copy(phinew, phi)
+       if(has_apar) call copy(aparnew,apar)
+       if(has_bpar) call copy(bparnew, bpar)
        return
     endif
 
     !Now loop over cells and calculate field equation as required
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, it) &
+    !$OMP SHARED(self, kwork_filter, has_phi, has_apar, has_bpar, &
+    !$OMP phi, apar, bpar, phinew, aparnew, bparnew) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip not local cells
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2792,7 +2798,7 @@ contains
          enddo
        enddo
     enddo
-
+    !OMP END PARALLEL DO
   end subroutine fm_update_fields_newstep
 
   !> Fetch all condition numbers to proc0 and report on
