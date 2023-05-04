@@ -10933,19 +10933,28 @@ contains
        do ik = 1, naky
           if (aky(ik) > epsilon(0.0)) cycle
           do it = 1, ntheta0
+             ! We might not want this cycle given that this is a one-off setup of awgt
+             ! and kwork_filter may change during the run (e.g. between initialisation
+             ! and time advance). I suspect kwork_filter will be false the first
+             ! time we call this routine, but there is no promise.
              if(kwork_filter(it,ik)) cycle
              awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
           end do
        end do
     endif
-     
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, it) &
+    !$OMP SHARED(naky, ntheta0, kwork_filter, fl_avg, tite, delthet, jacob, gamtot, awgt) &
+    !$OMP SCHEDULE(static)
     do ik = 1, naky
+       ! Note awg == 0 for aky > 0 so we might be able to cycle/limit the loop.
        do it = 1, ntheta0
           if(kwork_filter(it,ik)) cycle
           fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
        end do
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine calculate_flux_surface_average
 
   !> Set the module level config types
