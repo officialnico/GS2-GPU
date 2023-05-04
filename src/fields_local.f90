@@ -2098,7 +2098,12 @@ contains
     !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fq, fqa, fqp) &
     !$OMP SCHEDULE(static)
     do ik=1,self%naky
-       !If no data then skip ik
+       !If no data then skip ik -- because we mark the ky=kx=0 mode
+       !as empty this line means we don't zero out this mode. As such
+       !we may need to zero out the field after this loop to ensure
+       !the field is fully reset. We could try to skip setting this mode
+       !in the first loop instead or remove the below line (adding extra
+       !work).
        if(self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
@@ -2150,6 +2155,9 @@ contains
        enddo !Ends loop over points
     enddo !Ends loop over ky
     !$OMP END PARALLEL DO
+
+    ! See comment in above loop for why this is needed
+    call zero_array(field)
 
     !Deallocate field arrays
     deallocate(fq,fqa,fqp)
