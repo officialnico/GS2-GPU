@@ -2726,6 +2726,11 @@ contains
     endif
 
     !Now loop over cells and calculate field equation as required
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, it) &
+    !$OMP SHARED(self, kwork_filter, has_phi, has_apar, has_bpar, &
+    !$OMP phi, apar, bpar, orig_phi, orig_apar, orig_bpar) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip not local cells
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2745,6 +2750,7 @@ contains
           enddo
        enddo
     enddo
+    !$OMP END PARALLEL DO
 
   end subroutine fm_update_fields
 
