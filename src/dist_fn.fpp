@@ -1235,21 +1235,10 @@ contains
     initialized_dist_fn_level_3 = .false.
 
     initialized = .false.
-    
-    wdrift = 0.
-    wdriftttp = 0.
-    a = 0.
-    b = 0.
-    r = 0.
-    ainv = 0.
-    gnew = 0.
-    g_work = 0.
-    g = 0.
 
     if (allocated(vpa)) deallocate (vpa, vpac, vpar)
     if (allocated(wdrift)) deallocate (wdrift, wdriftttp)
     if (allocated(wstar)) deallocate (wstar)
-!AJ
     if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
 
     call dist_fn_config%reset()
