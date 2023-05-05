@@ -1905,6 +1905,7 @@ contains
     use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, ittp
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use array_utils, only: zero_array
     implicit none
     integer :: iglo
     integer :: ig, ik, it, il, ie, is, isgn
@@ -1920,8 +1921,17 @@ contains
        allocate (r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (ainv(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
-    a = 0. ; b = 0. ; r = 0. ; ainv = 0.
-    
+    call zero_array(a) ; call zero_array(b)
+    call zero_array(r) ; call zero_array(ainv)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn, ig, wd, wdttp, vp, bd) &
+    !$OMP SHARED(g_lo, ntgrid, wdrift, wdriftttp, vpar, bkdiff, ainv, fexp, &
+#ifdef LOWFLOW
+    !$OMP wstar_neo, &
+#endif
+    !$OMP spec, forbid, ittp, r, a, b) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1986,7 +1996,7 @@ contains
           end do
        end do
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine init_invert_rhs
 
   !> FIXME : Add documentation  
