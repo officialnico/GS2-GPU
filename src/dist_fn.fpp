@@ -976,7 +976,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: init_dist_fn_layouts
+    use gs2_layouts, only: init_dist_fn_layouts, init_gf_layouts
     use nonlinear_terms, only: init_nonlinear_terms
     use run_parameters, only: init_run_parameters
     logical,parameter:: debug=.false.
@@ -1003,6 +1003,9 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
+
+    if (debug) write(6,*) "init_dist_fn: gf_layouts"
+    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
 
     ! TODO: I don't think we need to call init_nonlinear_terms
     ! before calling allocate_arrays here because allocate_arrays
@@ -1817,20 +1820,12 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_bessel
-    use dist_fn_arrays, only: aj0, aj1
- !AJ
-    use dist_fn_arrays, only: aj0_gf, aj1_gf
+    use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
     use kt_grids, only: kperp2, naky, ntheta0
-    use species, only: spec
-!AJ
-    use species, only: nspec
+    use species, only: spec, nspec
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy, al
-!AJ
-    use le_grids, only: negrid, nlambda
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-!AJ
-    use gs2_layouts, only: gf_lo, init_gf_layouts
+    use le_grids, only: energy,  al,negrid, nlambda
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, gf_lo
     use spfunc, only: j0, j1
     use mp, only: nproc, iproc
     implicit none
@@ -1845,8 +1840,10 @@ contains
     allocate (aj0(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (aj1(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
 
-    call init_gf_layouts (ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc)
-
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, arg) &
+    !$OMP SHARED(g_lo, ntgrid, spec, energy, al, bmag, kperp2, aj0, aj1) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
@@ -1860,8 +1857,11 @@ contains
           aj1(ig,iglo) = j1(arg)
        end do
     end do
-    !AJ For the gf_lo integrate we pre-calculate some of the factors used in the velocity space 
-    !AJ integration, rather than calculating them on the fly.
+    !$OMP END PARALLEL DO
+
+    !AJ For the gf_lo integrate we pre-calculate some of the factors
+    !used in the velocity space integration, rather than
+    !calculating them on the fly.
     if(gf_lo_integrate) then
        allocate (aj0_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        allocate (aj1_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
