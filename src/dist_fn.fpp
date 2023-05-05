@@ -2027,7 +2027,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_source_term
     use dist_fn_arrays, only: vpar, vpac, aj0
-    use run_parameters, only: wunits, fapar
+    use run_parameters, only: wunits, has_apar
     use gs2_time, only: code_dt
     use species, only: spec,nspec,nonmaxw_corr
     use hyper, only: D_res
@@ -2058,6 +2058,15 @@ contains
     !Setup the source coefficients
     !See comments in get_source_term and set_source
     !for information on these terms.
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ie, il, ik, it, is, isgn, ig) &
+    !$OMP SHARED(g_lo, ntgrid, source_coeffs, vpar, &
+#ifdef LOWFLOW
+    !$OMP wdfac, wstarfac, vparterm, &
+#endif
+    !$OMP vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
+    !$OMP spec, has_apar, aj0, D_res, nonmaxw_corr, wstar, wdrift) &
+    !$OMP SCHEDULE(static)
     do iglo=g_lo%llim_proc,g_lo%ulim_proc
        ie=ie_idx(g_lo,iglo)
        il=il_idx(g_lo,iglo)
@@ -2074,7 +2083,7 @@ contains
               + zi*(wstarfac(ig,isgn,iglo) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
-             if(fapar.gt.0)then
+             if(has_apar)then
                 !Apar m
                 source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
@@ -2094,7 +2103,7 @@ contains
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
-             if(fapar.gt.0)then
+             if(has_apar)then
                 !Apar m
                 source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
@@ -2109,6 +2118,7 @@ contains
           enddo
        enddo
     enddo
+    !$OMP END PARALLEL DO
   end subroutine init_source_term
 
   !> FIXME : Add documentation
