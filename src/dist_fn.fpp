@@ -3166,20 +3166,19 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use gs2_layouts, only: g_lo
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar
+    use array_utils, only: zero_array
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
 #endif
     implicit none
-!    logical :: alloc = .true.
 
-!    if (alloc) then
     if (.not. allocated(g)) then
        allocate (g      (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (gnew   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (g_work (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        if(opt_source)then
-          if(fapar.gt.0)then
+          if(has_apar)then
              allocate (source_coeffs(4,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           else
              allocate (source_coeffs(2,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -3194,7 +3193,7 @@ contains
 #endif
        allocate (gexp_2(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (gexp_3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       gexp_1 = 0. ; gexp_2 = 0. ; gexp_3 = 0.
+       call zero_array(gexp_1) ; call zero_array(gexp_2) ; call zero_array(gexp_3)
 #else
        if (nonlin) then
 #ifndef SHMEM
@@ -3205,12 +3204,12 @@ contains
 #endif
           allocate (gexp_2(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
           allocate (gexp_3(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-          gexp_1 = 0. ; gexp_2 = 0. ; gexp_3 = 0.
+          call zero_array(gexp_1) ; call zero_array(gexp_2) ; call zero_array(gexp_3)
        end if
 #endif
        if (boundary_option_switch == boundary_option_linked) then
           allocate (g_h(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-          g_h = 0.
+          call zero_array(g_h)
           allocate (save_h(2,g_lo%llim_proc:g_lo%ulim_alloc))
           save_h = .false.
        endif
@@ -3224,10 +3223,7 @@ contains
           endif
        endif                           ! MR end
     endif
-
-    g = 0. ; gnew = 0. ; g_work = 0.
-
-!    alloc = .false.
+    call zero_array(g) ; call zero_array(gnew) ; call zero_array(g_work)
   end subroutine allocate_arrays
 
   !> This function calculates the distribution function at the next timestep. 
