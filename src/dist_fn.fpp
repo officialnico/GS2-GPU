@@ -1709,6 +1709,7 @@ contains
     use run_parameters, only: tunits
     use gs2_time, only: code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
+    use array_utils, only: zero_array
     implicit none
     integer :: iglo, ik, is
 !AJ
@@ -1718,14 +1719,12 @@ contains
     if (.not.allocated(vpa)) then
        allocate (vpa    (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpac   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       ! EGH Put vperp2 in a separate function
-       !allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpar   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
-    vpa = 0. ; vpac = 0.; vpar = 0.
+    call zero_array(vpa) ; call zero_array(vpac) ; call zero_array(vpar)
 
-    !AJ if we are doing gf_lo integrate then pre-calcuate some of the data used in the integrate.
-
+    !AJ if we are doing gf_lo integrate then pre-calcuate some of the
+    !data used in the integrate.
     if(gf_lo_integrate) then
        allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda,nspec))
        allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda,nspec))
@@ -1738,24 +1737,29 @@ contains
                 vpa_gf(:, 1, ie, il,is) = sqrt(e1*max(0.0, 1.0 - al1*bmag))
                 vpa_gf(:, 2, ie, il,is) = -vpa_gf(:, 1, ie, il,is)
                 do ig = -ntgrid,ntgrid
-                  if(1.0 - al1*bmag(ig) < 100.0*epsilon(0.0)) then
-                   vpa_gf(ig, :, ie, il,is) = 0.0
-                  end if
-                  vperp2_gf(ig, ie, il,is) = e1*al1*bmag(ig)
+                   if(1.0 - al1*bmag(ig) < 100.0*epsilon(0.0)) then
+                      vpa_gf(ig, :, ie, il,is) = 0.0
+                   end if
+                   ! Should this be moved to init_vperp2?
+                   vperp2_gf(ig, ie, il,is) = e1*al1*bmag(ig)
                 end do
              end do
           end do
        end do
     end if
 
-
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, al1, e1, ik, is) &
+    !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, &
+    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo,iglo)
        al1 = al(il_idx(g_lo,iglo))
-       e1 = energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
+       e1 = energy(ie_idx(g_lo,iglo), is)
 
        vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
-       !vperp2(:,iglo) = bmag*al1*e1
 
        where (1.0 - al1*bmag < 100.0*epsilon(0.0))
           vpa(:,1,iglo) = 0.0
@@ -1789,7 +1793,6 @@ contains
        vpac(ntgrid,:,iglo) = 0.0
 
        ik = ik_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
        vpar(-ntgrid:ntgrid-1,1,iglo) = &
             spec(is)%zstm*tunits(ik)*code_dt &
             *0.5/delthet(-ntgrid:ntgrid-1) &
@@ -1803,7 +1806,7 @@ contains
        vpar(ntgrid,:,iglo) = 0.0
 
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine init_vpar
 
   !> FIXME : Add documentation  
