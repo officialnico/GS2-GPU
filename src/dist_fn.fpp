@@ -10958,7 +10958,8 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, it) &
-    !$OMP SHARED(naky, ntheta0, kwork_filter, fl_avg, tite, delthet, jacob, gamtot, awgt) &
+    !$OMP SHARED(naky, ntheta0, kwork_filter, fl_avg, tite, antot, &
+    !$OMP delthet, jacob, gamtot, awgt) &
     !$OMP SCHEDULE(static)
     do ik = 1, naky
        ! Note awg == 0 for aky > 0 so we might be able to cycle/limit the loop.
