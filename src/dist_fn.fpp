@@ -5444,11 +5444,11 @@ contains
        ik_llim = 1 ; ik_ulim = naky
     end if
 
-!Don't do this as integrate_species will fill in all values
-!    antot=0. ; antota=0. ; antotp=0.
-!Need to set individual arrays to zero if not using integrate_species for
-!that field. (NOTE this probably isn't actually needed as we shouldn't
-!use the various antots if we're not calculating/using the related field).
+    !Don't do this as integrate_species will fill in all values
+    !    antot=0. ; antota=0. ; antotp=0.
+    !Need to set individual arrays to zero if not using integrate_species for
+    !that field. (NOTE this probably isn't actually needed as we shouldn't
+    !use the various antots if we're not calculating/using the related field).
 
     if (has_phi) then
        !$OMP PARALLEL DO DEFAULT(none) &
@@ -7093,6 +7093,9 @@ contains
   !> simulation. We should provide a method to calculate these fields even
   !> if they are not included in the evolution (e.g. for diagnostics,
   !> collisions etc.). Perhaps an optional flag here would be enough.
+  !>
+  !> @note We could precalculate the denominators used here saving a little
+  !> computation and removing the need for a branch in the Apar case.
   subroutine calculate_potentials_from_nonadiabatic_dfn(f_in, phi, apar, bpar, &
        gf_lo, local_only)
     use gs2_layouts, only: g_lo
@@ -7236,6 +7239,11 @@ contains
   !> TT> Given initial distribution function this obtains consistent fields
   !> MAB> ported from agk
   !> CMR, 1/8/2011> corrections below for inhomogeneous bmag
+  !>
+  !> @note The denominators in these calculations are time independent so
+  !> could be precalculated. This would also allow us to store 1/denominator
+  !> to replace divisions with multiplications and thereby avoid the logicals
+  !> currently in place to avoid division by zero.
   subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo, local_only)
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use species, only: spec, has_electron_species
@@ -7273,9 +7281,8 @@ contains
        call getan_from_dfn (g_in, antot, antota, antotp, local_only)
     end if
 
-    ! This is a constant so should perhaps be calculated once during
-    ! initialisiation.
-    fl_avg = 0.0
+    ! This logical is a constant so should perhaps be calculated once during
+    ! initialisiation and given a helpful name.
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
       call calculate_flux_surface_average(fl_avg,antot)
     end if
