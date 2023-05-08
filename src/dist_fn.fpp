@@ -7281,6 +7281,8 @@ contains
        call getan_from_dfn (g_in, antot, antota, antotp, local_only)
     end if
 
+    fl_avg = 0.
+
     ! This logical is a constant so should perhaps be calculated once during
     ! initialisiation and given a helpful name.
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
