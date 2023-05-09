@@ -225,6 +225,10 @@ module dist_fn
   integer, dimension (:,:), allocatable :: itleft, itright
   ! (naky,ntheta0)
 
+  ! For use in get_fields_direct_from_dfn
+  real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_apar_denominator_g
+  real, dimension(:, :, :), allocatable :: inv_bpar_denominator_g
+
   type :: connections_type
      integer :: iproc_left,  iglo_left
      integer :: iproc_right, iglo_right
@@ -1226,6 +1230,9 @@ contains
     if (allocated(gridfac1)) deallocate (gridfac1, gamtot, gamtot1, gamtot2)
     if (allocated(gamtot3)) deallocate (gamtot3)
     if (allocated(a)) deallocate (a, b, r, ainv)
+    if (allocated(inv_phi_denominator_g)) deallocate(inv_phi_denominator_g)
+    if (allocated(inv_apar_denominator_g)) deallocate(inv_apar_denominator_g)
+    if (allocated(inv_bpar_denominator_g)) deallocate(inv_bpar_denominator_g)
   end subroutine finish_dist_fn_level_2
 
   !> FIXME : Add documentation  
@@ -7229,6 +7236,168 @@ contains
 
   end subroutine calculate_potentials_from_nonadiabatic_dfn
 
+  !> Precomputes constants used in the inversion of the field equations:
+  !>   gamtot * phi - gamtot1 * bpar = antot
+  !>   kperp2 * apar = antota
+  !>   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
+  subroutine setup_get_fields_direct_from_dfn_denominators(phi_denom, apar_denom, bpar_denom)
+    use theta_grid, only: ntgrid, bmag
+    use kt_grids, only: naky, ntheta0, kperp2
+    use run_parameters, only: beta, has_phi, has_apar, has_bpar
+    implicit none
+    real, dimension(:, :, :), allocatable, intent(in out) :: phi_denom, apar_denom, bpar_denom
+    integer :: it, ik, ig
+
+    ! get phi denominator
+    if (has_phi) then
+       ! Note we allocate and set as the full size to support calls to
+       ! this routine with either choice for local_only.
+       if (.not. allocated(phi_denom)) allocate(phi_denom(-ntgrid:ntgrid, ntheta0, naky))
+
+       if (has_bpar) then
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ntheta0, naky, beta, gamtot2, &
+          !$OMP bmag, gamtot1, phi_denom, gamtot) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                phi_denom(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) &
+                     * gamtot(:, it, ik) &
+                     + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       else
+          ! If fbpar = 0 then the terms in earlier branch proportional to beta
+          ! should be zero as these terms arrive from the bpar parts of quasineutrality
+          ! as expressed in terms of gnew. In this case we get the below.
+
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ntheta0, naky, phi_denom, gamtot) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                phi_denom(:, it, ik) = gamtot(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       end if
+
+       ! Now invert the denominator
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ntheta0, naky, ntgrid, phi_denom) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                if (abs(phi_denom(ig, it, ik)) > epsilon(0.0)) then
+                   phi_denom(ig, it, ik) = &
+                        1.0 / phi_denom(ig, it, ik)
+                else
+                   phi_denom(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+
+    end if
+
+    ! get apar
+    if (has_apar) then
+       ! Note we allocate and set as the full size to support calls to
+       ! this routine with either choice for local_only.
+       if (.not. allocated(apar_denom)) allocate(apar_denom(-ntgrid:ntgrid, ntheta0, naky))
+
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ntheta0, naky, ntgrid, kperp2, apar_denom) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                   apar_denom(ig, it, ik) = 1.0 / kperp2(ig, it, ik)
+                else
+                   apar_denom(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
+
+    ! get bpar
+    if (has_bpar) then
+       ! Note we allocate and set as the full size to support calls to
+       ! this routine with either choice for local_only.
+       if (.not. allocated(bpar_denom)) allocate(bpar_denom(-ntgrid:ntgrid, ntheta0, naky))
+
+       ! As in our calculation of phi, we see that the equations for
+       ! bpar and phi are coupled when written in terms of gnew. This
+       ! means we get contributions arising from phi in the expression
+       ! for B|| here. In particular, they are the terms involving
+       ! gamtot1. However, if we have disabled phi then they should
+       ! not appear in our calculation, so handle that here.
+       if (has_phi) then
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ntheta0, naky, beta, gamtot, &
+          !$OMP gamtot1, bpar_denom, gamtot2, bmag) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                bpar_denom(:, it, ik) = gamtot(:, it, ik) * &
+                     (beta * gamtot2(:, it, ik) + bmag**2) + &
+                     (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       else
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(it, ik) &
+          !$OMP SHARED(ntheta0, naky, beta, &
+          !$OMP bpar_denom, gamtot2, bmag) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
+          do ik = 1, naky
+             do it = 1, ntheta0
+                bpar_denom(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2)
+             end do
+          end do
+          !$OMP END PARALLEL DO
+       end if
+
+       ! Now invert the denominator
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(it, ik, ig) &
+       !$OMP SHARED(ntheta0, naky, ntgrid, bpar_denom) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do ik = 1, naky
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
+                if (abs(bpar_denom(ig, it, ik)) > epsilon(0.0)) then
+                   bpar_denom(ig, it, ik) = &
+                        1.0 / bpar_denom(ig, it, ik)
+                else
+                   bpar_denom(ig, it, ik) = 0.0
+                end if
+             end do
+          end do
+       end do
+       !$OMP END PARALLEL DO
+    end if
+  end subroutine setup_get_fields_direct_from_dfn_denominators
+
   !> Inverts the field equations:
   !>   gamtot * phi - gamtot1 * bpar = antot
   !>   kperp2 * apar = antota
@@ -7239,23 +7408,17 @@ contains
   !> TT> Given initial distribution function this obtains consistent fields
   !> MAB> ported from agk
   !> CMR, 1/8/2011> corrections below for inhomogeneous bmag
-  !>
-  !> @note The denominators in these calculations are time independent so
-  !> could be precalculated. This would also allow us to store 1/denominator
-  !> to replace divisions with multiplications and thereby avoid the logicals
-  !> currently in place to avoid division by zero.
   subroutine get_fields_direct_from_dfn(g_in, phi, apar, bpar, gf_lo, local_only)
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: ntheta0, naky, kperp2
+    use kt_grids, only: ntheta0, naky
     use optionals, only: get_option_with_default
     use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo, local_only
-    real, dimension (-ntgrid:ntgrid,ntheta0,naky) :: denominator
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
     complex, dimension (ntheta0,naky) :: fl_avg
@@ -7273,6 +7436,13 @@ contains
     else
        it_llim = 1 ; it_ulim = ntheta0
        ik_llim = 1 ; ik_ulim = naky
+    end if
+
+    ! Ensure the denominator arrays are setup. We might want to move this block into
+    ! a separate routine to improve clarity
+    if (.not. allocated(inv_phi_denominator_g)) then
+       call setup_get_fields_direct_from_dfn_denominators(inv_phi_denominator_g, &
+            inv_apar_denominator_g, inv_bpar_denominator_g)
     end if
 
     if(local_gf_lo) then
@@ -7298,13 +7468,12 @@ contains
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot2, &
-          !$OMP bmag, antot, fl_avg, gamtot1, antotp, denominator, gamtot) &
+          !$OMP bmag, antot, fl_avg, gamtot1, antotp) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
              do it = it_llim, it_ulim
                 numerator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * (antot(:, it, ik)+fl_avg(it, ik)) - (beta * gamtot1(:, it, ik)) * antotp(:, it, ik)
-                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2) * gamtot(:, it, ik) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
              end do
           end do
           !$OMP END PARALLEL DO
@@ -7323,38 +7492,17 @@ contains
              end do
           end do
           !$OMP END PARALLEL DO
-
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(it, ik) &
-          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, denominator, gamtot) &
-          !$OMP COLLAPSE(2) &
-          !$OMP SCHEDULE(static)
-          do ik = ik_llim, ik_ulim
-             do it = it_llim, it_ulim
-                denominator(:, it, ik) = gamtot(:, it, ik)
-             end do
-          end do
-          !$OMP END PARALLEL DO
        end if
 
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik, ig) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, denominator, phi, &
-       !$OMP numerator) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, inv_phi_denominator_g, &
+       !$OMP phi, numerator) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             do ig = -ntgrid, ntgrid
-                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
-                !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator.
-                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
-                   phi(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
-                else
-                   phi(ig, it, ik) = 0.0
-                end if
-             end do
+             phi(:, it, ik) = numerator(:, it, ik) * inv_phi_denominator_g(:, it, ik)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -7375,22 +7523,14 @@ contains
     ! get apar
     if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik, ig) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, antota, apar) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota, apar, &
+       !$OMP inv_apar_denominator_g) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             do ig = -ntgrid, ntgrid
-                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
-                !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator.
-                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
-                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
-                else
-                   apar(ig, it, ik) = 0.0
-                end if
-             end do
+             apar(:, it, ik) = antota(:, it, ik) * inv_apar_denominator_g(:, it, ik)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -7420,50 +7560,38 @@ contains
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
           !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, gamtot, &
-          !$OMP antotp, gamtot1, antot, denominator, gamtot2, bmag) &
+          !$OMP antotp, gamtot1, antot, bmag) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
              do it = it_llim, it_ulim
                 numerator(:, it, ik) = - (beta * gamtot(:, it, ik)) * antotp(:, it, ik) - (beta/2.0) * gamtot1(:, it, ik) * antot(:, it, ik)
-                denominator(:, it, ik) = gamtot(:, it, ik) * (beta * gamtot2(:, it, ik) + bmag**2) + (beta/2.0) * gamtot1(:, it, ik) * gamtot1(:, it, ik)
              end do
           end do
           !$OMP END PARALLEL DO
        else
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(it, ik) &
-          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, antotp, &
-          !$OMP denominator, gamtot2, bmag) &
+          !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, numerator, beta, antotp) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do ik = ik_llim, ik_ulim
              do it = it_llim, it_ulim
                 numerator(:, it, ik) = - beta * antotp(:, it, ik)
-                denominator(:, it, ik) = (beta * gamtot2(:, it, ik) + bmag**2)
              end do
           end do
           !$OMP END PARALLEL DO
        end if
 
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik, ig) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, &
-       !$OMP denominator, numerator, bpar) &
+       !$OMP PRIVATE(it, ik) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, inv_bpar_denominator_g, &
+       !$OMP numerator, bpar) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             do ig = -ntgrid, ntgrid
-                !NOTE: denominator=0 for the it==ik==1 only in certain circumstances
-                !for example a simulation with beta=0.0 and an adiabatic species does
-                !not have a zero denominator.
-                if (abs(denominator(ig, it, ik)) > epsilon(0.0)) then
-                   bpar(ig, it, ik) = numerator(ig, it, ik) / denominator(ig, it, ik)
-                else
-                   bpar(ig, it, ik) = 0.0
-                end if
-             end do
+             bpar(:, it, ik) = numerator(:, it, ik) * inv_bpar_denominator_g(:, it, ik)
           end do
        end do
        !$OMP END PARALLEL DO
