@@ -5441,7 +5441,7 @@ contains
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
-    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, optional :: local_only
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, ig, ik, it
@@ -5486,18 +5486,6 @@ contains
 !    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antot) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             antot(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     if (has_apar) then
@@ -5519,18 +5507,6 @@ contains
        call integrate_species (g_work, wgt, antota)
 !    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             antota(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     if (has_bpar) then
@@ -5552,18 +5528,6 @@ contains
        call integrate_species (g_work, wgt, antotp)
 !    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antotp) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             antotp(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     call prof_leaving ("getan_from_dfn", "dist_fn")
@@ -5584,7 +5548,7 @@ contains
     use theta_grid, only: ntgrid
     use prof, only: prof_entering, prof_leaving
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, intent(in), optional :: local_only
     call prof_entering ("getan", "dist_fn")
     call getan_from_dfn(gnew, antot, antota, antotp, local_only)
