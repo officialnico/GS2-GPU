@@ -6715,7 +6715,7 @@ contains
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
-    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, optional :: local_only
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, it, ik, igf
@@ -6734,10 +6734,11 @@ contains
        ik_llim = 1 ; ik_ulim = naky
     end if
 
-    ! Initialise the outputs. We note that both gf_lo_integrate and integrate_species
-    ! with no_gath = .true. may only populate part of these arrays so we initialise to
-    ! zero here to avoid later using uninitialised data.
-    if (gf_lo_integrate .or. (.not. has_phi)) then
+    ! Initialise the outputs if with gf_lo_integrate. We note that
+    ! the arrays are initialised on allocation so we do not need
+    ! to zero in the gf_lo_integrate = .false. case even though
+    ! integrate species may not populate all indices.
+    if (gf_lo_integrate) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antot) &
@@ -6749,9 +6750,7 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    end if
 
-    if (gf_lo_integrate .or. (.not. has_apar)) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota) &
@@ -6763,9 +6762,7 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    end if
 
-    if (gf_lo_integrate .or. (.not. has_bpar)) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
        !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antotp) &
@@ -6777,12 +6774,10 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    end if
 
-    !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
-    !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
-    !AJ where it will end up in gfarray)
-    if(gf_lo_integrate) then
+       !AJ if we are performing the integrate in gf_lo space (i.e. the result will be returned in gf_lo)
+       !AJ then do the initial redistribution of the data from g_lo (where g_in is current) to gf_lo
+       !AJ where it will end up in gfarray)
        allocate( gfarray(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        call gather(g2gf, g_in, gfarray, ntgrid)
     end if
@@ -6824,9 +6819,7 @@ contains
             !$OMP END PARALLEL DO
           endif
           call integrate_species (g_work, wgt, antot, nogath=.true.)
-       end if
-
-       if(gf_lo_integrate) then
+       else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
           !AJ pre-calculation loop (see the call above where aj0 is multipled by g_in) with the integrate species itself.  This should be more
@@ -6902,9 +6895,8 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
-       end if
 
-       if(gf_lo_integrate) then
+       else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
           !AJ pre-calculation loop (see the call above where aj0 and vpa are multipled by g_in) with the integrate species itself.  This should be more
@@ -6984,9 +6976,8 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
-       end if
 
-       if(gf_lo_integrate) then
+       else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
           !AJ pre-calculation loop (see the call above where aj1 and vperp2 are multipled by g_in) with the integrate species itself.  This should be more
@@ -7038,7 +7029,7 @@ contains
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (out) :: antot, antota, antotp
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, intent(in), optional :: local_only
     call getan_nogath_from_dfn(gnew, antot, antota, antotp, local_only)
   end subroutine getan_nogath
