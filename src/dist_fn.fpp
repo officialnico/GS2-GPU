@@ -1130,6 +1130,7 @@ contains
   subroutine finish_dist_fn_arrays
     use dist_fn_arrays, only: g, gnew, g_work, kx_shift, theta0_shift, vperp2
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
+    use dist_fn_arrays, only: antot, antota, antotp
 #ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
@@ -1152,6 +1153,9 @@ contains
     if (allocated(kx_shift)) deallocate (kx_shift)
     if (allocated(theta0_shift)) deallocate (theta0_shift)
     if (allocated(vperp2)) deallocate (vperp2)
+    if (allocated(antot)) deallocate(antot)
+    if (allocated(antota)) deallocate(antota)
+    if (allocated(antotp)) deallocate(antotp)
     initialized_dist_fn_arrays = .false.
   end subroutine finish_dist_fn_arrays
 
@@ -3164,11 +3168,12 @@ contains
   
   !> FIXME : Add documentation
   subroutine allocate_arrays
-    use kt_grids, only: naky,  box
+    use kt_grids, only: ntheta0, naky,  box
     use theta_grid, only: ntgrid, shat
     use dist_fn_arrays, only: g, gnew, g_work
     use dist_fn_arrays, only: kx_shift, theta0_shift   ! MR
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
+    use dist_fn_arrays, only: antot, antota, antotp
     use gs2_layouts, only: g_lo
     use nonlinear_terms, only: nonlin
     use run_parameters, only: has_apar
@@ -3229,6 +3234,11 @@ contains
        endif                           ! MR end
     endif
     call zero_array(g) ; call zero_array(gnew) ; call zero_array(g_work)
+
+    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
+    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
+    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
+    call zero_array(antot) ; call zero_array(antota) ; call zero_array(antotp)
   end subroutine allocate_arrays
 
   !> This function calculates the distribution function at the next timestep. 
@@ -6389,21 +6399,15 @@ contains
   subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-
-    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getan (antot, antota, antotp, local_only)
     call getfieldeq1 (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp, local_only)
-
-    deallocate (antot, antota, antotp)
   end subroutine getfieldeq
 
 
@@ -6415,23 +6419,16 @@ contains
   subroutine getfieldeq_nogath (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-
-    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getan_nogath (antot, antota, antotp, local_only)
 
     call getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp, local_only)
-
-    deallocate (antot, antota, antotp)
-
   end subroutine getfieldeq_nogath
 
   !> FIXME : Add documentation
@@ -7109,19 +7106,16 @@ contains
     use kt_grids, only: naky, ntheta0, inv_kperp2
     use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: f_in
     complex, dimension(-ntgrid:, :, :), intent(out) :: phi, apar, bpar
     logical, optional :: gf_lo, local_only
-    complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real :: phi_weight
     real, dimension(-ntgrid:ntgrid) :: bpar_weight
     logical :: local_gf_lo, local_local_only
     integer :: it, ik, ig
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
-    allocate(  antot(-ntgrid:ntgrid, ntheta0, naky))
-    allocate( antota(-ntgrid:ntgrid, ntheta0, naky))
-    allocate( antotp(-ntgrid:ntgrid, ntheta0, naky))
 
     local_gf_lo = get_option_with_default(gf_lo, .false.)
     local_local_only = get_option_with_default(local_only, .false.)
@@ -7389,11 +7383,11 @@ contains
     use kt_grids, only: ntheta0, naky, inv_kperp2
     use optionals, only: get_option_with_default
     use gs2_layouts, only: g_lo
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (:,:,:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo, local_only
-    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
     complex, dimension (ntheta0,naky) :: fl_avg
     logical :: local_gf_lo, local_local_only
