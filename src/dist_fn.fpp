@@ -7108,7 +7108,7 @@ contains
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid, bmag
     use run_parameters, only: has_phi, has_apar, has_bpar, beta, tite
-    use kt_grids, only: naky, ntheta0, kperp2
+    use kt_grids, only: naky, ntheta0, inv_kperp2
     use species, only: spec, has_electron_species, has_ion_species
     use optionals, only: get_option_with_default
     implicit none
@@ -7180,17 +7180,13 @@ contains
     if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik, ig) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, kperp2, apar, antota) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, ntgrid, inv_kperp2, apar, antota) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
              do ig = -ntgrid, ntgrid
-                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
-                   apar(ig, it, ik) = antota(ig, it, ik) / kperp2(ig, it, ik)
-                else
-                   apar(ig, it, ik) = 0.0
-                end if
+                apar(ig, it, ik) = antota(ig, it, ik) * inv_kperp2(ig, it, ik)
              end do
           end do
        end do
