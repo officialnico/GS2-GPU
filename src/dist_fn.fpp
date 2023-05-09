@@ -7117,6 +7117,7 @@ contains
     logical, optional :: gf_lo, local_only
     complex, dimension(:, :, :), allocatable :: antot, antota, antotp
     real :: phi_weight
+    real, dimension(-ntgrid:ntgrid) :: bpar_weight
     logical :: local_gf_lo, local_local_only
     integer :: it, ik, ig
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
@@ -7146,9 +7147,9 @@ contains
     if (has_phi) then
        ! We could add in kperp2*poisfac to the weight to retain this feature
        if (.not. has_electron_species(spec) .or. .not. has_ion_species(spec) ) then
-          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp) + tite
+          phi_weight = 1.0 / (sum(spec%dens*spec%z*spec%z / spec%temp) + tite)
        else
-          phi_weight = sum(spec%dens*spec%z*spec%z / spec%temp)
+          phi_weight = 1.0 / sum(spec%dens*spec%z*spec%z / spec%temp)
        end if
 
        !$OMP PARALLEL DO DEFAULT(none) &
@@ -7158,7 +7159,7 @@ contains
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             phi(:, it, ik) = antot(:, it, ik) / phi_weight
+             phi(:, it, ik) = antot(:, it, ik) * phi_weight
           end do
        end do
        !$OMP END PARALLEL DO
@@ -7209,14 +7210,15 @@ contains
     end if
 
     if (has_bpar) then
+       bpar_weight = -beta / bmag**2
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar, beta, antotp, bmag) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, bpar, bpar_weight, antotp) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             bpar(:, it, ik) = -beta * antotp(:, it, ik) / bmag**2
+             bpar(:, it, ik) = antotp(:, it, ik) * bpar_weight
           end do
        end do
        !$OMP END PARALLEL DO
@@ -7438,8 +7440,7 @@ contains
        ik_llim = 1 ; ik_ulim = naky
     end if
 
-    ! Ensure the denominator arrays are setup. We might want to move this block into
-    ! a separate routine to improve clarity
+    ! Ensure the denominator arrays are setup.
     if (.not. allocated(inv_phi_denominator_g)) then
        call setup_get_fields_direct_from_dfn_denominators(inv_phi_denominator_g, &
             inv_apar_denominator_g, inv_bpar_denominator_g)
