@@ -3578,11 +3578,11 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath
     use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: antot, antota, antotp
 
     call getan_nogath(antot, antota, antotp)
     call self%getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &

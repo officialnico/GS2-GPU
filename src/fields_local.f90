@@ -3015,15 +3015,11 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-
-    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getan_nogath(antot, antota, antotp)
     !AJ If we are integrating in the gf_lo data distribution then the results of antot etc... from
@@ -3034,8 +3030,6 @@ contains
     end if
     call self%getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp)
-
-    deallocate (antot, antota, antotp)
   end subroutine fm_getfieldeq_nogath
 
   !AJ This routine takes in data that has been calculated in gf_lo layout (i.e. the antot etc... arrays 
