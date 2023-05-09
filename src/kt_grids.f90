@@ -2369,6 +2369,7 @@ contains
     if (allocated(aky)) deallocate (akx, aky, theta0, ikx, iky)
     if (allocated(kwork_filter)) deallocate(kwork_filter)
     if (allocated(kperp2)) deallocate(kperp2)
+    if (allocated(inv_kperp2)) deallocate(inv_kperp2)
     reality = .false. ; box = .false.
     kp2init = .false.
     initialized = .false.
