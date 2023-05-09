@@ -226,8 +226,7 @@ module dist_fn
   ! (naky,ntheta0)
 
   ! For use in get_fields_direct_from_dfn
-  real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_apar_denominator_g
-  real, dimension(:, :, :), allocatable :: inv_bpar_denominator_g
+  real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
   type :: connections_type
      integer :: iproc_left,  iglo_left
@@ -1231,7 +1230,6 @@ contains
     if (allocated(gamtot3)) deallocate (gamtot3)
     if (allocated(a)) deallocate (a, b, r, ainv)
     if (allocated(inv_phi_denominator_g)) deallocate(inv_phi_denominator_g)
-    if (allocated(inv_apar_denominator_g)) deallocate(inv_apar_denominator_g)
     if (allocated(inv_bpar_denominator_g)) deallocate(inv_bpar_denominator_g)
   end subroutine finish_dist_fn_level_2
 
@@ -7238,12 +7236,15 @@ contains
   !>   gamtot * phi - gamtot1 * bpar = antot
   !>   kperp2 * apar = antota
   !>   beta/2 * gamtot1 * phi + (beta * gamtot2 + 1) * bpar = - beta * antotp
-  subroutine setup_get_fields_direct_from_dfn_denominators(phi_denom, apar_denom, bpar_denom)
+  !>
+  !> @note As apar_denom is exactly inv_kperp2 we do not calculate this here
+  !> and just use inv_kperp2 in get_fields_direct_from_dfn
+  subroutine setup_get_fields_direct_from_dfn_denominators(phi_denom, bpar_denom)
     use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: naky, ntheta0, kperp2
+    use kt_grids, only: naky, ntheta0
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     implicit none
-    real, dimension(:, :, :), allocatable, intent(in out) :: phi_denom, apar_denom, bpar_denom
+    real, dimension(:, :, :), allocatable, intent(in out) :: phi_denom, bpar_denom
     integer :: it, ik, ig
 
     ! get phi denominator
@@ -7305,31 +7306,6 @@ contains
        end do
        !$OMP END PARALLEL DO
 
-    end if
-
-    ! get apar
-    if (has_apar) then
-       ! Note we allocate and set as the full size to support calls to
-       ! this routine with either choice for local_only.
-       if (.not. allocated(apar_denom)) allocate(apar_denom(-ntgrid:ntgrid, ntheta0, naky))
-
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik, ig) &
-       !$OMP SHARED(ntheta0, naky, ntgrid, kperp2, apar_denom) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = 1, naky
-          do it = 1, ntheta0
-             do ig = -ntgrid, ntgrid
-                if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
-                   apar_denom(ig, it, ik) = 1.0 / kperp2(ig, it, ik)
-                else
-                   apar_denom(ig, it, ik) = 0.0
-                end if
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     ! get bpar
@@ -7410,7 +7386,7 @@ contains
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use species, only: spec, has_electron_species
     use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: ntheta0, naky
+    use kt_grids, only: ntheta0, naky, inv_kperp2
     use optionals, only: get_option_with_default
     use gs2_layouts, only: g_lo
     implicit none
@@ -7439,7 +7415,7 @@ contains
     ! Ensure the denominator arrays are setup.
     if (.not. allocated(inv_phi_denominator_g)) then
        call setup_get_fields_direct_from_dfn_denominators(inv_phi_denominator_g, &
-            inv_apar_denominator_g, inv_bpar_denominator_g)
+            inv_bpar_denominator_g)
     end if
 
     if(local_gf_lo) then
@@ -7521,13 +7497,12 @@ contains
     if (has_apar) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota, apar, &
-       !$OMP inv_apar_denominator_g) &
+       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, antota, apar, inv_kperp2) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do ik = ik_llim, ik_ulim
           do it = it_llim, it_ulim
-             apar(:, it, ik) = antota(:, it, ik) * inv_apar_denominator_g(:, it, ik)
+             apar(:, it, ik) = antota(:, it, ik) * inv_kperp2(:, it, ik)
           end do
        end do
        !$OMP END PARALLEL DO
