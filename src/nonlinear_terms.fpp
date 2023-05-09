@@ -473,7 +473,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -613,7 +613,7 @@ contains
           endif
 
        else
-          g1 = 0.
+          call zero_array(g1)
        end if
 
 #ifdef LOWFLOW
