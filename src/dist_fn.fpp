@@ -1131,6 +1131,7 @@ contains
     use dist_fn_arrays, only: g, gnew, g_work, kx_shift, theta0_shift, vperp2
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use dist_fn_arrays, only: antot, antota, antotp
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
 #ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
@@ -1156,6 +1157,9 @@ contains
     if (allocated(antot)) deallocate(antot)
     if (allocated(antota)) deallocate(antota)
     if (allocated(antotp)) deallocate(antotp)
+    if (allocated(fieldeq)) deallocate(fieldeq)
+    if (allocated(fieldeqa)) deallocate(fieldeqa)
+    if (allocated(fieldeqp)) deallocate(fieldeqp)
     initialized_dist_fn_arrays = .false.
   end subroutine finish_dist_fn_arrays
 
@@ -3174,6 +3178,7 @@ contains
     use dist_fn_arrays, only: kx_shift, theta0_shift   ! MR
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use dist_fn_arrays, only: antot, antota, antotp
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use gs2_layouts, only: g_lo
     use nonlinear_terms, only: nonlin
     use run_parameters, only: has_apar
@@ -3239,6 +3244,11 @@ contains
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
     allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
     call zero_array(antot) ; call zero_array(antota) ; call zero_array(antotp)
+
+    allocate (fieldeq (-ntgrid:ntgrid,ntheta0,naky))
+    allocate (fieldeqa(-ntgrid:ntgrid,ntheta0,naky))
+    allocate (fieldeqp(-ntgrid:ntgrid,ntheta0,naky))
+    call zero_array(fieldeq) ; call zero_array(fieldeqa) ; call zero_array(fieldeqp)
   end subroutine allocate_arrays
 
   !> This function calculates the distribution function at the next timestep. 
@@ -6243,7 +6253,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
     logical :: local_local_only
     integer :: ik, it
@@ -6284,18 +6294,6 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeq(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     if (has_apar) then
@@ -6309,18 +6307,6 @@ contains
           do it = it_llim, it_ulim
              fieldeqa(:, it, ik) = antota(:, it, ik) - &
                   kperp2(:, it, ik)*gridfac1(:, it, ik)*apar(:, it, ik)
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeqa(:, it, ik) = 0.0
           end do
        end do
        !$OMP END PARALLEL DO
@@ -6344,18 +6330,6 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeqp(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
   end subroutine getfieldeq1
 
@@ -6366,7 +6340,7 @@ contains
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
 
     call getan (antot, antota, antotp, local_only)
@@ -6386,7 +6360,7 @@ contains
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
 
     call getan_nogath (antot, antota, antotp, local_only)
@@ -6410,7 +6384,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
     logical, intent(in), optional :: local_only
     logical :: local_local_only
     integer :: ik, it
@@ -6470,18 +6444,6 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeq) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeq(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
 
     if (has_apar) then
@@ -6496,18 +6458,6 @@ contains
              if(kwork_filter(it,ik)) cycle
              fieldeqa(:, it, ik) = antota(:, it, ik) - &
                   kperp2(:, it, ik)*gridfac1(:, it, ik)*apar(:, it, ik)
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqa) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeqa(:, it, ik) = 0.0
           end do
        end do
        !$OMP END PARALLEL DO
@@ -6550,18 +6500,6 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(it, ik) &
-       !$OMP SHARED(ik_llim, ik_ulim, it_llim, it_ulim, fieldeqp) &
-       !$OMP COLLAPSE(2) &
-       !$OMP SCHEDULE(static)
-       do ik = ik_llim, ik_ulim
-          do it = it_llim, it_ulim
-             fieldeqp(:, it, ik) = 0.0
-          end do
-       end do
-       !$OMP END PARALLEL DO
     end if
   end subroutine getfieldeq1_nogath
 

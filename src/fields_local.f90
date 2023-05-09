@@ -1990,6 +1990,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use array_utils, only: zero_array
     implicit none
@@ -1998,15 +1999,9 @@ contains
     integer, intent(inout) :: pts_remain
     integer, intent(in) :: ifl
     logical, dimension(ntheta0, naky), intent(inout) :: kwork_filter
-    complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is, iex, ic, iex_init, ig, it
     integer :: it_cur, ig_cur, found_it, found_ig
     integer :: pts_set_here
-    !Allocate the fieldeq arrays, should look at just allocating
-    !these things once (maybe store at fieldmat level)
-    allocate(fq(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(fqa(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(fqp(-ntgrid:ntgrid, ntheta0, naky))
 
     pts_set_here = 0
 
@@ -2095,17 +2090,17 @@ contains
     !In some(/most) situations the nogath version should
     !be ok, and will be better for scaling.
     if(pc%has_to_gather)then
-       call getfieldeq(phinew,aparnew,bparnew,fq,fqa,fqp)
+       call getfieldeq(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
     else
 !       call getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
 !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
+       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
     endif
 
     !Now we need to store the field equations in the appropriate places
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, ig_cur, it_cur, found_ig, found_it, it, is) &
-    !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fq, fqa, fqp) &
+    !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fieldeq, fieldeqa, fieldeqp) &
     !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !If no data then skip ik -- because we don't skip setting
@@ -2164,16 +2159,13 @@ contains
           endif
 
           !Now store data
-          call self%kyb(ik)%store_fq(fq,fqa,fqp,ifl,it_cur,ig_cur)
+          call self%kyb(ik)%store_fq(fieldeq,fieldeqa,fieldeqp,ifl,it_cur,ig_cur)
        enddo !Ends loop over points
     enddo !Ends loop over ky
     !$OMP END PARALLEL DO
 
     ! See comment in above loop for why this is needed
     call zero_array(field)
-
-    !Deallocate field arrays
-    deallocate(fq,fqa,fqp)
   end subroutine fm_init_next_field_points
 
   !> Prepare the field matrix for calculating field updates
@@ -2203,10 +2195,10 @@ contains
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
-    complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is
 
     !$OMP PARALLEL DO DEFAULT(none) &
@@ -2222,24 +2214,18 @@ contains
     enddo
     !$OMP END PARALLEL DO
 
-    !Allocate storage, may want to put these inside fieldmat
-    !object to avoid continual allocation/deallocation
-    allocate(fq(-ntgrid:ntgrid,ntheta0,naky))
-    allocate(fqa(-ntgrid:ntgrid,ntheta0,naky))
-    allocate(fqp(-ntgrid:ntgrid,ntheta0,naky))
-
     !First get the field eq
     if(pc%has_to_gather)then
-       call getfieldeq(phi,apar,bpar,fq,fqa,fqp)
+       call getfieldeq(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     else
 !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
+       call self%getfieldeq_nogath(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     endif
 
     !Now get the field update for each ik
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik) &
-    !$OMP SHARED(self, fq, fqa, fqp) &
+    !$OMP SHARED(self, fieldeq, fieldeqa, fieldeqp) &
     !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip non-local ky
@@ -2247,7 +2233,7 @@ contains
 
        !Trigger the supercell field updates
        !AJ Non-blocking can be done here
-       call self%kyb(ik)%get_field_update(fq(:,:,ik),fqa(:,:,ik),fqp(:,:,ik))
+       call self%kyb(ik)%get_field_update(fieldeq(:,:,ik),fieldeqa(:,:,ik),fieldeqp(:,:,ik))
     enddo
 
     !AJ Wait for collective comms here (these are setup in get_field_update
@@ -2263,9 +2249,6 @@ contains
        enddo
        !$OMP END PARALLEL DO
     end if
-
-    !Free memory
-    deallocate(fq,fqa,fqp)
 
   end subroutine fm_get_field_update
 
@@ -3019,7 +3002,7 @@ contains
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
 
     call getan_nogath(antot, antota, antotp)
     !AJ If we are integrating in the gf_lo data distribution then the results of antot etc... from
@@ -3314,7 +3297,7 @@ contains
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it, is, ic
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))

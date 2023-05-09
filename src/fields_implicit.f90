@@ -144,19 +144,15 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
     use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (out) :: fl
-    complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
     integer :: istart, ifin
 
     call prof_entering ("get_field_vector", "fields_implicit")
-
-    allocate (fieldeq (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (fieldeqa(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (fieldeqp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
 
@@ -179,8 +175,6 @@ contains
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeqp
     end if
-
-    deallocate (fieldeq, fieldeqa, fieldeqp)
 
     call prof_leaving ("get_field_vector", "fields_implicit")
   end subroutine get_field_vector
@@ -684,22 +678,17 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq, timeadv, M_class, N_class
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: f_lo, idx, idx_local
     use prof, only: prof_entering, prof_leaving
     implicit none
     integer, intent (in) :: ig, ifield, ic, n
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
-    complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
     integer :: irow, istart, iflo, ik, it, ifin, m, nn
 
     !For profiling
     call prof_entering ("init_response_row", "fields_implicit")
-
-    !Always the same size so why bother doing this each time?
-    allocate (fieldeq (-ntgrid:ntgrid, ntheta0, naky))
-    allocate (fieldeqa(-ntgrid:ntgrid, ntheta0, naky))
-    allocate (fieldeqp(-ntgrid:ntgrid, ntheta0, naky))
 
     !Find response to delta function fields
     !NOTE:Timeadv will loop over all iglo even though only one ik
@@ -757,9 +746,6 @@ contains
                     
        end do
     end do
-
-    !Free memory
-    deallocate (fieldeq, fieldeqa, fieldeqp)
 
     !For profiling
     call prof_leaving ("init_response_row", "fields_implicit")
