@@ -5991,13 +5991,14 @@ contains
   end subroutine getemoms
   
   !> Calculates moments at not guiding center coordinate
-  subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
+  subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar, reset_coefficients)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: nakx => ntheta0, naky
     use le_grids, only: integrate_moment
+    use optionals, only: get_option_with_default
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     complex, intent (out) :: &
@@ -6006,6 +6007,7 @@ contains
     complex, intent (out), optional :: ntot(-ntgrid:,:,:,:)
     complex, intent (out), optional :: jpar(-ntgrid:,:,:)
     complex, dimension(-ntgrid:,:,:), intent(in) :: phinew, bparnew
+    logical, intent(in), optional :: reset_coefficients
     real, dimension(:, :, :, :), allocatable, save :: mom_coeff
     real, dimension(:, :, :), allocatable, save :: mom_coeff_npara, mom_coeff_nperp
     real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
@@ -6018,13 +6020,24 @@ contains
 
     ! returns moment integrals to PE 0
 
+    if (get_option_with_default(reset_coefficients, .false.)) then
+       if (allocated(mom_coeff)) deallocate(mom_coeff)
+       if (allocated(mom_coeff_npara)) deallocate(mom_coeff_npara)
+       if (allocated(mom_coeff_nperp)) deallocate(mom_coeff_nperp)
+       if (allocated(mom_coeff_tpara)) deallocate(mom_coeff_tpara)
+       if (allocated(mom_coeff_tperp)) deallocate(mom_coeff_tperp)
+       if (allocated(mom_shift_para)) deallocate(mom_shift_para)
+       if (allocated(mom_shift_perp)) deallocate(mom_shift_perp)
+    end if
+
     ! Note we mark mom_coeff* as 'save' so that the result of this call is cached
     ! and not recalculated each time. This can help save overhead and should be
     ! fine. The result of this call should only depend on the velocity grids, the
     ! wavenumbers and the species parameters (and the derived Bessel functions).
     ! These should not change during a single standard run, but if we wish to enable
     ! more exotic behaviour we might want to remove the save from above declarations and
-    ! recalculate these coefficients each time.
+    ! recalculate these coefficients each time. For now just add an optional flag to
+    ! request recalculation.
     call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
        mom_coeff_tperp, mom_shift_para, mom_shift_perp)
 
