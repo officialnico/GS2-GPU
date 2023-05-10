@@ -3,13 +3,13 @@
 ! Need to extend the verr tools to include delta B_parallel integrals
 ! There are new factors of 1/B here and there which I do not understand.  
 
-!>The principal function of this module is to evolve the distribution function, 
-!!that is, to advance the discrete gyrokinetic equation. 
-!!This involves calculating the source and dealing with the complexities 
-!!of the parallel boundary conditions. 
-!!In addition it contains a routine for implementing perpendicular
-!!velocity shear and calculating the right-hand side of the field 
-!!equation, as well as a host of other functions.
+!> The principal function of this module is to evolve the distribution
+!> function, that is, to advance the discrete gyrokinetic equation.
+!> This involves calculating the source and dealing with the
+!> complexities of the parallel boundary conditions.  In addition it
+!> contains a routine for implementing perpendicular velocity shear
+!> and calculating the right-hand side of the field equation, as well
+!> as a host of other functions.
 module dist_fn
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
@@ -20,35 +20,35 @@ module dist_fn
   public :: init_dist_fn, finish_dist_fn
   
   !> Initializes a limited selection of arrays,
-  !! for example g, gnew, vperp2, typically those which 
-  !! are needed by other modules that don't need 
-  !! dist_fn to be fully initialized (e.g. nonlinear_terms)
-  !! This initialization level depends on grid sizes.
+  !> for example g, gnew, vperp2, typically those which
+  !> are needed by other modules that don't need
+  !> dist_fn to be fully initialized (e.g. nonlinear_terms)
+  !> This initialization level depends on grid sizes.
   public :: init_dist_fn_arrays
- 
+
   !> Deallocates arrays allocated in init_dist_fn_arrays
   public :: finish_dist_fn_arrays
 
-  !> Reads the dist_fn_knobs, source knobs, and 
-  !! dist_fn_species_knobs namelists. This has be done independently
-  !! of initializing the distribution function because
-  !! it needs to be possible to override parameters such
-  !! as g_exb.
+  !> Reads the dist_fn_knobs, source knobs, and
+  !> dist_fn_species_knobs namelists. This has be done independently
+  !> of initializing the distribution function because
+  !> it needs to be possible to override parameters such
+  !> as g_exb.
   public :: init_dist_fn_parameters
   public :: finish_dist_fn_parameters
 
   !> Initializes parallel boundary conditions. This level
-  !! depends on geometry.
+  !> depends on geometry.
   public :: init_dist_fn_level_1
   public :: finish_dist_fn_level_1
 
   !> Initializes bessel functions and field_eq. Note 
-  !! that this level depends on species paramters.
+  !> that this level depends on species paramters.
   public :: init_dist_fn_level_2
   public :: finish_dist_fn_level_2
 
   !> Fully initialize the dist_fn module. Note that
-  !! this level depends on the size of the timestep.
+  !> this level depends on the size of the timestep.
   public :: init_dist_fn_level_3
   public :: finish_dist_fn_level_3
 
@@ -59,23 +59,17 @@ module dist_fn
     module procedure set_optimisations_overrides
   end interface set_overrides
 
-  !!> init_vpar is called by init_dist_fn should only be called separately 
-  !!! for testing purposes
-  !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: g_exb_error_limit
-  public :: g_exb_start_timestep, g_exb_start_time
-  public :: init_bessel, init_fieldeq
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
   public :: flux, flux_dist, lf_flux, eexchange
   public :: get_epar, get_heat
-  public :: t0, omega0, gamma0, source0
-  public :: reset_init, write_f, reset_physics, write_poly
+  public :: omega0, gamma0
+  public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, itleft, boundary
+  public :: l_links, r_links, itright, boundary
   public :: get_jext !GGH
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
@@ -89,14 +83,14 @@ module dist_fn
 !CMR, 25/1/13:
 !  add public variables below for init_g
   public :: boundary_option_switch, boundary_option_linked
-  public :: boundary_option_self_periodic, boundary_option_zero
-  public :: pass_right, pass_left, init_pass_ends
-  public :: init_enforce_parity, get_leftmost_it
-  public :: gridfac1, awgt, gamtot3, fl_avg, apfac
+  public :: pass_right, init_pass_ends
+  public :: get_leftmost_it
+  public :: gridfac1, fl_avg, apfac
   public :: adiabatic_option_switch, adiabatic_option_fieldlineavg
 
+  public :: def_parity, even
+
   public :: gf_lo_integrate
-  public :: check_getan
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
@@ -145,7 +139,7 @@ module dist_fn
        boundary_option_self_periodic = 2, &
        boundary_option_alternate_zero = 3, &
        boundary_option_linked = 4
-  logical, public :: def_parity, even
+  logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
   logical :: mult_imp, test
@@ -153,16 +147,6 @@ module dist_fn
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
   logical :: increase = .true., decrease = .false. 
-  
-!! k_parallel filter items
-!  real, dimension(:), allocatable :: work, tablekp
-!  real :: scale
-!  integer :: nwork, ntablekp
-
-  ! internal arrays
-
-!  real, dimension (:,:), allocatable :: wdrift, wcurv
-!  ! (-ntgrid:ntgrid, -g-layout-)
 
 #ifdef LOWFLOW
   real, dimension (:,:), allocatable :: wcurv
@@ -9173,16 +9157,6 @@ contains
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
   end subroutine get_heat
-
-  !> FIXME : Add documentation  
-  subroutine reset_init
-    call finish_dist_fn_level_3
-  end subroutine reset_init
-
-  !> FIXME : Add documentation    
-  subroutine reset_physics
-    call init_wstar
-  end subroutine reset_physics
 
   !> Error estimate obtained by comparing standard integral with less-accurate integral
   !>
