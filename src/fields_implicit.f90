@@ -1431,7 +1431,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
+             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix), code_dt)
           endif
        end do
           
@@ -1468,6 +1468,7 @@ contains
     logical :: is_local, is_local_dup
     character(len = 256) :: file_name
     logical :: file_found
+    real :: file_time_step
 
     could_read = .true.
 
@@ -1574,7 +1575,8 @@ contains
           end if
 
           if(proc0)then
-             call gs2_restore_response(tmp_arr_full, file_name)
+             call gs2_restore_response(tmp_arr_full, file_name, file_time_step)
+             ! Should perhaps double check that file_time_step == code_dt?
           endif
 
           !Initialise counter

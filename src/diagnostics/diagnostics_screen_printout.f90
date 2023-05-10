@@ -38,7 +38,7 @@ contains
   subroutine output_line(gnostics, outunit)
     use mp, only: proc0, sum_reduce
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     use volume_averages, only: average_theta
     use diagnostics_omega, only: omegahist, omega_average
     use diagnostics_config, only: diagnostics_type

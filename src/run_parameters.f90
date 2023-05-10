@@ -12,9 +12,8 @@ module run_parameters
   public :: init_run_parameters, finish_run_parameters
   public :: check_run_parameters, wnml_run_parameters
   public :: write_trinity_parameters
-  public :: beta, zeff, tite, reset, immediate_reset
+  public :: beta, zeff, tite, reset, immediate_reset, delt
   public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
-  public :: code_delt_max, wunits, woutunits, tunits
   public :: nstep, max_sim_time, wstar_units, eqzip, margin
   public :: secondary, tertiary, harris
   public :: ieqzip, k0
@@ -48,9 +47,7 @@ module run_parameters
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
   logical :: has_phi, has_apar, has_bpar
-  real :: delt, delt_prev1, delt_prev2
-  real :: code_delt_max, user_delt_max, margin
-  real, dimension (:), allocatable :: wunits, woutunits, tunits
+  real :: margin, delt
   real, dimension (2) :: vnm_init
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
@@ -360,7 +357,6 @@ contains
   !> FIXME : Add documentation  
   subroutine init_run_parameters(knobs_config_in, parameters_config_in)
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
-    use gs2_time, only: init_delt, user2code
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
     type(parameters_config_type), intent(in), optional :: parameters_config_in
@@ -371,15 +367,6 @@ contains
     call read_parameters(knobs_config_in, parameters_config_in)
 
     call init_kt_grids
-    call init_delt (delt, delt_prev1, delt_prev2)
-    call user2code (user_delt_max, code_delt_max)
-
-    if(.not. allocated(wunits)) allocate (wunits(naky))
-    if(.not. allocated(woutunits)) allocate (woutunits(naky))
-    if(.not. allocated(tunits)) allocate (tunits(naky))
-
-! omega_* normalization of time: 
-    call adjust_time_norm
 
     if(.not.allocated(ieqzip)) allocate(ieqzip(nakx,naky))
     ieqzip(1:nakx,1:naky)=1
@@ -401,8 +388,7 @@ contains
   subroutine read_parameters(knobs_config_in, parameters_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
-    use gs2_time, only: dt_not_set
-    use gs2_save, only: init_dt, init_vnm
+    use gs2_save, only: init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     use ran, only: set_seed_from_single_integer
@@ -577,23 +563,11 @@ contains
        nstep = nstep*2
     end if
 
-    user_delt_max = delt
-
-    !! @todo: Add input variables to allow these to be set directly
-    delt_prev1 = dt_not_set
-    delt_prev2 = dt_not_set
-
     vnm_init = 1.0
     
     if (delt_option_switch == delt_option_auto) then
        call init_vnm (vnm_saved, istatus)
        if (istatus == 0) vnm_init = vnm_saved
-
-       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
-       if (delt0 /= dt_not_set) delt = delt0
-       if (delt1 /= dt_not_set) delt_prev1 = delt1
-       if (delt2 /= dt_not_set) delt_prev2 = delt2
-       if (delt_max /= dt_not_set) user_delt_max = delt_max
     endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
@@ -616,53 +590,9 @@ contains
   end subroutine set_overrides
 
   !> FIXME : Add documentation    
-  subroutine adjust_time_norm
-    use file_utils, only: error_unit
-    use mp, only: proc0
-    use kt_grids, only: aky
-    implicit none
-!CMR: Sep 2010
-! Attempt to understand time normalisation variables, which are arrays(naky)
-!    TUNITS: DT(KY)=TUNITS(KY).CODE_DT
-!            This is a generally very useful variable to store ky dependent 
-!            timestep in the code time normalisation.
-!            Used to multiply ky independent source terms on RHS of GKE.
-!    WUNITS: WUNITS(KY)=AKY(KY)*TUNITS(KY)/2
-!            Auxiliary variable.  Used to save compute operations when 
-!            evaluating source terms on RHS of GKE that are proportional to ky.
-!            !! The Mysterious factor 1/2 Explained !!
-!            The factor of 1/2 arises because those source terms were first
-!            specified using the normalisation Tref=mref vtref^2 
-! [R Numata et al, "AstroGK: Astrophysical gyrokinetics code", JCP, 2010].
-!CMRend
-    if (wstar_units) then
-       wunits = 1.0
-       where (aky /= 0.0)
-          tunits = 2.0/aky
-       elsewhere
-          tunits = 0.0
-       end where
-       if (any(tunits == 0.0) .and. proc0) then
-          write (error_unit(), *) &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-          print *, &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-       end if
-!CMR: Sep 2010
-!  Changes to allow wstar_units to be used
-!CMRend
-    else
-       tunits = 1.0
-       wunits = aky/2.0
-    end if
-    woutunits = 1.0/tunits
-  end subroutine adjust_time_norm
-
-  !> FIXME : Add documentation    
   subroutine finish_run_parameters
     implicit none
 
-    if (allocated(wunits)) deallocate (wunits, woutunits, tunits)
     if (allocated(ieqzip)) deallocate (ieqzip)
 
     initialized = .false.

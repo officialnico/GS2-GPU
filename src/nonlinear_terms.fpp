@@ -174,9 +174,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_nonlinear_terms(report_unit,delt_adj)
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use kt_grids, only: box
-    use run_parameters, only: code_delt_max, nstep, wstar_units
+    use run_parameters, only: nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -280,7 +280,7 @@ contains
        end if
 
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
-       write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
+       write (report_unit, fmt="('The maximum delt (code_dt_max) = ',e11.4)") code_dt_max
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif

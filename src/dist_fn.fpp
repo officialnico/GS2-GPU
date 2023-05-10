@@ -975,6 +975,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use gs2_time, only: init_gs2_time
     use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts
     use nonlinear_terms, only: init_nonlinear_terms
@@ -1000,6 +1001,9 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: run_parameters"
     call init_run_parameters
+
+    if (debug) write(6,*) "init_dist_fn: gs2_time"
+    call init_gs2_time
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
@@ -1606,8 +1610,7 @@ contains
     use theta_grid, only: shat
     use kt_grids, only: aky, theta0, akx
     use le_grids, only: energy, al
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     implicit none
     real :: wdrift_func
     integer, intent (in) :: ig, ik, it, il, ie,is
@@ -1632,8 +1635,7 @@ contains
   function wcurv_func (ig, it, ik)
     use theta_grid, only: cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     implicit none
     real :: wcurv_func
     integer, intent (in) :: ig, ik, it
@@ -1654,8 +1656,7 @@ contains
     use theta_grid, only: bmag, cdrift, cdrift0, shat
     use kt_grids, only: aky, theta0, akx
     use le_grids, only: energy, al
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     use species, only: spec
 
     implicit none
@@ -1704,8 +1705,7 @@ contains
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: energy, al, negrid, nlambda
-    use run_parameters, only: tunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     implicit none
     integer :: iglo, ik, is
@@ -1809,8 +1809,7 @@ contains
     use species, only: nspec, dlnf0drho
     use kt_grids, only: naky
     use le_grids, only: negrid
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
 
     implicit none
     integer :: ik, ie, is
@@ -2015,8 +2014,8 @@ contains
   !> FIXME : Add documentation  
   subroutine init_source_term
     use dist_fn_arrays, only: vpar, vpac, aj0
-    use run_parameters, only: wunits, fapar
-    use gs2_time, only: code_dt
+    use run_parameters, only: fapar
+    use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
     use hyper, only: D_res
     use theta_grid, only: ntgrid, itor_over_b
@@ -3358,7 +3357,6 @@ contains
    
     use mp, only: send, receive, mp_abort, broadcast
     use gs2_layouts, only: ik_idx, it_idx, g_lo, idx_local, idx, proc_id
-    use run_parameters, only: tunits
     use theta_grid, only: ntgrid, ntheta, shat
     use file_utils, only: error_unit
     use kt_grids, only: akx, aky, naky, ikx, ntheta0, box, theta0
@@ -3366,7 +3364,7 @@ contains
     use species, only: nspec
     use run_parameters, only: has_phi, has_apar, has_bpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
-    use gs2_time, only: code_dt, code_dt_old, code_time
+    use gs2_time, only: code_dt, code_dt_old, code_time, tunits
     use constants, only: twopi
     use optionals, only: get_option_with_default
     implicit none
@@ -4032,8 +4030,8 @@ contains
     use kt_grids, only: aky
     use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
-    use run_parameters, only: fphi, fapar, fbpar, wunits
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar, fbpar
+    use gs2_time, only: code_dt, wunits
     use hyper, only: D_res
     use constants, only: zi
     implicit none
@@ -7518,7 +7516,7 @@ contains
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
     use array_utils, only: zero_array
@@ -7537,7 +7535,8 @@ contains
          aparnew, bparnew, istep, sourcefac)
 
     call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
-         has_phi, has_apar, has_bpar, fileopt = extension)
+         has_phi, has_apar, has_bpar, &
+         code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
 
   !> Calculate various fluxes
@@ -7562,10 +7561,11 @@ contains
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: Rplot, Bpol
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
@@ -7748,7 +7748,8 @@ contains
     use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
@@ -8121,11 +8122,11 @@ contains
     use theta_grid, only: drhodpsi, IoB
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: gnew, aj0, vpa, g_work
-!    use dist_fn_arrays, only: vpac
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, has_phi, rhostar
+    use run_parameters, only:has_phi, rhostar
     use constants, only: zi
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (:,:,:), intent (out) :: vflx0, vflx1
@@ -8349,15 +8350,14 @@ contains
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use theta_grid, only: qval, shat, gds21, gds22
     use kt_grids, only: naky, ntheta0, theta0, aky
-!   use theta_grid, only: drhodpsi, grho
-!    use kt_grids, only: akx
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, has_phi
+    use run_parameters, only:has_phi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
@@ -8491,8 +8491,8 @@ contains
     use le_grids, only: integrate_moment
     use species, only: spec, nspec,has_electron_species
     use theta_grid, only: jacob, delthet, ntgrid
-    use run_parameters, only: fphi, fapar, fbpar, tunits, beta, tite
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar, fbpar, beta, tite
+    use gs2_time, only: code_dt, tunits
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_apar, a_ext_data
     use hyper, only: D_v, D_eta, nexp, hypervisc_filter
@@ -10208,8 +10208,8 @@ contains
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar
-    use run_parameters, only: tunits, fphi, fapar
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar
+    use gs2_time, only: code_dt, tunits
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(in) :: phi, apar, phinew, aparnew
@@ -10307,8 +10307,7 @@ contains
   !! tunits(ky) == 1. unless the "omega_*" units are chosen.
   !! omega_* units normalize time by an additional factor of ky.
   subroutine dot (a, anew, adot, fac)
-    use run_parameters, only: tunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
 
@@ -10487,9 +10486,9 @@ contains
     use le_grids, only: energy, al, negrid, nlambda, forbid, init_map
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
-    use gs2_time, only: code_dt
+    use gs2_time, only: tunits, wunits, code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx, it_idx
-    use run_parameters, only: tunits, wunits, rhostar, neo_test
+    use run_parameters, only:rhostar, neo_test
     use lowflow, only: get_lowflow_terms
     use file_utils, only: open_output_file, close_output_file
     use collisions, only: use_le_layout

@@ -945,6 +945,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew
     use dist_fn_arrays, only: g_adjust
@@ -963,6 +964,7 @@ contains
     if (save_for_restart) then
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
     end if
@@ -973,7 +975,9 @@ contains
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
-            has_phi, has_apar, has_bpar, fileopt=".dfn", &
+            has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+            fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 
@@ -1508,7 +1512,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1527,7 +1531,7 @@ contains
 
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -1686,7 +1690,7 @@ contains
   subroutine do_print_line(phitot)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Total magnitude of all the fields
     real, dimension (:, :), intent(in) :: phitot
@@ -1771,7 +1775,7 @@ contains
   !> Write estimated frequency and growth rates to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_line(time,it,ik,phitot)
     use kt_grids, only: aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Simulation time
     real, intent(in) :: time, phitot
@@ -1790,7 +1794,7 @@ contains
 
   !> Write instantaneous growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omega(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
@@ -1802,7 +1806,7 @@ contains
 
   !> Write time-averaged growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omavg(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
     if (.not. write_ascii) return
