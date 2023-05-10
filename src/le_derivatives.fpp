@@ -9,12 +9,6 @@ module le_derivatives
 
   real :: time_vspace_derivatives(2) = 0., time_vspace_derivatives_mpi = 0.
 
-#ifdef LOWFLOW
-  logical, parameter :: has_lowflow_in_build = .true.
-#else
-  logical, parameter :: has_lowflow_in_build = .false.
-#endif
-
 contains
 
   !> FIXME : Add documentation
@@ -29,7 +23,7 @@ contains
     use collisions, only: solfp1, colls, adjust, heating, hyper_colls, use_le_layout
     use job_manage, only: time_message
     use mp, only: get_mp_times
-
+    use build_config, only: gs2_has_lowflow
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gold, g1
@@ -72,7 +66,7 @@ contains
 
     if(use_le_layout) then
 
-       if (colls .or. has_lowflow_in_build) then
+       if (colls .or. gs2_has_lowflow) then
           if (adjust) then
              call g_adjust (g, phinew, bparnew, direction = from_g_gs2)
              if (heating_flag) call g_adjust (gold, phi, bpar, direction = from_g_gs2)
