@@ -45,6 +45,7 @@ module array_utils
      module procedure zero_array_real_array_1
      module procedure zero_array_real_array_2
      module procedure zero_array_real_array_3
+     module procedure zero_array_real_array_4
      module procedure zero_array_complex_array_1
      module procedure zero_array_complex_array_2
      module procedure zero_array_complex_array_3
@@ -384,6 +385,24 @@ contains
     end do
     !$OMP END PARALLEL DO
   end subroutine zero_array_real_array_3
+
+  !> Zero out a 4D array
+  subroutine zero_array_real_array_4(array_in)
+    implicit none
+    real, dimension(:, :, :, :), intent(in out) :: array_in
+    integer :: counter, start, end
+
+    start = lbound(array_in, dim = 4)
+    end = ubound(array_in, dim = 4)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP SHARED(start, end, array_in) &
+    !$OMP SCHEDULE(static)
+    do counter = start, end
+       array_in(:, :, :, counter) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine zero_array_real_array_4
 
   !> Zero out a 1D array
   subroutine zero_array_complex_array_1(array_in)
