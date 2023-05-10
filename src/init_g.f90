@@ -1244,9 +1244,8 @@ contains
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
   !> calculate the consistent potentials to set the true gnew value.
   subroutine set_gnew_from_nonadiabatic_dfn
-    use dist_fn_arrays, only: gnew, g, g_adjust
+    use dist_fn_arrays, only: gnew, g, g_adjust, to_g_gs2
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
-    use run_parameters, only: fphi, fbpar
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
@@ -1268,7 +1267,7 @@ contains
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
 
     ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
-    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! Ensure both timesteps are set correctly
     g = gnew
@@ -3260,15 +3259,18 @@ contains
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
     use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: mom_coeff, mom_shift_para, mom_shift_perp
+    use dist_fn, only: init_mom_coeff
     use dist_fn, only: gamtot, gamtot1, gamtot2
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
     implicit none
+    real, dimension(:, :, :, :), allocatable :: mom_coeff
+    real, dimension(:, :, :), allocatable :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable :: mom_shift_para, mom_shift_perp
     integer :: iglo
-!    integer :: ig, ik, it, is, is2
     integer :: ig, ik, it, is
     integer :: i,j
 
@@ -3616,6 +3618,10 @@ contains
 
     allocate(nnrm(nakx,naky,nspec),unrm(nakx,naky,nspec))
     allocate(tparanrm(nakx,naky,nspec),tperpnrm(nakx,naky,nspec))
+
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+         mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
     do is=1,nspec
        nnrm(:,:,is)=mom_coeff(:,:,is,1)
        unrm(:,:,is)=2.*mom_coeff(:,:,is,2)

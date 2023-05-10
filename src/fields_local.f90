@@ -851,7 +851,7 @@ contains
     !Now save if on head proc -- could probably only allocate tmp_arr and call
     !pull_rows_to_arr on this head proc as well, at least for now.
     if(self%is_head)then
-       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), self%condition_number)
+       call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), code_dt, self%condition_number)
     endif
 
     deallocate(tmp_arr)
@@ -876,6 +876,7 @@ contains
     complex, dimension(:,:), allocatable :: tmp_arr
     character(len = 256) :: file_name
     logical :: file_found
+    real :: file_time_step
 
     ! Initialise reading state.
     could_read = .true.
@@ -902,7 +903,8 @@ contains
 
     !Now if on head proc read
     if (self%is_head) then
-       call gs2_restore_response(tmp_arr, file_name, self%condition_number)
+       call gs2_restore_response(tmp_arr, file_name, file_time_step, self%condition_number)
+       ! Should perhaps double check that file_time_step == code_dt?
     end if
 
     !Now we need to broadcast the data to everyone with supercell.

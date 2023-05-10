@@ -98,8 +98,10 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, vnm, istatus, has_phi, has_apar, has_bpar, fileopt, &
-        save_glo_info_and_grids, save_velocities, header)
+       (g, t0, vnm, istatus, has_phi, has_apar, has_bpar, &
+       code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+       fileopt, &
+       save_glo_info_and_grids, save_velocities, header)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
@@ -121,7 +123,6 @@ contains
     use dist_fn_arrays, only: vpa, vperp2
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
-    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use optionals, only: get_option_with_default
     use standard_header, only : standard_header_type
     implicit none
@@ -131,6 +132,9 @@ contains
     real, intent (in) :: t0
     !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
+    !> The current time step, the two previous time steps and the
+    !> maximum allowed time step.
+    real, intent(in) :: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     !> Do we include electrostatic potential, \(\phi\)
     logical, intent (in) :: has_phi
     !> Do we include vector potential, \(A_\parallel\)
@@ -1284,11 +1288,10 @@ contains
 
   !> This routine writes a passed square complex array to a file
   !> with passed name
-  subroutine gs2_save_response(resp, fname, condition, header)
+  subroutine gs2_save_response(resp, fname, code_dt, condition, header)
     use file_utils, only: error_unit
     use standard_header, only: standard_header_type
 #ifdef NETCDF
-    use gs2_time, only: code_dt
     use convert, only: c2r
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
     use gs2_metadata, only: create_metadata
@@ -1298,6 +1301,7 @@ contains
     implicit none
     complex,dimension(:,:), intent(in) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(in) :: code_dt
     real, intent(in), optional :: condition
     !> Header for files with build and run information
     type(standard_header_type), optional, intent(in) :: header
@@ -1383,7 +1387,7 @@ contains
 
   !> This routine reads a square complex array from a file
   !! with passed name
-  subroutine gs2_restore_response(resp, fname, condition)
+  subroutine gs2_restore_response(resp, fname, code_dt, condition)
     use file_utils, only: error_unit
 #ifdef NETCDF
     use convert, only: r2c
@@ -1393,10 +1397,11 @@ contains
     implicit none
     complex, dimension(:,:), intent(out) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(out) :: code_dt
     real, intent(out), optional :: condition
     integer :: sz
 #ifdef NETCDF
-    integer :: ierr, respid, ncid, condition_id
+    integer :: ierr, respid, ncid, condition_id, dt_id
     real, dimension(:,:,:), allocatable :: ri_resp
 #else
     integer :: unit
@@ -1427,6 +1432,12 @@ contains
     if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
     call r2c(resp,ri_resp)
     deallocate(ri_resp)
+
+    !/Get the time step
+    ierr = nf90_inq_varid(ncid, "dt", dt_id)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr, var="dt")
+    ierr=nf90_get_var(ncid, dt_id, code_dt)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
 
     !/Get the condition number
     if (present(condition)) then

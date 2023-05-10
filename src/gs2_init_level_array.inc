@@ -13,24 +13,25 @@ init_levels = [ &
         init_level_type(name = 'override_kt_grids', level = 12, change_level_specific = override_kt_grids_subroutine), &
         init_level_type(name = 'kt_grids', level = 13, change_level_specific = kt_grids_subroutine), &
         init_level_type(name = 'run_parameters', level = 14, change_level_specific = run_parameters_subroutine), &
-        init_level_type(name = 'hyper', level = 15, change_level_specific = hyper_subroutine), &
-        init_level_type(name = 'species', level = 16, change_level_specific = species_subroutine), &
+        init_level_type(name = 'species', level = 15, change_level_specific = species_subroutine), &
+        init_level_type(name = 'gs2_time', level = 16, change_level_specific = gs2_time_subroutine), &
         init_level_type(name = 'override_profiles', level = 17, change_level_specific = override_profiles_subroutine), &
         init_level_type(name = 'le_grids', level = 18, change_level_specific = le_grids_subroutine), &
-        init_level_type(name = 'antenna', level = 19, change_level_specific = antenna_subroutine), &
-        init_level_type(name = 'dist_fn_parameters', level = 20, change_level_specific = dist_fn_parameters_subroutine), &
-        init_level_type(name = 'dist_fn_layouts', level = 21, change_level_specific = dist_fn_layouts_subroutine), &
-        init_level_type(name = 'fields_level_1', level = 22, change_level_specific = fields_level_1_subroutine), &
-        init_level_type(name = 'nonlinear_terms', level = 23, change_level_specific = nonlinear_terms_subroutine), &
-        init_level_type(name = 'split_nonlinear_terms', level = 24, change_level_specific = split_nonlinear_terms_subroutine), &
-        init_level_type(name = 'dist_fn_arrays', level = 25, change_level_specific = dist_fn_arrays_subroutine), &
-        init_level_type(name = 'dist_fn_level_1', level = 26, change_level_specific = dist_fn_level_1_subroutine), &
-        init_level_type(name = 'dist_fn_level_2', level = 27, change_level_specific = dist_fn_level_2_subroutine), &
-        init_level_type(name = 'override_timestep', level = 28, change_level_specific = override_timestep_subroutine), &
-        init_level_type(name = 'dist_fn_level_3', level = 29, change_level_specific = dist_fn_level_3_subroutine), &
-        init_level_type(name = 'collisions', level = 30, change_level_specific = collisions_subroutine), &
-        init_level_type(name = 'fields_level_2', level = 31, change_level_specific = fields_level_2_subroutine), &
-        init_level_type(name = 'override_initial_values', level = 32, change_level_specific = override_initial_values_subroutine), &
-        init_level_type(name = 'set_initial_values', level = 33, change_level_specific = set_initial_values_subroutine), &
-        init_level_type(name = 'full', level = 34, change_level_specific = full_subroutine) &
+        init_level_type(name = 'hyper', level = 19, change_level_specific = hyper_subroutine), &
+        init_level_type(name = 'antenna', level = 20, change_level_specific = antenna_subroutine), &
+        init_level_type(name = 'dist_fn_parameters', level = 21, change_level_specific = dist_fn_parameters_subroutine), &
+        init_level_type(name = 'dist_fn_layouts', level = 22, change_level_specific = dist_fn_layouts_subroutine), &
+        init_level_type(name = 'fields_level_1', level = 23, change_level_specific = fields_level_1_subroutine), &
+        init_level_type(name = 'nonlinear_terms', level = 24, change_level_specific = nonlinear_terms_subroutine), &
+        init_level_type(name = 'split_nonlinear_terms', level = 25, change_level_specific = split_nonlinear_terms_subroutine), &
+        init_level_type(name = 'dist_fn_arrays', level = 26, change_level_specific = dist_fn_arrays_subroutine), &
+        init_level_type(name = 'dist_fn_level_1', level = 27, change_level_specific = dist_fn_level_1_subroutine), &
+        init_level_type(name = 'dist_fn_level_2', level = 28, change_level_specific = dist_fn_level_2_subroutine), &
+        init_level_type(name = 'override_timestep', level = 29, change_level_specific = override_timestep_subroutine), &
+        init_level_type(name = 'dist_fn_level_3', level = 30, change_level_specific = dist_fn_level_3_subroutine), &
+        init_level_type(name = 'collisions', level = 31, change_level_specific = collisions_subroutine), &
+        init_level_type(name = 'fields_level_2', level = 32, change_level_specific = fields_level_2_subroutine), &
+        init_level_type(name = 'override_initial_values', level = 33, change_level_specific = override_initial_values_subroutine), &
+        init_level_type(name = 'set_initial_values', level = 34, change_level_specific = set_initial_values_subroutine), &
+        init_level_type(name = 'full', level = 35, change_level_specific = full_subroutine) &
 ]
