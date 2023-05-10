@@ -942,13 +942,12 @@ contains
   subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
                                   save_glo_info_and_grids, &
                                   save_velocities, user_time)
-    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew
-    use dist_fn_arrays, only: g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
     logical, intent(in) :: save_for_restart
     !> See [[gs2_diagnostics_knobs:save_distfn]]
@@ -971,7 +970,7 @@ contains
 
     if (save_distfn) then
        !Convert h to distribution function
-       call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+       call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
@@ -982,7 +981,7 @@ contains
             save_velocities=save_velocities)
 
        !Convert distribution function back to h
-       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+       call g_adjust(gnew, phinew, bparnew, direction = to_g_gs2)
     end if
   end subroutine save_restart_dist_fn
 
@@ -1044,11 +1043,11 @@ contains
   subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fphi, fbpar, nstep, has_phi, has_apar, has_bpar
+    use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, aparnew, bparnew, phi
     use dist_fn, only: flux, write_f, write_fyx,lf_flux, eexchange
     use dist_fn, only: write_poly, collision_error
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
@@ -1169,7 +1168,7 @@ contains
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (write_any_fluxes) then
-       call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+       call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
        call flux (phinew, aparnew, bparnew, &
             pflux,  qheat,  vflux, vflux_par, vflux_perp, &
             pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
@@ -1177,7 +1176,7 @@ contains
        ! lowflow terms only implemented in electrostatic limit at present
        call lf_flux (phinew, vflux0, vflux1)
 #endif
-       call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+       call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
        if (has_phi .and. &
             (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
          call eexchange (phinew, phi, exchange1, exchange)
@@ -2013,8 +2012,8 @@ contains
     use convert, only: c2r
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew, g_adjust
-    use run_parameters, only: fphi, fbpar, has_phi
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi
     implicit none
     real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (:,:), allocatable :: phi_dist
@@ -2033,9 +2032,9 @@ contains
     allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (phi_byMode_dist(2,-ntgrid:ntgrid,ntheta0,naky))
     call c2r(phinew,phi_byMode_dist)
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2) ! convert from g to h
     call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2) ! convert back from h to g
     if (proc0) then
        if (has_phi) then
           do ig = -ntgrid, ntgrid
@@ -2152,9 +2151,8 @@ contains
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
     use mp, only: send, receive, proc0, iproc, nproc
-    use dist_fn_arrays, only: gnew, g_adjust, aj0
+    use dist_fn_arrays, only: gnew, g_adjust, aj0, to_g_gs2, from_g_gs2
     use fields_arrays, only: phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
     real, intent(in) :: t
@@ -2204,7 +2202,7 @@ contains
     allocate (gnorm_all_tot(nspec), gnorm_nokx_tot(nspec), gnorm_nosig_tot(nspec))
 
     ! convert from g to h
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
 
     ! below we define gparity = J0 * h, where delta f = h - (q phi / T) F0
     ! because we're ultimately interested in int J0 h * phi (i.e. particle flux)
@@ -2236,7 +2234,7 @@ contains
     end do
 
     ! convert from h back to g
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
     ! first diagnostic is phase space average of 
     ! |J0*(h(z,vpa,kx) +/- h(-z,-vpa,-kx))|**2 / ( |J0*h(z,vpa,kx)|**2 + |J0*h(-z,-vpa,-kx)|**2 )
@@ -2493,11 +2491,11 @@ contains
 
     deallocate (gparity) ; allocate (gparity(-ntgrid:ntgrid,ntheta0,naky,nspec))
     ! obtain normalization factor = int over phase space of |g|**2
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
     !Do all processors need to know the full result here? Only proc0 seems to do any writing.
     !If not then remove the last two arguments in the following call.
     call integrate_moment (spread(aj0,2,2)*spread(aj0,2,2)*gnew*conjg(gnew), gparity, .true., full_arr=.true.)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
