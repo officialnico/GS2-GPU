@@ -659,7 +659,7 @@ contains
           call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
-          call source_func(gnew, gexp_1, &
+          call source_func(gnew,  stages(:, :, :, istage), &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = (istage == 1))
@@ -667,9 +667,6 @@ contains
           nrhs_calls = nrhs_calls + 1
           if (istage == 1) errors(3) = max_vel
 
-          ! Could we just pass stages(:, :, :, istage) instead of gexp_1
-          ! in above source_func call?
-          call copy(gexp_1, stages(:, :, :, istage))
        end do
 
        ! One can directly form the error by simply forming error =
@@ -678,6 +675,8 @@ contains
        ! without the time_step * 0.5 factor (to avoid extra
        ! array operations). We multiply the final error by
        ! time_step/2 to ensure full consistency.
+       ! Could we merge this OpenMP parallel region with the
+       ! other loop directly below to avoid some overhead?
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
        !$OMP SHARED(g_lo, gexp_1, error_coeffs, stages) &
