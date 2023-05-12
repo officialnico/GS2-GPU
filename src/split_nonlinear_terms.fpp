@@ -641,7 +641,6 @@ contains
 
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
-       call zero_array(stages)
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        do istage = 1, nstages
           call copy(g, gnew)
