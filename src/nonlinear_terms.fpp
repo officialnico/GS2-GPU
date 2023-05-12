@@ -174,9 +174,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_nonlinear_terms(report_unit,delt_adj)
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use kt_grids, only: box
-    use run_parameters, only: code_delt_max, nstep, wstar_units
+    use run_parameters, only: nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -280,7 +280,7 @@ contains
        end if
 
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
-       write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
+       write (report_unit, fmt="('The maximum delt (code_dt_max) = ',e11.4)") code_dt_max
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif
@@ -802,9 +802,8 @@ contains
   subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use dist_fn_arrays, only: g_adjust
+    use dist_fn_arrays, only: g_adjust, from_g_gs2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
@@ -841,7 +840,7 @@ contains
     
     !Form g1=i*ky*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
@@ -887,7 +886,7 @@ contains
 
     !Form g1=i*kx*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it) &
@@ -1222,7 +1221,7 @@ contains
     use mp, only: max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use dist_fn_arrays, only: g_adjust, vpa, vperp2
+    use dist_fn_arrays, only: vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: broadcast

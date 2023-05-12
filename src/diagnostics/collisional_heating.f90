@@ -70,7 +70,7 @@ contains
   subroutine calculate_collisional(gnostics)
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
-    use dist_fn_arrays, only: c_rate, g_adjust
+    use dist_fn_arrays, only: c_rate, g_adjust, from_g_gs2
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0, aky
     use species, only: spec, nspec
@@ -80,7 +80,6 @@ contains
     use hyper, only: hyper_diff, hypervisc_filter
     use le_derivatives, only: vspace_derivatives
     use fields_arrays, only: phi, bpar, phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use collisions, only: heating
 
     implicit none
@@ -103,7 +102,7 @@ contains
     g0=g
     weights=1.
   
-    call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
+    call g_adjust(g0,phi,bpar, direction = from_g_gs2)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
     !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter

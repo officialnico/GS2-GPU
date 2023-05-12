@@ -1073,10 +1073,10 @@ contains
   !> Write various fields, heating, and frequency diagnostics to netCDF
   subroutine nc_loop (file_id, nout, time, &
        phi2, apar2, bpar2, igomega, &
-       h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
+       h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
-    use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units, tunits
+    use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units
     use fields_arrays, only: phinew, aparnew, bparnew
     use parameter_scan_arrays, only: write_scan_parameter,current_scan_parameter_value
     use neasyf, only: neasyf_write
@@ -1094,6 +1094,8 @@ contains
     integer, intent(in) :: igomega
     !> Normalisation factor for frequency
     real, dimension (:), intent (in) :: woutunits
+    !> Normalisation factor for time
+    real, dimension (:), intent (in) :: tunits
     !> Fields, frequency and time-averaged frequency
     complex, dimension(:,:), intent (in) :: omega, omegaavg
     !> FIXME: add documentation

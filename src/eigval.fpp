@@ -1045,15 +1045,15 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
-    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
     use fields_arrays, only: phinew, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
     use gs2_save, only: add_eigenpair_to_file, gs2_save_for_restart, finish_gs2_save
     use file_utils, only: run_name
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use gs2_diagnostics, only: save_distfn
     implicit none
     EPS, intent(in) :: my_solver
@@ -1129,20 +1129,23 @@ contains
 
              !Save restart files
              call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
-                  has_phi, has_apar, has_bpar,fileopt=restart_unique_string)
+                  has_phi, has_apar, has_bpar, &
+                  code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+                  fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
                 !Convert h to distribution function
-                call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+                call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
 
                 !Save dfn, fields and velocity grids to file
                 call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
                      has_phi, has_apar, has_bpar, &
+                     code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
                      fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
-                call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+                call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
              endif
 
              !Reset the status of save_for_restart
