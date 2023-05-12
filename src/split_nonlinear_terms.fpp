@@ -645,18 +645,17 @@ contains
        do istage = 1, nstages
           call copy(g, gnew)
 
-          !Could OpenMP reduce here but might be more efficient to distribute calculation
-          !of each stage
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(istage_sub, iglo) &
+          !$OMP SHARED(g_lo, gnew, time_step, scheme, stages, istage) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
           do istage_sub = 1, istage-1
-             !$OMP PARALLEL DO DEFAULT(none) &
-             !$OMP PRIVATE(iglo) &
-             !$OMP SHARED(g_lo, gnew, time_step, scheme, stages, istage_sub, istage) &
-             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
              end do
-             !$OMP END PARALLEL DO
           end do
+          !$OMP END PARALLEL DO
           call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
@@ -688,16 +687,17 @@ contains
        end do
        !$OMP END PARALLEL DO
 
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, istage) &
+       !$OMP SHARED(g_lo, gexp_1, error_coeffs, nstages, stages) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
        do istage = 2, nstages
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, gexp_1, error_coeffs, istage, stages) &
-          !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
           end do
-          !$OMP END PARALLEL DO
        end do
+       !$OMP END PARALLEL DO
 
        ! Store the absolute error
        errors(1) = gs2_max_abs(gexp_1) * (time_step * 0.5)
@@ -729,7 +729,9 @@ contains
                'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
-          !Update the solution
+          !Update the solution. Note we could probably merge the two
+          !OpenMP loops into a single OpenMP parallel region and then
+          !just add OMP DO to each loop. This would save a bit of overhead.
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
           !$OMP SHARED(g_lo, g, solution_coeffs, time_step, stages) &
@@ -739,16 +741,17 @@ contains
           end do
           !$OMP END PARALLEL DO
 
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(istage, iglo) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, nstages, time_step, stages) &
+          !$OMP COLLAPSE(2) &
+          !$OMP SCHEDULE(static)
           do istage = 2, nstages
-             !$OMP PARALLEL DO DEFAULT(none) &
-             !$OMP PRIVATE(iglo) &
-             !$OMP SHARED(g_lo, g, solution_coeffs, istage, time_step, stages) &
-             !$OMP SCHEDULE(static)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
                 g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
              end do
-             !$OMP END PARALLEL DO
           end do
+          !$OMP END PARALLEL DO
 
           internal_time = internal_time + time_step
           nsuccessful_steps = nsuccessful_steps + 1
