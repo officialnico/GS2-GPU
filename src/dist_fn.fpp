@@ -2005,7 +2005,7 @@ contains
     !$OMP PRIVATE(iglo, ik, il, g2, use_pass_homog, ig, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped) &
     !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, &
-    !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2) &
+    !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2, force_include_passing) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
