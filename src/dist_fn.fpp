@@ -1960,7 +1960,7 @@ contains
   !> calculated during initialisation. Note that `r` depends on
   !> physics terms that contain `dt` so we must recalculate the
   !> solution `g_h` if the timestep changes.
-  subroutine init_homogeneous_g(g_h)
+  subroutine init_homogeneous_g(g_h, force_passing)
     use array_utils, only: zero_array
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, il_idx
@@ -1969,14 +1969,16 @@ contains
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ng2
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
+    logical, intent(in), optional :: force_passing
     complex, dimension(-ntgrid:ntgrid, 2) :: g2
     integer :: ig, iglo
     integer :: ik, il
     integer :: ilmin
     logical :: use_pass_homog_boundary, use_pass_homog
-    logical :: have_trapped_particles
+    logical :: have_trapped_particles, force_include_passing
     logical :: is_wfb, is_not_ttp, is_passing, is_trapped
 
     ! Initialise entire array to 0, for this reason we can take g_h as
@@ -1990,6 +1992,9 @@ contains
     use_pass_homog_boundary = &
          (boundary_option_switch == boundary_option_self_periodic) .or. &
          (boundary_option_switch == boundary_option_linked)
+
+    ! Decide if we want to force the inclusion of the passing contribution
+    force_include_passing = get_option_with_default(force_passing, .false.)
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
@@ -2010,7 +2015,7 @@ contains
        ik = ik_idx(g_lo,iglo)
        il = il_idx(g_lo,iglo)
 
-       use_pass_homog = use_pass_homog_boundary .or. aky(ik) == 0.0
+       use_pass_homog = use_pass_homog_boundary .or. aky(ik) == 0.0 .or. force_include_passing
 
        if (use_pass_homog) then
           ilmin = 1
@@ -7647,16 +7652,17 @@ contains
   end subroutine dump_current_source_term
 
   !> Routine to dump the homogeneous solution
-  subroutine dump_homogeneous_solution
+  subroutine dump_homogeneous_solution(force_passing)
     use gs2_save, only: gs2_save_for_restart
     use dist_fn_arrays, only: g_work
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_time, only: user_time
     use collisions, only: vnmult
     implicit none
+    logical, intent(in), optional :: force_passing
     character(len = 20), parameter :: extension = '.homogeneous'
     integer :: istatus
-    call init_homogeneous_g(g_work)
+    call init_homogeneous_g(g_work, force_passing)
     call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
          has_phi, has_apar, has_bpar, fileopt = extension)
   end subroutine dump_homogeneous_solution
