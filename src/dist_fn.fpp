@@ -2022,14 +2022,9 @@ contains
     ! parallel boundary conditions.  This primarily impacts passing
     ! particles -- trapped particles will always require the
     ! homogeneous solution.
-    select case (boundary_option_switch)
-    case (boundary_option_self_periodic)
-       use_pass_homog_boundary = .true.
-    case (boundary_option_linked)
-       use_pass_homog_boundary = .true.
-    case default
-       use_pass_homog_boundary = .false.
-    end select
+    use_pass_homog_boundary = &
+         (boundary_option_switch == boundary_option_self_periodic) .or. &
+         (boundary_option_switch == boundary_option_linked)
 
     ! Note this variable is probably redundant in the later conditionals as it is
     ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
