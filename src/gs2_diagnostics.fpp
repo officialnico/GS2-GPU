@@ -1482,7 +1482,7 @@ contains
   subroutine do_get_omega(istep,debug,exit)
     use mp, only: proc0, broadcast
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: eqzip
+    use run_parameters, only: ieqzip
     implicit none
     !> The current timestep
     integer, intent(in) :: istep
@@ -1493,7 +1493,7 @@ contains
     !> occurred (see [[gs2_diagnostics_knobs:omegainst]]).
     logical, intent(inout) :: exit
 
-    if (eqzip .or. .not. nonlin) then
+    if (any(ieqzip) .or. .not. nonlin) then
        if (proc0) then
           if (debug) write(6,*) "loop_diagnostics: proc0 call get_omegaavg"
           call get_omegaavg (istep, exit, omegaavg, debug)
