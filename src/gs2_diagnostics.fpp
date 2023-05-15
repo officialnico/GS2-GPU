@@ -706,8 +706,9 @@ contains
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
+    use antenna, only: no_driver
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -831,13 +832,18 @@ contains
        print_flux_line = .false.
     end if
 
-    !These don't store any data if fphi=0 so don't bother
+    if (no_driver .and. write_lorentzian) then
+      write(*, "(a)") "WARNING: 'write_lorentzian = .true.' but antenna not enabled. Turning off 'write_lorentzian'"
+      write_lorentzian = .false.
+    end if
+
+    !These don't store any data if we don't have phi so don't bother
     !calculating it.
-    if(fphi.eq.0) write_symmetry = .false.
-    if(fphi.eq.0) write_pflux_sym = .false.
-    if(fphi.eq.0) write_nl_flux_dist = .false.
-    if(fphi.eq.0) write_correlation = .false.
-    if(fphi.eq.0) write_correlation_extend = .false.
+    if(.not. has_phi) write_symmetry = .false.
+    if(.not. has_phi) write_pflux_sym = .false.
+    if(.not. has_phi) write_nl_flux_dist = .false.
+    if(.not. has_phi) write_correlation = .false.
+    if(.not. has_phi) write_correlation_extend = .false.
 
     if (.not. save_for_restart) nsave = -1
     write_avg_moments = write_avg_moments
@@ -936,12 +942,12 @@ contains
   subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
                                   save_glo_info_and_grids, &
                                   save_velocities, user_time)
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew
-    use dist_fn_arrays, only: g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
     logical, intent(in) :: save_for_restart
     !> See [[gs2_diagnostics_knobs:save_distfn]]
@@ -956,23 +962,26 @@ contains
 
     if (save_for_restart) then
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
-            fphi, fapar, fbpar, &
+            has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
     end if
 
     if (save_distfn) then
        !Convert h to distribution function
-       call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+       call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
        !Save dfn, fields and velocity grids to file
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
-            fphi, fapar, fbpar, fileopt=".dfn", &
+            has_phi, has_apar, has_bpar, &
+            code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+            fileopt=".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 
        !Convert distribution function back to h
-       call g_adjust(gnew, phinew, bparnew, -fphi, -fbpar)
+       call g_adjust(gnew, phinew, bparnew, direction = to_g_gs2)
     end if
   end subroutine save_restart_dist_fn
 
@@ -1034,11 +1043,11 @@ contains
   subroutine loop_diagnostics (istep, exit, debopt, force)
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fapar, fphi, fbpar, nstep
+    use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, aparnew, bparnew, phi
     use dist_fn, only: flux, write_f, write_fyx,lf_flux, eexchange
     use dist_fn, only: write_poly, collision_error
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
@@ -1159,7 +1168,7 @@ contains
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (write_any_fluxes) then
-       call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+       call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
        call flux (phinew, aparnew, bparnew, &
             pflux,  qheat,  vflux, vflux_par, vflux_perp, &
             pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
@@ -1167,14 +1176,14 @@ contains
        ! lowflow terms only implemented in electrostatic limit at present
        call lf_flux (phinew, vflux0, vflux1)
 #endif
-       call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
-       if (fphi > epsilon(0.0) .and. &
+       call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
+       if (has_phi .and. &
             (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
          call eexchange (phinew, phi, exchange1, exchange)
        end if
 
        if (proc0) then
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              do is = 1, nspec
                 qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,1), heat_fluxes(is))
@@ -1215,7 +1224,7 @@ contains
 #endif
              end do
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              do is = 1, nspec
                 qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,1), mheat_fluxes(is))
@@ -1235,7 +1244,7 @@ contains
                 call get_volume_average (vmflux(:,:,is), mmom_fluxes(is))
              end do
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              do is = 1, nspec
                 qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,1), bheat_fluxes(is))
@@ -1271,7 +1280,7 @@ contains
 
     if (proc0) then
        if (print_flux_line) then
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
                   & ' heat fluxes: ', 5(1x,e13.6))") &
                   t, phi2, heat_fluxes(1:min(nspec,5))
@@ -1279,12 +1288,12 @@ contains
                   & ' energy exchange: ', 5(1x,e13.6))") &
                   t, phi2, energy_exchange(1:min(nspec,5))
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              write (unit=*, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
                   & ' heat flux m: ', 5(1x,e11.4))") &
                   t, apar2, mheat_fluxes(1:min(nspec,5))
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              write (unit=*, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
                   & ' heat flux b: ', 5(1x,e11.4))") &
                   t, bpar2, bheat_fluxes(1:min(nspec,5))
@@ -1320,7 +1329,7 @@ contains
           hflux_tot = 0.
           zflux_tot = 0.
           vflux_tot = 0.
-          if (fphi > epsilon(0.0)) then
+          if (has_phi) then
              if (write_ascii) then
                 write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
                      & ' heat fluxes: ', 5(1x,e11.4))") &
@@ -1345,7 +1354,7 @@ contains
              vflux_tot = sum(mom_fluxes)
              zflux_tot = sum(part_fluxes*spec%z)
           end if
-          if (fapar > epsilon(0.0)) then
+          if (has_apar) then
              if (write_lorentzian .and. write_ascii) then
                 wtmp_new = antenna_w()
                 if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
@@ -1365,7 +1374,7 @@ contains
              vflux_tot = vflux_tot + sum(mmom_fluxes)
              zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
           end if
-          if (fbpar > epsilon(0.0)) then
+          if (has_bpar) then
              if (write_ascii) then
                 write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
                      & ' heat bluxes: ', 5(1x,e11.4))") &
@@ -1502,7 +1511,7 @@ contains
   !> Compute volume averages of the fields and write the fields, field averages,
   !> heating and frequency to the netCDF files
   subroutine do_write_ncloop(time, istep, phi2, apar2, bpar2, phitot)
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
     implicit none
@@ -1521,7 +1530,7 @@ contains
 
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
 
   end subroutine do_write_ncloop
 
@@ -1558,7 +1567,7 @@ contains
     use theta_grid, only: theta, ntgrid
     use gs2_io, only: nc_eigenfunc
     use dist_fn, only: def_parity, even
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar
     implicit none
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
@@ -1575,7 +1584,7 @@ contains
 
     !This looks like a hack for the case where we know we've forced phi(theta=0) to be 0
     !this could probably be better addressed by the use of igomega above
-    if (def_parity .and. fapar > 0 .and. (.not. even)) phi0 = apar(0, :, :)
+    if (def_parity .and. has_apar .and. (.not. even)) phi0 = apar(0, :, :)
 
     !Address locations where phi0=0 by using next point
     where (abs(phi0) < 10.0*epsilon(0.0)) 
@@ -1637,7 +1646,7 @@ contains
   subroutine do_write_movie(time)
     use gs2_layouts, only: yxf_lo
     use theta_grid, only: ntgrid
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_transforms, only: transform2
     use gs2_io, only: nc_loop_movie
     use fields_arrays, only: phinew, aparnew, bparnew
@@ -1651,17 +1660,17 @@ contains
     nnx = yxf_lo%nx
     nny = yxf_lo%ny
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        allocate (yxphi(nnx,nny,-ntgrid:ntgrid))
        call transform2 (phinew, yxphi, nny, nnx)
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        allocate (yxapar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (aparnew, yxapar, nny, nnx)
     end if
 
-    if (fbpar > epsilon(0.0)) then 
+    if (has_bpar) then
        allocate (yxbpar(nnx,nny,-ntgrid:ntgrid))
        call transform2 (bparnew, yxbpar, nny, nnx)
     end if
@@ -1670,9 +1679,9 @@ contains
        call nc_loop_movie(nout_movie, time, yxphi, yxapar, yxbpar)
     end if
 
-    if (fphi > epsilon(0.0)) deallocate (yxphi)
-    if (fapar > epsilon(0.0)) deallocate (yxapar)
-    if (fbpar > epsilon(0.0)) deallocate (yxbpar)
+    if (has_phi) deallocate (yxphi)
+    if (has_apar) deallocate (yxapar)
+    if (has_bpar) deallocate (yxbpar)
     nout_movie = nout_movie + 1
   end subroutine do_write_movie
 
@@ -1680,7 +1689,7 @@ contains
   subroutine do_print_line(phitot)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Total magnitude of all the fields
     real, dimension (:, :), intent(in) :: phitot
@@ -1765,7 +1774,7 @@ contains
   !> Write estimated frequency and growth rates to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_line(time,it,ik,phitot)
     use kt_grids, only: aky, akx, theta0
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     implicit none
     !> Simulation time
     real, intent(in) :: time, phitot
@@ -1784,7 +1793,7 @@ contains
 
   !> Write instantaneous growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omega(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     !> \(k_y\)- and \(\theta\)-indices
     integer, intent(in) :: it, ik
@@ -1796,7 +1805,7 @@ contains
 
   !> Write time-averaged growth rate and frequency to [[out_unit]] for an individual \((k_y, \theta)\) point
   subroutine do_write_omavg(it,ik)
-    use run_parameters, only: tunits, woutunits
+    use gs2_time, only: tunits, woutunits
     implicit none
     integer, intent(in) :: it, ik
     if (.not. write_ascii) return
@@ -2003,9 +2012,8 @@ contains
     use convert, only: c2r
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew, g_adjust
-    use run_parameters, only: fphi, fbpar
-
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi
     implicit none
     real, dimension (:,:), allocatable :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (:,:), allocatable :: phi_dist
@@ -2024,11 +2032,11 @@ contains
     allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (phi_byMode_dist(2,-ntgrid:ntgrid,ntheta0,naky))
     call c2r(phinew,phi_byMode_dist)
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2) ! convert from g to h
     call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2) ! convert back from h to g
     if (proc0) then
-       if (fphi > epsilon(0.0)) then
+       if (has_phi) then
           do ig = -ntgrid, ntgrid
              do is = 1, nspec
                 pflux_dist(ig,:,:,is) = pflux_dist(ig,:,:,is) * spec(is)%dens
@@ -2143,9 +2151,8 @@ contains
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
     use mp, only: send, receive, proc0, iproc, nproc
-    use dist_fn_arrays, only: gnew, g_adjust, aj0
+    use dist_fn_arrays, only: gnew, g_adjust, aj0, to_g_gs2, from_g_gs2
     use fields_arrays, only: phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use constants, only: zi
     implicit none
     real, intent(in) :: t
@@ -2195,7 +2202,7 @@ contains
     allocate (gnorm_all_tot(nspec), gnorm_nokx_tot(nspec), gnorm_nosig_tot(nspec))
 
     ! convert from g to h
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
 
     ! below we define gparity = J0 * h, where delta f = h - (q phi / T) F0
     ! because we're ultimately interested in int J0 h * phi (i.e. particle flux)
@@ -2227,7 +2234,7 @@ contains
     end do
 
     ! convert from h back to g
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
     ! first diagnostic is phase space average of 
     ! |J0*(h(z,vpa,kx) +/- h(-z,-vpa,-kx))|**2 / ( |J0*h(z,vpa,kx)|**2 + |J0*h(-z,-vpa,-kx)|**2 )
@@ -2484,11 +2491,11 @@ contains
 
     deallocate (gparity) ; allocate (gparity(-ntgrid:ntgrid,ntheta0,naky,nspec))
     ! obtain normalization factor = int over phase space of |g|**2
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
     !Do all processors need to know the full result here? Only proc0 seems to do any writing.
     !If not then remove the last two arguments in the following call.
     call integrate_moment (spread(aj0,2,2)*spread(aj0,2,2)*gnew*conjg(gnew), gparity, .true., full_arr=.true.)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
@@ -3373,7 +3380,9 @@ contains
                   * dl_over_b(igmod)
           end do
        end do
-       cfnc(:,it,1) = cfnc(:,it,1) / cfnc(1,it,1)
+       if (abs(cfnc(1, it, 1)) > epsilon(0.0)) then
+         cfnc(:, it, 1) = cfnc(:, it, 1) / cfnc(1, it, 1)
+       end if
     end do
 
     do ik = 2, naky
@@ -3405,9 +3414,8 @@ contains
        end do
     end do
 
-    phi2extend = phiextend*conjg(phiextend)
+    phi2extend = real(phiextend*conjg(phiextend))
 
-    !    deallocate (dl_over_b, phir, phiextend, phisum)
     deallocate (dl_over_b, phir, phiextend)
 
   end subroutine correlation_extend

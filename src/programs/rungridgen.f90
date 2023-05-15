@@ -216,7 +216,46 @@ contains
 
     thetain = thetagrid(-nthetain/2:nthetain/2)
     bmagin = bmag(-nthetain/2:nthetain/2)
+
+    call get_plotdata
+
   end subroutine get_initial_grids
+
+  subroutine get_plotdata
+    implicit none
+    integer :: unit
+    integer :: i
+    character(200) :: line
+    real, allocatable :: dummy(:)
+
+    allocate (dummy(-ntgridin:ntgridin))
+
+    Rplot = 0.; Rprime = 0.
+    Zplot = 0.; Zprime = 0.
+    aplot = 0.; aprime = 0.
+
+    call get_unused_unit(unit)
+    open (unit=unit, file=trim(gsource), status="old", err=100)
+
+    read (unit=unit, fmt="(a)", err=100) line
+    read (unit=unit, fmt="(a)", err=100) line
+    read (unit=unit, fmt="(a)", err=100) line
+
+    do i = -ntgridin, ntgridin
+       read (unit=unit, fmt=*, err=100) dummy(i), Rplot(i), Zplot(i), aplot(i), Rprime(i), Zprime(i), aprime(i), dummy(i)
+    end do
+
+    close(unit=unit)
+
+    return
+
+100 continue
+    close(unit=unit)
+    write(6,*) 'read error: ', gsource
+
+    return
+
+  end subroutine get_plotdata
 
   !> FIXME : Add documentation  
   subroutine get_initial_grids_3d

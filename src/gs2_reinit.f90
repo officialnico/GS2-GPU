@@ -316,9 +316,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_reinit(reinit_config_in)
-    use run_parameters, only: code_delt_max
     use file_utils, only: input_unit, input_unit_exist
-    use gs2_time, only: save_dt_min, save_dt_max
+    use gs2_time, only: save_dt_min, save_dt_max, code_dt_max
     use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
     type(reinit_config_type), intent(in), optional :: reinit_config_in    
@@ -333,7 +332,7 @@ contains
 
     !Smart defaults
     if (.not.reinit_config%is_initialised()) then    
-       reinit_config%dt0 = code_delt_max
+       reinit_config%dt0 = code_dt_max
     endif
     
     call reinit_config%init(name = 'reinit_knobs', requires_index = .false.)

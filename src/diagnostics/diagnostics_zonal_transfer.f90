@@ -50,10 +50,9 @@ contains
     use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use gs2_layouts, only: yxf_lo
-    use dist_fn_arrays, only: g, g_adjust
+    use dist_fn_arrays, only: g, g_adjust, to_g_gs2, from_g_gs2
     use species, only: spec
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fphi, fbpar
     use kt_grids, only: aky, akx
     use fields_arrays, only: phi, bpar
     use constants, only: zi
@@ -131,7 +130,7 @@ contains
 !    g2=g
 !    call g_adjust(g2,phi,bpar,fphi,fbpar)
     !> change variables from g to h
-    call g_adjust(g,phi,bpar,fphi,fbpar)
+    call g_adjust(g,phi,bpar, direction = from_g_gs2)
     
     !> we have to multiply nonlinearity by hk
 !    do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -147,7 +146,7 @@ contains
        g1(:,:,iglo)=g1(:,:,iglo)*conjg(g(:,:,iglo))*spec(is)%temp
     end do
     
-    call g_adjust(g,phi,bpar,-fphi,-fbpar)
+    call g_adjust(g,phi,bpar, direction = to_g_gs2)
 
 !!!!! the sum over kx,ky of g1 should be 0! we calculate it
   
