@@ -152,9 +152,10 @@ if __name__ == "__main__":
         module_with_dependencies("run_parameters",
                                  dependencies = [
                                      "init_g", "kt_grids"]),
+        module_with_dependencies("gs2_time", dependencies = ["run_parameters"]),
         module_with_dependencies("hyper",
                                  dependencies = [
-                                     "kt_grids", "gs2_layouts"]),
+                                     "kt_grids", "gs2_layouts", "gs2_time"]),
         module_with_dependencies("init_g",
                                  dependencies = [
                                      "gs2_layouts"]),

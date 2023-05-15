@@ -3,13 +3,13 @@
 ! Need to extend the verr tools to include delta B_parallel integrals
 ! There are new factors of 1/B here and there which I do not understand.  
 
-!>The principal function of this module is to evolve the distribution function, 
-!!that is, to advance the discrete gyrokinetic equation. 
-!!This involves calculating the source and dealing with the complexities 
-!!of the parallel boundary conditions. 
-!!In addition it contains a routine for implementing perpendicular
-!!velocity shear and calculating the right-hand side of the field 
-!!equation, as well as a host of other functions.
+!> The principal function of this module is to evolve the distribution
+!> function, that is, to advance the discrete gyrokinetic equation.
+!> This involves calculating the source and dealing with the
+!> complexities of the parallel boundary conditions.  In addition it
+!> contains a routine for implementing perpendicular velocity shear
+!> and calculating the right-hand side of the field equation, as well
+!> as a host of other functions.
 module dist_fn
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
@@ -20,35 +20,35 @@ module dist_fn
   public :: init_dist_fn, finish_dist_fn
   
   !> Initializes a limited selection of arrays,
-  !! for example g, gnew, vperp2, typically those which 
-  !! are needed by other modules that don't need 
-  !! dist_fn to be fully initialized (e.g. nonlinear_terms)
-  !! This initialization level depends on grid sizes.
+  !> for example g, gnew, vperp2, typically those which
+  !> are needed by other modules that don't need
+  !> dist_fn to be fully initialized (e.g. nonlinear_terms)
+  !> This initialization level depends on grid sizes.
   public :: init_dist_fn_arrays
- 
+
   !> Deallocates arrays allocated in init_dist_fn_arrays
   public :: finish_dist_fn_arrays
 
-  !> Reads the dist_fn_knobs, source knobs, and 
-  !! dist_fn_species_knobs namelists. This has be done independently
-  !! of initializing the distribution function because
-  !! it needs to be possible to override parameters such
-  !! as g_exb.
+  !> Reads the dist_fn_knobs, source knobs, and
+  !> dist_fn_species_knobs namelists. This has be done independently
+  !> of initializing the distribution function because
+  !> it needs to be possible to override parameters such
+  !> as g_exb.
   public :: init_dist_fn_parameters
   public :: finish_dist_fn_parameters
 
   !> Initializes parallel boundary conditions. This level
-  !! depends on geometry.
+  !> depends on geometry.
   public :: init_dist_fn_level_1
   public :: finish_dist_fn_level_1
 
   !> Initializes bessel functions and field_eq. Note 
-  !! that this level depends on species paramters.
+  !> that this level depends on species paramters.
   public :: init_dist_fn_level_2
   public :: finish_dist_fn_level_2
 
   !> Fully initialize the dist_fn module. Note that
-  !! this level depends on the size of the timestep.
+  !> this level depends on the size of the timestep.
   public :: init_dist_fn_level_3
   public :: finish_dist_fn_level_3
 
@@ -59,23 +59,17 @@ module dist_fn
     module procedure set_optimisations_overrides
   end interface set_overrides
 
-  !!> init_vpar is called by init_dist_fn should only be called separately 
-  !!! for testing purposes
-  !public :: init_vpar
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: g_exb_error_limit
-  public :: g_exb_start_timestep, g_exb_start_time
-  public :: init_bessel, init_fieldeq
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
   public :: flux, flux_dist, lf_flux, eexchange
   public :: get_epar, get_heat
-  public :: t0, omega0, gamma0, source0
-  public :: reset_init, write_f, reset_physics, write_poly
+  public :: omega0, gamma0
+  public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, itleft, boundary
+  public :: l_links, r_links, itright, boundary
   public :: get_jext !GGH
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
@@ -84,22 +78,19 @@ module dist_fn
   public :: flux_vs_e
   
   public :: gamtot,gamtot1,gamtot2
-  public :: getmoms_notgc
-  public :: mom_coeff, ncnt_mom_coeff
-  public :: mom_coeff_npara, mom_coeff_nperp
-  public :: mom_coeff_tpara, mom_coeff_tperp
-  public :: mom_shift_para, mom_shift_perp
-!CMR, 25/1/13: 
+  public :: getmoms_notgc, init_mom_coeff
+
+!CMR, 25/1/13:
 !  add public variables below for init_g
   public :: boundary_option_switch, boundary_option_linked
-  public :: boundary_option_self_periodic, boundary_option_zero
-  public :: pass_right, pass_left, init_pass_ends
-  public :: init_enforce_parity, get_leftmost_it
-  public :: gridfac1, awgt, gamtot3, fl_avg, apfac
+  public :: pass_right, init_pass_ends
+  public :: get_leftmost_it
+  public :: gridfac1, fl_avg, apfac
   public :: adiabatic_option_switch, adiabatic_option_fieldlineavg
 
+  public :: def_parity, even
+
   public :: gf_lo_integrate
-  public :: check_getan
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
@@ -148,7 +139,7 @@ module dist_fn
        boundary_option_self_periodic = 2, &
        boundary_option_alternate_zero = 3, &
        boundary_option_linked = 4
-  logical, public :: def_parity, even
+  logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
   logical :: mult_imp, test
@@ -156,16 +147,6 @@ module dist_fn
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
   logical :: increase = .true., decrease = .false. 
-  
-!! k_parallel filter items
-!  real, dimension(:), allocatable :: work, tablekp
-!  real :: scale
-!  integer :: nwork, ntablekp
-
-  ! internal arrays
-
-!  real, dimension (:,:), allocatable :: wdrift, wcurv
-!  ! (-ntgrid:ntgrid, -g-layout-)
 
 #ifdef LOWFLOW
   real, dimension (:,:), allocatable :: wcurv
@@ -270,16 +251,6 @@ module dist_fn
   logical :: lpolinit = .false.
   logical :: fyxinit = .false.
   logical :: cerrinit = .false.
-  logical :: mominit = .false.
-
-  !The following variables are used if write_full_moments_notgc=T
-  !or ginit_options='recon3'. These arrays are currently always initialised
-  !even if they are not to be used. Can we improve this?
-  real, allocatable :: mom_coeff(:,:,:,:)
-  real, allocatable :: mom_coeff_npara(:,:,:), mom_coeff_nperp(:,:,:)
-  real, allocatable :: mom_coeff_tpara(:,:,:), mom_coeff_tperp(:,:,:)
-  real, allocatable :: mom_shift_para(:,:,:), mom_shift_perp(:,:,:)
-  integer, parameter :: ncnt_mom_coeff=8
 
 #ifdef NETCDF_PARALLEL
   logical, parameter :: moment_to_allprocs = .true.
@@ -978,6 +949,7 @@ contains
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
+    use gs2_time, only: init_gs2_time
     use theta_grid, only: ntgrid
     use gs2_layouts, only: init_dist_fn_layouts, init_gf_layouts
     use nonlinear_terms, only: init_nonlinear_terms
@@ -1003,6 +975,9 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: run_parameters"
     call init_run_parameters
+
+    if (debug) write(6,*) "init_dist_fn: gs2_time"
+    call init_gs2_time
 
     if (debug) write(6,*) "init_dist_fn: dist_fn_layouts"
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
@@ -1103,9 +1078,6 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_hyper"
     call init_hyper
 
-    if (debug) write(6,*) "init_dist_fn: init_mom_coeff"
-    call init_mom_coeff
-
     if (debug) write(6,*) "init_dist_fn: init_source_term"
     call init_source_term
 
@@ -1150,7 +1122,8 @@ contains
     if (allocated(gexp_2)) deallocate (gexp_2, gexp_3)
     if (associated(gexp_1)) call shm_free(gexp_1)
 #endif
-    if (allocated(g_h)) deallocate (g_h, save_h)
+    if (allocated(g_h)) deallocate (g_h)
+    if (allocated(save_h)) deallocate (save_h)
     if (allocated(kx_shift)) deallocate (kx_shift)
     if (allocated(theta0_shift)) deallocate (theta0_shift)
     if (allocated(vperp2)) deallocate (vperp2)
@@ -1176,7 +1149,7 @@ contains
     accelerated_x = .false. ; accelerated_v = .false.
     no_comm = .false.
     connectinit = .false.
-    lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false. ; mominit = .false.
+    lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
     increase = .true. ; decrease = .false.
     exb_first = .true.
 
@@ -1193,8 +1166,6 @@ contains
     if (allocated(fl_avg)) deallocate (fl_avg)
     if (allocated(awgt)) deallocate (awgt)
     if (allocated(kmax)) deallocate (kmax)
-    if (allocated(mom_coeff)) deallocate (mom_coeff, mom_coeff_npara, mom_coeff_nperp, &
-         mom_coeff_tpara, mom_coeff_tperp, mom_shift_para, mom_shift_perp)
 
     call delete_redist(gc_from_left)
     call delete_redist(gc_from_right)
@@ -1611,8 +1582,7 @@ contains
     use theta_grid, only: shat
     use kt_grids, only: aky, theta0, akx
     use le_grids, only: energy, al
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     implicit none
     real :: wdrift_func
     integer, intent (in) :: ig, ik, it, il, ie,is
@@ -1637,8 +1607,7 @@ contains
   function wcurv_func (ig, it, ik)
     use theta_grid, only: cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     implicit none
     real :: wcurv_func
     integer, intent (in) :: ig, ik, it
@@ -1659,8 +1628,7 @@ contains
     use theta_grid, only: bmag, cdrift, cdrift0, shat
     use kt_grids, only: aky, theta0, akx
     use le_grids, only: energy, al
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
     use species, only: spec
 
     implicit none
@@ -1719,8 +1687,7 @@ contains
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
     use le_grids, only: energy, al, negrid, nlambda
-    use run_parameters, only: tunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
     implicit none
@@ -1827,8 +1794,7 @@ contains
     use species, only: nspec, dlnf0drho
     use kt_grids, only: naky
     use le_grids, only: negrid
-    use run_parameters, only: wunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, wunits
 
     implicit none
     integer :: ik, ie, is
@@ -2010,7 +1976,218 @@ contains
        end do
     end do
     !$OMP END PARALLEL DO
+
+    call init_homogeneous_g(g_h)
   end subroutine init_invert_rhs
+
+  !> Calculates the homogeneous solution `g_h` used as a part of the
+  !> trapped particle and linked boundary condition solve in
+  !> [[invert_rhs]]. This solution only depends on `r` so can be
+  !> calculated during initialisation. Note that `r` depends on
+  !> physics terms that contain `dt` so we must recalculate the
+  !> solution `g_h` if the timestep changes.
+  subroutine init_homogeneous_g(g_h, force_passing)
+    use array_utils, only: zero_array
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, ik_idx, il_idx
+    use kt_grids, only: aky
+    use le_grids, only: forbid, passing_wfb, trapped_wfb, &
+         il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
+         grid_has_trapped_particles, is_upper_bounce_point, &
+         is_lower_bounce_point, ng2
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
+    logical, intent(in), optional :: force_passing
+    complex, dimension(-ntgrid:ntgrid, 2) :: g2
+    integer :: ig, iglo
+    integer :: ik, il
+    integer :: ilmin
+    logical :: use_pass_homog_boundary, use_pass_homog
+    logical :: have_trapped_particles, force_include_passing
+    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
+
+    ! Initialise entire array to 0, for this reason we can take g_h as
+    ! intent(out) as we don't use any existing values on input.
+    call zero_array(g_h)
+
+    ! Decide if we need to use the homogeneous solution due to the
+    ! parallel boundary conditions.  This primarily impacts passing
+    ! particles -- trapped particles will always require the
+    ! homogeneous solution.
+    use_pass_homog_boundary = &
+         (boundary_option_switch == boundary_option_self_periodic) .or. &
+         (boundary_option_switch == boundary_option_linked)
+
+    ! Decide if we want to force the inclusion of the passing contribution
+    force_include_passing = get_option_with_default(force_passing, .false.)
+
+    ! Note this variable is probably redundant in the later conditionals as it is
+    ! always combined with other logicals, e.g. is_wfb and is_trapped, which can
+    ! only be true if have_trapped_particles is true.
+    have_trapped_particles = grid_has_trapped_particles()
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, il, g2, use_pass_homog, ig, &
+    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped) &
+    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, &
+    !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2, force_include_passing) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       !/////////////////////////
+       !// Constants, flags etc.
+       !/////////////////////////
+
+       ik = ik_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+
+       use_pass_homog = use_pass_homog_boundary .or. aky(ik) == 0.0 .or. force_include_passing
+
+       if (use_pass_homog) then
+          ilmin = 1
+       else
+          ilmin = ng2 + 1
+       end if
+
+       ! If il < il min then g_h has 0 boundary/initial condition and hence should be
+       ! exactly zero everywhere, and therefore there is no further work to do so cycle
+       ! We might still want to consider calculating the homogeneous solution in this
+       ! case "for interest". To do this we would remove this cycle and always set the boundary
+       ! values for passing particles.
+       if (il < ilmin) cycle
+
+       ! ng2+1 is WFB.
+       ! This implies have_trapped_particles is true.
+       is_wfb = il_is_wfb(il)
+
+       ! Totally trapped particle is last lambda when we have trapped_particles.
+       ! This implies have_trapped_particles is true.
+       is_not_ttp = .not. il_is_ttp(il)
+
+       ! Is this particle passing. Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       is_passing = il_is_passing(il)
+
+       ! Is this particle trapped? Note we exclude the wfb here as we can choose
+       ! how we treat this as given by passing_wfb, trapped_wfb etc.
+       ! This implies have_trapped_particles is true.
+       is_trapped = il_is_trapped(il)
+
+       !/////////////////////////
+       !// Initialisation
+       !/////////////////////////
+
+       !CMR
+       ! g2 simply stores trapped homogeneous boundary conditions at bounce points
+       !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
+       !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
+       ! otherwise g2 is zero
+       !      -- g2 = 0 for all passing particles
+       !      -- g2 = 0 for wfb as forbid always false
+       !      -- g2 = 0 for ttp too
+       ! g2 NOT used for totally trapped particles at il=nlambda
+       !
+       ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
+       g2 = 0.0
+
+       !/////////////////////////
+       !// Boundaries
+       !/////////////////////////
+
+       if (use_pass_homog .and. is_passing) then
+          g_h(-ntgrid, 1, iglo) = 1.0
+          g_h( ntgrid, 2, iglo) = 1.0
+       end if
+
+       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          ! wfb should be unity here; variable is for testing
+          g_h(-ntgrid, 1, iglo) = wfb
+          g_h( ntgrid, 2, iglo) = wfb
+       else if (is_wfb .and. trapped_wfb) then
+          ! MRH Only set the upper bounce point initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
+          g_h( ntgrid, 2, iglo) = 1.0
+       else if (is_wfb .and. passing_wfb) then
+          ! MRH give the passing initial condition
+          ! Should this be wfb for consistency with mixed treatment above?
+          g_h(-ntgrid, 1, iglo) = 1.0
+          g_h( ntgrid, 2, iglo) = 1.0
+       endif
+
+       ! Do we need the following conditional? If it is not true then
+       ! we just find that forbid is false everywhere. The only
+       ! difference would the the totally trapped particle where we
+       ! have forbid everywhere except at a single point, but then we
+       ! don't use g2 for the ttp.
+       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
+          !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
+          !      ... but does not matter
+          !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
+          do ig=-ntgrid,ntgrid-1
+             !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
+             ! Note with use of is_upper_bounce_point we can change ig loop to full
+             ! theta domain if we like. Only relevant once wfb bounce points identified
+             if (is_upper_bounce_point(ig, il)) g2(ig,2) = 1.0
+          end do
+       end if
+
+       !/////////////////////////
+       !// Time advance
+       !/////////////////////////
+
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar < 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+       ! time advance vpar < 0 homogeneous part: g_h
+       do ig = ntgrid-1, -ntgrid, -1
+          g_h(ig, 2, iglo) = -g_h(ig+1, 2, iglo) * r(ig,2,iglo) + g2(ig,2)
+       end do
+
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! time advance vpar > 0   !
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! First set BCs for trapped particles at lower bounce point
+       ! (excluding wfb and ttp)
+
+       !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
+       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
+          ! match boundary conditions at lower bounce point
+          do ig = -ntgrid, ntgrid-1
+             ! Note could change ig loop to full theta grid now we are using
+             ! is_lower_bounce_point
+             if (is_lower_bounce_point(ig+1, il)) then
+                !CMR, 17/4/2012: set g2=(ig+1,1) = g_h(ig+1,2, iglo) where ig+1
+                !     is LOWER bounce point (previously g2 was set to 1 at ig
+                !      just LEFT of lower bounce point but this was handled
+                !      consistently in integration of g1)
+                !
+                g2(ig+1,1) = g_h(ig+1, 2, iglo)
+             end if
+          end do
+       end if
+
+       ! If trapped wfb enforce the bounce condition at the lower bounce point
+       ! Note this treats the wfb as bouncing at the end of the parallel domain.
+       ! For nperiod > 1 this means the wfb does not bounce at the interior points
+       ! where bmag = bmax
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
+          ig = -ntgrid
+          g_h(ig, 1, iglo) = g_h(ig, 2, iglo)
+       endif
+
+       ! time advance vpar > 0 homogeneous part
+       if (is_not_ttp) then
+          do ig = -ntgrid, ntgrid-1
+             !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
+             g_h(ig+1, 1, iglo) = -g_h(ig, 1, iglo) * r(ig, 1, iglo) + g2(ig+1, 1)
+          end do
+       end if
+
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine init_homogeneous_g
 
   !> FIXME : Add documentation  
   subroutine init_bc
@@ -2040,8 +2217,8 @@ contains
   !> FIXME : Add documentation  
   subroutine init_source_term
     use dist_fn_arrays, only: vpar, vpac, aj0
-    use run_parameters, only: wunits, has_apar
-    use gs2_time, only: code_dt
+    use run_parameters, only: has_apar
+    use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
     use hyper, only: D_res
     use theta_grid, only: ntgrid, itor_over_b
@@ -3173,6 +3350,7 @@ contains
   !> FIXME : Add documentation
   subroutine allocate_arrays
     use kt_grids, only: ntheta0, naky,  box
+    use array_utils, only: zero_array
     use theta_grid, only: ntgrid, shat
     use dist_fn_arrays, only: g, gnew, g_work
     use dist_fn_arrays, only: kx_shift, theta0_shift   ! MR
@@ -3192,6 +3370,10 @@ contains
        allocate (g      (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (gnew   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (g_work (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       allocate (g_h  (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+       call zero_array(g) ; call zero_array(gnew) ; call zero_array(g_work)
+       call zero_array(g_h)
+
        if(opt_source)then
           if(has_apar)then
              allocate (source_coeffs(4,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -3222,13 +3404,12 @@ contains
           call zero_array(gexp_1) ; call zero_array(gexp_2) ; call zero_array(gexp_3)
        end if
 #endif
+
        if (boundary_option_switch == boundary_option_linked) then
-          allocate (g_h(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-          call zero_array(g_h)
           allocate (save_h(2,g_lo%llim_proc:g_lo%ulim_alloc))
           save_h = .false.
        endif
-       if (abs(g_exb*g_exbfac) > epsilon(0.)) then           ! MR 
+       if (abs(g_exb*g_exbfac) > epsilon(0.)) then           ! MR
           if (box .or. shat .eq. 0.0) then
              allocate (kx_shift(naky))
              kx_shift = 0.
@@ -3238,7 +3419,6 @@ contains
           endif
        endif                           ! MR end
     endif
-    call zero_array(g) ; call zero_array(gnew) ; call zero_array(g_work)
 
     allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
     allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
@@ -3252,16 +3432,15 @@ contains
   end subroutine allocate_arrays
 
   !> This function calculates the distribution function at the next timestep. 
-  !! It calculates both the inhomogenous part, gnew, due to the sources
+  !! It calculates both the inhomogeneous part, gnew, due to the sources
   !! (principly the drive terms and the nonlinear term)
-  !! and the homogenous part, g1. The actual evolution of the dist func
+  !! and the homogeneous part, g1. The actual evolution of the dist func
   !! is done in the subroutine invert_rhs. 
   !!
   !! After solving for the new dist funcs, this routine calls hyper_diff, which
   !! adds hyper diffusion if present, and solfp1, from the collisions module,
   !! which adds collisions if present.
   subroutine timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep, mode)
-
     use theta_grid, only: ntgrid
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
@@ -3403,7 +3582,6 @@ contains
    
     use mp, only: send, receive, mp_abort, broadcast
     use gs2_layouts, only: ik_idx, it_idx, g_lo, idx_local, idx, proc_id
-    use run_parameters, only: tunits
     use theta_grid, only: ntgrid, ntheta, shat
     use file_utils, only: error_unit
     use kt_grids, only: akx, aky, naky, ikx, ntheta0, box, theta0
@@ -3411,7 +3589,7 @@ contains
     use species, only: nspec
     use run_parameters, only: has_phi, has_apar, has_bpar
     use dist_fn_arrays, only: kx_shift, theta0_shift
-    use gs2_time, only: code_dt, code_dt_old, code_time
+    use gs2_time, only: code_dt, code_dt_old, code_time, tunits
     use constants, only: twopi
     use optionals, only: get_option_with_default
     implicit none
@@ -4077,8 +4255,8 @@ contains
     use kt_grids, only: aky
     use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
-    use run_parameters, only: fphi, fapar, fbpar, wunits
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar, fbpar
+    use gs2_time, only: code_dt, wunits
     use hyper, only: D_res
     use constants, only: zi
     implicit none
@@ -4667,7 +4845,6 @@ contains
     integer :: ig, ik, it, il, ie, isgn, is
     integer :: ilmin
     complex :: beta1
-    complex, dimension (-ntgrid:ntgrid,2) :: g1, g2
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     logical :: have_trapped_particles
@@ -4680,12 +4857,12 @@ contains
     have_trapped_particles = grid_has_trapped_particles()
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, il, ie, is, g1, use_pass_homog, speriod_flag, &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
-    !$OMP g2, adjright, adjleft, ig, beta1) &
+    !$OMP adjright, adjleft, ig, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, eqzip, secondary, tertiary, harris, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
-    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, save_h, g_h,zero_forbid, &
+    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, save_h, g_h, zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -4718,7 +4895,7 @@ contains
        !/////////////////////////
        
        if (is_passing_hybrid_electron(is, ik, il))  then
-          call set_h_zero (gnew, phinew, bparnew, -fphi, -fbpar, iglo)
+          call set_h_zero (gnew, phinew, bparnew, iglo)
           cycle
        end if
 
@@ -4806,64 +4983,9 @@ contains
        ! gnew is the inhomogeneous solution
        gnew(:,:,iglo) = 0.0
 
-       ! g1 is the homogeneous solution
-       g1 = 0.0
-
-       !CMR
-       ! g2 simply stores trapped homogeneous boundary conditions at bounce points
-       !     g2(iub,2) = 1.0        iub is UPPER bounce point, trapped bc for vpar < 0
-       !     g2(ilb,1) = g1(ilb,2)  ilb is LOWER bounce point, trapped bc for vpar > 0
-       ! otherwise g2 is zero
-       !      -- g2 = 0 for all passing particles
-       !      -- g2 = 0 for wfb as forbid always false
-       !      -- g2 = 0 for ttp too
-       ! g2 NOT used for totally trapped particles at il=nlambda
-       !
-       ! NB with trapped particles lmax=nlambda-1, and ttp is at il=nlambda
-       g2 = 0.0
-
        !/////////////////////////
        !// Boundaries
        !/////////////////////////
-
-       if (use_pass_homog) then
-          if (is_passing) then
-             g1(-ntgrid,1) = 1.0
-             g1( ntgrid,2) = 1.0
-          end if
-       end if
-
-       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-          ! wfb should be unity here; variable is for testing
-          g1(-ntgrid,1) = wfb
-          g1( ntgrid,2) = wfb
-       else if (is_wfb .and. trapped_wfb) then
-          ! MRH Only set the upper bounce point initial condition
-          ! Should this be wfb for consistency with mixed treatment above?
-          g1( ntgrid,2) = 1.0
-       else if (is_wfb .and. passing_wfb) then
-          ! MRH give the passing initial condition
-          ! Should this be wfb for consistency with mixed treatment above?
-          g1(-ntgrid,1) = 1.0
-          g1( ntgrid,2) = 1.0
-       endif
-
-       ! Do we need the following conditional? If it is not true then
-       ! we just find that forbid is false everywhere. The only
-       ! difference would the the totally trapped particle where we
-       ! have forbid everywhere except at a single point, but then we
-       ! don't use g2 for the ttp.
-       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
-          !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
-          !      ... but does not matter
-          !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
-          do ig=-ntgrid,ntgrid-1
-             !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
-             ! Note with use of is_upper_bounce_point we can change ig loop to full
-             ! theta domain if we like. Only relevant once wfb bounce points identified
-             if (is_upper_bounce_point(ig, il)) g2(ig,2) = 1.0
-          end do
-       end if
 
        !CMR, 18/4/2012:
        ! What follows is a selectable improved parallel bc for passing particles.
@@ -4895,7 +5017,6 @@ contains
           endif
        endif
 
-
        !/////////////////////////
        !// Time advance
        !/////////////////////////
@@ -4911,17 +5032,6 @@ contains
           gnew(ig,2,iglo) = -gnew(ig+1,2,iglo)*r(ig,2,iglo) + ainv(ig,2,iglo)*source(ig,2,iglo)
        end do
 
-       ! time advance vpar < 0 homogeneous part: g1
-       !CMR, 17/4/2012: computes homogeneous solutions for il >= ilmin
-       !                il >= ilmin includes trapped particles, wfb
-       !                AND passing particles IF use_pass_homog = T
-
-       if (il >= ilmin) then
-          do ig = ntgrid-1, -ntgrid, -1
-             g1(ig,2) = -g1(ig+1,2)*r(ig,2,iglo) + g2(ig,2)
-          end do
-       end if
-
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
        ! time advance vpar > 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -4935,11 +5045,6 @@ contains
              ! Note could change ig loop to full theta grid now we are using
              ! is_lower_bounce_point
              if (is_lower_bounce_point(ig+1, il)) then
-                !CMR, 17/4/2012: set g2=(ig+1,1) = g1(ig+1,2) where ig+1 is LOWER bounce point
-                !     (previously g2 was set to 1 at ig just LEFT of lower bounce point
-                !      but this was handled consistently in integration of g1)
-                !
-                g2(ig+1,1) = g1(ig+1,2)
                 !CMR: init_invert_rhs  sets ainv=1 at lower bounce point for trapped
                 !     source below ensures gnew(lb,1,iglo)=gnew(lb,2,iglo)
                 !     where lb is the lower bounce point.
@@ -4954,7 +5059,6 @@ contains
        ! where bmag = bmax
        if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
           ig = -ntgrid
-          g1(ig,1) = g1(ig,2)
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
 
@@ -4981,25 +5085,11 @@ contains
           end if
        end do
 
-       ! time advance vpar > 0 homogeneous part
-       if (is_not_ttp) then
-          do ig = -ntgrid, ntgrid-1
-             !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
-             g1(ig+1,1) = -g1(ig,1)*r(ig,1,iglo) + g2(ig+1,1)
-          end do
-       end if
-
        !/////////////////////////
        !// Periodicity at bounce point and parallel boundary
        !/////////////////////////
 
-       ! save homogeneous solution as necessary
-       if (boundary_option_switch == boundary_option_linked .and. (.not. is_self_periodic)) then
-          if (save_h (1, iglo)) g_h(:,1,iglo) = g1(:,1)
-          if (save_h (2, iglo)) g_h(:,2,iglo) = g1(:,2)
-       end if
-
-       if (is_self_periodic) call self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
+       if (is_self_periodic) call self_periodic(gnew, g_h, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
 
        ! add correct amount of homogeneous solution for trapped particles to satisfy boundary conditions
        !CMR, 24/7/2014:
@@ -5015,10 +5105,10 @@ contains
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
              else if (forbid(ig+1,il)) then !This could be is_upper_bounce_point(ig, il)?
-                beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
+                beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g_h(ig, 1, iglo))
              end if
-             gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g1(ig,1)
-             gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g1(ig,2)
+             gnew(ig,1,iglo) = gnew(ig,1,iglo) + beta1*g_h(ig, 1, iglo)
+             gnew(ig,2,iglo) = gnew(ig,2,iglo) + beta1*g_h(ig, 2, iglo)
           end do
        end if
 
@@ -5035,8 +5125,8 @@ contains
           ! between different theta at the same sigma.
           ! Note if trapped_wfb then g1(ntgrid, 2) == 1.0 so the denominator
           ! is equivalent to g1(ig,2) - g1(ig,1) here.
-          beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g1(ig,1))
-          gnew(:, :, iglo) = gnew(:, :, iglo) + beta1*g1
+          beta1 = (gnew(ig,1,iglo) - gnew(ig,2,iglo))/(1.0 - g_h(ig, 1, iglo))
+          gnew(:, :, iglo) = gnew(:, :, iglo) + beta1*g_h(:, :, iglo)
        end if
 
        !CMR,DD, 25/7/2014:
@@ -5056,7 +5146,6 @@ contains
     !$OMP END PARALLEL DO
 
     if (def_parity) call enforce_parity(parity_redist)
-
   end subroutine invert_rhs_1
 
   !> Sets sum of homogeneous and inhomogeneous solutions to give a result
@@ -5072,7 +5161,7 @@ contains
   !> This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
   !> NB this code change will implement this only in ballooning space,
   !> and not in a linked fluxtube.
-  subroutine self_periodic(gnew, g1, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
+  subroutine self_periodic(gnew, g_h, iglo, is, ie, it, ik, is_wfb, phinew, bparnew)
     use species, only: spec, nonmaxw_corr
     use dist_fn_arrays, only: vperp2, aj1, aj0
     use run_parameters, only: fphi, fbpar
@@ -5081,7 +5170,7 @@ contains
     use le_grids, only: passing_wfb
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: gnew
-    complex, dimension(-ntgrid:, :), intent(in) :: g1
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_h
     integer, intent(in) :: iglo, is, ie, it, ik
     logical, intent(in) :: is_wfb
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
@@ -5101,16 +5190,19 @@ contains
        dadj = cmplx(0.0,0.0)
     endif
 
-    if (g1(ntgrid,1) /= 1.) then
-       beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g1(ntgrid,1))
-       gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g1(:,1)
+    if (g_h(ntgrid, 1, iglo) /= 1.) then
+       beta1 = (gnew(ntgrid,1,iglo) - gnew(-ntgrid,1,iglo) - dadj)/(1.0 - g_h(ntgrid, 1, iglo))
+       gnew(:,1,iglo) = gnew(:,1,iglo) + beta1*g_h(:, 1, iglo)
     end if
 
-    if (g1(-ntgrid,2) /= 1.) then
-       beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g1(-ntgrid,2))
-       gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g1(:,2)
+    if (g_h(-ntgrid, 2, iglo) /= 1.) then
+       beta1 = (gnew(-ntgrid,2,iglo) - gnew(ntgrid,2,iglo) + dadj)/(1.0 - g_h(-ntgrid, 2, iglo))
+       gnew(:,2,iglo) = gnew(:,2,iglo) + beta1*g_h(:, 2, iglo)
     end if
 
+    ! Should we abort if either of the /= 1. checks return false? In this case we end up doing nothing
+    ! so we might want to at least check that gnew _is_ self-periodic already and if not abort as we've
+    ! asked to make this point self-periodic and we've not been able to.
   end subroutine self_periodic
 
   !> FIXME : Add documentation  
@@ -5567,14 +5659,12 @@ contains
 
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, to_g_gs2, from_g_gs2, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
-
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Total perturbed density
@@ -5611,7 +5701,7 @@ contains
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
-    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! integrate moments over the nonadiabatic part of <delta_f>
@@ -5717,14 +5807,14 @@ contains
     end do
 
 ! return gnew to its initial state, the variable evolved in GS2
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
     call prof_leaving ("getmoms", "dist_fn")
   end subroutine getmoms
 
   !> FIXME : Add documentation
   subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec
     use theta_grid, only: ntgrid
@@ -5929,13 +6019,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine getemoms (phinew, bparnew, ntot, tperp)
-    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
     use prof, only: prof_entering, prof_leaving
-    use run_parameters, only: fphi, fbpar
 
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -5976,7 +6065,7 @@ contains
 ! (avoid making more copies of gnew to save memory!)
 !
 ! set gnew = g_wesson, but return gnew to entry state prior to exit 
-    call g_adjust(gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc       
        ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
@@ -6012,20 +6101,20 @@ contains
     end do
 
 ! return gnew to its initial state, the variable evolved in GS2
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
     call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
   
   !> Calculates moments at not guiding center coordinate
-  subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar)
+  subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar, reset_coefficients)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use kt_grids, only: nakx => ntheta0, naky
     use le_grids, only: integrate_moment
-
+    use optionals, only: get_option_with_default
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     complex, intent (out) :: &
@@ -6034,15 +6123,41 @@ contains
     complex, intent (out), optional :: ntot(-ntgrid:,:,:,:)
     complex, intent (out), optional :: jpar(-ntgrid:,:,:)
     complex, dimension(-ntgrid:,:,:), intent(in) :: phinew, bparnew
+    logical, intent(in), optional :: reset_coefficients
+    real, dimension(:, :, :, :), allocatable, save :: mom_coeff
+    real, dimension(:, :, :), allocatable, save :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable, save :: mom_shift_para, mom_shift_perp
 
     integer :: isgn, iglo, is, ie
 
     real :: a, b, tpar2, tper2
     integer :: it, ik, ig
 
-! returns moment integrals to PE 0
+    ! returns moment integrals to PE 0
 
-! not guiding center n_total
+    if (get_option_with_default(reset_coefficients, .false.)) then
+       if (allocated(mom_coeff)) deallocate(mom_coeff)
+       if (allocated(mom_coeff_npara)) deallocate(mom_coeff_npara)
+       if (allocated(mom_coeff_nperp)) deallocate(mom_coeff_nperp)
+       if (allocated(mom_coeff_tpara)) deallocate(mom_coeff_tpara)
+       if (allocated(mom_coeff_tperp)) deallocate(mom_coeff_tperp)
+       if (allocated(mom_shift_para)) deallocate(mom_shift_para)
+       if (allocated(mom_shift_perp)) deallocate(mom_shift_perp)
+    end if
+
+    ! Note we mark mom_coeff* as 'save' so that the result of this call is cached
+    ! and not recalculated each time. This can help save overhead and should be
+    ! fine. The result of this call should only depend on the velocity grids, the
+    ! wavenumbers and the species parameters (and the derived Bessel functions).
+    ! These should not change during a single standard run, but if we wish to enable
+    ! more exotic behaviour we might want to remove the save from above declarations and
+    ! recalculate these coefficients each time. For now just add an optional flag to
+    ! request recalculation.
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+       mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
+    ! not guiding center n_total
     if(present(ntot)) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7534,7 +7649,7 @@ contains
     use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
     use nonlinear_terms, only: nonlin, split_nonlinear
     use array_utils, only: zero_array
@@ -7553,8 +7668,26 @@ contains
          aparnew, bparnew, istep, sourcefac)
 
     call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
-         has_phi, has_apar, has_bpar, fileopt = extension)
+         has_phi, has_apar, has_bpar, &
+         code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
+
+  !> Routine to dump the homogeneous solution
+  subroutine dump_homogeneous_solution(force_passing)
+    use gs2_save, only: gs2_save_for_restart
+    use dist_fn_arrays, only: g_work
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
+    use collisions, only: vnmult
+    implicit none
+    logical, intent(in), optional :: force_passing
+    character(len = 20), parameter :: extension = '.homogeneous'
+    integer :: istatus
+    call init_homogeneous_g(g_work, force_passing)
+    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+         has_phi, has_apar, has_bpar, &
+         code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
+  end subroutine dump_homogeneous_solution
 
   !> Calculate various fluxes
   !>
@@ -7578,10 +7711,11 @@ contains
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: Rplot, Bpol
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
@@ -7764,7 +7898,8 @@ contains
     use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, has_phi, has_apar, has_bpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
@@ -8137,11 +8272,11 @@ contains
     use theta_grid, only: drhodpsi, IoB
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: gnew, aj0, vpa, g_work
-!    use dist_fn_arrays, only: vpac
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
-    use run_parameters, only: woutunits, has_phi, rhostar
+    use run_parameters, only:has_phi, rhostar
     use constants, only: zi
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (:,:,:), intent (out) :: vflx0, vflx1
@@ -8365,15 +8500,14 @@ contains
     use theta_grid, only: ntgrid, bmag, gradpar, delthet
     use theta_grid, only: qval, shat, gds21, gds22
     use kt_grids, only: naky, ntheta0, theta0, aky
-!   use theta_grid, only: drhodpsi, grho
-!    use kt_grids, only: akx
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only: woutunits, has_phi
+    use run_parameters, only:has_phi
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
+    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
@@ -8501,14 +8635,14 @@ contains
 #ifdef LOWFLOW
     use dist_fn_arrays, only: hneoc
 #endif
-    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work
+    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_heating, only: heating_diagnostics
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
     use le_grids, only: integrate_moment
     use species, only: spec, nspec,has_electron_species
     use theta_grid, only: jacob, delthet, ntgrid
-    use run_parameters, only: fphi, fapar, fbpar, tunits, beta, tite
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar, fbpar, beta, tite
+    use gs2_time, only: code_dt, tunits
     use nonlinear_terms, only: nonlin
     use antenna, only: antenna_apar, a_ext_data
     use hyper, only: D_v, D_eta, nexp, hypervisc_filter
@@ -8551,8 +8685,8 @@ contains
 !!! until the end of this procedure!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    call g_adjust (g,    phi,    bpar,    fphi, fbpar)
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (g,    phi,    bpar,    direction = from_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
 
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)
@@ -9180,20 +9314,10 @@ contains
 !!
 !! Put g, gnew back to their usual meanings
 !!
-    call g_adjust (g,    phi,    bpar,    -fphi, -fbpar)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (g,    phi,    bpar,    direction = to_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
   end subroutine get_heat
-
-  !> FIXME : Add documentation  
-  subroutine reset_init
-    call finish_dist_fn_level_3
-  end subroutine reset_init
-
-  !> FIXME : Add documentation    
-  subroutine reset_physics
-    call init_wstar
-  end subroutine reset_physics
 
   !> Error estimate obtained by comparing standard integral with less-accurate integral
   !>
@@ -9209,8 +9333,8 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
-    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work
-    use run_parameters, only: has_phi, has_apar, has_bpar, beta, fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi, has_apar, has_bpar, beta
     use gs2_layouts, only: g_lo
     use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve
     use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve
@@ -9263,7 +9387,7 @@ contains
 ! first call to g_adjust converts gyro-averaged dist. fn. (g)
 ! into nonadiabatic part of dist. fn. (h)
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
     if (has_phi) then
@@ -9335,7 +9459,7 @@ contains
 
 ! second call to g_adjust converts from h back to g
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (.not. allocated(kmax)) then
        allocate (kmax(ntheta0, naky))
@@ -9518,8 +9642,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo
     use mp, only: proc0, broadcast
 
@@ -9558,7 +9681,7 @@ contains
     end if
 
 ! transform from g to h
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
@@ -9577,7 +9700,7 @@ contains
     end if
 
 ! transform from h back to g
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (proc0) then
        do is=1,nspec
@@ -9644,8 +9767,7 @@ contains
   !> points specified by `xloc` to text file with suffix `.interp`
   subroutine write_poly (phi, bpar, last, istep)
     use file_utils, only: open_output_file, close_output_file
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo
     use mp, only: proc0
     use le_grids, only: nterp, negrid, lagrange_interp, xloc
@@ -9674,7 +9796,7 @@ contains
        end if
     end if
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 ! take gyro-average of h at fixed total position (not g.c. position)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -9689,7 +9811,7 @@ contains
 !<DD>WARNING: THIS ROUTINE DOESN'T USE g_work FOR ANYTHING IS THIS CORRECT?
     call lagrange_interp (g_work, lpoly, istep)
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     tsize = 2*nterp-1
 
@@ -9787,10 +9909,9 @@ contains
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
     use theta_grid, only: bmag, ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, g_work
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use nonlinear_terms, only: accelerated
     use gs2_transforms, only: transform2, init_transforms
-    use run_parameters, only: fphi, fbpar
 #ifdef SHMEM
     use shm_mpi3, only: shm_alloc, shm_free
 #endif
@@ -9845,7 +9966,7 @@ contains
        fyxinit = .true.
     end if
 
-    call g_adjust (gnew, phi, bpar, fphi, fbpar)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 #ifndef SHMEM
     g_work = gnew
@@ -9866,7 +9987,7 @@ contains
        if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
     end do
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
        call transform2 (g_work, agzf, ia)
@@ -9888,7 +10009,7 @@ contains
        if (ik == 1) g0_ptr(:,:,iglo) = gnew(:,:,iglo)
     end do
 
-    call g_adjust (gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
        call transform2 (g0_ptr, agzf, ia)
@@ -9989,8 +10110,7 @@ contains
     use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, g_work
-    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx
     use collisions, only: dtot, fdf, fdb
@@ -10028,12 +10148,12 @@ contains
     end if
 
 ! convert gnew from g to h
-    call g_adjust(gnew,phi,bpar,fphi,fbpar)
+    call g_adjust(gnew,phi,bpar, direction = from_g_gs2)
 
     g_work = gnew
 
 ! convert gnew from h back to g
-    call g_adjust(gnew,phi,bpar,-fphi,-fbpar)
+    call g_adjust(gnew,phi,bpar, direction = to_g_gs2)
 
 ! map from g_work(ig,isgn,iglo) to glze(il,ilz)
     call gather (lambda_map, g_work, glze)
@@ -10224,8 +10344,8 @@ contains
   subroutine get_epar (phi, apar, phinew, aparnew, epar)
 
     use theta_grid, only: ntgrid, delthet, gradpar
-    use run_parameters, only: tunits, fphi, fapar
-    use gs2_time, only: code_dt
+    use run_parameters, only: fphi, fapar
+    use gs2_time, only: code_dt, tunits
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(in) :: phi, apar, phinew, aparnew
@@ -10323,8 +10443,7 @@ contains
   !! tunits(ky) == 1. unless the "omega_*" units are chosen.
   !! omega_* units normalize time by an additional factor of ky.
   subroutine dot (a, anew, adot, fac)
-    use run_parameters, only: tunits
-    use gs2_time, only: code_dt
+    use gs2_time, only: code_dt, tunits
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
 
@@ -10374,29 +10493,33 @@ contains
     favg_x = 0.5*(fl+fr)
   end function favg_x
 
-  !> FIXME : Add documentation  
-  subroutine init_mom_coeff
+  !> FIXME : Add documentation
+  !>
+  !> The returned variables are used if write_full_moments_notgc=T
+  !> or ginit_options='recon3'.
+  subroutine init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+       mom_coeff_tperp, mom_shift_para, mom_shift_perp)
     use gs2_layouts, only: g_lo
     use species, only: nspec, spec
     use kt_grids, only: nakx => ntheta0, naky, kperp2
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0,aj1,vperp2
-    use dist_fn_arrays, only: vpa, vperp2
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
     use le_grids, only: integrate_moment
-    integer :: i
-    integer :: isgn, iglo
-    integer :: it,ik,is
-    complex, allocatable :: coeff0(:,:,:,:)
-    complex, allocatable :: gtmp(:,:,:)
-    real, allocatable :: wgt(:)
-!    logical, parameter :: analytical = .false.
-    logical, parameter :: analytical = .true.
-!    logical, save :: initialized=.false.
+    use array_utils, only: zero_array
+    implicit none
+    real, dimension(:, :, :, :), allocatable, intent(in out) :: mom_coeff
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_shift_para, mom_shift_perp
+    integer :: i, isgn, iglo, it, ik, is
     real :: bsq
-    
-!    if (initialized) return
-    if (mominit) return
-    mominit = .true.
+    complex, dimension(:, :, :, :), allocatable :: coeff0
+    complex, dimension(:, :, :), allocatable :: gtmp
+    real, dimension(:), allocatable :: wgt
+    logical, parameter :: analytical = .true.
+    integer, parameter :: ncnt_mom_coeff=8
+
+    if (allocated(mom_coeff)) return
 
     if(.not.allocated(mom_coeff)) &
          & allocate(mom_coeff(nakx,naky,nspec,ncnt_mom_coeff))
@@ -10413,17 +10536,17 @@ contains
     if(.not.allocated(mom_shift_perp)) &
          & allocate(mom_shift_perp(nakx,naky,nspec))
 
-    mom_coeff(:,:,:,:)=0.
-    mom_coeff_npara(:,:,:)=0. ; mom_coeff_nperp(:,:,:)=0.
-    mom_coeff_tpara(:,:,:)=0. ; mom_coeff_tperp(:,:,:)=0.
-    mom_shift_para(:,:,:)=0.  ; mom_shift_perp(:,:,:)=0.
+    call zero_array(mom_coeff)
+    call zero_array(mom_coeff_npara) ; call zero_array(mom_coeff_nperp)
+    call zero_array(mom_coeff_tpara) ; call zero_array(mom_coeff_tperp)
+    call zero_array(mom_shift_para) ; call zero_array(mom_shift_perp)
 
     allocate(wgt(-ntgrid:ntgrid))
     allocate(coeff0(-ntgrid:ntgrid,nakx,naky,nspec))
     allocate(gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-    wgt(:)=0.
-    coeff0(:,:,:,:)=cmplx(0.,0.)
-    gtmp(:,:,:)=cmplx(0.,0.)
+    wgt = 0.
+    call zero_array(coeff0)
+    call zero_array(gtmp)
 
     if (analytical) then
        do it=1,nakx
@@ -10467,22 +10590,20 @@ contains
     endif
 
     !<DD>Currently below could include divide by zero if analytical=.true.
-    mom_shift_para(:,:,:)=mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
-    mom_shift_perp(:,:,:)=mom_coeff(:,:,:,3)/mom_coeff(:,:,:,1)
+    mom_shift_para=mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_shift_perp=mom_coeff(:,:,:,3)/mom_coeff(:,:,:,1)
 
-    mom_coeff_npara(:,:,:)=2.*mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
-    mom_coeff_nperp(:,:,:)=2.*mom_coeff(:,:,:,6)/mom_coeff(:,:,:,1)
+    mom_coeff_npara=2.*mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_coeff_nperp=2.*mom_coeff(:,:,:,6)/mom_coeff(:,:,:,1)
 
-    mom_coeff_tperp(:,:,:)= &
-         & (mom_coeff(:,:,:,5)-mom_shift_perp(:,:,:)*mom_coeff(:,:,:,2)) / &
-         & (mom_coeff(:,:,:,8)-mom_shift_perp(:,:,:)*mom_coeff(:,:,:,6))
-    mom_coeff_tpara(:,:,:)= &
-         & (mom_coeff(:,:,:,7)-mom_shift_para(:,:,:)*mom_coeff(:,:,:,6)) / &
-         & (mom_coeff(:,:,:,4)-mom_shift_para(:,:,:)*mom_coeff(:,:,:,2))
+    mom_coeff_tperp= &
+         & (mom_coeff(:,:,:,5)-mom_shift_perp*mom_coeff(:,:,:,2)) / &
+         & (mom_coeff(:,:,:,8)-mom_shift_perp*mom_coeff(:,:,:,6))
+    mom_coeff_tpara= &
+         & (mom_coeff(:,:,:,7)-mom_shift_para*mom_coeff(:,:,:,6)) / &
+         & (mom_coeff(:,:,:,4)-mom_shift_para*mom_coeff(:,:,:,2))
 
     deallocate(gtmp,coeff0,wgt)
-    
-!    initialized=.true.
   end subroutine init_mom_coeff
 
 #ifdef LOWFLOW
@@ -10503,9 +10624,9 @@ contains
     use le_grids, only: energy, al, negrid, nlambda, forbid, init_map
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
-    use gs2_time, only: code_dt
+    use gs2_time, only: tunits, wunits, code_dt
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx, it_idx
-    use run_parameters, only: tunits, wunits, rhostar, neo_test
+    use run_parameters, only:rhostar, neo_test
     use lowflow, only: get_lowflow_terms
     use file_utils, only: open_output_file, close_output_file
     use collisions, only: use_le_layout

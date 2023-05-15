@@ -15,7 +15,7 @@ module dist_fn_arrays
   public :: vperp2, vpar, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
-  public :: c_rate
+  public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
 #ifdef LOWFLOW
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
@@ -70,8 +70,6 @@ module dist_fn_arrays
   ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspecies,2)
 #endif
 
-contains
-
   !> g_adjust transforms between representations of perturbed dist'n func'n.
   !>    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
   !>        g_gs2 = g_wesson - q phi/T J0(Z) F_m - m v_||^2/T B_||/B J1(Z)/Z F_m
@@ -81,10 +79,47 @@ contains
   !>
   !> To transform gnew from g_gs2 to g_wesson form:
   !>    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+  !> or
+  !>    call g_adjust(gnew,phinew,bparnew, to_g_gs2 = .false.)
   !> or transform from gnew from g_wesson to g_gs2 form:
   !>    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+  !> or
+  !>    call g_adjust(gnew,phinew,bparnew, to_g_gs2 = .true. )
   !> CMR, 17/4/2012:
-  subroutine g_adjust (g, phi, bpar, facphi, facbpar)
+  interface g_adjust
+     module procedure g_adjust_floats
+     module procedure g_adjust_direction
+  end interface g_adjust
+
+  type g_adjust_direction_type
+     private
+     logical :: to_g_gs2
+  end type g_adjust_direction_type
+
+  type(g_adjust_direction_type), parameter :: to_g_gs2 = g_adjust_direction_type(.true.)
+  type(g_adjust_direction_type), parameter :: from_g_gs2 = g_adjust_direction_type(.false.)
+
+contains
+
+  !> Transform between g_gs2 and g_wesson with direction indicated
+  !> by passed logical [to_g_gs2].
+  subroutine g_adjust_direction (g, phi, bpar, direction)
+    use run_parameters, only: fphi, fbpar
+    implicit none
+    complex, dimension (:,:,:), intent (in out) :: g
+    complex, dimension (:,:,:), intent (in) :: phi, bpar
+    type(g_adjust_direction_type), intent(in) :: direction
+
+    if (direction%to_g_gs2) then
+       call g_adjust(g, phi, bpar, -fphi, -fbpar)
+    else
+       call g_adjust(g, phi, bpar, fphi, fbpar)
+    end if
+  end subroutine g_adjust_direction
+
+  !> Transform between g_gs2 and g_wesson with direction indicated
+  !> by passed floats [facphi] and [facbpar].
+  subroutine g_adjust_floats (g, phi, bpar, facphi, facbpar)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: grid_has_trapped_particles, jend
@@ -93,7 +128,6 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     real, intent (in) :: facphi, facbpar
-
     integer :: iglo, ig, ik, it, ie, is, il
     complex :: adj
     logical :: trapped
@@ -143,7 +177,7 @@ contains
        end do
     end do
     !$OMP END PARALLEL DO
-  end subroutine g_adjust
+  end subroutine g_adjust_floats
 
   !> This routine checks trapped particle bounce conditions: 
   !!     g(thetab,1:ik,it,il,ie,is)=g(thetab,2:ik,it,il,ie,is)
@@ -197,23 +231,27 @@ contains
   !> Assign $g$ a value corresponding to $h$ (g_wesson of CMR's note
   !> in [[dist_fn_arrays:g_adjust]]) of $h = 0$ in order to be
   !> consistent with g_adjust. The correct function call to set h = 0
-  !> is call set_h_zero(g, phi, bpar, -fphi, -fbpar, iglo)
+  !> is call set_h_zero(g, phi, bpar, iglo)
   !>
   !> @note This looks like the g_adjust loop kernel, we might be able
   !> to combine these in some way to avoid duplication.
-  subroutine set_h_zero (g, phi, bpar, facphi, facbpar, iglo)
+  subroutine set_h_zero (g, phi, bpar, iglo)
     use species, only: spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, is_idx, il_idx
+    use run_parameters, only: fphi, fbpar
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in out) :: g
     complex, dimension (-ntgrid:, :, :), intent (in) :: phi, bpar
-    real, intent (in) :: facphi, facbpar
     integer, intent (in) :: iglo
+    real :: facphi, facbpar
     integer :: ig, ik, it, ie, is, il
     complex :: adj
     real :: phi_factor, bpar_factor
+
+    facphi = -fphi
+    facbpar = -fbpar
 
     ! Skip non hybrid electrons
     is = is_idx(g_lo,iglo)
@@ -222,7 +260,7 @@ contains
     ! Skip trapped particles
     il = il_idx(g_lo,iglo)
     if (.not. is_passing_hybrid_electron(is, ik, il)) return
-    
+
     it = it_idx(g_lo,iglo)
     ie = ie_idx(g_lo,iglo)
 
@@ -237,7 +275,7 @@ contains
     else
        bpar_factor = 0.0
     end if
-    
+
     do ig = -ntgrid, ntgrid
        adj = bpar_factor*vperp2(ig,iglo)*aj1(ig,iglo)*bpar(ig,it,ik) &
             + phi_factor*phi(ig,it,ik)*aj0(ig,iglo)

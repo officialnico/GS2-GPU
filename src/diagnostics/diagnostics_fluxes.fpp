@@ -94,10 +94,10 @@ contains
   !> FIXME : Add documentation  
   subroutine calculate_fluxes(gnostics)
     use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
-    use dist_fn_arrays, only: g_adjust, gnew
+    use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
-    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_config, only: diagnostics_type
@@ -121,7 +121,7 @@ contains
          call write_diffusive_estimates(gnostics)
 
     if (.not. gnostics%replay) then
-      call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+      call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
       call flux (phinew, aparnew, bparnew, &
            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
@@ -132,7 +132,7 @@ contains
       call lf_flux (phinew, vflux0, vflux1)
 #endif
 
-      call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+      call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
       call eexchange (phinew, phi, exchange1, exchange)
     end if ! if (.not. gnostics%replay)
       
@@ -565,9 +565,8 @@ contains
     use gs2_layouts, only: init_parity_layouts, p_lo, g_lo, idx_local
     use gs2_layouts, only: ik_idx, it_idx, il_idx, ie_idx, is_idx, idx, proc_id
     use mp, only: send, receive, proc0, nproc, iproc
-    use dist_fn_arrays, only: gnew, g_adjust, aj0
+    use dist_fn_arrays, only: gnew, g_adjust, aj0, to_g_gs2, from_g_gs2
     use fields_arrays, only: phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use constants, only: zi
     use volume_averages, only: average_theta, average_all
     use diagnostics_config, only: diagnostics_type
@@ -616,7 +615,7 @@ contains
     allocate (gnorm_all_tot(nspec), gnorm_nokx_tot(nspec), gnorm_nosig_tot(nspec))
     
     ! convert from g to h
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
     
     ! below we define gparity = J0 * h, where delta f = h - (q phi / T) F0
     ! because we're ultimately interested in int J0 h * phi (i.e. particle flux)
@@ -648,7 +647,7 @@ contains
     end do
     
     ! convert from h back to g
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
     
     ! first diagnostic is phase space average of 
     ! |J0*(h(z,vpa,kx) +/- h(-z,-vpa,-kx))|**2 / ( |J0*h(z,vpa,kx)|**2 + |J0*h(-z,-vpa,-kx)|**2 )
@@ -905,11 +904,11 @@ contains
     
     deallocate (gparity) ; allocate (gparity(-ntgrid:ntgrid,ntheta0,naky,nspec))
     ! obtain normalization factor = int over phase space of |g|**2
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
     !<DD>Do all processors need to know the full result here? Only proc0 seems to do any writing.
     !If not then remove the last two arguments in the following call.
     call integrate_moment (spread(aj0,2,2)*spread(aj0,2,2)*gnew*conjg(gnew), gparity, .true., full_arr=.true.)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
@@ -1003,8 +1002,8 @@ contains
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew, g_adjust
-    use run_parameters, only: fphi, fbpar, has_phi
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi
     use volume_averages, only: average_all
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
@@ -1024,9 +1023,9 @@ contains
     allocate (vflux_par_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (vflux_perp_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call g_adjust (gnew, phinew, bparnew, fphi, fbpar) ! convert from g to h
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2) ! convert from g to h
     call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-    call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar) ! convert back from h to g
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2) ! convert back from h to g
     if (proc0) then
        if (has_phi) then
           do ig = -ntgrid, ntgrid

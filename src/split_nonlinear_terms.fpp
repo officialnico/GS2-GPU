@@ -194,11 +194,11 @@ contains
   !> specific requested method.
   !> On output g = gnew, chi = chinew.
   subroutine advance_nonlinear_term(istep, phi, apar, bpar, dt, fields_func, source_func)
-    use dist_fn_arrays, only: gnew, g, g_adjust
+    use dist_fn_arrays, only: gnew, g, g_adjust, to_g_gs2, from_g_gs2
     use mp, only: mp_abort, get_mp_times, proc0
     use job_manage, only: time_message
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
-    use run_parameters, only: has_phi, has_apar, has_bpar, fphi, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
@@ -228,7 +228,7 @@ contains
     ! to require the call site to always pass a way to calculate
     ! from g and a way from h and we then decide here which to use.
     if (advance_nonadiabatic_dfn) then
-       call g_adjust(g, phinew, bparnew, fphi, fbpar)
+       call g_adjust(g, phinew, bparnew, direction = from_g_gs2)
        call copy(g, gnew)
     end if
 
@@ -251,7 +251,7 @@ contains
 
     ! If we advanced h then we need to reconstruct g from this
     if (advance_nonadiabatic_dfn) then
-       call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+       call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
     end if
 
     ! Now that we've advanced the explicit terms by dt set the

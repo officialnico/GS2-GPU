@@ -4290,7 +4290,7 @@ contains
           
           !Now save if on head proc
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix))
+             call gs2_save_response(tmp_arr, get_specific_response_file_name(ik, is, code_dt, suffix), code_dt)
           endif
 
           !Deallocate
@@ -4317,6 +4317,7 @@ contains
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
     logical :: file_found
+    real :: file_time_step
 
     could_read = .true.
 
@@ -4348,7 +4349,8 @@ contains
 
           !Now if on head proc read from file
           if(fieldmat%kyb(ik)%supercells(is)%is_head)then
-             call gs2_restore_response(tmp_arr, file_name)
+             call gs2_restore_response(tmp_arr, file_name, file_time_step)
+             ! Should perhaps double check that file_time_step == code_dt?
           endif
 
           !Now we need to broadcast the data to everyone with supercell.

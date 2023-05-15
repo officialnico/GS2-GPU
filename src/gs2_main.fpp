@@ -766,6 +766,7 @@ contains
     use gs2_reinit, only: check_time_step
     use gs2_save, only: gs2_save_for_restart
     use gs2_time, only: user_time, update_time, write_dt, user_dt
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use job_manage, only: time_message, checkstop, checktime
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
@@ -877,12 +878,14 @@ contains
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
                 call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-                has_phi, has_apar, has_bpar, header=local_header)
+                has_phi, has_apar, has_bpar, &
+                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
                 call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-                has_phi, has_apar, has_bpar, header=local_header)
+                has_phi, has_apar, has_bpar, &
+                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
 #endif
          end if
          call update_time
@@ -1295,7 +1298,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
     implicit none
@@ -1336,7 +1339,7 @@ contains
       if (proc0) call dump_ant_amp
 
       call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-           has_phi, has_apar, has_bpar)
+           has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max)
     endif
 
   end subroutine set_initval_overrides_to_current_vals
