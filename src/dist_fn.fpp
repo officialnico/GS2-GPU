@@ -4827,7 +4827,7 @@ contains
        !Skip work if we're not interested in this ik and it
        if(kwork_filter(it,ik)) cycle
 
-       if(ieqzip(it,ik)==0) cycle
+       if(ieqzip(it,ik)) cycle
        if (eqzip) then
           if (secondary .and. ik == 2 .and. it == 1) cycle ! do not evolve primary mode
           if (tertiary .and. ik == 1) then
