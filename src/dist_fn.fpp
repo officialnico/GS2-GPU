@@ -7358,6 +7358,7 @@ contains
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
+    use array_utils, only: copy
     implicit none
     real, dimension(:, :, :), allocatable, intent(in out) :: phi_denom, bpar_denom
     integer :: it, ik, ig
@@ -7387,18 +7388,7 @@ contains
           ! If fbpar = 0 then the terms in earlier branch proportional to beta
           ! should be zero as these terms arrive from the bpar parts of quasineutrality
           ! as expressed in terms of gnew. In this case we get the below.
-
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(it, ik) &
-          !$OMP SHARED(ntheta0, naky, phi_denom, gamtot) &
-          !$OMP COLLAPSE(2) &
-          !$OMP SCHEDULE(static)
-          do ik = 1, naky
-             do it = 1, ntheta0
-                phi_denom(:, it, ik) = gamtot(:, it, ik)
-             end do
-          end do
-          !$OMP END PARALLEL DO
+          call copy(gamtot, phi_denom)
        end if
 
        ! Now invert the denominator
@@ -7541,6 +7531,7 @@ contains
 
     fl_avg = 0.
 
+    ! Todo:
     ! This logical is a constant so should perhaps be calculated once during
     ! initialisiation and given a helpful name.
     if( .not. has_electron_species(spec) .and. adiabatic_option_switch == adiabatic_option_fieldlineavg ) then
