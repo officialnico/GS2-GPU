@@ -85,7 +85,7 @@ contains
     use gs2_reinit, only: reduce_time_step
     use fields, only: f_reset => reset_init
     use collisions, only: c_reset => reset_init
-    use dist_fn, only: d_reset => reset_init
+    use dist_fn, only: d_reset => finish_dist_fn_level_3
     implicit none
 
     !First reduce the time step
