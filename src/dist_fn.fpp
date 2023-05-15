@@ -8000,7 +8000,7 @@ contains
     use le_grids, only: integrate_moment
     use species, only: nspec
     use integration, only: trapezoidal_integration
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
