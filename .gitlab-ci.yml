@@ -53,6 +53,7 @@ variables: &default_variables
   EXTRA_TEST_FLAGS: ""
   EXTRA_PFUNIT_FLAGS: ""
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
+  GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   BASIC_PACKAGES: "environment-modules make git which cmake findutils"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
