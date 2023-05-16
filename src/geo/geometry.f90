@@ -1438,6 +1438,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
+       !RN> I think kxfac should include the sign.
+       !RN> However, from GS2 convention, eventually kxfac = abs(kxfac). See get_grids in theta_grid.
+       !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
+       !RN> I just leave the sign here.
        kxfac = - 1./drhodpsin
        gds22 = grho**2/drhodpsin**2
     end if
