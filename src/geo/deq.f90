@@ -76,7 +76,7 @@ contains
     integer :: i, j, init, nhb, nwb
     integer :: jmin, jmax
 
-    real :: lref = 0., bref = 0.
+    real :: lref, bref
     logical :: eqnorm_exists
 
 !What is the following for?    
@@ -94,6 +94,8 @@ contains
     if(initeq == 0) return
     init=0
 
+    lref = 0.
+    bref = 0.
     ! read eqnorm file if exists
     inquire(file=trim(eqnormfile), exist = eqnorm_exists)
     if (eqnorm_exists) then
