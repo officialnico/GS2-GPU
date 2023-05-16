@@ -404,6 +404,7 @@ contains
     use theta_grid, only: theta, ntgrid
     use gs2_io, only: nc_final_an
     use dist_fn, only: getan
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     !> Write to text file
     logical, intent(in) :: write_text
@@ -412,14 +413,9 @@ contains
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
     integer :: ik, it, ig, unit
 
     if (.not. (write_text .or. write_netcdf)) return
-
-    allocate ( antot(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
     call getan (antot, antota, antotp)
 
     if (.not. proc0) return
@@ -443,8 +439,6 @@ contains
     end if
 
     if (write_netcdf) call nc_final_an (file_id, antot, antota, antotp)
-
-    deallocate (antot, antota, antotp)
   end subroutine do_write_final_antot
 
   !> FIXME : Add documentation

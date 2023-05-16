@@ -21,6 +21,8 @@ module dist_fn_arrays
   public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
 
+  public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
+
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
@@ -56,6 +58,9 @@ module dist_fn_arrays
   ! collisional diagnostic of heating rate
   complex, dimension (:,:,:,:,:), allocatable :: c_rate
   ! (-ntgrid:ntgrid,ntheta0,naky,nspecies,2) replicated
+
+  complex, dimension (:,:,:), allocatable :: antot, antota, antotp
+  complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
 
 #ifdef LOWFLOW
   ! v-dependent factors in low-flow terms

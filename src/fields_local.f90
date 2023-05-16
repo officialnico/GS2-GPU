@@ -1173,6 +1173,9 @@ contains
        !Now use MPI to get the rest of the data from other procs
        !<DD>FOR NOW USE ALL_REDUCE AS EASIER, BUT SHOULD BE ABLE
        !TO DO THIS WITH ALL_GATHERV WHICH SHOULD BE FASTER
+       ! We only actually need the result on the head of the supercell
+       ! as this is the only process which operates on the result.
+       ! We could therefore replace allreduce with reduce.
        if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(arr,self%sc_sub_pd%id)
     endif
 
@@ -1508,6 +1511,13 @@ contains
     if(.not.self%is_local) return
 
     !Tell each supercell to prepare
+    ! This might be a good place to add OpenMP pragmas
+    ! however it's possible that this could increase peak
+    ! memory consumption due to now having to hold
+    ! multiple matrices in memory at once, thereby
+    ! potentially negating some of the benefit of using OpenMP
+    ! to get more memory per process. More testing would
+    ! be required to explore this further.
     do is=1,self%nsupercell
        call self%supercells(is)%prepare(prepare_type)
     enddo
@@ -1875,6 +1885,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
@@ -1882,13 +1893,13 @@ contains
     if(self%no_populate) return
 
     !First initialise everything to 0
-    g=0
-    phi=0.0
-    phinew=0.0
-    apar=0.0
-    aparnew=0.0
-    bpar=0.0
-    bparnew=0.0
+    call zero_array(g)
+    call zero_array(phi)
+    call zero_array(phinew)
+    call zero_array(apar)
+    call zero_array(aparnew)
+    call zero_array(bpar)
+    call zero_array(bparnew)
 
     !Initialise field counter
     ifl=0
@@ -1981,23 +1992,27 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
     integer, intent(inout) :: pts_remain
     integer, intent(in) :: ifl
     logical, dimension(ntheta0, naky), intent(inout) :: kwork_filter
-    complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is, iex, ic, iex_init, ig, it
     integer :: it_cur, ig_cur, found_it, found_ig
-    !Allocate the fieldeq arrays, should look at just allocating
-    !these things once (maybe store at fieldmat level)
-    allocate(fq(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(fqa(-ntgrid:ntgrid, ntheta0, naky))
-    allocate(fqp(-ntgrid:ntgrid, ntheta0, naky))
+    integer :: pts_set_here
+
+    pts_set_here = 0
 
     !Loop over all ik
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, iex_init, iex, ig, it) &
+    !$OMP SHARED(self, kwork_filter, field, ntgrid) &
+    !$OMP REDUCTION(+:pts_set_here) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Technically should be able to skip ik values which are not local (though could be empty)
        !/would have to remember to decrease pts_remain
@@ -2044,8 +2059,8 @@ contains
           !Mark this point as initialised
           self%kyb(ik)%supercells(is)%initialised(iex_init)=.true.
 
-          !Decrease the points remaining count
-          pts_remain=pts_remain-1
+          !Increment the number of points handled in this call
+          pts_set_here = pts_set_here + 1
 
           !Get the ig and it indices corresponding to this point
           call self%kyb(ik)%supercells(is)%iex_to_ig(iex_init,ig)
@@ -2066,6 +2081,10 @@ contains
        self%kyb(ik)%initdone=all(self%kyb(ik)%supercells%initdone)
 
     enddo !Ends loop over ik
+    !$OMP END PARALLEL DO
+
+    ! Update the number of points remaining
+    pts_remain = pts_remain - pts_set_here
 
     !Now do the time advance
     call timeadv(phi,apar,bpar,phinew,aparnew,bparnew,0)
@@ -2073,16 +2092,28 @@ contains
     !In some(/most) situations the nogath version should
     !be ok, and will be better for scaling.
     if(pc%has_to_gather)then
-       call getfieldeq(phinew,aparnew,bparnew,fq,fqa,fqp)
+       call getfieldeq(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
     else
 !       call getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
 !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
+       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
     endif
 
     !Now we need to store the field equations in the appropriate places
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, ig_cur, it_cur, found_ig, found_it, it, is) &
+    !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fieldeq, fieldeqa, fieldeqp) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
-       !If no data then skip ik
+       !If no data then skip ik -- because we don't skip setting
+       !the field in the first loop of this routine but we do skip
+       !zeroing it out here on processors which don't have any interest
+       !in this ky, we need to zero the field after this loop to
+       !ensure it has been fully reset to 0 on all procs. We might
+       !consider skipping the setting of the field in the first loop
+       !instead, although this could mean the field is different on
+       !different processors (which should be fine) and might complicate
+       !how we track the number of points we need to visit etc.
        if(self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
@@ -2130,15 +2161,13 @@ contains
           endif
 
           !Now store data
-          call self%kyb(ik)%store_fq(fq,fqa,fqp,ifl,it_cur,ig_cur)
+          call self%kyb(ik)%store_fq(fieldeq,fieldeqa,fieldeqp,ifl,it_cur,ig_cur)
        enddo !Ends loop over points
     enddo !Ends loop over ky
+    !$OMP END PARALLEL DO
 
-    !Make sure field has been reset
-    field=0
-
-    !Deallocate field arrays
-    deallocate(fq,fqa,fqp)
+    ! See comment in above loop for why this is needed
+    call zero_array(field)
   end subroutine fm_init_next_field_points
 
   !> Prepare the field matrix for calculating field updates
@@ -2153,6 +2182,11 @@ contains
     if(self%no_prepare) return
 
     !Tell each ky to prepare
+    !This might be a good place to add OpenMP as each prepare (inversion)
+    !has the potential to be quite slow. However, as the cost per inversion
+    !can be quite variable (due to very variable length supercell domains)
+    !it may make more sense to OpenMP at the next level down (i.e. the kyb)
+    !so we're more likely to be sharing work a bit more fairly.
     do ik=1,self%naky
        call self%kyb(ik)%prepare(self%prepare_type)
     enddo
@@ -2163,12 +2197,16 @@ contains
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
-    complex, dimension(:,:,:), allocatable :: fq, fqa, fqp
     integer :: ik, is
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is) &
+    !$OMP SHARED(self) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        if(.not.self%kyb(ik)%is_local) cycle
        do is=1,self%kyb(ik)%nsupercell
@@ -2176,43 +2214,43 @@ contains
           self%kyb(ik)%supercells(is)%tmp_sum=0.0
        enddo
     enddo
-
-    !Allocate storage, may want to put these inside fieldmat
-    !object to avoid continual allocation/deallocation
-    allocate(fq(-ntgrid:ntgrid,ntheta0,naky))
-    allocate(fqa(-ntgrid:ntgrid,ntheta0,naky))
-    allocate(fqp(-ntgrid:ntgrid,ntheta0,naky))
+    !$OMP END PARALLEL DO
 
     !First get the field eq
     if(pc%has_to_gather)then
-       call getfieldeq(phi,apar,bpar,fq,fqa,fqp)
+       call getfieldeq(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     else
 !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phi,apar,bpar,fq,fqa,fqp)
+       call self%getfieldeq_nogath(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     endif
 
     !Now get the field update for each ik
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik) &
+    !$OMP SHARED(self, fieldeq, fieldeqa, fieldeqp) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip non-local ky
        if(.not.self%kyb(ik)%is_local) cycle
 
        !Trigger the supercell field updates
        !AJ Non-blocking can be done here
-       call self%kyb(ik)%get_field_update(fq(:,:,ik),fqa(:,:,ik),fqp(:,:,ik))
+       call self%kyb(ik)%get_field_update(fieldeq(:,:,ik),fieldeqa(:,:,ik),fieldeqp(:,:,ik))
     enddo
 
     !AJ Wait for collective comms here (these are setup in get_field_update
     if(field_local_nonblocking_collectives) then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik) &
+       !$OMP SHARED(self) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           !Skip non-local ky
           if(.not.self%kyb(ik)%is_local) cycle          
           call self%kyb(ik)%wait_for_nonblocking_collectives()
-    enddo
- 
+       enddo
+       !$OMP END PARALLEL DO
     end if
-
-    !Free memory
-    deallocate(fq,fqa,fqp)
 
   end subroutine fm_get_field_update
 
@@ -2229,6 +2267,10 @@ contains
 
     !We don't need to unpack if we're proc0 as we've done this already
     if(.not.proc0)then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik, is, iex, ifl, ic, it, bnd, ig) &
+       !$OMP SHARED(self, ph, ap, bp, has_phi, has_apar, has_bpar, ntgrid) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           if(.not.self%kyb(ik)%is_local) cycle
           do is=1,self%kyb(ik)%nsupercell
@@ -2303,6 +2345,7 @@ contains
              endif
           enddo
        enddo
+       !$OMP END PARALLEL DO
     endif
   end subroutine fm_unpack_to_field
 
@@ -2468,6 +2511,7 @@ contains
     use mp, only: rank_comm, comm_type, proc0
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, intspec_sub
+    use array_utils, only: zero_array, copy
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: ph,ap,bp
@@ -2526,13 +2570,17 @@ contains
           allocate(tmp_tmp(-ntgrid:ntgrid,ntheta0,naky,nfield))
        endif
        allocate(tmp(-ntgrid:ntgrid,ntheta0,naky,nfield))
-       tmp_tmp=0
-       if(use_sub) tmp=0 !Only need to zero if tmp_tmp is not same size as tmp
+       call zero_array(tmp_tmp)
+       if(use_sub) call zero_array(tmp) !Only need to zero if tmp_tmp is not same size as tmp
     endif
 
     !Now loop over supercells, and store sections
     !on procs which are part of the head subcom
     if(self%fm_sub_headsc_p0%nproc.gt.0)then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ik, is, iex, ifl, it, bnd, ig) &
+       !$OMP SHARED(self, nfield, ntgrid, tmp_tmp) &
+       !$OMP SCHEDULE(static)
        do ik=1,self%naky
           do is=1,self%kyb(ik)%nsupercell
              !Skip if we're not the head supercell
@@ -2561,6 +2609,7 @@ contains
              endif
           enddo
        enddo
+       !$OMP END PARALLEL DO
 
        !Now reduce
        !Really we should be able to do some form of gather here
@@ -2605,7 +2654,7 @@ contains
           !increment the field before diagnostics are called.
           if(sub_has_proc0) call sum_reduce_sub(tmp,0,les_comm) 
        else
-          tmp=tmp_tmp !It would be nice to avoid this copy if possible
+          call copy(tmp_tmp, tmp) !It would be nice to avoid this copy if possible
        endif
     endif
 
@@ -2633,6 +2682,9 @@ contains
     endif
 
     !Finally, unpack tmp and deallocate arrays
+    ! We could perhaps use copy here to add OpenMP acceleration
+    ! but I worry this could result in the creation of a temporary
+    ! in some cases, leading to double copying?
     if(self%fm_sub_all%proc0.or.to_all.or.do_allreduce)then
        ifl=0
        if(has_phi) then
@@ -2685,6 +2737,11 @@ contains
     endif
 
     !Now loop over cells and calculate field equation as required
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, it) &
+    !$OMP SHARED(self, kwork_filter, has_phi, has_apar, has_bpar, &
+    !$OMP phi, apar, bpar, orig_phi, orig_apar, orig_bpar) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip not local cells
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2704,6 +2761,7 @@ contains
           enddo
        enddo
     enddo
+    !$OMP END PARALLEL DO
 
   end subroutine fm_update_fields
 
@@ -2713,19 +2771,25 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: kwork_filter
     use mp, only: proc0
+    use array_utils, only: copy
     implicit none
     class(fieldmat_type), intent(in) ::  self
     integer :: ik,it,is,ic
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
-       if(has_phi) phi=phinew
-       if(has_apar) apar=aparnew
-       if(has_bpar) bpar=bparnew
+       if(has_phi) call copy(phinew, phi)
+       if(has_apar) call copy(aparnew,apar)
+       if(has_bpar) call copy(bparnew, bpar)
        return
     endif
 
     !Now loop over cells and calculate field equation as required
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, it) &
+    !$OMP SHARED(self, kwork_filter, has_phi, has_apar, has_bpar, &
+    !$OMP phi, apar, bpar, phinew, aparnew, bparnew) &
+    !$OMP SCHEDULE(static)
     do ik=1,self%naky
        !Skip not local cells
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2745,7 +2809,7 @@ contains
          enddo
        enddo
     enddo
-
+    !OMP END PARALLEL DO
   end subroutine fm_update_fields_newstep
 
   !> Fetch all condition numbers to proc0 and report on
@@ -2936,15 +3000,11 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
     use kt_grids, only: naky, ntheta0
+    use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
-    complex, dimension (:,:,:), allocatable :: antot, antota, antotp
-
-    allocate (antot (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antota(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (antotp(-ntgrid:ntgrid,ntheta0,naky))
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
 
     call getan_nogath(antot, antota, antotp)
     !AJ If we are integrating in the gf_lo data distribution then the results of antot etc... from
@@ -2955,8 +3015,6 @@ contains
     end if
     call self%getfieldeq1_nogath (phi, apar, bpar, antot, antota, antotp, &
          fieldeq, fieldeqa, fieldeqp)
-
-    deallocate (antot, antota, antotp)
   end subroutine fm_getfieldeq_nogath
 
   !AJ This routine takes in data that has been calculated in gf_lo layout (i.e. the antot etc... arrays 
@@ -3241,7 +3299,7 @@ contains
     class(fieldmat_type), intent(in) :: self
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: antot, antota, antotp
-    complex, dimension (-ntgrid:,:,:), intent (out) ::fieldeq,fieldeqa,fieldeqp
+    complex, dimension (-ntgrid:,:,:), intent (in out) ::fieldeq,fieldeqa,fieldeqp
 
     integer :: ik, it, is, ic
     if (.not. allocated(fl_avg)) allocate (fl_avg(ntheta0, naky))
