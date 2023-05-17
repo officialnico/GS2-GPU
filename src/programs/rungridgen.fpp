@@ -19,6 +19,7 @@ program rungridgen
   integer :: max_autoiter
   logical :: list = .false.
   logical :: no_end_point
+  character(200) :: ncsource
 
   ! work variables
   integer :: ntheta, nlambda, ntgrid
@@ -63,7 +64,7 @@ contains
          thetamax, deltaw, widthw, tension, gingrid, screenout, &
          auto_width, cv_fraction, delth_max, max_autoiter, three_dim, &
          iperiod, &
-         no_end_point
+         no_end_point, ncsource
     gsource = "eik6.out"
     source = "eik.out"
     nthetaout = 32
@@ -89,23 +90,52 @@ contains
     three_dim = .false.
     iperiod = 1
     no_end_point = .false.
+    ncsource = ""
     read (unit=input_unit("testgridgen"), nml=testgridgen)
     nthetaout = nthetaout + 1
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
   subroutine allocate_arrays
+# ifdef NETCDF
+    use netcdf_utils, only: kind_nf
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
+# endif
     implicit none
     integer :: unit
     character(200) :: line
+    logical :: ncsource_exist
+# ifdef NETCDF
+    integer (kind_nf) :: ncid
+# endif
 
-    call get_unused_unit(unit)
-    open (unit=unit, file=trim(source), status="old")
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt=*,err=10) ntgridin, nperiodin, nthetain, drhodpsi, rmaj, shat, kxfac, qval
-10  continue
-    close (unit=unit)
-    
+    inquire(file=ncsource, exist=ncsource_exist)
+    if (ncsource_exist) then
+# ifdef NETCDF
+       ncid = neasyf_open(trim(ncsource), "r")
+
+       call neasyf_read(ncid, "ntgrid", ntgridin)
+       call neasyf_read(ncid, "nperiod", nperiodin)
+       call neasyf_read(ncid, "ntheta", nthetain)
+       call neasyf_read(ncid, "drhodpsi", drhodpsi)
+       call neasyf_read(ncid, "rmaj", rmaj)
+       call neasyf_read(ncid, "shat", shat)
+       call neasyf_read(ncid, "kxfac", kxfac)
+       call neasyf_read(ncid, "q", qval)
+
+       call neasyf_close(ncid)
+# else
+       call mp_abort("ncsource cannot be read without NetCDF")
+# endif
+    else
+       call get_unused_unit(unit)
+       open (unit=unit, file=trim(source), status="old")
+       read (unit=unit, fmt="(a)") line
+       read (unit=unit, fmt=*,err=10) ntgridin, nperiodin, nthetain, drhodpsi, rmaj, shat, kxfac, qval
+10     continue
+       close (unit=unit)
+    end if
+
     allocate (thetain(nthetain+1),bmagin(nthetain+1),bmagsm(nthetain+1))
     allocate (thetaout(nthetaout),bmagout(nthetaout),alambdaout(nlambdaout))
     allocate (thetagrid(-ntgridin:ntgridin))
@@ -178,50 +208,121 @@ contains
 
   !> FIXME : Add documentation  
   subroutine get_initial_grids
+# ifdef NETCDF
+    use netcdf_utils, only: kind_nf
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
+# endif
     use file_utils, only: get_unused_unit
     implicit none
     integer :: unit
     integer :: i
 !    real :: discard
     character(200) :: line
+    logical :: ncsource_exist
+# ifdef NETCDF
+    integer (kind_nf) :: ncid
+    integer :: ulim
+# endif
 
-    call get_unused_unit(unit)
-    open (unit=unit, file=trim(source), status="old")
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt="(a)") line
+    inquire(file=ncsource, exist=ncsource_exist)
+    if (ncsource_exist) then
+# ifdef NETCDF
+       ncid = neasyf_open(trim(ncsource), "r")
 
-    ! gbdrift gradpar grho theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) gbdrift(i),gradpar(i),grho(i),thetagrid(i)
-    end do
+       ulim = ntgridin
+       if (no_end_point) ulim = ntgridin-1
 
-    ! cvdrift gds2 bmag theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) cvdrift(i),gds2(i),bmag(i),thetagrid(i)
-    end do
+       call neasyf_read(ncid, "gbdrift", gbdrift(-ntgridin:ulim))
+       call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgridin:ulim))
+       call neasyf_read(ncid, "cvdrift", cvdrift(-ntgridin:ulim))
+       call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgridin:ulim))
+       call neasyf_read(ncid, "gradpar", gradpar(-ntgridin:ulim))
+       call neasyf_read(ncid, "bmag", bmag(-ntgridin:ulim))
+       call neasyf_read(ncid, "gds2", gds2(-ntgridin:ulim))
+       call neasyf_read(ncid, "gds21", gds21(-ntgridin:ulim))
+       call neasyf_read(ncid, "gds22", gds22(-ntgridin:ulim))
+       call neasyf_read(ncid, "theta", thetagrid(-ntgridin:ulim))
+       call neasyf_read(ncid, "grho", grho(-ntgridin:ulim))
 
-    ! gds21 gds22 theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) gds21(i),gds22(i),thetagrid(i)
-    end do
+       call neasyf_read(ncid, "Rplot", Rplot(-ntgridin:ulim))
+       call neasyf_read(ncid, "Rprime", Rprime(-ntgridin:ulim))
+       call neasyf_read(ncid, "Zplot", Zplot(-ntgridin:ulim))
+       call neasyf_read(ncid, "Zprime", Zprime(-ntgridin:ulim))
+       call neasyf_read(ncid, "aplot", aplot(-ntgridin:ulim))
+       call neasyf_read(ncid, "aprime", aprime(-ntgridin:ulim))
 
-    ! cvdrift0 gbdrift0 theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) cvdrift0(i),gbdrift0(i),thetagrid(i)
-    end do
+       call neasyf_close(ncid)
 
-    close (unit=unit)
+       if (no_end_point) then
+          call ntgrid_padding(gbdrift)
+          call ntgrid_padding(gbdrift0)
+          call ntgrid_padding(cvdrift)
+          call ntgrid_padding(cvdrift0)
+          call ntgrid_padding(gradpar)
+          call ntgrid_padding(bmag)
+          call ntgrid_padding(gds2)
+          call ntgrid_padding(gds21)
+          call ntgrid_padding(gds22)
+          call ntgrid_padding(thetagrid)
+          call ntgrid_padding(grho)
+          call ntgrid_padding(Rplot)
+          call ntgrid_padding(Rprime)
+          call ntgrid_padding(Zplot)
+          call ntgrid_padding(Zprime)
+          call ntgrid_padding(aplot)
+          call ntgrid_padding(aprime)
+       end if
+# else
+       call mp_abort("ncsource cannot be read without NetCDF")
+# endif
+    else
+       call get_unused_unit(unit)
+       open (unit=unit, file=trim(source), status="old")
+       read (unit=unit, fmt="(a)") line
+       read (unit=unit, fmt="(a)") line
+
+       ! gbdrift gradpar grho theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) gbdrift(i),gradpar(i),grho(i),thetagrid(i)
+       end do
+
+       ! cvdrift gds2 bmag theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) cvdrift(i),gds2(i),bmag(i),thetagrid(i)
+       end do
+
+       ! gds21 gds22 theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) gds21(i),gds22(i),thetagrid(i)
+       end do
+
+       ! cvdrift0 gbdrift0 theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) cvdrift0(i),gbdrift0(i),thetagrid(i)
+       end do
+
+       close (unit=unit)
+
+       call get_plotdata
+    end if
 
     thetain = thetagrid(-nthetain/2:nthetain/2)
     bmagin = bmag(-nthetain/2:nthetain/2)
 
-    call get_plotdata
-
   end subroutine get_initial_grids
+
+  subroutine ntgrid_padding(array)
+    real, dimension (:), intent (in out) :: array
+    integer :: s
+    integer :: l
+    l = size(array)
+    s = sign(1.,(array(l-1)-array(l-2))*(array(2)-array(3)))
+    array(l) = array(l-1) + s * (array(1)-array(2))
+  end subroutine ntgrid_padding
 
   subroutine get_plotdata
     implicit none
