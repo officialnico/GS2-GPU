@@ -1482,23 +1482,32 @@ contains
     use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
          il_is_wfb, il_is_trapped, ittp, can_be_ttp
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use array_utils, only: zero_array
     implicit none
     integer :: ig, ik, it, il, ie, is, iglo
     real :: scaling_knob, wdrift_value, wcoriolis_value
     logical,parameter :: debug = .false.
 
     if (.not. allocated(wdrift)) then
-       ! allocate wdrift with sign(vpa) dependence because will contain 
+       ! allocate wdrift with sign(vpa) dependence because will contain
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     end if
-    wdrift = 0.  ; wdriftttp = 0.
+    call zero_array(wdrift) ; call zero_array(wdriftttp)
 #ifdef LOWFLOW
     if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
-    wcurv = 0.
+    call zero_array(wcurv)
 #endif
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP SHARED( &
+#ifdef LOWFLOW
+    !$OMP wcurv, &
+#endif
+    !$OMP g_lo, tpdriftknob, driftknob, ntgrid, forbid, wdrift) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
        it=it_idx(g_lo,iglo)
@@ -1530,8 +1539,13 @@ contains
 #endif
        end do
     end do
+    !$OMP END PARALLEL DO
 
-    wdriftttp = 0.0
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, can_be_ttp, &
+    !$OMP nlambda, wdriftttp, ittp) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
        ! Cycle if this il is never ttp as we only care about ttp here.
@@ -1575,8 +1589,17 @@ contains
           wdriftttp(ig, 2, iglo) = wdrift_value * tpdriftknob - wcoriolis_value
        end do
     end do
+    !$OMP END PARALLEL DO
 
-! This should be weighted by bakdif to be completely consistent
+    ! This should be weighted by bakdif to be completely consistent
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ig) &
+    !$OMP SHARED(&
+#ifdef LOWFLOW
+    !$OMP wcurv, &
+#endif
+    !$OMP g_lo, ntgrid, wdrift) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do ig = -ntgrid, ntgrid-1
           wdrift(ig,:,iglo) = 0.5*(wdrift(ig,:,iglo) + wdrift(ig+1,:,iglo))
@@ -1585,6 +1608,7 @@ contains
 #endif
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (debug) write(6,*) 'init_wdrift: driftknob, tpdriftknob=',driftknob,tpdriftknob
 
