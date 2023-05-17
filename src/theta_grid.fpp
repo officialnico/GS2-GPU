@@ -2209,6 +2209,7 @@ module theta_grid_file
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
+  logical :: no_end_point = .false.
   integer :: ntheta, nperiod, ntgrid, nbset
   logical :: exist, initialized = .false.
 
@@ -2221,6 +2222,7 @@ module theta_grid_file
      !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
      !> from [[theta_grid_file_knobs:gridout_file]].
      logical :: no_geo_info = .false.
+     logical :: no_end_point = .false.
    contains
      procedure, public :: read => read_theta_grid_file_config
      procedure, public :: write => write_theta_grid_file_config
@@ -2394,6 +2396,7 @@ contains
     ! Copy out internal values into module level parameters
     gridout_file = theta_grid_file_config%gridout_file
     no_geo_info = theta_grid_file_config%no_geo_info
+    no_end_point = theta_grid_file_config%no_end_point
     
     exist = theta_grid_file_config%exist
   end subroutine read_parameters
@@ -2614,6 +2617,7 @@ contains
 # ifdef NETCDF
     integer (kind_nf) :: ncid, varid
     integer :: status
+    integer :: ulim
 
     ncid = neasyf_open(trim(gridout_file), "r")
 
@@ -2625,24 +2629,44 @@ contains
     call neasyf_read(ncid, "lambda", bset)
     bset = 1.0/bset ! switch alambda to bset
 
-    call neasyf_read(ncid, "gbdrift", gbdrift)
-    call neasyf_read(ncid, "gbdrift0", gbdrift0)
-    call neasyf_read(ncid, "cvdrift", cvdrift)
-    call neasyf_read(ncid, "cvdrift0", cvdrift0)
-    call neasyf_read(ncid, "gradpar", gradpar)
-    call neasyf_read(ncid, "bmag", bmag)
-    call neasyf_read(ncid, "gds2", gds2)
-    call neasyf_read(ncid, "gds21", gds21)
-    call neasyf_read(ncid, "gds22", gds22)
-    call neasyf_read(ncid, "theta", theta)
-    call neasyf_read(ncid, "grho", grho)
+    ulim = ntgrid
+    if (no_end_point) ulim = ntgrid-1
+
+    call neasyf_read(ncid, "gbdrift", gbdrift(-ntgrid:ulim))
+    call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgrid:ulim))
+    call neasyf_read(ncid, "cvdrift", cvdrift(-ntgrid:ulim))
+    call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgrid:ulim))
+    call neasyf_read(ncid, "gradpar", gradpar(-ntgrid:ulim))
+    call neasyf_read(ncid, "bmag", bmag(-ntgrid:ulim))
+    call neasyf_read(ncid, "gds2", gds2(-ntgrid:ulim))
+    call neasyf_read(ncid, "gds21", gds21(-ntgrid:ulim))
+    call neasyf_read(ncid, "gds22", gds22(-ntgrid:ulim))
+    call neasyf_read(ncid, "theta", theta(-ntgrid:ulim))
+    call neasyf_read(ncid, "grho", grho(-ntgrid:ulim))
+
+    if (no_end_point) then
+       call ntgrid_padding(gbdrift)
+       call ntgrid_padding(gbdrift0)
+       call ntgrid_padding(cvdrift)
+       call ntgrid_padding(cvdrift0)
+       call ntgrid_padding(gradpar)
+       call ntgrid_padding(bmag)
+       call ntgrid_padding(gds2)
+       call ntgrid_padding(gds21)
+       call ntgrid_padding(gds22)
+       call ntgrid_padding(theta)
+       call ntgrid_padding(grho)
+    end if
 
     status = nf90_inq_varid(ncid, "bpol", varid)
     if (status == NF90_NOERR) then
-       call neasyf_read(ncid, "bpol", Bpol)
+       call neasyf_read(ncid, "bpol", Bpol(-ntgrid:ulim))
     else
        write(*,'("WARNING: Bpol is not given in file_nc_get_grids. --> Currently just setting to zero, may impact some diagnostics")')
        Bpol=0.
+    end if
+    if (no_end_point) then
+       call ntgrid_padding(Bpol)
     end if
 
 !!$    status = nf90_inq_varid(ncid, "jacob", varid)
@@ -2650,6 +2674,9 @@ contains
 !!$       call neasyf_read(ncid, "jacob", jacob)
 !!$    else
 !!$       jacob = 1.0/(drhodpsi*gradpar*bmag)
+!!$    end if
+!!$    if (no_end_point) then
+!!$       call ntgrid_padding(jacob)
 !!$    end if
 
     ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
@@ -2673,55 +2700,75 @@ contains
     dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
 
     if (.not. no_geo_info) then
-       call neasyf_read(ncid, "Rplot", Rplot)
-       call neasyf_read(ncid, "Rprime", Rprime)
-       call neasyf_read(ncid, "Zplot", Zplot)
-       call neasyf_read(ncid, "Zprime", Zprime)
-       call neasyf_read(ncid, "aplot", aplot)
-       call neasyf_read(ncid, "aprime", aprime)
+       call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:ulim))
+       call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:ulim))
+       call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:ulim))
+       call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:ulim))
+       call neasyf_read(ncid, "aplot", aplot(-ntgrid:ulim))
+       call neasyf_read(ncid, "aprime", aprime(-ntgrid:ulim))
     else
+       ! even if no_geo_info = T, read geo_info if exists
        status = nf90_inq_varid(ncid, "Rplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rplot", Rplot)
+          call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:ulim))
        else
           Rplot = 1.
        end if
        status = nf90_inq_varid(ncid, "Rprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rprime", Rprime)
+          call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:ulim))
        else
           Rprime = 0.
        end if
 
        status = nf90_inq_varid(ncid, "Zplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zplot", Zplot)
+          call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:ulim))
        else
           Zplot = 1.
        end if
        status = nf90_inq_varid(ncid, "Zprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zprime", Zprime)
+          call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:ulim))
        else
           Zprime = 0.
        end if
        status = nf90_inq_varid(ncid, "aplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aplot", aplot)
+          call neasyf_read(ncid, "aplot", aplot(-ntgrid:ulim))
        else
           aplot = 1.
        end if
        status = nf90_inq_varid(ncid, "aprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aprime", aprime)
+          call neasyf_read(ncid, "aprime", aprime(-ntgrid:ulim))
        else
           aprime = 0.
        end if
     end if
 
+    if (no_end_point) then
+       call ntgrid_padding(Rplot)
+       call ntgrid_padding(Rprime)
+       call ntgrid_padding(Zplot)
+       call ntgrid_padding(Zprime)
+       call ntgrid_padding(aplot)
+       call ntgrid_padding(aprime)
+    end if
+
     call neasyf_close(ncid)
+
 #endif
   end subroutine file_nc_get_grids
+
+  subroutine ntgrid_padding(array)
+    real, dimension (:), intent (in out) :: array
+    integer :: s
+    integer :: l
+    l = size(array)
+    s = sign(1.,(array(l-1)-array(l-2))*(array(2)-array(3)))
+    array(l) = array(l-1) + s * (array(1)-array(2))
+  end subroutine ntgrid_padding
   
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
@@ -2761,8 +2808,9 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 2000) :: gridout_file
     logical :: no_geo_info
+    logical :: no_end_point
 
-    namelist /theta_grid_file_knobs/ gridout_file, no_geo_info
+    namelist /theta_grid_file_knobs/ gridout_file, no_geo_info, no_end_point
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -2770,6 +2818,7 @@ contains
     ! First set local variables from current values
     gridout_file = self%gridout_file
     no_geo_info = self%no_geo_info
+    no_end_point = self%no_end_point
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -2778,6 +2827,7 @@ contains
     ! Now copy from local variables into type members
     self%gridout_file = gridout_file
     self%no_geo_info = no_geo_info
+    self%no_end_point = no_end_point
 
     self%exist = exist
   end subroutine read_theta_grid_file_config
@@ -2797,6 +2847,7 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("gridout_file", self%gridout_file, unit_internal)
     call self%write_key_val("no_geo_info", self%no_geo_info, unit_internal)
+    call self%write_key_val("no_end_point", self%no_end_point, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_theta_grid_file_config
 
@@ -2818,6 +2869,7 @@ contains
     class(theta_grid_file_config_type), intent(in out) :: self
     call broadcast(self%gridout_file)
     call broadcast(self%no_geo_info)
+    call broadcast(self%no_end_point)
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_file_config
