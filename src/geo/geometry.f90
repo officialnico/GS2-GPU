@@ -145,6 +145,7 @@ module geometry
   public :: qfun, rpofrho, rcenter, nth_get, f_trap  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
+  public :: eqnormfile
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
   public :: advanced_parameters_type, advanced_parameters
   public :: rmin, rmax, isym, in_nt, writelots, itor
@@ -246,6 +247,7 @@ module geometry
   integer :: fort11_unit !For outputting geom values
 
   character(len=800) :: eqfile
+  character(len=800) :: eqnormfile
 
   !> FIXME : Add documentation  
   type advanced_parameters_type  
@@ -686,7 +688,7 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
              endif
           else if(dfit_eq) then
              if(big <= 0) big = 1
-             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
+             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
           else if(idfit_eq) then
              !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
              !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
