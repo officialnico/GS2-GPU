@@ -434,7 +434,7 @@ contains
   subroutine write_output
 # ifdef NETCDF
     use netcdf_utils, only: kind_nf
-    use neasyf
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_dim, neasyf_write
     use file_utils, only: run_name
     use constants, only: run_name_size
 # endif
