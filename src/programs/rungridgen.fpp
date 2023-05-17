@@ -18,7 +18,7 @@ program rungridgen
   real :: cv_fraction, delth_max
   integer :: max_autoiter
   logical :: list = .false.
-
+  logical :: no_end_point
 
   ! work variables
   integer :: ntheta, nlambda, ntgrid
@@ -62,7 +62,8 @@ contains
          npadd,alknob,epsknob,bpknob,extrknob,smoothknob, nfinegrid, &
          thetamax, deltaw, widthw, tension, gingrid, screenout, &
          auto_width, cv_fraction, delth_max, max_autoiter, three_dim, &
-         iperiod
+         iperiod, &
+         no_end_point
     gsource = "eik6.out"
     source = "eik.out"
     nthetaout = 32
@@ -87,6 +88,7 @@ contains
     gingrid = "gingrid"
     three_dim = .false.
     iperiod = 1
+    no_end_point = .false.
     read (unit=input_unit("testgridgen"), nml=testgridgen)
     nthetaout = nthetaout + 1
   end subroutine read_parameters
@@ -430,6 +432,12 @@ contains
 
   !> FIXME : Add documentation    
   subroutine write_output
+# ifdef NETCDF
+    use netcdf_utils, only: kind_nf
+    use neasyf
+    use file_utils, only: run_name
+    use constants, only: run_name_size
+# endif
     use splines, only: fitp_curvp2
     implicit none
     integer :: unit
@@ -448,6 +456,13 @@ contains
     real :: bmin
 !    integer :: ierr
     integer, dimension (1) :: minloca
+# ifdef NETCDF
+    character(len=run_name_size) :: ncout
+    integer (kind_nf) :: ncid
+    integer (kind_nf) :: nt_dim, nlambda_dim
+
+    integer :: nt
+# endif
 
     call open_output_file (unit, ".input.out")
     write (unit=unit, fmt="('#',i5)") nthetain+1
@@ -622,6 +637,50 @@ contains
          thetain(minloca(1)), bmagin(minloca(1))
 
     if (bmin < bmagin(minloca(1))) print *, "WARNING: interpolated new minimum"
+
+# ifdef NETCDF
+    ncout = trim(run_name)//".out.nc"
+    ncid = neasyf_open(ncout, "w")
+
+    call neasyf_write(ncid, "ntgrid", ntgrid)
+    call neasyf_write(ncid, "nperiod", nperiodout)
+    call neasyf_write(ncid, "ntheta", ntheta)
+    call neasyf_write(ncid, "drhodpsi", drhodpsi)
+    call neasyf_write(ncid, "rmaj", rmaj)
+    call neasyf_write(ncid, "shat", shat)
+    call neasyf_write(ncid, "kxfac", kxfac)
+    call neasyf_write(ncid, "q", qval)
+
+    if (no_end_point) then
+       nt=2*ntgrid
+    else
+       nt=2*ntgrid+1
+    end if
+
+    call neasyf_dim(ncid, "nlambda", dim_size=nlambda, dimid=nlambda_dim)
+    call neasyf_write(ncid, "lambda", alambdaout(:nlambda), dim_ids=[nlambda_dim])
+
+    call neasyf_dim(ncid, "nt", dim_size=nt, dimid=nt_dim)
+    call neasyf_write(ncid, "theta", thetagridout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gbdrift", gbdriftout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gbdrift0", gbdrift0out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "cvdrift", cvdriftout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "cvdrift0", cvdrift0out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gradpar", gradparout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "grho", grhoout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "bmag", bmaggridout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds2", gds2out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds21", gds21out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds22", gds22out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "Rplot", Rplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "Rprime", Rprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "Zplot", Zplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "Zprime", Zprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "aplot", aplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "aprime", aprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+
+    call neasyf_close(ncid)
+# endif
 
   end subroutine write_output
 
