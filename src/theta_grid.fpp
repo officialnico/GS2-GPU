@@ -2581,11 +2581,9 @@ contains
     use constants, only: pi
     use integration, only: trapezoidal_integration
 # ifdef NETCDF
-    use neasyf, only: neasyf_open, neasyf_close
-    use neasyf, only: neasyf_read
-    use neasyf, only: neasyf_error
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_MAX_NAME
-    use netcdf, only: nf90_inq_varid, NF90_NOERR
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
+    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
+    use netcdf, only: nf90_inq_varid
 # endif
     implicit none
     integer, intent (in) :: nperiod
@@ -2598,10 +2596,8 @@ contains
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
     logical, intent (in) :: gb_to_cv
-    logical :: first=.true.
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
-    integer :: varid
+    integer (kind_nf) :: ncid, varid
     integer :: status
 
     ncid = neasyf_open(trim(gridout_file), "r")
@@ -2637,6 +2633,8 @@ contains
 !!$    status = nf90_inq_varid(ncid, "jacob", varid)
 !!$    if (status == NF90_NOERR) then
 !!$       call neasyf_read(ncid, "jacob", jacob)
+!!$    else
+!!$       jacob = 1.0/(drhodpsi*gradpar*bmag)
 !!$    end if
 
     ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
