@@ -68,8 +68,11 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-  
-  integer, allocatable :: ieqzip(:,:)
+
+  !> Used to indicate which wavenumbers we do not want to evolve.
+  !> This choice is controlled by the [[eqzip_option]]
+  !> input. Primarily intended for secondary mode analysis.
+  logical, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
        eqzip_option_none = 1, &
@@ -368,18 +371,18 @@ contains
     call init_kt_grids
 
     if(.not.allocated(ieqzip)) allocate(ieqzip(nakx,naky))
-    ieqzip(1:nakx,1:naky)=1
+    ieqzip = .false.
     select case (eqzip_option_switch)
     case (eqzip_option_secondary)
        ! suppress evolution of secondary mode
-       ieqzip(1,2) = 0
+       ieqzip(1,2) = .true.
     case (eqzip_option_tertiary)
        ! suppress evolution of tertiary mode
-       ieqzip(2,1) = 0
-       ieqzip(nakx,1) = 0
+       ieqzip(2,1) = .true.
+       ieqzip(nakx,1) = .true.
     case (eqzip_option_equilibrium)
        ! suppress evolution of 1D equilibrium (x dependent)
-       ieqzip(1:nakx,1) = 0
+       ieqzip(1:nakx,1) = .true.
     end select
   end subroutine init_run_parameters
 

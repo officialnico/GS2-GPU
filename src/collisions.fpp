@@ -3301,10 +3301,10 @@ contains
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ie = ie_idx(g_lo,iglo)
              do isgn = 1, 2
-                g(:, isgn, iglo) = g(:, isgn, iglo) + ieqzip(it,ik) * &
-                     vnmult(1)*spec(is)%vnewk*code_dt &
+                g(:, isgn, iglo) = g(:, isgn, iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
@@ -3355,11 +3355,11 @@ contains
              if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
-             if(kwork_filter(it,ik))cycle
+             if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ie = ie_idx(g_lo,iglo)
              do isgn = 1, 2
-                g(:,isgn,iglo) = g(:,isgn,iglo) + ieqzip(it,ik) * &
-                     vnmult(1)*spec(is)%vnewk*code_dt &
+                g(:,isgn,iglo) = g(:,isgn,iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
@@ -3456,12 +3456,12 @@ contains
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                tmp = ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
+                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
+                     * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
@@ -3517,10 +3517,10 @@ contains
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                tmp = ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
+                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                         / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
@@ -3615,11 +3615,11 @@ contains
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
-          if(kwork_filter(it,ik))cycle
+          if(kwork_filter(it,ik)) cycle
+          if(ieqzip(it,ik)) cycle
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g1(:,isgn,iglo) = g(:,isgn,iglo) - ieqzip(it,ik)*v0y0(:,it,ik,is) &
-                  * z0(:,isgn,iglo)
+             g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * z0(:,isgn,iglo)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -3668,11 +3668,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v1y1(:,it,ik,is) &
-               * s0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * s0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3711,11 +3711,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v2y2(:,it,ik,is) &
-               * w0(:,isgn,iglo)
+          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * w0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3805,9 +3805,10 @@ contains
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
+          if(ieqzip(it,ik)) cycle
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)* z0le(ixi,ie,ile) * v0y0(ile)
+                gle(ixi,ie,ile) = gle(ixi,ie,ile) - z0le(ixi,ie,ile) * v0y0(ile)
              end do
           end do
        end do
@@ -3878,9 +3879,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*s0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - s0le(ixi,ie,ile) * v1y1(ile)
           end do
        end do
     end do
@@ -3923,9 +3925,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*w0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - w0le(ixi,ie,ile) * v2y2(ile)
           end do
        end do
     end do
@@ -4002,11 +4005,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g(:,isgn,iglo) - ieqzip(it,ik)*v0y0(:,it,ik,is) &
-               * bz0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * bz0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4044,11 +4047,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v1y1(:,it,ik,is) &
-               * bs0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * bs0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4087,11 +4090,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v2y2(:,it,ik,is) &
-               * bw0(:,isgn,iglo)
+          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * bw0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4177,9 +4180,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(ixi,ie,ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - v0y0(ile) * bz0le(ixi,ie,ile)
           end do
        end do
     end do
@@ -4219,9 +4223,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bs0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bs0le(ixi,ie,ile) * v1y1(ile)
           end do
        end do
     end do
@@ -4259,9 +4264,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bw0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bw0le(ixi,ie,ile) * v2y2(ile)
           end do
        end do
     end do
@@ -4370,7 +4376,7 @@ contains
        ik = ik_idx(lz_lo,ilz)
        it = it_idx(lz_lo,ilz)
        if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(lz_lo,ilz)
        if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ie = ie_idx(lz_lo,ilz)
@@ -4570,7 +4576,7 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(le_lo,ile)
        if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(le_lo,ile)
@@ -4687,7 +4693,7 @@ contains
        it = it_idx(e_lo,ielo)       
        ik = ik_idx(e_lo,ielo)
        if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(e_lo,ielo)
        if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(e_lo,ielo)
@@ -4750,7 +4756,7 @@ contains
        it=it_idx(le_lo,ile)
        ik=ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        ig = ig_idx(le_lo,ile)
 
        do ixi = 1, nxi_lim
