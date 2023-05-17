@@ -3,6 +3,11 @@ program eiktest
   use constants, only: pi
   use geometry
   use file_utils, only: init_file_utils, run_name
+# ifdef NETCDF
+  use constants, only: run_name_size
+  use netcdf_utils, only: kind_nf
+  use neasyf, only: neasyf_open, neasyf_close, neasyf_write, neasyf_dim
+#endif
   implicit none
 
   integer :: i, nth, ntgrid, ntheta
@@ -19,9 +24,17 @@ program eiktest
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   integer :: nbeta, funit
 
+  logical :: no_end_point
+
   real :: airat, wgt, wdavg, jac
   logical :: fast, dipole, list
   character(len=:), allocatable :: in_stem, out_stem
+
+# ifdef NETCDF
+  character(len=run_name_size) :: ncout
+  integer (kind_nf) :: ncid, nt_dim
+  integer :: nt
+# endif
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -32,7 +45,7 @@ program eiktest
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
-       eqnormfile
+       eqnormfile, no_end_point
      
 ! set defaults
 
@@ -80,6 +93,8 @@ program eiktest
   delrho = 0.01
 
   eqinit = 1       ! Mike K. codes do not have this variable.
+
+  no_end_point = .false.
 
   if (command_argument_count() == 0) then
      allocate(character(len=3)::in_stem)
@@ -308,7 +323,49 @@ program eiktest
           Rprime(i),Zprime(i),aprime(i),Bpol(i)
   enddo
   close (unit=21)
-1000  format(20(1x,1pg18.11))
+1000 format(20(1x,1pg18.11))
+
+# ifdef NETCDF
+  ncout = trim(out_stem)//"out.nc"
+  ncid = neasyf_open(ncout, "w")
+
+  call neasyf_write(ncid, "ntgrid", ntgrid)
+  call neasyf_write(ncid, "nperiod", nperiod)
+  call neasyf_write(ncid, "ntheta", ntheta)
+  call neasyf_write(ncid, "drhodpsi", drhodpsin)
+  call neasyf_write(ncid, "rmaj", rmaj)
+  call neasyf_write(ncid, "shat", shat)
+  call neasyf_write(ncid, "kxfac", kxfac)
+  call neasyf_write(ncid, "q", qsf)
+
+  if (no_end_point) then
+     nt=2*ntgrid
+  else
+     nt=2*ntgrid+1
+  end if
+
+  call neasyf_dim(ncid, "nt", dim_size=nt, dimid=nt_dim)
+  call neasyf_write(ncid, "theta", theta(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gbdrift", gbdrift(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gbdrift0", gbdrift0(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "cvdrift", cvdrift(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "cvdrift0", cvdrift0(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gradpar", gradpar(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "grho", grho(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "bmag", bmag(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gds2", gds2(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gds21", gds21(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "gds22", gds22(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "Rplot", Rplot(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "Rprime", Rprime(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "Zplot", Zplot(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "Zprime", Zprime(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "aplot", aplot(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+  call neasyf_write(ncid, "aprime", aprime(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
+
+  call neasyf_close(ncid)
+# endif
+
 end program eiktest
 
 
