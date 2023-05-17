@@ -1538,16 +1538,31 @@ contains
        ik=ik_idx(g_lo,iglo)
        is=is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
-          ! These cycles will activate regularly, indicating wdriftttp
+          ! The below cycles will activate regularly, indicating wdriftttp
           ! may be a relatively inefficent way of storing this
           ! information, requiring a lot of memory to hold mostly 0.
+
+          ! First we cycle if there are no totally trapped particles
+          ! allowed at this theta grid point.
           if (ittp(ig) == nlambda+1) cycle
+          ! Then we cycle if this pitch angle is forbidden at this point
           if (forbid(ig, il)) cycle
+          ! At this point we know that that there are totally trapped
+          ! particles at this grid point and the pitch angle which we
+          ! are considering is allowed to visit this point. However,
+          ! we do not know that the pitch angle we are considering is
+          ! totally trapped here. We probably don't want to be setting
+          ! wdriftttp for pitch angles which are not totally trapped
+          ! here so now cycle if we're not totally trapped here.
+          ! Note we could replace if (ittp(ig) == nlambda+1) cycle above
+          ! with this line, but leaving separate for now.
+          if (il < ittp(ig)) cycle
 
           !GWH+JAB: should this be calculated only at ittp? or for
           !each totally trapped pitch angle? (Orig logic: there was
           !only one totally trapped pitch angle; now multiple ttp are
           !allowed.
+
           ! Is there a reason we pass ittp(ig) as the lambda index here, rather than
           ! the actual lambda value? Surely if we're at this point we know that il
           ! corresponds to a totally trapped particle that we're considering and it cannot
