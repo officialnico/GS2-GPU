@@ -1503,19 +1503,18 @@ contains
        do ig = -ntgrid, ntgrid
 !CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
           il=il_idx(g_lo,iglo)
-          ie=ie_idx(g_lo,iglo)
           it=it_idx(g_lo,iglo)
           ik=ik_idx(g_lo,iglo)
           is=is_idx(g_lo,iglo)
           if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
-             wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik, is)*tpdriftknob
+             wdrift(ig,1,iglo) = wdrift_func(ig, it, ik, iglo)*tpdriftknob
 #ifdef LOWFLOW
              wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
 #endif
 !CMR:  multiply trapped particle drift by tpdriftknob 
 !CMR:               (tpdriftknob defaults to driftknob if not supplied)
           else
-             wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik, is)*driftknob
+             wdrift(ig,1,iglo) = wdrift_func(ig, it, ik, iglo)*driftknob
 #ifdef LOWFLOW
              wcurv(ig,iglo) = wcurv_func(ig, it, ik)*driftknob
 #endif
@@ -1523,8 +1522,8 @@ contains
           endif
 !CMRend
           ! add Coriolis drift to magnetic drifts
-          wdrift(ig,2,iglo) = wdrift(ig,1,iglo) - wcoriolis_func(ig,il,ie,it,ik,is)
-          wdrift(ig,1,iglo) = wdrift(ig,1,iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
+          wdrift(ig,2,iglo) = wdrift(ig,1,iglo) - wcoriolis_func(ig,it,ik,is,iglo)
+          wdrift(ig,1,iglo) = wdrift(ig,1,iglo) + wcoriolis_func(ig,it,ik,is,iglo)
        end do
     end do
 
@@ -1533,7 +1532,6 @@ contains
        il=il_idx(g_lo,iglo)
        ! Cycle if this il is never ttp as we only care about ttp here.
        if (.not. can_be_ttp(il)) cycle
-       ie=ie_idx(g_lo,iglo)
        it=it_idx(g_lo,iglo)
        ik=ik_idx(g_lo,iglo)
        is=is_idx(g_lo,iglo)
@@ -1561,13 +1559,14 @@ contains
           !GWH+JAB: should this be calculated only at ittp? or for
           !each totally trapped pitch angle? (Orig logic: there was
           !only one totally trapped pitch angle; now multiple ttp are
-          !allowed). Previously passed ittp(ig) instead of il
-          wdriftttp(ig, :, iglo) = wdrift_func(ig,il,ie,it,ik,is)*tpdriftknob
+          !allowed). Previously passed ittp(ig) instead of il. Now we pass
+          !iglo instead of il (although this is equivalent here).
+          wdriftttp(ig, :, iglo) = wdrift_func(ig,it,ik,iglo)*tpdriftknob
 
           !CMR:  totally trapped particle drifts also scaled by tpdriftknob
           ! add Coriolis drift to magnetic drifts
-          wdriftttp(ig, 1, iglo) = wdriftttp(ig, 1, iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
-          wdriftttp(ig, 2, iglo) = wdriftttp(ig, 2, iglo) - wcoriolis_func(ig,il,ie,it,ik,is)
+          wdriftttp(ig, 1, iglo) = wdriftttp(ig, 1, iglo) + wcoriolis_func(ig,it,ik,is,iglo)
+          wdriftttp(ig, 2, iglo) = wdriftttp(ig, 2, iglo) - wcoriolis_func(ig,it,ik,is,iglo)
        end do
     end do
 
@@ -1586,27 +1585,29 @@ contains
   end subroutine init_wdrift
 
   !> FIXME : Add documentation  
-  function wdrift_func (ig, il, ie, it, ik, is)
-    use theta_grid, only: bmag, gbdrift, gbdrift0, cvdrift, cvdrift0
-    use theta_grid, only: shat
+  pure real function wdrift_func (ig, it, ik, iglo)
+    use dist_fn_arrays, only: vperp2, vpa
+    use theta_grid, only: gbdrift, gbdrift0, cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
-    use le_grids, only: energy, al
     use gs2_time, only: code_dt, wunits
     implicit none
-    real :: wdrift_func
-    integer, intent (in) :: ig, ik, it, il, ie,is
+    integer, intent (in) :: ig, ik, it, iglo
+    real :: vperp2_local, vpa2_local
+
+    vperp2_local = vperp2(ig, iglo)
+    vpa2_local = vpa(ig, 1, iglo)**2
 
     ! note that wunits=aky/2 (for wstar_units=F)
     if (aky(ik) == 0.0) then
        wdrift_func = akx(it)/shat &
-                    *(cvdrift0(ig)*energy(ie,is)*(1.0 - al(il)*bmag(ig)) &
-                      + gbdrift0(ig)*0.5*energy(ie,is)*al(il)*bmag(ig)) &
+                    *(cvdrift0(ig)*vpa2_local &
+                      + gbdrift0(ig)*0.5*vperp2_local) &
                      *code_dt/2.0
     else
        wdrift_func = ((cvdrift(ig) + theta0(it,ik)*cvdrift0(ig)) &
-                        *energy(ie,is)*(1.0 - al(il)*bmag(ig)) &
+                        *vpa2_local &
                       + (gbdrift(ig) + theta0(it,ik)*gbdrift0(ig)) &
-                        *0.5*energy(ie,is)*al(il)*bmag(ig)) &
+                        *0.5*vperp2_local) &
                      *code_dt*wunits(ik)
     end if
   end function wdrift_func
@@ -1632,24 +1633,21 @@ contains
 #endif
 
   !> FIXME : Add documentation
-  function wcoriolis_func (ig, il, ie, it, ik, is)
-
-    use theta_grid, only: bmag, cdrift, cdrift0, shat
+  pure real function wcoriolis_func (ig, it, ik, is, iglo)
+    use dist_fn_arrays, only: vpa
+    use theta_grid, only: cdrift, cdrift0, shat
     use kt_grids, only: aky, theta0, akx
-    use le_grids, only: energy, al
     use gs2_time, only: code_dt, wunits
     use species, only: spec
 
     implicit none
-
-    real :: wcoriolis_func
-    integer, intent (in) :: ig, ik, it, il, ie, is
+    integer, intent (in) :: ig, ik, it, is, iglo
 
     if (aky(ik) == 0.0) then
-       wcoriolis_func = mach*sqrt(max(energy(ie,is)*(1.0-al(il)*bmag(ig)),0.0)) &
+       wcoriolis_func = mach*vpa(ig,1,iglo) &
             * cdrift0(ig) * code_dt * akx(it)/(2.*shat*spec(is)%stm)
     else
-       wcoriolis_func = mach*sqrt(max(energy(ie,is)*(1.0-al(il)*bmag(ig)),0.0)) &
+       wcoriolis_func = mach*vpa(ig,1,iglo) &
             * (cdrift(ig) + theta0(it,ik)*cdrift0(ig))*code_dt*wunits(ik)/spec(is)%stm
     end if
 
@@ -8187,7 +8185,7 @@ contains
           do isgn = 1, 2
              ! get v_magnetic piece of g_work at grid points instead of cell centers
              do ig = -ntgrid, ntgrid
-                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,il,ie,it,ik,is)/code_dt &
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,it,ik,iglo)/code_dt &
                      * gnew(ig,isgn,iglo)*spec(is)%tz)
              end do
 
