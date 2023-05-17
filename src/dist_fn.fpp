@@ -1561,14 +1561,8 @@ contains
           !GWH+JAB: should this be calculated only at ittp? or for
           !each totally trapped pitch angle? (Orig logic: there was
           !only one totally trapped pitch angle; now multiple ttp are
-          !allowed.
-
-          ! Is there a reason we pass ittp(ig) as the lambda index here, rather than
-          ! the actual lambda value? Surely if we're at this point we know that il
-          ! corresponds to a totally trapped particle that we're considering and it cannot
-          ! be forbidden. It seems like either ittp(ig) == il at this point _or_ what we're
-          ! doing here is not quite right?
-          wdriftttp(ig, :, iglo) = wdrift_func(ig,ittp(ig),ie,it,ik,is)*tpdriftknob
+          !allowed). Previously passed ittp(ig) instead of il
+          wdriftttp(ig, :, iglo) = wdrift_func(ig,il,ie,it,ik,is)*tpdriftknob
 
           !CMR:  totally trapped particle drifts also scaled by tpdriftknob
           ! add Coriolis drift to magnetic drifts
