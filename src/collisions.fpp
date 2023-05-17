@@ -2254,7 +2254,7 @@ contains
 
     vn = vnmult(2)*spec(is)%vnewk*tunits(ik)
 
-    slb1 = sqrt(max(0.0,1.0 - bmag(ig)*al(il)))     ! xi_j
+    slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))     ! xi_j
 
     select case (ediff_switch)
 
@@ -2736,9 +2736,9 @@ contains
     case (lorentz_scheme_default)          
        
        do il = 2, te-1
-          slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
-          slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
-          slb2 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il+1)))
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
           
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -2760,8 +2760,8 @@ contains
        end do
        
        ! boundary at xi = 1
-       slb1 = sqrt(max(0.0, 1.0-bmag(ig)*al(1)))
-       slb2 = sqrt(max(0.0, 1.0-bmag(ig)*al(2)))
+       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
+       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
        
        slbr = (slb1 + slb2)*0.5
        
@@ -2780,9 +2780,9 @@ contains
        
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
+       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
        if (te == ng2) then
-          slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
@@ -2834,9 +2834,9 @@ contains
     case (lorentz_scheme_old)
        
        do il = 2, te-1
-          slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
-          slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
-          slb2 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il+1)))
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
           
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -2859,8 +2859,8 @@ contains
        
        ! boundary at xi = 1
        slb0 = 1.0
-       slb1 = sqrt(max(0.0, 1.0-bmag(ig)*al(1)))
-       slb2 = sqrt(max(0.0, 1.0-bmag(ig)*al(2)))
+       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
+       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
        
        slbl = (slb1 + slb0)*0.5
        slbr = (slb1 + slb2)*0.5
@@ -2880,9 +2880,9 @@ contains
        
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
+       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
        if (te == ng2) then
-          slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
@@ -2951,11 +2951,11 @@ contains
 
 ! calculation of xi and finite difference coefficients for non-boundary points
           do il=2,ng2-1
-             slb(il) = sqrt(max(0.0, 1.0-al(il)*bmag(ig)))   ! xi_{j}
+             slb(il) = safe_sqrt(1.0-al(il)*bmag(ig))   ! xi_{j}
              
-             slb2 = sqrt(max(0.0, 1.0-al(il+1)*bmag(ig)))    ! xi_{j+1}
+             slb2 = safe_sqrt(1.0-al(il+1)*bmag(ig))    ! xi_{j+1}
              slb1 = slb(il)
-             slb0 = sqrt(max(0.0, 1.0-al(il-1)*bmag(ig)))    ! xi_{j-1}
+             slb0 = safe_sqrt(1.0-al(il-1)*bmag(ig))    ! xi_{j-1}
              
              slbr = (slb2+slb1)*0.5                     ! xi_{j+1/2}
              slbl = (slb1+slb0)*0.5                     ! xi_{j-1/2}
@@ -2966,7 +2966,7 @@ contains
           end do
 
 ! boundary at xi = 1
-          slb(1) = sqrt(max(0.0, 1.0-al(1)*bmag(ig)))
+          slb(1) = safe_sqrt(1.0-al(1)*bmag(ig))
           slb0 = 1.0
           slb1 = slb(1)
           slb2 = slb(2)
@@ -2981,8 +2981,8 @@ contains
 
 ! boundary at xi = 0
           il = ng2
-          slb(il) = sqrt(max(0.0, 1.0 - al(il)*bmag(ig)))
-          slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
+          slb(il) = safe_sqrt(1.0 - al(il)*bmag(ig))
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
           slb1 = slb(il)
           slb2 = -slb1
 
@@ -2995,11 +2995,11 @@ contains
           slb(ng2+1:) = -slb(ng2:1:-1)
        else          ! run with trapped particles
           do il=2,je-1
-             slb(il) = sqrt(max(0.0, 1.0-al(il)*bmag(ig)))
+             slb(il) = safe_sqrt(1.0-al(il)*bmag(ig))
              
-             slb2 = sqrt(max(0.0, 1.0-al(il+1)*bmag(ig)))
+             slb2 = safe_sqrt(1.0-al(il+1)*bmag(ig))
              slb1 = slb(il)
-             slb0 = sqrt(max(0.0, 1.0-al(il-1)*bmag(ig)))
+             slb0 = safe_sqrt(1.0-al(il-1)*bmag(ig))
              
              slbr = (slb2+slb1)*0.5
              slbl = (slb1+slb0)*0.5
@@ -3009,7 +3009,7 @@ contains
           end do
 
 ! boundary at xi = 1
-          slb(1) = sqrt(max(0.0, 1.0-bmag(ig)*al(1)))
+          slb(1) = safe_sqrt(1.0-bmag(ig)*al(1))
           slb0 = 1.0
           slb1 = slb(1)
           slb2 = slb(2)
@@ -3021,7 +3021,7 @@ contains
 
 ! boundary at xi = 0
           il = je
-          slb(il) = sqrt(max(0.0, 1.0-bmag(ig)*al(il)))
+          slb(il) = safe_sqrt(1.0-bmag(ig)*al(il))
           slb0 = slb(je-1)
           slb1 = 0.
           slb2 = -slb0                                                        
@@ -4807,9 +4807,9 @@ contains
              te = je
           end if
           do il = 2, te-1
-             slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
-             slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
-             slb2 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il+1)))
+             slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+             slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
              
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -4818,16 +4818,16 @@ contains
           end do
 
           ! boundary at xi = 1
-          slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(1)))
-          slb2 = sqrt(max(0.0, 1.0 - bmag(ig)*al(2)))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
           slbr = 0.5*(slb1 + slb2)
           vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
           
           ! boundary at xi = 0
           il = te
-          slb0 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il-1)))
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
           if (te == ng2) then
-             slb1 = sqrt(max(0.0, 1.0 - bmag(ig)*al(il)))
+             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
              slb2 = -slb1
           else
              slb1 = 0.0
