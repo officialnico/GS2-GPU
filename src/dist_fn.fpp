@@ -1500,12 +1500,12 @@ contains
 #endif
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       !CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
+       il=il_idx(g_lo,iglo)
+       it=it_idx(g_lo,iglo)
+       ik=ik_idx(g_lo,iglo)
+       is=is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
-!CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
-          il=il_idx(g_lo,iglo)
-          it=it_idx(g_lo,iglo)
-          ik=ik_idx(g_lo,iglo)
-          is=is_idx(g_lo,iglo)
           if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
              wdrift(ig,1,iglo) = wdrift_func(ig, it, ik, iglo)*tpdriftknob
 #ifdef LOWFLOW
