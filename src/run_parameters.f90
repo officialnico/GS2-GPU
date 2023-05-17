@@ -68,7 +68,10 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-  
+
+  !> Used to indicate which wavenumbers we do not want to evolve.
+  !> This choice is controlled by the [[eqzip_option]]
+  !> input. Primarily intended for secondary mode analysis.
   logical, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
