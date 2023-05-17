@@ -2183,6 +2183,7 @@ module theta_grid_file
   public :: init_theta_grid_file, finish_theta_grid_file
   public :: check_theta_grid_file, wnml_theta_grid_file
   public :: file_get_sizes, file_get_grids
+  public :: check_theta_grid_file_nc
   public :: file_nc_get_sizes, file_nc_get_grids
   public :: ntheta, nperiod, ntgrid, nbset
 
@@ -2279,6 +2280,65 @@ contains
     write (report_unit, *)
 100 continue
   end subroutine check_theta_grid_file
+
+  !> FIXME : Add documentation
+  subroutine check_theta_grid_file_nc(report_unit)
+# ifdef NETCDF
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
+    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
+# endif
+    implicit none
+    integer, intent(in) :: report_unit
+    real :: drhodpsi, kxfac, rmaj, shat
+# ifdef NETCDF
+    integer (kind_nf) :: ncid, dimid
+    integer :: status
+
+    write (report_unit, *)
+    write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
+    write (report_unit, fmt="(a)") trim(gridout_file)
+
+    ncid = neasyf_open(trim(gridout_file), "r")
+
+    status = nf90_inq_dimid(ncid, "nlambda", dimid)
+    if (status == NF90_NOERR) then
+       status = nf90_inquire_dimension(ncid, dimid, len=nbset)
+    end if
+
+    call neasyf_read(ncid, "ntgrid", ntgrid)
+    call neasyf_read(ncid, "nperiod", nperiod)
+    call neasyf_read(ncid, "ntheta", ntheta)
+    call neasyf_read(ncid, "drhodpsi", drhodpsi)
+    call neasyf_read(ncid, "rmaj", rmaj)
+    call neasyf_read(ncid, "shat", shat)
+    call neasyf_read(ncid, "kxfac", kxfac)
+
+    call neasyf_close(ncid)
+
+    write (report_unit, *)
+    write (report_unit, fmt="('Limited information available:')")
+    write (report_unit, *)
+    write (report_unit, fmt="('nbset =     ',i5)") nbset
+    write (report_unit, fmt="('ntgrid =    ',i5)") ntgrid
+    write (report_unit, fmt="('ntheta =    ',i5)") ntheta
+    write (report_unit, fmt="('nperiod =   ',i2)") nperiod
+    write (report_unit, fmt="('drhodpsi =  ',f8.4)") drhodpsi
+    write (report_unit, fmt="('R =         ',f8.4)") Rmaj
+    write (report_unit, fmt="('s_hat =     ',f8.4)") shat
+    write (report_unit, fmt="('kxfac =     ',f8.4)") kxfac
+
+    write (report_unit, *)
+    write (report_unit, *) 'NOTE: Regardless of the values of ntheta and nperiod'
+    write (report_unit, *) '      found in the theta_grid_parameters namelist,'
+    write (report_unit, *) '      this calculation will use the values listed here:'
+    write (report_unit, fmt="('ntgrid =    ',i5)") ntgrid
+    write (report_unit, fmt="('ntheta =    ',i5)") ntheta
+    write (report_unit, *) '      These were obtained from the gridgen output file.'
+    write (report_unit, *)
+# else
+    call mp_abort("check_theta_grid_file_nc does not work without NetCDF")
+# endif
+  end subroutine check_theta_grid_file_nc
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
@@ -2857,6 +2917,7 @@ contains
     use theta_grid_salpha, only: check_theta_grid_salpha
     use theta_grid_eik, only: check_theta_grid_eik
     use theta_grid_file, only: check_theta_grid_file
+    use theta_grid_file, only: check_theta_grid_file_nc
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: alne, dbetadrho
@@ -2868,7 +2929,7 @@ contains
     case (eqopt_file)
        call check_theta_grid_file(report_unit)
     case (eqopt_file_nc)
-       call check_theta_grid_file(report_unit)
+       call check_theta_grid_file_nc(report_unit)
     end select
     if (gb_to_cv) then
        write (report_unit, *) 'The grad B drift coefficients have been set equal to the'
