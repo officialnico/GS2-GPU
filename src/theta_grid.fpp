@@ -2412,18 +2412,21 @@ contains
   !> FIXME : Add documentation
   subroutine file_nc_get_sizes
 # ifdef NETCDF
-    use neasyf, only: neasyf_open, neasyf_close
-    use neasyf, only: neasyf_read
-    use neasyf, only: neasyf_error
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_MAX_NAME
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
+    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
 # endif
     implicit none
-    integer :: i, ntgrid
     real :: rmaj
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
+    integer (kind_nf) :: ncid, dimid
+    integer :: status
 
     ncid = neasyf_open(trim(gridout_file), "r")
+
+    status = nf90_inq_dimid(ncid, "nlambda", dimid)
+    if (status == NF90_NOERR) then
+       status = nf90_inquire_dimension(ncid, dimid, len=nbset)
+    end if
 
     call neasyf_read(ncid, "ntgrid", ntgrid)
     call neasyf_read(ncid, "nperiod", nperiod)
@@ -2615,6 +2618,7 @@ contains
     call neasyf_read(ncid, "gbdrift0", gbdrift0)
     call neasyf_read(ncid, "cvdrift", cvdrift)
     call neasyf_read(ncid, "cvdrift0", cvdrift0)
+    call neasyf_read(ncid, "gradpar", gradpar)
     call neasyf_read(ncid, "bmag", bmag)
     call neasyf_read(ncid, "gds2", gds2)
     call neasyf_read(ncid, "gds21", gds21)
@@ -2701,8 +2705,9 @@ contains
           aprime = 0.
        end if
     end if
-#endif
 
+    call neasyf_close(ncid)
+#endif
   end subroutine file_nc_get_grids
   
   !> Set the module level config type
