@@ -120,12 +120,12 @@ contains
     ! Avoid calculation of omega in nonlinear calculations.
     ! Note we rely on omega_average and related arrays being
     ! initialised elsewhere.
-    if (any(ieqzip) .or. (.not.nonlin)) then
-       if (debug) write(6,*) "get_omeaavg: start"
-    else
+    if (nonlin .and. .not. any(ieqzip)) then
        return
-    endif
-    
+    end if
+
+    if (debug) write(6,*) "get_omeaavg: start"
+
     j = gnostics%igomega
     if(gnostics%omegatol.eq.0)then
        fac=1.0
