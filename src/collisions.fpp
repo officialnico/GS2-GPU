@@ -569,6 +569,17 @@ contains
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
+  !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
+  !> NaNs arising from slight floating point discrepancies. We could
+  !> consider adding a debug check to abort/warn if the passed value
+  !> is too negative (i.e. if it looks like an error rather than small
+  !> round off).
+  pure real function safe_sqrt(arg)
+    implicit none
+    real, intent(in) :: arg
+    safe_sqrt = sqrt(max(0.0, arg))
+  end function safe_sqrt
+
   !> FIXME : Add documentation
   subroutine init_arrays
     use species, only: nspec
