@@ -1506,7 +1506,7 @@ contains
        ik=ik_idx(g_lo,iglo)
        is=is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
-          if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
+          if ( (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
              wdrift(ig,1,iglo) = wdrift_func(ig, it, ik, iglo)*tpdriftknob
 #ifdef LOWFLOW
              wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
