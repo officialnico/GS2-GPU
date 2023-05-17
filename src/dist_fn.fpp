@@ -1484,7 +1484,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     implicit none
     integer :: ig, ik, it, il, ie, is, iglo
-    real :: scaling_knob
+    real :: scaling_knob, wdrift_value, wcoriolis_value
     logical,parameter :: debug = .false.
 
     if (.not. allocated(wdrift)) then
@@ -1500,32 +1500,34 @@ contains
 #endif
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       !CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
        il=il_idx(g_lo,iglo)
        it=it_idx(g_lo,iglo)
        ik=ik_idx(g_lo,iglo)
        is=is_idx(g_lo,iglo)
 
+       !CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
        if (il_is_wfb(il) .or. il_is_trapped(il)) then
-!CMR:  multiply trapped particle drift by tpdriftknob
-!CMR:               (tpdriftknob defaults to driftknob if not supplied)
+          !CMR:  multiply trapped particle drift by tpdriftknob
+          !CMR:               (tpdriftknob defaults to driftknob if not supplied)
           scaling_knob = tpdriftknob
        else
-!CMR:  multiply passing particle drift by driftknob
+          !CMR:  multiply passing particle drift by driftknob
           scaling_knob = driftknob
        end if
 
        do ig = -ntgrid, ntgrid
           if (forbid(ig, il)) cycle
-          wdrift(ig,1,iglo) = wdrift_func(ig, it, ik, iglo) * scaling_knob
-#ifdef LOWFLOW
-          wcurv(ig,iglo) = wcurv_func(ig, it, ik) * scaling_knob
-#endif
+          wdrift_value = wdrift_func(ig, it, ik, iglo)
+          wcoriolis_value = wcoriolis_func(ig,it,ik,is,iglo)
 
           ! Add Coriolis drift to magnetic drifts. Is there a reason we don't scale
           ! this by scaling_knob?
-          wdrift(ig,2,iglo) = wdrift(ig,1,iglo) - wcoriolis_func(ig,it,ik,is,iglo)
-          wdrift(ig,1,iglo) = wdrift(ig,1,iglo) + wcoriolis_func(ig,it,ik,is,iglo)
+          wdrift(ig, 1, iglo) = wdrift_value * scaling_knob + wcoriolis_value
+          wdrift(ig, 2, iglo) = wdrift_value * scaling_knob - wcoriolis_value
+
+#ifdef LOWFLOW
+          wcurv(ig,iglo) = wcurv_func(ig, it, ik) * scaling_knob
+#endif
        end do
     end do
 
@@ -1563,12 +1565,14 @@ contains
           !only one totally trapped pitch angle; now multiple ttp are
           !allowed). Previously passed ittp(ig) instead of il. Now we pass
           !iglo instead of il (although this is equivalent here).
-          wdriftttp(ig, :, iglo) = wdrift_func(ig,it,ik,iglo)*tpdriftknob
+          wdrift_value = wdrift_func(ig,it,ik,iglo)
+          wcoriolis_value = wcoriolis_func(ig,it,ik,is,iglo)
 
           !CMR:  totally trapped particle drifts also scaled by tpdriftknob
-          ! add Coriolis drift to magnetic drifts
-          wdriftttp(ig, 1, iglo) = wdriftttp(ig, 1, iglo) + wcoriolis_func(ig,it,ik,is,iglo)
-          wdriftttp(ig, 2, iglo) = wdriftttp(ig, 2, iglo) - wcoriolis_func(ig,it,ik,is,iglo)
+          ! add Coriolis drift to magnetic drifts. Is there a reason we don't scale
+          ! this by scaling_knob?
+          wdriftttp(ig, 1, iglo) = wdrift_value * tpdriftknob + wcoriolis_value
+          wdriftttp(ig, 2, iglo) = wdrift_value * tpdriftknob - wcoriolis_value
        end do
     end do
 
