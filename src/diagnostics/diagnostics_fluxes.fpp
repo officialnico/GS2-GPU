@@ -20,7 +20,6 @@ module diagnostics_fluxes
   !!  x, y and species. This function writes the whole array,
   !!  and also various averages of them.
   public :: calculate_fluxes
-  public :: write_symmetry
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -503,32 +502,4 @@ contains
       gnostics%current_results%species_particle_flux = gnostics%current_results%species_particle_flux + flux_by_species
     end if
   end subroutine calculate_standard_flux_properties
-
-  !> FIXME : Add documentation  
-  subroutine write_symmetry(gnostics)
-    use dist_fn, only: flux_vs_theta_vs_vpa
-    use dist_fn, only: pflux_vs_theta_vs_vpa
-    use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, negrid
-    use species, only: nspec
-    use fields_arrays, only: phinew
-    use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: nc_loop_sym, nc_loop_partsym_tormom
-    use mp, only: proc0
-    implicit none
-    type (diagnostics_type), intent(in) :: gnostics
-    real, dimension(:,:,:), allocatable :: vflx_sym
-    real, dimension(:,:,:), allocatable :: pflux_sym
-
-    allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
-    call pflux_vs_theta_vs_vpa (pflux_sym)
-    if (proc0) call nc_loop_partsym_tormom(gnostics%file_id, gnostics%nout, pflux_sym)
-    deallocate (pflux_sym)
-
-    allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
-    call flux_vs_theta_vs_vpa (phinew,vflx_sym)
-    if (proc0) call nc_loop_sym(gnostics%file_id, gnostics%nout, vflx_sym)
-    deallocate (vflx_sym)
-  end subroutine write_symmetry
-
 end module diagnostics_fluxes

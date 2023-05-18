@@ -340,10 +340,8 @@ contains
     use collisional_heating, only: write_collisional, calculate_collisional   
     use diagnostics_printout, only: print_flux_line, print_line
     use diagnostics_printout, only: write_flux_line, write_line
-    use diagnostics_fluxes, only: calculate_fluxes, write_symmetry
+    use diagnostics_fluxes, only: calculate_fluxes
     use diagnostics_fields, only: write_fields, write_movie
-    use gs2_diagnostics, only: do_dump_fields_periodically, do_write_parity, do_write_nl_flux_dist
-    use gs2_diagnostics, only: do_write_correlation_extend, do_write_correlation
     use diagnostics_fields, only: write_eigenfunc
     use diagnostics_moments, only: write_moments, write_full_moments_notgc
     use diagnostics_omega, only: calculate_omega, write_omega
@@ -363,6 +361,9 @@ contains
     use optionals, only: get_option_with_default
     use run_parameters, only: nstep
     use gs2_io, only: get_dim_length, nc_sync
+    use gs2_diagnostics, only: do_dump_fields_periodically, do_write_parity, do_write_nl_flux_dist, &
+         do_write_correlation_extend, do_write_correlation, do_write_symmetry, do_write_pflux_sym
+
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
@@ -461,7 +462,10 @@ contains
        if (gnostics%dump_fields_periodically) call do_dump_fields_periodically(gnostics%user_time)
        if (gnostics%calculate_fluxes) call calculate_fluxes(gnostics) ! NB  also writes fluxes if on
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics calculated fluxes')
-       if (gnostics%write_symmetry) call write_symmetry(gnostics)
+       if (gnostics%write_symmetry) then
+         call do_write_symmetry(gnostics%file_id, gnostics%nout)
+         call do_write_pflux_sym(gnostics%file_id, gnostics%nout)
+       end if
        if (gnostics%write_nl_flux_dist) call do_write_nl_flux_dist(gnostics%file_id, gnostics%nout)
        if (gnostics%write_parity) call do_write_parity(gnostics%user_time, gnostics%ascii_files%parity, gnostics%write_ascii)
        if (gnostics%write_verr) call write_velocity_space_checks(gnostics)

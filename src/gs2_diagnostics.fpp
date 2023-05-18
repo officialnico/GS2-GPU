@@ -36,7 +36,7 @@ module gs2_diagnostics
   public :: do_dump_fields_periodically, do_write_parity
   public :: do_write_heating, do_write_nl_flux_dist
   public :: do_write_correlation_extend, do_write_correlation
-  public :: do_write_geom
+  public :: do_write_geom, do_write_symmetry, do_write_pflux_sym
 
   interface get_vol_average
      module procedure get_vol_average_one, get_vol_average_all
@@ -1431,11 +1431,11 @@ contains
 
     if (write_cerr) call collision_error(phinew, bparnew, last)
 
-    if (write_symmetry) call do_write_symmetry
-
     if (write_nl_flux_dist) call do_write_nl_flux_dist(get_netcdf_file_id(), nout)
 
-    if (write_pflux_sym) call do_write_pflux_sym
+    ! In new diagnostics, these two are both called for `write_symmetry`
+    if (write_symmetry) call do_write_symmetry(get_netcdf_file_id(), nout)
+    if (write_pflux_sym) call do_write_pflux_sym(get_netcdf_file_id(), nout)
 
     if (write_correlation) call do_write_correlation(get_netcdf_file_id(), nout)
 
@@ -1930,7 +1930,7 @@ contains
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
-  subroutine do_write_symmetry
+  subroutine do_write_symmetry(file_id, nout)
     use dist_fn, only: flux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
@@ -1939,11 +1939,15 @@ contains
     use gs2_io, only: nc_loop_sym
     use fields_arrays, only: phinew
     implicit none
-    real, dimension(:,:,:), allocatable :: vflx_sym
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
 
+    real, dimension(:,:,:), allocatable :: vflx_sym
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call flux_vs_theta_vs_vpa (phinew, vflx_sym)
-    if (proc0) call nc_loop_sym (get_netcdf_file_id(), nout, vflx_sym)
+    if (proc0) call nc_loop_sym (file_id, nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine do_write_symmetry
 
@@ -2023,7 +2027,7 @@ contains
   end subroutine do_write_nl_flux_dist
 
   !> Calculate the particle flux contribution to toroidal momentum flux and write to netCDF
-  subroutine do_write_pflux_sym
+  subroutine do_write_pflux_sym(file_id, nout)
     use dist_fn, only: pflux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
@@ -2031,11 +2035,16 @@ contains
     use mp, only: proc0
     use gs2_io, only: nc_loop_partsym_tormom
     implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+    !> Current timestep
+    integer, intent(in) :: nout
+
     real, dimension(:,:,:), allocatable :: pflux_sym
 
     allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call pflux_vs_theta_vs_vpa (pflux_sym)
-    if (proc0) call nc_loop_partsym_tormom (get_netcdf_file_id(), nout, pflux_sym)
+    if (proc0) call nc_loop_partsym_tormom (file_id, nout, pflux_sym)
     deallocate (pflux_sym)
   end subroutine do_write_pflux_sym
 
