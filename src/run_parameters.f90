@@ -12,14 +12,13 @@ module run_parameters
   public :: init_run_parameters, finish_run_parameters
   public :: check_run_parameters, wnml_run_parameters
   public :: write_trinity_parameters
-  public :: beta, zeff, tite, reset, immediate_reset
-  public :: fphi, fapar, fbpar
-  public :: code_delt_max, wunits, woutunits, tunits
+  public :: beta, zeff, tite, reset, immediate_reset, delt
+  public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
   public :: nstep, max_sim_time, wstar_units, eqzip, margin
   public :: secondary, tertiary, harris
   public :: ieqzip, k0
   public :: delt_option_switch, delt_option_hand
-  public :: delt_option_auto, vnm_init
+  public :: delt_option_auto
   public :: avail_cpu_time, margin_cpu_time
   public :: rhostar, neo_test
   public :: do_eigsolve, save_timer_statistics, save_init_times
@@ -47,10 +46,8 @@ module run_parameters
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
-  real :: delt, delt_prev1, delt_prev2
-  real :: code_delt_max, user_delt_max, margin
-  real, dimension (:), allocatable :: wunits, woutunits, tunits
-  real, dimension (2) :: vnm_init
+  logical :: has_phi, has_apar, has_bpar
+  real :: margin, delt
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
   integer :: nstep, seed
@@ -71,8 +68,11 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-  
-  integer, allocatable :: ieqzip(:,:)
+
+  !> Used to indicate which wavenumbers we do not want to evolve.
+  !> This choice is controlled by the [[eqzip_option]]
+  !> input. Primarily intended for secondary mode analysis.
+  logical, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
        eqzip_option_none = 1, &
@@ -359,7 +359,6 @@ contains
   !> FIXME : Add documentation  
   subroutine init_run_parameters(knobs_config_in, parameters_config_in)
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
-    use gs2_time, only: init_delt, user2code
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
     type(parameters_config_type), intent(in), optional :: parameters_config_in
@@ -370,29 +369,20 @@ contains
     call read_parameters(knobs_config_in, parameters_config_in)
 
     call init_kt_grids
-    call init_delt (delt, delt_prev1, delt_prev2)
-    call user2code (user_delt_max, code_delt_max)
-
-    if(.not. allocated(wunits)) allocate (wunits(naky))
-    if(.not. allocated(woutunits)) allocate (woutunits(naky))
-    if(.not. allocated(tunits)) allocate (tunits(naky))
-
-! omega_* normalization of time: 
-    call adjust_time_norm
 
     if(.not.allocated(ieqzip)) allocate(ieqzip(nakx,naky))
-    ieqzip(1:nakx,1:naky)=1
+    ieqzip = .false.
     select case (eqzip_option_switch)
     case (eqzip_option_secondary)
        ! suppress evolution of secondary mode
-       ieqzip(1,2) = 0
+       ieqzip(1,2) = .true.
     case (eqzip_option_tertiary)
        ! suppress evolution of tertiary mode
-       ieqzip(2,1) = 0
-       ieqzip(nakx,1) = 0
+       ieqzip(2,1) = .true.
+       ieqzip(nakx,1) = .true.
     case (eqzip_option_equilibrium)
        ! suppress evolution of 1D equilibrium (x dependent)
-       ieqzip(1:nakx,1) = 0
+       ieqzip(1:nakx,1) = .true.
     end select
   end subroutine init_run_parameters
 
@@ -400,8 +390,6 @@ contains
   subroutine read_parameters(knobs_config_in, parameters_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
-    use gs2_time, only: dt_not_set
-    use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     use ran, only: set_seed_from_single_integer
@@ -420,12 +408,8 @@ contains
             text_option('set_by_hand', delt_option_hand), &
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
-    integer :: ierr, istatus
-    real :: delt0, delt1, delt2, delt_max
-    real, dimension (2) :: vnm_saved
-
+    integer :: ierr
     real :: teti  ! for back-compatibility
-
 
     if (present(parameters_config_in)) parameters_config = parameters_config_in
 
@@ -517,12 +501,16 @@ contains
        fbpar = 0.
     endif
 
+    has_phi = fphi > epsilon(0.0)
+    has_apar = fapar > epsilon(0.0)
+    has_bpar = fbpar > epsilon(0.0)
+
     !> If we have non-zero beta then alert the user that they have some
     !! of the perturbed magnetic fields disabled. This may be intended
     !! behaviour, so we throw a warning. However, if both are disabled,
     !! we set beta=0. This will make the simulation electrostatic, as 
     !! probably intended if both apar and bpar are set to zero.
-    if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+    if( beta /= 0.0 .and. .not. (has_apar .or. has_bpar)) then
        if(proc0) then
           ierr = error_unit()
           write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
@@ -531,8 +519,8 @@ contains
     endif
     if((beta.ne.0).and.proc0) then
        ierr = error_unit()
-       if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
-       if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+       if(.not. has_apar) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+       if(.not. has_bpar) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
     endif
     
     if (eqzip) then
@@ -572,25 +560,6 @@ contains
        nstep = nstep*2
     end if
 
-    user_delt_max = delt
-
-    !! @todo: Add input variables to allow these to be set directly
-    delt_prev1 = dt_not_set
-    delt_prev2 = dt_not_set
-
-    vnm_init = 1.0
-    
-    if (delt_option_switch == delt_option_auto) then
-       call init_vnm (vnm_saved, istatus)
-       if (istatus == 0) vnm_init = vnm_saved
-
-       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
-       if (delt0 /= dt_not_set) delt = delt0
-       if (delt1 /= dt_not_set) delt_prev1 = delt1
-       if (delt2 /= dt_not_set) delt_prev2 = delt2
-       if (delt_max /= dt_not_set) user_delt_max = delt_max
-    endif
-
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
 
@@ -611,53 +580,9 @@ contains
   end subroutine set_overrides
 
   !> FIXME : Add documentation    
-  subroutine adjust_time_norm
-    use file_utils, only: error_unit
-    use mp, only: proc0
-    use kt_grids, only: aky
-    implicit none
-!CMR: Sep 2010
-! Attempt to understand time normalisation variables, which are arrays(naky)
-!    TUNITS: DT(KY)=TUNITS(KY).CODE_DT
-!            This is a generally very useful variable to store ky dependent 
-!            timestep in the code time normalisation.
-!            Used to multiply ky independent source terms on RHS of GKE.
-!    WUNITS: WUNITS(KY)=AKY(KY)*TUNITS(KY)/2
-!            Auxiliary variable.  Used to save compute operations when 
-!            evaluating source terms on RHS of GKE that are proportional to ky.
-!            !! The Mysterious factor 1/2 Explained !!
-!            The factor of 1/2 arises because those source terms were first
-!            specified using the normalisation Tref=mref vtref^2 
-! [R Numata et al, "AstroGK: Astrophysical gyrokinetics code", JCP, 2010].
-!CMRend
-    if (wstar_units) then
-       wunits = 1.0
-       where (aky /= 0.0)
-          tunits = 2.0/aky
-       elsewhere
-          tunits = 0.0
-       end where
-       if (any(tunits == 0.0) .and. proc0) then
-          write (error_unit(), *) &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-          print *, &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-       end if
-!CMR: Sep 2010
-!  Changes to allow wstar_units to be used
-!CMRend
-    else
-       tunits = 1.0
-       wunits = aky/2.0
-    end if
-    woutunits = 1.0/tunits
-  end subroutine adjust_time_norm
-
-  !> FIXME : Add documentation    
   subroutine finish_run_parameters
     implicit none
 
-    if (allocated(wunits)) deallocate (wunits, woutunits, tunits)
     if (allocated(ieqzip)) deallocate (ieqzip)
 
     initialized = .false.

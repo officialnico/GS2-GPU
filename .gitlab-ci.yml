@@ -16,6 +16,7 @@ stages:
   - echo "running" > ${JOB_STATUS_FILE}
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   - echo "before_script" > ${JOB_STATUS_FILE}
+  - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
   - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
@@ -53,6 +54,7 @@ variables: &default_variables
   EXTRA_TEST_FLAGS: ""
   EXTRA_PFUNIT_FLAGS: ""
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
+  GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
   BASIC_PACKAGES: "environment-modules make git which cmake findutils"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
@@ -113,6 +115,7 @@ standard_tests:
 openmp_tests:
   stage: test
   image: fedora:37
+  tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
@@ -155,7 +158,7 @@ initialisation_tests:
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-ffpe-trap=invalid,zero -fcheck=all -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived -g"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-ffpe-trap=invalid,zero -fcheck=all,no-array-temps -finit-real=snan -finit-integer=-12345 -finit-logical=true -finit-character=95 -finit-derived -g"
   script: *default_script
 
 intel_tests:
@@ -227,10 +230,11 @@ pages:
   script:
     - BUILD_STATUS=running  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
     - *install_main_packages
-    - make ${EXTRA_MAKE_FLAGS} doc
+    - su -c "make ${EXTRA_MAKE_FLAGS} doc" theuser
     - mv docs/html ./public
-    - BUILD_STATUS=passed  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
+    - *report_pass
   after_script:
+    - *push_status
     - echo "Website created and pushed, it may take a while before the changes are reflected."
   artifacts:
     paths:

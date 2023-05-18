@@ -70,7 +70,7 @@ contains
   subroutine calculate_collisional()
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
-    use dist_fn_arrays, only: c_rate, g_adjust
+    use dist_fn_arrays, only: c_rate, g_adjust, from_g_gs2
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0, aky
     use species, only: spec, nspec
@@ -80,7 +80,6 @@ contains
     use hyper, only: hyper_diff, hypervisc_filter
     use le_derivatives, only: vspace_derivatives
     use fields_arrays, only: phi, bpar
-    use run_parameters, only: fphi, fbpar
     use collisions, only: heating
 
     implicit none
@@ -102,7 +101,7 @@ contains
     g0=g
     weights=1.
   
-    call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
+    call g_adjust(g0,phi,bpar, direction = from_g_gs2)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
     if (heating) then
@@ -163,11 +162,12 @@ contains
     use gs2_io, only: starts, netcdf_write_complex
     use fields_parallelization, only: field_k_local
     use diagnostics_config, only: diagnostics_type
-    
+    use mp, only: proc0
     implicit none
     
     type(diagnostics_type), intent(in) :: gnostics
-    
+    if (.not. proc0) return
+
     call netcdf_write_complex(gnostics%file_id, "collisional_heating", coll_heating, &
          dim_names=["ri", "kx", "ky", "t "], start=starts(4, gnostics%nout),  &
          long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t")

@@ -61,17 +61,6 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
-# Default to compressed netcdf files. Note we choose to default to no
-# compression for builds with parallel netcdf due to an issue reported
-# on Macs and JFRS-1 in which compression and parallel netcdf leads to
-# hanging code. Hopefully future investigation can give a solution
-# which allows both features to be used together and we can remove
-# this complication.
-ifdef USE_PARALLEL_NETCDF
-	USE_NETCDF_COMPRESSION ?=
-else
-	USE_NETCDF_COMPRESSION ?= on
-endif
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses lapack or compatible library (bin)
@@ -446,7 +435,7 @@ endif
 
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-	FFT_LIB ?= -lfftw -lrfftw
+	FFT_LIB ?= -lfftw3
 endif
 
 ifdef GENQUAD
@@ -457,6 +446,18 @@ endif
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
 	MACRO_DEFS += -DNETCDF
+endif
+
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
 endif
 
 ifdef USE_NETCDF_COMPRESSION
@@ -947,6 +948,7 @@ test_make:
 	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_PARALLEL_NETCDF", $(USE_PARALLEL_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))

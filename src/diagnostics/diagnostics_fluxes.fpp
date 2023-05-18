@@ -94,10 +94,10 @@ contains
   !> FIXME : Add documentation  
   subroutine calculate_fluxes(gnostics)
     use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
-    use dist_fn_arrays, only: g_adjust, gnew
+    use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
     use species, only: nspec, spec
     use fields_arrays, only: phinew, bparnew, aparnew, phi
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
@@ -121,7 +121,7 @@ contains
          call write_diffusive_estimates(gnostics)
 
     if (.not. gnostics%replay) then
-      call g_adjust (gnew, phinew, bparnew, fphi, fbpar)
+      call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
       call flux (phinew, aparnew, bparnew, &
            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
@@ -132,12 +132,12 @@ contains
       call lf_flux (phinew, vflux0, vflux1)
 #endif
 
-      call g_adjust (gnew, phinew, bparnew, -fphi, -fbpar)
+      call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
       call eexchange (phinew, phi, exchange1, exchange)
     end if ! if (.not. gnostics%replay)
       
       !write (*,*) 'fphi is', fphi
-      if (fphi > epsilon(0.0)) then
+      if (has_phi) then
          do is = 1, nspec
             qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
             qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -195,7 +195,7 @@ contains
 #endif
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        do is = 1, nspec
           qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
           qmheat(:,:,is,2)=qmheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -226,7 +226,7 @@ contains
             long_name="Perpendicular magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
     end if
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        do is = 1, nspec
           qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
           qbheat(:,:,is,2)=qbheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
@@ -514,6 +514,7 @@ contains
     use fields_arrays, only: phinew
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: nc_loop_sym, nc_loop_partsym_tormom
+    use mp, only: proc0
     implicit none
     type (diagnostics_type), intent(in) :: gnostics
     real, dimension(:,:,:), allocatable :: vflx_sym
@@ -521,12 +522,12 @@ contains
 
     allocate (pflux_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call pflux_vs_theta_vs_vpa (pflux_sym)
-    call nc_loop_partsym_tormom(gnostics%file_id, gnostics%nout, pflux_sym)
+    if (proc0) call nc_loop_partsym_tormom(gnostics%file_id, gnostics%nout, pflux_sym)
     deallocate (pflux_sym)
 
     allocate (vflx_sym(-ntgrid:ntgrid,nlambda*negrid,nspec))
     call flux_vs_theta_vs_vpa (phinew,vflx_sym)
-    call nc_loop_sym(gnostics%file_id, gnostics%nout, vflx_sym)
+    if (proc0) call nc_loop_sym(gnostics%file_id, gnostics%nout, vflx_sym)
     deallocate (vflx_sym)
   end subroutine write_symmetry
 

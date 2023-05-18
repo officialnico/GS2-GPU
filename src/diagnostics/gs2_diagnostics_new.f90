@@ -334,7 +334,7 @@ contains
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
   subroutine run_diagnostics(istep_in, exit, read_existing, force)
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
     use collisional_heating, only: write_collisional, calculate_collisional   

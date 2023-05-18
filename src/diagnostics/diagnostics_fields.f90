@@ -7,13 +7,12 @@ module diagnostics_fields
   private
   
   public :: write_fields, write_movie, write_eigenfunc, get_phi0
-  real, parameter :: zero = epsilon(0.0)
 
 contains
   !> FIXME : Add documentation
   subroutine write_fields(gnostics)
     use fields_arrays, only: phinew, aparnew, bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: nc_write_field
     implicit none
@@ -22,19 +21,19 @@ contains
     if (gnostics%replay) return 
     if (.not. gnostics%wryte) return
 
-    if (fphi > zero) then
+    if (has_phi) then
       call nc_write_field(gnostics%file_id, gnostics%nout, phinew, &
            "phi", "Electrostatic potential", gnostics%igomega, gnostics%write_phi_over_time,&
            gnostics%current_results%phi2)
     end if
 
-    if (fapar > zero) then
+    if (has_apar) then
       call nc_write_field(gnostics%file_id, gnostics%nout, aparnew, &
            "apar", "Parallel magnetic potential", gnostics%igomega, gnostics%write_apar_over_time,&
            gnostics%current_results%apar2)
     end if
 
-    if (fbpar > zero) then
+    if (has_bpar) then
       call nc_write_field(gnostics%file_id, gnostics%nout, bparnew, &
            "bpar", "Parallel magnetic field", gnostics%igomega, gnostics%write_bpar_over_time,&
            gnostics%current_results%bpar2)

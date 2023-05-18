@@ -46,7 +46,7 @@ contains
   !> Write omega, omega_average as functions of kx, ky and time
   !! to the new netcdf file
   subroutine write_omega(gnostics)
-    use run_parameters, only: woutunits
+    use gs2_time, only: woutunits
     use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: nc_write_omega
