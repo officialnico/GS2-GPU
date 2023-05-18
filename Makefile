@@ -435,7 +435,7 @@ endif
 
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-	FFT_LIB ?= -lfftw -lrfftw
+	FFT_LIB ?= -lfftw3
 endif
 
 ifdef GENQUAD

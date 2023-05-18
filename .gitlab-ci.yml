@@ -16,6 +16,7 @@ stages:
   - echo "running" > ${JOB_STATUS_FILE}
   - BUILD_STATUS=$(cat ${JOB_STATUS_FILE})  BUILD_KEY=push ./pipeline_test_scripts/push_gitlab_build_status ${CASENAME}
   - echo "before_script" > ${JOB_STATUS_FILE}
+  - cat /proc/cpuinfo
 
 .install_main_packages: &install_main_packages
   - dnf install -y ${BASIC_PACKAGES} ${GS2_PACKAGES} ${PYTHON_PACKAGES} ${MPI_PACKAGES} ${EXTRA_PACKAGES}
@@ -114,6 +115,7 @@ standard_tests:
 openmp_tests:
   stage: test
   image: fedora:37
+  tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
