@@ -136,7 +136,7 @@ module dist_fn
   logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
-  logical :: mult_imp, test
+  logical :: mult_imp
   logical :: accelerated_x = .false.
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
@@ -381,8 +381,6 @@ module dist_fn
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
-     !> For debugging only. If set then run will print various grid sizes and then stop.
-     logical :: test = .false.
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
@@ -668,17 +666,6 @@ contains
        write (report_unit, *) 
     end if
 
-    if (test) then
-       write (report_unit, *) 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('Test = T in the dist_fn_knobs namelist will stop the run before ')")
-       write (report_unit, fmt="('any significant calculation is done, and will result in several ')")
-       write (report_unit, fmt="('variables that determine array sizes to be written to the screen.')")
-       write (report_unit, fmt="('THIS MAY BE AN ERROR.')") 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
-    end if
-
     if (def_parity .and. nonlinear_mode_switch == nonlinear_mode_on) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
@@ -806,7 +793,6 @@ contains
        if (poisfac /= 0.) write (unit, fmt="(' poisfac = ',e17.10)") poisfac
        if (afilter /= 0.) write (unit, fmt="(' afilter = ',e17.10)") afilter
        if (mult_imp) write (unit, fmt="(' mult_imp = ',L1)") mult_imp
-       if (test) write (unit, fmt="(' test = ',L1)") test
        if (def_parity) then
           write (unit, fmt="(' def_parity = ',L1)") def_parity
           if (even) write (unit, fmt="(' even = ',L1)") even
@@ -890,7 +876,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_dist_fn_arrays
-    use mp, only: nproc, iproc, proc0, finish_mp, mp_abort
+    use mp, only: nproc, iproc
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
@@ -905,18 +891,6 @@ contains
     initialized_dist_fn_arrays  = .true.
 
     call init_dist_fn_parameters
-
-    if (test) then
-       if (proc0) then
-          write (*,*) 'nspecies = ',nspec
-          write (*,*) 'nlambda = ', nlambda
-          write (*,*) 'negrid = ',negrid
-          write (*,*) 'ntheta0 = ',ntheta0
-          write (*,*) 'naky = ',naky
-       end if
-       call finish_mp
-       call mp_abort('only testing')
-    end if
 
     if (debug) write(6,*) "init_dist_fn: run_parameters"
     call init_run_parameters
@@ -941,8 +915,6 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: allocate_arrays"
     call allocate_arrays
-
-
   end subroutine init_dist_fn_arrays
 
   !> FIXME : Add documentation
@@ -951,11 +923,8 @@ contains
     initialized_dist_fn_level_1 = .true.
 
     call init_dist_fn_arrays
-
-    !if (debug) write(6,*) "init_dist_fn: init_vperp2"
     call init_vperp2
     call init_bc
-  
   end subroutine init_dist_fn_level_1
 
   !> FIXME : Add documentation  
@@ -1290,7 +1259,6 @@ contains
     omprimfac = dist_fn_config%omprimfac
     opt_source = dist_fn_config%opt_source
     poisfac = dist_fn_config%poisfac
-    test = dist_fn_config%test
     tpdriftknob = dist_fn_config%tpdriftknob
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
@@ -11090,12 +11058,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, test, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         test, tpdriftknob, vparknob, wfb, wfb_cmr, zero_forbid
+         tpdriftknob, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -11126,7 +11094,6 @@ contains
     omprimfac = self%omprimfac
     opt_source = self%opt_source
     poisfac = self%poisfac
-    test = self%test
     tpdriftknob = self%tpdriftknob
     vparknob = self%vparknob
     wfb = self%wfb
@@ -11163,7 +11130,6 @@ contains
     self%omprimfac = omprimfac
     self%opt_source = opt_source
     self%poisfac = poisfac
-    self%test = test
     self%tpdriftknob = tpdriftknob
     self%vparknob = vparknob
     self%wfb = wfb
@@ -11211,7 +11177,6 @@ contains
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
-    call self%write_key_val("test", self%test, unit_internal)
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
@@ -11261,7 +11226,6 @@ contains
     call broadcast(self%omprimfac)
     call broadcast(self%opt_source)
     call broadcast(self%poisfac)
-    call broadcast(self%test)
     call broadcast(self%tpdriftknob)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
