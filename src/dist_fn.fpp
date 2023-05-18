@@ -106,7 +106,6 @@ module dist_fn
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
-  integer, dimension (:), allocatable :: bd_exp ! nspec
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
   real :: phi_ext, afilter
@@ -520,10 +519,6 @@ module dist_fn
      !>
      !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> Not used for anything.
-     !>
-     !> @todo Remove this variable.
-     integer :: bd_exp = 0
      !> Sets the imaginary part of the temporal implicitness
      !> parameter. It is considered an error for this to be non-zero.
      !>
@@ -898,7 +893,6 @@ contains
             & trim("dist_fn_species_knobs_"//trim(adjustl(line)))
        write (unit, fmt="(' fexpr = ',e13.6)") real(fexp(i))
        write (unit, fmt="(' bakdif = ',e13.6)") bkdiff(i)
-       write (unit, fmt="(' bd_exp = ',i6,'  /')") bd_exp(i)
     end do
   end subroutine wnml_dist_fn_species
 
@@ -1091,7 +1085,7 @@ contains
     initialized_dist_fn_parameters = .false.
     call finish_dist_fn_arrays
     readinit = .false.
-    if (allocated(fexp)) deallocate (fexp, bkdiff, bd_exp)
+    if (allocated(fexp)) deallocate (fexp, bkdiff)
   end subroutine finish_dist_fn_parameters
 
   subroutine finish_dist_fn_arrays
@@ -1380,13 +1374,12 @@ contains
          (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
          ierr, "adiabatic_option in dist_fn_knobs",.true.)
        
-    if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
+    if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec))
 
     call read_species_knobs(dist_fn_species_config_in)
 
     call broadcast (fexp)
     call broadcast (bkdiff)
-    call broadcast (bd_exp)
   
     !<DD>Turn off esv if not using linked boundaries
     esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
@@ -1460,7 +1453,6 @@ contains
 
        ! Copy out internal values into module level parameters
        bkdiff(is) = dist_fn_species_config(is)%bakdif
-       bd_exp(is) = dist_fn_species_config(is)%bd_exp
        fexpi = dist_fn_species_config(is)%fexpi
        fexpr = dist_fn_species_config(is)%fexpr
        
@@ -11505,17 +11497,15 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: bd_exp
     real :: bakdif, fexpi, fexpr
 
-    namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
+    namelist /dist_fn_species_knobs/ bakdif, fexpi, fexpr
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
     bakdif = self%bakdif
-    bd_exp = self%bd_exp
     fexpi = self%fexpi
     fexpr = self%fexpr
 
@@ -11526,7 +11516,6 @@ contains
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif
-    self%bd_exp = bd_exp
     self%fexpi = fexpi
     self%fexpr = fexpr
 
@@ -11547,7 +11536,6 @@ contains
 
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("bakdif", self%bakdif, unit_internal)
-    call self%write_key_val("bd_exp", self%bd_exp, unit_internal)
     call self%write_key_val("fexpi", self%fexpi, unit_internal)
     call self%write_key_val("fexpr", self%fexpr, unit_internal)
     call self%write_namelist_footer(unit_internal)
@@ -11570,7 +11558,6 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     call broadcast(self%bakdif)
-    call broadcast(self%bd_exp)
     call broadcast(self%fexpi)
     call broadcast(self%fexpr)
 
