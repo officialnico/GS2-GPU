@@ -32,6 +32,7 @@ module antenna
   public :: init_antenna, dump_ant_amp, amplitude, finish_antenna, reset_init
   public :: wnml_antenna, check_antenna, no_driver
   public :: antenna_w, antenna_apar, antenna_amplitudes, a_ext_data
+  public :: get_jext !GGH
 
   public :: driver_config_type
   public :: stir_config_type
@@ -485,6 +486,53 @@ contains
     end if
 
   end subroutine antenna_apar
+
+  !> Calculate the external current in the antenna
+  subroutine get_jext(j_ext)
+    use kt_grids, only: ntheta0, naky,aky, kperp2
+    use theta_grid, only: jacob, delthet, ntgrid
+    implicit none
+    !Passed
+    !Intent(in) only needed as initialised to zero at top level
+    real, dimension(:,:), intent(in out) ::  j_ext
+    !Local
+    complex, dimension(:,:,:), allocatable :: j_extz
+    integer :: ig,ik, it                             !Indices
+    real :: fac2                                     !Factor
+    real, dimension (:), allocatable :: wgt
+
+    !Get z-centered j_ext at current time
+    allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
+    call antenna_apar (kperp2, j_extz)
+
+    !Set weighting factor for z-averages
+    !    if (proc0) then
+    allocate (wgt(-ntgrid:ntgrid))
+    !GGH NOTE: Here wgt is 1/(2*ntgrid)
+    wgt = 0.
+    do ig=-ntgrid,ntgrid-1
+       wgt(ig) = delthet(ig)*jacob(ig)
+    end do
+    wgt = wgt/sum(wgt)
+    !    endif
+
+    !Take average over z
+    do ig=-ntgrid, ntgrid-1
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             j_ext(it,ik)=j_ext(it,ik)+real(j_extz(ig,it,ik))*wgt(ig)*fac2
+          end do
+       end do
+    enddo
+
+    !    if (proc0) then
+    deallocate (wgt)
+    !    endif
+    deallocate (j_extz)
+
+  end subroutine get_jext
 
   !> FIXME : Add documentation
   subroutine a_ext_data (A_ext_old, A_ext_new)

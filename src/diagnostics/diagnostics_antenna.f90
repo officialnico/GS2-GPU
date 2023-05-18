@@ -99,10 +99,12 @@ contains
   end subroutine write_lorentzian
 
   !> A subroutine to calculate the time-averaged antenna current
-  !! j_ext = kperp^2 A_antenna
+  !> j_ext = kperp^2 A_antenna.
+  !>
+  !> @note This looks like it may be reproducing the [[get_jext]] routine
+  !> from [[antenna]]
   subroutine calc_jext (gnostics, j_ext)
     use mp, only: proc0
-    use dist_fn, only: get_jext
     use antenna, only: antenna_apar
     use volume_averages, only: average_theta
     use theta_grid, only: ntgrid

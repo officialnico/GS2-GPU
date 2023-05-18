@@ -2887,7 +2887,7 @@ contains
   !> Calculate the time-averaged antenna current \(j_{ext} = k_\perp^2 A_{antenna}\)
   subroutine calc_jext (istep, j_ext)
     use mp, only: proc0
-    use dist_fn, only: get_jext
+    use antenna, only: get_jext
     implicit none
     !> Current simulation timestep
     integer, intent (in) :: istep
