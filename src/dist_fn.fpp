@@ -113,11 +113,9 @@ module dist_fn
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
-  !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
-  logical :: opt_init_bc !< DEPRECATED
-!CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
-!CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
+  !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
+  !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
        
   real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
@@ -378,8 +376,6 @@ module dist_fn
      !> Factor multiplying the parallel shearing drive term when
      !> running with non-zero [[dist_fn_knobs:g_exb]]
      real :: omprimfac = 1.0
-     !> Deprecated and due for removal
-     logical :: opt_init_bc = .false.
      !>  If true then use an optimised linear source calculation which
      !>  uses pre-calculated coefficients, calculates both sigma
      !>  together and skips work associated with empty fields. Can
@@ -785,15 +781,6 @@ contains
 
        write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, real(fexp(is))
     end do
-
-    if (opt_init_bc) then
-       write (report_unit, *) 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('The opt_init_bc flag is due for removal.')")
-       write (report_unit, fmt="('It does not influence the behaviour of the code.')")       
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)        
-    endif
   end subroutine check_dist_fn
 
   !> FIXME : Add documentation  
@@ -1333,7 +1320,6 @@ contains
     mult_imp = dist_fn_config%mult_imp
     nonad_zero = dist_fn_config%nonad_zero
     omprimfac = dist_fn_config%omprimfac
-    opt_init_bc = dist_fn_config%opt_init_bc
     opt_source = dist_fn_config%opt_source
     phifac_lin = dist_fn_config%phifac_lin
     poisfac = dist_fn_config%poisfac
@@ -11144,12 +11130,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, test, wfb_cmr, zero_forbid
     real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
     real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
+         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
          test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
@@ -11180,7 +11166,6 @@ contains
     mult_imp = self%mult_imp
     nonad_zero = self%nonad_zero
     omprimfac = self%omprimfac
-    opt_init_bc = self%opt_init_bc
     opt_source = self%opt_source
     phifac_lin = self%phifac_lin
     poisfac = self%poisfac
@@ -11225,7 +11210,6 @@ contains
     self%mult_imp = mult_imp
     self%nonad_zero = nonad_zero
     self%omprimfac = omprimfac
-    self%opt_init_bc = opt_init_bc
     self%opt_source = opt_source
     self%phifac_lin = phifac_lin
     self%poisfac = poisfac
@@ -11281,7 +11265,6 @@ contains
     call self%write_key_val("mult_imp", self%mult_imp, unit_internal)
     call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
-    call self%write_key_val("opt_init_bc", self%opt_init_bc, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
     call self%write_key_val("phifac_lin", self%phifac_lin, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
@@ -11339,7 +11322,6 @@ contains
     call broadcast(self%mult_imp)
     call broadcast(self%nonad_zero)
     call broadcast(self%omprimfac)
-    call broadcast(self%opt_init_bc)
     call broadcast(self%opt_source)
     call broadcast(self%phifac_lin)
     call broadcast(self%poisfac)
