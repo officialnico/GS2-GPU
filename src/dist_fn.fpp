@@ -117,9 +117,6 @@ module dist_fn
   !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
   !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
-       
-  real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
-  real :: qparfac_lin, qprpfac_lin, phifac_lin
 
   integer :: adiabatic_option_switch
   integer, parameter :: adiabatic_option_default = 1, &
@@ -298,10 +295,6 @@ module dist_fn
      !> True only allows solutions of single parity as determined by
      !> the input [[dist_fn_knobs:even]].
      logical :: def_parity = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
-     real :: densfac_lin = sqrt(2.)
      !> Leave as unity for physical runs can be used for
      !> debugging. Multiplies the passing particle drifts (also see
      !> [[dist_fn_knobs:tpdriftknob]]).
@@ -385,38 +378,14 @@ module dist_fn
      !>  increase due to using an additional array of size 2-4 times
      !>  `gnew`.
      logical :: opt_source = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
-     real :: phifac_lin = sqrt(2.)
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
-     real :: qparfac_lin = 4.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
-     real :: qprpfac_lin = 4.
      !> For debugging only. If set then run will print various grid sizes and then stop.
      logical :: test = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
-     real :: tparfac_lin = 2.*sqrt(2.)
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
-     real :: tprpfac_lin = 2.*sqrt(2.)
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
-     real :: uparfac_lin = 2.
      !> For debugging only. Scales the calculated vparallel.
      !>
      !> @note If set to zero then the homogeneous contribution, `g1`, will be
@@ -1302,7 +1271,6 @@ contains
     boundary_option = dist_fn_config%boundary_option
     btor_slab = dist_fn_config%btor_slab
     def_parity = dist_fn_config%def_parity
-    densfac_lin = dist_fn_config%densfac_lin
     driftknob = dist_fn_config%driftknob
     esv = dist_fn_config%esv
     even = dist_fn_config%even
@@ -1321,15 +1289,9 @@ contains
     nonad_zero = dist_fn_config%nonad_zero
     omprimfac = dist_fn_config%omprimfac
     opt_source = dist_fn_config%opt_source
-    phifac_lin = dist_fn_config%phifac_lin
     poisfac = dist_fn_config%poisfac
-    qparfac_lin = dist_fn_config%qparfac_lin
-    qprpfac_lin = dist_fn_config%qprpfac_lin
     test = dist_fn_config%test
-    tparfac_lin = dist_fn_config%tparfac_lin
     tpdriftknob = dist_fn_config%tpdriftknob
-    tprpfac_lin = dist_fn_config%tprpfac_lin
-    uparfac_lin = dist_fn_config%uparfac_lin
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
     wfb_cmr = dist_fn_config%wfb_cmr
@@ -5799,8 +5761,6 @@ contains
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
     complex(real32), dimension(:), intent(out) :: phi_gryfx
     complex, dimension(:,:,:,:), allocatable :: total
-
-    !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
 
     allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
    
@@ -11131,12 +11091,11 @@ contains
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, test, wfb_cmr, zero_forbid
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
-    real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
+    real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
-         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
+         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
+         test, tpdriftknob, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -11148,7 +11107,6 @@ contains
     boundary_option = self%boundary_option
     btor_slab = self%btor_slab
     def_parity = self%def_parity
-    densfac_lin = self%densfac_lin
     driftknob = self%driftknob
     esv = self%esv
     even = self%even
@@ -11167,15 +11125,9 @@ contains
     nonad_zero = self%nonad_zero
     omprimfac = self%omprimfac
     opt_source = self%opt_source
-    phifac_lin = self%phifac_lin
     poisfac = self%poisfac
-    qparfac_lin = self%qparfac_lin
-    qprpfac_lin = self%qprpfac_lin
     test = self%test
-    tparfac_lin = self%tparfac_lin
     tpdriftknob = self%tpdriftknob
-    tprpfac_lin = self%tprpfac_lin
-    uparfac_lin = self%uparfac_lin
     vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
@@ -11192,7 +11144,6 @@ contains
     self%boundary_option = boundary_option
     self%btor_slab = btor_slab
     self%def_parity = def_parity
-    self%densfac_lin = densfac_lin
     self%driftknob = driftknob
     self%esv = esv
     self%even = even
@@ -11211,15 +11162,9 @@ contains
     self%nonad_zero = nonad_zero
     self%omprimfac = omprimfac
     self%opt_source = opt_source
-    self%phifac_lin = phifac_lin
     self%poisfac = poisfac
-    self%qparfac_lin = qparfac_lin
-    self%qprpfac_lin = qprpfac_lin
     self%test = test
-    self%tparfac_lin = tparfac_lin
     self%tpdriftknob = tpdriftknob
-    self%tprpfac_lin = tprpfac_lin
-    self%uparfac_lin = uparfac_lin
     self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
@@ -11247,7 +11192,6 @@ contains
     call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
     call self%write_key_val("def_parity", self%def_parity, unit_internal)
-    call self%write_key_val("densfac_lin", self%densfac_lin, unit_internal)
     call self%write_key_val("driftknob", self%driftknob, unit_internal)
     call self%write_key_val("esv", self%esv, unit_internal)
     call self%write_key_val("even", self%even, unit_internal)
@@ -11266,15 +11210,9 @@ contains
     call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
-    call self%write_key_val("phifac_lin", self%phifac_lin, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
-    call self%write_key_val("qparfac_lin", self%qparfac_lin, unit_internal)
-    call self%write_key_val("qprpfac_lin", self%qprpfac_lin, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
-    call self%write_key_val("tparfac_lin", self%tparfac_lin, unit_internal)
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
-    call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
-    call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
@@ -11304,7 +11242,6 @@ contains
     call broadcast(self%boundary_option)
     call broadcast(self%btor_slab)
     call broadcast(self%def_parity)
-    call broadcast(self%densfac_lin)
     call broadcast(self%driftknob)
     call broadcast(self%esv)
     call broadcast(self%even)
@@ -11323,15 +11260,9 @@ contains
     call broadcast(self%nonad_zero)
     call broadcast(self%omprimfac)
     call broadcast(self%opt_source)
-    call broadcast(self%phifac_lin)
     call broadcast(self%poisfac)
-    call broadcast(self%qparfac_lin)
-    call broadcast(self%qprpfac_lin)
     call broadcast(self%test)
-    call broadcast(self%tparfac_lin)
     call broadcast(self%tpdriftknob)
-    call broadcast(self%tprpfac_lin)
-    call broadcast(self%uparfac_lin)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
