@@ -2,10 +2,10 @@
 import argparse
 import numpy as np
 
-parser = argparse.ArgumentParser(description="Compare variables from two netcdf files.")
+parser = argparse.ArgumentParser(description="Compare variables from two text files")
 
-parser.add_argument("file1", help="Path to first GS2 output .nc file (with .out.nc extension).")
-parser.add_argument("file2", help="Path to second GS2 output .nc file (with .out.nc extension).")
+parser.add_argument("file1", help="Path to first GS2 output file")
+parser.add_argument("file2", help="Path to second GS2 output file")
 
 args = parser.parse_args()
 print(f"Reading {args.file1}, {args.file2}", flush=True)
