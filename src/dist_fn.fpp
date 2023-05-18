@@ -1484,9 +1484,8 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, forbid, &
-         il_is_wfb, il_is_trapped, ittp, can_be_ttp
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use le_grids, only: nlambda, jend, forbid, il_is_wfb, il_is_trapped, ittp, can_be_ttp
+    use gs2_layouts, only: g_lo, il_idx
     use array_utils, only: zero_array
     implicit none
     integer :: ig, ik, it, il, is, iglo
@@ -1502,14 +1501,11 @@ contains
     call zero_array(wdrift) ; call zero_array(wdriftttp)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP PRIVATE(iglo, il, ig, scaling_knob, wdrift_value, wcoriolis_value) &
     !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
-       it=it_idx(g_lo,iglo)
-       ik=ik_idx(g_lo,iglo)
-       is=is_idx(g_lo,iglo)
 
        ! Note here we always treat the wfb as trapped
        if (il_is_wfb(il) .or. il_is_trapped(il)) then
@@ -1520,8 +1516,8 @@ contains
 
        do ig = -ntgrid, ntgrid
           if (forbid(ig, il)) cycle
-          wdrift_value = wdrift_func(ig, it, ik, iglo)
-          wcoriolis_value = wcoriolis_func(ig,it,ik,is,iglo)
+          wdrift_value = wdrift_func(ig, iglo)
+          wcoriolis_value = wcoriolis_func(ig, iglo)
 
           ! Add Coriolis drift to magnetic drifts. Is there a reason we don't scale
           ! this by scaling_knob?
@@ -1532,7 +1528,7 @@ contains
     !$OMP END PARALLEL DO
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP PRIVATE(iglo, il, ig, scaling_knob, wdrift_value, wcoriolis_value) &
     !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, can_be_ttp, &
     !$OMP nlambda, wdriftttp, ittp) &
     !$OMP SCHEDULE(static)
@@ -1540,9 +1536,6 @@ contains
        il=il_idx(g_lo,iglo)
        ! Cycle if this il is never ttp as we only care about ttp here.
        if (.not. can_be_ttp(il)) cycle
-       it=it_idx(g_lo,iglo)
-       ik=ik_idx(g_lo,iglo)
-       is=is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
           ! The below cycles will activate regularly, indicating wdriftttp
           ! may be a relatively inefficent way of storing this
@@ -1569,8 +1562,8 @@ contains
           !only one totally trapped pitch angle; now multiple ttp are
           !allowed). Previously passed ittp(ig) instead of il. Now we pass
           !iglo instead of il (although this is equivalent here).
-          wdrift_value = wdrift_func(ig,it,ik,iglo)
-          wcoriolis_value = wcoriolis_func(ig,it,ik,is,iglo)
+          wdrift_value = wdrift_func(ig, iglo)
+          wcoriolis_value = wcoriolis_func(ig, iglo)
 
           !CMR:  totally trapped particle drifts also scaled by tpdriftknob
           ! add Coriolis drift to magnetic drifts. Is there a reason we don't scale
@@ -1600,17 +1593,22 @@ contains
   !> Calculates the value of the magnetic drifts (curvature + grad-B)
   !> corresponding to the theta grid location given by `ig` for the iglo
   !> index of interest.
-  pure real function wdrift_func (ig, it, ik, iglo)
+  pure real function wdrift_func (ig, iglo)
     use dist_fn_arrays, only: vperp2, vpa
     use theta_grid, only: gbdrift, gbdrift0, cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
     use gs2_time, only: code_dt, wunits
+    use gs2_layouts, only: g_lo, it_idx, ik_idx
     implicit none
-    integer, intent (in) :: ig, ik, it, iglo
+    integer, intent (in) :: ig, iglo
+    integer :: it, ik
     real :: vperp2_local, vpa2_local
 
     vperp2_local = vperp2(ig, iglo)
     vpa2_local = vpa(ig, 1, iglo)**2
+
+    it=it_idx(g_lo,iglo)
+    ik=ik_idx(g_lo,iglo)
 
     ! note that wunits=aky/2 (for wstar_units=F)
     if (aky(ik) == 0.0) then
@@ -1629,15 +1627,20 @@ contains
 
   !> Calculates the value of the Coriolis drift at the location
   !> corresponding to the passed indices.
-  pure real function wcoriolis_func (ig, it, ik, is, iglo)
+  pure real function wcoriolis_func (ig, iglo)
     use dist_fn_arrays, only: vpa
     use theta_grid, only: cdrift, cdrift0, shat
     use kt_grids, only: aky, theta0, akx
     use gs2_time, only: code_dt, wunits
     use species, only: spec
-
+    use gs2_layouts, only: g_lo, it_idx, ik_idx, is_idx
     implicit none
-    integer, intent (in) :: ig, ik, it, is, iglo
+    integer, intent (in) :: ig, iglo
+    integer :: it, ik, is
+
+    it=it_idx(g_lo,iglo)
+    ik=ik_idx(g_lo,iglo)
+    is=is_idx(g_lo,iglo)
 
     if (aky(ik) == 0.0) then
        wcoriolis_func = mach*vpa(ig,1,iglo) &
@@ -8253,7 +8256,7 @@ contains
           do isgn = 1, 2
              ! get v_magnetic piece of g_work at grid points instead of cell centers
              do ig = -ntgrid, ntgrid
-                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,it,ik,iglo)/code_dt &
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
                      * gnew(ig,isgn,iglo)*spec(is)%tz)
              end do
 
