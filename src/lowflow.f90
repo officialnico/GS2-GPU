@@ -176,9 +176,9 @@ contains
     ! intialize mappings from g_lo to e_lo and lz_lo or to le_lo to facilitate
     ! energy and lambda derivatives in parallel nonlinearity, etc.
     if(use_le_layout) then
-      call init_map (use_lz_layout=.false., use_e_layout=.false., use_le_layout=.true., test=.false.)
+       call init_map (use_lz_layout=.false., use_e_layout=.false., use_le_layout=.true., test=.false.)
     else
-      call init_map (use_lz_layout=.true., use_e_layout=.true., use_le_layout=.false., test=.false.)
+       call init_map (use_lz_layout=.true., use_e_layout=.true., use_le_layout=.false., test=.false.)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -217,15 +217,6 @@ contains
        ! this is the contribution from dH^{neo}/dr (part of v_E dot grad F^{neo})
        ! takes care of part of Eq. 60 in MAB's GS2 notes
        wstarfac(:,:,iglo) = wstarfac(:,:,iglo) + tmp4(:,il,ie,:,is)*code_dt*wunits(ik)
-
-       ! this is the contribution from v_E^par . grad F0
-       ! TMP FOR TESTING -- MAB
-!        wstarfac(-ntgrid:ntgrid-1,1,iglo) = wstarfac(-ntgrid:ntgrid-1,1,iglo) &
-!             - 0.5*zi*rhostar*(gds24_noq(-ntgrid:ntgrid-1)+gds24_noq(-ntgrid+1:ntgrid)) &
-!             *drhodpsi*rhoc/qval*code_dt*(spec(is)%fprim+spec(is)%tprim*(energy(ie)-1.5))
-!        wstarfac(-ntgrid:ntgrid-1,2,iglo) = wstarfac(-ntgrid:ntgrid-1,2,iglo) &
-!             - 0.5*zi*rhostar*(gds24_noq(-ntgrid:ntgrid-1)+gds24_noq(-ntgrid+1:ntgrid)) &
-!             *drhodpsi*rhoc/qval*code_dt*(spec(is)%fprim+spec(is)%tprim*(energy(ie)-1.5))
 
        if (.not. lf_default) then
           ! this is the contribution from the last term of the 2nd line of Eq. 43 in
@@ -272,19 +263,6 @@ contains
             * vpadhdec(-ntgrid:ntgrid-1,2,iglo)
        vparterm(ntgrid,:,iglo) = 0.0
 
-       ! redefine vpar from vpa bhat dot grad theta to
-       ! vpa bhat dot grad theta + v_Magnetic dot grad theta
-       ! this accounts for the terms in Sec. 5.1 of MAB's GS2 notes
-       ! TMP FOR TESTING -- MAB
-!         vpar(-ntgrid:ntgrid-1,1,iglo) = vpar(-ntgrid:ntgrid-1,1,iglo) + &
-!              0.5*rhostar*tunits(ik)*code_dt/delthet(-ntgrid:ntgrid-1) &
-!              *(cvdrift_th(-ntgrid:ntgrid-1)*vpac(-ntgrid:ntgrid-1,1,iglo)**2 &
-!              + gbdrift_th(-ntgrid:ntgrid-1)*0.5*(energy(ie)-vpac(-ntgrid:ntgrid-1,1,iglo)**2))
-!         vpar(-ntgrid:ntgrid-1,2,iglo) = vpar(-ntgrid:ntgrid-1,2,iglo) + &
-!              0.5*rhostar*tunits(ik)*code_dt/delthet(-ntgrid:ntgrid-1) &
-!              *(cvdrift_th(-ntgrid:ntgrid-1)*vpac(-ntgrid:ntgrid-1,2,iglo)**2 &
-!              + gbdrift_th(-ntgrid:ntgrid-1)*0.5*(energy(ie)-vpac(-ntgrid:ntgrid-1,2,iglo)**2))
-
        if (aky(ik) == 0) then
           wstar_neo(-ntgrid:ntgrid-1,it,ik) = -0.25*code_dt*akx(it) &
                * tmp8(-ntgrid:ntgrid-1)*(gds24_noq(-ntgrid:ntgrid-1)+gds24_noq(-ntgrid+1:ntgrid))
@@ -295,9 +273,6 @@ contains
        end if
        wstar_neo(ntgrid,it,ik) = 0.0
     end do
-
-    ! TMP FOR TESTING -- MAB
-!    wdfac = 0. ; cdfac = 0. ; hneoc = 1. ; wstarfac = 0. ; wdttpfac = 0. ; vparterm = 0.
 
     ! vparterm is -2*vpar*(1+H^{neo}) - Ze*(vpa . grad phi^{tb})*(dH^{neo}/dE)
     ! note that vpar has contribution from v_{magnetic} . grad theta in it
@@ -328,14 +303,14 @@ contains
        ! add Z^2 * sqrt(m*T^3) * vpa * (bhat . grad(theta)) * d(phineo)/dth term to wdrift
        ! this modification of wdrift takes care of -g term in Eq. 67 of MB's gs2_notes
        ! arises from pulling 1/F0 inside dg/dE term
-        wdrift(-ntgrid:ntgrid-1,1,iglo) = wdrift(-ntgrid:ntgrid-1,1,iglo) &
-             - zi*code_dt*tunits(ik)*vpac(-ntgrid:ntgrid-1,1,iglo) &
-             * spec(is)%zt*spec(is)%zstm*tmp8(-ntgrid:ntgrid-1) &
-             * 0.5*(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))
-        wdrift(-ntgrid:ntgrid-1,2,iglo) = wdrift(-ntgrid:ntgrid-1,2,iglo) &
-             - zi*code_dt*tunits(ik)*vpac(-ntgrid:ntgrid-1,2,iglo) &
-             * spec(is)%zt*spec(is)%zstm*tmp8(-ntgrid:ntgrid-1) &
-             * 0.5*(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))
+       wdrift(-ntgrid:ntgrid-1,1,iglo) = wdrift(-ntgrid:ntgrid-1,1,iglo) &
+            - zi*code_dt*tunits(ik)*vpac(-ntgrid:ntgrid-1,1,iglo) &
+            * spec(is)%zt*spec(is)%zstm*tmp8(-ntgrid:ntgrid-1) &
+            * 0.5*(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))
+       wdrift(-ntgrid:ntgrid-1,2,iglo) = wdrift(-ntgrid:ntgrid-1,2,iglo) &
+            - zi*code_dt*tunits(ik)*vpac(-ntgrid:ntgrid-1,2,iglo) &
+            * spec(is)%zt*spec(is)%zstm*tmp8(-ntgrid:ntgrid-1) &
+            * 0.5*(abs(gradpar(-ntgrid:ntgrid-1)) + abs(gradpar(-ntgrid+1:ntgrid)))
 
        ! hneoc below accounts for usual wstar term, as well as last of three terms
        ! multiplying F_1 in Eq. 42 of MAB'S GS2 notes
@@ -459,12 +434,7 @@ contains
     integer :: il, ie, is, ns, nc, nl, nr, ig, ixi, ir, ir_loc
     integer :: ntheta, nlambda, nenergy, nxi
     integer, save :: neo_unit, neot_unit
-
-!    logical, save :: initialized = .false.
     logical, dimension (:,:), allocatable :: forbid
-
-!    if (initialized) return
-!    initialized = .true.
 
     ntheta = size(theta)
     nlambda = size(al)
@@ -523,8 +493,6 @@ contains
           emax(2,is) = 16.0 ! this is EMAX for center grid point
           emax(1,is) = emax(2,is)*temp_neo(1,is)
           emax(3,is) = emax(2,is)*temp_neo(3,is)
-!          emax(1,is) = emax(2,is)*(1.0-spec(is)%tprim*(rad_neo(1)-rad_neo(2)))
-!          emax(3,is) = emax(2,is)*(1.0-spec(is)%tprim*(rad_neo(3)-rad_neo(2)))
        end do
     else
        emax = 16.0
@@ -619,20 +587,6 @@ contains
                    end do
                 end do
              end do
-!              drlt = drad_neo(ir)*spec(is)%tprim ; drln = drad_neo(ir)*spec(is)%fprim
-!              do ie = 1, nenergy
-!                 w_r(ie) = w(ie) * exp(energy(ie)*(1.0-1.0/(1.0-drlt))) / (1.0-drlt)**1.5
-!                 do ixi = 1, nxi
-!                    il = min(ixi, nxi+1-ixi)
-!                    do ig = 1, ntheta
-!                       upar(ir,is,ig) = upar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-!                            * sqrt(energy(ie))*xi(ig,ixi) * w_r(ie) * wl(-ntgrid+ig-1,il)
-!                       qpar(ir,is,ig) = qpar(ir,is,ig) + hneo(ir,ig,ixi,ie,is) &
-!                            * sqrt(energy(ie))*xi(ig,ixi)*(energy(ie)-2.5*(1.0-drlt)) &
-!                            * (1.0-drln) * w_r(ie) * wl(-ntgrid+ig-1,il)
-!                    end do
-!                 end do
-!              end do
           end do
        end do
 
@@ -656,7 +610,7 @@ contains
        ! upar_over_b/rgeo2 = -(omega_phi * a / v_{t,ref}) * (a/R0)
 
        call open_output_file (neot_unit,".neotransp")
-      ! print out in ".neotransp" file
+       ! print out in ".neotransp" file
        write (neot_unit,fmt='(a14,a8,12a14)') "# 1) rad", "2) spec", "3) pflx", "4) qflx", "5) vflx", &
             "6) qparflx", "7) uparB(GS2)", "8) upar1(NEO)", "9) <phi**2>", "10) bootstrap", "11) upar_o_B", &
             "12) upar2", "13) qpar2", "14) phi2"
@@ -684,27 +638,11 @@ contains
 
     ! Here only to set up F_1/F_0 = xi*(v/vth)*(a + b*(v/vth)^2)
     if (lf_decompose) then
-
-       ! for testing
-!       upar = 0.
-!       qpar(1,:,:) = qpar(2,:,:) ; qpar(3,:,:) = qpar(2,:,:)
-!       qpar = 0.
-       ! added after doing the qpar=0 test (to decouple upar and dupar/dr effects)
-!       upar(1,:,:) = upar(2,:,:) ; upar(3,:,:) = upar(2,:,:)
-       ! added after doing the qpar=0,du/dr=0 test...am eliminating the du/dtheta effect
-!       do is = 1, ns
-!          do ir = 1, nr
-!             upar(ir,is,:) = sum(upar(ir,is,:)*dl_over_b)
-!          end do
-!       end do
-
        do is = 1, ns
           do ir = 1, nr
              drlt = drad_neo(ir)*spec(is)%tprim ; drln = drad_neo(ir)*spec(is)%fprim
              afac(ir,is,:) = 2.*(upar(ir,is,:)-qpar(ir,is,:)/(1.0-drln) - drlt*upar(ir,is,:))/(1.0-drlt)**2
              bfac(ir,is,:) = 0.8*qpar(ir,is,:) / ((1.0-drln) * (1.0-drlt)**3)
-!             afac(ir,is,:) = 2.*(upar(ir,is,:)-qpar(ir,is,:)/(1.0-drln)/(1.0-drlt))/sqrt(1.0-drlt)
-!             bfac(ir,is,:) = 0.8*qpar(ir,is,:) / ((1.0-drln) * (1.0-drlt)**1.5)
           end do
        end do
 
@@ -767,20 +705,6 @@ contains
        call get_radgrad (phineo(:,ig), rad_neo, ir_loc, dphidr(ig,1))
     end do
 
-    ! get radial derivative of F_1/F_0 at fixed (xi,E)
-    ! note that F_1/F_0 = H_1/F_0 - Z_s * e * Phi / T_s
-!     do is = 1, ns
-!        do ig = 1, ntheta
-!           do ie = 0, nc-1
-!              do ixi = 0, nl
-!                 ! get radial derivative of spectral coefficients of H_1/H_0
-!                 call get_radgrad (coefs(:,ig,ixi,ie,is), rad_neo, ir_loc, dcoefsdr(ixi,ie))
-!              end do
-!           end do
-!           call get_gradH (dcoefsdr, dphidr(ig,is), legp(ig,:,:), chebyp1(ir_loc,:,:,is), dHdr(ig,:,:,is))
-!        end do
-!     end do
-
     ! get theta derivative of F_1/F_0 at fixed (xi,E)
     do is = 1, ns
        do ie = 0, nc-1
@@ -808,33 +732,14 @@ contains
     ! note that F_1/F_0 = H_1/F_0 - Z_s * e * Phi / T_s
     do is = 1, ns
        do ig = 1, ntheta
-!          do ie = 0, nc-1
-!             do ixi = 0, nl
-!                ! get radial derivative of spectral coefficients of H_1/H_0
-!                call get_radgrad (coefs(:,ig,ixi,ie,is), rad_neo, ir_loc, dcoefsdr(ixi,ie))
           do ie = 1, nenergy
              do ixi = 1, nxi
                 call get_radgrad (hneo(:,ig,ixi,ie,is), rad_neo, ir_loc, dHdr(ig,ixi,ie,is))
              end do
           end do
-!          call get_gradH (dcoefsdr, dphidr(ig,is), legp(ig,:,:), chebyp1(ir_loc,:,:,is), dHdr(ig,:,:,is))
        end do
     end do
 
-    ! get dH/dtheta and dH/dr
-!     do is = 1, ns
-!        do ie = 1, nenergy
-!           do ixi = 1, nxi
-!              do ig = 1, ntheta
-!                 call get_dHdr (hneo(:,ig,ixi,ie,is), rad_neo, ir_loc, dHdr(ig,ixi,ie,is))
-!              end do
-!              call get_dHdth (hneo(ir_loc,:,ixi,ie,is), theta, dHdth(:,ixi,ie,is))
-!           end do
-!        end do
-!     end do
-
-! deprecated ->    ! this is actually dphi/dr - phi*d(ln T)/dr, where phi = e*Phi/Tref
-!    dphidrc(1:ntheta-1) = 0.5*(dphidr(1:ntheta-1,1) + dphidr(2:ntheta,1))/spec(1)%zt
     dphidrc(1:ntheta-1) = 0.5*(dphidr(1:ntheta-1,1) + dphidr(2:ntheta,1))
     dphidrc(ntheta) = dphidrc(1)
     dphidthc(1:ntheta-1) = 0.5*(dphidth(1:ntheta-1) + dphidth(2:ntheta))
@@ -1043,12 +948,12 @@ contains
     do ix = 1, size(x)
        do ik = 0, size(gjk,2)-1
           if (ik==0) then
-! cfac nonzero here if hneo = F_1 instead of F_1/F_0
-!             cfac = -chebyshv1(ix,ik)
+             ! cfac nonzero here if hneo = F_1 instead of F_1/F_0
+             !             cfac = -chebyshv1(ix,ik)
              cfac = 0.0
           else
-! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
-!             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
+             ! extra chebyshv1 term not needed since hneo = F_1/F_0 instead of F_1
+             !             cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)-chebyshv1(ix,ik)
              cfac = ik/sqrt(xmax*x(ix))*chebyshv2(ix,ik-1)
           end if
           do ij = 0, size(gjk,1)-1
@@ -1240,7 +1145,7 @@ contains
                       end do
                       call lf_spline (theta_neo_ext, neo_coefs_ext, theta, coefs(ir,:,ij,ik,is), dum)  !JPL
                    else
-                   ! need to interpolate coefficients from neo's theta grid to gs2's
+                      ! need to interpolate coefficients from neo's theta grid to gs2's
                       call lf_spline (theta_neo, neo_coefs, theta, coefs(ir,:,ij,ik,is), dum)
                    end if
                 end do
@@ -1272,7 +1177,7 @@ contains
           end do
 
           ! TMP FOR TESTING -- MAB
-!          neo_phi = 0.
+          !          neo_phi = 0.
 
           ! need to interpolate coefficients from neo's theta grid to gs2's
           if ( ptheta_neo .gt. 1) then
