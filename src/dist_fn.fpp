@@ -1511,13 +1511,10 @@ contains
        ik=ik_idx(g_lo,iglo)
        is=is_idx(g_lo,iglo)
 
-       !CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
+       ! Note here we always treat the wfb as trapped
        if (il_is_wfb(il) .or. il_is_trapped(il)) then
-          !CMR:  multiply trapped particle drift by tpdriftknob
-          !CMR:               (tpdriftknob defaults to driftknob if not supplied)
           scaling_knob = tpdriftknob
        else
-          !CMR:  multiply passing particle drift by driftknob
           scaling_knob = driftknob
        end if
 
