@@ -1597,7 +1597,9 @@ contains
 
   end subroutine init_wdrift
 
-  !> FIXME : Add documentation  
+  !> Calculates the value of the magnetic drifts (curvature + grad-B)
+  !> corresponding to the theta grid location given by `ig` for the iglo
+  !> index of interest.
   pure real function wdrift_func (ig, it, ik, iglo)
     use dist_fn_arrays, only: vperp2, vpa
     use theta_grid, only: gbdrift, gbdrift0, cvdrift, cvdrift0, shat
@@ -1625,7 +1627,8 @@ contains
     end if
   end function wdrift_func
 
-  !> FIXME : Add documentation
+  !> Calculates the value of the Coriolis drift at the location
+  !> corresponding to the passed indices.
   pure real function wcoriolis_func (ig, it, ik, is, iglo)
     use dist_fn_arrays, only: vpa
     use theta_grid, only: cdrift, cdrift0, shat
