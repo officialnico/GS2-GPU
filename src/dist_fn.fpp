@@ -1994,12 +1994,12 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid-1
-# ifdef LOWFLOW
-             wd = wdrift(ig,isgn,iglo) + wstar_neo(ig,it,ik)*spec(is)%zt
-             wdttp = wdriftttp(ig, isgn, iglo) + wstar_neo(ig,it,ik)*spec(is)%zt
-# else
              wd = wdrift(ig,isgn,iglo)
              wdttp = wdriftttp(ig, isgn, iglo)
+
+# ifdef LOWFLOW
+             wd = wd + wstar_neo(ig,it,ik)*spec(is)%zt
+             wdttp = wdttp + wstar_neo(ig,it,ik)*spec(is)%zt
 # endif
 
              ! use positive vpar because we will be flipping sign of d/dz
