@@ -22,10 +22,7 @@ except ValueError:
     with open(args.file2) as f:
         text2 = f.read()
     are_same = text1 == text2
-
-
-with open("tmpdata.dat", "w") as text_file:
-    if not are_same:
-        text_file.write("F")
-    else:
-        text_file.write("T")
+finally:
+    with open("tmpdata.dat", "w") as text_file:
+        fortran_value = "T" if are_same else "F"
+        text_file.write(fortran_value)
