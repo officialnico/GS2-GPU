@@ -109,7 +109,7 @@ module dist_fn
   integer, dimension (:), allocatable :: bd_exp ! nspec
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
-  real :: phi_ext, afilter, kfilter
+  real :: phi_ext, afilter
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
@@ -355,10 +355,6 @@ module dist_fn
      !> Determines if we include the hyperviscosity term during the
      !> initialisation of the response matrix or not.
      logical :: hyper_in_initialisation = .true.
-     !> For debugging only.
-     !>_
-     !> @todo Improve documentation
-     real :: kfilter = 0.0
      !> Set up lowflow term \(F_1/F_0 = xi*(v/v_{th})*(a + b*(v/v_{th})^2)\)
      logical :: lf_decompose = .false.
      !> Treatment of radial variation of temperature in NEO energy variable:
@@ -857,7 +853,6 @@ contains
        if (driftknob /= 1.) write (unit, fmt="(' driftknob = ',e17.10)") driftknob
        if (tpdriftknob /= 1.) write (unit, fmt="(' tpdriftknob = ',e17.10)") tpdriftknob
        if (poisfac /= 0.) write (unit, fmt="(' poisfac = ',e17.10)") poisfac
-       if (kfilter /= 0.) write (unit, fmt="(' kfilter = ',e17.10)") kfilter
        if (afilter /= 0.) write (unit, fmt="(' afilter = ',e17.10)") afilter
        if (mult_imp) write (unit, fmt="(' mult_imp = ',L1)") mult_imp
        if (test) write (unit, fmt="(' test = ',L1)") test
@@ -1338,7 +1333,6 @@ contains
     gf_lo_integrate = dist_fn_config%gf_lo_integrate
     gridfac = dist_fn_config%gridfac
     hyper_in_initialisation = dist_fn_config%hyper_in_initialisation
-    kfilter = dist_fn_config%kfilter
     lf_decompose = dist_fn_config%lf_decompose
     lf_default = dist_fn_config%lf_default
     mach = dist_fn_config%mach
@@ -5585,7 +5579,6 @@ contains
        wgt = spec%z*spec%dens
        call integrate_species (g_work, wgt, antot)
 
-!    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
     end if
@@ -5607,7 +5600,6 @@ contains
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
-!    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     end if
 
@@ -5628,7 +5620,6 @@ contains
 
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
-!    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     end if
 
@@ -11162,11 +11153,11 @@ contains
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
     logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
+    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
     real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
+         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
          test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
@@ -11191,7 +11182,6 @@ contains
     gf_lo_integrate = self%gf_lo_integrate
     gridfac = self%gridfac
     hyper_in_initialisation = self%hyper_in_initialisation
-    kfilter = self%kfilter
     lf_decompose = self%lf_decompose
     lf_default = self%lf_default
     mach = self%mach
@@ -11237,7 +11227,6 @@ contains
     self%gf_lo_integrate = gf_lo_integrate
     self%gridfac = gridfac
     self%hyper_in_initialisation = hyper_in_initialisation
-    self%kfilter = kfilter
     self%lf_decompose = lf_decompose
     self%lf_default = lf_default
     self%mach = mach
@@ -11294,7 +11283,6 @@ contains
     call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
     call self%write_key_val("gridfac", self%gridfac, unit_internal)
     call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
-    call self%write_key_val("kfilter", self%kfilter, unit_internal)
     call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
     call self%write_key_val("lf_default", self%lf_default, unit_internal)
     call self%write_key_val("mach", self%mach, unit_internal)
@@ -11353,7 +11341,6 @@ contains
     call broadcast(self%gf_lo_integrate)
     call broadcast(self%gridfac)
     call broadcast(self%hyper_in_initialisation)
-    call broadcast(self%kfilter)
     call broadcast(self%lf_decompose)
     call broadcast(self%lf_default)
     call broadcast(self%mach)
