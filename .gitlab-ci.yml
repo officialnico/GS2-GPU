@@ -114,6 +114,7 @@ standard_tests:
 openmp_tests:
   stage: test
   image: fedora:37
+  tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
