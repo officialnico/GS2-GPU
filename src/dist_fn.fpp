@@ -1058,6 +1058,11 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_wdrift"
     call init_wdrift
 
+#ifdef LOWFLOW
+    if (debug) write(6,*) "init_dist_fn: init_wcurv"
+    call init_wcurv
+#endif
+
     if (debug) write(6,*) "init_dist_fn: init_wstar"
     call init_wstar
 
@@ -1479,14 +1484,14 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
+    use le_grids, only: nlambda, jend, forbid, &
          il_is_wfb, il_is_trapped, ittp, can_be_ttp
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use array_utils, only: zero_array
     implicit none
-    integer :: ig, ik, it, il, ie, is, iglo
+    integer :: ig, ik, it, il, is, iglo
     real :: scaling_knob, wdrift_value, wcoriolis_value
-    logical,parameter :: debug = .false.
+    logical, parameter :: debug = .false.
 
     if (.not. allocated(wdrift)) then
        ! allocate wdrift with sign(vpa) dependence because will contain
@@ -1495,18 +1500,10 @@ contains
        allocate (wdriftttp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     end if
     call zero_array(wdrift) ; call zero_array(wdriftttp)
-#ifdef LOWFLOW
-    if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
-    call zero_array(wcurv)
-#endif
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob, wdrift_value, wcoriolis_value) &
-    !$OMP SHARED( &
-#ifdef LOWFLOW
-    !$OMP wcurv, &
-#endif
-    !$OMP g_lo, tpdriftknob, driftknob, ntgrid, forbid, wdrift) &
+    !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
@@ -1533,10 +1530,6 @@ contains
           ! this by scaling_knob?
           wdrift(ig, 1, iglo) = wdrift_value * scaling_knob + wcoriolis_value
           wdrift(ig, 2, iglo) = wdrift_value * scaling_knob - wcoriolis_value
-
-#ifdef LOWFLOW
-          wcurv(ig,iglo) = wcurv_func(ig, it, ik) * scaling_knob
-#endif
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1594,18 +1587,11 @@ contains
     ! This should be weighted by bakdif to be completely consistent
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ig) &
-    !$OMP SHARED(&
-#ifdef LOWFLOW
-    !$OMP wcurv, &
-#endif
-    !$OMP g_lo, ntgrid, wdrift) &
+    !$OMP SHARED(g_lo, ntgrid, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do ig = -ntgrid, ntgrid-1
           wdrift(ig,:,iglo) = 0.5*(wdrift(ig,:,iglo) + wdrift(ig+1,:,iglo))
-#ifdef LOWFLOW
-          wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
-#endif
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1642,26 +1628,6 @@ contains
     end if
   end function wdrift_func
 
-#ifdef LOWFLOW
-  !> FIXME : Add documentation  
-  function wcurv_func (ig, it, ik)
-    use theta_grid, only: cvdrift, cvdrift0, shat
-    use kt_grids, only: aky, theta0, akx
-    use gs2_time, only: code_dt, wunits
-    implicit none
-    real :: wcurv_func
-    integer, intent (in) :: ig, ik, it
-
-    if (aky(ik) == 0.0) then
-       wcurv_func = akx(it)/shat &
-            * cvdrift0(ig) * code_dt/2.0
-    else
-       wcurv_func = (cvdrift(ig) + theta0(it,ik)*cvdrift0(ig)) &
-            *code_dt*wunits(ik)
-    end if
-  end function wcurv_func
-#endif
-
   !> FIXME : Add documentation
   pure real function wcoriolis_func (ig, it, ik, is, iglo)
     use dist_fn_arrays, only: vpa
@@ -1682,6 +1648,78 @@ contains
     end if
 
   end function wcoriolis_func
+
+#ifdef LOWFLOW
+  !> FIXME : Add documentation
+  subroutine init_wcurv
+    use theta_grid, only: ntgrid
+    use le_grids, only: forbid, il_is_wfb, il_is_trapped
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: zero_array
+    implicit none
+    integer :: ig, ik, it, il, ie, is, iglo
+    real :: scaling_knob
+    logical,parameter :: debug = .false.
+
+    if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
+    call zero_array(wcurv)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob) &
+    !$OMP SHARED( wcurv, g_lo, tpdriftknob, driftknob, ntgrid, forbid) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il=il_idx(g_lo,iglo)
+       it=it_idx(g_lo,iglo)
+       ik=ik_idx(g_lo,iglo)
+       is=is_idx(g_lo,iglo)
+
+       if (il_is_wfb(il) .or. il_is_trapped(il)) then
+          scaling_knob = tpdriftknob
+       else
+          scaling_knob = driftknob
+       end if
+
+       do ig = -ntgrid, ntgrid
+          if (forbid(ig, il)) cycle
+          wcurv(ig,iglo) = wcurv_func(ig, it, ik) * scaling_knob
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    ! This should be weighted by bakdif to be completely consistent
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ig) &
+    !$OMP SHARED(g_lo, ntgrid, wcurv) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       do ig = -ntgrid, ntgrid-1
+          wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    if (debug) write(6,*) 'init_wcurv: driftknob, tpdriftknob=',driftknob,tpdriftknob
+
+  end subroutine init_wcurv
+
+  !> FIXME : Add documentation
+  pure real function wcurv_func (ig, it, ik)
+    use theta_grid, only: cvdrift, cvdrift0, shat
+    use kt_grids, only: aky, theta0, akx
+    use gs2_time, only: code_dt, wunits
+    implicit none
+    integer, intent (in) :: ig, ik, it
+
+    if (aky(ik) == 0.0) then
+       wcurv_func = akx(it)/shat &
+            * cvdrift0(ig) * code_dt/2.0
+    else
+       wcurv_func = (cvdrift(ig) + theta0(it,ik)*cvdrift0(ig)) &
+            *code_dt*wunits(ik)
+    end if
+  end function wcurv_func
+#endif
 
   !> FIXME : Add documentation  
   subroutine init_vperp2
