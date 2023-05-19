@@ -56,10 +56,7 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     real, intent (out) :: phase_tot, phase_theta
     complex, dimension (:,:,:,:), allocatable :: ntot, tperp
-    !complex, dimension (ntheta0, naky) :: nTp_by_mode
     complex :: nTp
-    !    real, dimension (ntheta0, naky) :: n2_by_mode, T2_by_mode
-    !    real :: n2, T2
     integer ::  is
     
     allocate ( ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))
@@ -70,16 +67,10 @@ contains
     do is = 1,nspec
        if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
-          !call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
           call average_all(ntot(0,:,:,is), tperp(0,:,:,is), nTp, gnostics%distributed)
-!!!          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
-          !          call get_vol_average (tperp(0,:,:,is), tperp(0,:,:,is), T2, T2_by_mode)
           phase_theta = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
           ! get integrated cross_phase 
           call average_all(ntot(:,:,:,is), tperp(:,:,:,is), nTp, gnostics%distributed)
-          !call get_vol_int (ntot(:,:,:,is), tperp(:,:,:,is), nTp, nTp_by_mode)
-          !          call get_vol_average (ntot(:,:,:,is), ntot(:,:,:,is), n2, n2_by_mode)
-          !          call get_vol_average (tperp(:,:,:,is), tperp(:,:,:,is), T2, T2_by_mode)
           phase_tot = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
        end if
     end do

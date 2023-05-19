@@ -172,18 +172,8 @@ contains
     lcoll = 0.0; fdcoll = 0.0; glze = 0.0; ltmp = 0.0; ftmp = 0.0
     etmp = 0.0; emax = 0.0; etot = 0.0; eavg = 0.0; edenom = 1.0; ltmax = 1.0
 
-!    if (first .and. proc0) then
-    !if (.not.cerrinit .and. proc0) then
-!!       first = .false.
-       !cerrinit = .true.
-    !end if
-
-! convert gnew from g to h
     call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
-
     g0 = gnew
-
-! convert gnew from h back to g
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
 ! map from g0(ig,isgn,iglo) to glze(il,ilz)

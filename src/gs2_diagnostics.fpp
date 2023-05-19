@@ -3234,13 +3234,9 @@ contains
        if (is_electron_species(spec(is))) then
           ! get cross_phase at outboard midplane
           call get_vol_int (ntot(0,:,:,is), tperp(0,:,:,is), nTp, nTp_by_mode)
-          !          call get_vol_average (ntot(0,:,:,is), ntot(0,:,:,is), n2, n2_by_mode)
-          !          call get_vol_average (tperp(0,:,:,is), tperp(0,:,:,is), T2, T2_by_mode)
           phase_theta = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
           ! get integrated cross_phase 
           call get_vol_int (ntot(:,:,:,is), tperp(:,:,:,is), nTp, nTp_by_mode)
-          !          call get_vol_average (ntot(:,:,:,is), ntot(:,:,:,is), n2, n2_by_mode)
-          !          call get_vol_average (tperp(:,:,:,is), tperp(:,:,:,is), T2, T2_by_mode)
           phase_tot = atan2(aimag(nTp),real(nTp))!/sqrt(n2*T2)
        end if
     end do
@@ -3337,37 +3333,12 @@ contains
     real, dimension (:), allocatable :: dl_over_b
     complex, dimension (:,:,:), allocatable :: phiextend
     complex, dimension (:,:), allocatable :: phir
-    !    real, dimension (:), allocatable :: phisum
 
     allocate (dl_over_b(2*ntgrid+1))
     dl_over_b = delthet*jacob
 
-    !    allocate (theta_extend(ntg_extend)) ; theta_extend = 0.0
-    !    do ig = 1, (ntheta0-1)/jtwist_out+1
-    !       theta_extend((ig-1)*(2*ntgrid+1)+1:ig*(2*ntgrid+1)) = pi+theta+(ig-1)*2.*pi
-    !    end do
-    !    theta_extend = theta_extend - theta_extend(size(theta_extend))/2.
-
     allocate (phiextend(ntg_extend,ntheta0,naky)) ; phiextend = 0.0
     allocate (phir(-ntgrid:ntgrid,ntheta0))
-    !    allocate (phisum(naky))
-
-    !    phisum = 0.0 ; cfnc_2pi = 0.0
-    !     do ik = 1, naky
-    !        if (ik==1) then
-    !           fac = 1.0
-    !        else
-    !           fac = 0.5
-    !        end if
-    !        ! integrate over x
-    !        do it = 1, ntheta0
-    !           do ig = -ntgrid, ntgrid
-    !              cfnc_2pi(ig,ik) = cfnc_2pi(ig,ik) + phinew(0,it,ik)*conjg(phinew(ig,it,ik))*fac
-    !           end do
-    ! !          phisum(ik) = phisum(ik) + phinew(0,it,ik)*conjg(0,it,ik)*fac
-    !        end do
-    ! !       cfnc_2pi(:,ik) = cfnc_2pi(:,ik)/phisum(ik)
-    !     end do
 
     cfnc = 0.0 ; phiextend = 0.0
     offset = ((ntheta0-1)/jtwist_out)*(2*ntgrid+1)/2

@@ -145,12 +145,5 @@ contains
             gnostics%current_results%bpar2, & 
             gnostics%current_results%species_bpar_heat_flux(1:min(nspec,5))
     end if
-    
-    ! Below TBC. EGH
-!#ifdef LOWFLOW
-    !write (unit=outunit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-    !& ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-    !t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
-!#endif
-    end subroutine output_flux_line
+  end subroutine output_flux_line
 end module diagnostics_printout

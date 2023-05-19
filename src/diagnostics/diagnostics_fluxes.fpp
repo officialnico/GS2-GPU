@@ -113,8 +113,6 @@ contains
     gnostics%current_results%species_heat_flux = 0.0
     gnostics%current_results%species_momentum_flux = 0.0
     gnostics%current_results%species_particle_flux = 0.0
-       
-    !write(*,*) 'starting fluxxxx'
 
     if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
          call write_diffusive_estimates(gnostics)
@@ -133,9 +131,8 @@ contains
 
       call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
       call eexchange (phinew, phi, exchange1, exchange)
-    end if ! if (.not. gnostics%replay)
+    end if
       
-      !write (*,*) 'fphi is', fphi
       if (has_phi) then
          do is = 1, nspec
             qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
@@ -157,7 +154,7 @@ contains
             vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
 #endif
          end do
-       !write(*,*) 'continuing fluxxxx'
+
        call calculate_standard_flux_properties(gnostics, &
             'es_heat_flux',  'Turbulent flux of heat', 'Q_gB = ', qheat(:,:,:,1), gnostics%distributed)
        call calculate_standard_flux_properties(gnostics, &
@@ -256,17 +253,12 @@ contains
     end if
     
     ! Update averages
-    !if (.not. gnostics%replay .or. gnostics%reed) then
-      !write (*,*) 'Setting averages in fluxxxx', gnostics%current_results%species_heat_flux_avg, gnostics%current_results%species_heat_flux, (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_heat_flux_avg = gnostics%current_results%species_heat_flux_avg + & 
-           gnostics%current_results%species_heat_flux * (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_particle_flux_avg = gnostics%current_results%species_particle_flux_avg + & 
-           gnostics%current_results%species_particle_flux * (gnostics%user_time-gnostics%user_time_old)
-      gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + & 
-           gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
-       !end if
-    ! Don't need to broadcast them any more as fluxes are now calculated on all
-    ! processors
+    gnostics%current_results%species_heat_flux_avg = gnostics%current_results%species_heat_flux_avg + &
+         gnostics%current_results%species_heat_flux * (gnostics%user_time-gnostics%user_time_old)
+    gnostics%current_results%species_particle_flux_avg = gnostics%current_results%species_particle_flux_avg + &
+         gnostics%current_results%species_particle_flux * (gnostics%user_time-gnostics%user_time_old)
+    gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + &
+         gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
     
     ! Write totals
     if (gnostics%write_fluxes .and. gnostics%wryte) then
@@ -347,10 +339,7 @@ contains
           end if
        end do
     end do
-     
-    
-    !if (gnostics%reed) write (*,*) 'diffusivity_by_k', maxval(diffusivity_by_k), gnostics%istep
-    
+
     if (gnostics%distributed) call sum_allreduce(diffusivity_by_k)
 
     gnostics%current_results%diffusivity = &
@@ -408,7 +397,6 @@ contains
     type(diagnostics_type), intent(inout) :: gnostics
     character(*), intent(in) :: flux_name, flux_description, flux_units
     real, dimension(ntheta0,naky,nspec), intent(inout) :: flux_value
-    !real, dimension(ntheta0,naky,nspec) :: flux_value_temp
     logical, intent(in) :: distributed
     real, dimension(ntheta0, naky) :: total_flux_by_mode
     real, dimension(naky) :: total_flux_by_ky
@@ -416,13 +404,7 @@ contains
     real, dimension(nspec) :: flux_by_species
     integer :: is, ik, it
 
-    !call broadcast(flux_value)
-
     call average_all(flux_value, flux_by_species, distributed) 
-
-    !flux_value_temp = flux_value
-
-    !call broadcast(flux_value_temp)
 
     total_flux_by_mode = 0.
     do ik = 1,naky
@@ -435,12 +417,6 @@ contains
         end if
       end do
     end do
-
-    !Is this dead?
-    !if (gnostics%write_fluxes_by_mode) then 
-    !if (gnostics%write_fluxes) call create_and_write_flux_by_mode(gnostics, flux_name, flux_description, flux_units, &
-    !flux_value, total_flux_by_mode, distributed)
-    !end if
 
     call average_kx(total_flux_by_mode, total_flux_by_ky, distributed)
     call average_ky(total_flux_by_mode, total_flux_by_kx, distributed)
@@ -476,10 +452,8 @@ contains
 
       end if
     end if
-    !write(*,*) 'flux_by_species', flux_by_species
 
     if (flux_name .eq. 'es_heat_flux') gnostics%current_results%species_es_heat_flux = flux_by_species
-    !write (*,*) 'setting heat flux'
     if (flux_name .eq. 'es_energy_exchange') gnostics%current_results%species_energy_exchange = flux_by_species
     if (flux_name .eq. 'apar_heat_flux') gnostics%current_results%species_apar_heat_flux = flux_by_species
     if (flux_name .eq. 'bpar_heat_flux') gnostics%current_results%species_bpar_heat_flux = flux_by_species

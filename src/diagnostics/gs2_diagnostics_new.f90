@@ -93,11 +93,6 @@ contains
 
     if (.not. gnostics%write_any) return
 
-    ! For the moment, hardwire these so as not to 
-    ! conflict with the old module. 
-    !gnostics%save_for_restart = .false.
-    !gnostics%save_distfn = .false.
-    
     ! Set whether this is a Trinity run.. enforces certain 
     ! calculations
     gnostics%is_trinity_run = init_options%is_trinity_run
@@ -168,7 +163,6 @@ contains
          gnostics%appending=.false.
          gnostics%file_id = neasyf_open(trim(filename), "w")
          call create_metadata(gnostics%file_id, "GS2 Simulation Data", header, user_comments)
-         ! call write_metadata(gnostics)
          call debug_message(gnostics%verbosity, &
            'gs2_diagnostics_new::init_gs2_diagnostics_new written metadata')
 
@@ -255,7 +249,6 @@ contains
     use diagnostics_antenna, only: finish_diagnostics_antenna
     use diagnostics_nonlinear_convergence, only: finish_nonlinear_convergence
     use diagnostics_velocity_space, only: finish_diagnostics_velocity_space
-!    use diagnostics_zonal_transfer, only: finish_diagnostics_transfer  !!! new diagnostic
     use collisional_heating, only: finish_collisional
     use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom
     use nonlinear_terms, only: nonlin
@@ -283,14 +276,10 @@ contains
     end if
     
     deallocate(gnostics%fluxfac)
-    call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-         & finishing submodules')
+    call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new finishing submodules')
     call finish_diagnostics_fluxes
     call finish_diagnostics_omega
-    
-!    call finish_diagnostics_transfer  !!!! new diagnostics
     call finish_collisional
-    
     call finish_diagnostics_antenna(gnostics)
     call finish_diagnostics_velocity_space()
     
@@ -300,7 +289,6 @@ contains
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
        call neasyf_close(gnostics%file_id)
     end if
-    !if (gnostics%write_ascii .and. proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     
     ! Random stuff that needs to be put in properly or removed
@@ -308,7 +296,6 @@ contains
     if (gnostics%write_g) call write_f (.true.)
     if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.true.,gnostics%istep)
     if (gnostics%write_ascii) call do_write_geom()
-    !if (gnostics%write_cerr) call collision_error(phinew,bparnew,.true.)
     
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
@@ -326,7 +313,6 @@ contains
       mod(gnostics%istep,nwrite_large) == 0) call write_fyx (phinew,bparnew,.false.)
     if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
     if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.false.,gnostics%istep)
-    !if (gnostics%write_cerr) call collision_error(phinew,bparnew,.false.)
   end subroutine run_diagnostics_to_be_updated
   
   !> Create or write all variables according to the value of istep:
@@ -406,23 +392,17 @@ contains
     if(istep_in == -1) istep = 0
     gnostics%istep = istep
     
-    !gnostics%wryte = .false.
-    
     ! Sets whether field-like arrays are assumed
     ! to be distributed across processes
     ! This line is a temporary placeholder
     ! till distributed fields are up and running
     gnostics%distributed = gnostics%parallel
-    !gnostics%distributed = .false.
     
     gnostics%calculate_fluxes = (gnostics%write_fluxes &
          .or.  gnostics%print_flux_line &
          .or.  gnostics%write_flux_line &
          .or.  gnostics%is_trinity_run)
 
-
-    !write (*,*) 'gnostics calculate_fluxes', gnostics%calculate_fluxes
-    
     gnostics%user_time = user_time
     if (istep .eq. 0) gnostics%start_time = user_time
     
@@ -434,11 +414,6 @@ contains
 
     call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics calculated &
       & omega and heating')
-
-    ! EGH to be reinstated when old diagnostics removed.
-    !if (mod(istep, gnostics%nsave).eq.0.or.exit) then
-      !call save_restart_dist_fn
-    !end if
 
     if ((istep /= istep_last) .and. (mod(istep, gnostics%nwrite) == 0 .or. gnostics%exit .or. do_force)) then
        ! If istep_in = -1 (to indicate we're setting things up) then we enter
@@ -510,9 +485,6 @@ contains
        if (proc0 .and. gnostics%write_ascii) call flush_output_files(gnostics%ascii_files)
        
        ! Update time used for time averages
-       !write (*,*) 'updating user_time_old', gnostics%user_time
-       !if ((.not. gnostics%replay .and. .not. read_existing) .or. (gnostics%replay .and. read_existing)) gnostics%user_time_old = gnostics%user_time
-       !if (.not. read_existing) gnostics%user_time_old = gnostics%user_time
        gnostics%user_time_old = gnostics%user_time
 
        gnostics%nout = gnostics%nout + 1
@@ -541,10 +513,8 @@ contains
     use diagnostics_heating, only: &
       heating_reset => reset_averages_and_counters
     use gs2_time, only: user_time
-    
-! HJL > reset values for convergence condition
-    if (nonlin.and.gnostics%use_nonlin_convergence) &
-      call dnc_reset()
+
+    if (nonlin.and.gnostics%use_nonlin_convergence) call dnc_reset()
     call fluxes_reset(gnostics)
     call heating_reset(gnostics)
 

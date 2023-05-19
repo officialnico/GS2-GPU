@@ -43,8 +43,6 @@ contains
     call write_standard_moment_properties(gnostics, &
          'qpperpj1',  'A modified perpendicular pressure * energy which give the heat flux from bpar',&
          'n_r T_r^2 / e', qpperpj1, gnostics%distributed)
-    !call write_standard_moment_properties(gnostics, &
-    !'upar',  'The non-adiabatic part of the perturbed species density', 'n_r', ntot, gnostics%distributed)
   end subroutine write_moments
 
   !> FIXME : Add documentation  
@@ -112,9 +110,6 @@ contains
     if (.not. gnostics%wryte) return
 
     call average_theta(moment_value, moment_value, moment2_by_mode, distributed)
-    !call create_and_write_moment(gnostics%sfile, moment_name, moment_description, moment_units, moment_value)
-    !call create_and_write_moment_by_mode(gnostics, moment_name, moment_description, moment_units, &
-    !moment_value, moment2_by_mode, distributed)
 
     call average_kx(moment2_by_mode, moment2_by_ky, distributed)
     call neasyf_write(gnostics%file_id, moment_name//"2_by_ky", moment2_by_ky, &
@@ -170,7 +165,6 @@ contains
     if (moment_name .eq. 'density' .and. gnostics%write_density_over_time) write_moment_by_time = .true.
     if (moment_name .eq. 'upar' .and. gnostics%write_upar_over_time) write_moment_by_time = .true.
     if (moment_name .eq. 'tperp' .and. gnostics%write_tperp_over_time) write_moment_by_time = .true.
-    !write_moment_by_time = .false.
 
     if (write_moment_by_time) then
       call netcdf_write_complex(gnostics%file_id, moment_name//"_t", moment_value, &
