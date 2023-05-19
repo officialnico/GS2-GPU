@@ -112,7 +112,7 @@ module gs2_init
      !> Used to set the verbosity level at which this
      !> level reports debug messages.
      integer :: debug_message_level = 1
-     procedure(change_level_specific_interface), pointer, private :: change_level_specific => null()
+     procedure(change_level_specific_interface), pointer, nopass, private :: change_level_specific => null()
      real, dimension(2) :: time_init = 0.
    contains
      procedure :: generate_debug_message => init_level_generate_debug_message
@@ -121,9 +121,8 @@ module gs2_init
   end type init_level_type
 
   interface
-     subroutine change_level_specific_interface(self, current, going_up)
-       import
-       class(init_level_type), intent(in) :: self
+     subroutine change_level_specific_interface(current, going_up)
+       import init_type
        type(init_type), intent(in) :: current
        logical, intent(in) :: going_up
      end subroutine change_level_specific_interface

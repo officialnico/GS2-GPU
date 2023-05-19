@@ -3,9 +3,8 @@
 # in gs2 init.
 
 default_module_routine_string = """
-subroutine {name}_subroutine(self, current, going_up)
+subroutine {name}_subroutine(current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
-  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
@@ -17,9 +16,8 @@ end subroutine {name}_subroutine
 """
 
 more_general_module_routine_string = """
-subroutine {name}_subroutine(self, current, going_up)
+subroutine {name}_subroutine(current, going_up)
 {imports}
-  class(init_level_type), intent(in) :: self
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   if (going_up) then
