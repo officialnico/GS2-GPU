@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # Helper file to generate the boilerplate files included
 # in gs2 init.
 
