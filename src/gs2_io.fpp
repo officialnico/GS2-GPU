@@ -39,12 +39,9 @@ module gs2_io
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
-  integer (kind_nf) :: naky_dim, nakx_dim, nttot_dim, negrid_dim, nlambda_dim, nspec_dim, ncoord_dim, ncoordt_dim
-  integer (kind_nf) :: nsign_dim, time_dim, char5_dim, char10_dim, ri_dim, nheat_dim, vpa_dim
-  integer (kind_nf) :: nttotext_dim, time_big_dim, bset_dim
-
-  integer, dimension (6) :: lp_dim
-  integer, dimension (5) :: err_dim
+  integer (kind_nf) :: naky_dim, nakx_dim
+  integer (kind_nf) :: char10_dim, ri_dim
+  integer (kind_nf) :: nttotext_dim, time_big_dim
 
   ! added by EAB 03/05/04 for movies
   logical :: io_write_corr_extend
@@ -243,28 +240,24 @@ contains
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
     call neasyf_dim(file_id, "ky", values=aky, dimid=naky_dim, &
          long_name="Wavenumber in direction of grad alpha", units="1/rho_r")
-    call neasyf_dim(file_id, "theta", values=theta, dimid=nttot_dim, &
-         long_name="Poloidal angle", units="rad")
-    call neasyf_dim(file_id, "lambda", values=al, dimid=nlambda_dim, &
-         long_name="Energy/magnetic moment", units="1/(2 B_a)")
-    call neasyf_dim(file_id, "species", dim_size=nspec, dimid=nspec_dim)
+    call neasyf_dim(file_id, "theta", values=theta, long_name="Poloidal angle", units="rad")
+    call neasyf_dim(file_id, "lambda", values=al, long_name="Energy/magnetic moment", units="1/(2 B_a)")
+    call neasyf_dim(file_id, "species", dim_size=nspec)
 
     ! Energy coordinate is a function of species, but the dimension must be 1D
-    call neasyf_dim(file_id, "egrid", dim_size=negrid, dimid=negrid_dim, &
-         long_name="See 'energy' for energy grid values")
-    call neasyf_write(file_id, "energy", energy, dim_ids=[negrid_dim, nspec_dim], &
+    call neasyf_dim(file_id, "egrid", dim_size=negrid, long_name="See 'energy' for energy grid values")
+    call neasyf_write(file_id, "energy", energy, dim_names=["egrid  ", "species"], &
          long_name="Energy grid values")
 
-    call neasyf_dim(file_id, "sign", dim_size=2, dimid=nsign_dim)
-    call neasyf_dim(file_id, "t", unlimited=.true., dimid=time_dim, &
-         long_name="Time", units="L/vt")
+    call neasyf_dim(file_id, "sign", dim_size=2)
+    call neasyf_dim(file_id, "t", unlimited=.true., long_name="Time", units="L/vt")
     call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
          long_name="Complex components", units="(real, imaginary)")
-    call neasyf_dim(file_id, "nheat", dim_size=7, dimid=nheat_dim)
-    call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda, dimid=vpa_dim)
+    call neasyf_dim(file_id, "nheat", dim_size=7)
+    call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda)
 
     ! Dimensions for various string variables
-    call neasyf_dim(file_id, "char5", dim_size=5, dimid=char5_dim)
+    call neasyf_dim(file_id, "char5", dim_size=5)
     call neasyf_dim(file_id, "char10", dim_size=10, dimid=char10_dim)
     call neasyf_dim(file_id, "char200", dim_size=200)
 
@@ -277,8 +270,7 @@ contains
     call neasyf_dim(file_id, "4", dim_size=4, long_name="Generic dim")
     call neasyf_dim(file_id, "5", dim_size=5, long_name="Generic dim")
 
-    call neasyf_dim(file_id, "bset", values=bset, dimid=bset_dim, &
-         long_name="Bmag at bounce points", units="Bref")
+    call neasyf_dim(file_id, "bset", values=bset, long_name="Bmag at bounce points", units="Bref")
 
     if (create_extended_correlation) then
        call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
@@ -447,10 +439,6 @@ contains
        obmid=ob_midplane
     endif
 
-    !Define dimensions/shapes for different data types
-    err_dim         = [nttot_dim, nakx_dim, naky_dim, ncoordt_dim, time_dim]
-    lp_dim          = [nttot_dim, nakx_dim, naky_dim, nspec_dim, ncoord_dim, time_dim]
-
     ! HJL This is a hack to stop the netcdf diagnostic output failing when the variable sizes are too big
     ! The netcdf limit is 2^31-4 bytes, however this limit still causes a problem so 178180992 is used
     ! This limit was found by running the code with different sizes, it is not exact but this is a hack
@@ -504,14 +492,6 @@ contains
          'The difference between rho (normalized minor radius) and rho (gyroradius)')
     call ensure_netcdf_att_exists(ncid, code_id, "c11", &
          'should be clear from the context in which they appear below.')
-
-    !################################################
-    !# NOW WE HANDLE THE DIFFERENT OPTIONAL OUTPUT
-
-    if (write_verr) then
-!       call ensure_netcdf_var_exists(ncid, 'errest_by_mode', netcdf_real, err_dim, errest_by_mode_id)
-!       call ensure_netcdf_var_exists(ncid, 'lpcoef_by_mode', netcdf_real, lp_dim, lpcoef_by_mode_id)
-    end if
 
 # endif
   end subroutine define_vars
