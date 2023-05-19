@@ -972,6 +972,11 @@ contains
     if (debug) write(6,*) "init_dist_fn: init_wdrift"
     call init_wdrift
 
+#ifdef LOWFLOW
+    if (debug) write(6,*) "init_dist_fn: init_wcurv"
+    call init_wcurv
+#endif
+
     if (debug) write(6,*) "init_dist_fn: init_wstar"
     call init_wstar
 
@@ -1381,137 +1386,234 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, nlambda, jend, forbid, grid_has_trapped_particles, &
-         il_is_wfb, il_is_trapped, ittp, can_be_ttp
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use le_grids, only: nlambda, jend, forbid, il_is_wfb, il_is_trapped, ittp, can_be_ttp
+    use gs2_layouts, only: g_lo, il_idx
+    use array_utils, only: zero_array
     implicit none
-    integer :: ig, ik, it, il, ie, is
-    integer :: iglo
-    logical,parameter :: debug = .false.
+    integer :: ig, ik, it, il, is, iglo
+    real :: scaling_knob, wdrift_value, wcoriolis_value
+    logical, parameter :: debug = .false.
 
     if (.not. allocated(wdrift)) then
-       ! allocate wdrift with sign(vpa) dependence because will contain 
+       ! allocate wdrift with sign(vpa) dependence because will contain
        ! Coriolis as well as magnetic drifts
        allocate (wdrift(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (wdriftttp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     end if
-    wdrift = 0.  ; wdriftttp = 0.
-#ifdef LOWFLOW
-    if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
-    wcurv = 0.
-#endif
+    call zero_array(wdrift) ; call zero_array(wdriftttp)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, wdrift) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il=il_idx(g_lo,iglo)
+
+       ! Note here we always treat the wfb as trapped
+       if (il_is_wfb(il) .or. il_is_trapped(il)) then
+          scaling_knob = tpdriftknob
+       else
+          scaling_knob = driftknob
+       end if
+
        do ig = -ntgrid, ntgrid
-!CMR, 13/3/2007:     isolate passing and trapped particle drift knobs
-          il=il_idx(g_lo,iglo)
-          ie=ie_idx(g_lo,iglo)
-          it=it_idx(g_lo,iglo)
-          ik=ik_idx(g_lo,iglo)
-          is=is_idx(g_lo,iglo)
-          if ( jend(ig) > 0 .and. jend(ig) <= nlambda .and. (il_is_wfb(il) .or. il_is_trapped(il)) .and. il <= jend(ig)) then
-             wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik, is)*tpdriftknob
-#ifdef LOWFLOW
-             wcurv(ig,iglo) = wcurv_func(ig, it, ik)*tpdriftknob
-#endif
-!CMR:  multiply trapped particle drift by tpdriftknob 
-!CMR:               (tpdriftknob defaults to driftknob if not supplied)
-          else
-             wdrift(ig,1,iglo) = wdrift_func(ig, il, ie, it, ik, is)*driftknob
-#ifdef LOWFLOW
-             wcurv(ig,iglo) = wcurv_func(ig, it, ik)*driftknob
-#endif
-!CMR:  multiply passing particle drift by driftknob
-          endif
-!CMRend
-          ! add Coriolis drift to magnetic drifts
-          wdrift(ig,2,iglo) = wdrift(ig,1,iglo) - wcoriolis_func(ig,il,ie,it,ik,is)
-          wdrift(ig,1,iglo) = wdrift(ig,1,iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
+          if (forbid(ig, il)) cycle
+          wdrift_value = wdrift_func(ig, iglo)
+          wcoriolis_value = wcoriolis_func(ig, iglo)
+
+          ! Add Coriolis drift to magnetic drifts. Is there a reason we don't scale
+          ! this by scaling_knob?
+          wdrift(ig, 1, iglo) = wdrift_value * scaling_knob + wcoriolis_value
+          wdrift(ig, 2, iglo) = wdrift_value * scaling_knob - wcoriolis_value
        end do
     end do
+    !$OMP END PARALLEL DO
 
-    wdriftttp = 0.0
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ig, scaling_knob, wdrift_value, wcoriolis_value) &
+    !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, can_be_ttp, &
+    !$OMP nlambda, wdriftttp, ittp) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
        ! Cycle if this il is never ttp as we only care about ttp here.
        if (.not. can_be_ttp(il)) cycle
-       ie=ie_idx(g_lo,iglo)
-       it=it_idx(g_lo,iglo)
-       ik=ik_idx(g_lo,iglo)
-       is=is_idx(g_lo,iglo)
        do ig = -ntgrid, ntgrid
-          ! These cycles will activate regularly, indicating wdriftttp
+          ! The below cycles will activate regularly, indicating wdriftttp
           ! may be a relatively inefficent way of storing this
           ! information, requiring a lot of memory to hold mostly 0.
+
+          ! First we cycle if there are no totally trapped particles
+          ! allowed at this theta grid point.
           if (ittp(ig) == nlambda+1) cycle
+          ! Then we cycle if this pitch angle is forbidden at this point
           if (forbid(ig, il)) cycle
+          ! At this point we know that that there are totally trapped
+          ! particles at this grid point and the pitch angle which we
+          ! are considering is allowed to visit this point. However,
+          ! we do not know that the pitch angle we are considering is
+          ! totally trapped here. We probably don't want to be setting
+          ! wdriftttp for pitch angles which are not totally trapped
+          ! here so now cycle if we're not totally trapped here.
+          ! Note we could replace if (ittp(ig) == nlambda+1) cycle above
+          ! with this line, but leaving separate for now.
+          if (il < ittp(ig)) cycle
 
           !GWH+JAB: should this be calculated only at ittp? or for
           !each totally trapped pitch angle? (Orig logic: there was
           !only one totally trapped pitch angle; now multiple ttp are
-          !allowed.
-          ! Is there a reason we pass ittp(ig) as the lambda index here, rather than
-          ! the actual lambda value? Surely if we're at this point we know that il
-          ! corresponds to a totally trapped particle that we're considering and it cannot
-          ! be forbidden. It seems like either ittp(ig) == il at this point _or_ what we're
-          ! doing here is not quite right?
-          wdriftttp(ig, :, iglo) = wdrift_func(ig,ittp(ig),ie,it,ik,is)*tpdriftknob
+          !allowed). Previously passed ittp(ig) instead of il. Now we pass
+          !iglo instead of il (although this is equivalent here).
+          wdrift_value = wdrift_func(ig, iglo)
+          wcoriolis_value = wcoriolis_func(ig, iglo)
 
           !CMR:  totally trapped particle drifts also scaled by tpdriftknob
-          ! add Coriolis drift to magnetic drifts
-          wdriftttp(ig, 1, iglo) = wdriftttp(ig, 1, iglo) + wcoriolis_func(ig,il,ie,it,ik,is)
-          wdriftttp(ig, 2, iglo) = wdriftttp(ig, 2, iglo) - wcoriolis_func(ig,il,ie,it,ik,is)
+          ! add Coriolis drift to magnetic drifts. Is there a reason we don't scale
+          ! this by scaling_knob?
+          wdriftttp(ig, 1, iglo) = wdrift_value * tpdriftknob + wcoriolis_value
+          wdriftttp(ig, 2, iglo) = wdrift_value * tpdriftknob - wcoriolis_value
        end do
     end do
+    !$OMP END PARALLEL DO
 
-! This should be weighted by bakdif to be completely consistent
+    ! This should be weighted by bakdif to be completely consistent
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ig) &
+    !$OMP SHARED(g_lo, ntgrid, wdrift) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do ig = -ntgrid, ntgrid-1
           wdrift(ig,:,iglo) = 0.5*(wdrift(ig,:,iglo) + wdrift(ig+1,:,iglo))
-#ifdef LOWFLOW
-          wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
-#endif
        end do
     end do
+    !$OMP END PARALLEL DO
 
     if (debug) write(6,*) 'init_wdrift: driftknob, tpdriftknob=',driftknob,tpdriftknob
 
   end subroutine init_wdrift
 
-  !> FIXME : Add documentation  
-  function wdrift_func (ig, il, ie, it, ik, is)
-    use theta_grid, only: bmag, gbdrift, gbdrift0, cvdrift, cvdrift0
-    use theta_grid, only: shat
+  !> Calculates the value of the magnetic drifts (curvature + grad-B)
+  !> corresponding to the theta grid location given by `ig` for the iglo
+  !> index of interest.
+  pure real function wdrift_func (ig, iglo)
+    use dist_fn_arrays, only: vperp2, vpa
+    use theta_grid, only: gbdrift, gbdrift0, cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
-    use le_grids, only: energy, al
     use gs2_time, only: code_dt, wunits
+    use gs2_layouts, only: g_lo, it_idx, ik_idx
     implicit none
-    real :: wdrift_func
-    integer, intent (in) :: ig, ik, it, il, ie,is
+    integer, intent (in) :: ig, iglo
+    integer :: it, ik
+    real :: vperp2_local, vpa2_local
+
+    vperp2_local = vperp2(ig, iglo)
+    vpa2_local = vpa(ig, 1, iglo)**2
+
+    it=it_idx(g_lo,iglo)
+    ik=ik_idx(g_lo,iglo)
 
     ! note that wunits=aky/2 (for wstar_units=F)
     if (aky(ik) == 0.0) then
        wdrift_func = akx(it)/shat &
-                    *(cvdrift0(ig)*energy(ie,is)*(1.0 - al(il)*bmag(ig)) &
-                      + gbdrift0(ig)*0.5*energy(ie,is)*al(il)*bmag(ig)) &
+                    *(cvdrift0(ig)*vpa2_local &
+                      + gbdrift0(ig)*0.5*vperp2_local) &
                      *code_dt/2.0
     else
        wdrift_func = ((cvdrift(ig) + theta0(it,ik)*cvdrift0(ig)) &
-                        *energy(ie,is)*(1.0 - al(il)*bmag(ig)) &
+                        *vpa2_local &
                       + (gbdrift(ig) + theta0(it,ik)*gbdrift0(ig)) &
-                        *0.5*energy(ie,is)*al(il)*bmag(ig)) &
+                        *0.5*vperp2_local) &
                      *code_dt*wunits(ik)
     end if
   end function wdrift_func
 
+  !> Calculates the value of the Coriolis drift at the location
+  !> corresponding to the passed indices.
+  pure real function wcoriolis_func (ig, iglo)
+    use dist_fn_arrays, only: vpa
+    use theta_grid, only: cdrift, cdrift0, shat
+    use kt_grids, only: aky, theta0, akx
+    use gs2_time, only: code_dt, wunits
+    use species, only: spec
+    use gs2_layouts, only: g_lo, it_idx, ik_idx, is_idx
+    implicit none
+    integer, intent (in) :: ig, iglo
+    integer :: it, ik, is
+
+    it=it_idx(g_lo,iglo)
+    ik=ik_idx(g_lo,iglo)
+    is=is_idx(g_lo,iglo)
+
+    if (aky(ik) == 0.0) then
+       wcoriolis_func = mach*vpa(ig,1,iglo) &
+            * cdrift0(ig) * code_dt * akx(it)/(2.*shat*spec(is)%stm)
+    else
+       wcoriolis_func = mach*vpa(ig,1,iglo) &
+            * (cdrift(ig) + theta0(it,ik)*cdrift0(ig))*code_dt*wunits(ik)/spec(is)%stm
+    end if
+
+  end function wcoriolis_func
+
 #ifdef LOWFLOW
-  !> FIXME : Add documentation  
-  function wcurv_func (ig, it, ik)
+  !> FIXME : Add documentation
+  subroutine init_wcurv
+    use theta_grid, only: ntgrid
+    use le_grids, only: forbid, il_is_wfb, il_is_trapped
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
+    use array_utils, only: zero_array
+    implicit none
+    integer :: ig, ik, it, il, ie, is, iglo
+    real :: scaling_knob
+    logical,parameter :: debug = .false.
+
+    if (.not. allocated(wcurv)) allocate (wcurv(-ntgrid:ntgrid,g_lo%llim_proc:g_lo%ulim_alloc))
+    call zero_array(wcurv)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik, is, ig, scaling_knob) &
+    !$OMP SHARED( wcurv, g_lo, tpdriftknob, driftknob, ntgrid, forbid) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il=il_idx(g_lo,iglo)
+       it=it_idx(g_lo,iglo)
+       ik=ik_idx(g_lo,iglo)
+       is=is_idx(g_lo,iglo)
+
+       if (il_is_wfb(il) .or. il_is_trapped(il)) then
+          scaling_knob = tpdriftknob
+       else
+          scaling_knob = driftknob
+       end if
+
+       do ig = -ntgrid, ntgrid
+          if (forbid(ig, il)) cycle
+          wcurv(ig,iglo) = wcurv_func(ig, it, ik) * scaling_knob
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    ! This should be weighted by bakdif to be completely consistent
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ig) &
+    !$OMP SHARED(g_lo, ntgrid, wcurv) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       do ig = -ntgrid, ntgrid-1
+          wcurv(ig,iglo) =  0.5*(wcurv(ig,iglo) + wcurv(ig+1,iglo))
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    if (debug) write(6,*) 'init_wcurv: driftknob, tpdriftknob=',driftknob,tpdriftknob
+
+  end subroutine init_wcurv
+
+  !> FIXME : Add documentation
+  pure real function wcurv_func (ig, it, ik)
     use theta_grid, only: cvdrift, cvdrift0, shat
     use kt_grids, only: aky, theta0, akx
     use gs2_time, only: code_dt, wunits
     implicit none
-    real :: wcurv_func
     integer, intent (in) :: ig, ik, it
 
     if (aky(ik) == 0.0) then
@@ -1523,30 +1625,6 @@ contains
     end if
   end function wcurv_func
 #endif
-
-  !> FIXME : Add documentation
-  function wcoriolis_func (ig, il, ie, it, ik, is)
-
-    use theta_grid, only: bmag, cdrift, cdrift0, shat
-    use kt_grids, only: aky, theta0, akx
-    use le_grids, only: energy, al
-    use gs2_time, only: code_dt, wunits
-    use species, only: spec
-
-    implicit none
-
-    real :: wcoriolis_func
-    integer, intent (in) :: ig, ik, it, il, ie, is
-
-    if (aky(ik) == 0.0) then
-       wcoriolis_func = mach*sqrt(max(energy(ie,is)*(1.0-al(il)*bmag(ig)),0.0)) &
-            * cdrift0(ig) * code_dt * akx(it)/(2.*shat*spec(is)%stm)
-    else
-       wcoriolis_func = mach*sqrt(max(energy(ie,is)*(1.0-al(il)*bmag(ig)),0.0)) &
-            * (cdrift(ig) + theta0(it,ik)*cdrift0(ig))*code_dt*wunits(ik)/spec(is)%stm
-    end if
-
-  end function wcoriolis_func
 
   !> FIXME : Add documentation  
   subroutine init_vperp2
@@ -8067,7 +8145,7 @@ contains
           do isgn = 1, 2
              ! get v_magnetic piece of g_work at grid points instead of cell centers
              do ig = -ntgrid, ntgrid
-                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig,il,ie,it,ik,is)/code_dt &
+                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
                      * gnew(ig,isgn,iglo)*spec(is)%tz)
              end do
 
