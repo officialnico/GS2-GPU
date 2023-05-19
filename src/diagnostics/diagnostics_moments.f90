@@ -19,11 +19,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
          upar, tpar, tperp, qparflux, pperpj1, qpperpj1
 
-    if (.not. gnostics%replay) then
-       call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
-    else
-       ntot = 0. ; density = 0. ; upar = 0. ; tpar = 0. ; tperp = 0.; qparflux = 0. ; pperpj1 = 0. ; qpperpj1 = 0.
-    end if
+    call getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
 
     call write_standard_moment_properties(gnostics, &
          'ntot',  'The total perturbed species density', 'n_ref', ntot, gnostics%distributed)
@@ -55,14 +51,9 @@ contains
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, &
-         upar, tpar, tperp !, qparflux, pperpj1, qpperpj1
+    complex, dimension (-ntgrid:ntgrid,ntheta0,naky,nspec) :: ntot, density, upar, tpar, tperp
 
-    if (.not. gnostics%replay) then
-       call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
-    else
-       ntot = 0. ; density = 0. ; upar = 0. ; tpar = 0. ; tperp = 0.
-    end if
+    call getmoms_notgc(phinew, bparnew, density,upar,tpar,tperp,ntot)
 
     call write_standard_moment_properties(gnostics, &
          'ntot_notgc',  'The total perturbed species density &

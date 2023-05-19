@@ -206,22 +206,7 @@ module gs2_main
     integer :: trinity_timestep = -1
     integer :: trinity_iteration = -1
 
-
-    !> If true, don't initialize or evolve the equations, 
-    !! just read their values from an existing output file.
-    !! This allows additional calculations to be done, and 
-    !! also allows GS2 to cheaply reproduce its functionality,
-    !! e.g. within Trinity.
-    logical :: replay = .false.
-
-    !> If true, the equations are fully initialized during
-    !! replays. This is typically needed for linear diffusive
-    !! flux estimates, and is set true automatically in that 
-    !! case.
-    logical :: replay_full_initialize = .false.
-
-    !> If true, 
-    !! print full timing breakdown. 
+    !> If true, print full timing breakdown.
     logical :: print_full_timers = .true.
 
     !> If true, print run time or
@@ -516,7 +501,6 @@ contains
   !! equations. After calling this function, gs2 reaches 
   !! init\%level = full. 
   subroutine initialize_equations(state)
-    use fields, only: init_fields
     use theta_grid, only: surfarea, dvdrhon
     use gs2_time, only: init_tstart
     use gs2_init, only: init
@@ -527,10 +511,6 @@ contains
     use run_parameters, only: nstep, do_eigsolve
     use unit_tests, only: debug_message
     use gs2_reinit, only: init_gs2_reinit
-    use fields_implicit, only: skip_initialisation
-    use fields, only: fields_allocate_arrays=>allocate_arrays
-    use fields_local, only: fieldmat
-    use run_parameters, only: trinity_linear_fluxes
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
 
@@ -538,38 +518,18 @@ contains
     call debug_message(state%verb, 'gs2_main::initialize_equations starting')
     call time_message(.false.,state%timers%total,' Total')
 
-    call debug_message(state%verb, &
-      'gs2_main::initialize_equations calling init_parameter_scan')
+    call debug_message(state%verb, 'gs2_main::initialize_equations calling init_parameter_scan')
     call init_parameter_scan
 
     call time_message(.false., state%timers%init,' Initialization')
-    !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
-    call debug_message(state%verb, 'gs2_main::initialize_equations calling init_fields')
 
-    !> If we are doing a replay then we are not evolving the equations
-    !! so we disable calculating the implicit response
-    !! matrix
-    if (state%replay) then
-      skip_initialisation = .true.
-      fieldmat%no_prepare = .true.
-      fieldmat%no_populate = .true.
-      call init(state%init, init_level_list%le_grids)
-
-      if (trinity_linear_fluxes) then
-        state%replay_full_initialize = .true.
-        call init(state%init, init_level_list%full)
-      end if
-        
-    else
-      ! This triggers initializing of all the grids, all the physics parameters
-      ! and all the modules which solve the equations
-      call init(state%init, init_level_list%full)
-    end if
+    ! This triggers initializing of all the grids, all the physics parameters
+    ! and all the modules which solve the equations
+    call init(state%init, init_level_list%full)
 
     ! Set the initial simulation time (must be after init_fields
     ! because initial time may be read from a restart file)
     call init_tstart(tstart)
-
 
     ! Here we copy some geometric information required by 
     ! Trinity to state%outputs
@@ -586,7 +546,6 @@ contains
     call broadcast (state%outputs%grho)
     
     call time_message(.false.,state%timers%init,' Initialization')
-
 
     ! Set defaults. These are typically only important
     ! for the standalone gs2 program
@@ -684,15 +643,13 @@ contains
       ! Check whether this is a Trinity run... enforces calculation of the
       ! fluxes
       diagnostics_init_options%is_trinity_run = state%is_trinity_job
-      ! Specifiy whether we are doing a replay.
-      diagnostics_init_options%replay = state%replay
 
       call init_gs2_diagnostics_new(diagnostics_init_options, local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
       ! Write initial values
-      call run_diagnostics(0,state%exit, state%replay)
+      call run_diagnostics(0, state%exit)
 #else
       call mp_abort("use_old_diagnostics is .false. but you have &
         & not built gs2 with new diagnostics enabled", .true.)
@@ -826,69 +783,63 @@ contains
        end if
 
        call time_message(.false.,state%timers%advance,' Advance time step')
+       call debug_message(state%verb+1, 'gs2_main::evolve_equations calling advance')
 
-       ! If we are doing a replay we don't actually evolve 
-       ! the equations
-       if (.not. state%replay) then 
+       call time_message(.false.,state%timers%timestep,' Timestep')
+       ! Try to take a time step
+       call advance (istep)
+       call time_message(.false.,state%timers%timestep,' Timestep')
+       call debug_message(state%verb+1, &
+            'gs2_main::evolve_equations called advance')
 
+       if(state%dont_change_timestep) reset = .false.
+
+       !If the advance call has triggered a reset then change the timestep.
+       !Currently this is triggered if immediate_reset is true and the nonlinear
+       !cfl limit is exceeded.
+       if (reset) then
+         call prepare_initial_values_overrides(state)
          call debug_message(state%verb+1, &
-            'gs2_main::evolve_equations calling advance')
-
-         call time_message(.false.,state%timers%timestep,' Timestep')
-         ! Try to take a time step
-         call advance (istep)
-         call time_message(.false.,state%timers%timestep,' Timestep')
-         call debug_message(state%verb+1, &
-              'gs2_main::evolve_equations called advance')
-
-         if(state%dont_change_timestep) reset = .false.
-
-         !If the advance call has triggered a reset then change the timestep.
-         !Currently this is triggered if immediate_reset is true and the nonlinear
-         !cfl limit is exceeded.
-         if (reset) then
-            call prepare_initial_values_overrides(state)
-            call debug_message(state%verb+1, &
-                 'gs2_main::evolve_equations resetting timestep')
-            call set_initval_overrides_to_current_vals(state%init%initval_ov)
-            state%init%initval_ov%override = .true.
-            if (state%is_external_job) then
-               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-            else
-               call reset_time_step (state%init, istep, state%exit)
-            end if
-
-            ! Now we've reset set the flag back to .false.
-            reset = .false.
-
-            ! If we've changed the timestep and have not decided to exit then
-            ! we need to call advance to actually complete this timestep.
-            if (.not. state%exit) then
-               call advance(istep)
-            end if
-         end if
-         if(state%exit) exit
-
-         call debug_message(state%verb+1, &
-            'gs2_main::evolve_equations calling gs2_save_for_restart')
-         
-         if (use_old_diagnostics) then
-           if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-                has_phi, has_apar, has_bpar, &
-                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
+              'gs2_main::evolve_equations resetting timestep')
+         call set_initval_overrides_to_current_vals(state%init%initval_ov)
+         state%init%initval_ov%override = .true.
+         if (state%is_external_job) then
+           call reset_time_step (state%init, istep, state%exit, state%external_job_id)
          else
-#ifdef NEW_DIAG
-           if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-                has_phi, has_apar, has_bpar, &
-                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
-#endif
+           call reset_time_step (state%init, istep, state%exit)
          end if
-         call update_time
-         call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
-       end if ! if (.not. state%replay)
+         ! Now we've reset set the flag back to .false.
+         reset = .false.
+
+         ! If we've changed the timestep and have not decided to exit then
+         ! we need to call advance to actually complete this timestep.
+         if (.not. state%exit) then
+           call advance(istep)
+         end if
+       end if
+
+       if(state%exit) exit
+
+       call debug_message(state%verb+1, &
+            'gs2_main::evolve_equations calling gs2_save_for_restart')
+
+       if (use_old_diagnostics) then
+         if (nsave > 0 .and. mod(istep, nsave) == 0) &
+              call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+              has_phi, has_apar, has_bpar, &
+              code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
+       else
+#ifdef NEW_DIAG
+         if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
+              call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+              has_phi, has_apar, has_bpar, &
+              code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
+#endif
+       end if
+       call update_time
+       call time_message(.false.,state%timers%diagnostics,' Diagnostics')
+
        call debug_message(state%verb+1, &
           'gs2_main::evolve_equations calling diagnostics')
        if (.not. state%skip_diagnostics) then 
@@ -896,7 +847,7 @@ contains
            call loop_diagnostics (istep, state%exit)
 #ifdef NEW_DIAG
          else 
-           call run_diagnostics (istep, state%exit, state%replay)
+           call run_diagnostics (istep, state%exit)
 #endif
          end if
        end if
@@ -908,41 +859,39 @@ contains
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
        call time_message(.false.,state%timers%advance,' Advance time step')
 
-       if(.not.state%exit)then
-          if (.not.state%replay) then
-            call debug_message(state%verb+1, &
+       if (.not. state%exit) then
+         call debug_message(state%verb+1, &
               'gs2_main::evolve_equations checking time step')
 
-            !Note this should only trigger a reset for timesteps too small
-            !as timesteps too large are already handled when immediate_reset is
-            !.true. If immediate_reset is .false. then this is where we handle
-            !all checking of the time step.
-            call check_time_step(reset,state%exit)
-            !call update_scan_parameter_value(istep, reset, state%exit)
-            call debug_message(state%verb+1, &
+         !Note this should only trigger a reset for timesteps too small
+         !as timesteps too large are already handled when immediate_reset is
+         !.true. If immediate_reset is .false. then this is where we handle
+         !all checking of the time step.
+         call check_time_step(reset,state%exit)
+         !call update_scan_parameter_value(istep, reset, state%exit)
+         call debug_message(state%verb+1, &
               'gs2_main::evolve_equations checked time step')
 
-            !If something has triggered a reset then reset here
-            if(state%dont_change_timestep) reset = .false.
-            if (reset) then
-               call prepare_initial_values_overrides(state)
-               call set_initval_overrides_to_current_vals(state%init%initval_ov)
-               state%init%initval_ov%override = .true.
-               ! if called within trinity, do not dump info to screen
-               if (state%is_external_job) then
-                  call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-               else       
-                  call reset_time_step (state%init, istep, state%exit)
-               end if
-            end if
-          end if ! if (.not. state%replay)
+         !If something has triggered a reset then reset here
+         if(state%dont_change_timestep) reset = .false.
+         if (reset) then
+           call prepare_initial_values_overrides(state)
+           call set_initval_overrides_to_current_vals(state%init%initval_ov)
+           state%init%initval_ov%override = .true.
+           ! if called within trinity, do not dump info to screen
+           if (state%is_external_job) then
+             call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+           else
+             call reset_time_step (state%init, istep, state%exit)
+           end if
+         end if
 
-          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
-          if (state%exit) call debug_message(state%verb+1, &
-            'gs2_main::evolve_equations exit true after checkstop')
-          if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
-          if (state%exit) call debug_message(state%verb+1, &
-            'gs2_main::evolve_equations exit true after checktime')
+         if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
+         if (state%exit) call debug_message(state%verb+1, &
+              'gs2_main::evolve_equations exit true after checkstop')
+         if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
+         if (state%exit) call debug_message(state%verb+1, &
+              'gs2_main::evolve_equations exit true after checktime')
        endif
        call debug_message(state%verb+1, &
         'gs2_main::evolve_equations after reset and checks')
@@ -976,7 +925,7 @@ contains
           call loop_diagnostics (istep - istep_offset, state%exit, force = .true.)
 #ifdef NEW_DIAG
        else
-          call run_diagnostics (istep - istep_offset, state%exit, state%replay, force = .true.)
+          call run_diagnostics (istep - istep_offset, state%exit, force = .true.)
 #endif
        end if
     end if
@@ -1151,7 +1100,6 @@ contains
 
     call deallocate_outputs(state)
     call finish_parameter_scan
-    !if (state%replay .and. allocated(phi)) deallocate (phi, apar, bpar, phinew, aparnew, bparnew)
 
     call init(state%init, init_level_list%basic)
     call time_message(.false.,state%timers%finish,' Finished run')

@@ -18,7 +18,6 @@ contains
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
 
-    if (gnostics%replay) return 
     if (.not. gnostics%writing) return
 
     if (has_phi) then
@@ -99,7 +98,7 @@ contains
     complex, dimension (ntheta0, naky) :: phi0
     integer :: it, ik, ig, ntg_out
     
-    if(.not.proc0 .or. gnostics%replay) return
+    if (.not. proc0) return
 
     phi0 = get_phi0()
     

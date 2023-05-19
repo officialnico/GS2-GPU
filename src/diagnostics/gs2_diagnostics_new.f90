@@ -24,7 +24,6 @@ module gs2_diagnostics_new
      logical :: default_double
      logical :: initialized
      logical :: is_trinity_run
-     logical :: replay
   end type diagnostics_init_options_type
 
   type(diagnostics_type) :: gnostics 
@@ -146,16 +145,7 @@ contains
       'gs2_diagnostics_new::init_gs2_diagnostics_new opening file')
     if (gnostics%parallel.or.proc0) then 
        inquire(file=trim(run_name)//'.out.nc', exist=ex)
-       if (init_options%replay) then
-         if (ex) then
-          call debug_message(gnostics%verbosity, &
-            'gs2_diagnostics_new::init_gs2_diagnostics_new replaying')
-          gnostics%file_id = neasyf_open(trim(filename), "w")
-         else 
-           call mp_abort("replay set to true but no file exists", .true.)
-         end if
-         gnostics%appending=.false.
-       else if (gnostics%append_old .and. ex) then
+       if (gnostics%append_old .and. ex) then
          gnostics%appending=.true.
          gnostics%file_id = neasyf_open(trim(filename), "rw")
          gnostics%nout = get_dim_length(gnostics%file_id, "t")
@@ -186,8 +176,6 @@ contains
     ! Vital that other procs know we are appending
     call broadcast(gnostics%appending)
     call broadcast(gnostics%nout)
-
-    gnostics%replay = init_options%replay
 
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new finished')
@@ -261,19 +249,17 @@ contains
     integer, parameter :: verb=3
     if (.not. gnostics%write_any) return
     
-    if (.not. gnostics%replay) then
-       call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-            & calling save_restart_dist_fn')
-       call save_restart_dist_fn(gnostics%save_for_restart, &
-                                 gnostics%save_distfn, &
-                                 gnostics%save_glo_info_and_grids, &
-                                 gnostics%save_velocities, &
-                                 gnostics%user_time)
-       
-       call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
-            & calling run_old_final_routines')
-       call run_old_final_routines
-    end if
+    call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
+         & calling save_restart_dist_fn')
+    call save_restart_dist_fn(gnostics%save_for_restart, &
+         gnostics%save_distfn, &
+         gnostics%save_glo_info_and_grids, &
+         gnostics%save_velocities, &
+         gnostics%user_time)
+
+    call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new &
+         & calling run_old_final_routines')
+    call run_old_final_routines
     
     deallocate(gnostics%fluxfac)
     call debug_message(verb, 'gs2_diagnostics_new::finish_gs2_diagnostics_new finishing submodules')
@@ -319,7 +305,7 @@ contains
   !! istep=-1 --> Create all netcdf variables
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
-  subroutine run_diagnostics(istep_in, exit, read_existing, force)
+  subroutine run_diagnostics(istep_in, exit, force)
     use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
@@ -353,7 +339,6 @@ contains
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
-    logical, intent(in) :: read_existing
     logical, intent(in), optional :: force
     integer, parameter :: verb=3
     integer :: istep
@@ -371,19 +356,11 @@ contains
     ! If parallel, then everybody writes to netcdf,
     ! otherwise, only proc0
     if (gnostics%parallel .or. proc0) then
-      if (read_existing ) then
-        gnostics%create = .false.
-        gnostics%writing = .false.
-        gnostics%reading = .true.
-      else
-        gnostics%reading = .false.
-        gnostics%create = (istep_in==-1).and..not.gnostics%appending
-        gnostics%writing = .not. gnostics%replay
-      end if
+      gnostics%create = (istep_in==-1) .and. .not. gnostics%appending
+      gnostics%writing = .true.
     else
-      gnostics%reading = .false.
-      gnostics%create=.false.
-      gnostics%writing=.false.
+      gnostics%create = .false.
+      gnostics%writing = .false.
     end if
 
     ! Now that we've used istep to work out what operations we want
@@ -406,7 +383,7 @@ contains
     gnostics%user_time = user_time
     if (istep .eq. 0) gnostics%start_time = user_time
     
-    if (istep > 0 .and. .not. gnostics%replay) then
+    if (istep > 0) then
        call calculate_omega(gnostics)
        if (gnostics%write_heating) call calculate_heating (gnostics)
     end if

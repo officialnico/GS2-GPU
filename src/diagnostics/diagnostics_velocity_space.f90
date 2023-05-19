@@ -66,18 +66,12 @@ contains
     errest = 0.0; erridx = 0
     geavg = 0.0 ; glavg = 0.0 ; gtavg = 0.0
 
-    ! It's not clear why we don't call the following when we're in
-    ! "replay" mode.  We still try to write out the result of these
-    ! diagnostics, so currently these will just be zero in replay
-    ! mode.
-    if (.not. gnostics%replay) then
-      ! error estimate obtained by comparing standard integral with less-accurate integral
-      call get_verr (errest, erridx, phinew, bparnew)
-      
-      ! error estimate based on monitoring amplitudes of legendre polynomial coefficients
-      call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
-    end if
-    
+    ! error estimate obtained by comparing standard integral with less-accurate integral
+    call get_verr (errest, erridx, phinew, bparnew)
+
+    ! error estimate based on monitoring amplitudes of legendre polynomial coefficients
+    call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
+
     if (.not. gnostics%vary_vnew_only .and. gnostics%writing) then
       call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
            dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
