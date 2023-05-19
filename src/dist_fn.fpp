@@ -7838,7 +7838,7 @@ contains
 
   !> Calculate the flux of a field
   subroutine get_flux (g_in, fld, flx)
-    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
+    use theta_grid, only: ntgrid, grho, theta, jacob
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
@@ -7860,14 +7860,13 @@ contains
 
     call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
-    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
-    !we have below without the drhodpsi.
-    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
-    
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
+
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
-             flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik)))/(bmag*gradpar))*wgt*aky(ik)
+             flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) * jacob)*wgt*aky(ik)
           end do
        end do
     end do
@@ -7909,6 +7908,9 @@ contains
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
+    ! Note: This doesn't include the field line jacobian (jacob) and as such
+    ! it's not clear that the above wgt is correct (as it uses 1/(bmag*gradpar)
+    ! which is jacob * drhodpsi, rather than jacob as one might expect).
     !if (proc0) then
        do is = 1, nspec
           do ik = 1, naky
@@ -7931,7 +7933,7 @@ contains
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx)
     use theta_grid, only: ntgrid
-    use theta_grid, only : theta, grho, bmag, gradpar, rplot
+    use theta_grid, only : theta, grho, bmag, jacob
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
@@ -7953,16 +7955,15 @@ contains
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
     call integrate_moment (g_in, total)
 
-    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
-    !we have below without the drhodpsi.
-    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
 
     if (proc0) then
        do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
                 flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *Rplot(:)**2/(bmag*gradpar))*aky(ik)*wgt*mach_lab(is)
+                     *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
              end do
           end do
        end do
@@ -7975,7 +7976,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_flux_vs_e (g_in, fld, flx)
-    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
+    use theta_grid, only: ntgrid, grho, theta, jacob
     use kt_grids, only: aky
     use le_grids, only: negrid, wl
     use species, only: nspec
@@ -7995,9 +7996,8 @@ contains
     allocate(total(negrid,nspec))
     total = 0.
 
-    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
-    !we have below without the drhodpsi.
-    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        fac =0.5
@@ -8010,12 +8010,12 @@ contains
 
        total(ie,is) = total(ie,is) + fac*& 
             trapezoidal_integration(theta, &
-            aimag(g_in(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik))) &
-            * wl(-ntgrid:,il) / (bmag*gradpar)) * aky(ik) * wgt
+            aimag(g_in(:,1,iglo)*conjg(fld(:,it,ik))) &
+            * wl(:,il) * jacob) * aky(ik) * wgt
        total(ie,is) = total(ie,is) + fac*& 
             trapezoidal_integration(theta, &
-            aimag(g_in(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik))) &
-            * wl(-ntgrid:,il) / (bmag*gradpar)) * aky(ik) * wgt
+            aimag(g_in(:,2,iglo)*conjg(fld(:,it,ik))) &
+            * wl(:,il) * jacob) * aky(ik) * wgt
     end do
 
     call sum_reduce(total,0)
