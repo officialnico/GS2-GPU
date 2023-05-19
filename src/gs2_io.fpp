@@ -92,7 +92,6 @@ module gs2_io
   ! added by EAB 03/05/04 for movies
   logical :: io_write_corr_extend
   integer :: ncid_movie = -1
-
   logical :: write_apar_t, write_phi_t, write_bpar_t ! Should the fields be written out every nwrite?
 
 #else
@@ -537,7 +536,6 @@ contains
          'The difference between rho (normalized minor radius) and rho (gyroradius)')
     call ensure_netcdf_att_exists(ncid, code_id, "c11", &
          'should be clear from the context in which they appear below.')
-
 # endif
   end subroutine define_vars
 
@@ -1536,6 +1534,7 @@ contains
          cvdrift, cvdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, jacob, &
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
+    use kt_grids, only: kperp2
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1587,6 +1586,8 @@ contains
          long_name="d/dx of the height above the midplane at the centre of the flux tube", units="a/rho_r")
     call neasyf_write(file_id, "aprime", aprime, dim_names=["theta"], &
          long_name="d/dx of the toroidal angle at the centre of the flux tube", units="rad/rho_r")
+    call neasyf_write(file_id, "kperp2", kperp2, dim_names=[theta_dim, kx_dim, ky_dim], &
+         long_name="The perpendicular wavenumber squared", units="1/rho_r^2")
 
     ! FIXME: check if we need surfarea?
 #endif
