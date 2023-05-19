@@ -40,22 +40,26 @@ program test_gs2_diagnostics_new
     use species, only: nspec
     implicit none
     type(gs2_program_state_type) :: state
-    integer :: n_vars, n_file_names
+    integer :: n_vars
     integer :: i
     real :: eps
     real, dimension(:), allocatable :: pfluxav, qfluxav, heatav, vfluxav
     real :: diff
     !real :: vfluxav
 
-    character(len=40), dimension(200) :: variables, new_variables, n_lines, file_names, n_lines_files
-      !variables = (/'lambda', 'phi'/), &
-      !n_lines = (/'3', '30'/)
-  ! General config
+    character(len=40), dimension(200) :: variables, new_variables, n_lines
+    character(len=*), dimension(*), parameter :: file_names = [character(len=9):: &
+         'heat',&
+         'heat2', &
+         'lpc', &
+         'vres', &
+         'phase', &
+         'parity', &
+         'eigenfunc' &
+    ]
 
-
-  eps = 1.0e-7
-
-  if (precision(eps).lt. 11) eps = eps * 100.0
+    eps = 1.0e-7
+    if (precision(eps).lt. 11) eps = eps * 100.0
 
     ! n_lines - number of lines at the end of file "run_name.variables(i)" to
     !           compare as part of test
@@ -127,31 +131,6 @@ program test_gs2_diagnostics_new
     n_lines(22) = '20'
 
     n_vars = 22
-
-
-      ! Note that heat and heat2 no longer pass because the comparison
-      ! is no longer between files output from the same run but between
-      ! files output from two successive runs. This causes changes greater
-      ! than the precision of the heat and heat2 files. EGH
-      ! Thus they are skipped.
-    file_names(1) = 'heat'
-    n_lines_files(1) = '16'
-    file_names(2) = 'heat2'
-    n_lines_files(2) = '50'
-    file_names(3) = 'lpc'
-    n_lines_files(3) = '16'
-    file_names(4) = 'vres'
-    n_lines_files(4) = '16'
-    file_names(5) = 'phase'
-    n_lines_files(5) = '16'
-    file_names(6) = 'jext'
-    n_lines_files(6) = '0'
-    file_names(7) = 'parity'
-    n_lines_files(7) = '34'
-    file_names(8) = 'eigenfunc'
-    n_lines_files(8) = '34'
-
-    n_file_names = 8
 
     call init_mp
 
@@ -244,10 +223,9 @@ program test_gs2_diagnostics_new
         ! is no longer between files output from the same run but between
         ! files output from two successive runs. This causes changes greater
         ! than the precision of the heat and heat2 files. EGH
-        do i = 3,n_file_names
+        do i = 3, size(file_names)
           call announce_test("content of "//trim(file_names(i)))
-          call process_test(test_file(trim(file_names(i)), trim(n_lines_files(i))), &
-            "content of "//trim(file_names(i)))
+          call process_test(test_file(trim(file_names(i))), "content of "//trim(file_names(i)))
         end do
       end if
     end if
@@ -273,17 +251,16 @@ contains
     if (gnostics%append_old) then 
       ! Here we are comparing the new diagnostics 200 step run with 
       ! a 100-step run with an appended 100 step run.
-      write(command,'("./compare.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
-         "test_gs2_diagnostics_new.out.nc",var_name,&
-         "test_gs2_diagnostics_new_append.out.nc",new_var_name
+      write(command,'("./compare.py ", A," ", A," ", A," ", A)') &
+         "test_gs2_diagnostics_new.out.nc", var_name,&
+         "test_gs2_diagnostics_new_append.out.nc", new_var_name
     else 
-      write(command,'("./compare.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
-         "old_diagnostics/test_gs2_diagnostics_new.out.nc",var_name,&
-         "test_gs2_diagnostics_new.out.nc",new_var_name
+      write(command,'("./compare.py ", A," ", A," ", A," ", A)') &
+         "old_diagnostics/test_gs2_diagnostics_new.out.nc", var_name,&
+         "test_gs2_diagnostics_new.out.nc", new_var_name
      end if
     
     if (should_print(3)) write(*,*) trim(command)
-    call execute_command_line(" echo ""F"" > tmpdata.dat")
     call execute_command_line(command)
     test_variable = .true.
     open(120349, file='tmpdata.dat')
@@ -292,19 +269,18 @@ contains
 #endif
   end function test_variable
 
-  function test_file(file_name, n_lines)
+  logical function test_file(file_name)
     use unit_tests, only: should_print
-    character(*), intent(in) :: file_name, n_lines
-    logical :: test_file
-    character(1000) ::  command 
+    character(*), intent(in) :: file_name
+    character(1000) ::  command
     
     test_file=.true.
 #ifdef NEW_DIAG
     ! bash command that compares the old and new diagnostics results for the last
     ! n_lines lines of a file, and writes T to tmpdata.dat if they agree
-    write(command,'("./compare_ascii.py ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A," ",A)') &
-         "old_diagnostics/test_gs2_diagnostics_new."//file_name,&
-         "test_gs2_diagnostics_new."//file_name
+    write(command, &
+         '("./compare_ascii.py old_diagnostics/test_gs2_diagnostics_new.", A," test_gs2_diagnostics_new.", A)') &
+         file_name, file_name
     if (should_print(3)) write(*,*) trim(command)
     call execute_command_line(command)
     open(120349, file='tmpdata.dat')
@@ -312,6 +288,5 @@ contains
     close(120349)
 #endif
   end function test_file
-
 
 end program test_gs2_diagnostics_new

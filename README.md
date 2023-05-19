@@ -50,6 +50,11 @@ optional ones:
 - python (required for code generation, tests and documentation,
   requires >= 3.6)
 
+When compiled with netCDF, we also use the
+[neasy-f](https://github.com/PlasmaFAIR/neasy-f/) netCDF wrapper
+library, but we bundle this with GS2 so you don't need to build
+neasy-f separately.
+
 ### Fortran standard features
 
 Some compilers still only support a subset of the F2003/F2008 standards. The

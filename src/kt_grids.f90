@@ -2007,15 +2007,15 @@ module kt_grids
   public :: ikx, iky, jtwist_out
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
-  public :: kwork_filter, kperp2
+  public :: kwork_filter, kperp2, inv_kperp2
   public :: gryfx
 
   public :: kt_grids_config_type
   public :: set_kt_grids_config
   public :: get_kt_grids_config
-  
+
   logical, dimension(:,:), allocatable :: kwork_filter
-  real, dimension (:,:,:), allocatable :: kperp2
+  real, dimension (:,:,:), allocatable :: kperp2, inv_kperp2
   !> The \(\theta_0(k_x, k_y)\) grid
   real, dimension (:,:), allocatable :: theta0
   !> The \(k_x \rho\) grid
@@ -2326,7 +2326,7 @@ contains
   subroutine init_kperp2
     use theta_grid, only: ntgrid, gds2, gds21, gds22, shat
     implicit none
-    integer :: ik, it
+    integer :: ik, it, ig
 
     if (kp2init) return
     kp2init = .true.
@@ -2345,6 +2345,20 @@ contains
           end do
        end if
     end do
+
+    allocate (inv_kperp2(-ntgrid:ntgrid,ntheta0,naky))
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          do ig = -ntgrid, ntgrid
+             if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                inv_kperp2(ig, it, ik) = 1.0/kperp2(ig, it, ik)
+             else
+                inv_kperp2(ig, it, ik) = 0.0
+             end if
+          end do
+       end do
+    end do
   end subroutine init_kperp2
 
   !> FIXME : Add documentation  
@@ -2355,6 +2369,7 @@ contains
     if (allocated(aky)) deallocate (akx, aky, theta0, ikx, iky)
     if (allocated(kwork_filter)) deallocate(kwork_filter)
     if (allocated(kperp2)) deallocate(kperp2)
+    if (allocated(inv_kperp2)) deallocate(inv_kperp2)
     reality = .false. ; box = .false.
     kp2init = .false.
     initialized = .false.

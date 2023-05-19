@@ -54,9 +54,8 @@ contains
     use collisions, only: vnmult
     use species, only: spec
     use diagnostics_config, only: diagnostics_type
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use diagnostics_create_and_write, only: create_and_write_variable_noread
-    use diagnostics_dimensions, only: dim_string
+    use neasyf, only: neasyf_write
+    use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real, dimension (:,:), allocatable :: errest
@@ -78,46 +77,38 @@ contains
       ! error estimate based on monitoring amplitudes of legendre polynomial coefficients
       call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
     end if
-
     
-    !errest(5,:) = -4
-    
-    if (.not. gnostics%vary_vnew_only) then
-       call create_and_write_variable_noread(gnostics, gnostics%rtype, "vspace_lpcfrac", &
-          dim_string([gnostics%dims%generic_3,gnostics%dims%time]), &
-          "Fraction of free energy contained in the high order coefficients of &
-          & the Legendre polynomial transform of (1) energy space, (2) untrapped &
-          & pitch angles and (3) trapped pitch angles (each should ideally be < 0.1).  &
-          & Note that there are no trapped pitch angles for certain geometries", &
-          "1", (/geavg, glavg, gtavg/))
-       call create_and_write_variable(gnostics, gnostics%rtype, "vspace_err", &
-          dim_string([gnostics%dims%generic_5,gnostics%dims%generic_2,gnostics%dims%time]), &
-          "Estimate of the (1) absolute and (2) relative errors resulting from &
-          & velocity space integrals in the calculation of the following quantities &
-          & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
-          & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
-          & angles. Relative errors should be < 0.1. ", &
-          "absolute error measures have units T_r/(e rho_r)", errest)
-       call create_and_write_variable_noread(gnostics, gnostics%rtype, "vspace_vnewk", &
-          dim_string([gnostics%dims%generic_2,gnostics%dims%time]), &
-          "If the simulation is set to vary the collisionality in order to keep &
-          & error in velocity integrals to acceptable levels, contains species 1 &
-          & collisionality in (1) pitch angle and (2) energy  ", &
-          "v_thr/a", (/vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk/))
-       ! This next statement causes annoying printout because of an error in netcdf 4.1
-       ! The error is fixed in 4.2
-       ! See
-       ! http://www.unidata.ucar.edu/software/netcdf/docs/known_problems.html#f90-debug-segfault
-      if (gnostics%write_max_verr) &
-           call create_and_write_variable(gnostics, gnostics%itype, "vspace_err_maxindex", &
-            dim_string([gnostics%dims%generic_5,gnostics%dims%generic_3,gnostics%dims%time]), &
-           "Gives the (1) theta index, (2) ky index and (3) kx index of the maximum &
-           & error resulting from the &
+    if (.not. gnostics%vary_vnew_only .and. gnostics%writing) then
+      call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
+           dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
+           long_name="Fraction of free energy contained in the high order coefficients of &
+           & the Legendre polynomial transform of (1) energy space, (2) untrapped &
+           & pitch angles and (3) trapped pitch angles (each should ideally be < 0.1).  &
+           & Note that there are no trapped pitch angles for certain geometries")
+      call neasyf_write(gnostics%file_id, "vspace_err", errest, &
+           dim_names=[dim_5, dim_2, time_dim], start=starts(3, gnostics%nout), &
+           long_name="Estimate of the (1) absolute and (2) relative errors resulting from &
            & velocity space integrals in the calculation of the following quantities &
            & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
            & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
-           & angles. Relative errors should be < 0.1. ", &
-           "1", erridx)
+           & angles. Relative errors should be < 0.1. ")
+      call neasyf_write(gnostics%file_id, "vspace_vnewk", &
+           [vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk], &
+           dim_names=[dim_2, time_dim], start=starts(2, gnostics%nout), &
+           long_name="If the simulation is set to vary the collisionality in order to keep &
+           & error in velocity integrals to acceptable levels, contains species 1 &
+           & collisionality in (1) pitch angle and (2) energy  ")
+
+      if (gnostics%write_max_verr) then
+        call neasyf_write(gnostics%file_id, "vspace_err_maxindex", erridx, &
+             dim_names=[dim_5, dim_3, time_dim], start=starts(3, gnostics%nout), &
+             long_name="Gives the (1) theta index, (2) ky index and (3) kx index of the maximum &
+             & error resulting from the &
+             & velocity space integrals in the calculation of the following quantities &
+             & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
+             & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
+             & angles. Relative errors should be < 0.1. ")
+      end if
    end if
    
    if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
@@ -149,9 +140,8 @@ contains
    use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use fields_arrays, only: phinew, bparnew
-    use run_parameters, only: fphi, fbpar
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx, g_lo
     use collisions, only: dtot, fdf, fdb
@@ -182,19 +172,9 @@ contains
     lcoll = 0.0; fdcoll = 0.0; glze = 0.0; ltmp = 0.0; ftmp = 0.0
     etmp = 0.0; emax = 0.0; etot = 0.0; eavg = 0.0; edenom = 1.0; ltmax = 1.0
 
-!    if (first .and. proc0) then
-    !if (.not.cerrinit .and. proc0) then
-!!       first = .false.
-       !cerrinit = .true.
-    !end if
-
-! convert gnew from g to h
-    call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
-
+    call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
     g0 = gnew
-
-! convert gnew from h back to g
-    call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
 ! map from g0(ig,isgn,iglo) to glze(il,ilz)
     call gather (lambda_map, g0, glze)

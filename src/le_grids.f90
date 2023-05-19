@@ -966,10 +966,11 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -986,8 +987,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1039,10 +1041,11 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
-       !$OMP SCHEDULE(guided)
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           ik = ik_idx(g_lo,iglo)
@@ -1059,8 +1062,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1286,8 +1290,9 @@ contains
 
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, ntheta0) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1309,8 +1314,9 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       !$OMP PARALLEL DO DEFAULT(SHARED) &
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
+       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, naky) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1381,8 +1387,9 @@ contains
 
     call zero_array(total)
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
+    !$OMP SHARED(lo, negrid, spec, weights, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
@@ -1422,8 +1429,9 @@ contains
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
+    !$OMP SHARED(lo, nxi, spec, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -1477,8 +1485,9 @@ contains
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
     call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
+    !$OMP SHARED(lo, nxi, negrid, spec, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -1786,8 +1795,9 @@ contains
     call zero_array(total_small)
 
     !Integrate over local velocity space
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+    !$OMP SHARED(g_lo, w, wl, g) &
     !$OMP REDUCTION(+ : total_small) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1869,8 +1879,9 @@ contains
     call zero_array(total)
 
     !Do local velocity space integral
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iplo, is, ik, ie, il) &
+    !$OMP SHARED(p_lo, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do iplo = p_lo%llim_proc, p_lo%ulim_proc
@@ -1915,8 +1926,9 @@ contains
     integer :: is, il, ie, ik, it, ig, ielo
 
     call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
+    !$OMP SHARED(lo, negrid, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
@@ -1959,8 +1971,9 @@ contains
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
+    !$OMP SHARED(lo, nxi, ixi_to_il, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -2018,8 +2031,9 @@ contains
     else
        nxup=nxi
     endif
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP SHARED(lo, kwork_filter, negrid, nxup, ixi_to_il, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -2069,8 +2083,9 @@ contains
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
     call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
+    !$OMP SHARED(lo, kwork_filter, negrid, nxi, ixi_to_il, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc

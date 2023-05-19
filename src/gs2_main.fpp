@@ -691,9 +691,6 @@ contains
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
-      ! Create variables and write constants
-      call run_diagnostics(-1,state%exit, state%replay)
-      !call broadcast(state%exit)
       ! Write initial values
       call run_diagnostics(0,state%exit, state%replay)
 #else
@@ -766,11 +763,12 @@ contains
     use gs2_reinit, only: check_time_step
     use gs2_save, only: gs2_save_for_restart
     use gs2_time, only: user_time, update_time, write_dt, user_dt
+    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use job_manage, only: time_message, checkstop, checktime
     use mp, only: proc0
     use mp, only: scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
-    use run_parameters, only: reset, fphi, fapar, fbpar, nstep, max_sim_time
+    use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time
     use run_parameters, only: use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
@@ -876,11 +874,15 @@ contains
          
          if (use_old_diagnostics) then
            if (nsave > 0 .and. mod(istep, nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+                has_phi, has_apar, has_bpar, &
+                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
          else
 #ifdef NEW_DIAG
            if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar, header=local_header)
+                call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+                has_phi, has_apar, has_bpar, &
+                code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
 #endif
          end if
          call update_time
@@ -1290,10 +1292,10 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     use collisions, only: vnmult
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only:  force_maxwell_reinit
     use fields_arrays, only: phinew, aparnew, bparnew
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
     implicit none
@@ -1324,22 +1326,17 @@ contains
       ! Therefore, the force_maxwell_reinit component has been completely removed from the initial_values_overrides_type derived
       ! type to avoid confusion in the future.
       if (.not. force_maxwell_reinit) then
-        if(fphi.gt.0) then
-          initval_ov%phi=phinew
-        end if
-        if(fapar.gt.0) then 
-          initval_ov%apar=aparnew
-        end if
-        if(fbpar.gt.0) then 
-          initval_ov%bpar=bparnew
-        end if
+         if(has_phi) initval_ov%phi=phinew
+         if(has_apar) initval_ov%apar=aparnew
+         if(has_bpar) initval_ov%bpar=bparnew
       end if
     else ! if(.not.in_memory)then
       !Should really do this with in_memory=.true. as well but
       !not sure that we really need to as we never read in the dumped data.
       if (proc0) call dump_ant_amp
 
-      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, fphi, fapar, fbpar)
+      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+           has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max)
     endif
 
   end subroutine set_initval_overrides_to_current_vals
@@ -1808,26 +1805,26 @@ contains
     use dist_fn_arrays, only: g, gnew
     use fields, only: set_init_fields
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew,  bparnew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use init_g, only: ginit
     implicit none
     logical :: dummy
     
-    if (fphi > 0.) then 
-       phi = 0.0 
+    if (has_phi) then
+       phi = 0.0
        phinew = 0.0
     end if
-    
-    if (fapar > 0.) then 
+
+    if (has_apar) then
        apar = 0.0
        aparnew = 0.0
     end if
-    if (fbpar > 0.) then 
+    if (has_bpar) then
        bpar = 0.0
        bparnew = 0.0
     end if
     g = 0.0; gnew = 0.0
-    
+
     call ginit(dummy)
     call set_init_fields
   end subroutine reset_linear_magnitude
