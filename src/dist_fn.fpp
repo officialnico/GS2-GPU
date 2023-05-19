@@ -106,23 +106,17 @@ module dist_fn
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
-  integer, dimension (:), allocatable :: bd_exp ! nspec
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
-  real :: phi_ext, afilter, kfilter
+  real :: phi_ext, afilter
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
-  !logical :: dfexist, skexist, nonad_zero
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
-  logical :: opt_init_bc !< DEPRECATED
-!CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
-!CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
+  !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
+  !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
   logical :: wfb_cmr
-       
-  real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin
-  real :: qparfac_lin, qprpfac_lin, phifac_lin
 
   integer :: adiabatic_option_switch
   integer, parameter :: adiabatic_option_default = 1, &
@@ -142,7 +136,7 @@ module dist_fn
   logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
-  logical :: mult_imp, test
+  logical :: mult_imp
   logical :: accelerated_x = .false.
   logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
@@ -301,10 +295,6 @@ module dist_fn
      !> True only allows solutions of single parity as determined by
      !> the input [[dist_fn_knobs:even]].
      logical :: def_parity = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
-     real :: densfac_lin = sqrt(2.)
      !> Leave as unity for physical runs can be used for
      !> debugging. Multiplies the passing particle drifts (also see
      !> [[dist_fn_knobs:tpdriftknob]]).
@@ -355,10 +345,6 @@ module dist_fn
      !> Determines if we include the hyperviscosity term during the
      !> initialisation of the response matrix or not.
      logical :: hyper_in_initialisation = .true.
-     !> For debugging only.
-     !>_
-     !> @todo Improve documentation
-     real :: kfilter = 0.0
      !> Set up lowflow term \(F_1/F_0 = xi*(v/v_{th})*(a + b*(v/v_{th})^2)\)
      logical :: lf_decompose = .false.
      !> Treatment of radial variation of temperature in NEO energy variable:
@@ -383,8 +369,6 @@ module dist_fn
      !> Factor multiplying the parallel shearing drive term when
      !> running with non-zero [[dist_fn_knobs:g_exb]]
      real :: omprimfac = 1.0
-     !> Deprecated and due for removal
-     logical :: opt_init_bc = .false.
      !>  If true then use an optimised linear source calculation which
      !>  uses pre-calculated coefficients, calculates both sigma
      !>  together and skips work associated with empty fields. Can
@@ -394,38 +378,12 @@ module dist_fn
      !>  increase due to using an additional array of size 2-4 times
      !>  `gnew`.
      logical :: opt_source = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i
-     real :: phifac_lin = sqrt(2.)
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
-     real :: qparfac_lin = 4.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^3
-     real :: qprpfac_lin = 4.
-     !> For debugging only. If set then run will print various grid sizes and then stop.
-     logical :: test = .false.
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
-     real :: tparfac_lin = 2.*sqrt(2.)
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti^2
-     real :: tprpfac_lin = 2.*sqrt(2.)
-     !> FIXME: Remove, unused
-     !>
-     !> Used for GRYFX - should probably be moved elsewhere - ~ rho_i vti
-     real :: uparfac_lin = 2.
      !> For debugging only. Scales the calculated vparallel.
      !>
      !> @note If set to zero then the homogeneous contribution, `g1`, will be
@@ -524,10 +482,6 @@ module dist_fn
      !>
      !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> Not used for anything.
-     !>
-     !> @todo Remove this variable.
-     integer :: bd_exp = 0
      !> Sets the imaginary part of the temporal implicitness
      !> parameter. It is considered an error for this to be non-zero.
      !>
@@ -712,17 +666,6 @@ contains
        write (report_unit, *) 
     end if
 
-    if (test) then
-       write (report_unit, *) 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('Test = T in the dist_fn_knobs namelist will stop the run before ')")
-       write (report_unit, fmt="('any significant calculation is done, and will result in several ')")
-       write (report_unit, fmt="('variables that determine array sizes to be written to the screen.')")
-       write (report_unit, fmt="('THIS MAY BE AN ERROR.')") 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
-    end if
-
     if (def_parity .and. nonlinear_mode_switch == nonlinear_mode_on) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
@@ -794,15 +737,6 @@ contains
 
        write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, real(fexp(is))
     end do
-
-    if (opt_init_bc) then
-       write (report_unit, *) 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('The opt_init_bc flag is due for removal.')")
-       write (report_unit, fmt="('It does not influence the behaviour of the code.')")       
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)        
-    endif
   end subroutine check_dist_fn
 
   !> FIXME : Add documentation  
@@ -857,10 +791,8 @@ contains
        if (driftknob /= 1.) write (unit, fmt="(' driftknob = ',e17.10)") driftknob
        if (tpdriftknob /= 1.) write (unit, fmt="(' tpdriftknob = ',e17.10)") tpdriftknob
        if (poisfac /= 0.) write (unit, fmt="(' poisfac = ',e17.10)") poisfac
-       if (kfilter /= 0.) write (unit, fmt="(' kfilter = ',e17.10)") kfilter
        if (afilter /= 0.) write (unit, fmt="(' afilter = ',e17.10)") afilter
        if (mult_imp) write (unit, fmt="(' mult_imp = ',L1)") mult_imp
-       if (test) write (unit, fmt="(' test = ',L1)") test
        if (def_parity) then
           write (unit, fmt="(' def_parity = ',L1)") def_parity
           if (even) write (unit, fmt="(' even = ',L1)") even
@@ -903,7 +835,6 @@ contains
             & trim("dist_fn_species_knobs_"//trim(adjustl(line)))
        write (unit, fmt="(' fexpr = ',e13.6)") real(fexp(i))
        write (unit, fmt="(' bakdif = ',e13.6)") bkdiff(i)
-       write (unit, fmt="(' bd_exp = ',i6,'  /')") bd_exp(i)
     end do
   end subroutine wnml_dist_fn_species
 
@@ -945,7 +876,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_dist_fn_arrays
-    use mp, only: nproc, iproc, proc0, finish_mp, mp_abort
+    use mp, only: nproc, iproc
     use species, only: nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda, negrid
@@ -960,18 +891,6 @@ contains
     initialized_dist_fn_arrays  = .true.
 
     call init_dist_fn_parameters
-
-    if (test) then
-       if (proc0) then
-          write (*,*) 'nspecies = ',nspec
-          write (*,*) 'nlambda = ', nlambda
-          write (*,*) 'negrid = ',negrid
-          write (*,*) 'ntheta0 = ',ntheta0
-          write (*,*) 'naky = ',naky
-       end if
-       call finish_mp
-       call mp_abort('only testing')
-    end if
 
     if (debug) write(6,*) "init_dist_fn: run_parameters"
     call init_run_parameters
@@ -996,8 +915,6 @@ contains
 
     if (debug) write(6,*) "init_dist_fn: allocate_arrays"
     call allocate_arrays
-
-
   end subroutine init_dist_fn_arrays
 
   !> FIXME : Add documentation
@@ -1006,11 +923,8 @@ contains
     initialized_dist_fn_level_1 = .true.
 
     call init_dist_fn_arrays
-
-    !if (debug) write(6,*) "init_dist_fn: init_vperp2"
     call init_vperp2
     call init_bc
-  
   end subroutine init_dist_fn_level_1
 
   !> FIXME : Add documentation  
@@ -1096,7 +1010,7 @@ contains
     initialized_dist_fn_parameters = .false.
     call finish_dist_fn_arrays
     readinit = .false.
-    if (allocated(fexp)) deallocate (fexp, bkdiff, bd_exp)
+    if (allocated(fexp)) deallocate (fexp, bkdiff)
   end subroutine finish_dist_fn_parameters
 
   subroutine finish_dist_fn_arrays
@@ -1326,7 +1240,6 @@ contains
     boundary_option = dist_fn_config%boundary_option
     btor_slab = dist_fn_config%btor_slab
     def_parity = dist_fn_config%def_parity
-    densfac_lin = dist_fn_config%densfac_lin
     driftknob = dist_fn_config%driftknob
     esv = dist_fn_config%esv
     even = dist_fn_config%even
@@ -1338,24 +1251,15 @@ contains
     gf_lo_integrate = dist_fn_config%gf_lo_integrate
     gridfac = dist_fn_config%gridfac
     hyper_in_initialisation = dist_fn_config%hyper_in_initialisation
-    kfilter = dist_fn_config%kfilter
     lf_decompose = dist_fn_config%lf_decompose
     lf_default = dist_fn_config%lf_default
     mach = dist_fn_config%mach
     mult_imp = dist_fn_config%mult_imp
     nonad_zero = dist_fn_config%nonad_zero
     omprimfac = dist_fn_config%omprimfac
-    opt_init_bc = dist_fn_config%opt_init_bc
     opt_source = dist_fn_config%opt_source
-    phifac_lin = dist_fn_config%phifac_lin
     poisfac = dist_fn_config%poisfac
-    qparfac_lin = dist_fn_config%qparfac_lin
-    qprpfac_lin = dist_fn_config%qprpfac_lin
-    test = dist_fn_config%test
-    tparfac_lin = dist_fn_config%tparfac_lin
     tpdriftknob = dist_fn_config%tpdriftknob
-    tprpfac_lin = dist_fn_config%tprpfac_lin
-    uparfac_lin = dist_fn_config%uparfac_lin
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
     wfb_cmr = dist_fn_config%wfb_cmr
@@ -1386,13 +1290,12 @@ contains
          (adiabatic_option, adiabaticopts, adiabatic_option_switch, &
          ierr, "adiabatic_option in dist_fn_knobs",.true.)
        
-    if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec), bd_exp(nspec))
+    if (.not.allocated(fexp)) allocate (fexp(nspec), bkdiff(nspec))
 
     call read_species_knobs(dist_fn_species_config_in)
 
     call broadcast (fexp)
     call broadcast (bkdiff)
-    call broadcast (bd_exp)
   
     !<DD>Turn off esv if not using linked boundaries
     esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
@@ -1466,7 +1369,6 @@ contains
 
        ! Copy out internal values into module level parameters
        bkdiff(is) = dist_fn_species_config(is)%bakdif
-       bd_exp(is) = dist_fn_species_config(is)%bd_exp
        fexpi = dist_fn_species_config(is)%fexpi
        fexpr = dist_fn_species_config(is)%fexpr
        
@@ -5585,7 +5487,6 @@ contains
        wgt = spec%z*spec%dens
        call integrate_species (g_work, wgt, antot)
 
-!    if (kfilter > epsilon(0.0)) call par_filter(antot)
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
        if(esv) call ensure_single_val_fields_pass(antot)
     end if
@@ -5607,7 +5508,6 @@ contains
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
-!    if (kfilter > epsilon(0.0)) call par_filter(antota)
        if(esv) call ensure_single_val_fields_pass(antota)
     end if
 
@@ -5628,7 +5528,6 @@ contains
 
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
-!    if (kfilter > epsilon(0.0)) call par_filter(antotp)
        if(esv) call ensure_single_val_fields_pass(antotp)
     end if
 
@@ -5830,8 +5729,6 @@ contains
          tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
     complex(real32), dimension(:), intent(out) :: phi_gryfx
     complex, dimension(:,:,:,:), allocatable :: total
-
-    !real :: densfac_lin, uparfac_lin, tparfac_lin, tprpfac_lin, qparfac_lin, qprpfac_lin, phifac_lin
 
     allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
    
@@ -11161,13 +11058,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_init_bc, opt_source, test, wfb_cmr, zero_forbid
-    real :: afilter, apfac, btor_slab, densfac_lin, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, kfilter, mach, omprimfac, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, tparfac_lin
-    real :: tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, wfb_cmr, zero_forbid
+    real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, densfac_lin, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, kfilter, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_init_bc, opt_source, phifac_lin, poisfac, qparfac_lin, qprpfac_lin, &
-         test, tparfac_lin, tpdriftknob, tprpfac_lin, uparfac_lin, vparknob, wfb, wfb_cmr, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
+         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
+         tpdriftknob, vparknob, wfb, wfb_cmr, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -11179,7 +11075,6 @@ contains
     boundary_option = self%boundary_option
     btor_slab = self%btor_slab
     def_parity = self%def_parity
-    densfac_lin = self%densfac_lin
     driftknob = self%driftknob
     esv = self%esv
     even = self%even
@@ -11191,24 +11086,15 @@ contains
     gf_lo_integrate = self%gf_lo_integrate
     gridfac = self%gridfac
     hyper_in_initialisation = self%hyper_in_initialisation
-    kfilter = self%kfilter
     lf_decompose = self%lf_decompose
     lf_default = self%lf_default
     mach = self%mach
     mult_imp = self%mult_imp
     nonad_zero = self%nonad_zero
     omprimfac = self%omprimfac
-    opt_init_bc = self%opt_init_bc
     opt_source = self%opt_source
-    phifac_lin = self%phifac_lin
     poisfac = self%poisfac
-    qparfac_lin = self%qparfac_lin
-    qprpfac_lin = self%qprpfac_lin
-    test = self%test
-    tparfac_lin = self%tparfac_lin
     tpdriftknob = self%tpdriftknob
-    tprpfac_lin = self%tprpfac_lin
-    uparfac_lin = self%uparfac_lin
     vparknob = self%vparknob
     wfb = self%wfb
     wfb_cmr = self%wfb_cmr
@@ -11225,7 +11111,6 @@ contains
     self%boundary_option = boundary_option
     self%btor_slab = btor_slab
     self%def_parity = def_parity
-    self%densfac_lin = densfac_lin
     self%driftknob = driftknob
     self%esv = esv
     self%even = even
@@ -11237,24 +11122,15 @@ contains
     self%gf_lo_integrate = gf_lo_integrate
     self%gridfac = gridfac
     self%hyper_in_initialisation = hyper_in_initialisation
-    self%kfilter = kfilter
     self%lf_decompose = lf_decompose
     self%lf_default = lf_default
     self%mach = mach
     self%mult_imp = mult_imp
     self%nonad_zero = nonad_zero
     self%omprimfac = omprimfac
-    self%opt_init_bc = opt_init_bc
     self%opt_source = opt_source
-    self%phifac_lin = phifac_lin
     self%poisfac = poisfac
-    self%qparfac_lin = qparfac_lin
-    self%qprpfac_lin = qprpfac_lin
-    self%test = test
-    self%tparfac_lin = tparfac_lin
     self%tpdriftknob = tpdriftknob
-    self%tprpfac_lin = tprpfac_lin
-    self%uparfac_lin = uparfac_lin
     self%vparknob = vparknob
     self%wfb = wfb
     self%wfb_cmr = wfb_cmr
@@ -11282,7 +11158,6 @@ contains
     call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
     call self%write_key_val("def_parity", self%def_parity, unit_internal)
-    call self%write_key_val("densfac_lin", self%densfac_lin, unit_internal)
     call self%write_key_val("driftknob", self%driftknob, unit_internal)
     call self%write_key_val("esv", self%esv, unit_internal)
     call self%write_key_val("even", self%even, unit_internal)
@@ -11294,24 +11169,15 @@ contains
     call self%write_key_val("gf_lo_integrate", self%gf_lo_integrate, unit_internal)
     call self%write_key_val("gridfac", self%gridfac, unit_internal)
     call self%write_key_val("hyper_in_initialisation", self%hyper_in_initialisation, unit_internal)
-    call self%write_key_val("kfilter", self%kfilter, unit_internal)
     call self%write_key_val("lf_decompose", self%lf_decompose, unit_internal)
     call self%write_key_val("lf_default", self%lf_default, unit_internal)
     call self%write_key_val("mach", self%mach, unit_internal)
     call self%write_key_val("mult_imp", self%mult_imp, unit_internal)
     call self%write_key_val("nonad_zero", self%nonad_zero, unit_internal)
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
-    call self%write_key_val("opt_init_bc", self%opt_init_bc, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
-    call self%write_key_val("phifac_lin", self%phifac_lin, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
-    call self%write_key_val("qparfac_lin", self%qparfac_lin, unit_internal)
-    call self%write_key_val("qprpfac_lin", self%qprpfac_lin, unit_internal)
-    call self%write_key_val("test", self%test, unit_internal)
-    call self%write_key_val("tparfac_lin", self%tparfac_lin, unit_internal)
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
-    call self%write_key_val("tprpfac_lin", self%tprpfac_lin, unit_internal)
-    call self%write_key_val("uparfac_lin", self%uparfac_lin, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
     call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
@@ -11341,7 +11207,6 @@ contains
     call broadcast(self%boundary_option)
     call broadcast(self%btor_slab)
     call broadcast(self%def_parity)
-    call broadcast(self%densfac_lin)
     call broadcast(self%driftknob)
     call broadcast(self%esv)
     call broadcast(self%even)
@@ -11353,24 +11218,15 @@ contains
     call broadcast(self%gf_lo_integrate)
     call broadcast(self%gridfac)
     call broadcast(self%hyper_in_initialisation)
-    call broadcast(self%kfilter)
     call broadcast(self%lf_decompose)
     call broadcast(self%lf_default)
     call broadcast(self%mach)
     call broadcast(self%mult_imp)
     call broadcast(self%nonad_zero)
     call broadcast(self%omprimfac)
-    call broadcast(self%opt_init_bc)
     call broadcast(self%opt_source)
-    call broadcast(self%phifac_lin)
     call broadcast(self%poisfac)
-    call broadcast(self%qparfac_lin)
-    call broadcast(self%qprpfac_lin)
-    call broadcast(self%test)
-    call broadcast(self%tparfac_lin)
     call broadcast(self%tpdriftknob)
-    call broadcast(self%tprpfac_lin)
-    call broadcast(self%uparfac_lin)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
     call broadcast(self%wfb_cmr)
@@ -11518,17 +11374,15 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: bd_exp
     real :: bakdif, fexpi, fexpr
 
-    namelist /dist_fn_species_knobs/ bakdif, bd_exp, fexpi, fexpr
+    namelist /dist_fn_species_knobs/ bakdif, fexpi, fexpr
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
     bakdif = self%bakdif
-    bd_exp = self%bd_exp
     fexpi = self%fexpi
     fexpr = self%fexpr
 
@@ -11539,7 +11393,6 @@ contains
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif
-    self%bd_exp = bd_exp
     self%fexpi = fexpi
     self%fexpr = fexpr
 
@@ -11560,7 +11413,6 @@ contains
 
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("bakdif", self%bakdif, unit_internal)
-    call self%write_key_val("bd_exp", self%bd_exp, unit_internal)
     call self%write_key_val("fexpi", self%fexpi, unit_internal)
     call self%write_key_val("fexpr", self%fexpr, unit_internal)
     call self%write_namelist_footer(unit_internal)
@@ -11583,7 +11435,6 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     call broadcast(self%bakdif)
-    call broadcast(self%bd_exp)
     call broadcast(self%fexpi)
     call broadcast(self%fexpr)
 
