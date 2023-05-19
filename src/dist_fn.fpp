@@ -65,12 +65,11 @@ module dist_fn
   public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
   public :: getfieldeq_nogath
   public :: flux, flux_dist, lf_flux, eexchange
-  public :: get_epar, get_heat
+  public :: get_heat
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
   public :: l_links, r_links, itright, boundary
-  public :: get_jext !GGH
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
@@ -8436,54 +8435,6 @@ contains
 ! Density: Calculate Density perturbations
  !=============================================================================
  
- !> Calculate the external current in the antenna
- subroutine get_jext(j_ext)
-   use kt_grids, only: ntheta0, naky,aky, kperp2
-   use theta_grid, only: jacob, delthet, ntgrid
-   use antenna, only: antenna_apar
-   implicit none
-   !Passed
-   !Intent(in) only needed as initialised to zero at top level
-   real, dimension(:,:), intent(in out) ::  j_ext
-   !Local 
-   complex, dimension(:,:,:), allocatable :: j_extz
-   integer :: ig,ik, it                             !Indices
-   real :: fac2                                     !Factor
-   real, dimension (:), allocatable :: wgt
-    
-   !Get z-centered j_ext at current time
-   allocate (j_extz(-ntgrid:ntgrid, ntheta0, naky)) ; j_extz = 0.
-   call antenna_apar (kperp2, j_extz)       
-   
-   !Set weighting factor for z-averages
-   !    if (proc0) then
-   allocate (wgt(-ntgrid:ntgrid))
-   !GGH NOTE: Here wgt is 1/(2*ntgrid)
-   wgt = 0.
-   do ig=-ntgrid,ntgrid-1
-      wgt(ig) = delthet(ig)*jacob(ig)
-   end do
-   wgt = wgt/sum(wgt)         
-   !    endif
-   
-   !Take average over z
-   do ig=-ntgrid, ntgrid-1
-      do ik = 1, naky
-          fac2 = 0.5
-          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
-          do it = 1, ntheta0
-             j_ext(it,ik)=j_ext(it,ik)+real(j_extz(ig,it,ik))*wgt(ig)*fac2
-          end do
-       end do
-    enddo
-    
-    !    if (proc0) then
-    deallocate (wgt)
-    !    endif
-    deallocate (j_extz)
-    
-  end subroutine get_jext
-
   !> Calculate some heating quantities:
   !> - ion/electron heating
   !> - antenna power and B-field contributions to E and E_dot
@@ -10199,42 +10150,6 @@ contains
     call init_dist_fn
     linked = boundary_option_switch == boundary_option_linked
   end subroutine boundary
-
-  !> Calculate \(E_\parallel\)
-  !>
-  !> @note This subroutine only returns epar correctly for linear runs.
-  !>
-  !> FIXME: Add equation
-  subroutine get_epar (phi, apar, phinew, aparnew, epar)
-
-    use theta_grid, only: ntgrid, delthet, gradpar
-    use run_parameters, only: fphi, fapar
-    use gs2_time, only: code_dt, tunits
-    use kt_grids, only: naky, ntheta0
-    implicit none
-    complex, dimension(-ntgrid:,:,:), intent(in) :: phi, apar, phinew, aparnew
-    complex, dimension(-ntgrid:,:,:), intent(out) :: epar
-    complex :: phi_m, apar_m
-
-    integer :: ig, ik, it
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          do ig = -ntgrid, ntgrid-1
-             ! ignoring decentering in time and space for now
-             phi_m = 0.5*(phi(ig+1,it,ik)-phi(ig,it,ik) + &
-                  phinew(ig+1,it,ik)-phinew(ig,it,ik))*fphi
-             apar_m = 0.5*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) & 
-                  -apar(ig+1,it,ik)-apar(ig,it,ik))*fapar
-             
-             epar(ig,it,ik) = -phi_m/delthet(ig)* &
-                  0.5*(abs(gradpar(ig)) + abs(gradpar(ig+1))) &
-                  -apar_m/tunits(ik)/code_dt
-          end do
-       end do
-    end do    
-
-  end subroutine get_epar
 
   !> FIXME : Add documentation
   subroutine find_leftmost_link (iglo, iglo_left, ipleft)
