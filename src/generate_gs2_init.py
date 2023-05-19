@@ -34,30 +34,20 @@ class module_with_dependencies:
         self,
         name,  # The name of the level/module
         module_name=None,  # The name of the module
-        dependencies=[],  # A list of any modules this module depends on, identified by name
+        dependencies=None,  # A list of any modules this module depends on, identified by name
         init_routine=None,  # The name of the routine which initialises this module
         finish_routine=None,  # The name of the routine which finishes this module
         visit_routine=None,  # Can be used to hard-code the generated method
-        visit_args={},
+        visit_args=None,
     ):
         self.name = name
-        if module_name is None:
-            self.module_name = name
-        else:
-            self.module_name = module_name
-        self.dependency_names = dependencies
-        self.init_routine = init_routine
-        self.finish_routine = finish_routine
-        self.visit_routine = visit_routine
-        self.visit_args = visit_args
+        self.module_name = module_name or name
+        self.dependency_names = dependencies or []
+        self.init_routine = init_routine or f"init_{self.name}"
+        self.finish_routine = finish_routine or f"finish_{self.name}"
+        self.visit_routine = visit_routine or default_module_routine_string
+        self.visit_args = visit_args or {}
         self.level = 0
-
-        if self.init_routine is None:
-            self.init_routine = f"init_{self.name}"
-        if self.finish_routine is None:
-            self.finish_routine = f"finish_{self.name}"
-        if self.visit_routine is None:
-            self.visit_routine = default_module_routine_string
 
     def generate_method(self):
         return self.visit_routine.format(
