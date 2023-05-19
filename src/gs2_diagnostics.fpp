@@ -2630,14 +2630,13 @@ contains
   subroutine do_write_dump_1(t)
     use mp, only: proc0
     use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: delthet, jacob, ntgrid
+    use theta_grid, only: field_line_average
     use fields_arrays, only: phinew
     use dist_fn, only: omega0, gamma0
     use constants, only: zi
     implicit none
     real, intent(in) :: t
     complex :: tmp, sourcefac
-    real :: denom
     integer :: ik, it
 
     if(.not.proc0) return
@@ -2645,15 +2644,9 @@ contains
     !Should we not actually use the sourcefac calculated in dist_fn for consistency?
     sourcefac = exp(-zi*omega0*t+gamma0*t)
 
-    !This looks like a fieldline average, do we not have a standard routine
-    !to calculate it? --> get_fldline_avg should do this but includes the last
-    !theta grid point which we don't seem to want here
     do ik = 1, naky
        do it = 1, ntheta0
-          denom=sum(delthet(-ntgrid:ntgrid-1)*jacob(-ntgrid:ntgrid-1))
-          tmp=sum(phinew(-ntgrid:ntgrid-1,it,ik) &
-               *delthet(-ntgrid:ntgrid-1) &
-               *jacob(-ntgrid:ntgrid-1))/denom
+          tmp=field_line_average(phinew(:,it,ik))
           write (dump_check1_unit, "(20(1x,e12.5))") &
                t, aky(ik), akx(it), tmp, tmp/sourcefac
        end do
@@ -2992,18 +2985,19 @@ contains
   !> Summed magnitude of all the fields
   subroutine phinorm (phitot)
     use fields_arrays, only: phinew, aparnew, bparnew
-    use theta_grid, only: delthet
+    use theta_grid, only: theta
     use kt_grids, only: naky, ntheta0
     use constants, only: pi
+    use integration, only: trapezoidal_integration
     implicit none
     real, dimension (:,:), intent (out) :: phitot
     integer :: ik, it
     do ik = 1, naky
        do it = 1, ntheta0
           phitot(it,ik) = 0.5/pi &
-               *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
-               + abs(bparnew(:,it,ik))**2) &
-               *delthet))
+               *(trapezoidal_integration(theta, &
+               (abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+               + abs(bparnew(:,it,ik))**2)))
        end do
     end do
   end subroutine phinorm
@@ -3012,26 +3006,21 @@ contains
   !!
   !! @note Here we calculate the correction factors for each possible kperp
   subroutine get_vol_average_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
     real, intent (out) :: axb
     real, dimension (:,:), intent (out) :: axb_by_mode
-
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
 
     ng = ntgrid
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = sum(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+               = field_line_average(real(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik)))
        end do
     end do
 
@@ -3167,40 +3156,20 @@ contains
 
   !> Calculate the field-line average (real values)
   subroutine get_fldline_avg_r (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob, ntgrid
+    use theta_grid, only: field_line_average, ntgrid
     implicit none
-    real, dimension (:), allocatable :: dl_over_b
     real, dimension (-ntgrid:), intent (in) :: fld_in
     real, intent (out) :: fld_out
-
-    allocate (dl_over_b(-ntgrid:ntgrid))
-
-    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
-    dl_over_b = dl_over_b / sum(dl_over_b)
-
-    fld_out = sum(fld_in*dl_over_b)
-
-    deallocate (dl_over_b)
-
+    fld_out = field_line_average(fld_in)
   end subroutine get_fldline_avg_r
 
   !> Calculate the field-line average (complex values)
   subroutine get_fldline_avg_c (fld_in, fld_out)
-    use theta_grid, only: delthet, jacob, ntgrid
+    use theta_grid, only: field_line_average, ntgrid
     implicit none
-    real, dimension (:), allocatable :: dl_over_b
     complex, dimension (-ntgrid:), intent (in) :: fld_in
     complex, intent (out) :: fld_out
-
-    allocate (dl_over_b(-ntgrid:ntgrid))
-
-    dl_over_b = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
-    dl_over_b = dl_over_b / sum(dl_over_b)
-
-    fld_out = sum(fld_in*dl_over_b)
-
-    deallocate (dl_over_b)
-
+    fld_out = field_line_average(fld_in)
   end subroutine get_fldline_avg_c
 
   !> This is a highly simplified synthetic diagnostic which 
@@ -3248,7 +3217,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine get_vol_int_all (a, b, axb, axb_by_mode)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: a, b
@@ -3256,17 +3225,12 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     integer :: ik, it
     integer :: ng
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
     ng = ntgrid
-    wgt = delthet(-ng:ng)*jacob(-ng:ng)
-    anorm = sum(wgt)
 
     do ik = 1, naky
        do it = 1, ntheta0
           axb_by_mode(it,ik) &
-               = sum((conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))*wgt)/anorm
+               = field_line_average(conjg(a(-ng:ng,it,ik))*b(-ng:ng,it,ik))
        end do
     end do
 

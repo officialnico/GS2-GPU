@@ -167,28 +167,10 @@ contains
 
   end subroutine non_linear_term
 
-  !> Average over theta
-  subroutine average_theta(a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
-    implicit none
-
-    complex, dimension (-ntgrid:), intent (in) :: a
-    complex, intent (out) :: axb
-
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet(-ntgrid:ntgrid)*jacob(-ntgrid:ntgrid)
-    anorm = sum(wgt)
-
-    axb = sum(a(-ntgrid:ntgrid)*wgt)/anorm
-
-  end subroutine average_theta
-
   !> Returns tau, the transfer of free energy as a function of (kx,ky)
   subroutine total_term(tau)
     use mp, only: proc0, broadcast
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, field_line_average
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use species, only: nspec
     use kt_grids, only: ntheta0, naky
@@ -224,7 +206,7 @@ contains
        ! integrate over theta, must be done after velocity space integration
        do ik = 1, naky
           do it = 1, ntheta0
-             call average_theta(inter(:,it,ik),tau(it,ik))
+             tau(it, ik) = field_line_average(inter(:,it,ik))
           end do
        end do
     end if

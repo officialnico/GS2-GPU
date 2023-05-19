@@ -168,7 +168,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txys (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     use species, only: nspec
@@ -177,11 +177,7 @@ contains
     real, dimension (:,:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it, is
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
 
-    wgt = delthet * jacob
-    anorm = sum(wgt)
     axb_by_mode = 0
 
     do is = 1,nspec
@@ -189,7 +185,7 @@ contains
           do it = 1, ntheta0
              if (.not. distributed .or. field_k_local(it,ik)) then
                 axb_by_mode(it,ik,is) &
-                     = sum(real(conjg(a(:, it, ik, is))*b(:, it, ik,is))*wgt)/anorm
+                     = field_line_average(real(conjg(a(:,it,ik,is))*b(:,it,ik,is)))
              end if
           end do
        end do
@@ -198,7 +194,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_1_real_txy (a, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     implicit none
@@ -206,18 +202,14 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
 
     axb_by_mode = 0
 
     do ik = 1, naky
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
-             axb_by_mode(it,ik) = sum(a(:, it, ik) * wgt)/anorm
+             axb_by_mode(it,ik) &
+                  = field_line_average(a(:,it,ik))
           end if
        end do
     end do
@@ -225,47 +217,29 @@ contains
 
   !> FIXME : Add documentation
   subroutine average_theta_real_real_t (a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     real, dimension (-ntgrid:), intent (in) :: a
     real, intent (out) :: axb
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
-
-    axb = sum(a*wgt)/anorm
+    axb = field_line_average(a)
   end subroutine average_theta_real_real_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_complex_t (a, b, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a, b
     complex, intent (out) :: axb
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
-
-    axb = sum(conjg(a) * b * wgt)/anorm
+    axb = field_line_average(conjg(a)*b)
   end subroutine average_theta_complex_complex_complex_t
 
   !> FIXME : Add documentation  
   subroutine average_theta_complex_complex_t (a, axb)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     implicit none
     complex, dimension (-ntgrid:), intent (in) :: a
     complex, intent (out) :: axb
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
-
-    axb = sum(a * wgt)/anorm
+    axb = field_line_average(a)
   end subroutine average_theta_complex_complex_t
 
   !> FIXME : Add documentation  
@@ -282,7 +256,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     implicit none
@@ -290,11 +264,6 @@ contains
     real, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
 
     axb_by_mode = 0
 
@@ -302,7 +271,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(real(conjg(a(:, it, ik))*b(:, it, ik))*wgt)/anorm
+                  = field_line_average(real(conjg(a(:,it,ik))*b(:,it,ik)))
           end if
        end do
     end do
@@ -310,7 +279,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine average_theta_2_complex_txy (a, b, axb_by_mode, distributed)
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: naky, ntheta0
     use fields_parallelization, only: field_k_local
     implicit none
@@ -318,11 +287,6 @@ contains
     complex, dimension (:,:), intent (out) :: axb_by_mode
     logical,intent(in) :: distributed
     integer :: ik, it
-    real, dimension (-ntgrid:ntgrid) :: wgt
-    real :: anorm
-
-    wgt = delthet * jacob
-    anorm = sum(wgt)
 
     axb_by_mode = 0
 
@@ -330,7 +294,7 @@ contains
        do it = 1, ntheta0
           if (.not. distributed .or. field_k_local(it,ik)) then
              axb_by_mode(it,ik) &
-                  = sum(conjg(a(:, it, ik))*b(:, it, ik)*wgt)/anorm
+                  = field_line_average(conjg(a(:,it,ik))*b(:,it,ik))
           end if
        end do
     end do
@@ -479,7 +443,6 @@ contains
   !> FIXME : Add documentation
   subroutine average_kx_xys (f, favg, distributed)
     use species, only: nspec
-    use mp, only: sum_allreduce
     implicit none
     real, dimension (:,:,:), intent (in) :: f
     real, dimension (:,:), intent (out) :: favg

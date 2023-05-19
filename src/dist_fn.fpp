@@ -7596,52 +7596,50 @@ contains
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
     real, dimension (:,:,:), intent (out) :: vflux, vmflux, vbflux, vflux_par, vflux_perp
     real, dimension (:,:,:,:), intent (out) :: qflux, qmflux, qbflux
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn, ig
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     pflux = 0.0;   qflux = 0.0;   vflux = 0.0 ; vflux_par = 0.0 ; vflux_perp = 0.0
     pmflux = 0.0;  qmflux = 0.0;  vmflux = 0.0
     pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
     pflux_tormom = 0.0
 
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
-
     if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux (g_work, phi, pflux, dnorm)
+
+       call get_flux (g_work, phi, pflux)
 #ifdef LOWFLOW
-       call get_flux_tormom (g_work, phi, pflux_tormom, dnorm)
+       call get_flux_tormom (g_work, phi, pflux_tormom)
 #endif
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (g_work, phi, qflux(:,:,:,1), dnorm)
+
+       call get_flux (g_work, phi, qflux(:,:,:,1))
 
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*2.*vpa(:,isgn,:)**2*aj0
        end do
-       call get_flux (g_work, phi, qflux(:,:,:,2), dnorm)
+
+       call get_flux (g_work, phi, qflux(:,:,:,2))
 
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*vperp2*aj0
        end do
-       call get_flux (g_work, phi, qflux(:,:,:,3), dnorm)
+
+       call get_flux (g_work, phi, qflux(:,:,:,3))
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
              g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux (g_work, phi, vflux_par, dnorm)
+
+       call get_flux (g_work, phi, vflux_par)
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -7653,7 +7651,9 @@ contains
 !                  *2.0*vperp2(:,iglo)*spec(is)%smz/(bmag**2*drhodpsi)
           end do
        end do
-       call get_flux (g_work, phi, vflux_perp, dnorm)
+
+       call get_flux (g_work, phi, vflux_perp)
+
        vflux = vflux_par + vflux_perp
 
     else
@@ -7670,12 +7670,14 @@ contains
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux (g_work, apar, pmflux, dnorm)
+
+       call get_flux (g_work, apar, pmflux)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (g_work, apar, qmflux(:,:,:,1), dnorm)
+
+       call get_flux (g_work, apar, qmflux(:,:,:,1))
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7685,7 +7687,8 @@ contains
                   *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (g_work, apar, qmflux(:,:,:,2), dnorm)
+
+       call get_flux (g_work, apar, qmflux(:,:,:,2))
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7695,7 +7698,8 @@ contains
                   *vperp2(:,iglo)
           end do
        end do
-       call get_flux (g_work, apar, qmflux(:,:,:,3), dnorm)
+
+       call get_flux (g_work, apar, qmflux(:,:,:,3))
        
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7705,7 +7709,9 @@ contains
                   *vpa(:,isgn,iglo)*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (g_work, apar, vmflux, dnorm)
+
+       call get_flux (g_work, apar, vmflux)
+
     else
        pmflux = 0.
        qmflux = 0.
@@ -7720,12 +7726,14 @@ contains
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux (g_work, bpar, pbflux, dnorm)
+
+       call get_flux (g_work, bpar, pbflux)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux (g_work, bpar, qbflux(:,:,:,1), dnorm)
+
+       call get_flux (g_work, bpar, qbflux(:,:,:,1))
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7735,7 +7743,8 @@ contains
                     *2.*vpa(:,isgn,iglo)**2
           end do
        end do
-       call get_flux (g_work, bpar, qbflux(:,:,:,2), dnorm)
+
+       call get_flux (g_work, bpar, qbflux(:,:,:,2))
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7745,7 +7754,8 @@ contains
                     *vperp2(:,iglo)
           end do
        end do
-       call get_flux (g_work, bpar, qbflux(:,:,:,3), dnorm)
+
+       call get_flux (g_work, bpar, qbflux(:,:,:,3))
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
@@ -7755,14 +7765,14 @@ contains
                   *spec(is)%tz*vpac(:,isgn,iglo)
           end do
        end do
-       call get_flux (g_work, bpar, vbflux, dnorm)
+
+       call get_flux (g_work, bpar, vbflux)
+
     else
        pbflux = 0.
        qbflux = 0.
        vbflux = 0.
     end if
-
-    deallocate (dnorm)
   end subroutine flux
 
   !> FIXME : Add documentation  
@@ -7778,28 +7788,19 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     if (proc0) then
         pflux = 0.0;   pmflux = 0.0; pbflux = 0.0 ; 
     end if
 
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
-
     if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_vs_e (g_work, phi, pflux, dnorm)
 
+       call get_flux_vs_e (g_work, phi, pflux)
     else
        pflux = 0.
     end if
@@ -7812,7 +7813,8 @@ contains
                   = -gnew(:,isgn,iglo)*aj0(:,iglo)*spec(is)%stm*vpa(:,isgn,iglo)
           end do
        end do
-       call get_flux_vs_e (g_work, apar, pmflux, dnorm)
+
+       call get_flux_vs_e (g_work, apar, pmflux)
 
     else
        pmflux = 0.
@@ -7826,20 +7828,21 @@ contains
                   = gnew(:,isgn,iglo)*aj1(:,iglo)*2.0*vperp2(:,iglo)*spec(is)%tz
           end do
        end do
-       call get_flux_vs_e (g_work, bpar, pbflux, dnorm)
+
+       call get_flux_vs_e (g_work, bpar, pbflux)
     else
        pbflux = 0.
     end if
 
-    deallocate (dnorm)
   end subroutine flux_vs_e
 
   !> Calculate the flux of a field
-  subroutine get_flux (g_in, fld, flx, dnorm)
-    use theta_grid, only: ntgrid, grho
+  subroutine get_flux (g_in, fld, flx)
+    use theta_grid, only: ntgrid, grho, theta, jacob
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use integration, only: trapezoidal_integration
     use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -7849,8 +7852,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
     real, dimension (:,:,:), intent (out) :: flx
-    !> Normalisation
-    real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
@@ -7859,12 +7860,13 @@ contains
 
     call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
+
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
-             wgt = sum(dnorm(:,it,ik)*grho)
-             flx(it,ik,is) = sum(aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                  *dnorm(:,it,ik)*aky(ik))/wgt
+             flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) * jacob)*wgt*aky(ik)
           end do
        end do
     end do
@@ -7875,11 +7877,13 @@ contains
   end subroutine get_flux
 
   !> Identical to get_flux except don't integrate over poloidal angle ! JRB
-  subroutine get_flux_dist (g_in, fld, flx_dist, dnorm)
-    use theta_grid, only: ntgrid, grho
+  subroutine get_flux_dist (g_in, fld, flx_dist)
+    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
     use kt_grids, only: ntheta0, aky, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
+    use integration, only: trapezoidal_integration
+    use gs2_time, only: woutunits
     use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -7887,7 +7891,6 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
-    real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
@@ -7899,15 +7902,21 @@ contains
     ! are implemented 1/2014
     call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
 
+    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
+    !we have below without the drhodpsi.
+    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
+
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
+    ! Note: This doesn't include the field line jacobian (jacob) and as such
+    ! it's not clear that the above wgt is correct (as it uses 1/(bmag*gradpar)
+    ! which is jacob * drhodpsi, rather than jacob as one might expect).
     !if (proc0) then
        do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
-                wgt = sum(dnorm(:,it,ik)*grho)
                 flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *aky(ik)/wgt
+                     *aky(ik) * wgt / woutunits(ik)
              end do
           end do
        end do
@@ -7922,16 +7931,17 @@ contains
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
-  subroutine get_flux_tormom (g_in, fld, flx, dnorm)
+  subroutine get_flux_tormom (g_in, fld, flx)
     use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo
+    use theta_grid, only : theta, grho, bmag, jacob
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use mp, only: proc0
-    use theta_grid, only: rplot, grho
     use kt_grids, only: aky
     use lowflow, only: mach_lab
+    use integration, only trapezoidal_integration
+    use gs2_layouts, only: g_lo
     implicit none
     !> Input weighted distribution    
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
@@ -7939,21 +7949,21 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
     real, dimension (:,:,:), intent (out) :: flx
-    !> Normalisation
-    real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
     call integrate_moment (g_in, total)
 
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
+
     if (proc0) then
        do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
-                wgt = sum(dnorm(:,it,ik)*grho)
-                flx(it,ik,is) = sum(aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *dnorm(:,it,ik)*aky(ik)*Rplot(:)**2)/wgt*mach_lab(is)
+                flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                     *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
              end do
           end do
        end do
@@ -7965,25 +7975,29 @@ contains
 #endif
 
   !> FIXME : Add documentation
-  subroutine get_flux_vs_e (g_in, fld, flx, dnorm)
-    use theta_grid, only: ntgrid, grho
+  subroutine get_flux_vs_e (g_in, fld, flx)
+    use theta_grid, only: ntgrid, grho, theta, jacob
     use kt_grids, only: aky
     use le_grids, only: negrid, wl
     use species, only: nspec
     use mp, only: sum_reduce, proc0
     use gs2_layouts, only: g_lo,ie_idx,il_idx,is_idx,it_idx,ik_idx,isign_idx
+    use integration, only: trapezoidal_integration
+    use gs2_layouts, only: g_lo
     implicit none
     !> Input weighted distribution    
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
-    real, dimension (-ntgrid:,:,:) :: dnorm
     real, dimension (:,:), allocatable :: total
     real:: wgt,fac
     integer :: ik, it, is, iglo, ie, il
 
     allocate(total(negrid,nspec))
     total = 0.
+
+    ! This is essentially 2 pi / surfarea
+    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        fac =0.5
@@ -7994,13 +8008,14 @@ contains
        ik = ik_idx(g_lo,iglo)
        if (aky(ik) == 0.) fac = 1.0
 
-       wgt = sum(dnorm(-ntgrid:,it,ik)*grho(-ntgrid:))
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g_in(-ntgrid:,1,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
-          dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
+            trapezoidal_integration(theta, &
+            aimag(g_in(:,1,iglo)*conjg(fld(:,it,ik))) &
+            * wl(:,il) * jacob) * aky(ik) * wgt
        total(ie,is) = total(ie,is) + fac*& 
-          sum(aimag(g_in(-ntgrid:,2,iglo)*conjg(fld(-ntgrid:,it,ik)) * &
-          dnorm(-ntgrid:,it,ik) * aky(ik)) * wl(-ntgrid:,il)/wgt)
+            trapezoidal_integration(theta, &
+            aimag(g_in(:,2,iglo)*conjg(fld(:,it,ik))) &
+            * wl(:,il) * jacob) * aky(ik) * wgt
     end do
 
     call sum_reduce(total,0)
@@ -8017,7 +8032,7 @@ contains
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: gnew, aj0, vpac, g, g_work
-    use theta_grid, only: ntgrid, gradpar, delthet, jacob
+    use theta_grid, only: ntgrid, gradpar, delthet, jacob, theta, field_line_average
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use run_parameters, only: has_phi
@@ -8031,24 +8046,15 @@ contains
     real, dimension (:,:,:), intent (out) :: exchange1, exchange2
 
     integer :: ig, il, ie, it, ik, is, iglo, isgn
-    real :: wgt
     complex :: dgdt_hypervisc
-    real, dimension (:,:,:), allocatable :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total, total2
 
-    allocate (dnorm(-ntgrid:ntgrid, ntheta0, naky)) ; dnorm = 0.0
     allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total = 0.0
     allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total2 = 0.0
 
     if (proc0) then
        exchange1 = 0.0 ; exchange2 = 0.0
     end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:ntgrid-1,it,ik) = delthet(:ntgrid-1)*(jacob(-ntgrid+1:)+jacob(:ntgrid-1))*0.5
-       end do
-    end do
 
     if (has_phi) then
        g_work = 0.
@@ -8093,9 +8099,8 @@ contains
              do ik = 1, naky
                 do it = 1, ntheta0
                    if (nonlin .and. it==1 .and. ik==1) cycle
-                   wgt = sum(dnorm(:,it,ik))
-                   exchange1(it,ik,is) = sum(real(total(:,it,ik,is)*conjg(phinew(:,it,ik))) &
-                        *dnorm(:,it,ik))/wgt
+                   exchange1(it,ik,is) = field_line_average( &
+                        real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
                 end do
              end do
           end do
@@ -8122,11 +8127,11 @@ contains
              do ik = 1, naky
                 do it = 1, ntheta0
                    if (nonlin .and. it==1 .and. ik==1) cycle
-                   wgt = sum(dnorm(:,it,ik))*code_dt
-                   exchange2(it,ik,is) = sum(real(total(:,it,ik,is) &
+                   exchange2(it,ik,is) = field_line_average( &
+                        real(total(:,it,ik,is) &
                         *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
                         - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
-                        *dnorm(:,it,ik))/wgt
+                        )/code_dt
                 end do
              end do
           end do
@@ -8134,7 +8139,7 @@ contains
 
     end if
 
-    deallocate (dnorm, total, total2)
+    deallocate (total, total2)
 
   end subroutine eexchange
 
@@ -8156,24 +8161,16 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (:,:,:), intent (out) :: vflx0, vflx1
     real, dimension (:,:), allocatable :: dum
-    real, dimension (:,:,:), allocatable :: dnorm
     complex, dimension (:,:,:), allocatable :: dphi
     integer :: it, ik, isgn, ig
     integer :: iglo
 
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
     allocate (dum (-ntgrid:ntgrid,nspec))
     allocate (dphi (-ntgrid:ntgrid,ntheta0,naky))
 
     if (proc0) then
        vflx0 = 0.0 ; vflx1 = 0.0 ; dum = 0.0
     end if
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
 
     do ig = -ntgrid, ntgrid-1
        dphi(ig,:,:) = (phi(ig+1,:,:)-phi(ig,:,:))/delthet(ig)
@@ -8189,7 +8186,7 @@ contains
                   *drhodpsi*IoB**2*gradpar*rhostar
           end do
        end do
-       call get_lfflux (dphi, vflx0, dnorm)
+       call get_lfflux (g_work, dphi, vflx0)
 
        ! this is the bracketed part of the first term in Pi_0^{tb} in toroidal_flux.pdf notes
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -8198,7 +8195,7 @@ contains
                   *drhodpsi*IoB**2*rhostar
           end do
        end do
-       call get_flux (g_work, phi, vflx1, dnorm)
+       call get_flux (g_work, phi, vflx1)
 
 !        do isgn = 1, 2
 !           do ig = -ntgrid, ntgrid
@@ -8209,43 +8206,44 @@ contains
 !              end if
 !           end do
 !        end do
-!        call get_flux (g_work, phi, vflux_par, dnorm)
+!        call get_flux (g_work, phi, vflux_par)
     else
        vflx0 = 0. ; vflx1 = 0.
     end if
 
-    deallocate (dnorm,dum,dphi)
+    deallocate (dum,dphi)
   end subroutine lf_flux
 
   !> FIXME : Add documentation
-  !>
-  !> Note this relies on [[g_work]] being populated already elsewhere.
-  !> We should probably pass in the g_work array to integrate instead.
-  subroutine get_lfflux (fld, flx, dnorm)
-    use theta_grid, only: ntgrid, grho
+  subroutine get_lfflux (g_in, fld, flx)
+    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use mp, only: proc0
+    use integration, only: trapezoidal_integration
     use dist_fn_arrays, only: g_work
+    use gs2_layouts, only: g_lo
     implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in    
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:,:), intent (out) :: flx
-    real, dimension (-ntgrid:,:,:) :: dnorm
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
 
     allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call integrate_moment (g_work, total)
+    total = 0.0
+    call integrate_moment (g_in, total)
 
+    wgt = 1.0/trapezoidal_integration(theta, grho/(bmag*gradpar))
     if (proc0) then
        do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
-                wgt = sum(dnorm(:,it,ik)*grho)
-                flx(it,ik,is) = sum(aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *dnorm(:,it,ik))/wgt
+                flx(it,ik,is) = trapezoidal_integration(theta, &
+                     aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                     /(bmag*gradpar))*wgt
              end do
           end do
        end do
@@ -8386,11 +8384,8 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
-    real, dimension (:,:,:), allocatable :: dnorm
     integer :: it, ik, is, isgn, ig
     integer :: iglo
-
-    allocate (dnorm (-ntgrid:ntgrid,ntheta0,naky))
 
     ! EGH for new parallel I/O everyone
     ! calculates fluxes
@@ -8398,29 +8393,24 @@ contains
        pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
     !end if
 
-    do ik = 1, naky
-       do it = 1, ntheta0
-          dnorm(:,it,ik) = delthet/bmag/gradpar*woutunits(ik)
-       end do
-    end do
-
     if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
        end do
-       call get_flux_dist (g_work, phi, pflux_dist, dnorm)
+       call get_flux_dist (g_work, phi, pflux_dist)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
        end do
-       call get_flux_dist (g_work, phi, qflux_dist, dnorm)
+       call get_flux_dist (g_work, phi, qflux_dist)
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
              g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
-       call get_flux_dist (g_work, phi, vflux_par_dist, dnorm)
+       call get_flux_dist (g_work, phi, vflux_par_dist)
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -8430,15 +8420,14 @@ contains
                   *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
           end do
        end do
-       call get_flux_dist (g_work, phi, vflux_perp_dist, dnorm)
+       call get_flux_dist (g_work, phi, vflux_perp_dist)
+
     else
        pflux_dist = 0.
        vflux_par_dist = 0.
        vflux_perp_dist = 0.
        qflux_dist = 0.
     end if
-
-    deallocate (dnorm)
 
  end subroutine flux_dist
 
@@ -10641,11 +10630,13 @@ contains
   !> appear to be assuming beta = 0 here. This is probably fine as
   !> we should only use the result for adiabatic electrons (where
   !> one would expect to be ignoring EM perturbations) but perhaps
-  !> there should be a consistency check?
+  !> there should be a consistency check? This is something we should
+  !> still flag and could rectify with a little effort.
   subroutine calculate_flux_surface_average (fl_avg,antot)
     use kt_grids, only: naky, ntheta0, aky, kwork_filter
     use run_parameters, only: tite
-    use theta_grid, only: ntgrid, delthet, jacob
+    use theta_grid, only: ntgrid, theta, jacob
+    use integration, only: trapezoidal_integration
     implicit none
     complex, dimension (ntheta0, naky), intent (out) :: fl_avg
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky), intent (in) :: antot
@@ -10664,7 +10655,7 @@ contains
              ! and time advance). I suspect kwork_filter will be false the first
              ! time we call this routine, but there is no promise.
              if(kwork_filter(it,ik)) cycle
-             awgt(it,ik) = 1.0/sum(delthet*jacob*gamtot3(:,it,ik))
+             awgt(it,ik) = 1.0/trapezoidal_integration(theta, jacob*gamtot3(:,it,ik))
           end do
        end do
     endif
@@ -10672,13 +10663,13 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, it) &
     !$OMP SHARED(naky, ntheta0, kwork_filter, fl_avg, tite, antot, &
-    !$OMP delthet, jacob, gamtot, awgt) &
+    !$OMP theta, jacob, gamtot, awgt) &
     !$OMP SCHEDULE(static)
     do ik = 1, naky
        ! Note awg == 0 for aky > 0 so we might be able to cycle/limit the loop.
        do it = 1, ntheta0
           if(kwork_filter(it,ik)) cycle
-          fl_avg(it,ik) = tite*sum(delthet*jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
+          fl_avg(it,ik) = tite*trapezoidal_integration(theta, jacob*antot(:,it,ik)/gamtot(:,it,ik))*awgt(it,ik)
        end do
     end do
     !$OMP END PARALLEL DO

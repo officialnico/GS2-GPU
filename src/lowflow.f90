@@ -405,7 +405,7 @@ contains
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
     use geometry, only: rmaj
     use species, only: spec
-
+    use integration, only: trapezoidal_integration
     implicit none
 
     real, dimension (:), intent (in) :: theta, bmag
@@ -434,6 +434,7 @@ contains
     integer :: il, ie, is, ns, nc, nl, nr, ig, ixi, ir, ir_loc
     integer :: ntheta, nlambda, nenergy, nxi
     integer, save :: neo_unit, neot_unit
+    real :: average_weight
     logical, dimension (:,:), allocatable :: forbid
 
     ntheta = size(theta)
@@ -532,8 +533,10 @@ contains
     end do
 
     ! calculate and write to file some useful quantities like Upar and Qpar
+    ! Note dl_over_b may benefit from using midpoint jacob. Only used for rgeo2.
     dl_over_b = delthet*jacob
     dl_over_b = dl_over_b/sum(dl_over_b)
+    average_weight = 1.0 / trapezoidal_integration(theta, jacob)
 
     if (.not. allocated(pflx)) allocate (pflx(nr,ns), qflx(nr,ns), vflx(nr,ns), upar1(nr,ns))
     if (.not. allocated(upar)) then
@@ -592,12 +595,18 @@ contains
 
        do is = 1, ns
           do ir = 1, nr
-             uparB(ir,is) = sum(upar(ir,is,:)*dl_over_b*bmag)
-             qparB(ir,is) = sum(qpar(ir,is,:)*dl_over_b*bmag)
-             upar_over_B(ir,is) = sum(upar(ir,is,:)*dl_over_b/bmag)
-             upar2(ir,is) = sum(upar(ir,is,:)**2*dl_over_b)
-             qpar2(ir,is) = sum(qpar(ir,is,:)**2*dl_over_b)
-             phineo2(ir) = sum(phineo(ir,:)**2*dl_over_b)
+             ! Note we could use field_line_average from theta grid if
+             ! we knew that theta and jacob are always provided by
+             ! theta_grid. As we pass in theta here we better not
+             ! assume it comes from theta_grid.  Note however we
+             ! always use jacob from theta_grid, so if we do pass in a
+             ! different theta this may be inconsistent.
+             uparB(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)*jacob*bmag)*average_weight
+             qparB(ir,is) = trapezoidal_integration(theta, qpar(ir,is,:)*jacob*bmag)*average_weight
+             upar_over_B(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)*jacob/bmag)*average_weight
+             upar2(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)**2*jacob)*average_weight
+             qpar2(ir,is) = trapezoidal_integration(theta, qpar(ir,is,:)**2*jacob)*average_weight
+             phineo2(ir) = trapezoidal_integration(theta, phineo(ir,:)**2*jacob)*average_weight
           end do
        end do
 
@@ -687,8 +696,8 @@ contains
 
        do is = 1, ns
           do ir = 1, nr
-             upar2(ir,is) = sum(upar(ir,is,:)**2*dl_over_b)
-             qpar2(ir,is) = sum(qpar(ir,is,:)**2*dl_over_b)
+             upar2(ir,is) = trapezoidal_integration(theta, upar(ir,is,:)**2*jacob)*average_weight
+             qpar2(ir,is) = trapezoidal_integration(theta, qpar(ir,is,:)**2*jacob)*average_weight
           end do
        end do
 
