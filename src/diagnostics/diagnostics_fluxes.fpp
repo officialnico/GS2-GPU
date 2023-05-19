@@ -117,21 +117,19 @@ contains
     if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
          call write_diffusive_estimates(gnostics)
 
-    if (.not. gnostics%replay) then
-      call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
-      call flux (phinew, aparnew, bparnew, &
-           pflux,  qheat,  vflux, vflux_par, vflux_perp, &
-           pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
-      call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
+    call flux (phinew, aparnew, bparnew, &
+         pflux,  qheat,  vflux, vflux_par, vflux_perp, &
+         pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+    call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
 #ifdef LOWFLOW
-      !lowflow terms only implemented in electrostatic limit at present
-      call lf_flux (phinew, vflux0, vflux1)
+    !lowflow terms only implemented in electrostatic limit at present
+    call lf_flux (phinew, vflux0, vflux1)
 #endif
 
-      call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-      call eexchange (phinew, phi, exchange1, exchange)
-    end if
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
+    call eexchange (phinew, phi, exchange1, exchange)
       
       if (has_phi) then
          do is = 1, nspec

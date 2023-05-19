@@ -75,7 +75,6 @@ module diagnostics_config
      logical :: create
      logical :: writing
      logical :: reading
-     logical :: replay
      logical :: distributed
      logical :: parallel
      logical :: exit

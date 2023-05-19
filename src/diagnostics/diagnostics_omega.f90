@@ -66,15 +66,6 @@ contains
     call nc_write_omega(gnostics%file_id, gnostics%nout, &
          omegahist(mod(gnostics%istep, gnostics%navg), :, :), omega_average, woutunits)
 
-    ! FIXME: this presumably relied on the new diagnostics reading from file
-    ! delete all replay stuff?
-     if (gnostics%replay) then 
-       do ik=1,naky
-         omegahist(:,:,ik) = omegahist_woutunits(:,:,ik) / woutunits(ik)
-         omega_average(:,ik) = omega_average_woutunits(:,ik) / woutunits(ik)
-       end do
-     end if
-
   end subroutine write_omega
 
   !> Calculates omega and stores it in omegahist. Calculates omega_average, 
