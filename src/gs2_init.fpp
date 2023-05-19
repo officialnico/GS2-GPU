@@ -247,9 +247,8 @@ contains
   end subroutine report_init_times
 
   !> Reset the time spent in each initialisation level
-  subroutine reset_init_times(unit)
+  subroutine reset_init_times()
     implicit none
-    integer, intent(in), optional :: unit
     init_levels%time_init(1) = 0.
     init_levels%time_init(2) = 0.
   end subroutine reset_init_times
