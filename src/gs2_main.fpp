@@ -691,9 +691,6 @@ contains
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
-      ! Create variables and write constants
-      call run_diagnostics(-1,state%exit, state%replay)
-      !call broadcast(state%exit)
       ! Write initial values
       call run_diagnostics(0,state%exit, state%replay)
 #else
