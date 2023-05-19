@@ -46,7 +46,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     use mp, only: proc0
     use neasyf, only: neasyf_write
-    use gs2_io, only: starts
+    use gs2_io, only: starts, kx_dim, ky_dim, time_dim
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real:: t
@@ -62,7 +62,7 @@ contains
 
     !Write to netcdf
     if (proc0) call neasyf_write(gnostics%file_id, "antenna_j_ext", j_ext, &
-         dim_names=["kx", "ky", "t "], start=starts(3, gnostics%nout), &
+         dim_names=[kx_dim, ky_dim, time_dim], start=starts(3, gnostics%nout), &
          long_name="Time averaged external current in the antenna, real(kperp^2 A_antenna)", units="radians")
 
     !Write to ascii
@@ -86,13 +86,13 @@ contains
     use antenna, only: antenna_w
     use diagnostics_config, only: diagnostics_type
     use neasyf, only: neasyf_write
-    use gs2_io, only: starts, netcdf_write_complex
+    use gs2_io, only: starts, netcdf_write_complex, complex_dim, time_dim
     use mp, only: proc0
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     if (.not. proc0) return
     call netcdf_write_complex(gnostics%file_id, "antenna_w", antenna_w(), &
-         dim_names=["ri", "t "], start=starts(2, gnostics%nout))
+         dim_names=[complex_dim, time_dim], start=starts(2, gnostics%nout))
   end subroutine write_lorentzian
 
   !> A subroutine to calculate the time-averaged antenna current

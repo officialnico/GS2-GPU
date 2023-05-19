@@ -12,6 +12,7 @@ contains
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
     use neasyf, only: neasyf_write
+    use gs2_io, only: time_dim
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real :: phase_tot, phase_theta
@@ -24,11 +25,11 @@ contains
     if (.not. gnostics%writing) return
 
     call neasyf_write(gnostics%file_id, "electron_cross_phase_theta", phase_theta, &
-         dim_names=["t"], start=[gnostics%nout], &
+         dim_names=[time_dim], start=[gnostics%nout], &
          long_name="Cross phase between electron density and perpendicular electron temperature, &
          &  given at the outboard midplane and averaged across x and y", units="radians")
     call neasyf_write(gnostics%file_id, "electron_cross_phase_tot", phase_tot, &
-         dim_names=["t"], start=[gnostics%nout], &
+         dim_names=[time_dim], start=[gnostics%nout], &
          long_name="Cross phase between electron density and perpendicular electron temperature, &
          & averaged across all space", units="radians")
     

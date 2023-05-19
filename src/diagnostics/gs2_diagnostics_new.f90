@@ -346,7 +346,7 @@ contains
     use neasyf, only: neasyf_write
     use optionals, only: get_option_with_default
     use run_parameters, only: nstep, wstar_units
-    use gs2_io, only: get_dim_length, nc_sync
+    use gs2_io, only: get_dim_length, nc_sync, ky_dim, time_dim
     use gs2_diagnostics, only: do_dump_fields_periodically, do_write_parity, do_write_nl_flux_dist, &
          do_write_correlation_extend, do_write_correlation, do_write_symmetry, do_write_pflux_sym
 
@@ -424,11 +424,11 @@ contains
        if (istep_in > -1) istep_last = istep
 
        if (gnostics%writing) then
-         call neasyf_write(gnostics%file_id, "t", user_time, dim_names=["t"], start=[gnostics%nout])
+         call neasyf_write(gnostics%file_id, time_dim, user_time, dim_names=[time_dim], start=[gnostics%nout])
        end if
 
        if (wstar_units) then
-         call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=["ky", "t "], &
+         call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=[ky_dim, time_dim], &
               start=[1, gnostics%nout], long_name="Time (wstar)", units="L/vt")
        end if
 

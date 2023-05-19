@@ -100,7 +100,7 @@ contains
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
-    use gs2_io, only: starts
+    use gs2_io, only: starts, egrid_dim, species_dim, time_dim
     use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
@@ -178,7 +178,7 @@ contains
             vflux_perp, gnostics%distributed)
 
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "es_flux_vs_e", esflux_vs_e, &
-            dim_names=[character(7)::"egrid", "species", "t"], &
+            dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
 
 #ifdef LOWFLOW
@@ -218,7 +218,7 @@ contains
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
 
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "apar_flux_vs_e", apflux_vs_e, &
-            dim_names=[character(7)::"egrid", "species", "t"], &
+            dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Perpendicular magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
     end if
@@ -247,7 +247,7 @@ contains
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "bpar_flux_vs_e", bpflux_vs_e, &
-            dim_names=[character(7)::"egrid", "species", "t"], &
+            dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Parallel magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
     end if
@@ -263,22 +263,22 @@ contains
     ! Write totals
     if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "heat_flux_tot", &
-            gnostics%current_results%total_heat_flux, dim_names=["t"], start=[gnostics%nout], units="Q_gB", &
+            gnostics%current_results%total_heat_flux, dim_names=[time_dim], start=[gnostics%nout], units="Q_gB", &
             long_name="Total heat flux")
        call neasyf_write(gnostics%file_id, "hflux_tot", &
-            gnostics%current_results%total_heat_flux, dim_names=["t"], start=[gnostics%nout], units="Q_gB", &
+            gnostics%current_results%total_heat_flux, dim_names=[time_dim], start=[gnostics%nout], units="Q_gB", &
             long_name="Total heat flux, same as heat_flux_tot, included for backwards compatiblity")
        call neasyf_write(gnostics%file_id, "mom_flux_tot", &
-            gnostics%current_results%total_momentum_flux, dim_names=["t"], start=[gnostics%nout], units="Pi_gB", &
+            gnostics%current_results%total_momentum_flux, dim_names=[time_dim], start=[gnostics%nout], units="Pi_gB", &
             long_name="Total momentum flux")
        call neasyf_write(gnostics%file_id, "vflux_tot", &
-            gnostics%current_results%total_momentum_flux, dim_names=["t"], start=[gnostics%nout], units="Pi_gB", &
+            gnostics%current_results%total_momentum_flux, dim_names=[time_dim], start=[gnostics%nout], units="Pi_gB", &
             long_name="Total momentum flux, same as mom_flux_tot, included for backwards compatiblity")
        call neasyf_write(gnostics%file_id, "part_flux_tot", &
-            gnostics%current_results%total_particle_flux, dim_names=["t"], start=[gnostics%nout], &
+            gnostics%current_results%total_particle_flux, dim_names=[time_dim], start=[gnostics%nout], &
             long_name="Total particle flux")
        call neasyf_write(gnostics%file_id, "zflux_tot", &
-            gnostics%current_results%total_particle_flux, dim_names=["t"], start=[gnostics%nout], &
+            gnostics%current_results%total_particle_flux, dim_names=[time_dim], start=[gnostics%nout], &
             long_name="Total particle flux, same as part_flux_tot, included for backwards compatiblity")
     end if    
   end subroutine calculate_fluxes
@@ -293,7 +293,7 @@ contains
     use theta_grid, only: grho
     use diagnostics_config, only: diagnostics_type
     use mp, only: sum_allreduce
-    use gs2_io, only: flux_dims, starts
+    use gs2_io, only: flux_dims, starts, time_dim
     use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
@@ -367,16 +367,16 @@ contains
             dim_names=flux_dims, long_name="Linear estimate of the heat flux", units="Q_gB", &
             start=starts(2, gnostics%nout))
        call neasyf_write(gnostics%file_id, "heat_flux_diff_max", heat_flux_max, &
-            dim_names=["t"], long_name="Linear estimate of the heat flux", units="Q_gB", &
+            dim_names=[time_dim], long_name="Linear estimate of the heat flux", units="Q_gB", &
             start=[gnostics%nout])
        call neasyf_write(gnostics%file_id, "es_particle_flux_diff_max", particle_flux_max_by_spec, &
             dim_names=flux_dims, long_name="Linear estimate of the particle flux", units="Q_gB", &
             start=starts(2, gnostics%nout))
        call neasyf_write(gnostics%file_id, "particle_flux_diff_max", particle_flux_max, &
-            dim_names=["t"], long_name="Linear estimate of the particle flux", units="Q_gB", &
+            dim_names=[time_dim], long_name="Linear estimate of the particle flux", units="Q_gB", &
             start=[gnostics%nout])
        call neasyf_write(gnostics%file_id, "diffusivity", gnostics%current_results%diffusivity, &
-            dim_names=["t"], long_name="Linear estimate of the diffusivity", &
+            dim_names=[time_dim], long_name="Linear estimate of the diffusivity", &
             start=[gnostics%nout])
     end if
   end subroutine write_diffusive_estimates
@@ -391,7 +391,7 @@ contains
     use mp, only: broadcast, sum_allreduce
     use volume_averages, only: average_all, average_kx, average_ky
     use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts
+    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
     use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
@@ -426,17 +426,17 @@ contains
            long_name=flux_description//" averaged over kx and ky")
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name//"_by_ky", total_flux_by_ky, &
-           dim_names=["ky", "t "], &
+           dim_names=[ky_dim, time_dim], &
            long_name=flux_description//" summed over species and averaged over kx", &
            start=starts(2, gnostics%nout))
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name//"_by_kx", total_flux_by_kx, &
-           dim_names=["kx", "t "], &
+           dim_names=[kx_dim, time_dim], &
            long_name=flux_description//" summed over species and averaged over ky", &
            start=starts(2, gnostics%nout))
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name, sum(total_flux_by_kx), &
-           dim_names=["t"], &
+           dim_names=[time_dim], &
            long_name=flux_description//" summed over species and averaged over kx and ky", &
            start=[gnostics%nout])
 

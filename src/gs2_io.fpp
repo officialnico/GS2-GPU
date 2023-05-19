@@ -19,29 +19,75 @@ module gs2_io
   public :: nc_write_omega, nc_write_field, nc_write_heating, starts
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
+  public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
+  public :: time_big_dim, time_movie_dim, complex_dim, vpa_dim, lambda_dim, egrid_dim, sign_dim
+  public :: nheat_dim, dim_2, dim_3, dim_4, dim_5
+
+  !> Maximum length of dimension names. This is required to get around
+  !> Fortran hating ragged arrays of characters
+  integer, parameter :: max_dim_name_length = 9
+
+  !> Name of species dimension
+  character(max_dim_name_length), parameter :: species_dim = "species"
+  !> Name of x dimension
+  character(max_dim_name_length), parameter :: x_dim = "x"
+  !> Name of kx dimension
+  character(max_dim_name_length), parameter :: kx_dim = "kx"
+  !> Name of y dimension
+  character(max_dim_name_length), parameter :: y_dim = "y"
+  !> Name of ky dimension
+  character(max_dim_name_length), parameter :: ky_dim = "ky"
+  !> Name of theta dimension
+  character(max_dim_name_length), parameter :: theta_dim = "theta"
+  !> Name of extended theta dimension
+  character(max_dim_name_length), parameter :: theta_extended_dim = "theta_ext"
+  !> Name of time dimension
+  character(max_dim_name_length), parameter :: time_dim = "t"
+  !> Name of "big time" dimension, used for some correlation functions
+  character(max_dim_name_length), parameter :: time_big_dim = "tb"
+  !> Name of time dimension for real space "movies"
+  character(max_dim_name_length), parameter :: time_movie_dim = "tm"
+  !> Name of complex dimension
+  character(max_dim_name_length), parameter :: complex_dim = "ri"
+  !> Name of vpa dimension
+  character(max_dim_name_length), parameter :: vpa_dim = "vpa"
+  !> Name of lambda dimension
+  character(max_dim_name_length), parameter :: lambda_dim = "lambda"
+  !> Name of egrid dimension
+  character(max_dim_name_length), parameter :: egrid_dim = "egrid"
+  !> Name of sign dimension
+  character(max_dim_name_length), parameter :: sign_dim = "sign"
+  !> Name of nheat dimension
+  character(max_dim_name_length), parameter :: nheat_dim = "nheat"
+  !> Name of generic dimension for arrays of length 2
+  character(max_dim_name_length), parameter :: dim_2 = "2"
+  !> Name of generic dimension for arrays of length 3
+  character(max_dim_name_length), parameter :: dim_3 = "3"
+  !> Name of generic dimension for arrays of length 4
+  character(max_dim_name_length), parameter :: dim_4 = "4"
+  !> Name of generic dimension for arrays of length 5
+  character(max_dim_name_length), parameter :: dim_5 = "5"
 
   !> Names of dimensions used by flux variables
-  character(*), dimension(*), parameter :: flux_dims = [character(7)::"species", "t"]
+  character(*), dimension(*), parameter :: flux_dims = [species_dim, time_dim]
   !> Names of dimensions used by flux-by-mode variables
-  character(*), dimension(*), parameter :: fluxk_dims = [character(7)::"kx", "ky", "species", "t"]
+  character(*), dimension(*), parameter :: fluxk_dims = [kx_dim, ky_dim, species_dim, time_dim]
   !> Names of dimensions used by snapshots of complex fields
-  character(*), dimension(*), parameter :: final_field_dims = [character(len=5)::"ri", "theta", "kx", "ky"]
+  character(*), dimension(*), parameter :: final_field_dims = [complex_dim, theta_dim, kx_dim, ky_dim]
   !> Names of dimensions used by certain fluxes
-  character(*), dimension(*), parameter :: sym_dims = [character(7)::"theta", "vpa", "species", "t"]
+  character(*), dimension(*), parameter :: sym_dims = [theta_dim, vpa_dim, species_dim, time_dim]
   !> Names of dimensions used by time-dependent complex fields
-  character(*), dimension(*), parameter :: omega_dims = ["ri", "kx", "ky", "t "]
+  character(*), dimension(*), parameter :: omega_dims = [complex_dim, kx_dim, ky_dim, time_dim]
   !> Names of dimensions used by time-dependent real fields
-  character(*), dimension(*), parameter :: mode_dims = ["kx", "ky", "t "]
+  character(*), dimension(*), parameter :: mode_dims = [kx_dim, ky_dim, time_dim]
   !> Names of dimensions used by moments
-  character(*), dimension(*), parameter :: mom_dims = [character(len=7)::"ri", "kx", "ky", "species", "t"]
+  character(*), dimension(*), parameter :: mom_dims = [complex_dim, kx_dim, ky_dim, species_dim, time_dim]
   !> Names of dimensions used by theta-dependent moments
-  character(*), dimension(*), parameter :: mom_t_dims = [character(len=7)::"ri", "theta", "kx", "ky", "species", "t"]
+  character(*), dimension(*), parameter :: mom_t_dims = [complex_dim, theta_dim, kx_dim, ky_dim, species_dim, time_dim]
 
 # ifdef NETCDF
   integer (kind_nf) :: ncid
-  integer (kind_nf) :: naky_dim, nakx_dim
-  integer (kind_nf) :: char10_dim, ri_dim
-  integer (kind_nf) :: nttotext_dim, time_big_dim
+  integer (kind_nf) :: char10_dim
 
   ! added by EAB 03/05/04 for movies
   logical :: io_write_corr_extend
@@ -236,25 +282,25 @@ contains
 # ifdef NETCDF
     real :: nmesh
 
-    call neasyf_dim(file_id, "kx", values=akx, dimid=nakx_dim, &
+    call neasyf_dim(file_id, trim(kx_dim), values=akx, &
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
-    call neasyf_dim(file_id, "ky", values=aky, dimid=naky_dim, &
+    call neasyf_dim(file_id, trim(ky_dim), values=aky, &
          long_name="Wavenumber in direction of grad alpha", units="1/rho_r")
-    call neasyf_dim(file_id, "theta", values=theta, long_name="Poloidal angle", units="rad")
-    call neasyf_dim(file_id, "lambda", values=al, long_name="Energy/magnetic moment", units="1/(2 B_a)")
-    call neasyf_dim(file_id, "species", dim_size=nspec)
+    call neasyf_dim(file_id, trim(theta_dim), values=theta, long_name="Poloidal angle", units="rad")
+    call neasyf_dim(file_id, trim(lambda_dim), values=al, long_name="Energy/magnetic moment", units="1/(2 B_a)")
+    call neasyf_dim(file_id, trim(species_dim), dim_size=nspec)
 
     ! Energy coordinate is a function of species, but the dimension must be 1D
-    call neasyf_dim(file_id, "egrid", dim_size=negrid, long_name="See 'energy' for energy grid values")
-    call neasyf_write(file_id, "energy", energy, dim_names=["egrid  ", "species"], &
+    call neasyf_dim(file_id, trim(egrid_dim), dim_size=negrid, long_name="See 'energy' for energy grid values")
+    call neasyf_write(file_id, "energy", energy, dim_names=[egrid_dim, species_dim], &
          long_name="Energy grid values")
 
-    call neasyf_dim(file_id, "sign", dim_size=2)
-    call neasyf_dim(file_id, "t", unlimited=.true., long_name="Time", units="L/vt")
-    call neasyf_dim(file_id, "ri", dim_size=2, dimid=ri_dim, &
+    call neasyf_dim(file_id, trim(sign_dim), dim_size=2)
+    call neasyf_dim(file_id, trim(time_dim), unlimited=.true., long_name="Time", units="L/vt")
+    call neasyf_dim(file_id, trim(complex_dim), dim_size=2, &
          long_name="Complex components", units="(real, imaginary)")
-    call neasyf_dim(file_id, "nheat", dim_size=7)
-    call neasyf_dim(file_id, "vpa", dim_size=negrid*nlambda)
+    call neasyf_dim(file_id, trim(nheat_dim), dim_size=7)
+    call neasyf_dim(file_id, trim(vpa_dim), dim_size=negrid*nlambda)
 
     ! Dimensions for various string variables
     call neasyf_dim(file_id, "char5", dim_size=5)
@@ -265,16 +311,16 @@ contains
     call neasyf_dim(file_id, "nlines", dim_size=max(1, num_input_lines), long_name="Input file line number")
 
     ! Dimensions for non-physical matrices etc
-    call neasyf_dim(file_id, "2", dim_size=2, long_name="Generic dim")
-    call neasyf_dim(file_id, "3", dim_size=3, long_name="Generic dim")
-    call neasyf_dim(file_id, "4", dim_size=4, long_name="Generic dim")
-    call neasyf_dim(file_id, "5", dim_size=5, long_name="Generic dim")
+    call neasyf_dim(file_id, trim(dim_2), dim_size=2, long_name="Generic dim")
+    call neasyf_dim(file_id, trim(dim_3), dim_size=3, long_name="Generic dim")
+    call neasyf_dim(file_id, trim(dim_4), dim_size=4, long_name="Generic dim")
+    call neasyf_dim(file_id, trim(dim_5), dim_size=5, long_name="Generic dim")
 
     call neasyf_dim(file_id, "bset", values=bset, long_name="Bmag at bounce points", units="Bref")
 
     if (create_extended_correlation) then
-       call neasyf_dim(file_id, "theta_ext", dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1), dimid=nttotext_dim)
-       call neasyf_dim(file_id, "tb", unlimited=.true., dimid=time_big_dim)
+       call neasyf_dim(file_id, trim(theta_extended_dim), dim_size=(2*ntgrid+1)*((ntheta0-1)/jtwist_out+1))
+       call neasyf_dim(file_id, trim(time_big_dim), unlimited=.true.)
     end if
 
     call neasyf_write(file_id, "layout", layout, long_name="Decomposition layout for g_lo")
@@ -290,7 +336,7 @@ contains
     call neasyf_write(file_id, "ntheta", ntheta, long_name="Number of theta points per 2 pi section")
     call neasyf_write(file_id, "nbset", nbset, long_name="Number of bounce points")
 
-    call neasyf_write(file_id, "theta0", theta0, dim_names=["kx", "ky"], &
+    call neasyf_write(file_id, "theta0", theta0, dim_names=[kx_dim, ky_dim], &
          long_name="Theta_0, poloidal angle where mode radial wavenumber == 0", units="rad")
 
     if (nonlin) then
@@ -362,10 +408,10 @@ contains
     call neasyf_write(file_id, "nx", yxf_lo%nx)
     call neasyf_write(file_id, "ny", yxf_lo%ny)
     call neasyf_write(file_id, "ntheta", 2*ntgrid+1)
-    call neasyf_dim(file_id, "x", x, long_name="x / rho")
-    call neasyf_dim(file_id, "y", y, long_name="y / rho")
-    call neasyf_dim(file_id, "theta", theta)
-    call neasyf_dim(file_id, "tm", unlimited=.true., long_name="Time", units="L/vt")
+    call neasyf_dim(file_id, x_dim, x, long_name="x / rho")
+    call neasyf_dim(file_id, y_dim, y, long_name="y / rho")
+    call neasyf_dim(file_id, trim(theta_dim), theta)
+    call neasyf_dim(file_id, trim(time_movie_dim), unlimited=.true., long_name="Time", units="L/vt")
     deallocate(x,y)
 # endif
   end subroutine nc_grids_mymovie
@@ -429,7 +475,7 @@ contains
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
     character (20) :: datestamp, timestamp, timezone
-    integer :: ierr, dimsize(5)
+    integer :: dimsize(5)
     real    :: total
     logical :: obmid=.false.
     integer :: code_id
@@ -443,18 +489,17 @@ contains
     ! The netcdf limit is 2^31-4 bytes, however this limit still causes a problem so 178180992 is used
     ! This limit was found by running the code with different sizes, it is not exact but this is a hack
     ! and is not worth pursuing at the moment
-    !<DD>Added protective if statement as nttotext_dim is only defined if io_write_corr_extend
+    !<DD>Added protective if statement as theta_extended_dim is only defined if io_write_corr_extend
     if(io_write_corr_extend)then
-       dimsize(1) = get_netcdf_dim_length(ncid, ri_dim)
-       dimsize(2) = get_netcdf_dim_length(ncid, nttotext_dim)
-       dimsize(3) = get_netcdf_dim_length(ncid, nakx_dim)
-       dimsize(4) = get_netcdf_dim_length(ncid, naky_dim)
-       dimsize(5) = get_netcdf_dim_length(ncid, time_big_dim)
-       ierr = error_unit()
+       dimsize(1) = get_dim_length(ncid, complex_dim)
+       dimsize(2) = get_dim_length(ncid, theta_extended_dim)
+       dimsize(3) = get_dim_length(ncid, kx_dim)
+       dimsize(4) = get_dim_length(ncid, ky_dim)
+       dimsize(5) = get_dim_length(ncid, time_big_dim)
        total = product(real(dimsize(1:5)))
        if(total .gt. 178180992) then ! number of reals allowed in netcdf
-          write(ierr, *) 'WARNING: phi_corr is larger than maximum netcdf size, removing.'
-          write(ierr, *) 'Try increasing nwrite_mult to avoid this.'
+          write(error_unit(), *) 'WARNING: phi_corr is larger than maximum netcdf size, removing.'
+          write(error_unit(), *) 'Try increasing nwrite_mult to avoid this.'
           io_write_corr_extend = .false.
           write_correlation_extend = .false.
        endif
@@ -515,7 +560,7 @@ contains
     complex, dimension(-ntgrid:ntgrid, ntheta0, naky) :: tmp
     integer :: ig
 
-    call netcdf_write_complex(file_id, "phase", phase, ["ri", "kx", "ky"], long_name="Normalising phase")
+    call netcdf_write_complex(file_id, "phase", phase, [complex_dim, kx_dim, ky_dim], long_name="Normalising phase")
 
     if (has_phi) then
        do ig = -ntgrid, ntgrid
@@ -645,7 +690,7 @@ contains
     integer, intent(in) :: file_id
     complex, dimension (:,:,:), intent (in) :: epar
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: dim_names = [character(5)::"ri", "theta", "kx", "ky"]
+    character(*), dimension(*), parameter :: dim_names = [complex_dim, theta_dim, kx_dim, ky_dim]
 
     call netcdf_write_complex(file_id, "epar", epar, dim_names)
 # endif
@@ -659,7 +704,7 @@ contains
     integer, intent(in) :: file_id
     complex, dimension (:,:,:,:), intent (in) :: ntot, density, upar, tpar, tperp
     complex, dimension (:,:,:,:), intent (in) :: qparflux, pperpj1, qpperpj1
-    character(*), dimension(*), parameter :: dim_names = [character(7)::"ri", "theta", "kx", "ky", "species"]
+    character(*), dimension(*), parameter :: dim_names = [complex_dim, theta_dim, kx_dim, ky_dim, species_dim]
 
 #ifdef NETCDF
     call netcdf_write_complex(file_id, 'ntot', ntot, dim_names)
@@ -690,8 +735,8 @@ contains
     complex, dimension (:), intent (in) :: phi00
     complex, dimension (:,:), intent (in) :: ntot00, density00, upar00, tpar00, tperp00
 #ifdef NETCDF
-    character(*), dimension(*), parameter :: loop_phi_dim = [character(7)::"ri", "kx", "t"]
-    character(*), dimension(*), parameter :: loop_mom_dim = [character(7)::"ri", "kx", "species", "t"]
+    character(*), dimension(*), parameter :: loop_phi_dim = [complex_dim, kx_dim, time_dim]
+    character(*), dimension(*), parameter :: loop_mom_dim = [complex_dim, kx_dim, species_dim, time_dim]
     
     ! Volume averaged function of theta
     ! <DD>Should we only do this if .not.obmid?
@@ -791,7 +836,7 @@ contains
     real, dimension (:,:), intent (in) :: x_qmflux
     real, intent (in) :: hflux_tot
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: fluxx_dim = [character(7)::"kx", "species", "t"]
+    character(*), dimension(*), parameter :: fluxx_dim = [kx_dim, species_dim, time_dim]
 
     if (has_phi) then
        call neasyf_write(file_id, "es_heat_flux", heat_fluxes, dim_names=flux_dims, start=starts(2, nout))
@@ -815,7 +860,7 @@ contains
        call neasyf_write(file_id, "bpar_heat_by_k", qbheat, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(file_id, "hflux_tot", hflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "hflux_tot", hflux_tot, dim_names=[time_dim], start=[nout])
 # endif
   end subroutine nc_qflux
 
@@ -851,7 +896,7 @@ contains
        call neasyf_write(file_id, "bpar_part_by_k", pbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(file_id, "zflux_tot", zflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "zflux_tot", zflux_tot, dim_names=[time_dim], start=[nout])
 # endif
   end subroutine nc_pflux
 
@@ -919,7 +964,7 @@ contains
        call neasyf_write(file_id, "bpar_mom_by_k", vbflux, dim_names=fluxk_dims, start=starts(4, nout))
     end if
     
-    call neasyf_write(file_id, "vflux_tot", vflux_tot, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, "vflux_tot", vflux_tot, dim_names=[time_dim], start=[nout])
 # endif
   end subroutine nc_vflux
 
@@ -938,8 +983,8 @@ contains
     real, dimension (-ntgrid:,:), intent (in) :: part_fluxes_dist, mom_fluxes_par_dist, mom_fluxes_perp_dist, heat_fluxes_dist
     real, dimension (2,-ntgrid:ntgrid), intent (in) :: phi_dist
 # ifdef NETCDF
-    character(*), dimension(*), parameter :: flux_dist_dim = [character(7)::"theta", "species", "t"]
-    character(*), dimension(*), parameter :: phi_dist_dim = [character(5)::"ri", "theta", "t"]
+    character(*), dimension(*), parameter :: flux_dist_dim = [theta_dim, species_dim, time_dim]
+    character(*), dimension(*), parameter :: phi_dist_dim = [complex_dim, theta_dim, time_dim]
 
     if (has_phi) then
        call neasyf_write(file_id, "es_part_flux_dist", part_fluxes_dist, &
@@ -1028,7 +1073,7 @@ contains
 
     if (has_phi) then
        call netcdf_write_complex(file_id, "phi_corr_2pi", phi_2pi_corr, &
-            dim_names=[character(5)::"ri", "theta", "ky", "t"], start=starts(4, nout), &
+            dim_names=[complex_dim, theta_dim, ky_dim, time_dim], start=starts(4, nout), &
             long_name="2 point correlation function calculated from the electric potential")
     end if
 
@@ -1052,12 +1097,12 @@ contains
     complex, dimension (:,:,:), intent (in) :: phi_corr
 # ifdef NETCDF
     character(*), dimension(*), parameter :: phi_corr_dims = &
-         [character(9)::"ri", "theta_ext", "kx", "ky", "tb"]
+         [complex_dim, theta_extended_dim, kx_dim, ky_dim, time_big_dim]
     character(*), dimension(*), parameter :: phi2_extend_dims = &
-         [character(9)::"theta_ext", "kx", "ky", "tb"]
+         [theta_extended_dim, kx_dim, ky_dim, time_big_dim]
 
     if (has_phi) then
-      call neasyf_write(file_id, "tb", time, dim_names=["tb"], start=[nout_big])
+      call neasyf_write(file_id, trim(time_big_dim), time, dim_names=[time_big_dim], start=[nout_big])
 
        call netcdf_write_complex(file_id, "phi_corr", phi_corr, &
             dim_names=phi_corr_dims, start=starts(5, nout_big), &
@@ -1106,10 +1151,10 @@ contains
     logical, intent(in) :: write_omega, write_heating
 # ifdef NETCDF
 
-    call neasyf_write(file_id, "t", time, dim_names=["t"], start=[nout])
+    call neasyf_write(file_id, time_dim, time, dim_names=[time_dim], start=[nout])
 
     if (wstar_units) then
-       call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=["ky", "t "], &
+       call neasyf_write(file_id, "t_wstar", time * tunits, dim_names=[ky_dim, time_dim], &
             start=[1, nout], long_name="Time (wstar)", units="L/vt")
     end if
 
@@ -1136,7 +1181,7 @@ contains
        call neasyf_write(file_id, &
             "current_scan_parameter_value", &
             current_scan_parameter_value, &
-            dim_names=["t"], start=[nout], &
+            dim_names=[time_dim], start=[nout], &
             long_name="The current value of the scan parameter")
      end if
 
@@ -1209,9 +1254,9 @@ contains
     real, dimension(ntheta0) :: field2_by_kx
     real, dimension(naky) :: field2_by_ky
 
-    character(*), dimension(*), parameter :: field_dims = [character(5)::"ri", "theta", "kx", "ky", "t"]
-    character(*), dimension(*), parameter :: kx_dims = ["kx", "t "]
-    character(*), dimension(*), parameter :: ky_dims = ["ky", "t "]
+    character(*), dimension(*), parameter :: field_dims = [complex_dim, theta_dim, kx_dim, ky_dim, time_dim]
+    character(*), dimension(*), parameter :: kx_dims = [kx_dim, time_dim]
+    character(*), dimension(*), parameter :: ky_dims = [ky_dim, time_dim]
 
     ! Note that we're not using `get_vol_average` because we'll end up
     ! with a circular dependency
@@ -1244,7 +1289,7 @@ contains
     call neasyf_write(file_id, field_name // "2_by_mode", field2_by_mode, &
          dim_names=mode_dims, start=starts(3, nout), &
          long_name=long_name // " per Fourier mode")
-    call neasyf_write(file_id, field_name // "2", field2, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, field_name // "2", field2, dim_names=[time_dim], start=[nout], &
          long_name=long_name // " volume average", units="(T/q rho/L)**2")
 
     call nc_final_fields(file_id)
@@ -1271,15 +1316,15 @@ contains
 #ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
 
-    call neasyf_write(file_id, "h_energy", h%energy, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, "h_energy", h%energy, dim_names=[time_dim], start=[nout], &
          long_name="Total free (turbulent) energy")
-    call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=[time_dim], start=[nout], &
          long_name="Time derivative of total free energy")
-    call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=[time_dim], start=[nout], &
          long_name="Energy injection from antenna")
-    call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=[time_dim], start=[nout], &
          long_name="Free energy in perpendicular magnetic field")
-    call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=["t"], start=[nout], &
+    call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=[time_dim], start=[nout], &
          long_name="Free energy in parallel magnetic field")
     call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout), &
          long_name="Total free energy dfs^2")
@@ -1341,7 +1386,7 @@ contains
     complex, dimension(:,:,:), intent(in) :: ntot0, density0, upar0, tpar0, tperp0
 #ifdef NETCDF
     integer, dimension (5) :: startmom
-    character(*), dimension(*), parameter :: mom_dim = [character(len=7)::"ri", "kx", "ky", "species", "t"]
+    character(*), dimension(*), parameter :: mom_dim = [complex_dim, kx_dim, ky_dim, species_dim, time_dim]
 
     startmom = [1, 1, 1, 1, nout]
 
@@ -1378,9 +1423,9 @@ contains
 # ifdef NETCDF
     ! \(\phi, A_\parallel, B_\parallel\) as functions of real space
     real, dimension (:,:,:), allocatable:: yxphi, yxapar, yxbpar
-    character(*), dimension(*), parameter :: xmode_dim = [character(6)::"x", "y", "theta", "tm"]
+    character(*), dimension(*), parameter :: xmode_dim = [x_dim, y_dim, theta_dim, time_movie_dim]
 
-    call neasyf_write(file_id, "tm", time, dim_names=["tm"], start=[nout_movie])
+    call neasyf_write(file_id, trim(time_movie_dim), time, dim_names=[time_movie_dim], start=[nout_movie])
 
     if (has_phi) then
        allocate(yxphi(yxf_lo%nx, yxf_lo%ny, -ntgrid:ntgrid))
@@ -1567,7 +1612,7 @@ contains
     ! NetCDF error status
     integer :: status
 
-    status = nf90_inq_dimid(file_id, name, dim_id)
+    status = nf90_inq_dimid(file_id, trim(name), dim_id)
     call neasyf_error(status, file_id)
 
     status = nf90_inquire_dimension(file_id, dim_id, dim_name, length)

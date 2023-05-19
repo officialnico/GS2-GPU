@@ -55,7 +55,7 @@ contains
     use species, only: spec
     use diagnostics_config, only: diagnostics_type
     use neasyf, only: neasyf_write
-    use gs2_io, only: starts
+    use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real, dimension (:,:), allocatable :: errest
@@ -78,15 +78,15 @@ contains
       call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
     end if
     
-    if (.not. gnostics%vary_vnew_only .and. gnostics%wryte) then
+    if (.not. gnostics%vary_vnew_only .and. gnostics%writing) then
       call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
-           dim_names=["3", "t"], start=starts(2, gnostics%nout), &
+           dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
            long_name="Fraction of free energy contained in the high order coefficients of &
            & the Legendre polynomial transform of (1) energy space, (2) untrapped &
            & pitch angles and (3) trapped pitch angles (each should ideally be < 0.1).  &
            & Note that there are no trapped pitch angles for certain geometries")
       call neasyf_write(gnostics%file_id, "vspace_err", errest, &
-           dim_names=["5", "2", "t"], start=starts(3, gnostics%nout), &
+           dim_names=[dim_5, dim_2, time_dim], start=starts(3, gnostics%nout), &
            long_name="Estimate of the (1) absolute and (2) relative errors resulting from &
            & velocity space integrals in the calculation of the following quantities &
            & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
@@ -94,14 +94,14 @@ contains
            & angles. Relative errors should be < 0.1. ")
       call neasyf_write(gnostics%file_id, "vspace_vnewk", &
            [vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk], &
-           dim_names=["2", "t"], start=starts(2, gnostics%nout), &
+           dim_names=[dim_2, time_dim], start=starts(2, gnostics%nout), &
            long_name="If the simulation is set to vary the collisionality in order to keep &
            & error in velocity integrals to acceptable levels, contains species 1 &
            & collisionality in (1) pitch angle and (2) energy  ")
 
       if (gnostics%write_max_verr) then
         call neasyf_write(gnostics%file_id, "vspace_err_maxindex", erridx, &
-             dim_names=["5", "3", "t"], start=starts(3, gnostics%nout), &
+             dim_names=[dim_5, dim_3, time_dim], start=starts(3, gnostics%nout), &
              long_name="Gives the (1) theta index, (2) ky index and (3) kx index of the maximum &
              & error resulting from the &
              & velocity space integrals in the calculation of the following quantities &

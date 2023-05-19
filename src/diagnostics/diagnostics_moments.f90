@@ -91,7 +91,8 @@ contains
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex
+    use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex, complex_dim, &
+         kx_dim, ky_dim, species_dim, time_dim, theta_dim
     use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -107,24 +108,24 @@ contains
     logical :: write_moment_by_time
     integer :: it !, ik
 
-    if (.not. gnostics%wryte) return
+    if (.not. gnostics%writing) return
 
     call average_theta(moment_value, moment_value, moment2_by_mode, distributed)
 
     call average_kx(moment2_by_mode, moment2_by_ky, distributed)
     call neasyf_write(gnostics%file_id, moment_name//"2_by_ky", moment2_by_ky, &
-         dim_names=[character(7)::"ky", "species", "t"], start=starts(3, gnostics%nout), &
+         dim_names=[ky_dim, species_dim, time_dim], start=starts(3, gnostics%nout), &
          long_name=moment_description//" squared and averaged over theta and kx", &
          units="("//moment_units//")^2")
 
     call average_ky(moment2_by_mode, moment2_by_kx, distributed)
     call neasyf_write(gnostics%file_id, moment_name//"2_by_kx", moment2_by_kx, &
-         dim_names=[character(7)::"kx", "species", "t"], start=starts(3, gnostics%nout), &
+         dim_names=[kx_dim, species_dim, time_dim], start=starts(3, gnostics%nout), &
          long_name=moment_description//" squared and averaged over theta and ky", &
          units="("//moment_units//")^2")
 
     call neasyf_write(gnostics%file_id, moment_name//"2", sum(moment2_by_kx, 1), &
-         dim_names=[character(7)::"species", "t"], start=starts(2, gnostics%nout), &
+         dim_names=[species_dim, time_dim], start=starts(2, gnostics%nout), &
          long_name=moment_description//" squared and averaged over theta, kx and ky", &
          units="("//moment_units//")^2")
 
@@ -140,12 +141,12 @@ contains
     if (gnostics%distributed) call sum_allreduce(moment_flx_surfavg)
     
     call netcdf_write_complex(gnostics%file_id, moment_name//"_flxsurf_avg", moment_flx_surfavg, &
-         dim_names=[character(7)::"ri", "kx", "species", "t"], start=starts(4, gnostics%nout), &
+         dim_names=[complex_dim, kx_dim, species_dim, time_dim], start=starts(4, gnostics%nout), &
          long_name=moment_description//" flux surface averaged over theta, at ky=0 (actally ik==1)", &
          units=moment_units)
     
     call netcdf_write_complex(gnostics%file_id, moment_name, moment_value, &
-         dim_names=[character(7)::"ri", "theta", "kx", "ky", "species"], &
+         dim_names=[complex_dim, theta_dim, kx_dim, ky_dim, species_dim], &
          long_name=moment_description, units=moment_units)
     call netcdf_write_complex( &
          gnostics%file_id, moment_name//"_igomega_by_mode", moment_igomega_by_mode, &
