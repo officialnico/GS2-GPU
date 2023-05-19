@@ -36,11 +36,8 @@ program test_fields_local
 
   ! Set up depenencies
   call init_mp
-  gs2_state%mp_comm_external = .true.
   gs2_state%mp_comm = mp_comm
   call initialize_gs2(gs2_state)
-
-
 
   call announce_module_test('fields_local')
 

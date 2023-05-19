@@ -298,8 +298,6 @@ contains
     integer :: istatus
     real :: delt, delt1, delt2, delt_max
 
-    !gryfx_zonal%on = .true.
-    state%mp_comm_external = .true.
     state%mp_comm = mp_comm  
     state%is_trinity_job = .true.
 
@@ -451,7 +449,7 @@ contains
   end subroutine init_gs2_gryfx
 
   !> FIXME : Add documentation  
-  subroutine advance_gs2_gryfx_c(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+  subroutine advance_gs2_gryfx_c(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
        qpar_ky0, qprp_ky0, phi_ky0, first_half_step) &
        bind(c, name='advance_gs2')
     use iso_c_binding
@@ -473,20 +471,19 @@ contains
          qprp_ky0(naky*ntheta0*2*ntgrid*nspec)
     complex (c_float_complex), intent (out) :: phi_ky0(naky*ntheta0*2*ntgrid)
     integer(c_int), intent (in) :: first_half_step
-    integer(c_int), intent (in) :: istep
     logical :: first_half_step_l
 
     first_half_step_l = .false.
     if (first_half_step.eq.1) first_half_step_l = .true.
 
-    call advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+    call advance_gs2_gryfx(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
          qpar_ky0, qprp_ky0, phi_ky0, first_half_step_l)
 
 
   end subroutine advance_gs2_gryfx_c
 
   !> FIXME : Add documentation  
-  subroutine advance_gs2_gryfx(istep, dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
+  subroutine advance_gs2_gryfx(dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, &
        qpar_ky0, qprp_ky0, phi_ky0, first_half_step)
 
     use nonlinear_terms, only: gryfx_zonal
@@ -500,7 +497,6 @@ contains
          dens_ky0, upar_ky0, tpar_ky0, tprp_ky0, qpar_ky0, qprp_ky0
     complex(real32), dimension (:), intent (inout) :: phi_ky0
     logical, intent (in) :: first_half_step
-    integer, intent (in) :: istep
 
     !state%istep_end = istep
     state%print_times = .false.

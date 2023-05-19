@@ -15,12 +15,11 @@ program test_timestep_change
   complex, dimension(:, :, :) , allocatable :: phi_bak, apar_bak, bpar_bak  
   integer :: istep
   real :: code_dt_bak
-  call init_mp
-  
-  call announce_module_test("timestep_change")
 
-  state%mp_comm_external = .true.
+  call init_mp
   state%mp_comm = mp_comm
+
+  call announce_module_test("timestep_change")
 
   call initialize_wall_clock_timer 
   call initialize_gs2(state)

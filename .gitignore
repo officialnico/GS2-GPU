@@ -46,6 +46,7 @@ objs/
 results_of_test.txt
 *.scratch
 *.timing.*
+*.timing_stats
 *.trinpars
 *.vres
 *.vres2

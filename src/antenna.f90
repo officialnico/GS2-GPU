@@ -200,7 +200,7 @@ contains
     use run_parameters, only: beta
     implicit none
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in    
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
     integer :: i
     
     if (initialized) return
@@ -234,7 +234,7 @@ contains
     use gs2_save, only: init_ant_amp
     implicit none
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
     complex :: a, b
     integer :: kx, ky, kz, i, ierr
     logical :: exist, travel, ant_off
@@ -550,7 +550,7 @@ contains
   subroutine set_antenna_config(driver_config_in, stir_config_in)
     use mp, only: mp_abort
     type(driver_config_type), intent(in), optional :: driver_config_in
-    type(stir_config_type), intent(in), dimension(:), optional :: stir_config_in
+    type(stir_config_type), intent(in), dimension(:), allocatable, optional :: stir_config_in
   
     if (initialized) then
        call mp_abort("Trying to set antenna config when already initialized.", to_screen = .true.)

@@ -42,11 +42,9 @@ program time_indexing_le
 
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   call announce_module_test('time_indexing')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
 

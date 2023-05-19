@@ -43,7 +43,7 @@ module gs2_init
   !> Finalize the module
   public :: finish_gs2_init
 
-  public :: report_init_times, reset_init_times
+  public :: write_init_times, report_init_times, reset_init_times
 
   public :: in_memory
   public :: init_config_type
@@ -225,6 +225,18 @@ contains
     end if
   end function init_level_change_level
 
+  !> Write the init times to <run_name>.init_times
+  subroutine write_init_times()
+    use mp, only: proc0
+    use file_utils, only: open_output_file, close_output_file
+    implicit none
+    integer :: unit
+    if (.not. proc0) return
+    call open_output_file(unit, '.init_times')
+    call report_init_times(unit)
+    call close_output_file(unit)
+  end subroutine write_init_times
+
   !> Report the time spent in each initialisation level
   subroutine report_init_times(unit)
     implicit none
@@ -294,9 +306,8 @@ contains
   !> Initialise this module. As we pass in the initialisation state
   !> object (current), we could/should consider making this set the
   !> level to basic, e.g. current%level = init_level_list%basic
-  subroutine init_gs2_init(current, init_config_in)
+  subroutine init_gs2_init(init_config_in)
     implicit none
-    type(init_type), intent(inout) :: current
     type(init_config_type), intent(in), optional :: init_config_in
 
     logical :: exist
@@ -315,8 +326,10 @@ contains
   end subroutine init_gs2_init
 
   !> Finish this module
-  subroutine finish_gs2_init(current)
-    type(init_type), intent(inout) :: current
+  subroutine finish_gs2_init()
+    use run_parameters, only: save_init_times
+    implicit none
+    if (save_init_times) call write_init_times
     call init_config%reset()
     initialized = .false.
     if (allocated(init_levels)) deallocate(init_levels)
@@ -330,7 +343,7 @@ contains
     use file_utils, only: error_unit
     use init_g, only: ginit, init_vnmult
     use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
     implicit none
     type (init_type), intent(in) :: current
@@ -380,17 +393,17 @@ contains
     else
 
        if(current%initval_ov%override .and. current%initval_ov%in_memory) then
-          if(fphi.gt.0) then
+          if(has_phi) then
              phinew=current%initval_ov%phi
           else
              phinew = 0.
           endif
-          if(fapar.gt.0) then
+          if(has_apar) then
              aparnew=current%initval_ov%apar
           else
              aparnew = 0.
           endif
-          if(fbpar.gt.0) then
+          if(has_bpar) then
              bparnew=current%initval_ov%bpar
           else
              bparnew = 0.
