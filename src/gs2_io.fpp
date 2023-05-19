@@ -1219,9 +1219,9 @@ contains
 
     ! FIXME: duplicate names for old/new diagnostics
     call netcdf_write_complex(file_id, "omegaavg", tmp, dim_names=omega_dims, start=starts(4, nout), &
-         long_name="Complex frequency averaged over navg timesteps", units="areef/vtref")
+         long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
     call netcdf_write_complex(file_id, "omega_average", tmp, dim_names=omega_dims, start=starts(4, nout), &
-         long_name="Complex frequency averaged over navg timesteps", units="areef/vtref")
+         long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
 #endif
   end subroutine nc_write_omega
 
