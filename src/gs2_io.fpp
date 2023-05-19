@@ -60,6 +60,7 @@ module gs2_io
   !>
   !> Converts the `complex` array to a `real` array with an extra dimension
   interface netcdf_write_complex
+    module procedure write_complex_scalar
     module procedure write_complex_rank1, write_complex_rank2
     module procedure write_complex_rank3, write_complex_rank4
   end interface netcdf_write_complex
@@ -1593,6 +1594,32 @@ contains
     call neasyf_error(status, file_id, dimid=dim_id, dim=name)
 #endif
   end function get_dim_length
+
+  subroutine write_complex_scalar(parent_id, name, values, dim_names, units, long_name, start)
+#ifdef NETCDF
+    use neasyf, only: neasyf_write
+    use convert, only: c2r
+#endif
+    !> Name of the variable
+    character(len=*), intent(in) :: name
+    !> NetCDF ID of the parent group/file
+    integer, intent(in) :: parent_id
+    !> Value of the integer to write
+    complex, intent(in) :: values
+    !> Array of dimension names, the first of which should be `"ri"`
+    character(len=*), dimension(:), intent(in) :: dim_names
+    !> Units of coordinate
+    character(len=*), optional, intent(in) :: units
+    !> Long descriptive name
+    character(len=*), optional, intent(in) :: long_name
+    !> Offset (one-indexed) for writing time-varying arrays. Must include the complex dimension as the first index
+    integer, dimension(:), optional, intent(in) :: start
+
+#ifdef NETCDF
+    call neasyf_write(parent_id, name, [real(values), aimag(values)], &
+         dim_names=dim_names, units=units, long_name=long_name, start=start)
+#endif
+  end subroutine write_complex_scalar
 
   subroutine write_complex_rank1(parent_id, name, values, dim_names, units, long_name, start)
 #ifdef NETCDF
