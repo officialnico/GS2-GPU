@@ -523,13 +523,10 @@ contains
     call debug_message(state%verb, 'gs2_main::initialize_equations starting')
     call time_message(.false.,state%timers%total,' Total')
 
-    call debug_message(state%verb, &
-      'gs2_main::initialize_equations calling init_parameter_scan')
+    call debug_message(state%verb, 'gs2_main::initialize_equations calling init_parameter_scan')
     call init_parameter_scan
 
     call time_message(.false., state%timers%init,' Initialization')
-    !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
-    call debug_message(state%verb, 'gs2_main::initialize_equations calling init_fields')
 
     ! This triggers initializing of all the grids, all the physics parameters
     ! and all the modules which solve the equations
@@ -538,7 +535,6 @@ contains
     ! Set the initial simulation time (must be after init_fields
     ! because initial time may be read from a restart file)
     call init_tstart(tstart)
-
 
     ! Here we copy some geometric information required by 
     ! Trinity to state%outputs
@@ -555,7 +551,6 @@ contains
     call broadcast (state%outputs%grho)
     
     call time_message(.false.,state%timers%init,' Initialization')
-
 
     ! Set defaults. These are typically only important
     ! for the standalone gs2 program
