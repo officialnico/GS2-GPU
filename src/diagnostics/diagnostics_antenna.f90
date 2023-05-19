@@ -86,13 +86,13 @@ contains
     use antenna, only: antenna_w
     use diagnostics_config, only: diagnostics_type
     use neasyf, only: neasyf_write
-    use gs2_io, only: starts
+    use gs2_io, only: starts, netcdf_write_complex
     use mp, only: proc0
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     if (.not. proc0) return
-    call neasyf_write(gnostics%file_id, "antenna_w", real(antenna_w()), &
-         dim_names=["t"], start=[gnostics%nout])
+    call netcdf_write_complex(gnostics%file_id, "antenna_w", antenna_w(), &
+         dim_names=["ri", "t "], start=starts(2, gnostics%nout))
   end subroutine write_lorentzian
 
   !> A subroutine to calculate the time-averaged antenna current

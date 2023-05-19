@@ -91,7 +91,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use fields_arrays, only: phi, apar, bpar
     use kt_grids, only: ntheta0, naky, theta0, aky
-    use theta_grid, only: theta, nperiod, ntheta, ntgrid
+    use theta_grid, only: theta, nperiod, ntheta
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: nc_eigenfunc
     implicit none
