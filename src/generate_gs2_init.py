@@ -53,9 +53,9 @@ class module_with_dependencies:
         self.level = 0
 
         if self.init_routine is None:
-            self.init_routine = "init_{name}".format(name=self.name)
+            self.init_routine = f"init_{self.name}"
         if self.finish_routine is None:
-            self.finish_routine = "finish_{name}".format(name=self.name)
+            self.finish_routine = f"finish_{self.name}"
         if self.visit_routine is None:
             self.visit_routine = default_module_routine_string
 
@@ -66,7 +66,7 @@ class module_with_dependencies:
             init_routine=self.init_routine,
             finish_routine=self.finish_routine,
             level=self.level,
-            **self.visit_args
+            **self.visit_args,
         ).strip()
 
 
@@ -361,18 +361,13 @@ if __name__ == "__main__":
 
         if logical_level > len(levels):
             print(
-                "Something appears broken in generate_gs2_init.py",
-                "\nWe've searched ",
-                len(levels),
-                " times but still have yet to",
-                "find all dependencies for ",
-                levels_remaining,
+                "Something appears broken in generate_gs2_init.py\n"
+                f"We've searched {len(levels)} times but still have yet to"
+                f"find all dependencies for {levels_remaining}"
             )
             for case in levels_remaining:
                 print(
-                    "For ",
-                    case,
-                    "we have the following dependencies with found status:",
+                    f"For {case} we have the following dependencies with found status:"
                 )
                 print(
                     [
@@ -393,25 +388,14 @@ if __name__ == "__main__":
 
     # Now we can form the init level list entries
     init_level_list = "\n".join(
-        [
-            "    integer :: {name} = {level}".format(
-                name=x.name,
-                level=x.level,
-            )
-            for x in ordered_levels.values()
-        ]
+        [f"    integer :: {x.name} = {x.level}" for x in ordered_levels.values()]
     )
 
-    init_array = "      init_levels = [ &\n".format(
-        nlevels=len(ordered_levels.values())
-    )
+    init_array = "      init_levels = [ &\n"
     init_array += (
         ", &\n".join(
             [
-                "        init_level_type(name = '{name}', level = {level}, change_level_specific = {name}_subroutine)".format(
-                    name=x.name,
-                    level=x.level,
-                )
+                f"        init_level_type(name = '{x.name}', level = {x.level}, change_level_specific = {x.name}_subroutine)"
                 for x in ordered_levels.values()
             ]
         )
