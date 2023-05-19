@@ -74,7 +74,6 @@ module diagnostics_config
      integer :: verbosity = 3
      logical :: create
      logical :: writing
-     logical :: reading
      logical :: distributed
      logical :: parallel
      logical :: exit

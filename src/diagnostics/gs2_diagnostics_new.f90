@@ -356,11 +356,9 @@ contains
     ! If parallel, then everybody writes to netcdf,
     ! otherwise, only proc0
     if (gnostics%parallel .or. proc0) then
-      gnostics%reading = .false.
       gnostics%create = (istep_in==-1) .and. .not. gnostics%appending
       gnostics%writing = .true.
     else
-      gnostics%reading = .false.
       gnostics%create = .false.
       gnostics%writing = .false.
     end if
