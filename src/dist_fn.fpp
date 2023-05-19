@@ -103,6 +103,10 @@ module dist_fn
   public :: get_dist_fn_species_config
   public :: get_source_config
 
+  ! The following routines are sometimes used for debugging or testing purposes
+  public :: dump_homogeneous_solution, dump_current_source_term, get_field_inconsistency
+  public :: check_getan, get_mom_glm
+
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
