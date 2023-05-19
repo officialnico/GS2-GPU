@@ -177,7 +177,7 @@ contains
             'es_mom_flux_perp', 'Flux of the perpendicular component of the toroidal angular momentum', 'Pi_gB =  ', &
             vflux_perp, gnostics%distributed)
 
-       if (gnostics%wryte) call neasyf_write(gnostics%file_id, "es_flux_vs_e", esflux_vs_e, &
+       if (gnostics%writing) call neasyf_write(gnostics%file_id, "es_flux_vs_e", esflux_vs_e, &
             dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
 
@@ -217,7 +217,7 @@ contains
             'apar_mom_flux',  'Turbulent flux of momentum resulting from &
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
 
-       if (gnostics%wryte) call neasyf_write(gnostics%file_id, "apar_flux_vs_e", apflux_vs_e, &
+       if (gnostics%writing) call neasyf_write(gnostics%file_id, "apar_flux_vs_e", apflux_vs_e, &
             dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Perpendicular magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
@@ -246,7 +246,7 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
-       if (gnostics%wryte) call neasyf_write(gnostics%file_id, "bpar_flux_vs_e", bpflux_vs_e, &
+       if (gnostics%writing) call neasyf_write(gnostics%file_id, "bpar_flux_vs_e", bpflux_vs_e, &
             dim_names=[character(7)::"egrid", "species", "t"], &
             long_name="Parallel magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
@@ -261,7 +261,7 @@ contains
          gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
     
     ! Write totals
-    if (gnostics%write_fluxes .and. gnostics%wryte) then
+    if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "heat_flux_tot", &
             gnostics%current_results%total_heat_flux, dim_names=["t"], start=[gnostics%nout], units="Q_gB", &
             long_name="Total heat flux")
@@ -362,7 +362,7 @@ contains
     heat_flux_max = sum(heat_flux_max_by_spec)
     particle_flux_max = sum(particle_flux_max_by_spec)
     
-    if (gnostics%write_fluxes .and. gnostics%wryte) then
+    if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "es_heat_flux_diff_max", heat_flux_max_by_spec, &
             dim_names=flux_dims, long_name="Linear estimate of the heat flux", units="Q_gB", &
             start=starts(2, gnostics%nout))
@@ -420,7 +420,7 @@ contains
 
     call average_kx(total_flux_by_mode, total_flux_by_ky, distributed)
     call average_ky(total_flux_by_mode, total_flux_by_kx, distributed)
-    if (gnostics%write_fluxes .and. gnostics%wryte) then 
+    if (gnostics%write_fluxes .and. gnostics%writing) then
       call neasyf_write(gnostics%file_id, flux_name, flux_by_species, &
            dim_names=flux_dims, start=starts(2, gnostics%nout), &
            long_name=flux_description//" averaged over kx and ky")

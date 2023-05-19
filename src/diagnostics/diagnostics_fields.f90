@@ -19,7 +19,7 @@ contains
     type(diagnostics_type), intent(inout) :: gnostics
 
     if (gnostics%replay) return 
-    if (.not. gnostics%wryte) return
+    if (.not. gnostics%writing) return
 
     if (has_phi) then
       call nc_write_field(gnostics%file_id, gnostics%nout, phinew, &

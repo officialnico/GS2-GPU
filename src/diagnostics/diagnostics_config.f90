@@ -73,8 +73,8 @@ module diagnostics_config
      integer :: istep
      integer :: verbosity = 3
      logical :: create
-     logical :: wryte
-     logical :: reed
+     logical :: writing
+     logical :: reading
      logical :: replay
      logical :: distributed
      logical :: parallel

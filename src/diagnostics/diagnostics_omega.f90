@@ -56,7 +56,7 @@ contains
     complex, dimension(0:gnostics%navg-1,ntheta0,naky) :: omegahist_woutunits
     complex, dimension(ntheta0, naky) :: omega_average_woutunits
 
-    if (.not. gnostics%wryte) return
+    if (.not. gnostics%writing) return
 
     do ik=1,naky
        omegahist_woutunits(:,:,ik) = omegahist(:,:,ik) * woutunits(ik)

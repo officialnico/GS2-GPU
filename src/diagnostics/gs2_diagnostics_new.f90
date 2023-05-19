@@ -373,17 +373,17 @@ contains
     if (gnostics%parallel .or. proc0) then
       if (read_existing ) then
         gnostics%create = .false.
-        gnostics%wryte = .false.
-        gnostics%reed = .true.
+        gnostics%writing = .false.
+        gnostics%reading = .true.
       else
-        gnostics%reed = .false.
+        gnostics%reading = .false.
         gnostics%create = (istep_in==-1).and..not.gnostics%appending
-        gnostics%wryte = .not. gnostics%replay
+        gnostics%writing = .not. gnostics%replay
       end if
     else
-      gnostics%reed = .false.
+      gnostics%reading = .false.
       gnostics%create=.false.
-      gnostics%wryte=.false.
+      gnostics%writing=.false.
     end if
 
     ! Now that we've used istep to work out what operations we want
@@ -423,7 +423,7 @@ contains
        ! and we would actually skip the real istep_in = 0 call.
        if (istep_in > -1) istep_last = istep
 
-       if (gnostics%wryte) then
+       if (gnostics%writing) then
          call neasyf_write(gnostics%file_id, "t", user_time, dim_names=["t"], start=[gnostics%nout])
        end if
 
@@ -486,7 +486,7 @@ contains
        call run_diagnostics_to_be_updated
 
        ! Don't sync movie file because it's the same as the main file
-       if (gnostics%wryte) call nc_sync(gnostics%file_id, gnostics%nout, -1, -1, gnostics%nc_sync_freq)
+       if (gnostics%writing) call nc_sync(gnostics%file_id, gnostics%nout, -1, -1, gnostics%nc_sync_freq)
        if (proc0 .and. gnostics%write_ascii) call flush_output_files(gnostics%ascii_files)
        
        ! Update time used for time averages

@@ -54,7 +54,7 @@ contains
 !WARNING: Phitot here has not been set
     if (gnostics%distributed) call sum_reduce(phitot, 0)
     
-    if(.not.(proc0 .and. gnostics%wryte)) return
+    if(.not.(proc0 .and. gnostics%writing)) return
     write (unit=outunit, fmt="('time=',1pe12.4)") gnostics%user_time
     do ik = 1, naky
        do it = 1, ntheta0

@@ -21,7 +21,7 @@ contains
     
     call get_cross_phase (gnostics, phase_tot, phase_theta)
     
-    if (.not. gnostics%wryte) return
+    if (.not. gnostics%writing) return
 
     call neasyf_write(gnostics%file_id, "electron_cross_phase_theta", phase_theta, &
          dim_names=["t"], start=[gnostics%nout], &
