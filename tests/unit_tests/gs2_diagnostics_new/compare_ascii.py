@@ -24,5 +24,4 @@ except ValueError:
     are_same = text1 == text2
 finally:
     with open("tmpdata.dat", "w") as text_file:
-        fortran_value = "T" if are_same else "F"
-        text_file.write(fortran_value)
+        text_file.write("T" if are_same else "F")
