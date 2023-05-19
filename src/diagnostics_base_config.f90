@@ -360,7 +360,7 @@ module diagnostics_base_config
     !>
     !> @warning Output formats and quantities differ between old and new
     !> diagnostics
-    logical :: write_flux_line = .true.
+    logical :: write_flux_line = .false.
 
     !> Write fluxes (heat, momentum and particle; total and per-species) every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
