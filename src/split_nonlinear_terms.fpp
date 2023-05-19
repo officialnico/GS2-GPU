@@ -273,7 +273,7 @@ contains
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
-    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
     use gs2_layouts, only: g_lo
@@ -394,7 +394,6 @@ contains
     real :: internal_time, time_step, max_vel
     integer :: counter, iglo
     integer, parameter :: iteration_limit = 20
-    integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
     real :: inverse_error, error, actual_dt, half_time, cfl_time_step
@@ -607,11 +606,11 @@ contains
     real, intent(in) :: dt
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
-    real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
+    real :: internal_time, time_step, max_vel, inverse_error
     real :: new_time_step, cfl_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
-    integer :: istage, istage_sub, validity, iglo
+    integer :: istage, istage_sub, iglo
     real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1

@@ -13,7 +13,6 @@ program dump_grids
   logical :: list
   logical :: accel_x, accel_y
   logical, parameter :: quiet=.false.
-  character (500), target :: cbuff
   character (len=500) :: filename
   real :: time_measure(2)
 

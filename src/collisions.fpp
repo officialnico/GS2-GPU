@@ -3401,10 +3401,9 @@ contains
   !> FIXME : Add documentation  
   subroutine solfp1_le_layout (gle, diagnostics)
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
-    use theta_grid, only: bmag
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al, ng2
+    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, ng2
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -3738,13 +3737,11 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
     use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
-    use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -3754,7 +3751,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
 
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa, vpa_nud
+    real :: vpa_nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -4117,13 +4114,10 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: ixi_to_il, ixi_to_isgn
-    use le_grids, only: sgn, speed => speed_maxw, nxi, ng2
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -4132,8 +4126,8 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real :: vpa, delnu
-    integer :: ig, isgn, ik, ie, il, is, it
+    real :: delnu
+    integer :: ig, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2

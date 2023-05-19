@@ -5,10 +5,10 @@ program eiktest
   use file_utils, only: init_file_utils, run_name
   implicit none
 
-  integer :: i, nth, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta
   real :: broot
   real :: q, qq, qplus, qmnus
-  real :: bb, bm, bp, profile_fac
+  real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
@@ -19,7 +19,6 @@ program eiktest
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   integer :: nbeta, funit
 
-  real :: airat, wgt, wdavg, jac
   logical :: fast, dipole, list
   character(len=:), allocatable :: in_stem, out_stem
 
