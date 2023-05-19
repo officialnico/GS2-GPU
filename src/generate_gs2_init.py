@@ -396,15 +396,15 @@ if __name__ == "__main__":
     # Now the visit methods
     visit_methods = "\n\n".join([x.generate_method() for x in ordered_levels.values()])
 
-    import os
+    from pathlib import Path
     import sys
 
-    src_dir = os.path.dirname(sys.argv[0])
-    with open(os.path.join(src_dir, "gs2_init_level_list.inc"), "w") as output:
+    src_dir = Path(sys.argv[0]).parent
+    with open(src_dir / "gs2_init_level_list.inc", "w") as output:
         output.write(init_level_list.rstrip())
 
-    with open(os.path.join(src_dir, "gs2_init_level_array.inc"), "w") as output:
+    with open(src_dir / "gs2_init_level_array.inc", "w") as output:
         output.write(init_array.strip())
 
-    with open(os.path.join(src_dir, "gs2_init_subroutines.inc"), "w") as output:
+    with open(src_dir / "gs2_init_subroutines.inc", "w") as output:
         output.write(visit_methods.strip())
