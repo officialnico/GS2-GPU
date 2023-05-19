@@ -501,7 +501,6 @@ contains
   !! equations. After calling this function, gs2 reaches 
   !! init\%level = full. 
   subroutine initialize_equations(state)
-    use fields, only: init_fields
     use theta_grid, only: surfarea, dvdrhon
     use gs2_time, only: init_tstart
     use gs2_init, only: init
@@ -512,10 +511,6 @@ contains
     use run_parameters, only: nstep, do_eigsolve
     use unit_tests, only: debug_message
     use gs2_reinit, only: init_gs2_reinit
-    use fields_implicit, only: skip_initialisation
-    use fields, only: fields_allocate_arrays=>allocate_arrays
-    use fields_local, only: fieldmat
-    use run_parameters, only: trinity_linear_fluxes
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
 
