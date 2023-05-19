@@ -21,16 +21,6 @@ needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response ge
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-needs_fft_wisdom := utils gs2 ingen dump_response \
-	generate_fftw_wisdom write_default_input_file ffttester
-ifdef USE_FFT
-ignored_junk := $(foreach tmp_target, $(needs_fft_wisdom), \
-	$(eval $(tmp_target)_mod += $(OBJDIR)/fft_save_wisdom.o))
-endif
-
 ############################################################################# PROGRAMS
 gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
 gs2_all: dump_grids ideal_ball write_default_input_file

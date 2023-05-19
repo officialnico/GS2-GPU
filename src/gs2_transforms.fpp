@@ -692,7 +692,7 @@ contains
     call set_redist_character_type(g2x, 'g2x')
     call set_xxf_optimised_variables(opt_local_copy, xxf_lo%naky,  &
          xxf_lo%ntgrid,  xxf_lo%ntheta0, xxf_lo%nlambda,  xxf_lo%negrid, &
-         xxf_lo%nx, xxf_lo%ulim_proc, g_lo%blocksize, layout)
+         xxf_lo%nx, xxf_lo%ulim_proc, g_lo%ulim_proc, layout)
 
     !Create g2x redistribute object
     call init_redist (g2x, 'c', to_low, to_high, to_list, &
@@ -1125,7 +1125,8 @@ contains
     !       e.g. fac in get_volume_average
     !
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP SHARED(g_lo, g) &
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
@@ -1154,7 +1155,8 @@ contains
     ! (See above comment in transform2_5d.)
     !
 
-    !$OMP PARALLEL DO DEFAULT(SHARED) &
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP SHARED(g_lo, g, scale) &
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) .ne. 1) then
@@ -2050,6 +2052,7 @@ contains
     use fft_work, only: time_fft
     complex, dimension (:,:,:), intent(in)  :: an
     complex, dimension (:,:,:), intent(out) :: an2
+    an2 = 0.0
     call time_message(.false., time_fft, ' FFT')
 #if FFT == _FFTW3_
     call FFTW_PREFIX(_execute_dft)(zf_fft%plan, an, an2)

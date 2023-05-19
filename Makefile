@@ -61,17 +61,6 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
-# Default to compressed netcdf files. Note we choose to default to no
-# compression for builds with parallel netcdf due to an issue reported
-# on Macs and JFRS-1 in which compression and parallel netcdf leads to
-# hanging code. Hopefully future investigation can give a solution
-# which allows both features to be used together and we can remove
-# this complication.
-ifdef USE_PARALLEL_NETCDF
-	USE_NETCDF_COMPRESSION ?=
-else
-	USE_NETCDF_COMPRESSION ?= on
-endif
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
 # uses lapack or compatible library (bin)
@@ -241,9 +230,9 @@ SRCDIR:= $(GK_HEAD_DIR)/src
 PROGDIR:= $(SRCDIR)/programs
 
 #Extra subdirectories which include code that might be needed
-SUBDIRS= geo
+SUBDIRS= geo diagnostics
 ifdef USE_NEW_DIAG
-SUBDIRS += diagnostics diagnostics/simpledataio/src
+SUBDIRS += diagnostics/simpledataio/src
 endif
 SUBDIRS:= $(addprefix $(SRCDIR)/, $(SUBDIRS))
 
@@ -256,6 +245,7 @@ SUBDIRS += $(EXTERNALSRCDIRS)
 
 GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
+NEASYF := $(EXTERNALDIR)/neasyf/src
 
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
@@ -290,11 +280,12 @@ include Makefile.$(GK_SYSTEM)
 # actually been initialised
 MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
 UTILS_SENTINEL := $(UTILS)/mp.fpp
+NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
 
-.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
+.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) $(NEASYF_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
+$(NEASYF_SENTINEL) $(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -444,7 +435,7 @@ endif
 
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-	FFT_LIB ?= -lfftw -lrfftw
+	FFT_LIB ?= -lfftw3
 endif
 
 ifdef GENQUAD
@@ -455,6 +446,18 @@ endif
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
 	MACRO_DEFS += -DNETCDF
+endif
+
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
 endif
 
 ifdef USE_NETCDF_COMPRESSION
@@ -600,13 +603,13 @@ ifneq ($(TOPDIR),$(CURDIR))
 	SUBDIR=true
 endif
 
-VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR)
+VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO) $(GK_HEAD_DIR)/$(NEASYF)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -740,13 +743,13 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
-		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
@@ -945,6 +948,7 @@ test_make:
 	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_PARALLEL_NETCDF", $(USE_PARALLEL_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))

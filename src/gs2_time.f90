@@ -5,6 +5,7 @@ module gs2_time
 
   private
 
+  public :: init_gs2_time, finish_gs2_time
   public :: user_dt, code_dt, update_time, code_dt_old
   public :: time_history_available, dt_not_set
   public :: code_dt_prev1, code_dt_prev2
@@ -13,6 +14,7 @@ module gs2_time
   public :: init_tstart, init_delt
   public :: code_dt_cfl, code_dt_min, user2code, code_dt_max
   public :: get_adams_bashforth_coefficients
+  public :: wunits, woutunits, tunits
 
   real, parameter :: dt_not_set = -1.0
   real :: user_dt, code_dt 
@@ -29,12 +31,101 @@ module gs2_time
   real :: code_dt_old = 0.
 
 ! GGH points out that this initialization is not necessary (we think)
-  real :: user_time = 0.
-  real :: code_time = 0.
+  real :: user_time = dt_not_set
+  real :: code_time = dt_not_set
+
+  real, dimension (:), allocatable :: wunits, woutunits, tunits
 
 contains
 
-  !> FIXME : Add documentation  
+  !> Initialise the gs2_time module
+  !>
+  !> Note this doesn't actually initialise everything (for example
+  !> it doesn't call init_tstart) due to module dependencies.
+  subroutine init_gs2_time
+    use run_parameters, only: delt_option_switch, delt_option_auto, delt
+    use gs2_save, only: init_dt
+    implicit none
+    real :: delt_prev1, delt_prev2, delt0, delt1, delt2, delt_max, user_delt_max
+    integer :: istatus
+
+    user_delt_max = delt
+    delt_prev1 = dt_not_set
+    delt_prev2 = dt_not_set
+
+    if (delt_option_switch == delt_option_auto) then
+       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
+       if (delt0 /= dt_not_set) delt = delt0
+       if (delt1 /= dt_not_set) delt_prev1 = delt1
+       if (delt2 /= dt_not_set) delt_prev2 = delt2
+       if (delt_max /= dt_not_set) user_delt_max = delt_max
+    endif
+
+    call init_delt (delt, delt_prev1, delt_prev2)
+    call user2code (user_delt_max, code_dt_max)
+
+    ! omega_* normalization of time:
+    call adjust_time_norm
+  end subroutine init_gs2_time
+
+  !> Finalise the gs2_time module
+  subroutine finish_gs2_time
+    implicit none
+    ! Note we don't (currently) reset module variables like user_time
+
+    if(allocated(wunits)) deallocate (wunits)
+    if(allocated(woutunits)) deallocate (woutunits)
+    if(allocated(tunits)) deallocate (tunits)
+
+  end subroutine finish_gs2_time
+
+  !> FIXME : Add documentation
+  subroutine adjust_time_norm
+    use file_utils, only: error_unit
+    use mp, only: proc0
+    use kt_grids, only: aky, naky
+    use run_parameters, only: wstar_units
+    implicit none
+
+    if(.not. allocated(wunits)) allocate (wunits(naky))
+    if(.not. allocated(woutunits)) allocate (woutunits(naky))
+    if(.not. allocated(tunits)) allocate (tunits(naky))
+
+    !CMR: Sep 2010
+    ! Attempt to understand time normalisation variables, which are arrays(naky)
+    !    TUNITS: DT(KY)=TUNITS(KY).CODE_DT
+    !            This is a generally very useful variable to store ky dependent
+    !            timestep in the code time normalisation.
+    !            Used to multiply ky independent source terms on RHS of GKE.
+    !    WUNITS: WUNITS(KY)=AKY(KY)*TUNITS(KY)/2
+    !            Auxiliary variable.  Used to save compute operations when
+    !            evaluating source terms on RHS of GKE that are proportional to ky.
+    !            !! The Mysterious factor 1/2 Explained !!
+    !            The factor of 1/2 arises because those source terms were first
+    !            specified using the normalisation Tref=mref vtref^2
+    ! [R Numata et al, "AstroGK: Astrophysical gyrokinetics code", JCP, 2010].
+    !CMRend
+    if (wstar_units) then
+       wunits = 1.0
+       where (aky /= 0.0)
+          tunits = 2.0/aky
+       elsewhere
+          tunits = 0.0
+       end where
+       if (any(tunits == 0.0) .and. proc0) then
+          write (error_unit(), *) &
+               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
+          print *, &
+               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
+       end if
+    else
+       tunits = 1.0
+       wunits = aky/2.0
+    end if
+    woutunits = 1.0/tunits
+  end subroutine adjust_time_norm
+
+  !> FIXME : Add documentation
   subroutine init_tstart (tstart)
     implicit none
     real, intent (in) :: tstart
@@ -51,8 +142,8 @@ contains
     real, intent (in) :: delt, delt1, delt2
 !
 ! delt* are user input, from the run_parameters module.
-! In a perfect world, we could have a gs2_time namelist. 
-! 
+! In a perfect world, we could have a gs2_time namelist.
+!
     user_dt = delt
     code_dt = delt
     code_dt_prev1 = delt1

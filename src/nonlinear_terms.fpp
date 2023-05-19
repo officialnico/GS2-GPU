@@ -174,9 +174,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_nonlinear_terms(report_unit,delt_adj)
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use kt_grids, only: box
-    use run_parameters, only: code_delt_max, nstep, wstar_units
+    use run_parameters, only: nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -280,7 +280,7 @@ contains
        end if
 
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
-       write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
+       write (report_unit, fmt="('The maximum delt (code_dt_max) = ',e11.4)") code_dt_max
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif
@@ -473,7 +473,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -613,7 +613,7 @@ contains
           endif
 
        else
-          g1 = 0.
+          call zero_array(g1)
        end if
 
 #ifdef LOWFLOW
@@ -720,8 +720,9 @@ contains
     trapped = grid_has_trapped_particles()
 
     ! factor of one-half appears elsewhere
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ig) &
+    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, ittp, jend, trapped, bd) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
@@ -801,9 +802,8 @@ contains
   subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use dist_fn_arrays, only: g_adjust
+    use dist_fn_arrays, only: g_adjust, from_g_gs2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
@@ -840,10 +840,11 @@ contains
     
     !Form g1=i*ky*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
+    !$OMP SHARED(g_lo, g1, aky) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -885,10 +886,11 @@ contains
 
     !Form g1=i*kx*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar,fphi,fbpar)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
-    !$OMP PRIVATE(iglo, ik) &
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it) &
+    !$OMP SHARED(g_lo, g1, akx) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -931,18 +933,20 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: akx
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0) .and. include_phi) then
-       !$OMP PARALLEL DO DEFAULT(shared) &
+    if (has_phi .and. include_phi) then
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, akx, aj0, phi, fphi) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -953,7 +957,7 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
   end subroutine load_kx_phi
 
@@ -962,18 +966,20 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: aky
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0) .and. include_phi) then      
-       !$OMP PARALLEL DO DEFAULT(shared) &
+    if (has_phi .and. include_phi) then
+       !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, aky, aj0, phi, fphi) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
@@ -984,7 +990,7 @@ contains
        end do
        !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
 
   end subroutine load_ky_phi
@@ -997,7 +1003,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -1006,10 +1012,11 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
+    if(.not. (include_apar .and. has_apar) ) return
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, akx, aj0, spec, apar, fapar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1029,7 +1036,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -1038,10 +1045,11 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0) .or. .not. include_apar) return
+    if(.not. (include_apar .and. has_apar)) return
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, aky, aj0, spec, apar, fapar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1061,7 +1069,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -1070,12 +1078,13 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, akx, aj1, vperp2, spec, bpar, fbpar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1095,7 +1104,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -1104,12 +1113,13 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0) .or. .not. include_bpar) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 
-    !$OMP PARALLEL DO DEFAULT(shared) &
+    !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, aky, aj1, vperp2, spec, bpar, fbpar) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
@@ -1151,16 +1161,18 @@ contains
     integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
@@ -1169,16 +1181,18 @@ contains
        endif
     else
        if (accelerated) then
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
              abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
           end do
           !$OMP END PARALLEL DO
        else
-          !$OMP PARALLEL DO DEFAULT(shared) &
+          !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
              bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
@@ -1207,7 +1221,7 @@ contains
     use mp, only: max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use dist_fn_arrays, only: g_adjust, vpa, vperp2
+    use dist_fn_arrays, only: vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: broadcast

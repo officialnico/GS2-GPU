@@ -37,7 +37,6 @@ contains
   !! open output file 'run_name.cdf' and create dimensions.
   subroutine init_gs2_diagnostics_new(init_options, header)
     use diagnostics_config, only: init_diagnostics_config
-    use volume_averages, only: init_volume_averages
     use diagnostics_fluxes, only: init_diagnostics_fluxes
     use diagnostics_omega, only: init_diagnostics_omega
     use diagnostics_velocity_space, only: init_diagnostics_velocity_space
@@ -82,8 +81,6 @@ contains
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new  checked restart file')
     
-    call init_volume_averages
-
     call debug_message(gnostics%verbosity, &
       'gs2_diagnostics_new::init_gs2_diagnostics_new inialized vol avgs')
     
@@ -361,7 +358,7 @@ contains
   !! istep=0 --> Write constant arrays/parameters (e.g. aky) and initial values
   !! istep>0 --> Write variables
   subroutine run_diagnostics(istep_in, exit, read_existing, force)
-    use gs2_time, only: user_time
+    use gs2_time, only: user_time, tunits
     use mp, only: proc0
     use simpledataio, only: print_dimensions
     use diagnostics_zonal_transfer, only: write_zonal_transfer, calculate_zonal_transfer
@@ -395,7 +392,7 @@ contains
     use unit_tests, only: debug_message
     use mp,  only: broadcast, iproc
     use optionals, only: get_option_with_default
-    use run_parameters, only: wstar_units, tunits
+    use run_parameters, only: wstar_units
     implicit none
     integer, intent(in) :: istep_in
     logical, intent(inout) :: exit
@@ -615,49 +612,56 @@ contains
     use diagnostics_final_routines,only: do_write_final_antot
     use diagnostics_final_routines,only: do_write_gs
     use diagnostics_final_routines,only: init_par_filter
-    use diagnostics_final_routines,only: ntg_out
     use diagnostics_fields, only: get_phi0
     use nonlinear_terms, only: nonlin
     use antenna, only: dump_ant_amp
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky
-    use theta_grid, only: ntgrid
     use unit_tests, only: debug_message
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
     integer, parameter :: verb=3
     
     if(gnostics%write_kpar.or.gnostics%write_gs) call init_par_filter
-    
-    ! ntg_out is imported from diagnostics_final_routines
-    ntg_out = ntgrid
+
     if (proc0) then
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_fields')
-       if (gnostics%write_final_fields) call do_write_final_fields(gnostics)
+       if (gnostics%write_final_fields) then
+          call do_write_final_fields(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
+       end if
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_kpar')
-       if (gnostics%write_kpar) call do_write_kpar(gnostics)
+       if (gnostics%write_kpar) call do_write_kpar(gnostics%write_ascii)
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_epar')
-       if (gnostics%write_final_epar) call do_write_final_epar(gnostics)
+       if (gnostics%write_final_epar) then
+          call do_write_final_epar(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
+       end if
        
        ! definition here assumes we are not using wstar_units
        call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & calling do_write_final_db')
-       if (gnostics%write_final_db) call do_write_final_db(gnostics)
+       if (gnostics%write_final_db) call do_write_final_db(gnostics%write_ascii)
     end if
 
     phi0 = get_phi0()
-    if (gnostics%write_final_moments) call do_write_final_moments(gnostics,phi0)
+    if (gnostics%write_final_moments) then
+      call do_write_final_moments(phi0, use_normalisation=gnostics%write_eigenfunc, &
+                                  write_text=gnostics%write_ascii, write_netcdf=.false., &
+                                  file_id=gnostics%sfile%nc_file_id)
+    end if
+
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
       & calling do_write_final_antot')
     
-    if (gnostics%write_final_antot) call do_write_final_antot(gnostics)
-    
+    if (gnostics%write_final_antot) then
+      call do_write_final_antot(gnostics%write_ascii, write_netcdf=.false., file_id=gnostics%sfile%nc_file_id)
+    end if
+
     if (proc0) call dump_ant_amp
     
-    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics)
+    if (nonlin.and.gnostics%write_gs) call do_write_gs(gnostics%write_ascii)
     call debug_message(verb, 'gs2_diagnostics_new::run_old_final_routines &
          & finished')
     
@@ -667,11 +671,10 @@ contains
   subroutine create_dimensions(add_to_file)
     use simpledataio_write, only: real_imaginary_dimension_name
     use kt_grids, only: naky, ntheta0, nx, ny, jtwist_out, box
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, nbset
     use le_grids, only: negrid, nlambda
     use species, only: nspec
     use diagnostics_metadata, only: inputfile_length
-
     implicit none
     logical, intent(in) :: add_to_file
 
@@ -737,20 +740,27 @@ contains
     ! Special dimension for the input file
     call gnostics%dims%input_file_dim%init("input_file_dim", inputfile_length, "Length of input file", "")
     if(add_to_file) call gnostics%dims%input_file_dim%add_to_file(gnostics%sfile)
+
+    call gnostics%dims%bset%init("bset", nbset, "The bounce points", "")
+    if(add_to_file) call gnostics%dims%bset%add_to_file(gnostics%sfile)
+
   end subroutine create_dimensions
 
   !> FIXME : Add documentation  
   subroutine write_dimensions
-    use kt_grids, only: aky, akx, theta0
-    use theta_grid, only: theta
-    use le_grids, only: al, energy
+    use kt_grids, only: aky, akx, theta0, ntheta0, naky, nx, ny
+    use theta_grid, only: theta, bset, nperiod, ntgrid, ntheta, nbset
+    use le_grids, only: al, energy, nlambda, negrid
     use diagnostics_create_and_write, only: create_and_write_variable
     use diagnostics_dimensions, only: dim_string
     use species, only: nspec, spec
     use run_parameters, only: beta
     use gs2_layouts, only: layout
+    use nonlinear_terms, only: nonlin
+    use mp, only: nproc
     implicit none
     character, dimension(5) :: layout_split
+    integer :: nmesh, nttot
     call create_and_write_variable(gnostics, gnostics%rtype, "kx", dim_string(gnostics%dims%kx),  &
          "Values of kx, the wavenumber perpendicular to the flux surface ", "1/rho_r", akx)
     call create_and_write_variable(gnostics, gnostics%rtype, "ky", dim_string(gnostics%dims%ky),  &
@@ -764,6 +774,10 @@ contains
          "Values of the energy grid. ", "T_s", energy)
     call create_and_write_variable(gnostics, gnostics%rtype, "lambda", dim_string(gnostics%dims%lambda),  &
          "Values of lambda = energy/magnetic moment", "1/ (2 B_a)", al)
+
+    call create_and_write_variable(gnostics, gnostics%rtype, "bset", dim_string(gnostics%dims%bset),  &
+         "Values of Bmag at bounce points. ", "Bref", bset)
+
     call create_and_write_variable(gnostics, gnostics%rtype, "charge", dim_string(gnostics%dims%species),  &
          "Values of charge for each species", "e", spec(1:nspec)%z)
     call create_and_write_variable(gnostics, gnostics%rtype, "mass", dim_string(gnostics%dims%species),  &
@@ -787,5 +801,31 @@ contains
     layout_split = [layout(1:1), layout(2:2), layout(3:3), layout(4:4), layout(5:5)]
     call create_and_write_variable(gnostics, gnostics%ctype, "layout", dim_string(gnostics%dims%generic_5),  &
          "Decomposition layout for g_lo", "", layout_split)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nperiod", "",  &
+         "Number of 2 pi theta sections in parallel domain chunk", "", nperiod)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "ntheta", "",  &
+         "Number of theta points per 2 pi section", "", ntheta)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nbset", "",  &
+         "Number of bounce points", "", nbset)
+
+    nttot = 2*ntgrid+1
+    call create_and_write_variable(gnostics, gnostics%itype, "ntheta_tot", "",  &
+         "Number of theta points per parallel domain chunk", "", nttot)
+
+    if (nonlin) then
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*nx*ny*nspec
+    else
+       nmesh = (2*ntgrid+1)*2*nlambda*negrid*ntheta0*naky*nspec
+    end if
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nmesh", "",  &
+         "Total number of mesh points", "", nmesh)
+
+    call create_and_write_variable(gnostics, gnostics%itype, "nproc", "",  &
+         "Number of processors", "", nproc)
+
   end subroutine write_dimensions
 end module gs2_diagnostics_new

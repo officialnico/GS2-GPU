@@ -290,6 +290,20 @@ Files](Example_Input_Files).
 Take the input file, edit it as you need and save it as `run_name.in`, where `run_name` is
 a name you have chosen for this simulation.
 
+GS2 has a built-in tool to check input files for consistency, as well as give some
+information on things like suggested number of cores to run on, and a description of some
+of the selected physics terms in plain English. You can run this checker on your input
+file with:
+
+    $ gs2 --check-input run_name.in
+
+This will create two files: `run_name.report` and `run_name.inp`. The first file is the
+report with all of the information above in, while the second file is a copy of the input
+file as GS2 sees it, with comments removed and all parameters set. Any parameters not set
+in the original input file will have their default value set here. This can be useful to
+see what defaults will be used, and to preserve the exact values used for a simulation,
+even if future GS2 versions change the default.
+
 Running GS2
 -----------
 

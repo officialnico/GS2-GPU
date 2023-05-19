@@ -170,18 +170,6 @@ subroutine run_parameters_subroutine(self, current, going_up)
   end if
 end subroutine run_parameters_subroutine
 
-subroutine hyper_subroutine(self, current, going_up)
-  use hyper, only: init_hyper, finish_hyper
-  class(init_level_type), intent(in) :: self
-  type(init_type), intent(in) :: current
-  logical, intent(in) :: going_up
-  if (going_up) then
-    call init_hyper
-  else
-    call finish_hyper
-  end if
-end subroutine hyper_subroutine
-
 subroutine species_subroutine(self, current, going_up)
   use species, only: init_species, finish_species
   class(init_level_type), intent(in) :: self
@@ -193,6 +181,18 @@ subroutine species_subroutine(self, current, going_up)
     call finish_species
   end if
 end subroutine species_subroutine
+
+subroutine gs2_time_subroutine(self, current, going_up)
+  use gs2_time, only: init_gs2_time, finish_gs2_time
+  class(init_level_type), intent(in) :: self
+  type(init_type), intent(in) :: current
+  logical, intent(in) :: going_up
+  if (going_up) then
+    call init_gs2_time
+  else
+    call finish_gs2_time
+  end if
+end subroutine gs2_time_subroutine
 
 subroutine override_profiles_subroutine(self, current, going_up)
   use dist_fn, only: dfso=>set_overrides
@@ -220,6 +220,18 @@ subroutine le_grids_subroutine(self, current, going_up)
     call finish_le_grids
   end if
 end subroutine le_grids_subroutine
+
+subroutine hyper_subroutine(self, current, going_up)
+  use hyper, only: init_hyper, finish_hyper
+  class(init_level_type), intent(in) :: self
+  type(init_type), intent(in) :: current
+  logical, intent(in) :: going_up
+  if (going_up) then
+    call init_hyper
+  else
+    call finish_hyper
+  end if
+end subroutine hyper_subroutine
 
 subroutine antenna_subroutine(self, current, going_up)
   use antenna, only: init_antenna, finish_antenna
