@@ -26,25 +26,23 @@ contains
     end if
 
     call write_standard_moment_properties(gnostics, &
-         'ntot',  'The total perturbed species density', 'n_r', ntot, gnostics%distributed)
+         'ntot',  'The total perturbed species density', 'n_ref', ntot, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'density',  'The non-adiabatic part of the perturbed species density', 'n_r', density, gnostics%distributed)
+         'density',  'The non-adiabatic part of the perturbed species density', 'n_ref', density, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'upar',  'The perturbed parallel flow', 'v_ths', upar, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'tpar',  'The perturbed parallel temperature', 'T_r', tpar, gnostics%distributed)
+         'tpar',  'The perturbed parallel temperature', 'T_ref', tpar, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'tperp',  'The perturbed perpendicular temperature', 'T_r', tperp, gnostics%distributed)
+         'tperp',  'The perturbed perpendicular temperature', 'T_ref', tperp, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'qparflux',  'The parallel heat flux', 'n_r T_r v_thr', qparflux, gnostics%distributed)
+         'qparflux',  'The parallel heat flux', 'n_ref T_ref v_thr', qparflux, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'pperpj1',  'A modified perpendicular pressure which give the particle flux from bpar',&
-         'n_r T_r / e', pperpj1, gnostics%distributed)
+         'n_ref T_ref / q_ref', pperpj1, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'qpperpj1',  'A modified perpendicular pressure * energy which give the heat flux from bpar',&
-         'n_r T_r^2 / e', qpperpj1, gnostics%distributed)
-    !call write_standard_moment_properties(gnostics, &
-    !'upar',  'The non-adiabatic part of the perturbed species density', 'n_r', ntot, gnostics%distributed)
+         'n_ref T_ref^2 / q_ref', qpperpj1, gnostics%distributed)
   end subroutine write_moments
 
   !> FIXME : Add documentation  
@@ -86,10 +84,6 @@ contains
   !> FIXME : Add documentation  
   subroutine write_standard_moment_properties(gnostics, moment_name, moment_description, &
        moment_units, moment_value, distributed)
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use diagnostics_create_and_write, only: create_and_write_variable_noread
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-    use diagnostics_dimensions, only: dim_string
     use volume_averages, only: average_theta, average_kx, average_ky
     use fields_parallelization, only: field_k_local
     use mp, only: sum_allreduce
@@ -97,6 +91,9 @@ contains
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use diagnostics_config, only: diagnostics_type
+    use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex, complex_dim, &
+         kx_dim, ky_dim, species_dim, time_dim, theta_dim
+    use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     character(*), intent(in) :: moment_name, moment_description, moment_units
@@ -111,27 +108,26 @@ contains
     logical :: write_moment_by_time
     integer :: it !, ik
 
+    if (.not. gnostics%writing) return
+
     call average_theta(moment_value, moment_value, moment2_by_mode, distributed)
-    !call create_and_write_moment(gnostics%sfile, moment_name, moment_description, moment_units, moment_value)
-    !call create_and_write_moment_by_mode(gnostics, moment_name, moment_description, moment_units, &
-    !moment_value, moment2_by_mode, distributed)
 
     call average_kx(moment2_by_mode, moment2_by_ky, distributed)
-    call create_and_write_variable(gnostics, gnostics%rtype, moment_name//"2_by_ky", &
-         dim_string([gnostics%dims%ky,gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" squared and averaged over theta and kx", &
-         "("//moment_units//")^2", moment2_by_ky)
+    call neasyf_write(gnostics%file_id, moment_name//"2_by_ky", moment2_by_ky, &
+         dim_names=[ky_dim, species_dim, time_dim], start=starts(3, gnostics%nout), &
+         long_name=moment_description//" squared and averaged over theta and kx", &
+         units="("//moment_units//")^2")
 
     call average_ky(moment2_by_mode, moment2_by_kx, distributed)
-    call create_and_write_variable(gnostics, gnostics%rtype, moment_name//"2_by_kx", &
-         dim_string([gnostics%dims%kx,gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" squared and averaged over theta and ky", &
-         "("//moment_units//")^2", moment2_by_kx)
+    call neasyf_write(gnostics%file_id, moment_name//"2_by_kx", moment2_by_kx, &
+         dim_names=[kx_dim, species_dim, time_dim], start=starts(3, gnostics%nout), &
+         long_name=moment_description//" squared and averaged over theta and ky", &
+         units="("//moment_units//")^2")
 
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, moment_name//"2", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" squared and averaged over theta, kx and ky", &
-         "("//moment_units//")^2", sum(moment2_by_kx, 1))
+    call neasyf_write(gnostics%file_id, moment_name//"2", sum(moment2_by_kx, 1), &
+         dim_names=[species_dim, time_dim], start=starts(2, gnostics%nout), &
+         long_name=moment_description//" squared and averaged over theta, kx and ky", &
+         units="("//moment_units//")^2")
 
     call average_theta(moment_value, moment_by_mode, gnostics%distributed)
     moment_igomega_by_mode(:,:,:) = moment_value(gnostics%igomega,:,:,:)
@@ -144,48 +140,38 @@ contains
     end do
     if (gnostics%distributed) call sum_allreduce(moment_flx_surfavg)
     
-    call create_and_write_variable(gnostics, gnostics%rtype, moment_name//"_flxsurf_avg", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" flux surface averaged: &
-         & averaged over theta, at ky=0 (actally ik==1),  as a function of kx" , moment_units, moment_flx_surfavg)
+    call netcdf_write_complex(gnostics%file_id, moment_name//"_flxsurf_avg", moment_flx_surfavg, &
+         dim_names=[complex_dim, kx_dim, species_dim, time_dim], start=starts(4, gnostics%nout), &
+         long_name=moment_description//" flux surface averaged over theta, at ky=0 (actally ik==1)", &
+         units=moment_units)
     
-    call create_and_write_distributed_fieldlike_variable( &
-         gnostics, gnostics%rtype, moment_name, &
-         dim_string([gnostics%dims%ri,gnostics%dims%theta,gnostics%dims%kx,&
-         gnostics%dims%ky,gnostics%dims%species]), &
-         moment_description, moment_units, moment_value)
-    call create_and_write_distributed_fieldlike_variable( &
-         gnostics, gnostics%rtype, moment_name//"_igomega_by_mode", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,&
-         gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" at ig=igomega, as a function of kx and ky" , moment_units, moment_igomega_by_mode)
-    call create_and_write_distributed_fieldlike_variable( &
-         gnostics, gnostics%rtype, moment_name//"_by_mode", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,&
-         gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//"  averaged over theta, as a function of kx and ky" , &
-         moment_units, moment_by_mode)
-    call create_and_write_distributed_fieldlike_variable( &
-         gnostics, gnostics%rtype, moment_name//"2_by_mode", &
-         dim_string([gnostics%dims%kx,gnostics%dims%ky,&
-         gnostics%dims%species,gnostics%dims%time]), &
-         moment_description//" squared and averaged over theta, as a function of kx and ky" , &
-         moment_units, moment2_by_mode)
+    call netcdf_write_complex(gnostics%file_id, moment_name, moment_value, &
+         dim_names=[complex_dim, theta_dim, kx_dim, ky_dim, species_dim], &
+         long_name=moment_description, units=moment_units)
+    call netcdf_write_complex( &
+         gnostics%file_id, moment_name//"_igomega_by_mode", moment_igomega_by_mode, &
+         dim_names=mom_dims, start=starts(5, gnostics%nout), &
+         long_name=moment_description//" at ig=igomega" , units=moment_units)
+    call netcdf_write_complex(gnostics%file_id, moment_name//"_by_mode", moment_by_mode, &
+         dim_names=mom_dims, start=starts(5, gnostics%nout), &
+         long_name=moment_description//"  averaged over theta" , &
+         units=moment_units)
+    call neasyf_write(gnostics%file_id, moment_name//"2_by_mode", moment2_by_mode, &
+         dim_names=fluxk_dims, start=starts(4, gnostics%nout), &
+         long_name=moment_description//" squared and averaged over theta" , &
+         units=moment_units)
 
     write_moment_by_time = .false.
     if (moment_name .eq. 'ntot'  .and. gnostics%write_ntot_over_time ) write_moment_by_time = .true.
     if (moment_name .eq. 'density' .and. gnostics%write_density_over_time) write_moment_by_time = .true.
     if (moment_name .eq. 'upar' .and. gnostics%write_upar_over_time) write_moment_by_time = .true.
     if (moment_name .eq. 'tperp' .and. gnostics%write_tperp_over_time) write_moment_by_time = .true.
-    !write_moment_by_time = .false.
 
-    if (write_moment_by_time) & 
-         call create_and_write_distributed_fieldlike_variable( &
-         gnostics, gnostics%rtype, moment_name//"_t", &
-         trim(dim_string([gnostics%dims%ri,gnostics%dims%theta,gnostics%dims%kx,&
-         gnostics%dims%ky,gnostics%dims%species,gnostics%dims%time])), &
-         moment_description//": the whole moment, as a function of time" , &
-         moment_units, moment_value)
-
+    if (write_moment_by_time) then
+      call netcdf_write_complex(gnostics%file_id, moment_name//"_t", moment_value, &
+           dim_names=mom_t_dims, start=starts(6, gnostics%nout), &
+           long_name=moment_description//": the whole moment" , &
+           units=moment_units)
+    end if
   end subroutine write_standard_moment_properties
 end module diagnostics_moments
