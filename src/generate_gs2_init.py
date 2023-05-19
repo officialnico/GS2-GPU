@@ -346,8 +346,9 @@ if __name__ == "__main__":
             )
         )
 
-        levels_satisfied.extend([x.name for x in subset_satisfied])
-        [levels_remaining.remove(x.name) for x in subset_satisfied]
+        for x in subset_satisfied:
+            levels_satisfied.append(x.name)
+            levels_remaining.remove(x.name)
 
         if logical_level > len(levels):
             print(
