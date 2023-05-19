@@ -1,7 +1,10 @@
+#include "unused_dummy.inc"
+
 subroutine basic_subroutine(current, going_up)
 
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
 
   else
@@ -13,6 +16,7 @@ subroutine gs2_layouts_subroutine(current, going_up)
   use gs2_layouts, only: init_gs2_layouts, finish_gs2_layouts
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_gs2_layouts
   else
@@ -24,6 +28,7 @@ subroutine normalisations_subroutine(current, going_up)
   use normalisations, only: init_normalisations, finish_normalisations
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_normalisations
   else
@@ -35,6 +40,7 @@ subroutine theta_grid_params_subroutine(current, going_up)
   use theta_grid_params, only: init_theta_grid_params, finish_theta_grid_params
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_theta_grid_params
   else
@@ -46,6 +52,7 @@ subroutine fields_parameters_subroutine(current, going_up)
   use fields, only: init_fields_parameters, finish_fields_parameters
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_fields_parameters
   else
@@ -57,6 +64,7 @@ subroutine gs2_save_subroutine(current, going_up)
   use gs2_save, only: init_gs2_save, finish_gs2_save
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_gs2_save
   else
@@ -68,6 +76,7 @@ subroutine init_g_subroutine(current, going_up)
   use init_g, only: init_init_g, finish_init_g
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_init_g
   else
@@ -81,6 +90,7 @@ subroutine override_optimisations_subroutine(current, going_up)
   use dist_fn, only: dso=>set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     if (current%opt_ov%is_initialised()) call lso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call fso(current%opt_ov)
@@ -94,6 +104,7 @@ subroutine override_miller_geometry_subroutine(current, going_up)
   use theta_grid_params, only: tgpso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)
   else
@@ -105,6 +116,7 @@ subroutine theta_grid_subroutine(current, going_up)
   use theta_grid, only: init_theta_grid, finish_theta_grid
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_theta_grid
   else
@@ -116,6 +128,7 @@ subroutine kt_grids_parameters_subroutine(current, going_up)
   use kt_grids, only: init_kt_grids_parameters, finish_kt_grids_parameters
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_kt_grids_parameters
   else
@@ -127,6 +140,7 @@ subroutine override_kt_grids_subroutine(current, going_up)
   use kt_grids, only: ktso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)
   else
@@ -138,6 +152,7 @@ subroutine kt_grids_subroutine(current, going_up)
   use kt_grids, only: init_kt_grids, finish_kt_grids
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_kt_grids
   else
@@ -149,6 +164,7 @@ subroutine run_parameters_subroutine(current, going_up)
   use run_parameters, only: init_run_parameters, finish_run_parameters
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_run_parameters
   else
@@ -160,6 +176,7 @@ subroutine species_subroutine(current, going_up)
   use species, only: init_species, finish_species
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_species
   else
@@ -171,6 +188,7 @@ subroutine gs2_time_subroutine(current, going_up)
   use gs2_time, only: init_gs2_time, finish_gs2_time
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_gs2_time
   else
@@ -183,6 +201,7 @@ subroutine override_profiles_subroutine(current, going_up)
   use species, only: sso=>set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)
     if (current%prof_ov%is_initialised()) call sso(current%prof_ov)
@@ -196,6 +215,7 @@ subroutine le_grids_subroutine(current, going_up)
   logical :: dummy1, dummy2
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_le_grids(dummy1, dummy2)
   else
@@ -207,6 +227,7 @@ subroutine hyper_subroutine(current, going_up)
   use hyper, only: init_hyper, finish_hyper
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_hyper
   else
@@ -218,6 +239,7 @@ subroutine antenna_subroutine(current, going_up)
   use antenna, only: init_antenna, finish_antenna
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_antenna
   else
@@ -229,6 +251,7 @@ subroutine dist_fn_parameters_subroutine(current, going_up)
   use dist_fn, only: init_dist_fn_parameters, finish_dist_fn_parameters
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_parameters
   else
@@ -245,6 +268,7 @@ subroutine dist_fn_layouts_subroutine(current, going_up)
   use species, only: nspec
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   else
@@ -256,6 +280,7 @@ subroutine fields_level_1_subroutine(current, going_up)
   use fields, only: init_fields_level_1, finish_fields_level_1
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_fields_level_1
   else
@@ -267,6 +292,7 @@ subroutine nonlinear_terms_subroutine(current, going_up)
   use nonlinear_terms, only: init_nonlinear_terms, finish_nonlinear_terms
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_nonlinear_terms
   else
@@ -278,6 +304,7 @@ subroutine split_nonlinear_terms_subroutine(current, going_up)
   use split_nonlinear_terms, only: init_split_nonlinear_terms, finish_split_nonlinear_terms
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_split_nonlinear_terms
   else
@@ -289,6 +316,7 @@ subroutine dist_fn_arrays_subroutine(current, going_up)
   use dist_fn, only: init_dist_fn_arrays, finish_dist_fn_arrays
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_arrays
   else
@@ -300,6 +328,7 @@ subroutine dist_fn_level_1_subroutine(current, going_up)
   use dist_fn, only: init_dist_fn_level_1, finish_dist_fn_level_1
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_level_1
   else
@@ -311,6 +340,7 @@ subroutine dist_fn_level_2_subroutine(current, going_up)
   use dist_fn, only: init_dist_fn_level_2, finish_dist_fn_level_2
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_level_2
   else
@@ -322,6 +352,7 @@ subroutine override_timestep_subroutine(current, going_up)
   use run_parameters, only: rso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
   else
@@ -333,6 +364,7 @@ subroutine dist_fn_level_3_subroutine(current, going_up)
   use dist_fn, only: init_dist_fn_level_3, finish_dist_fn_level_3
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_dist_fn_level_3
   else
@@ -344,6 +376,7 @@ subroutine collisions_subroutine(current, going_up)
   use collisions, only: init_collisions, finish_collisions
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_collisions
   else
@@ -355,6 +388,7 @@ subroutine fields_level_2_subroutine(current, going_up)
   use fields, only: init_fields_level_2, finish_fields_level_2
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call init_fields_level_2
   else
@@ -366,6 +400,7 @@ subroutine override_initial_values_subroutine(current, going_up)
 
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
 
   else
@@ -377,6 +412,7 @@ subroutine set_initial_values_subroutine(current, going_up)
 
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call set_initial_field_and_dist_fn_values(current)
   else
@@ -388,6 +424,7 @@ subroutine full_subroutine(current, going_up)
 
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
 
   else

@@ -7,6 +7,7 @@ subroutine {name}_subroutine(current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
     call {init_routine}
   else
@@ -20,6 +21,7 @@ subroutine {name}_subroutine(current, going_up)
 {imports}
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
+  UNUSED_DUMMY(current)
   if (going_up) then
 {up_action}
   else
@@ -407,4 +409,5 @@ if __name__ == "__main__":
         output.write(init_array.strip())
 
     with open(src_dir / "gs2_init_subroutines.inc", "w") as output:
+        output.write('#include "unused_dummy.inc"\n\n')
         output.write(visit_methods.strip())
