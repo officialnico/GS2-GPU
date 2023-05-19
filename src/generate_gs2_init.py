@@ -28,17 +28,18 @@ subroutine {name}_subroutine(current, going_up)
 end subroutine {name}_subroutine
 """
 
-class module_with_dependencies():
-    def __init__(self,
-                 name, # The name of the level/module
-                 module_name = None, # The name of the module
-                 dependencies = [], # A list of any modules this module depends on, identified by name
-                 init_routine = None, # The name of the routine which initialises this module
-                 finish_routine = None, # The name of the routine which finishes this module
-                 visit_routine = None, # Can be used to hard-code the generated method
-                 visit_args = {}
-    ):
 
+class module_with_dependencies:
+    def __init__(
+        self,
+        name,  # The name of the level/module
+        module_name=None,  # The name of the module
+        dependencies=[],  # A list of any modules this module depends on, identified by name
+        init_routine=None,  # The name of the routine which initialises this module
+        finish_routine=None,  # The name of the routine which finishes this module
+        visit_routine=None,  # Can be used to hard-code the generated method
+        visit_args={},
+    ):
         self.name = name
         if module_name is None:
             self.module_name = name
@@ -52,224 +53,283 @@ class module_with_dependencies():
         self.level = 0
 
         if self.init_routine is None:
-            self.init_routine = "init_{name}".format(name = self.name)
+            self.init_routine = "init_{name}".format(name=self.name)
         if self.finish_routine is None:
-            self.finish_routine = "finish_{name}".format(name = self.name)
+            self.finish_routine = "finish_{name}".format(name=self.name)
         if self.visit_routine is None:
             self.visit_routine = default_module_routine_string
 
     def generate_method(self):
         return self.visit_routine.format(
-            name = self.name,
-            module_name = self.module_name,
-            init_routine = self.init_routine,
-            finish_routine = self.finish_routine,
-            level = self.level,
+            name=self.name,
+            module_name=self.module_name,
+            init_routine=self.init_routine,
+            finish_routine=self.finish_routine,
+            level=self.level,
             **self.visit_args
-            ).strip()
+        ).strip()
+
 
 if __name__ == "__main__":
     # First construct the modules / levels
     levels = [
-        module_with_dependencies("full",
-                                 dependencies = [
-                                     "set_initial_values", "normalisations"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "",
-                                               'up_action': "",
-                                               'down_action':""}
+        module_with_dependencies(
+            "full",
+            dependencies=["set_initial_values", "normalisations"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={"imports": "", "up_action": "", "down_action": ""},
         ),
-        module_with_dependencies("fields_level_2",
-                                 module_name = "fields",
-                                dependencies = [
-                                    "collisions", "antenna",
-                                    "dist_fn_level_3", "fields_level_1"]),
-        module_with_dependencies("dist_fn_level_3",
-                                 module_name = "dist_fn",
-                                 dependencies = [
-                                     "dist_fn_level_2", "hyper", "override_timestep"]),
-        module_with_dependencies("dist_fn_level_1",
-                                 module_name = "dist_fn",
-                                 dependencies = [
-                                     "dist_fn_arrays"]),
-        module_with_dependencies("fields_level_1",
-                                 module_name = "fields",
-                                 dependencies = [
-                                     "kt_grids", "antenna", "gs2_layouts",
-                                     "fields_parameters"]),
-        module_with_dependencies("collisions",
-                                 dependencies = [
-                                     "species", "kt_grids", "gs2_layouts", "theta_grid",
-                                     "le_grids", "dist_fn_layouts", "run_parameters",
-                                     "dist_fn_level_3"]),
-        module_with_dependencies("nonlinear_terms",
-                                 dependencies = [
-                                     "species", "kt_grids", "gs2_layouts", "theta_grid",
-                                     "le_grids", "dist_fn_layouts",
-                                     "override_optimisations"]),
-        module_with_dependencies("split_nonlinear_terms",
-                                 dependencies = [
-                                     "nonlinear_terms"]),
-        module_with_dependencies("gs2_layouts", dependencies = ["basic"]),
-        module_with_dependencies("set_initial_values",
-                                 dependencies = [
-                                     "fields_level_2", "init_g", "override_initial_values"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "",
-                                               'up_action': "    call set_initial_field_and_dist_fn_values(current)",
-                                               'down_action':""}
+        module_with_dependencies(
+            "fields_level_2",
+            module_name="fields",
+            dependencies=["collisions", "antenna", "dist_fn_level_3", "fields_level_1"],
         ),
-        module_with_dependencies("le_grids",
-                                 dependencies = [
-                                     "species", "kt_grids", "gs2_layouts", "theta_grid",
-                                     "override_profiles"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports':"  use le_grids, only: init_le_grids, finish_le_grids\n  logical :: dummy1, dummy2",
-                                               'up_action': "    call init_le_grids(dummy1, dummy2)",
-                                               'down_action':"    call finish_le_grids"}
+        module_with_dependencies(
+            "dist_fn_level_3",
+            module_name="dist_fn",
+            dependencies=["dist_fn_level_2", "hyper", "override_timestep"],
         ),
-        module_with_dependencies("antenna",
-                                 dependencies = [
-                                     "species", "le_grids", "run_parameters",
-                                     "override_profiles"]),
-        module_with_dependencies("theta_grid",
-                                 dependencies = [
-                                     "theta_grid_params", "override_miller_geometry"]),
-        module_with_dependencies("normalisations", dependencies = ["basic"]),
-        module_with_dependencies("theta_grid_params", dependencies = ["basic"]),
-        module_with_dependencies("fields_parameters", module_name = "fields",
-                                 dependencies = ["basic"]),
-        module_with_dependencies("kt_grids_parameters",
-                                 module_name = "kt_grids",
-                                 dependencies = [
-                                     "theta_grid"]),
-        module_with_dependencies("kt_grids",
-                                 dependencies = [
-                                     "theta_grid", "kt_grids_parameters",
-                                     "override_kt_grids"]),
-        module_with_dependencies("gs2_save", dependencies = ["basic"]),
-        module_with_dependencies("run_parameters",
-                                 dependencies = [
-                                     "init_g", "kt_grids"]),
-        module_with_dependencies("gs2_time", dependencies = ["run_parameters"]),
-        module_with_dependencies("hyper",
-                                 dependencies = [
-                                     "kt_grids", "gs2_layouts", "gs2_time"]),
-        module_with_dependencies("init_g",
-                                 dependencies = [
-                                     "gs2_layouts"]),
-        module_with_dependencies("species",
-                                 dependencies = [
-                                     "kt_grids"]),
-        module_with_dependencies("dist_fn_parameters",
-                                 module_name = "dist_fn",
-                                 dependencies = [
-                                     "gs2_layouts", "species", "theta_grid", "kt_grids",
-                                     "le_grids"]),
-        module_with_dependencies("dist_fn_arrays",
-                                 module_name = "dist_fn",
-                                 dependencies = [
-                                     "dist_fn_parameters", "run_parameters",
-                                     "nonlinear_terms", "dist_fn_layouts", "le_grids"]),
-        module_with_dependencies("dist_fn_layouts",
-                                 dependencies = [
-                                     "species", "le_grids", "kt_grids", "gs2_layouts",
-                                     "theta_grid"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports':"\n".join([
-                                    "  use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts",
-                                    "  use kt_grids, only: naky, ntheta0",
-                                    "  use le_grids, only: nlambda, negrid",
-                                    "  use theta_grid, only: ntgrid",
-                                    "  use mp, only: nproc, iproc",
-                                    "  use species, only: nspec"]),
-                                               'up_action': "    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
-                                               'down_action': "    call finish_dist_fn_layouts"}
-
+        module_with_dependencies(
+            "dist_fn_level_1", module_name="dist_fn", dependencies=["dist_fn_arrays"]
         ),
-        module_with_dependencies("dist_fn_level_2",
-                                 module_name = "dist_fn",
-                                 dependencies = [
-                                     "dist_fn_level_1", "override_profiles", "le_grids"]),
-        module_with_dependencies("override_kt_grids",
-                                 dependencies = [
-                                     "kt_grids_parameters"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "  use kt_grids, only: ktso => set_overrides",
-                                               'up_action': "    if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)",
-                                               'down_action':""}
+        module_with_dependencies(
+            "fields_level_1",
+            module_name="fields",
+            dependencies=["kt_grids", "antenna", "gs2_layouts", "fields_parameters"],
         ),
-        module_with_dependencies("override_optimisations",
-                                 dependencies = [
-                                     "gs2_layouts", "fields_parameters"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports':"\n".join([
-                                    "  use gs2_layouts, only: lso=>set_overrides",
-                                    "  use fields, only: fso=>set_overrides",
-                                    "  use dist_fn, only: dso=>set_overrides"]),
-                                               'up_action':"\n".join([
-                                    "    if (current%opt_ov%is_initialised()) call lso(current%opt_ov)",
-                                    "    if (current%opt_ov%is_initialised()) call fso(current%opt_ov)",
-                                    "    if (current%opt_ov%is_initialised()) call dso(current%opt_ov)"]),
-                                               'down_action':""}
-                                 ),
-        module_with_dependencies("override_miller_geometry",
-                                 dependencies = [
-                                     "theta_grid_params"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "  use theta_grid_params, only: tgpso => set_overrides",
-                                               'up_action': "    if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)",
-                                               'down_action':""}
+        module_with_dependencies(
+            "collisions",
+            dependencies=[
+                "species",
+                "kt_grids",
+                "gs2_layouts",
+                "theta_grid",
+                "le_grids",
+                "dist_fn_layouts",
+                "run_parameters",
+                "dist_fn_level_3",
+            ],
         ),
-        module_with_dependencies("override_profiles",
-                                 dependencies = [
-                                     "species"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports':"\n".join([
-                                    "  use dist_fn, only: dfso=>set_overrides",
-                                    "  use species, only: sso=>set_overrides"]),
-                                               'up_action':"\n".join([
-                                    "    if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)",
-                                    "    if (current%prof_ov%is_initialised()) call sso(current%prof_ov)"]),
-                                               'down_action':""}
-
+        module_with_dependencies(
+            "nonlinear_terms",
+            dependencies=[
+                "species",
+                "kt_grids",
+                "gs2_layouts",
+                "theta_grid",
+                "le_grids",
+                "dist_fn_layouts",
+                "override_optimisations",
+            ],
         ),
-        module_with_dependencies("override_timestep",
-                                 dependencies = [
-                                     "run_parameters",
-                                     # We add dist_fn_level_2 here to
-                                     # make sure this is lower down
-                                     # the init list than
-                                     # override_timestep, to help skip
-                                     # duplicate work when changing
-                                     # the time step.
-                                     "dist_fn_level_2"
-                                 ],
-                                         visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "  use run_parameters, only: rso => set_overrides",
-                                               'up_action': "    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)",
-                                               'down_action':""}
+        module_with_dependencies(
+            "split_nonlinear_terms", dependencies=["nonlinear_terms"]
         ),
-        module_with_dependencies("override_initial_values",
-                                 dependencies = [
-                                     "fields_level_2", "init_g"],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "",
-                                               'up_action': "",
-                                               'down_action':""}
-                                 ),
-        module_with_dependencies("basic",
-                                 dependencies = [],
-                                 visit_routine = more_general_module_routine_string,
-                                 visit_args = {'imports': "",
-                                               'up_action': "",
-                                               'down_action':""}
-                                 )
-        ]
+        module_with_dependencies("gs2_layouts", dependencies=["basic"]),
+        module_with_dependencies(
+            "set_initial_values",
+            dependencies=["fields_level_2", "init_g", "override_initial_values"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "",
+                "up_action": "    call set_initial_field_and_dist_fn_values(current)",
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "le_grids",
+            dependencies=[
+                "species",
+                "kt_grids",
+                "gs2_layouts",
+                "theta_grid",
+                "override_profiles",
+            ],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "  use le_grids, only: init_le_grids, finish_le_grids\n  logical :: dummy1, dummy2",
+                "up_action": "    call init_le_grids(dummy1, dummy2)",
+                "down_action": "    call finish_le_grids",
+            },
+        ),
+        module_with_dependencies(
+            "antenna",
+            dependencies=["species", "le_grids", "run_parameters", "override_profiles"],
+        ),
+        module_with_dependencies(
+            "theta_grid", dependencies=["theta_grid_params", "override_miller_geometry"]
+        ),
+        module_with_dependencies("normalisations", dependencies=["basic"]),
+        module_with_dependencies("theta_grid_params", dependencies=["basic"]),
+        module_with_dependencies(
+            "fields_parameters", module_name="fields", dependencies=["basic"]
+        ),
+        module_with_dependencies(
+            "kt_grids_parameters", module_name="kt_grids", dependencies=["theta_grid"]
+        ),
+        module_with_dependencies(
+            "kt_grids",
+            dependencies=["theta_grid", "kt_grids_parameters", "override_kt_grids"],
+        ),
+        module_with_dependencies("gs2_save", dependencies=["basic"]),
+        module_with_dependencies("run_parameters", dependencies=["init_g", "kt_grids"]),
+        module_with_dependencies("gs2_time", dependencies=["run_parameters"]),
+        module_with_dependencies(
+            "hyper", dependencies=["kt_grids", "gs2_layouts", "gs2_time"]
+        ),
+        module_with_dependencies("init_g", dependencies=["gs2_layouts"]),
+        module_with_dependencies("species", dependencies=["kt_grids"]),
+        module_with_dependencies(
+            "dist_fn_parameters",
+            module_name="dist_fn",
+            dependencies=[
+                "gs2_layouts",
+                "species",
+                "theta_grid",
+                "kt_grids",
+                "le_grids",
+            ],
+        ),
+        module_with_dependencies(
+            "dist_fn_arrays",
+            module_name="dist_fn",
+            dependencies=[
+                "dist_fn_parameters",
+                "run_parameters",
+                "nonlinear_terms",
+                "dist_fn_layouts",
+                "le_grids",
+            ],
+        ),
+        module_with_dependencies(
+            "dist_fn_layouts",
+            dependencies=[
+                "species",
+                "le_grids",
+                "kt_grids",
+                "gs2_layouts",
+                "theta_grid",
+            ],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "\n".join(
+                    [
+                        "  use gs2_layouts, only: init_dist_fn_layouts, finish_dist_fn_layouts",
+                        "  use kt_grids, only: naky, ntheta0",
+                        "  use le_grids, only: nlambda, negrid",
+                        "  use theta_grid, only: ntgrid",
+                        "  use mp, only: nproc, iproc",
+                        "  use species, only: nspec",
+                    ]
+                ),
+                "up_action": "    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)",
+                "down_action": "    call finish_dist_fn_layouts",
+            },
+        ),
+        module_with_dependencies(
+            "dist_fn_level_2",
+            module_name="dist_fn",
+            dependencies=["dist_fn_level_1", "override_profiles", "le_grids"],
+        ),
+        module_with_dependencies(
+            "override_kt_grids",
+            dependencies=["kt_grids_parameters"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "  use kt_grids, only: ktso => set_overrides",
+                "up_action": "    if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)",
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "override_optimisations",
+            dependencies=["gs2_layouts", "fields_parameters"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "\n".join(
+                    [
+                        "  use gs2_layouts, only: lso=>set_overrides",
+                        "  use fields, only: fso=>set_overrides",
+                        "  use dist_fn, only: dso=>set_overrides",
+                    ]
+                ),
+                "up_action": "\n".join(
+                    [
+                        "    if (current%opt_ov%is_initialised()) call lso(current%opt_ov)",
+                        "    if (current%opt_ov%is_initialised()) call fso(current%opt_ov)",
+                        "    if (current%opt_ov%is_initialised()) call dso(current%opt_ov)",
+                    ]
+                ),
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "override_miller_geometry",
+            dependencies=["theta_grid_params"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "  use theta_grid_params, only: tgpso => set_overrides",
+                "up_action": "    if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)",
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "override_profiles",
+            dependencies=["species"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "\n".join(
+                    [
+                        "  use dist_fn, only: dfso=>set_overrides",
+                        "  use species, only: sso=>set_overrides",
+                    ]
+                ),
+                "up_action": "\n".join(
+                    [
+                        "    if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)",
+                        "    if (current%prof_ov%is_initialised()) call sso(current%prof_ov)",
+                    ]
+                ),
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "override_timestep",
+            dependencies=[
+                "run_parameters",
+                # We add dist_fn_level_2 here to
+                # make sure this is lower down
+                # the init list than
+                # override_timestep, to help skip
+                # duplicate work when changing
+                # the time step.
+                "dist_fn_level_2",
+            ],
+            visit_routine=more_general_module_routine_string,
+            visit_args={
+                "imports": "  use run_parameters, only: rso => set_overrides",
+                "up_action": "    if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)",
+                "down_action": "",
+            },
+        ),
+        module_with_dependencies(
+            "override_initial_values",
+            dependencies=["fields_level_2", "init_g"],
+            visit_routine=more_general_module_routine_string,
+            visit_args={"imports": "", "up_action": "", "down_action": ""},
+        ),
+        module_with_dependencies(
+            "basic",
+            dependencies=[],
+            visit_routine=more_general_module_routine_string,
+            visit_args={"imports": "", "up_action": "", "down_action": ""},
+        ),
+    ]
 
     # Convert to a ordered dictionary to ease lookup (ordered to ensure
     # reproducibility)
     from collections import OrderedDict
+
     levels_dict = OrderedDict([(x.name, x) for x in levels])
 
     # Now we need to decide what order we have to initialise things in
@@ -286,21 +346,40 @@ if __name__ == "__main__":
     # 3. Repeat until no remaining modules
     while len(levels_remaining) > 0:
         logical_level += 1
+
         def all_dependencies_statisfied(module):
             return all([x in levels_satisfied for x in module.dependency_names])
-        subset_satisfied = list(filter(all_dependencies_statisfied, [levels_dict[x] for x in levels_remaining]))
+
+        subset_satisfied = list(
+            filter(
+                all_dependencies_statisfied, [levels_dict[x] for x in levels_remaining]
+            )
+        )
 
         levels_satisfied.extend([x.name for x in subset_satisfied])
         [levels_remaining.remove(x.name) for x in subset_satisfied]
 
         if logical_level > len(levels):
-            print("Something appears broken in generate_gs2_init.py",
-                  "\nWe've searched ",len(levels)," times but still have yet to",
-                  "find all dependencies for ",levels_remaining)
+            print(
+                "Something appears broken in generate_gs2_init.py",
+                "\nWe've searched ",
+                len(levels),
+                " times but still have yet to",
+                "find all dependencies for ",
+                levels_remaining,
+            )
             for case in levels_remaining:
-
-               print("For ",case,"we have the following dependencies with found status:")
-               print([(x in levels_satisfied,x) for x in levels_dict[case].dependency_names])
+                print(
+                    "For ",
+                    case,
+                    "we have the following dependencies with found status:",
+                )
+                print(
+                    [
+                        (x in levels_satisfied, x)
+                        for x in levels_dict[case].dependency_names
+                    ]
+                )
             raise Exception("Unable to find all dependencies")
 
     # Now we have a list of modules/levels in the order required (from left to right)
@@ -313,32 +392,44 @@ if __name__ == "__main__":
         ordered_levels[level] = levels_dict[level]
 
     # Now we can form the init level list entries
-    init_level_list = "\n".join([
-        "    integer :: {name} = {level}".format(
-            name = x.name,
-            level = x.level,
-        ) for x in ordered_levels.values()])
+    init_level_list = "\n".join(
+        [
+            "    integer :: {name} = {level}".format(
+                name=x.name,
+                level=x.level,
+            )
+            for x in ordered_levels.values()
+        ]
+    )
 
-    init_array = "      init_levels = [ &\n".format(nlevels=len(ordered_levels.values()))
-    init_array += ", &\n".join([
-        "        init_level_type(name = '{name}', level = {level}, change_level_specific = {name}_subroutine)".format(
-            name = x.name,
-            level = x.level,
-        ) for x in ordered_levels.values()
-    ]) + " &\n]\n"
+    init_array = "      init_levels = [ &\n".format(
+        nlevels=len(ordered_levels.values())
+    )
+    init_array += (
+        ", &\n".join(
+            [
+                "        init_level_type(name = '{name}', level = {level}, change_level_specific = {name}_subroutine)".format(
+                    name=x.name,
+                    level=x.level,
+                )
+                for x in ordered_levels.values()
+            ]
+        )
+        + " &\n]\n"
+    )
 
     # Now the visit methods
-    visit_methods = "\n\n".join([
-        x.generate_method() for x in ordered_levels.values()])
+    visit_methods = "\n\n".join([x.generate_method() for x in ordered_levels.values()])
 
     import os
     import sys
+
     src_dir = os.path.dirname(sys.argv[0])
-    with open(os.path.join(src_dir,"gs2_init_level_list.inc"), "w") as output:
+    with open(os.path.join(src_dir, "gs2_init_level_list.inc"), "w") as output:
         output.write(init_level_list.rstrip())
 
-    with open(os.path.join(src_dir,"gs2_init_level_array.inc"), "w") as output:
+    with open(os.path.join(src_dir, "gs2_init_level_array.inc"), "w") as output:
         output.write(init_array.strip())
 
-    with open(os.path.join(src_dir,"gs2_init_subroutines.inc"), "w") as output:
+    with open(os.path.join(src_dir, "gs2_init_subroutines.inc"), "w") as output:
         output.write(visit_methods.strip())
