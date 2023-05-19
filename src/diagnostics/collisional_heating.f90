@@ -159,7 +159,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_collisional(gnostics)
-    use gs2_io, only: starts, netcdf_write_complex
+    use gs2_io, only: starts, netcdf_write_complex, omega_dims
     use fields_parallelization, only: field_k_local
     use diagnostics_config, only: diagnostics_type
     use mp, only: proc0
@@ -169,11 +169,11 @@ contains
     if (.not. proc0) return
 
     call netcdf_write_complex(gnostics%file_id, "collisional_heating", coll_heating, &
-         dim_names=["ri", "kx", "ky", "t "], start=starts(4, gnostics%nout),  &
+         dim_names=omega_dims, start=starts(4, gnostics%nout),  &
          long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t")
     
     call netcdf_write_complex(gnostics%file_id, "collisional_heating_2", coll_heating_2, &
-         dim_names=["ri", "kx", "ky", "t "], start=starts(4, gnostics%nout),  &
+         dim_names=omega_dims, start=starts(4, gnostics%nout),  &
          long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method")
     
   end subroutine write_collisional
