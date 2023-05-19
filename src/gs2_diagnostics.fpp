@@ -1479,7 +1479,7 @@ contains
   subroutine do_get_omega(istep,debug,exit)
     use mp, only: proc0, broadcast
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: eqzip
+    use run_parameters, only: ieqzip
     implicit none
     !> The current timestep
     integer, intent(in) :: istep
@@ -1490,19 +1490,20 @@ contains
     !> occurred (see [[gs2_diagnostics_knobs:omegainst]]).
     logical, intent(inout) :: exit
 
-    if (eqzip .or. .not. nonlin) then
+    if (nonlin .and. .not. any(ieqzip)) then
+       !Make sure we've at least initialised the omega arrays
+       !for any later output etc.
+       omega = 0.
+       omegaavg = 0.
+    else
        if (proc0) then
           if (debug) write(6,*) "loop_diagnostics: proc0 call get_omegaavg"
           call get_omegaavg (istep, exit, omegaavg, debug)
           if (debug) write(6,*) "loop_diagnostics: proc0 done called get_omegaavg"
        endif
        call broadcast (exit)
-    else
-       !Make sure we've at least initialised the omega arrays
-       !for any later output etc.
-       omega=0.
-       omegaavg=0.
-    endif
+    end if
+
   end subroutine do_get_omega
 
   !> Compute volume averages of the fields and write the fields, field averages,

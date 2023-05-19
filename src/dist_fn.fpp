@@ -4725,7 +4725,6 @@ contains
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
-    use run_parameters, only: eqzip, secondary, tertiary, harris
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2, lmax, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -4762,9 +4761,9 @@ contains
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, eqzip, secondary, tertiary, harris, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
-    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, save_h, g_h, zero_forbid, &
+    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, g_h, zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -4780,13 +4779,6 @@ contains
        if(kwork_filter(it,ik)) cycle
 
        if(ieqzip(it,ik)) cycle
-       if (eqzip) then
-          if (secondary .and. ik == 2 .and. it == 1) cycle ! do not evolve primary mode
-          if (tertiary .and. ik == 1) then
-             if (it == 2 .or. it == ntheta0) cycle ! do not evolve periodic equilibrium
-          end if
-          if (harris .and. ik == 1) cycle ! do not evolve primary mode
-       end if
 
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
