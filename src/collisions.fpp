@@ -3407,9 +3407,6 @@ contains
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3426,33 +3423,14 @@ contains
         nxi_lim = nxi
     endif
     
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
     heating_flag = heating .and. present(diagnostics)
 
     select case (collision_model_switch)
     case (collision_model_full)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
        call solfp_ediffuse_le_layout (gle)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
@@ -3486,32 +3464,13 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
        if (heating_flag) then
           call solfp_lorentz (gle, diagnostics)
        else
           call solfp_lorentz (gle)
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
-
        if (conserve_moments) call conserve_lorentz (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
 
     case (collision_model_lorentz,collision_model_lorentz_test)
 

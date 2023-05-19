@@ -8180,17 +8180,6 @@ contains
           end do
        end do
        call get_flux (g_work, phi, vflx1)
-
-!        do isgn = 1, 2
-!           do ig = -ntgrid, ntgrid
-!              if (allocated(rmajor_geo)) then
-!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*rmajor_geo(ig)*sqrt(1.0-bpol_geo(ig)**2/bmag(ig)**2)
-!              else
-!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)
-!              end if
-!           end do
-!        end do
-!        call get_flux (g_work, phi, vflux_par)
     else
        vflx0 = 0. ; vflx1 = 0.
     end if
@@ -8369,11 +8358,7 @@ contains
     integer :: it, ik, is, isgn, ig
     integer :: iglo
 
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
-    !if (proc0) then
-       pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
-    !end if
+    pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0;
 
     if (has_phi) then
        do isgn = 1, 2

@@ -194,9 +194,6 @@ program eiktest
   call Hahm_Burrell(irho, profile_fac)
 
   broot=-1.
-!      write(*,*) 'rho ',rhoc
-!      write(*,*) 'rp ',rpofrho(rhoc)
-!      write(*,*) 'r ',rfun(rpofrho(rhoc),0.,broot)
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
@@ -259,19 +256,6 @@ program eiktest
      write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
      write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
-
-!      write(*,*) 'mag(Bp) at rho= ',rhoc
-!      do i=-nth,nth
-!         r=rfun(rpofrho(rhoc),theta(i))
-!         write(*,*) r,theta(i),bpmagfun(r,theta(i))
-!      enddo
-
-!      write(*,*) '    theta        gbdrift          gradpar        grho'
-!      do i= -5,5
-!      do i= -ntgrid,ntgrid
-!         write(*,1000) theta(i),gbdrift(i), gradpar(i),grho(i)
-!      enddo
-
      
   close(11)
   close(21)
@@ -309,5 +293,3 @@ program eiktest
   close (unit=21)
 1000  format(20(1x,1pg18.11))
 end program eiktest
-
-
