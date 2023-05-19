@@ -17,9 +17,6 @@ module dist_fn_arrays
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
-#ifdef LOWFLOW
-  public :: hneoc, vparterm, wdfac, wstarfac, wdttpfac
-#endif
 
   public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
 
@@ -61,14 +58,6 @@ module dist_fn_arrays
 
   complex, dimension (:,:,:), allocatable :: antot, antota, antotp
   complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
-
-#ifdef LOWFLOW
-  ! v-dependent factors in low-flow terms
-  real, dimension (:,:,:), allocatable :: hneoc, vparterm, wdfac, wstarfac
-  ! (-ntgrid:ntgrid,2, -g-layout-)
-  real, dimension (:,:,:,:,:,:), allocatable :: wdttpfac
-  ! (-ntgrid:ntgrid,ntheta0,naky,negrid,nspecies,2)
-#endif
 
   !> g_adjust transforms between representations of perturbed dist'n func'n.
   !>    <delta_f> = g_wesson J0(Z) - q phi/T F_m  where <> = gyroaverage
