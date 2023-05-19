@@ -26,23 +26,23 @@ contains
     end if
 
     call write_standard_moment_properties(gnostics, &
-         'ntot',  'The total perturbed species density', 'n_r', ntot, gnostics%distributed)
+         'ntot',  'The total perturbed species density', 'n_ref', ntot, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'density',  'The non-adiabatic part of the perturbed species density', 'n_r', density, gnostics%distributed)
+         'density',  'The non-adiabatic part of the perturbed species density', 'n_ref', density, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'upar',  'The perturbed parallel flow', 'v_ths', upar, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'tpar',  'The perturbed parallel temperature', 'T_r', tpar, gnostics%distributed)
+         'tpar',  'The perturbed parallel temperature', 'T_ref', tpar, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'tperp',  'The perturbed perpendicular temperature', 'T_r', tperp, gnostics%distributed)
+         'tperp',  'The perturbed perpendicular temperature', 'T_ref', tperp, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
-         'qparflux',  'The parallel heat flux', 'n_r T_r v_thr', qparflux, gnostics%distributed)
+         'qparflux',  'The parallel heat flux', 'n_ref T_ref v_thr', qparflux, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'pperpj1',  'A modified perpendicular pressure which give the particle flux from bpar',&
-         'n_r T_r / e', pperpj1, gnostics%distributed)
+         'n_ref T_ref / q_ref', pperpj1, gnostics%distributed)
     call write_standard_moment_properties(gnostics, &
          'qpperpj1',  'A modified perpendicular pressure * energy which give the heat flux from bpar',&
-         'n_r T_r^2 / e', qpperpj1, gnostics%distributed)
+         'n_ref T_ref^2 / q_ref', qpperpj1, gnostics%distributed)
   end subroutine write_moments
 
   !> FIXME : Add documentation  

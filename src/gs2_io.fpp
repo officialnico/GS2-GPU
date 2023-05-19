@@ -668,7 +668,7 @@ contains
 #ifdef NETCDF
     if (has_phi) then
        call netcdf_write_complex(file_id, "phi", phinew, final_field_dims, &
-            long_name="Electrostatic Potential", units="T/q rho/L")
+            long_name="Electrostatic Potential", units="T_ref/q_ref rho_ref/a_ref")
     end if
 
     if (has_apar) then
@@ -1290,7 +1290,7 @@ contains
          dim_names=mode_dims, start=starts(3, nout), &
          long_name=long_name // " per Fourier mode")
     call neasyf_write(file_id, field_name // "2", field2, dim_names=[time_dim], start=[nout], &
-         long_name=long_name // " volume average", units="(T/q rho/L)**2")
+         long_name=long_name // " volume average", units="(T_ref/q_ref rho_ref/a_ref)**2")
 
     call nc_final_fields(file_id)
 #endif
