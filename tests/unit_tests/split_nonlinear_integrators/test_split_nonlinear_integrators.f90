@@ -2,7 +2,7 @@ program test_split_nonlinear_integrators
   use iso_fortran_env, only: output_unit
   use unit_tests
   use gs2_main, only: gs2_program_state_type
-  use mp, only: init_mp, finish_mp
+  use mp, only: init_mp, finish_mp, mp_comm
   use mp, only: proc0, max_allreduce
   use gs2_main, only: initialize_wall_clock_timer
   use gs2_main, only: initialize_gs2
@@ -24,6 +24,7 @@ program test_split_nonlinear_integrators
   integer :: i
 
   call init_mp
+  state%mp_comm = mp_comm
   call initialize_wall_clock_timer
   call initialize_gs2(state)
   call initialize_equations(state)
@@ -70,10 +71,10 @@ program test_split_nonlinear_integrators
 
 contains
 
-  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo)
+  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo, local_only)
     complex, dimension (:,:,:), intent(in) :: g_in
     complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
-    logical, optional :: gf_lo
+    logical, optional :: gf_lo, local_only
   end subroutine null_field_op
 
   subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)

@@ -12,17 +12,15 @@ module run_parameters
   public :: init_run_parameters, finish_run_parameters
   public :: check_run_parameters, wnml_run_parameters
   public :: write_trinity_parameters
-  public :: beta, zeff, tite, reset, immediate_reset
-  public :: fphi, fapar, fbpar
-  public :: code_delt_max, wunits, woutunits, tunits
-  public :: nstep, max_sim_time, wstar_units, eqzip, margin
-  public :: secondary, tertiary, harris
+  public :: beta, zeff, tite, reset, immediate_reset, delt
+  public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
+  public :: nstep, max_sim_time, wstar_units, margin
   public :: ieqzip, k0
   public :: delt_option_switch, delt_option_hand
-  public :: delt_option_auto, vnm_init
+  public :: delt_option_auto
   public :: avail_cpu_time, margin_cpu_time
   public :: rhostar, neo_test
-  public :: do_eigsolve
+  public :: do_eigsolve, save_timer_statistics, save_init_times
   !> If true and nonlinear_mode is "off", return
   !! simple diffusive estimates of fluxes to trinity
   public :: trinity_linear_fluxes
@@ -47,17 +45,15 @@ module run_parameters
   
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
-  real :: delt, delt_prev1, delt_prev2
-  real :: code_delt_max, user_delt_max, margin
-  real, dimension (:), allocatable :: wunits, woutunits, tunits
-  real, dimension (2) :: vnm_init
+  logical :: has_phi, has_apar, has_bpar
+  real :: margin, delt
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
   integer :: nstep, seed
   logical :: reset=.false.
   logical :: immediate_reset
-  logical :: wstar_units, eqzip
-  logical :: secondary, tertiary, harris
+  logical :: wstar_units
+  logical :: save_timer_statistics, save_init_times
   real :: k0
   integer :: delt_option_switch
   integer, parameter :: delt_option_hand = 1, delt_option_auto = 2
@@ -70,8 +66,11 @@ module run_parameters
   logical :: use_old_diagnostics
 
   character(len=100000) :: user_comments
-  
-  integer, allocatable :: ieqzip(:,:)
+
+  !> Used to indicate which wavenumbers we do not want to evolve.
+  !> This choice is controlled by the [[eqzip_option]]
+  !> input. Primarily intended for secondary mode analysis.
+  logical, allocatable :: ieqzip(:,:)
   integer :: eqzip_option_switch
   integer, parameter :: &
        eqzip_option_none = 1, &
@@ -105,15 +104,10 @@ module run_parameters
      character(len = 20) :: delt_option = 'default'
      !> If true then use eigensolver instead of initial value solver.
      logical :: do_eigsolve = .false.
-     !> Advanced option to freeze evolution of certain modes, used with
-     !> [[knobs:secondary]], [[knobs:tertiary]], [[knobs:harris]]. See
-     !> [knobs:eqzip_option]] for details.
-     logical :: eqzip = .false.
-     !> Advanced option to freeze evolution of certain modes. Reimplementation
-     !> of [[knobs:eqzip]]. Possible values are:
+     !> Advanced option to freeze evolution of certain modes. Possible values are:
      !>
      !> - "secondary": don't evolve `ik == 2, it == 1`;
-     !> - "tertiary": dont' evolve `ik == 1, it == 2 or ntheta`;
+     !> - "tertiary": dont' evolve `ik == 1, it == 2 or ntheta0`;
      !> - "harris": don't evolve `ik == 1`.
      !>
      !> Only used in [[dist_fn]], should be moved to [[dist_fn_knobs]].
@@ -126,8 +120,6 @@ module run_parameters
      real :: fbpar = -1.0
      !> Multiplies \(\phi\) throughout.
      real :: fphi = 1.0
-     !> See [[knobs:eqzip]]
-     logical :: harris = .false.
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
@@ -147,15 +139,17 @@ module run_parameters
      !> Normalised gyro-radius, only used for low flow builds
      !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
-     !> See [[knobs:eqzip]]
-     logical :: secondary = .true.
+     !> If true then save init timer information to
+     !> <run_name>.init_times.
+     logical :: save_init_times = .false.
+     !> If true then save some extra timer information to
+     !> <run_name>.timing_stats giving min/max/mean values.
+     logical :: save_timer_statistics = .true.
      !> Used to set the random seed used in the random number
      !> generators provided by [[ran]]. If this input is 0 (the
      !> default) then we don't set the seed and use the system default
      !> instead.
      integer :: seed = 0
-     !> See [[knobs:eqzip]]
-     logical :: tertiary = .false.
      !> Deprecated
      !> This gets a smart default from parameters
      real :: teti = -100.0
@@ -270,18 +264,6 @@ contains
        write (report_unit, *) 
     end if
 
-    if (eqzip) then
-       write (report_unit, *) 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('eqzip = T in the knobs namelist.')")
-       write (report_unit, fmt="('This freezes some modes in time for a secondary stability analysis.')")
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
-       if (secondary) write (report_unit, fmt="('Mode with kx = 0, ky = ky_min fixed in time')")
-       if (tertiary)  write (report_unit, fmt="('Mode with ky = 0, kx = kx_min fixed in time')")
-    end if
-
     write (report_unit, *) 
     if(immediate_reset)then
        write (report_unit, fmt="('The time step will be reset immediately after cfl violation detected.')") 
@@ -332,11 +314,6 @@ contains
        write (unit, fmt="(' max_sim_time = ',e17.10)") max_sim_time
        write (unit, fmt="(' nstep = ',i8)") nstep
        write (unit, fmt="(' wstar_units = ',L1)") wstar_units
-       if (eqzip) then
-          write (unit, fmt="(' eqzip = ',L1)") eqzip
-          write (unit, fmt="(' secondary = ',L1)") secondary
-          write (unit, fmt="(' tertiary = ',L1)") tertiary
-       end if
        write (unit, fmt="(' margin = ',e17.10)") margin
        select case (delt_option_switch)
        case (delt_option_auto)
@@ -352,7 +329,6 @@ contains
   !> FIXME : Add documentation  
   subroutine init_run_parameters(knobs_config_in, parameters_config_in)
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
-    use gs2_time, only: init_delt, user2code
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
     type(parameters_config_type), intent(in), optional :: parameters_config_in
@@ -363,29 +339,20 @@ contains
     call read_parameters(knobs_config_in, parameters_config_in)
 
     call init_kt_grids
-    call init_delt (delt, delt_prev1, delt_prev2)
-    call user2code (user_delt_max, code_delt_max)
-
-    if(.not. allocated(wunits)) allocate (wunits(naky))
-    if(.not. allocated(woutunits)) allocate (woutunits(naky))
-    if(.not. allocated(tunits)) allocate (tunits(naky))
-
-! omega_* normalization of time: 
-    call adjust_time_norm
 
     if(.not.allocated(ieqzip)) allocate(ieqzip(nakx,naky))
-    ieqzip(1:nakx,1:naky)=1
+    ieqzip = .false.
     select case (eqzip_option_switch)
     case (eqzip_option_secondary)
        ! suppress evolution of secondary mode
-       ieqzip(1,2) = 0
+       ieqzip(1,2) = .true.
     case (eqzip_option_tertiary)
        ! suppress evolution of tertiary mode
-       ieqzip(2,1) = 0
-       ieqzip(nakx,1) = 0
+       ieqzip(2,1) = .true.
+       ieqzip(nakx,1) = .true.
     case (eqzip_option_equilibrium)
        ! suppress evolution of 1D equilibrium (x dependent)
-       ieqzip(1:nakx,1) = 0
+       ieqzip(1:nakx,1) = .true.
     end select
   end subroutine init_run_parameters
 
@@ -393,8 +360,6 @@ contains
   subroutine read_parameters(knobs_config_in, parameters_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
-    use gs2_time, only: dt_not_set
-    use gs2_save, only: init_dt, init_vnm
     use text_options, only: text_option, get_option_value
     use kt_grids, only: gryfx
     use ran, only: set_seed_from_single_integer
@@ -413,12 +378,8 @@ contains
             text_option('set_by_hand', delt_option_hand), &
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
-    integer :: ierr, istatus
-    real :: delt0, delt1, delt2, delt_max
-    real, dimension (2) :: vnm_saved
-
+    integer :: ierr
     real :: teti  ! for back-compatibility
-
 
     if (present(parameters_config_in)) parameters_config = parameters_config_in
 
@@ -456,13 +417,11 @@ contains
     delt = knobs_config%delt
     delt_option = knobs_config%delt_option
     do_eigsolve = knobs_config%do_eigsolve
-    eqzip = knobs_config%eqzip
     eqzip_option = knobs_config%eqzip_option
     fapar = knobs_config%fapar
     faperp = knobs_config%faperp
     fbpar = knobs_config%fbpar
     fphi = knobs_config%fphi
-    harris = knobs_config%harris
     immediate_reset = knobs_config%immediate_reset
     k0 = knobs_config%k0
     margin = knobs_config%margin
@@ -471,9 +430,9 @@ contains
     neo_test = knobs_config%neo_test
     nstep = knobs_config%nstep
     rhostar = knobs_config%rhostar
-    secondary = knobs_config%secondary
+    save_init_times = knobs_config%save_init_times
+    save_timer_statistics = knobs_config%save_timer_statistics
     seed = knobs_config%seed
-    tertiary = knobs_config%tertiary
     teti = knobs_config%teti
     tite = knobs_config%tite
     trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
@@ -508,12 +467,16 @@ contains
        fbpar = 0.
     endif
 
+    has_phi = fphi > epsilon(0.0)
+    has_apar = fapar > epsilon(0.0)
+    has_bpar = fbpar > epsilon(0.0)
+
     !> If we have non-zero beta then alert the user that they have some
     !! of the perturbed magnetic fields disabled. This may be intended
     !! behaviour, so we throw a warning. However, if both are disabled,
     !! we set beta=0. This will make the simulation electrostatic, as 
     !! probably intended if both apar and bpar are set to zero.
-    if(fapar.eq.0 .and. fbpar.eq.0 .and. beta.ne.0) then
+    if( beta /= 0.0 .and. .not. (has_apar .or. has_bpar)) then
        if(proc0) then
           ierr = error_unit()
           write(ierr,'("Warning: Both fapar and fbpar are zero: setting beta = 0.")')
@@ -522,31 +485,10 @@ contains
     endif
     if((beta.ne.0).and.proc0) then
        ierr = error_unit()
-       if(fapar.eq.0) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
-       if(fbpar.eq.0) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
+       if(.not. has_apar) write(ierr,'("Warning: Running with finite beta but fapar=0.")')
+       if(.not. has_bpar) write(ierr,'("Warning: Running with finite beta but fbpar=0.")')
     endif
-    
-    if (eqzip) then
-       if (secondary .and. tertiary) then
-          ierr = error_unit()
-          write (ierr, *) 'Forcing secondary = FALSE'
-          write (ierr, *) 'because you have chosen tertiary = TRUE'
-          secondary = .false.
-       end if
-       if (secondary .and. harris) then
-          ierr = error_unit()
-          write (ierr, *) 'Forcing secondary = FALSE'
-          write (ierr, *) 'because you have chosen harris = TRUE'
-          secondary = .false.
-       end if
-       if (tertiary .and. harris) then
-          ierr = error_unit()
-          write (ierr, *) 'Forcing tertiary = FALSE'
-          write (ierr, *) 'because you have chosen harris = TRUE'
-          tertiary = .false.
-       end if
-    endif
-    
+
     ierr = error_unit()
     call get_option_value &
          (delt_option, deltopts, delt_option_switch, ierr, &
@@ -562,25 +504,6 @@ contains
        max_sim_time = max_sim_time / sqrt(2.0)
        nstep = nstep*2
     end if
-
-    user_delt_max = delt
-
-    !! @todo: Add input variables to allow these to be set directly
-    delt_prev1 = dt_not_set
-    delt_prev2 = dt_not_set
-
-    vnm_init = 1.0
-    
-    if (delt_option_switch == delt_option_auto) then
-       call init_vnm (vnm_saved, istatus)
-       if (istatus == 0) vnm_init = vnm_saved
-
-       call init_dt (delt0, delt1, delt2, delt_max, istatus, dt_not_set)
-       if (delt0 /= dt_not_set) delt = delt0
-       if (delt1 /= dt_not_set) delt_prev1 = delt1
-       if (delt2 /= dt_not_set) delt_prev2 = delt2
-       if (delt_max /= dt_not_set) user_delt_max = delt_max
-    endif
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
@@ -602,53 +525,9 @@ contains
   end subroutine set_overrides
 
   !> FIXME : Add documentation    
-  subroutine adjust_time_norm
-    use file_utils, only: error_unit
-    use mp, only: proc0
-    use kt_grids, only: aky
-    implicit none
-!CMR: Sep 2010
-! Attempt to understand time normalisation variables, which are arrays(naky)
-!    TUNITS: DT(KY)=TUNITS(KY).CODE_DT
-!            This is a generally very useful variable to store ky dependent 
-!            timestep in the code time normalisation.
-!            Used to multiply ky independent source terms on RHS of GKE.
-!    WUNITS: WUNITS(KY)=AKY(KY)*TUNITS(KY)/2
-!            Auxiliary variable.  Used to save compute operations when 
-!            evaluating source terms on RHS of GKE that are proportional to ky.
-!            !! The Mysterious factor 1/2 Explained !!
-!            The factor of 1/2 arises because those source terms were first
-!            specified using the normalisation Tref=mref vtref^2 
-! [R Numata et al, "AstroGK: Astrophysical gyrokinetics code", JCP, 2010].
-!CMRend
-    if (wstar_units) then
-       wunits = 1.0
-       where (aky /= 0.0)
-          tunits = 2.0/aky
-       elsewhere
-          tunits = 0.0
-       end where
-       if (any(tunits == 0.0) .and. proc0) then
-          write (error_unit(), *) &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-          print *, &
-               "WARNING: wstar_units=.true. and aky=0.0: garbage results"
-       end if
-!CMR: Sep 2010
-!  Changes to allow wstar_units to be used
-!CMRend
-    else
-       tunits = 1.0
-       wunits = aky/2.0
-    end if
-    woutunits = 1.0/tunits
-  end subroutine adjust_time_norm
-
-  !> FIXME : Add documentation    
   subroutine finish_run_parameters
     implicit none
 
-    if (allocated(wunits)) deallocate (wunits, woutunits, tunits)
     if (allocated(ieqzip)) deallocate (ieqzip)
 
     initialized = .false.
@@ -695,11 +574,12 @@ contains
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: nstep, seed
-    logical :: do_eigsolve, eqzip, harris, immediate_reset, neo_test, secondary, tertiary, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+    logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
+         trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip, eqzip_option, fapar, faperp, fbpar, fphi, harris, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
-         secondary, seed, tertiary, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
+         save_init_times, save_timer_statistics, seed, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -710,13 +590,11 @@ contains
     delt = self%delt
     delt_option = self%delt_option
     do_eigsolve = self%do_eigsolve
-    eqzip = self%eqzip
     eqzip_option = self%eqzip_option
     fapar = self%fapar
     faperp = self%faperp
     fbpar = self%fbpar
     fphi = self%fphi
-    harris = self%harris
     immediate_reset = self%immediate_reset
     k0 = self%k0
     margin = self%margin
@@ -725,9 +603,9 @@ contains
     neo_test = self%neo_test
     nstep = self%nstep
     rhostar = self%rhostar
-    secondary = self%secondary
+    save_init_times = self%save_init_times
+    save_timer_statistics = self%save_timer_statistics
     seed = self%seed
-    tertiary = self%tertiary
     teti = self%teti
     tite = self%tite
     trinity_linear_fluxes = self%trinity_linear_fluxes
@@ -747,13 +625,11 @@ contains
     self%delt = delt
     self%delt_option = delt_option
     self%do_eigsolve = do_eigsolve
-    self%eqzip = eqzip
     self%eqzip_option = eqzip_option
     self%fapar = fapar
     self%faperp = faperp
     self%fbpar = fbpar
     self%fphi = fphi
-    self%harris = harris
     self%immediate_reset = immediate_reset
     self%k0 = k0
     self%margin = margin
@@ -762,9 +638,9 @@ contains
     self%neo_test = neo_test
     self%nstep = nstep
     self%rhostar = rhostar
-    self%secondary = secondary
+    self%save_init_times = save_init_times
+    self%save_timer_statistics = save_timer_statistics
     self%seed = seed
-    self%tertiary = tertiary
     self%teti = teti
     self%tite = tite
     self%trinity_linear_fluxes = trinity_linear_fluxes
@@ -795,13 +671,11 @@ contains
     call self%write_key_val("delt", self%delt, unit_internal)
     call self%write_key_val("delt_option", self%delt_option, unit_internal)
     call self%write_key_val("do_eigsolve", self%do_eigsolve, unit_internal)
-    call self%write_key_val("eqzip", self%eqzip, unit_internal)
     call self%write_key_val("eqzip_option", self%eqzip_option, unit_internal)
     call self%write_key_val("fapar", self%fapar, unit_internal)
     call self%write_key_val("faperp", self%faperp, unit_internal)
     call self%write_key_val("fbpar", self%fbpar, unit_internal)
     call self%write_key_val("fphi", self%fphi, unit_internal)
-    call self%write_key_val("harris", self%harris, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("margin", self%margin, unit_internal)
@@ -810,9 +684,9 @@ contains
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
-    call self%write_key_val("secondary", self%secondary, unit_internal)
+    call self%write_key_val("save_init_times", self%save_init_times, unit_internal)
+    call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
     call self%write_key_val("seed", self%seed, unit_internal)
-    call self%write_key_val("tertiary", self%tertiary, unit_internal)
     call self%write_key_val("teti", self%teti, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
     call self%write_key_val("trinity_linear_fluxes", self%trinity_linear_fluxes, unit_internal)
@@ -845,13 +719,11 @@ contains
     call broadcast(self%delt)
     call broadcast(self%delt_option)
     call broadcast(self%do_eigsolve)
-    call broadcast(self%eqzip)
     call broadcast(self%eqzip_option)
     call broadcast(self%fapar)
     call broadcast(self%faperp)
     call broadcast(self%fbpar)
     call broadcast(self%fphi)
-    call broadcast(self%harris)
     call broadcast(self%immediate_reset)
     call broadcast(self%k0)
     call broadcast(self%margin)
@@ -860,9 +732,9 @@ contains
     call broadcast(self%neo_test)
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
-    call broadcast(self%secondary)
+    call broadcast(self%save_init_times)
+    call broadcast(self%save_timer_statistics)
     call broadcast(self%seed)
-    call broadcast(self%tertiary)
     call broadcast(self%teti)
     call broadcast(self%tite)
     call broadcast(self%trinity_linear_fluxes)

@@ -631,7 +631,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -814,8 +813,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
@@ -1048,15 +1045,15 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
+    use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
     use fields_arrays, only: phinew, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
     use gs2_save, only: add_eigenpair_to_file, gs2_save_for_restart, finish_gs2_save
     use file_utils, only: run_name
-    use dist_fn_arrays, only: gnew, g_adjust
+    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use gs2_diagnostics, only: save_distfn
     implicit none
     EPS, intent(in) :: my_solver
@@ -1093,7 +1090,8 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", &
+            has_phi, has_apar, has_bpar, io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1
@@ -1122,7 +1120,7 @@ contains
           call set_init_fields
 
           !Add to file
-          if(proc0)call add_eigenpair_to_file(EigVal,fphi,fapar,fbpar,io_ids)
+          if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
 
           !Save restart file
           if(save_restarts) then
@@ -1130,18 +1128,24 @@ contains
              write(restart_unique_string,'(".eig_",I0)') ieig
 
              !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
+             call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+                  has_phi, has_apar, has_bpar, &
+                  code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+                  fileopt=restart_unique_string)
 
              !Save distfn files
              if(save_distfn)then
                 !Convert h to distribution function
-                call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+                call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
 
                 !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
+                call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+                     has_phi, has_apar, has_bpar, &
+                     code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+                     fileopt=trim(restart_unique_string)//".dfn")
 
                 !Convert distribution function back to h
-                call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
+                call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
              endif
 
              !Reset the status of save_for_restart
@@ -1382,7 +1386,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est
