@@ -46,7 +46,6 @@ program time_ffts
 
   if (proc0) call announce_module_test('time_ffts')
 
-  state%mp_comm_external = .true.
   state%mp_comm = mp_comm
 
   call initialize_gs2(state)

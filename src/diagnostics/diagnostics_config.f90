@@ -2,9 +2,7 @@
 !! module via the namelist diagnostics_config.
 module diagnostics_config
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use simpledataio, only: sdf=>sdatio_file
   use diagnostics_ascii, only: diagnostics_ascii_type
-  use diagnostics_dimensions, only: diagnostics_dimension_list_type
   use diagnostics_base_config, only: diagnostics_base_config_type
   implicit none
 
@@ -66,21 +64,16 @@ module diagnostics_config
   !! a reference to the output file, and current 
   !! results of the simulation
   type diagnostics_type
-     type(sdf) :: sfile
      type(diagnostics_ascii_type) :: ascii_files
      type(results_summary_type) :: current_results
-     type(diagnostics_dimension_list_type) :: dims
-     !> Integer below gives the sdatio type 
-     !! which corresponds to a gs2 real
-     integer :: rtype
-     integer :: itype
-     integer :: ctype
+     !> NetCDF file ID
+     integer :: file_id
+     !> Current timestep
+     integer :: nout = 1
      integer :: istep
      integer :: verbosity = 3
      logical :: create
-     logical :: wryte
-     logical :: reed
-     logical :: replay
+     logical :: writing
      logical :: distributed
      logical :: parallel
      logical :: exit
@@ -172,6 +165,7 @@ module diagnostics_config
      logical :: dump_check1
      logical :: dump_check2
      integer :: nmovie
+     integer :: nc_sync_freq
   end type diagnostics_type
 
   !> Used for testing... causes screen printout to be 
@@ -269,17 +263,12 @@ contains
     new_gs2_diagnostics_config_in%omegatinst = 1.0e6
     new_gs2_diagnostics_config_in%print_line = .false.
     new_gs2_diagnostics_config_in%write_correlation = .true.
-    new_gs2_diagnostics_config_in%write_fields = .true.
     new_gs2_diagnostics_config_in%write_moments = .true.
   end subroutine apply_new_defaults
 
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
-    use file_utils, only: input_unit, error_unit, input_unit_exist
-    use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, nproc, iproc
     use nonlinear_terms, only: nonlin
-    use unit_tests, only: debug_message
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
@@ -302,7 +291,6 @@ contains
     ! values and are not available in this diagnostics module
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%nc_sync_freq /= 10, "nc_sync_freq")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
     call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
@@ -326,6 +314,7 @@ contains
     gnostics%make_movie = new_gs2_diagnostics_config%make_movie
     gnostics%navg = new_gs2_diagnostics_config%navg
     gnostics%ncheck = new_gs2_diagnostics_config%ncheck
+    gnostics%nc_sync_freq = new_gs2_diagnostics_config%nc_sync_freq
     gnostics%nmovie = new_gs2_diagnostics_config%nmovie
     gnostics%nsave = new_gs2_diagnostics_config%nsave
     gnostics%nwrite = new_gs2_diagnostics_config%nwrite

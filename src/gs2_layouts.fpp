@@ -5121,6 +5121,10 @@ contains
     integer :: i
 
     n = size(array)
+    ! Explicit allocation not necessary, but we get a warning from
+    ! gfortran about 'check.offset used uninitialized' -- this is a
+    ! long-standing compiler bug
+    allocate(check(n))
     check = [(i, i = 1, n)]
 
     call quicksort(n,array)

@@ -17,22 +17,12 @@ endif
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom
+needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
-#If we're using fft(w) then we want to link the fft_save_wisdom object file
-#this currently has to be handled specially as it comes from a c source file
-#rather than fortran (so isn't picked up by fortdep).
-needs_fft_wisdom := utils gs2 ingen dump_response \
-	generate_fftw_wisdom write_default_input_file
-ifdef USE_FFT
-ignored_junk := $(foreach tmp_target, $(needs_fft_wisdom), \
-	$(eval $(tmp_target)_mod += $(OBJDIR)/fft_save_wisdom.o))
-endif
-
 ############################################################################# PROGRAMS
-gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response
+gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
 gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
@@ -116,7 +106,7 @@ $(BINDIR)/regress: $(drive_mod) | $(BINDIR)
 regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2 | DOES NOT COMPILE
-$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
+$(BINDIR)/ffttester: $(ffttester_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -131,7 +121,7 @@ $(BINDIR)/ball: $(ball_mod) | $(BINDIR)
 .PHONY: ball
 ball: $(BINDIR)/ball
 
-#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file | DOES NOT COMPILE
+#Program to calculate eikcoeffs (geometry coefficients etc.) and write to file
 $(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

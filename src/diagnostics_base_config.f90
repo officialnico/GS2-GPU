@@ -614,7 +614,6 @@ contains
   end subroutine warn_about_nonfunctional_selection
 
   subroutine warn_about_deprecated_option(old_switch, old_name, new_switch, new_name)
-    use run_parameters, only: use_old_diagnostics
     use mp, only: proc0
     !> Deprecated diagnostic switch
     logical, intent(in) :: old_switch

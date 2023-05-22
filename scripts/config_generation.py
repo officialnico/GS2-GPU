@@ -77,7 +77,7 @@ writeSubString = """
 subroutine write_{module}_config(self, unit)
   implicit none
   class({module}_config_type), intent(in) :: self
-  integer, intent(in) , optional:: unit
+  integer, intent(in), optional:: unit
   integer :: unit_internal
 
   unit_internal = 6 ! @todo -- get stdout from file_utils

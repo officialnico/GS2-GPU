@@ -135,161 +135,21 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_heating(gnostics)
-    use species, only: nspec
-    use file_utils, only: flush_output_file
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
-    use diagnostics_create_and_write, only: create_and_write_variable
-    use diagnostics_create_and_write, only: create_and_write_variable_noread
-    use diagnostics_dimensions, only: dim_string
+    use gs2_diagnostics, only: do_write_heating
+    use gs2_io, only: nc_write_heating
     implicit none
     type(diagnostics_type), intent (inout) :: gnostics
-    real :: t
-    integer :: is
-    
-    t = gnostics%user_time
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy", &
-         dim_string([gnostics%dims%time]), &
-         "Total free (turbulent) energy", "F_r^2?? TBC", h%energy)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_dot", &
-         dim_string([gnostics%dims%time]), &
-         "d/dt of total free (turbulent) energy", "F_r^2 a/v_thr?? TBC", h%energy_dot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_antenna", &
-         dim_string([gnostics%dims%time]), &
-         "Energy injection resulting from antenna J_ant.E", "TBC", h%antenna)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_imp_colls", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "?? [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0", "TBC", h%imp_colls)
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_imp_colls_sum", &
-         dim_string([gnostics%dims%time]), &
-         "?? [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0", "TBC", sum(h%imp_colls))
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_hypercoll", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Heating resulting from hyperviscosity -[h H(h) * T_0]", "TBC", h%hypercoll)
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_hypercoll_sum", &
-         dim_string([gnostics%dims%time]), &
-         "Heating resulting from hyperviscosity -[h H(h) * T_0]", "TBC", sum(h%hypercoll))
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_collisions", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Heating resulting from collisions -[h C(h) * T_0]", "TBC", h%collisions)
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_collisions_sum", &
-         dim_string([gnostics%dims%time]), &
-         "Heating resulting from collisions -[h C(h) * T_0]", "TBC", sum(h%collisions))
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_gradients", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Energy injection resulting from gradients [h omega_* h]", "TBC", h%gradients)
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_gradients_sum", &
-         dim_string([gnostics%dims%time]), &
-         "Energy injection resulting from gradients [h omega_* h]", "TBC", sum(h%gradients))
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_heating", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Total heating sum [h (q dchi/dt - dh/dt * T0)]", "TBC", h%heating)
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_heating_sum", &
-         dim_string([gnostics%dims%time]), &
-         "Total heating sum [h (q dchi/dt - dh/dt * T0)]", "TBC", sum(h%heating))
-    call create_and_write_variable_noread(gnostics, gnostics%rtype, "heating_energy_balance", &
-         dim_string([gnostics%dims%time]), &
-         "Sum of total heating, total injection and total change in stored &
-         & free energy (should be zero)", "TBC", sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_apar", &
-         dim_string([gnostics%dims%time]), &
-         "Free energy in perp magnetic field: (k_perp A)**2", "TBC", h%eapar)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_bpar", &
-         dim_string([gnostics%dims%time]), &
-         "Free energy in par magnetic field: B_par**2", "TBC", h%ebpar)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_delfs2", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Total free energy as a function of species dfs^2  ", "TBC", h%delfs2)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_hs2", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Non-adiabatic free energy as a function of species hs^2  ", "TBC", h%hs2)
-    call create_and_write_variable(gnostics, gnostics%rtype, "heating_energy_phis2", &
-         dim_string([gnostics%dims%species,gnostics%dims%time]), &
-         "Adiabatic free energy as a function of species phi_bar^2  ", "TBC", h%phis2)
+
+    if (proc0) call nc_write_heating(gnostics%file_id, gnostics%nout, h, hk)
     
     gnostics%current_results%species_heating = h%imp_colls
     gnostics%current_results%species_heating_avg = gnostics%current_results%species_heating_avg + &
          h%imp_colls*(gnostics%user_time - gnostics%user_time_old)
     
-    if (gnostics%write_ascii .and. proc0) call write_ascii
-    
-  contains
-    !> FIXME : Add documentation    
-    subroutine write_ascii
-      implicit none
-      integer :: heat_unit
-      integer :: heat_unit2
-      
-      heat_unit = gnostics%ascii_files%heat
-      heat_unit2 = gnostics%ascii_files%heat2
-      !
-      !
-      ! For case with one species:
-      !
-      ! Column     Item               
-      !   1        time              
-      !   2        Energy              
-      !   3        dEnergy/dt            
-      !   4        J_ant.E             
-      !   5        [h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0 
-      !   6       -[h H(h) * T_0]
-      !   7       -[h C(h) * T_0]
-      !   8        [h w_* h]
-      !   9        [h * (q dchi/dt - dh/dt * T0)]_1
-      !  10      sum (h C(h) * T_0)  in total, as in 5, 6      
-      !  11     -sum (h H(h) * T_0)      
-      !  12     -sum (h C(h) * T_0)   
-      !  13      sum (h w_* h)  
-      !  14      sum [h (q dchi/dt - dh/dt * T0)]
-      !  15      3 + 4 + 9 + 10
-      !  16      (k_perp A)**2
-      !  17      B_par**2
-      !  18      df ** 2
-      !  19      h ** 2
-      !  20      Phi_bar ** 2
-      
-      
-      write (unit=heat_unit, fmt="(28es12.4)") t,h % energy,  &
-           h % energy_dot, h % antenna, h % imp_colls, h % hypercoll, h % collisions, &
-           h % gradients, h % heating, sum(h % imp_colls), sum(h % hypercoll), sum(h % collisions), &
-           sum(h % gradients), sum(h % heating),sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot, &
-           h % eapar, h % ebpar, h % delfs2(:),  h % hs2(:), h % phis2(:)
-      
-      do is=1,nspec
-         write (unit=heat_unit2, fmt="(15es12.4)") t,h % energy,  &
-              h % energy_dot, h % antenna, h % imp_colls(is), h % hypercoll(is), h % collisions(is), &
-              h % gradients(is), h % heating(is), &
-              h % eapar, h % ebpar, h % delfs2(is),  h % hs2(is), h % phis2(is), real(is)
-         write (unit=heat_unit2, fmt=*)
-      end do
-      write (unit=heat_unit2, fmt=*)
-      
-      call flush_output_file (heat_unit)
-      call flush_output_file (heat_unit2)
-      
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' energy= ',e13.6)") t, h % energy
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' energy_dot= ',e13.6)") t, h % energy_dot
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' J_ant.E= ',e13.6)") t, h % antenna
-      
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hyperC= ',12(1x,e13.6))") t, h % hypercoll
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hCh= ',12(1x,e13.6))") t, h % collisions
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' hw*= ',12(1x,e13.6))") t, h % gradients
-      !!GGH!         write (unit=heat_unit, fmt="('t= ',e13.6,' hwd= ',12(1x,e13.6))") t, h % curvature
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' heating= ',12(1x,e13.6))") t, h % heating
-      
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hvisc= ',e13.6)") t, sum(h % hypervisc)
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hyperC= ',e13.6)") t, sum(h % hypercoll)
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hCh= ',e13.6)") t, sum(h % collisions)
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_hw*= ',e13.6)") t, sum(h % gradients)
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_heating= ',e13.6)") t, sum(h % heating)
-      
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_power= ',e13.6)") t, &
-      !!GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot
-      !!GGH TEST try adding sqrt(2.) to the edot
-      !!GGH          write (unit=heat_unit, fmt="('t= ',e13.6,' total_power= ',e13.6)") t, &
-      !!GGH               sum(h%heating)+h%antenna+sum(h%gradients)+h%energy_dot*sqrt(2.)
-      !!GGH          write (unit=heat_unit, fmt='(a)') ''
-      !!end if
-    end subroutine write_ascii
+    if (gnostics%write_ascii .and. proc0) then
+      call do_write_heating(gnostics%user_time, gnostics%ascii_files%heat, gnostics%ascii_files%heat2, h)
+    end if
   end subroutine write_heating
 end module diagnostics_heating

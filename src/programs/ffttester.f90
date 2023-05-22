@@ -358,15 +358,17 @@ program ffttester
 !        initialise gs2 with user input file, but with NSTEP=0 to avoid advance
 !        initialise g with cos(jx x)*cos(jy y) 
 !
-  use gs2_main, only: run_gs2, finish_gs2
-  use gs2_diagnostics, only: finish_gs2_diagnostics
-  use mp, only: finish_mp
+  use gs2_main, only: run_gs2, finish_gs2, gs2_program_state_type
+  use mp, only: init_mp, mp_comm, finish_mp
   use kt_grids, only: naky, nx, ny, ntheta0, box, theta0
   use ffttest_helper, only: ffttest
   implicit none
   integer:: ix, iy
+  type(gs2_program_state_type) :: state
 
-  call run_gs2(nofinish=.true.)
+  call init_mp
+  state%mp_comm = mp_comm
+  call run_gs2(finalize=.false., state=state)
   if ( .not. box ) then
      write(6,*) 'Quitting as this is not a BOX run'
      stop
@@ -376,7 +378,8 @@ program ffttester
         call ffttest(ix,iy)
      enddo
   enddo
-  call finish_gs2_diagnostics(0)
-  call finish_gs2
+
+  call finish_gs2(state, quiet=.true.)
   call finish_mp
+
 end program ffttester
