@@ -8,5 +8,5 @@
 ! is entirely elided at any level of optimisation .
 
 #ifndef UNUSED_DUMMY
-#define UNUSED_DUMMY(x) if (.false.) print*, shape(x)
+#define UNUSED_DUMMY(x) associate(unused_ => x); end associate
 #endif
