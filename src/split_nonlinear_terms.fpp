@@ -88,7 +88,8 @@ module split_nonlinear_terms
      !>  - 'default' -- The same as 'RK'.
      !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
      !>            using rk_method switch. Relative and absolute error controlled time step.
-     !>  - 'picard' -- Use simple Picard iteration
+     !>  - 'picard' -- Use simple Picard iteration. Not generally recommended but available
+     !>            for experimentation.
      !>
      character(len = 20) :: split_method = 'default'
      !> Multiplies the new time step calculated from either the error or
