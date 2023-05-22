@@ -802,7 +802,7 @@ contains
     real, save :: time_step_last = -1
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
-    complex, dimension(:, :, :), allocatable :: g_start, dg
+    complex, dimension(:, :, :), allocatable :: g_start
     integer, parameter :: npic_limit = 15, npic_low_limit = 3
     real, parameter :: time_step_factor = 2.0
     logical, parameter :: check_cfl = .true.
@@ -832,28 +832,26 @@ contains
             calculate_cfl_limit = check_cfl)
        nrhs_calls = nrhs_calls + 1
 
-       dg = gexp_1 * (0.5 * time_step)
-
        errors(1) = 0.0
-       errors(2) = maxval(abs(dg))
+       errors(2) = maxval(abs(gexp)) * (0.5 * time_step)
        errors(3) = maxval(abs(g_start))
        errors(4) = max_vel
        call max_allreduce(errors)
 
-       ! Check for CFL limit - we can simply rescale dg and carry on
+       ! Check for CFL limit - we can simply rescale the change in g and carry on
+       ! so here we simply rescale the effective time step,
        cfl_limit = 1.0 / errors(4)
        if (time_step > cfl_limit .and. check_cfl) then
           ! Drop the effective time step a little from the limit
           cfl_limit = 0.9 * cfl_limit
           if(proc0.and.debug) print*,'Dropping time step due to cfl from',time_step,'to',cfl_limit
           errors(2) = errors(2) * cfl_limit / time_step
-          dg = dg * cfl_limit / time_step
           time_step = cfl_limit
        end if
 
        converged = picard_converged(errors)
 
-       gnew = g_start + dg
+       gnew = g_start + gexp_1 * (0.5 * time_step)
 
        do while(.not. converged)
           ipic = ipic + 1
@@ -867,10 +865,8 @@ contains
                calculate_cfl_limit = check_cfl)
           nrhs_calls = nrhs_calls + 1
 
-          dg = gexp_1 * (0.5 * time_step)
-
           errors(1) = errors(2)
-          errors(2) = maxval(abs(dg))
+          errors(2) = maxval(abs(gexp_1)) * (0.5 * time_step)
           errors(4) = max_vel
           call max_allreduce(errors)
 
@@ -883,7 +879,7 @@ contains
           if (time_step > cfl_limit) exit
           if (ipic >= npic_limit) exit
 
-          gnew = g_start + dg
+          gnew = g_start + gexp_1 * (0.5 * time_step)
        end do
 
        if (.not. converged) then
