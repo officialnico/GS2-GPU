@@ -7,7 +7,7 @@ subroutine {name}_subroutine(current, going_up)
   use {module_name}, only: {init_routine}, {finish_routine}
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+{unused_current}
   if (going_up) then
     call {init_routine}
   else
@@ -21,7 +21,7 @@ subroutine {name}_subroutine(current, going_up)
 {imports}
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+{unused_current}
   if (going_up) then
 {up_action}
   else
@@ -52,12 +52,18 @@ class module_with_dependencies:
         self.level = 0
 
     def generate_method(self):
+        # If none of the up/down/init/finish actions use `current`, add macro to
+        # suppress warning about unused dummy arguments
+        all_actions = " ".join(self.visit_args.values())
+        unused_current = "" if "current" in all_actions else "  UNUSED_DUMMY(current)"
+
         return self.visit_routine.format(
             name=self.name,
             module_name=self.module_name,
             init_routine=self.init_routine,
             finish_routine=self.finish_routine,
             level=self.level,
+            unused_current=unused_current,
             **self.visit_args,
         ).strip()
 

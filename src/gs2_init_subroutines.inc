@@ -90,7 +90,7 @@ subroutine override_optimisations_subroutine(current, going_up)
   use dist_fn, only: dso=>set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     if (current%opt_ov%is_initialised()) call lso(current%opt_ov)
     if (current%opt_ov%is_initialised()) call fso(current%opt_ov)
@@ -104,7 +104,7 @@ subroutine override_miller_geometry_subroutine(current, going_up)
   use theta_grid_params, only: tgpso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     if (current%mgeo_ov%is_initialised()) call tgpso(current%mgeo_ov)
   else
@@ -140,7 +140,7 @@ subroutine override_kt_grids_subroutine(current, going_up)
   use kt_grids, only: ktso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     if (current%kt_ov%is_initialised()) call ktso(current%kt_ov)
   else
@@ -201,7 +201,7 @@ subroutine override_profiles_subroutine(current, going_up)
   use species, only: sso=>set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     if (current%prof_ov%is_initialised()) call dfso(current%prof_ov)
     if (current%prof_ov%is_initialised()) call sso(current%prof_ov)
@@ -352,7 +352,7 @@ subroutine override_timestep_subroutine(current, going_up)
   use run_parameters, only: rso => set_overrides
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     if (current%tstep_ov%is_initialised()) call rso(current%tstep_ov)
   else
@@ -412,7 +412,7 @@ subroutine set_initial_values_subroutine(current, going_up)
 
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
-  UNUSED_DUMMY(current)
+
   if (going_up) then
     call set_initial_field_and_dist_fn_values(current)
   else
