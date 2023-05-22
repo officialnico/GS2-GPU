@@ -791,7 +791,7 @@ contains
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
-    use array_utils, only: copy
+    use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -833,8 +833,8 @@ contains
        nrhs_calls = nrhs_calls + 1
 
        errors(1) = 0.0
-       errors(2) = maxval(abs(gexp_1)) * (0.5 * time_step)
-       errors(3) = maxval(abs(g_start))
+       errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
+       errors(3) = gs2_max_abs(g_start)
        errors(4) = max_vel
        call max_allreduce(errors)
 
@@ -866,10 +866,9 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = errors(2)
-          errors(2) = maxval(abs(gexp_1)) * (0.5 * time_step)
+          errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
           errors(4) = max_vel
           call max_allreduce(errors)
-
           cfl_limit = 1.0 / errors(4)
 
           converged = picard_converged(errors)
