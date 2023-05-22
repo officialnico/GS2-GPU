@@ -796,7 +796,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel, cfl_limit
-    integer :: counter, ipic
+    integer :: counter, ipic, iglo
     logical, parameter :: debug = .false.
     real, dimension(4) :: errors
     real, save :: time_step_last = -1
@@ -851,7 +851,14 @@ contains
 
        converged = picard_converged(errors)
 
-       gnew = g_start + gexp_1 * (0.5 * time_step)
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+       end do
+       !$OMP END PARALLEL DO
 
        do while(.not. converged)
           ! Note the first step (i.e. call before this loop) is included in
@@ -879,7 +886,15 @@ contains
           if(proc0.and.debug) print*,'ipic',ipic,converged,'|',errors
 
           if (time_step > cfl_limit .and. .not. converged) exit
-          gnew = g_start + gexp_1 * (0.5 * time_step)
+
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+          end do
+          !$OMP END PARALLEL DO
        end do
 
        if (.not. converged) then
@@ -898,7 +913,6 @@ contains
           ! If we converged quickly then increase the time step
           if (ipic <= npic_low_limit) time_step = time_step * time_step_factor
        end if
-
 
        !Now update the time step, capped to dt
        time_step = min(time_step, dt)
