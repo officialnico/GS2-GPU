@@ -833,7 +833,7 @@ contains
        nrhs_calls = nrhs_calls + 1
 
        errors(1) = 0.0
-       errors(2) = maxval(abs(gexp)) * (0.5 * time_step)
+       errors(2) = maxval(abs(gexp_1)) * (0.5 * time_step)
        errors(3) = maxval(abs(g_start))
        errors(4) = max_vel
        call max_allreduce(errors)
