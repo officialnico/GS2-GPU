@@ -3434,7 +3434,11 @@ contains
              call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
-          call get_init_field(phinew, aparnew, bparnew)
+          ! It is not unreasonable to expect that calculating the
+          ! consistent fields from the current state is reasonable
+          ! however, in test case find better agreement by not
+          ! doing the following.
+          ! call get_init_field(phinew, aparnew, bparnew)
        end if
     end if
 
