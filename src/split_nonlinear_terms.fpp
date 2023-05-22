@@ -878,8 +878,7 @@ contains
 
           if(proc0.and.debug) print*,'ipic',ipic,converged,'|',errors
 
-          if (time_step > cfl_limit) exit
-
+          if (time_step > cfl_limit .and. .not. converged) exit
           gnew = g_start + gexp_1 * (0.5 * time_step)
        end do
 
