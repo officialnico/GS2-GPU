@@ -854,7 +854,10 @@ contains
        gnew = g_start + gexp_1 * (0.5 * time_step)
 
        do while(.not. converged)
+          ! Note the first step (i.e. call before this loop) is included in
+          ! ipic here (i.e. it counts towards our approach towards npic_limit).
           ipic = ipic + 1
+          if (ipic > npic_limit) exit
 
           call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
@@ -876,7 +879,6 @@ contains
           if(proc0.and.debug) print*,'ipic',ipic,converged,'|',errors
 
           if (time_step > cfl_limit) exit
-          if (ipic >= npic_limit) exit
 
           gnew = g_start + gexp_1 * (0.5 * time_step)
        end do
