@@ -791,6 +791,7 @@ contains
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
     real, intent(in) :: dt
@@ -813,9 +814,11 @@ contains
     counter = 1
     time_step = time_step_last
 
+    allocate(g_start, mold = gnew)
+
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
-       g_start = gnew
+       call copy(gnew, g_start)
 
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        ipic = 1
@@ -886,7 +889,7 @@ contains
        if (.not. converged) then
           ! If we didn't converge in the limit then reset state
           ! to the start of the step and reduce the time step.
-          gnew = g_start
+          call copy(g_start, gnew)
           time_step = time_step / time_step_factor
           nfailed_steps = nfailed_steps + 1
 
