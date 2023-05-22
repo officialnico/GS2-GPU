@@ -820,7 +820,7 @@ contains
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        ipic = 1
 
-       call fields_func(gnew, phinew, aparnew, bparnew)
+       call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
        ! Get the current nonlinear source term
        call source_func(gnew, gexp_1, &
@@ -855,7 +855,7 @@ contains
        do while(.not. converged)
           ipic = ipic + 1
 
-          call fields_func(gnew, phinew, aparnew, bparnew)
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
           call source_func(gnew, gexp_1, &
