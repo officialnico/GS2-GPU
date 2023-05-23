@@ -3234,6 +3234,8 @@ contains
        can_be_ttp_flag(il) = any(il >= ittp)
     end do
 
+    ! Calculate is_ttp_value, indicating which pitch angles can reach
+    ! and are totally trapped at this theta location.
     do il = ng2 + 1, nlambda
        do ig = -ntgrid, ntgrid
           if (il >= ittp(ig) .and. .not. forbid(ig, il)) is_ttp_value(ig, il) = .true.
