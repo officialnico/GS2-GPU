@@ -1888,7 +1888,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, il_idx
     use kt_grids, only: aky
     use le_grids, only: forbid, passing_wfb, trapped_wfb, &
-         il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
+         il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ng2
     use optionals, only: get_option_with_default
@@ -1901,7 +1901,7 @@ contains
     integer :: ilmin
     logical :: use_pass_homog_boundary, use_pass_homog
     logical :: have_trapped_particles, force_include_passing
-    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
+    logical :: is_wfb, is_passing, is_trapped
 
     ! Initialise entire array to 0, for this reason we can take g_h as
     ! intent(out) as we don't use any existing values on input.
@@ -1925,8 +1925,8 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, il, g2, use_pass_homog, ig, &
-    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped) &
-    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, &
+    !$OMP ilmin, is_wfb, is_passing, is_trapped) &
+    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, is_ttp, &
     !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2, force_include_passing) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1955,10 +1955,6 @@ contains
        ! ng2+1 is WFB.
        ! This implies have_trapped_particles is true.
        is_wfb = il_is_wfb(il)
-
-       ! Totally trapped particle is last lambda when we have trapped_particles.
-       ! This implies have_trapped_particles is true.
-       is_not_ttp = .not. il_is_ttp(il)
 
        ! Is this particle passing. Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
@@ -2015,11 +2011,13 @@ contains
        ! difference would the the totally trapped particle where we
        ! have forbid everywhere except at a single point, but then we
        ! don't use g2 for the ttp.
-       if (have_trapped_particles .and. (is_wfb .or. is_trapped) .and. is_not_ttp) then
+       if (have_trapped_particles .and. (is_wfb .or. is_trapped)) then
           !CMR, surely il >= ng2+2 works, as forbid gives no bounce point for wfb?
           !      ... but does not matter
           !In other words (is_wfb .or. is_trapped) could just be (is_trapped)
           do ig=-ntgrid,ntgrid-1
+             ! Skip for ttp
+             if (is_ttp(ig, il)) cycle
              !CMR: set g2=1 at UPPER bounce point for trapped (not ttp or wfb) at vpar<0
              ! Note with use of is_upper_bounce_point we can change ig loop to full
              ! theta domain if we like. Only relevant once wfb bounce points identified
@@ -2044,12 +2042,12 @@ contains
        ! time advance vpar > 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
        ! First set BCs for trapped particles at lower bounce point
-       ! (excluding wfb and ttp)
 
-       !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
-       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
+       if (have_trapped_particles .and. is_trapped) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
+             ! Skip for ttp
+             if (is_ttp(ig, il)) cycle
              ! Note could change ig loop to full theta grid now we are using
              ! is_lower_bounce_point
              if (is_lower_bounce_point(ig+1, il)) then
@@ -2067,19 +2065,19 @@ contains
        ! Note this treats the wfb as bouncing at the end of the parallel domain.
        ! For nperiod > 1 this means the wfb does not bounce at the interior points
        ! where bmag = bmax
-       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb) then
           ig = -ntgrid
           g_h(ig, 1, iglo) = g_h(ig, 2, iglo)
        endif
 
        ! time advance vpar > 0 homogeneous part
-       if (is_not_ttp) then
-          do ig = -ntgrid, ntgrid-1
-             !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
-             g_h(ig+1, 1, iglo) = -g_h(ig, 1, iglo) * r(ig, 1, iglo) + g2(ig+1, 1)
-          end do
-       end if
+       do ig = -ntgrid, ntgrid-1
+          ! Skip for ttp
+          if (is_ttp(ig, il)) cycle
 
+          !CMR, 17/4/2012:  use consistent homogeneous trapped solution (g2) at lbp
+          g_h(ig+1, 1, iglo) = -g_h(ig, 1, iglo) * r(ig, 1, iglo) + g2(ig+1, 1)
+       end do
     end do
     !$OMP END PARALLEL DO
 
