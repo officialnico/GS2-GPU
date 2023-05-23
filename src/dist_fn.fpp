@@ -4722,7 +4722,7 @@ contains
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
-         is_lower_bounce_point, ittp
+         is_lower_bounce_point
     use kt_grids, only: aky, ntheta0
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4754,7 +4754,7 @@ contains
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
     !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, g_h, zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
@@ -4973,7 +4973,7 @@ contains
           beta1 = 0.0
           do ig = ntgrid-1, -ntgrid, -1
              ! If totally trapped or forbidden then cycle
-             if (forbid(ig,il) .or. il >= ittp(ig)) then
+             if (forbid(ig, il) .or. is_ttp(ig, il)) then
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
              else if (forbid(ig+1,il)) then !This could be is_upper_bounce_point(ig, il)?
