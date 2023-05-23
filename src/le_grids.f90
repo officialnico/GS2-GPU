@@ -688,20 +688,6 @@ contains
     ! identify the wfb
   end function il_is_wfb
 
-  !> Returns true if the passed pitch angle grid point
-  !> is considered the totally trapped particle
-  !>
-  !> @note This method appears to discount the possibility
-  !> of ttp at anything other than the global minimum in B.
-  !> For surfaces with multiple local minima this method might
-  !> need generalising, with il==nlamdba replaced by something
-  !> like can_be_ttp(il).
-  elemental logical function il_is_ttp(il) result(is_ttp)
-    implicit none
-    integer, intent(in) :: il
-    is_ttp = grid_has_trapped_particles() .and. il == nlambda 
-  end function il_is_ttp
-
   !> Calculates energy grid and (untrapped) pitch angle weights for
   !> integrals which drop a point from the energy/lambda
   !> dimensions. These are only used for estimating the velocity space
