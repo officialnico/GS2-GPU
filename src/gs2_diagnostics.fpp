@@ -1275,19 +1275,17 @@ contains
        if (write_heating) call broadcast (heat_avg)
     end if
 
-    if (proc0) then
-       if (print_flux_line) then
-          if (has_phi) then
-             call write_heat_fluxes_to_unit(output_unit, t, phi2, &
-                  heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
-          end if
-          if (has_apar) then
-            call write_apar_fluxes_to_unit(output_unit, t, apar2, mheat_fluxes, mpart_fluxes)
-          end if
-          if (has_bpar) then
-            call write_bpar_fluxes_to_unit(output_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
-          end if
-       end if
+    if (proc0 .and. print_flux_line) then
+      if (has_phi) then
+        call write_heat_fluxes_to_unit(output_unit, t, phi2, &
+             heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
+      end if
+      if (has_apar) then
+        call write_apar_fluxes_to_unit(output_unit, t, apar2, mheat_fluxes, mpart_fluxes)
+      end if
+      if (has_bpar) then
+        call write_bpar_fluxes_to_unit(output_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
+      end if
     end if
 
     ! Check for convergence
@@ -1304,83 +1302,78 @@ contains
        return
     end if
 
-    if (debug) write(6,*) "loop_diagnostics: -2"
+    if (debug) write(output_unit, *) "loop_diagnostics: -2"
     call prof_entering ("loop_diagnostics-2")
 
     if (proc0 .and. write_any) then
-       if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_heating) call do_write_heating(t, heat_unit, heat_unit2, h)
-
-       if (write_ascii .and. write_jext) call do_write_jext(t,istep)
-
-       if (write_flux_line) then
-          hflux_tot = 0.
-          zflux_tot = 0.
-          vflux_tot = 0.
-          if (has_phi) then
-             if (write_ascii) then
-               call write_heat_fluxes_to_unit(out_unit, t, phi2, &
-                    heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
-             end if
-             hflux_tot = sum(heat_fluxes)
-             vflux_tot = sum(mom_fluxes)
-             zflux_tot = sum(part_fluxes*spec%z)
-          end if
-          if (has_apar) then
-             if (write_lorentzian .and. write_ascii) then
-                wtmp_new = antenna_w()
-                if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
-                     write (unit=out_unit, fmt="('w= ',e17.10, &
-                     &  ' amp= ',e17.10)") real(wtmp_new), sqrt(2.*apar2)
-                wtmp_old = wtmp_new                
-             end if
-             if (write_ascii) then
-               call write_apar_fluxes_to_unit(out_unit, t, apar2, mheat_fluxes, mpart_fluxes)
-             end if
-             hflux_tot = hflux_tot + sum(mheat_fluxes)
-             vflux_tot = vflux_tot + sum(mmom_fluxes)
-             zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
-          end if
-          if (has_bpar) then
-             if (write_ascii) then
-               call write_bpar_fluxes_to_unit(out_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
-             end if
-             hflux_tot = hflux_tot + sum(bheat_fluxes)
-             vflux_tot = vflux_tot + sum(bmom_fluxes)
-             zflux_tot = zflux_tot + sum(bpart_fluxes*spec%z)
-          end if
-          if (write_ascii) write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, &
-               & ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
-          if (write_nl_flux) then
-             call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
-                  heat_par, mheat_par, bheat_par, &
-                  heat_perp, mheat_perp, bheat_perp, &
-                  heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
-             call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
-             ! Update the target array in parameter_scan_arrays
-             !Do you really want the scan parameter to rely on a diagnostic flag?
-             ! below line gives out-of-bounds array for runs inside trinity
-             !                  scan_hflux(nout) = hflux_tot
-             scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
-
-             call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
-                  mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
-                  vflux_par, vflux_perp, vflux0, vflux1)
-             ! Update the target array in parameter_scan_arrays
-             !Do you really want the scan parameter to rely on a diagnostic flag?
-             ! below line gives out-of-bounds array for runs inside trinity
-             !                  scan_momflux(nout) = vflux_tot
-             scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
-             call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
-                  part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
-          end if
-
-          if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
-
-          ! below line gives out-of-bounds array for runs inside trinity
-          !               scan_phi2_tot(nout) = phi2
-          scan_phi2_tot(mod(nout-1,nstep/nwrite+1)+1) = phi2
+       if (write_ascii) then
+         write (unit=out_unit, fmt=*) 'time=', t
+         if (write_heating) call do_write_heating(t, heat_unit, heat_unit2, h)
+         if (write_jext) call do_write_jext(t,istep)
        end if
+
+       hflux_tot = 0.
+       zflux_tot = 0.
+       vflux_tot = 0.
+       if (has_phi) then
+         hflux_tot = sum(heat_fluxes)
+         vflux_tot = sum(mom_fluxes)
+         zflux_tot = sum(part_fluxes*spec%z)
+       end if
+       if (has_apar) then
+         hflux_tot = hflux_tot + sum(mheat_fluxes)
+         vflux_tot = vflux_tot + sum(mmom_fluxes)
+         zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
+       end if
+       if (has_bpar) then
+         hflux_tot = hflux_tot + sum(bheat_fluxes)
+         vflux_tot = vflux_tot + sum(bmom_fluxes)
+         zflux_tot = zflux_tot + sum(bpart_fluxes*spec%z)
+       end if
+
+       if (write_flux_line .and. write_ascii) then
+         if (has_phi) then
+           call write_heat_fluxes_to_unit(out_unit, t, phi2, &
+                heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
+         end if
+         if (write_lorentzian) then
+           wtmp_new = antenna_w()
+           if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
+                write (unit=out_unit, fmt="('w= ',e17.10, ' amp= ',e17.10)") real(wtmp_new), sqrt(2.*apar2)
+           wtmp_old = wtmp_new
+         end if
+         if (has_apar) then
+           call write_apar_fluxes_to_unit(out_unit, t, apar2, mheat_fluxes, mpart_fluxes)
+         end if
+         if (has_bpar) then
+           call write_bpar_fluxes_to_unit(out_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
+         end if
+         write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
+       end if
+
+       if (write_nl_flux) then
+         call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
+              heat_par, mheat_par, bheat_par, &
+              heat_perp, mheat_perp, bheat_perp, &
+              heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
+         call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
+         ! Update the target array in parameter_scan_arrays
+         !Do you really want the scan parameter to rely on a diagnostic flag?
+         scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
+
+         call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
+              mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
+              vflux_par, vflux_perp, vflux0, vflux1)
+         ! Update the target array in parameter_scan_arrays
+         !Do you really want the scan parameter to rely on a diagnostic flag?
+         scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
+         call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
+              part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
+       end if
+
+       if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
+
+       scan_phi2_tot(mod(nout-1,nstep/nwrite+1)+1) = phi2
 
        if (write_ascii) then
           do ik = 1, naky
