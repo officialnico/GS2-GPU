@@ -1374,7 +1374,7 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, forbid, il_is_wfb, il_is_trapped, ittp, can_be_ttp
+    use le_grids, only: forbid, il_is_wfb, il_is_trapped, can_be_ttp, is_ttp
     use gs2_layouts, only: g_lo, il_idx
     use array_utils, only: zero_array
     implicit none
@@ -1419,33 +1419,17 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ig, scaling_knob, wdrift_value, wcoriolis_value) &
-    !$OMP SHARED(g_lo, tpdriftknob, driftknob, ntgrid, forbid, can_be_ttp, &
-    !$OMP nlambda, wdriftttp, ittp) &
+    !$OMP SHARED(g_lo, tpdriftknob, ntgrid, can_be_ttp, wdriftttp, is_ttp) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il=il_idx(g_lo,iglo)
        ! Cycle if this il is never ttp as we only care about ttp here.
        if (.not. can_be_ttp(il)) cycle
        do ig = -ntgrid, ntgrid
-          ! The below cycles will activate regularly, indicating wdriftttp
+          ! The below cycle will activate regularly, indicating wdriftttp
           ! may be a relatively inefficent way of storing this
           ! information, requiring a lot of memory to hold mostly 0.
-
-          ! First we cycle if there are no totally trapped particles
-          ! allowed at this theta grid point.
-          if (ittp(ig) == nlambda+1) cycle
-          ! Then we cycle if this pitch angle is forbidden at this point
-          if (forbid(ig, il)) cycle
-          ! At this point we know that that there are totally trapped
-          ! particles at this grid point and the pitch angle which we
-          ! are considering is allowed to visit this point. However,
-          ! we do not know that the pitch angle we are considering is
-          ! totally trapped here. We probably don't want to be setting
-          ! wdriftttp for pitch angles which are not totally trapped
-          ! here so now cycle if we're not totally trapped here.
-          ! Note we could replace if (ittp(ig) == nlambda+1) cycle above
-          ! with this line, but leaving separate for now.
-          if (il < ittp(ig)) cycle
+          if (.not. is_ttp(ig, il)) cycle
 
           !GWH+JAB: should this be calculated only at ittp? or for
           !each totally trapped pitch angle? (Orig logic: there was
