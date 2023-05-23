@@ -708,7 +708,7 @@ contains
     !
     use gs2_layouts, only: g_lo, il_idx
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, jend, ittp
+    use le_grids, only: forbid, grid_has_trapped_particles, jend, is_ttp
     use mp, only: mp_abort
 
     implicit none
@@ -722,7 +722,7 @@ contains
     ! factor of one-half appears elsewhere
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ig) &
-    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, ittp, jend, trapped, bd) &
+    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, is_ttp, jend, trapped, bd) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
@@ -750,7 +750,14 @@ contains
           ! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
           !           except for ttp where upwinding makes no sense!
           !
-          if (il >= ittp(ig)) cycle
+          ! Note this cycle doesn't skip when ig is in the forbidden region
+          ! even if the pitch angle is greater than the totally trapped one
+          ! at this location. This ensures that whilst we leave the (allowed)
+          ! totally trapped source alone we still zero the NL source for forbidden
+          ! points. Previously we cycled simply if the pitch angle index was larger
+          ! than the totally trapped one. When there are multiple totally trapped
+          ! pitch angles this may not be equivalent.
+          if (is_ttp(ig, il)) cycle
           ! The below might be better off using forbid instead of checking jend
           if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
              !
