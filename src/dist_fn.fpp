@@ -102,6 +102,10 @@ module dist_fn
   public :: get_dist_fn_species_config
   public :: get_source_config
 
+  ! The following routines are sometimes used for debugging or testing purposes
+  public :: dump_homogeneous_solution, dump_current_source_term, get_field_inconsistency
+  public :: check_getan, get_mom_glm
+
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
@@ -1118,10 +1122,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
-    use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: vpa, vpac, vpar
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
-    !initializing  = .true.
+
     if (.not. initialized_dist_fn_level_3) return
     initialized_dist_fn_level_3 = .false.
 
@@ -1371,11 +1374,11 @@ contains
   !> FIXME : Add documentation
   subroutine init_wdrift
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, forbid, il_is_wfb, il_is_trapped, ittp, can_be_ttp
+    use le_grids, only: nlambda, forbid, il_is_wfb, il_is_trapped, ittp, can_be_ttp
     use gs2_layouts, only: g_lo, il_idx
     use array_utils, only: zero_array
     implicit none
-    integer :: ig, ik, it, il, is, iglo
+    integer :: ig, il, iglo
     real :: scaling_knob, wdrift_value, wcoriolis_value
     logical, parameter :: debug = .false.
 
@@ -1706,13 +1709,12 @@ contains
   !> FIXME : Add documentation  
   subroutine init_bessel
     use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
-    use kt_grids, only: kperp2, naky, ntheta0
+    use kt_grids, only: kperp2
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy,  al,negrid, nlambda
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, gf_lo
     use spfunc, only: j0, j1
-    use mp, only: nproc, iproc
     implicit none
 
     integer :: ig, ik, it, il, ie, is
@@ -1887,7 +1889,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, il_idx
     use kt_grids, only: aky
-    use le_grids, only: forbid, passing_wfb, trapped_wfb, &
+    use le_grids, only: passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ng2
@@ -4435,7 +4437,7 @@ contains
     use kt_grids, only: aky
     use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
     use species, only: spec, nonmaxw_corr
-    use run_parameters, only: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
+    use run_parameters, only: fphi, fapar, fbpar, has_apar, has_bpar, has_phi
     use gs2_time, only: code_dt
     use constants, only: zi
     implicit none
@@ -4450,8 +4452,12 @@ contains
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
 
     !Temporally weighted fields
-    phigavg  = (fexp(is)*phi(:,it,ik)   + (1.0-fexp(is))*phinew(:,it,ik)) &
+    if (has_phi) then
+      phigavg = (fexp(is) * phi(:,it,ik) + (1.0-fexp(is)) * phinew(:,it,ik)) &
                 *aj0(:,iglo)*fphi
+    else
+      phigavg = 0.0
+    end if
 
     if(has_bpar)then
        phigavg=phigavg+&
@@ -4720,12 +4726,12 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, ng2, lmax, forbid,&
+    use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ittp
-    use kt_grids, only: aky, ntheta0
+    use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
@@ -4737,7 +4743,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
-    integer :: ig, ik, it, il, ie, isgn, is
+    integer :: ig, ik, it, il, ie, is
     integer :: ilmin
     complex :: beta1
     complex :: adjleft, adjright
@@ -4757,7 +4763,7 @@ contains
     !$OMP adjright, adjleft, ig, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
-    !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, g_h, zero_forbid, &
+    !$OMP aky, ng2, have_trapped_particles, forbid, g_h, zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -5096,18 +5102,14 @@ contains
   !> FIXME : Add documentation  
   subroutine invert_rhs_linked &
        (phi, apar, bpar, phinew, aparnew, bparnew, source)
-    use dist_fn_arrays, only: gnew, g_work, vperp2, aj0, aj1
-    use theta_grid, only: bmag, ntgrid
-    use le_grids, only: energy, al, &
-         is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
-         il_is_wfb
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx,&
-         is_idx, idx
+    use dist_fn_arrays, only: gnew, vperp2, aj0, aj1
+    use theta_grid, only: ntgrid
+    use le_grids, only: is_passing_hybrid_electron, passing_wfb, trapped_wfb, il_is_wfb
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
     use spfunc, only: j0, j1
-    use kt_grids, only: kperp2
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:, :, :), intent(in) :: phi,    apar,    bpar
@@ -5148,7 +5150,7 @@ contains
        !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
        !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
        !$OMP SHARED(g_lo, r_links, l_links, trapped_wfb, passing_wfb, nonad_zero, &
-       !$OMP bmag, ntgrid, al, energy, spec, kperp2, bparnew, fbpar, nonmaxw_corr, &
+       !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
        !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -5434,7 +5436,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, optional :: local_only
     real, dimension (nspec) :: wgt
-    integer :: isgn, iglo, ig, ik, it
+    integer :: isgn, iglo, ig
     logical :: local_local_only
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
@@ -6334,7 +6336,6 @@ contains
   !> FIXME : Add documentation    
   subroutine getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -6354,7 +6355,6 @@ contains
   !> FIXME : Add documentation    
   subroutine getfieldeq_nogath (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp, local_only)
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -7127,7 +7127,7 @@ contains
   subroutine setup_get_fields_direct_from_dfn_denominators(phi_denom, bpar_denom)
     use theta_grid, only: ntgrid, bmag
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: beta, has_phi, has_apar, has_bpar
+    use run_parameters, only: beta, has_phi, has_bpar
     use array_utils, only: copy
     implicit none
     real, dimension(:, :, :), allocatable, intent(in out) :: phi_denom, bpar_denom
@@ -7272,7 +7272,7 @@ contains
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: numerator
     complex, dimension (ntheta0,naky) :: fl_avg
     logical :: local_gf_lo, local_local_only
-    integer :: it, ik, ig
+    integer :: it, ik
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
     local_gf_lo = get_option_with_default(gf_lo, .false.)
@@ -7520,12 +7520,10 @@ contains
        aparnew, bparnew, sourcefac)
     use gs2_save, only: gs2_save_for_restart
     use dist_fn_arrays, only: g_work
-    use gs2_layouts, only: g_lo
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use collisions, only: vnmult
-    use nonlinear_terms, only: nonlin, split_nonlinear
     use array_utils, only: zero_array
     implicit none
     integer, intent(in) :: istep
@@ -7577,11 +7575,9 @@ contains
 !  This fixed unphysical oscillations in non-ambipolar particle fluxes 
 !
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use theta_grid, only: ntgrid, bmag
     use theta_grid, only: qval, shat, gds21, gds22
-    use kt_grids, only: naky, ntheta0, theta0, aky
-!   use theta_grid, only: drhodpsi, grho
-!    use kt_grids, only: akx
+    use kt_grids, only: theta0, aky
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
@@ -7589,7 +7585,6 @@ contains
     use constants, only: zi
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: Rplot, Bpol
-    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
@@ -7777,17 +7772,15 @@ contains
   !> FIXME : Add documentation  
   subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, delthet
-    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, aj0, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use mp, only: proc0
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:), intent (inout) :: pflux, pmflux, pbflux
-    integer :: it, ik, is, isgn
+    integer :: is, isgn
     integer :: iglo
 
     if (proc0) then
@@ -8031,7 +8024,7 @@ contains
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: gnew, aj0, vpac, g, g_work
-    use theta_grid, only: ntgrid, gradpar, delthet, jacob, theta, field_line_average
+    use theta_grid, only: ntgrid, gradpar, delthet, field_line_average
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use run_parameters, only: has_phi
@@ -8147,7 +8140,7 @@ contains
   !! @Warning This routine may only make sense when compiling with LOWFLOW on?
   subroutine lf_flux (phi, vflx0, vflx1)
     use species, only: nspec
-    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use theta_grid, only: ntgrid, gradpar, delthet
     use theta_grid, only: drhodpsi, IoB
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: gnew, aj0, vpa, g_work
@@ -8155,13 +8148,12 @@ contains
     use mp, only: proc0
     use run_parameters, only:has_phi, rhostar
     use constants, only: zi
-    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (:,:,:), intent (out) :: vflx0, vflx1
     real, dimension (:,:), allocatable :: dum
     complex, dimension (:,:,:), allocatable :: dphi
-    integer :: it, ik, isgn, ig
+    integer :: isgn, ig
     integer :: iglo
 
     allocate (dum (-ntgrid:ntgrid,nspec))
@@ -8195,17 +8187,6 @@ contains
           end do
        end do
        call get_flux (g_work, phi, vflx1)
-
-!        do isgn = 1, 2
-!           do ig = -ntgrid, ntgrid
-!              if (allocated(rmajor_geo)) then
-!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*rmajor_geo(ig)*sqrt(1.0-bpol_geo(ig)**2/bmag(ig)**2)
-!              else
-!                 g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)
-!              end if
-!           end do
-!        end do
-!        call get_flux (g_work, phi, vflux_par)
     else
        vflx0 = 0. ; vflx1 = 0.
     end if
@@ -8221,7 +8202,6 @@ contains
     use species, only: nspec
     use mp, only: proc0
     use integration, only: trapezoidal_integration
-    use dist_fn_arrays, only: g_work
     use gs2_layouts, only: g_lo
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in    
@@ -8369,9 +8349,9 @@ contains
 !  This fixed unphysical oscillations in non-ambipolar particle fluxes 
 !
     use species, only: spec
-    use theta_grid, only: ntgrid, bmag, gradpar, delthet
+    use theta_grid, only: ntgrid, bmag
     use theta_grid, only: qval, shat, gds21, gds22
-    use kt_grids, only: naky, ntheta0, theta0, aky
+    use kt_grids, only: theta0, aky
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
@@ -8379,18 +8359,13 @@ contains
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
-    use gs2_time, only: woutunits
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
     integer :: it, ik, is, isgn, ig
     integer :: iglo
 
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
-    !if (proc0) then
-       pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0; 
-    !end if
+    pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0;
 
     if (has_phi) then
        do isgn = 1, 2
@@ -9149,7 +9124,7 @@ contains
     use kt_grids, only: ntheta0, naky, aky, akx
     use species, only: nspec, spec
     use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work, to_g_gs2, from_g_gs2
-    use run_parameters, only: has_phi, has_apar, has_bpar, beta
+    use run_parameters, only: has_phi, has_apar, beta
     use gs2_layouts, only: g_lo
     use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve
     use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve

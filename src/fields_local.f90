@@ -1066,7 +1066,6 @@ contains
   subroutine sc_invert_local(self)
     use mat_inv, only: invert_serial
     use mp, only: broadcast_sub
-    use gs2_time, only: code_dt
     implicit none
     class(supercell_type), intent(inout) :: self
     complex, dimension(:,:), allocatable :: tmp_arr
@@ -2194,8 +2193,6 @@ contains
 
   !> A routine to calculate the update to the fields
   subroutine fm_get_field_update(self, phi, apar, bpar)
-    use kt_grids, only: ntheta0, naky
-    use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     implicit none
@@ -2999,7 +2996,6 @@ contains
   subroutine fm_getfieldeq_nogath (self,phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath, gf_lo_integrate
-    use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     class(fieldmat_type), intent(in) :: self
