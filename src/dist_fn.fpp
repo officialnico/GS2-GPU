@@ -4133,7 +4133,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
+    use le_grids, only: lmax, grid_has_trapped_particles, is_ttp, can_be_ttp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar
     use gs2_time, only: code_dt, wunits
@@ -4228,7 +4228,7 @@ contains
         source_option_switch == source_option_phiext_full) then
        if (grid_has_trapped_particles() .and. isgn == 2 .and. can_be_ttp(il)) then
           do ig = -ntgrid, ntgrid-1
-             if (il < ittp(ig)) cycle
+             if (.not. is_ttp(ig, il)) cycle
              source(ig) &
                   ! Note we could replace the explicit "2" appearing below with isgn for consistency.
                   = g(ig,2,iglo)*a(ig,2,iglo) &
@@ -4244,7 +4244,7 @@ contains
           if (source_option_switch == source_option_phiext_full .and. &
                aky(ik) < epsilon(0.0)) then
              do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle             
+                if (.not. is_ttp(ig, il)) cycle
                 source(ig) = source(ig) - zi* &
 #ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
@@ -4258,20 +4258,20 @@ contains
              select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*(&
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
              case (2)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
              case (3)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig) = source(ig) + 0.5*code_dt*( &
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
@@ -4417,7 +4417,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
-    use le_grids, only: lmax, grid_has_trapped_particles, ittp, can_be_ttp
+    use le_grids, only: lmax, grid_has_trapped_particles, is_ttp, can_be_ttp
     use species, only: spec, nonmaxw_corr
     use run_parameters, only: fphi, fapar, fbpar, has_apar, has_bpar, has_phi
     use gs2_time, only: code_dt
@@ -4507,7 +4507,7 @@ contains
          source_option_switch == source_option_phiext_full) then
        if (grid_has_trapped_particles() .and. can_be_ttp(il)) then
           do ig = -ntgrid, ntgrid-1
-             if (il < ittp(ig)) cycle
+             if (.not. is_ttp(ig, il)) cycle
              source(ig,isgn) &
                   = g(ig,2,iglo)*a(ig,2,iglo) &
 #ifdef LOWFLOW
@@ -4522,7 +4522,7 @@ contains
           if (source_option_switch == source_option_phiext_full .and. &
                aky(ik) < epsilon(0.0)) then
              do ig = -ntgrid, ntgrid-1
-                if (il < ittp(ig)) cycle             
+                if (.not. is_ttp(ig, il)) cycle
                 source(ig,isgn) = source(ig,isgn) - zi* &
 #ifdef LOWFLOW
                      wdttpfac(ig,it,ik,ie,is,isgn)*2.0*phi_ext*sourcefac*aj0(ig,iglo)
@@ -4537,20 +4537,20 @@ contains
              select case (size(ab_coefficients))
              case (1)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*(&
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo))
                 end do
              case (2)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo))
                 end do
              case (3)
                 do ig = -ntgrid, ntgrid-1
-                   if (il < ittp(ig)) cycle
+                   if (.not. is_ttp(ig, il)) cycle
                    source(ig, isgn) = source(ig, isgn) + 0.5*code_dt*( &
                         ab_coefficients(1)*gexp_1(ig,isgn,iglo) + &
                         ab_coefficients(2)*gexp_2(ig,isgn,iglo) + &
