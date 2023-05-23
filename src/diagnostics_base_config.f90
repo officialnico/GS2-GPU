@@ -361,14 +361,12 @@ module diagnostics_base_config
     !> @warning Output formats and quantities differ between old and new
     !> diagnostics
     logical :: write_flux_line = .false.
-
     !> Write fluxes (heat, momentum and particle; total and per-species) every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
     !>
     !> If run is nonlinear, this defaults to true
     !>
-    !> @warning Only in new diagnostics. In old diagnostics, this is combined
-    !> with write_fluxes_by_mode and called write_nl_flux.
+    !> @warning In old diagnostics, this also turns on `write_fluxes_by_mode`
     logical :: write_fluxes = .false.
     !> Write fluxes (heat, momentum and particle; total and per-species) as a
     !> function of Fourier mode every [[gs2_diagnostics_knobs:nwrite]]
@@ -376,8 +374,7 @@ module diagnostics_base_config
     !>
     !> If run is nonlinear, this defaults to true
     !>
-    !> @warning Only in new diagnostics. In old diagnostics, this is combined
-    !> with write_fluxes and called write_nl_flux.
+    !> @warning In old diagnostics, this is combined with `write_fluxes`
     logical :: write_fluxes_by_mode = .false.
 
     !> Write moments (density, parallel flow, and parallel and perpendicular
@@ -463,7 +460,7 @@ module diagnostics_base_config
     !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
-    !> @warning Non-functional in new diagnostics
+    !> @deprecated Use [[gs2_diagnostics_knobs:write_fluxes]]
     logical :: write_nl_flux = .false.
     !> Write the poloidal distributions of the fluxes of particles,
     !> parallel momentum, perpendicular momentum, and energy every
@@ -768,6 +765,12 @@ contains
 
     call warn_about_deprecated_option(write_hrate, "write_hrate", &
                                       write_heating, "write_heating")
+
+    write_fluxes = write_fluxes .or. write_nl_flux
+    write_fluxes_by_mode = write_fluxes_by_mode .or. write_nl_flux
+    call warn_about_deprecated_option(write_nl_flux, "write_nl_flux", &
+                                      write_fluxes, "write_fluxes")
+
     !!!!!!!!!!!!!!!!!!!!
 
     ! Now copy from local variables into type members

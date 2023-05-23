@@ -63,7 +63,7 @@ module gs2_diagnostics
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
   logical, public :: write_heating, write_lorentzian
-  logical, public :: write_nl_flux
+  logical, public :: write_fluxes, write_fluxes_by_mode
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
   logical, public :: use_nonlin_convergence
@@ -195,7 +195,8 @@ contains
     write (unit, fmt="(' write_final_db = ',L1)") write_final_db
     write (unit, fmt="(' write_final_moments = ',L1)") write_final_moments
     write (unit, fmt="(' write_final_antot = ',L1)") write_final_antot
-    write (unit, fmt="(' write_nl_flux = ',L1)") write_nl_flux
+    write (unit, fmt="(' write_fluxes = ',L1)") write_fluxes
+    write (unit, fmt="(' write_fluxes_by_mode = ',L1)") write_fluxes_by_mode
     write (unit, fmt="(' exit_when_converged = ',L1)") exit_when_converged
     write (unit, fmt="(' use_nonlin_convergence = ',L1)") use_nonlin_convergence
     if (write_avg_moments) write (unit, fmt="(' write_avg_moments = ',L1)") write_avg_moments
@@ -350,12 +351,12 @@ contains
        write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.out.nc'
     end if
 
-    if (write_nl_flux) then
+    if (write_fluxes) then
        if (write_ascii) then
-          write (report_unit, fmt="('write_nl_flux = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
+          write (report_unit, fmt="('write_fluxes = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
        end if
     else
-       write (report_unit, fmt="('write_nl_flux = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
+       write (report_unit, fmt="('write_fluxes = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
     end if
 
     if (dump_check1) then
@@ -727,7 +728,8 @@ contains
     ! Smart defaults
     if (.not. gs2_diagnostics_config%is_initialised()) then
       if (nonlin) then
-        gs2_diagnostics_config%write_nl_flux = .true.
+        gs2_diagnostics_config%write_fluxes = .true.
+        gs2_diagnostics_config%write_fluxes_by_mode = .true.
       end if
       call apply_old_defaults(gs2_diagnostics_config)
     end if
@@ -742,7 +744,6 @@ contains
     call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
@@ -807,7 +808,8 @@ contains
     write_lpoly = gs2_diagnostics_config%write_lpoly
     write_max_verr = gs2_diagnostics_config%write_max_verr
     write_moments = gs2_diagnostics_config%write_moments
-    write_nl_flux = gs2_diagnostics_config%write_nl_flux
+    write_fluxes = gs2_diagnostics_config%write_fluxes
+    write_fluxes_by_mode = gs2_diagnostics_config%write_fluxes_by_mode
     write_nl_flux_dist = gs2_diagnostics_config%write_nl_flux_dist
     write_omavg = gs2_diagnostics_config%write_omavg
     write_omega = gs2_diagnostics_config%write_omega
@@ -853,9 +855,9 @@ contains
     write_avg_moments = write_avg_moments
 
     write_any = write_line .or. write_omega     .or. write_omavg &
-         .or. write_flux_line                   .or. write_nl_flux  &
+         .or. write_flux_line .or. write_fluxes .or. write_fluxes_by_mode  &
          .or. write_kpar   .or. write_heating     .or. write_lorentzian  .or. write_gs
-    write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
+    write_any_fluxes = write_flux_line .or. print_flux_line .or. write_fluxes .or. write_fluxes_by_mode
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
          .or. write_full_moments_notgc
@@ -1175,7 +1177,7 @@ contains
 #endif
        call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
        if (has_phi .and. &
-            (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
+            (write_fluxes .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
          call eexchange (phinew, phi, exchange1, exchange)
        end if
 
@@ -1351,7 +1353,7 @@ contains
          write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
        end if
 
-       if (write_nl_flux) then
+       if (write_fluxes) then
          call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
               heat_par, mheat_par, bheat_par, &
               heat_perp, mheat_perp, bheat_perp, &
@@ -1577,9 +1579,9 @@ contains
 
     select case(target_parameter_switch)
     case(target_parameter_hflux_tot)
-       call broadcast(scan_hflux) !This is only set if write_nl_flux
+       call broadcast(scan_hflux) !This is only set if write_fluxes
     case(target_parameter_momflux_tot)
-       call broadcast(scan_momflux) !This is only set if write_nl_flux
+       call broadcast(scan_momflux) !This is only set if write_fluxes
     case(target_parameter_phi2_tot)
        call broadcast(scan_phi2)
     case default

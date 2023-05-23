@@ -575,7 +575,7 @@ contains
   !! change parameters such as the timestep.
   subroutine initialize_diagnostics(state, header)
     use gs2_diagnostics, only: init_gs2_diagnostics
-    use gs2_diagnostics, only: nwrite, write_nl_flux
+    use gs2_diagnostics, only: nwrite, write_fluxes
     use gs2_diagnostics, only: loop_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: diagnostics_init_options_type
@@ -659,7 +659,7 @@ contains
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
       call init_gs2_diagnostics (state%list, nstep, header=local_header)
-      call allocate_target_arrays(nwrite,write_nl_flux) ! must be after init_gs2_diagnostics
+      call allocate_target_arrays(nwrite, write_fluxes) ! must be after init_gs2_diagnostics
       call loop_diagnostics(0,state%exit)
     end if
 
