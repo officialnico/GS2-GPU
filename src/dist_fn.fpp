@@ -4935,11 +4935,11 @@ contains
        endif
 
        ! time advance vpar > 0 inhomogeneous part
-       do ig = -ntgrid + 1, ntgrid
+       do ig = -ntgrid, ntgrid - 1
           if (.not. is_ttp(ig, il)) then
              ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
-             gnew(ig,1,iglo) = ainv(ig-1,1,iglo)*source(ig-1,1,iglo)
-             gnew(ig,1,iglo) = gnew(ig,1,iglo) - gnew(ig-1,1,iglo)*r(ig-1,1,iglo)
+             gnew(ig + 1, 1, iglo) = ainv(ig, 1, iglo) * source(ig, 1, iglo)
+             gnew(ig + 1, 1, iglo) = gnew(ig + 1, 1, iglo) - gnew(ig, 1, iglo) * r(ig, 1, iglo)
           else
              ! If we're totally trapped then just enforce continuity in sigma.
              ! Note we don't allow for totally trapped particles at ig = +/- ntgrid
