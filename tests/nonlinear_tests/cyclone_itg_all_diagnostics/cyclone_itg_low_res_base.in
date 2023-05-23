@@ -213,7 +213,7 @@
  write_lpoly = .true. !
  write_max_verr = .true. !
  write_moments = .true. !
- write_nl_flux = .true. ! Write nonlinear fluxes as a function of time.
+ write_fluxes = .true. ! Write nonlinear fluxes as a function of time.
  write_nl_flux_dist = .true.
  write_omavg = .true. ! If (write_ascii = T) time-averaged growth rate and frequency to the output file.
  write_omega = .true. ! If (write_ascii = T) instantaneous omega to output file. Very heavy output
