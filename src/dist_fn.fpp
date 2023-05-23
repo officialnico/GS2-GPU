@@ -1776,7 +1776,7 @@ contains
     use dist_fn_arrays, only: vpar
     use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, ittp
+    use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, is_ttp
     use constants, only: zi
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
@@ -1807,7 +1807,7 @@ contains
 #ifdef LOWFLOW
     !$OMP wstar_neo, &
 #endif
-    !$OMP spec, forbid, ittp, r, a, b) &
+    !$OMP spec, forbid, is_ttp, r, a, b) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1864,7 +1864,7 @@ contains
                 endif
                 ! ???? mysterious mucking around with totally trapped particles
                 ! part of multiple trapped particle algorithm
-                if (il >= ittp(ig) .and. .not. forbid(ig, il)) then
+                if (is_ttp(ig, il)) then
                    ainv(ig,isgn,iglo) = 1.0/(1.0 + zi*(1.0-fexp(is))*spec(is)%tz*wdttp)
                    a(ig,isgn,iglo) = 1.0 - zi*fexp(is)*spec(is)%tz*wdttp
                    r(ig,isgn,iglo) = 0.0
