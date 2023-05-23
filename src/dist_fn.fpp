@@ -4988,7 +4988,7 @@ contains
           beta1 = 0.0
           do ig = ntgrid-1, -ntgrid, -1
              ! If totally trapped or forbidden then cycle
-             if (ittp(ig) <= il) cycle
+             if (il >= ittp(ig)) cycle
              if (forbid(ig,il)) then
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
