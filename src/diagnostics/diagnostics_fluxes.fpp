@@ -421,33 +421,32 @@ contains
     if (gnostics%write_fluxes .and. gnostics%writing) then
       call neasyf_write(gnostics%file_id, flux_name, flux_by_species, &
            dim_names=flux_dims, start=starts(2, gnostics%nout), &
-           long_name=flux_description//" averaged over kx and ky")
+           long_name=flux_description//" averaged over kx and ky", units=flux_units)
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name//"_by_ky", total_flux_by_ky, &
            dim_names=[ky_dim, time_dim], &
            long_name=flux_description//" summed over species and averaged over kx", &
-           start=starts(2, gnostics%nout))
+           units=flux_units, start=starts(2, gnostics%nout))
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name//"_by_kx", total_flux_by_kx, &
            dim_names=[kx_dim, time_dim], &
            long_name=flux_description//" summed over species and averaged over ky", &
-           start=starts(2, gnostics%nout))
+           units=flux_units, start=starts(2, gnostics%nout))
 
       call neasyf_write(gnostics%file_id, "total_"//flux_name, sum(total_flux_by_kx), &
            dim_names=[time_dim], &
            long_name=flux_description//" summed over species and averaged over kx and ky", &
-           start=[gnostics%nout])
+           units=flux_units, start=[gnostics%nout])
 
       if (gnostics%write_fluxes_by_mode) then 
         call neasyf_write(gnostics%file_id, flux_name//"_by_mode", flux_value, &
              dim_names=fluxk_dims, &
              long_name=flux_description//" as a function of species, kx and ky", &
-             start=starts(4, gnostics%nout))
+             units=flux_units, start=starts(4, gnostics%nout))
         call neasyf_write(gnostics%file_id, "total_"//flux_name//"_by_mode", total_flux_by_mode, &
              dim_names=mode_dims, &
              long_name=flux_description//" summed over species", &
-             start=starts(3, gnostics%nout))
-
+             units=flux_units, start=starts(3, gnostics%nout))
       end if
     end if
 

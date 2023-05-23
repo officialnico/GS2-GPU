@@ -3087,7 +3087,7 @@ contains
   !> Returns true if the passed theta grid index, ig, is a lower bounce point
   !> for the passed pitch angle index, il.
   elemental logical function is_lower_bounce_point(ig, il) result(is_lower)
-    use theta_grid, only: ntgrid, bmag
+    use theta_grid, only: ntgrid
     implicit none
     integer, intent(in) :: ig, il
     is_lower = .false.
@@ -3127,7 +3127,7 @@ contains
   !> Returns true if the passed theta grid index, ig, is a upper bounce point
   !> for the passed pitch angle index, il.
   elemental logical function is_upper_bounce_point(ig, il) result(is_upper)
-    use theta_grid, only: ntgrid, bmag
+    use theta_grid, only: ntgrid
     implicit none
     integer, intent(in) :: ig, il
     is_upper = .false.

@@ -142,7 +142,6 @@ contains
   !> FIXME : Add documentation  
   subroutine get_field_vector (fl, phi, apar, bpar)
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
@@ -238,7 +237,7 @@ contains
     use prof, only: prof_entering, prof_leaving
     use theta_grid, only: ntgrid
     use dist_fn, only: N_class
-    use mp, only: sum_allreduce, allgatherv, iproc,nproc, proc0
+    use mp, only: sum_allreduce, allgatherv, iproc, nproc
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: fl
@@ -339,7 +338,7 @@ contains
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
     use job_manage, only: time_message
-    use mp, only: proc0, get_mp_times
+    use mp, only: get_mp_times
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -415,7 +414,7 @@ contains
   !> @note This calculation is fairly generic so should perhaps be moved out into
   !> a more accessible module to allow reuse (or replaced with such a method).
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
-    use theta_grid, only: ntgrid, jacob, theta, field_line_average
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: ntheta0, naky
     use optionals, only: get_option_with_default
     implicit none
@@ -676,7 +675,6 @@ contains
   subroutine init_response_row (ig, ifield, am, ic, n)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq, timeadv, M_class, N_class
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
