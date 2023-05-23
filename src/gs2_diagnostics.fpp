@@ -1045,6 +1045,7 @@ contains
   !>
   !> This is the main routine for the "old" diagnostics.
   subroutine loop_diagnostics (istep, exit, debopt, force)
+    use, intrinsic :: iso_fortran_env, only: output_unit
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
@@ -1277,22 +1278,14 @@ contains
     if (proc0) then
        if (print_flux_line) then
           if (has_phi) then
-             write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-                  & ' heat fluxes: ', 5(1x,e13.6))") &
-                  t, phi2, heat_fluxes(1:min(nspec,5))
-             write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-                  & ' energy exchange: ', 5(1x,e13.6))") &
-                  t, phi2, energy_exchange(1:min(nspec,5))
+             call write_heat_fluxes_to_unit(output_unit, t, phi2, &
+                  heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
           end if
           if (has_apar) then
-             write (unit=*, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                  & ' heat flux m: ', 5(1x,e11.4))") &
-                  t, apar2, mheat_fluxes(1:min(nspec,5))
+            call write_apar_fluxes_to_unit(output_unit, t, apar2, mheat_fluxes, mpart_fluxes)
           end if
           if (has_bpar) then
-             write (unit=*, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                  & ' heat flux b: ', 5(1x,e11.4))") &
-                  t, bpar2, bheat_fluxes(1:min(nspec,5))
+            call write_bpar_fluxes_to_unit(output_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
           end if
        end if
     end if
@@ -1320,31 +1313,14 @@ contains
 
        if (write_ascii .and. write_jext) call do_write_jext(t,istep)
 
-       ! DONE
        if (write_flux_line) then
           hflux_tot = 0.
           zflux_tot = 0.
           vflux_tot = 0.
           if (has_phi) then
              if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' heat fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, heat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' part fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, part_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' mom fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, mom_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' energy exchange: ', 5(1x,e11.4))") &
-                     t, phi2, energy_exchange(1:min(nspec,5))
-
-#ifdef LOWFLOW
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-                     t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
-#endif
+               call write_heat_fluxes_to_unit(out_unit, t, phi2, &
+                    heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
              end if
              hflux_tot = sum(heat_fluxes)
              vflux_tot = sum(mom_fluxes)
@@ -1359,12 +1335,7 @@ contains
                 wtmp_old = wtmp_new                
              end if
              if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                     & ' heat mluxes: ', 5(1x,e11.4))") &
-                     t, apar2, mheat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                     & ' part mluxes: ', 5(1x,e11.4))") &
-                     t, apar2, mpart_fluxes(1:min(nspec,5))
+               call write_apar_fluxes_to_unit(out_unit, t, apar2, mheat_fluxes, mpart_fluxes)
              end if
              hflux_tot = hflux_tot + sum(mheat_fluxes)
              vflux_tot = vflux_tot + sum(mmom_fluxes)
@@ -1372,12 +1343,7 @@ contains
           end if
           if (has_bpar) then
              if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                     & ' heat bluxes: ', 5(1x,e11.4))") &
-                     t, bpar2, bheat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                     & ' part bluxes: ', 5(1x,e11.4))") &
-                     t, bpar2, bpart_fluxes(1:min(nspec,5))
+               call write_bpar_fluxes_to_unit(out_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
              end if
              hflux_tot = hflux_tot + sum(bheat_fluxes)
              vflux_tot = vflux_tot + sum(bmom_fluxes)
@@ -1471,6 +1437,82 @@ contains
     call prof_leaving ("loop_diagnostics-2")
     if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
+
+  subroutine write_heat_fluxes_to_unit(out_unit, t, phi2, &
+       heat_fluxes, part_fluxes, mom_fluxes, energy_exchange)
+    use iso_fortran_env, only: output_unit
+    use species, only: nspec
+
+    integer, intent(in) :: out_unit
+    real, intent(in) :: t
+    real, intent(in) :: phi2
+    real, dimension(:), intent(in) :: heat_fluxes, part_fluxes, mom_fluxes, energy_exchange
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' heat fluxes: ', 5(1x,e11.4))") &
+         t, phi2, heat_fluxes(1:min(nspec,5))
+
+    ! Only write some stuff to screen
+    if (out_unit /= output_unit) then
+      write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' part fluxes: ', 5(1x,e11.4))") &
+         t, phi2, part_fluxes(1:min(nspec,5))
+      write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' mom fluxes: ', 5(1x,e11.4))") &
+         t, phi2, mom_fluxes(1:min(nspec,5))
+    end if
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' energy exchange: ', 5(1x,e11.4))") &
+         t, phi2, energy_exchange(1:min(nspec,5))
+
+    if (out_unit == output_unit) return
+
+#ifdef LOWFLOW
+    write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
+         t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
+#endif
+  end subroutine write_heat_fluxes_to_unit
+
+  subroutine write_apar_fluxes_to_unit(out_unit, t, apar2, mheat_fluxes, mpart_fluxes)
+    use iso_fortran_env, only: output_unit
+    use species, only: nspec
+    integer, intent(in) :: out_unit
+    real, intent(in) :: t
+    real, intent(in) :: apar2
+    real, dimension(:), intent(in) :: mheat_fluxes, mpart_fluxes
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
+         & ' heat mluxes: ', 5(1x,e11.4))") &
+         t, apar2, mheat_fluxes(1:min(nspec,5))
+
+    if (out_unit == output_unit) return
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
+         & ' part mluxes: ', 5(1x,e11.4))") &
+         t, apar2, mpart_fluxes(1:min(nspec,5))
+  end subroutine write_apar_fluxes_to_unit
+
+  subroutine write_bpar_fluxes_to_unit(out_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
+    use iso_fortran_env, only: output_unit
+    use species, only: nspec
+    integer, intent(in) :: out_unit
+    real, intent(in) :: t
+    real, intent(in) :: bpar2
+    real, dimension(:), intent(in) :: bheat_fluxes, bpart_fluxes
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
+         & ' heat bluxes: ', 5(1x,e11.4))") &
+         t, bpar2, bheat_fluxes(1:min(nspec,5))
+
+    if (out_unit == output_unit) return
+
+    write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
+         & ' part bluxes: ', 5(1x,e11.4))") &
+         t, bpar2, bpart_fluxes(1:min(nspec,5))
+
+  end subroutine write_bpar_fluxes_to_unit
 
   !> Calculate [[gs2_diagnostics_knobs:omegaavg]] for linear simulations or if
   !> [[run_parameters_knobs:eqzip]] is on; otherwise set
