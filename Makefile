@@ -231,9 +231,6 @@ PROGDIR:= $(SRCDIR)/programs
 
 #Extra subdirectories which include code that might be needed
 SUBDIRS= geo diagnostics
-ifdef USE_NEW_DIAG
-SUBDIRS += diagnostics/simpledataio/src
-endif
 SUBDIRS:= $(addprefix $(SRCDIR)/, $(SUBDIRS))
 
 #External subdirectories which include code that might be needed
@@ -641,7 +638,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
-.PHONY: depend tar tar_exec test_make diagnostics simpledataio
+.PHONY: depend tar tar_exec test_make diagnostics
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
@@ -1028,13 +1025,6 @@ ifdef USE_FFT
 	$(call messageKeyVal, "FFT_DIR", $(FFT_DIR))
 else
 	$(call messageInfo,"FFT: DISABLED")
-endif
-	@echo
-ifdef USE_NEW_DIAG
-	$(call messageInfo,"SIMPLEDATAIO:")
-	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
-else
-	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
 endif
 	@echo
 ifdef WITH_EIG
