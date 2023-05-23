@@ -3236,7 +3236,7 @@ contains
        do il = ng2+1, nlambda
           if (forbid(ig-1,il) .and. forbid(ig+1, il) &
                .and. .not. forbid(ig, il)) then
-             ittp(ig) = il
+             ittp_indices(ig) = il
 
              ! Record the lowest il which satisfies the condition
              exit
