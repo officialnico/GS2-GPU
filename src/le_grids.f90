@@ -172,7 +172,7 @@ module le_grids
   public :: setup_passing_lambda_grids
   public :: passing_wfb, trapped_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
-  public :: il_is_wfb, can_be_ttp, is_ttp, il_is_ttp
+  public :: il_is_wfb, can_be_ttp, is_ttp
   public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type

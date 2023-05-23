@@ -4720,7 +4720,7 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, ng2, lmax, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
-         il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
+         il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ittp
     use kt_grids, only: aky, ntheta0
@@ -4741,7 +4741,7 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     logical :: have_trapped_particles
-    logical :: is_wfb, is_not_ttp, is_passing, is_trapped
+    logical :: is_wfb, is_passing, is_trapped
     logical :: is_self_periodic
 
     ! Note this variable is probably redundant in the later conditionals as it is
@@ -4751,9 +4751,9 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
-    !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped, is_self_periodic, &
+    !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
     !$OMP aky, ng2, have_trapped_particles, ntheta0, forbid, g_h, zero_forbid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
@@ -4817,10 +4817,6 @@ contains
        ! ng2+1 is WFB.
        ! This implies have_trapped_particles is true.
        is_wfb = il_is_wfb(il)
-
-       ! Totally trapped particle is last lambda when we have trapped_particles.
-       ! This implies have_trapped_particles is true.
-       is_not_ttp = .not. il_is_ttp(il)
 
        ! Is this particle passing. Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
@@ -4922,12 +4918,12 @@ contains
        ! time advance vpar > 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
        ! First set BCs for trapped particles at lower bounce point
-       ! (excluding wfb and ttp)
-
-       !CMR, 17/4/2012: ng2+1< il <=lmax excludes wfb,ttp
-       if (have_trapped_particles .and. is_trapped .and. is_not_ttp) then
+       if (have_trapped_particles .and. is_trapped) then
           ! match boundary conditions at lower bounce point
           do ig = -ntgrid, ntgrid-1
+             ! Skip for ttp
+             if (is_ttp(ig, il)) cycle
+
              ! Note could change ig loop to full theta grid now we are using
              ! is_lower_bounce_point
              if (is_lower_bounce_point(ig+1, il)) then
@@ -4943,31 +4939,22 @@ contains
        ! Note this treats the wfb as bouncing at the end of the parallel domain.
        ! For nperiod > 1 this means the wfb does not bounce at the interior points
        ! where bmag = bmax
-       if (have_trapped_particles .and. is_wfb .and. trapped_wfb .and. is_not_ttp) then
+       if (have_trapped_particles .and. is_wfb .and. trapped_wfb) then
           ig = -ntgrid
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
 
        ! time advance vpar > 0 inhomogeneous part
-       if (is_not_ttp) then
-          do ig = -ntgrid, ntgrid-1
+       do ig = -ntgrid + 1, ntgrid
+          if (.not. is_ttp(ig, il)) then
              ! Use two statements here to *prevent* erroneous vectorization of this loop by gfortran 7.2
-             gnew(ig+1,1,iglo) = ainv(ig,1,iglo)*source(ig,1,iglo)
-             gnew(ig+1,1,iglo) = gnew(ig+1,1,iglo) - gnew(ig,1,iglo)*r(ig,1,iglo)
-          end do
-       end if
-
-       ! BD: Are there ever totally trapped particles at ig = ntgrid?
-       ! balancing totally trapped particles
-       do ig = -ntgrid, ntgrid
-          ! If this pitch angle is greater or equal to ittp(ig) then it
-          ! is either totally trapped at ig or forbidden.
-          if (il >= ittp(ig)) then
-             if (forbid(ig,il)) then
-                gnew(ig,1,iglo) = 0.0
-             else
-                gnew(ig,1,iglo) = gnew(ig,2,iglo)
-             end if
+             gnew(ig,1,iglo) = ainv(ig-1,1,iglo)*source(ig-1,1,iglo)
+             gnew(ig,1,iglo) = gnew(ig,1,iglo) - gnew(ig-1,1,iglo)*r(ig-1,1,iglo)
+          else
+             ! If we're totally trapped then just enforce continuity in sigma.
+             ! Note we don't allow for totally trapped particles at ig = +/- ntgrid
+             ! so it doesn't matter that the outer loop does not cover the full range.
+             if (.not. forbid(ig, il)) gnew(ig, 1, iglo) = gnew(ig, 2, iglo)
           end if
        end do
 
@@ -4982,12 +4969,11 @@ contains
        !Revert to looping from il>= ng2+2, i.e. exclude wfb as:
        !          (1) wfb bc is already handled above
        !          (2) forbid never true for wfb, so including ng2+1 in loop is pointless.
-       if (is_trapped .and. is_not_ttp) then
+       if (is_trapped) then
           beta1 = 0.0
           do ig = ntgrid-1, -ntgrid, -1
              ! If totally trapped or forbidden then cycle
-             if (il >= ittp(ig)) cycle
-             if (forbid(ig,il)) then
+             if (forbid(ig,il) .or. il >= ittp(ig)) then
                 beta1 = 0.0
                 cycle !CMR: to avoid pointless arithmetic later in loop
              else if (forbid(ig+1,il)) then !This could be is_upper_bounce_point(ig, il)?
@@ -5004,7 +4990,7 @@ contains
        ! When nperiod  > 1 this means we do not consider the wfb to bounce at the
        ! interior points with bmag=bmax. This treatment works out slightly similar
        ! to the self_periodic treatment but mixes the different sigma.
-       if (is_wfb .and. trapped_wfb .and. is_not_ttp ) then
+       if (is_wfb .and. trapped_wfb) then
           ig = ntgrid
           ! Note here we find the difference between gnew at different sigma
           ! but the same theta, whilst in self_periodic we find the difference
