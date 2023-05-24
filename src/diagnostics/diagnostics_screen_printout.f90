@@ -9,6 +9,7 @@ module diagnostics_printout
   public :: write_line
   public :: print_flux_line
   public :: write_flux_line
+  public :: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, write_bpar_fluxes_to_unit
 
 contains
 
@@ -92,7 +93,7 @@ contains
       end subroutine phinorm
   end subroutine output_line
   
-  !> Print instaneous heat fluxes to run_name.new.out
+  !> Print instantaneous heat fluxes to run_name.new.out
   subroutine write_flux_line(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
@@ -102,7 +103,7 @@ contains
     call output_flux_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_flux_line
     
-  !> Print instaneous heat fluxes to screen
+  !> Print instantaneous heat fluxes to screen
   subroutine print_flux_line(gnostics)
     use file_utils, only: stdout_unit
     use diagnostics_config, only: diagnostics_type
@@ -111,7 +112,9 @@ contains
     call output_flux_line(gnostics, stdout_unit)
   end subroutine print_flux_line
 
-  !> FIXME : Add documentation  
+  !> Write instantaneous heat fluxes to given unit
+  !>
+  !> Used for new diagnostics only
   subroutine output_flux_line(gnostics, outunit)
     use run_parameters, only: has_phi, has_apar, has_bpar
     use species, only: nspec
@@ -120,30 +123,123 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     integer, intent(in) :: outunit
     if (has_phi) then
-       write (unit=outunit, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-            & ' heat fluxes: ', 5(1x,e13.6))") &
-            gnostics%user_time, &
-            gnostics%current_results%phi2, &
-            gnostics%current_results%species_es_heat_flux(1:min(nspec,5))
-       write (unit=outunit, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-            & ' energy exchange: ', 5(1x,e13.6))") &
-            gnostics%user_time, &
-            gnostics%current_results%phi2, &
-            gnostics%current_results%species_energy_exchange(1:min(nspec,5))
+      call write_phi_fluxes_to_unit(outunit, gnostics%user_time, &
+           gnostics%current_results%phi2, &
+           gnostics%current_results%species_es_heat_flux, &
+           gnostics%current_results%species_energy_exchange)
     end if
     if (has_apar) then
-       write (unit=outunit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-            & ' heat flux m: ', 5(1x,e11.4))") &
-            gnostics%user_time, &
-            gnostics%current_results%apar2, &
-            gnostics%current_results%species_apar_heat_flux(1:min(nspec,5))
+      call write_apar_fluxes_to_unit(outunit, gnostics%user_time, &
+           gnostics%current_results%apar2, &
+           gnostics%current_results%species_apar_heat_flux)
     end if
     if (has_bpar) then
-       write (unit=outunit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-            & ' heat flux b: ', 5(1x,e11.4))") &
-            gnostics%user_time, &
-            gnostics%current_results%bpar2, & 
-            gnostics%current_results%species_bpar_heat_flux(1:min(nspec,5))
+      call write_bpar_fluxes_to_unit(outunit, gnostics%user_time, &
+           gnostics%current_results%bpar2, &
+           gnostics%current_results%species_bpar_heat_flux)
     end if
   end subroutine output_flux_line
+
+  !> Write instantaneous fluxes from electrostatic potential to screen
+  !> or file
+  subroutine write_phi_fluxes_to_unit(unit, time, phi2, &
+       heat_fluxes, energy_exchange, part_fluxes, mom_fluxes, &
+       lfmom_fluxes, vflux1_avg)
+    use species, only: nspec
+    !> An existing, open unit
+    integer, intent(in) :: unit
+    !> Current simulation time
+    real, intent(in) :: time
+    !> Averaged amplitude squared of electrostatic potential
+    real, intent(in) :: phi2
+    !> Heat flux due to electrostatic potential
+    real, dimension(:), intent(in) :: heat_fluxes
+    !> Energy exchange -- see [[dist_fn:eexchange]]
+    real, dimension(:), intent(in) :: energy_exchange
+    !> Particle flux due to electrostatic potential
+    real, dimension(:), intent(in), optional :: part_fluxes
+    !> Momentum flux due to electrostatic potential
+    real, dimension(:), intent(in), optional :: mom_fluxes
+    !> "Low flow" momentum flux due to electrostatic potential
+    real, dimension(:), intent(in), optional :: lfmom_fluxes
+    !> FIXME: Add documentation
+    real, dimension(:), intent(in), optional :: vflux1_avg
+
+    write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' heat fluxes: ', 5(1x,e11.4))") &
+         time, phi2, heat_fluxes(1:min(nspec,5))
+
+    if (present(part_fluxes)) then
+      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' part fluxes: ', 5(1x,e11.4))") &
+         time, phi2, part_fluxes(1:min(nspec,5))
+    end if
+    if (present(mom_fluxes)) then
+      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' mom fluxes: ', 5(1x,e11.4))") &
+         time, phi2, mom_fluxes(1:min(nspec,5))
+    end if
+
+    write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+         & ' energy exchange: ', 5(1x,e11.4))") &
+         time, phi2, energy_exchange(1:min(nspec,5))
+
+    if (present(mom_fluxes)) then
+      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
+           & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
+           time, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
+    end if
+  end subroutine write_phi_fluxes_to_unit
+
+  !> Write instantaneous fluxes from parallel magnetic vector
+  !> potential to screen or file
+  subroutine write_apar_fluxes_to_unit(unit, time, apar2, heat_fluxes, part_fluxes)
+    use species, only: nspec
+    !> An existing, open unit
+    integer, intent(in) :: unit
+    !> Current simulation time
+    real, intent(in) :: time
+    !> Average amplitude squared of the parallel magnetic potential
+    real, intent(in) :: apar2
+    !> Heat flux due to A//
+    real, dimension(:), intent(in) :: heat_fluxes
+    !> Particle flux due to A//
+    real, dimension(:), intent(in), optional :: part_fluxes
+
+    write (unit=unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
+         & ' heat mluxes: ', 5(1x,e11.4))") &
+         time, apar2, heat_fluxes(1:min(nspec,5))
+
+    if (.not. present(part_fluxes)) return
+
+    write (unit=unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
+         & ' part mluxes: ', 5(1x,e11.4))") &
+         time, apar2, part_fluxes(1:min(nspec,5))
+  end subroutine write_apar_fluxes_to_unit
+
+  !> Write instantaneous fluxes from parallel magnetic field to screen
+  !> or file
+  subroutine write_bpar_fluxes_to_unit(unit, time, bpar2, heat_fluxes, part_fluxes)
+    use species, only: nspec
+    !> An existing, open unit
+    integer, intent(in) :: unit
+    !> Current simulation time
+    real, intent(in) :: time
+    !> Average amplitude squared of the parallel magnetic field
+    real, intent(in) :: bpar2
+    !> Heat flux due to B//
+    real, dimension(:), intent(in) :: heat_fluxes
+    !> Particle flux due to B//
+    real, dimension(:), intent(in), optional :: part_fluxes
+
+    write (unit=unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
+         & ' heat bluxes: ', 5(1x,e11.4))") &
+         time, bpar2, heat_fluxes(1:min(nspec,5))
+
+    if (.not. present(part_fluxes)) return
+
+    write (unit=unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
+         & ' part bluxes: ', 5(1x,e11.4))") &
+         time, bpar2, part_fluxes(1:min(nspec,5))
+  end subroutine write_bpar_fluxes_to_unit
 end module diagnostics_printout
