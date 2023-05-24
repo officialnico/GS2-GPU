@@ -2187,10 +2187,6 @@ end module theta_grid_eik
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   
-# ifdef NETCDF
-  use netcdf_utils, only: kind_nf
-# endif
-
   implicit none
 
   private
@@ -2300,37 +2296,17 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_theta_grid_file_nc(report_unit)
-# ifdef NETCDF
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
-# endif
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
     implicit none
     integer, intent(in) :: report_unit
-    real :: drhodpsi, kxfac, rmaj, shat
-# ifdef NETCDF
-    integer (kind_nf) :: ncid, dimid
-    integer :: status
+    real :: drhodpsi, kxfac, rmaj, shat, qval
 
     write (report_unit, *)
     write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
     write (report_unit, fmt="(a)") trim(gridout_file)
 
-    ncid = neasyf_open(trim(gridout_file), "r")
-
-    status = nf90_inq_dimid(ncid, "nlambda", dimid)
-    if (status == NF90_NOERR) then
-       status = nf90_inquire_dimension(ncid, dimid, len=nbset)
-    end if
-
-    call neasyf_read(ncid, "ntgrid", ntgrid)
-    call neasyf_read(ncid, "nperiod", nperiod)
-    call neasyf_read(ncid, "ntheta", ntheta)
-    call neasyf_read(ncid, "drhodpsi", drhodpsi)
-    call neasyf_read(ncid, "rmaj", rmaj)
-    call neasyf_read(ncid, "shat", shat)
-    call neasyf_read(ncid, "kxfac", kxfac)
-
-    call neasyf_close(ncid)
+    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod, nlambda=nbset)
+    call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
 
     write (report_unit, *)
     write (report_unit, fmt="('Limited information available:')")
@@ -2343,6 +2319,7 @@ contains
     write (report_unit, fmt="('R =         ',f8.4)") Rmaj
     write (report_unit, fmt="('s_hat =     ',f8.4)") shat
     write (report_unit, fmt="('kxfac =     ',f8.4)") kxfac
+    write (report_unit, fmt="('qval =     ',f8.4)") qval
 
     write (report_unit, *)
     write (report_unit, *) 'NOTE: Regardless of the values of ntheta and nperiod'
@@ -2352,9 +2329,6 @@ contains
     write (report_unit, fmt="('ntheta =    ',i5)") ntheta
     write (report_unit, *) '      These were obtained from the gridgen output file.'
     write (report_unit, *)
-# else
-    call mp_abort("check_theta_grid_file_nc does not work without NetCDF")
-# endif
   end subroutine check_theta_grid_file_nc
 
   !> FIXME : Add documentation  
@@ -2429,36 +2403,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine file_nc_get_sizes
-# ifdef NETCDF
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
-# endif
+    use gs2_io_grids, only: nc_get_grid_sizes
     implicit none
-    real :: rmaj
-# ifdef NETCDF
-    integer (kind_nf) :: ncid, dimid
-    integer :: status
-
-    ncid = neasyf_open(trim(gridout_file), "r")
-
-    status = nf90_inq_dimid(ncid, "nlambda", dimid)
-    if (status == NF90_NOERR) then
-       status = nf90_inquire_dimension(ncid, dimid, len=nbset)
-    end if
-
-    call neasyf_read(ncid, "ntgrid", ntgrid)
-    call neasyf_read(ncid, "nperiod", nperiod)
-    call neasyf_read(ncid, "ntheta", ntheta)
-    call neasyf_read(ncid, "drhodpsi", drhodpsi_input)
-    call neasyf_read(ncid, "rmaj", rmaj)
-    call neasyf_read(ncid, "shat", shat_input)
-    call neasyf_read(ncid, "kxfac", kxfac_input)
-    call neasyf_read(ncid, "q", qval_input)
-
-    call neasyf_close(ncid)
-# else
-    call mp_abort("theta_grid_file_nc does not work without NetCDF")
-# endif
+    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod, nlambda=nbset)
   end subroutine file_nc_get_sizes
 
   !> FIXME : Add documentation
@@ -2598,11 +2545,7 @@ contains
        shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use constants, only: pi
     use integration, only: trapezoidal_integration
-# ifdef NETCDF
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
-    use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, NF90_NOERR
-    use netcdf, only: nf90_inq_varid
-# endif
+    use gs2_io_grids, only: nc_get_grids, nc_get_grid_scalars
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -2613,71 +2556,23 @@ contains
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
+    real :: rmaj
     logical, intent (in) :: gb_to_cv
-# ifdef NETCDF
-    integer (kind_nf) :: ncid, varid
-    integer :: status
-    integer :: ulim
 
-    ncid = neasyf_open(trim(gridout_file), "r")
+    Rplot = 1.; Rprime = 0.
+    Zplot = 1.; Zprime = 0.
+    aplot = 1.; aprime = 0.
 
-    shat = shat_input
-    drhodpsi = drhodpsi_input
-    kxfac = kxfac_input
-    qval = qval_input
+    call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
 
-    call neasyf_read(ncid, "lambda", bset)
-    bset = 1.0/bset ! switch alambda to bset
+    call nc_get_grids(gridout_file, nbset, ntgrid, bset, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+       gds2, gds21, gds22, grho, theta, &
+       Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+       Bpol)
 
-    ulim = ntgrid
-    if (no_end_point) ulim = ntgrid-1
-
-    call neasyf_read(ncid, "gbdrift", gbdrift(-ntgrid:ulim))
-    call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgrid:ulim))
-    call neasyf_read(ncid, "cvdrift", cvdrift(-ntgrid:ulim))
-    call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgrid:ulim))
-    call neasyf_read(ncid, "gradpar", gradpar(-ntgrid:ulim))
-    call neasyf_read(ncid, "bmag", bmag(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds2", gds2(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds21", gds21(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds22", gds22(-ntgrid:ulim))
-    call neasyf_read(ncid, "theta", theta(-ntgrid:ulim))
-    call neasyf_read(ncid, "grho", grho(-ntgrid:ulim))
-
-    if (no_end_point) then
-       call ntgrid_padding(gbdrift)
-       call ntgrid_padding(gbdrift0)
-       call ntgrid_padding(cvdrift)
-       call ntgrid_padding(cvdrift0)
-       call ntgrid_padding(gradpar)
-       call ntgrid_padding(bmag)
-       call ntgrid_padding(gds2)
-       call ntgrid_padding(gds21)
-       call ntgrid_padding(gds22)
-       call ntgrid_padding(theta)
-       call ntgrid_padding(grho)
-    end if
-
-    status = nf90_inq_varid(ncid, "bpol", varid)
-    if (status == NF90_NOERR) then
-       call neasyf_read(ncid, "bpol", Bpol(-ntgrid:ulim))
-    else
-       write(*,'("WARNING: Bpol is not given in file_nc_get_grids. --> Currently just setting to zero, may impact some diagnostics")')
-       Bpol=0.
-    end if
-    if (no_end_point) then
-       call ntgrid_padding(Bpol)
-    end if
-
-!!$    status = nf90_inq_varid(ncid, "jacob", varid)
-!!$    if (status == NF90_NOERR) then
-!!$       call neasyf_read(ncid, "jacob", jacob)
-!!$    else
-!!$       jacob = 1.0/(drhodpsi*gradpar*bmag)
-!!$    end if
-!!$    if (no_end_point) then
-!!$       call ntgrid_padding(jacob)
-!!$    end if
+    ! switch alambda to bset
+    bset = 1.0/bset
 
     ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
@@ -2699,66 +2594,6 @@ contains
     surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
     dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
 
-    if (.not. no_geo_info) then
-       call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:ulim))
-       call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:ulim))
-       call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:ulim))
-       call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:ulim))
-       call neasyf_read(ncid, "aplot", aplot(-ntgrid:ulim))
-       call neasyf_read(ncid, "aprime", aprime(-ntgrid:ulim))
-    else
-       ! even if no_geo_info = T, read geo_info if exists
-       status = nf90_inq_varid(ncid, "Rplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:ulim))
-       else
-          Rplot = 1.
-       end if
-       status = nf90_inq_varid(ncid, "Rprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:ulim))
-       else
-          Rprime = 0.
-       end if
-
-       status = nf90_inq_varid(ncid, "Zplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:ulim))
-       else
-          Zplot = 1.
-       end if
-       status = nf90_inq_varid(ncid, "Zprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:ulim))
-       else
-          Zprime = 0.
-       end if
-       status = nf90_inq_varid(ncid, "aplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aplot", aplot(-ntgrid:ulim))
-       else
-          aplot = 1.
-       end if
-       status = nf90_inq_varid(ncid, "aprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aprime", aprime(-ntgrid:ulim))
-       else
-          aprime = 0.
-       end if
-    end if
-
-    if (no_end_point) then
-       call ntgrid_padding(Rplot)
-       call ntgrid_padding(Rprime)
-       call ntgrid_padding(Zplot)
-       call ntgrid_padding(Zprime)
-       call ntgrid_padding(aplot)
-       call ntgrid_padding(aprime)
-    end if
-
-    call neasyf_close(ncid)
-
-#endif
   end subroutine file_nc_get_grids
 
   subroutine ntgrid_padding(array)
