@@ -54,7 +54,7 @@ contains
 !WARNING: Phitot here has not been set
     if (gnostics%distributed) call sum_reduce(phitot, 0)
     
-    if(.not.(proc0 .and. gnostics%wryte)) return
+    if(.not.(proc0 .and. gnostics%writing)) return
     write (unit=outunit, fmt="('time=',1pe12.4)") gnostics%user_time
     do ik = 1, naky
        do it = 1, ntheta0
@@ -75,18 +75,18 @@ contains
     !> FIXME : Add documentation    
       subroutine phinorm (phitot)
         use fields_arrays, only: phinew, aparnew, bparnew
-        use theta_grid, only: delthet
+        use theta_grid, only: theta
         use kt_grids, only: naky, ntheta0
         use constants, only: pi
+        use integration, only: trapezoidal_integration
         implicit none
         real, dimension (:,:), intent (out) :: phitot
         integer :: ik, it
         do ik = 1, naky
            do it = 1, ntheta0
               phitot(it,ik) =0.5/pi &
-               *(sum((abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
-                      + abs(bparnew(:,it,ik))**2) &
-                     *delthet(:)))
+               *(trapezoidal_integration(theta, (abs(phinew(:,it,ik))**2 + abs(aparnew(:,it,ik))**2 &
+                      + abs(bparnew(:,it,ik))**2)))
            end do
         end do
       end subroutine phinorm
@@ -145,12 +145,5 @@ contains
             gnostics%current_results%bpar2, & 
             gnostics%current_results%species_bpar_heat_flux(1:min(nspec,5))
     end if
-    
-    ! Below TBC. EGH
-!#ifdef LOWFLOW
-    !write (unit=outunit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-    !& ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-    !t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
-!#endif
-    end subroutine output_flux_line
+  end subroutine output_flux_line
 end module diagnostics_printout

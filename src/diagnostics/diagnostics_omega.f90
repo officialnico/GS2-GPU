@@ -46,60 +46,26 @@ contains
   !> Write omega, omega_average as functions of kx, ky and time
   !! to the new netcdf file
   subroutine write_omega(gnostics)
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-    use diagnostics_dimensions, only: dim_string
-    use fields_parallelization, only: field_k_local
     use gs2_time, only: woutunits
     use kt_grids, only: ntheta0, naky
     use diagnostics_config, only: diagnostics_type
+    use gs2_io, only: nc_write_omega
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     integer :: ik !, it
     complex, dimension(0:gnostics%navg-1,ntheta0,naky) :: omegahist_woutunits
     complex, dimension(ntheta0, naky) :: omega_average_woutunits
 
+    if (.not. gnostics%writing) return
+
     do ik=1,naky
        omegahist_woutunits(:,:,ik) = omegahist(:,:,ik) * woutunits(ik)
        omega_average_woutunits(:,ik) = omega_average(:,ik) * woutunits(ik)
     end do
     
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "omega", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Complex frequency as a function of kx, ky and time", "a/v_thr", &
-         omegahist_woutunits(mod(gnostics%istep,gnostics%navg), :, :))
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "omega_average", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Complex frequency, averaged over navg timesteps, as a function of kx, ky and time", "a/v_thr", &
-         omega_average_woutunits)
+    call nc_write_omega(gnostics%file_id, gnostics%nout, &
+         omegahist(mod(gnostics%istep, gnostics%navg), :, :), omega_average, woutunits)
 
-     if (gnostics%replay) then 
-       do ik=1,naky
-         omegahist(:,:,ik) = omegahist_woutunits(:,:,ik) / woutunits(ik)
-         omega_average(:,ik) = omega_average_woutunits(:,ik) / woutunits(ik)
-       end do
-     end if
-    
-!Is this dead?
-    !if (gnostics%wryte) then
-      !! Dummy writes, necessary for parallel for some reason
-      !call write_variable_with_offset(gnostics%sfile, "omega", omegahist_woutunits(mod(gnostics%istep,gnostics%navg), :, :))
-      !call write_variable_with_offset(gnostics%sfile, "omega_average", omega_average_woutunits)
-
-      !do ik=1,naky
-        !do it=1,ntheta0
-          !if (.not. gnostics%distributed .or. field_k_local(it, ik)) then 
-             !call set_start(gnostics%sfile, "omega", "X", it)
-             !call set_start(gnostics%sfile, "omega", "Y", ik)
-             !call write_variable_with_offset(gnostics%sfile, "omega", &
-               !omegahist_woutunits(mod(gnostics%istep,gnostics%navg), :, :))
-
-             !call set_start(gnostics%sfile, "omega_average", "X", it)
-             !call set_start(gnostics%sfile, "omega_average", "Y", ik)
-             !call write_variable_with_offset(gnostics%sfile, "omega_average", omega_average_woutunits)
-          !end if
-        !end do
-      !end do
-    !end if
   end subroutine write_omega
 
   !> Calculates omega and stores it in omegahist. Calculates omega_average, 
@@ -109,7 +75,7 @@ contains
     use gs2_time, only: code_dt
     use constants, only: zi
     use diagnostics_config, only: diagnostics_type
-    use run_parameters, only: eqzip
+    use run_parameters, only: ieqzip
     use nonlinear_terms, only: nonlin
     use mp, only: proc0
     implicit none
@@ -120,12 +86,12 @@ contains
     ! Avoid calculation of omega in nonlinear calculations.
     ! Note we rely on omega_average and related arrays being
     ! initialised elsewhere.
-    if (eqzip .or. (.not.nonlin)) then
-       if (debug) write(6,*) "get_omeaavg: start"
-    else
+    if (nonlin .and. .not. any(ieqzip)) then
        return
-    endif
-    
+    end if
+
+    if (debug) write(6,*) "get_omeaavg: start"
+
     j = gnostics%igomega
     if(gnostics%omegatol.eq.0)then
        fac=1.0

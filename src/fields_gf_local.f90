@@ -1960,8 +1960,6 @@ contains
 
   !> A routine to calculate the update to the fields
   subroutine fm_get_field_update(self, phi, apar, bpar)
-    use kt_grids, only: ntheta0, naky
-    use theta_grid, only: ntgrid
     use dist_fn, only: getfieldeq, getfieldeq_nogath
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     implicit none
@@ -3561,7 +3559,6 @@ contains
   subroutine fm_getfieldeq_nogath (self,phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
     use theta_grid, only: ntgrid
     use dist_fn, only: getan_nogath
-    use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: antot, antota, antotp
     implicit none
     class(fieldmat_type), intent(in) :: self

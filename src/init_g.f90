@@ -4349,7 +4349,6 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
 
     implicit none
-    integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, in
     real :: arg, kxrange

@@ -14,6 +14,10 @@
   external codes, such as Trinity, have also been removed. The caller
   should now handle any customisation to the GS2 setup/teardown.
 
+* The "replay" feature to recalculate some diagnostics on a previous
+  run has been removed. This feature only interacted with the "new"
+  diagnostics module, and only a certain subset of diagnostics.
+
 ## 8.1.2 (2022-07-26)
 
 

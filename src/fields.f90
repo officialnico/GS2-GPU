@@ -23,8 +23,6 @@ module fields
   !> Made public for unit tests
   public :: fields_pre_init
   public :: remove_zonal_flows_switch
-  !> Made public for replay
-  public :: allocate_arrays
 
   public :: fields_config_type
   public :: set_fields_config

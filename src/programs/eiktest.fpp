@@ -10,10 +10,10 @@ program eiktest
 #endif
   implicit none
 
-  integer :: i, nth, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta
   real :: broot
   real :: q, qq, qplus, qmnus
-  real :: bb, bm, bp, profile_fac
+  real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
@@ -26,7 +26,6 @@ program eiktest
 
   logical :: no_end_point
 
-  real :: airat, wgt, wdavg, jac
   logical :: fast, dipole, list
   character(len=:), allocatable :: in_stem, out_stem
 
@@ -210,9 +209,6 @@ program eiktest
   call Hahm_Burrell(irho, profile_fac)
 
   broot=-1.
-!      write(*,*) 'rho ',rhoc
-!      write(*,*) 'rp ',rpofrho(rhoc)
-!      write(*,*) 'r ',rfun(rpofrho(rhoc),0.,broot)
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
@@ -275,19 +271,6 @@ program eiktest
      write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
      write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
-
-!      write(*,*) 'mag(Bp) at rho= ',rhoc
-!      do i=-nth,nth
-!         r=rfun(rpofrho(rhoc),theta(i))
-!         write(*,*) r,theta(i),bpmagfun(r,theta(i))
-!      enddo
-
-!      write(*,*) '    theta        gbdrift          gradpar        grho'
-!      do i= -5,5
-!      do i= -ntgrid,ntgrid
-!         write(*,1000) theta(i),gbdrift(i), gradpar(i),grho(i)
-!      enddo
-
      
   close(11)
   close(21)
@@ -367,5 +350,3 @@ program eiktest
 # endif
 
 end program eiktest
-
-

@@ -2912,6 +2912,7 @@ module theta_grid
   public :: surfarea, dvdrhon
   public :: initialized
 
+  public :: field_line_average
   public :: theta_grid_config_type
   public :: set_theta_grid_config
   public :: get_theta_grid_config
@@ -2936,6 +2937,12 @@ module theta_grid
   integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3, eqopt_file_nc = 4
   character (8) :: shape
   logical :: exist, initialized = .false.
+  real :: field_line_average_weight
+
+  interface field_line_average
+     module procedure field_line_average_real
+     module procedure field_line_average_complex
+  end interface field_line_average
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_config_type
@@ -3168,6 +3175,7 @@ contains
     call broadcast (gds24_noq)
     call broadcast (grho)
     call broadcast (jacob)
+    call broadcast (field_line_average_weight)
     call broadcast (Rplot)
     call broadcast (Zplot)
     call broadcast (aplot)
@@ -3291,6 +3299,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_init
+    use integration, only: trapezoidal_integration
     implicit none
     real, dimension (nbset) :: bset_save
     real, dimension (-ntgrid:ntgrid) :: eik_save
@@ -3408,7 +3417,13 @@ contains
     delthet(ntgrid) = 0.!delthet(-ntgrid)
     delthet2 = delthet*delthet
 
+    ! Note here we redefine jacob despite the handling in the above if block
+    ! suggesting this has been defined.
     jacob = 1.0/(drhodpsi*gradpar*bmag)
+
+    ! Calculate the weight used in the field line average routine to save
+    ! repeated calculation of this constant
+    field_line_average_weight = 1.0/trapezoidal_integration(theta, jacob)
   end subroutine finish_init
 
   !> FIXME : Add documentation
@@ -3544,6 +3559,22 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
        end if
      endif
   end subroutine get_grids
+
+  !> Calculates the field line / theta average of a passed quantity
+  real function field_line_average_real(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    real, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
+  end function field_line_average_real
+
+  !> Calculates the field line / theta average of a passed quantity
+  complex function field_line_average_complex(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    complex, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
+  end function field_line_average_complex
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid

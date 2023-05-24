@@ -569,6 +569,17 @@ contains
     drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
+  !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
+  !> NaNs arising from slight floating point discrepancies. We could
+  !> consider adding a debug check to abort/warn if the passed value
+  !> is too negative (i.e. if it looks like an error rather than small
+  !> round off).
+  pure real function safe_sqrt(arg)
+    implicit none
+    real, intent(in) :: arg
+    safe_sqrt = sqrt(max(0.0, arg))
+  end function safe_sqrt
+
   !> FIXME : Add documentation
   subroutine init_arrays
     use species, only: nspec
@@ -2243,7 +2254,7 @@ contains
 
     vn = vnmult(2)*spec(is)%vnewk*tunits(ik)
 
-    slb1 = sqrt(max(0.0,1.0 - bmag(ig)*al(il)))     ! xi_j
+    slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))     ! xi_j
 
     select case (ediff_switch)
 
@@ -2725,9 +2736,9 @@ contains
     case (lorentz_scheme_default)          
        
        do il = 2, te-1
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
           
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -2749,8 +2760,8 @@ contains
        end do
        
        ! boundary at xi = 1
-       slb1 = sqrt(abs(1.0-bmag(ig)*al(1)))
-       slb2 = sqrt(abs(1.0-bmag(ig)*al(2)))
+       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
+       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
        
        slbr = (slb1 + slb2)*0.5
        
@@ -2769,9 +2780,9 @@ contains
        
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
        if (te == ng2) then
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
@@ -2823,9 +2834,9 @@ contains
     case (lorentz_scheme_old)
        
        do il = 2, te-1
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
           
           slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
           slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -2848,8 +2859,8 @@ contains
        
        ! boundary at xi = 1
        slb0 = 1.0
-       slb1 = sqrt(abs(1.0-bmag(ig)*al(1)))
-       slb2 = sqrt(abs(1.0-bmag(ig)*al(2)))
+       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
+       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
        
        slbl = (slb1 + slb0)*0.5
        slbr = (slb1 + slb2)*0.5
@@ -2869,9 +2880,9 @@ contains
        
        ! boundary at xi = 0
        il = te
-       slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
        if (te == ng2) then
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
@@ -2940,11 +2951,11 @@ contains
 
 ! calculation of xi and finite difference coefficients for non-boundary points
           do il=2,ng2-1
-             slb(il) = sqrt(abs(1.0-al(il)*bmag(ig)))   ! xi_{j}
+             slb(il) = safe_sqrt(1.0-al(il)*bmag(ig))   ! xi_{j}
              
-             slb2 = sqrt(abs(1.0-al(il+1)*bmag(ig)))    ! xi_{j+1}
+             slb2 = safe_sqrt(1.0-al(il+1)*bmag(ig))    ! xi_{j+1}
              slb1 = slb(il)
-             slb0 = sqrt(abs(1.0-al(il-1)*bmag(ig)))    ! xi_{j-1}
+             slb0 = safe_sqrt(1.0-al(il-1)*bmag(ig))    ! xi_{j-1}
              
              slbr = (slb2+slb1)*0.5                     ! xi_{j+1/2}
              slbl = (slb1+slb0)*0.5                     ! xi_{j-1/2}
@@ -2955,7 +2966,7 @@ contains
           end do
 
 ! boundary at xi = 1
-          slb(1) = sqrt(abs(1.0-al(1)*bmag(ig)))
+          slb(1) = safe_sqrt(1.0-al(1)*bmag(ig))
           slb0 = 1.0
           slb1 = slb(1)
           slb2 = slb(2)
@@ -2970,8 +2981,8 @@ contains
 
 ! boundary at xi = 0
           il = ng2
-          slb(il) = sqrt(abs(1.0 - al(il)*bmag(ig)))
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1)))
+          slb(il) = safe_sqrt(1.0 - al(il)*bmag(ig))
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
           slb1 = slb(il)
           slb2 = -slb1
 
@@ -2984,11 +2995,11 @@ contains
           slb(ng2+1:) = -slb(ng2:1:-1)
        else          ! run with trapped particles
           do il=2,je-1
-             slb(il) = sqrt(abs(1.0-al(il)*bmag(ig)))
+             slb(il) = safe_sqrt(1.0-al(il)*bmag(ig))
              
-             slb2 = sqrt(abs(1.0-al(il+1)*bmag(ig)))
+             slb2 = safe_sqrt(1.0-al(il+1)*bmag(ig))
              slb1 = slb(il)
-             slb0 = sqrt(abs(1.0-al(il-1)*bmag(ig)))
+             slb0 = safe_sqrt(1.0-al(il-1)*bmag(ig))
              
              slbr = (slb2+slb1)*0.5
              slbl = (slb1+slb0)*0.5
@@ -2998,7 +3009,7 @@ contains
           end do
 
 ! boundary at xi = 1
-          slb(1) = sqrt(abs(1.0-bmag(ig)*al(1)))
+          slb(1) = safe_sqrt(1.0-bmag(ig)*al(1))
           slb0 = 1.0
           slb1 = slb(1)
           slb2 = slb(2)
@@ -3010,7 +3021,7 @@ contains
 
 ! boundary at xi = 0
           il = je
-          slb(il) = sqrt(abs(1.0-bmag(ig)*al(il)))
+          slb(il) = safe_sqrt(1.0-bmag(ig)*al(il))
           slb0 = slb(je-1)
           slb1 = 0.
           slb2 = -slb0                                                        
@@ -3301,10 +3312,10 @@ contains
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ie = ie_idx(g_lo,iglo)
              do isgn = 1, 2
-                g(:, isgn, iglo) = g(:, isgn, iglo) + ieqzip(it,ik) * &
-                     vnmult(1)*spec(is)%vnewk*code_dt &
+                g(:, isgn, iglo) = g(:, isgn, iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
@@ -3355,11 +3366,11 @@ contains
              if (.not. is_electron_species(spec(is))) cycle
              it = it_idx(g_lo,iglo)
              ik = ik_idx(g_lo,iglo)
-             if(kwork_filter(it,ik))cycle
+             if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ie = ie_idx(g_lo,iglo)
              do isgn = 1, 2
-                g(:,isgn,iglo) = g(:,isgn,iglo) + ieqzip(it,ik) * &
-                     vnmult(1)*spec(is)%vnewk*code_dt &
+                g(:,isgn,iglo) = g(:,isgn,iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
                      * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
@@ -3390,16 +3401,12 @@ contains
   !> FIXME : Add documentation  
   subroutine solfp1_le_layout (gle, diagnostics)
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
-    use theta_grid, only: bmag
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al, ng2
+    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, ng2
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3416,33 +3423,14 @@ contains
         nxi_lim = nxi
     endif
     
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
     heating_flag = heating .and. present(diagnostics)
 
     select case (collision_model_switch)
     case (collision_model_full)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
        call solfp_ediffuse_le_layout (gle)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
@@ -3456,12 +3444,12 @@ contains
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                tmp = ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
+                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
+                     * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
+                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
                    il = ixi_to_il(ig,ixi)
                    isgn = ixi_to_isgn(ig,ixi)
@@ -3476,32 +3464,13 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
        if (heating_flag) then
           call solfp_lorentz (gle, diagnostics)
        else
           call solfp_lorentz (gle)
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
-
        if (conserve_moments) call conserve_lorentz (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
 
     case (collision_model_lorentz,collision_model_lorentz_test)
 
@@ -3517,10 +3486,10 @@ contains
              it = it_idx(le_lo,ile)
              ik = ik_idx(le_lo,ile)
              if(kwork_filter(it,ik)) cycle
+             if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
-                tmp = ieqzip(it,ik) * &
-                        vnmult(1)*spec(is)%vnewk*code_dt &
+                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                         / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
@@ -3615,11 +3584,11 @@ contains
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
-          if(kwork_filter(it,ik))cycle
+          if(kwork_filter(it,ik)) cycle
+          if(ieqzip(it,ik)) cycle
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g1(:,isgn,iglo) = g(:,isgn,iglo) - ieqzip(it,ik)*v0y0(:,it,ik,is) &
-                  * z0(:,isgn,iglo)
+             g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * z0(:,isgn,iglo)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -3668,11 +3637,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v1y1(:,it,ik,is) &
-               * s0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * s0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3711,11 +3680,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v2y2(:,it,ik,is) &
-               * w0(:,isgn,iglo)
+          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * w0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3727,13 +3696,11 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
     use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
-    use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -3743,7 +3710,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
 
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa, vpa_nud
+    real :: vpa_nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3805,9 +3772,10 @@ contains
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
+          if(ieqzip(it,ik)) cycle
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)* z0le(ixi,ie,ile) * v0y0(ile)
+                gle(ixi,ie,ile) = gle(ixi,ie,ile) - z0le(ixi,ie,ile) * v0y0(ile)
              end do
           end do
        end do
@@ -3878,9 +3846,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*s0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - s0le(ixi,ie,ile) * v1y1(ile)
           end do
        end do
     end do
@@ -3923,9 +3892,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*w0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - w0le(ixi,ie,ile) * v2y2(ile)
           end do
        end do
     end do
@@ -4002,11 +3972,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g(:,isgn,iglo) - ieqzip(it,ik)*v0y0(:,it,ik,is) &
-               * bz0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * bz0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4044,11 +4014,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v1y1(:,it,ik,is) &
-               * bs0(:,isgn,iglo)
+          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * bs0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4087,11 +4057,11 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
-       if(kwork_filter(it,ik))cycle
+       if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - ieqzip(it,ik)*v2y2(:,it,ik,is) &
-               * bw0(:,isgn,iglo)
+          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * bw0(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4103,13 +4073,10 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: ixi_to_il, ixi_to_isgn
-    use le_grids, only: sgn, speed => speed_maxw, nxi, ng2
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -4118,8 +4085,8 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real :: vpa, delnu
-    integer :: ig, isgn, ik, ie, il, is, it
+    real :: delnu
+    integer :: ig, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
@@ -4177,9 +4144,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*v0y0(ile)*bz0le(ixi,ie,ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - v0y0(ile) * bz0le(ixi,ie,ile)
           end do
        end do
     end do
@@ -4219,9 +4187,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bs0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bs0le(ixi,ie,ile) * v1y1(ile)
           end do
        end do
     end do
@@ -4259,9 +4228,10 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
+       if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - ieqzip(it,ik)*bw0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bw0le(ixi,ie,ile) * v2y2(ile)
           end do
        end do
     end do
@@ -4370,7 +4340,7 @@ contains
        ik = ik_idx(lz_lo,ilz)
        it = it_idx(lz_lo,ilz)
        if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(lz_lo,ilz)
        if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ie = ie_idx(lz_lo,ilz)
@@ -4570,7 +4540,7 @@ contains
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(le_lo,ile)
        if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(le_lo,ile)
@@ -4687,7 +4657,7 @@ contains
        it = it_idx(e_lo,ielo)       
        ik = ik_idx(e_lo,ielo)
        if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        is = is_idx(e_lo,ielo)
        if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(e_lo,ielo)
@@ -4750,7 +4720,7 @@ contains
        it=it_idx(le_lo,ile)
        ik=ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)==0) cycle
+       if (ieqzip(it,ik)) cycle
        ig = ig_idx(le_lo,ile)
 
        do ixi = 1, nxi_lim
@@ -4796,9 +4766,9 @@ contains
              te = je
           end if
           do il = 2, te-1
-             slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
-             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
-             slb2 = sqrt(abs(1.0 - bmag(ig)*al(il+1))) 
+             slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+             slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
              
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
@@ -4807,16 +4777,16 @@ contains
           end do
 
           ! boundary at xi = 1
-          slb1 = sqrt(abs(1.0 - bmag(ig)*al(1))) 
-          slb2 = sqrt(abs(1.0 - bmag(ig)*al(2))) 
+          slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
+          slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
           slbr = 0.5*(slb1 + slb2)
           vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
           
           ! boundary at xi = 0
           il = te
-          slb0 = sqrt(abs(1.0 - bmag(ig)*al(il-1))) 
+          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
           if (te == ng2) then
-             slb1 = sqrt(abs(1.0 - bmag(ig)*al(il))) 
+             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
              slb2 = -slb1
           else
              slb1 = 0.0
