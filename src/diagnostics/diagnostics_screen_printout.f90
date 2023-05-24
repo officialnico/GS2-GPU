@@ -11,6 +11,9 @@ module diagnostics_printout
   public :: write_flux_line
   public :: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, write_bpar_fluxes_to_unit
 
+  character(*), parameter :: flux_format = &
+       "('t= ', e17.10, ' <', a, '**2>= ', e13.6, ' ', a, ':', *(1x, e13.6))"
+
 contains
 
   !> Print out growth rates to screen.
@@ -117,7 +120,6 @@ contains
   !> Used for new diagnostics only
   subroutine output_flux_line(gnostics, outunit)
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use species, only: nspec
     use diagnostics_config, only: diagnostics_type
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -145,7 +147,6 @@ contains
   subroutine write_phi_fluxes_to_unit(unit, time, phi2, &
        heat_fluxes, energy_exchange, part_fluxes, mom_fluxes, &
        lfmom_fluxes, vflux1_avg)
-    use species, only: nspec
     !> An existing, open unit
     integer, intent(in) :: unit
     !> Current simulation time
@@ -165,36 +166,29 @@ contains
     !> FIXME: Add documentation
     real, dimension(:), intent(in), optional :: vflux1_avg
 
-    write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-         & ' heat fluxes: ', 5(1x,e11.4))") &
-         time, phi2, heat_fluxes(1:min(nspec,5))
+    write (unit=unit, fmt=flux_format) time, "phi", phi2, "heat fluxes", heat_fluxes
 
     if (present(part_fluxes)) then
-      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-         & ' part fluxes: ', 5(1x,e11.4))") &
-         time, phi2, part_fluxes(1:min(nspec,5))
+      write (unit=unit, fmt=flux_format) time, "phi", phi2, "part fluxes", part_fluxes
     end if
     if (present(mom_fluxes)) then
-      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-         & ' mom fluxes: ', 5(1x,e11.4))") &
-         time, phi2, mom_fluxes(1:min(nspec,5))
+      write (unit=unit, fmt=flux_format) time, "phi", phi2, "mom fluxes", mom_fluxes
     end if
 
-    write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-         & ' energy exchange: ', 5(1x,e11.4))") &
-         time, phi2, energy_exchange(1:min(nspec,5))
+    write (unit=unit, fmt=flux_format) time, "phi", phi2, "energy exchange", energy_exchange
 
     if (present(mom_fluxes)) then
-      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-           & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-           time, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
+      ! This one writes two separate fluxes on the same line, so can't
+      ! reuse format string
+      write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
+           & ' lfmom fluxes:', *(1x,e13.6),' lfvflx1:', *(1x,e13.6))") &
+           time, phi2, lfmom_fluxes, vflux1_avg
     end if
   end subroutine write_phi_fluxes_to_unit
 
   !> Write instantaneous fluxes from parallel magnetic vector
   !> potential to screen or file
   subroutine write_apar_fluxes_to_unit(unit, time, apar2, heat_fluxes, part_fluxes)
-    use species, only: nspec
     !> An existing, open unit
     integer, intent(in) :: unit
     !> Current simulation time
@@ -206,21 +200,16 @@ contains
     !> Particle flux due to A//
     real, dimension(:), intent(in), optional :: part_fluxes
 
-    write (unit=unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-         & ' heat mluxes: ', 5(1x,e11.4))") &
-         time, apar2, heat_fluxes(1:min(nspec,5))
+    write (unit=unit, fmt=flux_format) time, "apar", apar2, "heat mluxes", heat_fluxes
 
-    if (.not. present(part_fluxes)) return
-
-    write (unit=unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-         & ' part mluxes: ', 5(1x,e11.4))") &
-         time, apar2, part_fluxes(1:min(nspec,5))
+    if (present(part_fluxes)) then
+      write (unit=unit, fmt=flux_format) time, "apar", apar2, "part mluxes", part_fluxes
+    end if
   end subroutine write_apar_fluxes_to_unit
 
   !> Write instantaneous fluxes from parallel magnetic field to screen
   !> or file
   subroutine write_bpar_fluxes_to_unit(unit, time, bpar2, heat_fluxes, part_fluxes)
-    use species, only: nspec
     !> An existing, open unit
     integer, intent(in) :: unit
     !> Current simulation time
@@ -232,14 +221,10 @@ contains
     !> Particle flux due to B//
     real, dimension(:), intent(in), optional :: part_fluxes
 
-    write (unit=unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-         & ' heat bluxes: ', 5(1x,e11.4))") &
-         time, bpar2, heat_fluxes(1:min(nspec,5))
+    write (unit=unit, fmt=flux_format) time, "bpar", bpar2, "heat bluxes", heat_fluxes
 
-    if (.not. present(part_fluxes)) return
-
-    write (unit=unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-         & ' part bluxes: ', 5(1x,e11.4))") &
-         time, bpar2, part_fluxes(1:min(nspec,5))
+    if (present(part_fluxes)) then
+      write (unit=unit, fmt=flux_format) time, "bpar", bpar2, "part bluxes", part_fluxes
+    end if
   end subroutine write_bpar_fluxes_to_unit
 end module diagnostics_printout
