@@ -17,7 +17,7 @@ module dist_fn_arrays
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
-
+  public :: check_is_zero_in_forbidden_region
   public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
 
   ! dist fn
@@ -273,5 +273,44 @@ contains
     end do
 
   end subroutine set_h_zero
+
+  !> Check if the passed distribution function shaped array is non-zero
+  !> in the forbidden region. If it is then trigger an abort.
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_is_zero_in_forbidden_region(g_array)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx
+    use le_grids, only: forbid, il_is_passing
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    integer :: iglo, il, ig
+    real :: violation_flag
+    logical :: forbidden_violated
+
+    forbidden_violated = .false.
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for passing particles
+       if (il_is_passing(il)) cycle
+
+       do ig = -ntgrid, ntgrid
+          if (.not. forbid(ig, il)) cycle
+          forbidden_violated = forbidden_violated .or. &
+               any(abs(g_array(ig, :, iglo)) > 0.0)
+       end do
+       ! If we've found a violation don't bother checking any other points
+       if (forbidden_violated) exit
+    end do
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = 0.0
+    if (forbidden_violated) violation_flag = 1.0
+    call max_allreduce(violation_flag)
+    if (violation_flag > 0.0) then
+       call mp_abort('The passed array is non-zero in the forbidden region', .true.)
+    end if
+  end subroutine check_is_zero_in_forbidden_region
 
 end module dist_fn_arrays
