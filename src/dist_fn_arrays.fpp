@@ -287,9 +287,9 @@ contains
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
     integer :: iglo, il, ig
     real :: violation_flag
-    logical :: forbidden_violated
+    logical :: violated
 
-    forbidden_violated = .false.
+    violated = .false.
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        ! Don't check for passing particles
@@ -297,16 +297,16 @@ contains
 
        do ig = -ntgrid, ntgrid
           if (.not. forbid(ig, il)) cycle
-          forbidden_violated = forbidden_violated .or. &
+          violated = violated .or. &
                any(abs(g_array(ig, :, iglo)) > 0.0)
        end do
        ! If we've found a violation don't bother checking any other points
-       if (forbidden_violated) exit
+       if (violated) exit
     end do
 
     ! Use a real to represent the outcome so we can use existing mp routines
     violation_flag = 0.0
-    if (forbidden_violated) violation_flag = 1.0
+    if (violated) violation_flag = 1.0
     call max_allreduce(violation_flag)
     if (violation_flag > 0.0) then
        call mp_abort('The passed array is non-zero in the forbidden region', .true.)
