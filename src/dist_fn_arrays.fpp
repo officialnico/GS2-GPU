@@ -322,7 +322,7 @@ contains
   !> a run).
   !>
   !> This is primarily intended as a utility to aid debugging.
-  subroutine check_are_bouncepoint_values_consistent(g_array, tolerance)
+  subroutine check_are_bouncepoint_values_consistent(g_array, identifier, tolerance)
     use mp, only: mp_abort, max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, il_idx
@@ -330,12 +330,22 @@ contains
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    character(len=*), intent(in), optional :: identifier
     real, intent(in), optional :: tolerance
+    character(len=:), allocatable :: id_message
     integer :: iglo, il, ig
     real :: violation_flag, local_tolerance
     logical :: violated
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
+    if (present(identifier)) then
+       allocate(character(len=len_trim(identifier)) :: id_message)
+       id_message = trim(identifier)
+    else
+       allocate(character(len=1) :: id_message)
+       id_message = ' '
+    end if
+
     violated = .false.
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -357,7 +367,7 @@ contains
     if (violated) violation_flag = 1.0
     call max_allreduce(violation_flag)
     if (violation_flag > 0.0) then
-       call mp_abort('The passed array has inconsistent bounce points.', .true.)
+       call mp_abort('The passed array has inconsistent bounce points. '//id_message, .true.)
     end if
   end subroutine check_are_bouncepoint_values_consistent
 end module dist_fn_arrays
