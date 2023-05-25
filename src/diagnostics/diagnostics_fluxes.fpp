@@ -6,19 +6,9 @@ module diagnostics_fluxes
 
   private
 
-  !> Allocate arrays
   public :: init_diagnostics_fluxes
-
-  !> Deallocate arrays
   public :: finish_diagnostics_fluxes
-
-  !> Set averages in gnostics\%current_results to 0.
   public :: reset_averages_and_counters
-
-  !> Calculate and possibly write fluxes.  The fluxes are actually calculated
-  !!  in the module dist_fn. They are returned as a function of
-  !!  x, y and species. This function writes the whole array,
-  !!  and also various averages of them.
   public :: calculate_fluxes, common_calculate_fluxes
 
   public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
@@ -37,7 +27,7 @@ module diagnostics_fluxes
   real, dimension (:,:,:), allocatable :: exchange1
 
 contains
-  !> FIXME : Add documentation  
+  !> Allocate and zero module-level arrays
   subroutine init_diagnostics_fluxes(gnostics)
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
@@ -79,15 +69,17 @@ contains
     allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
   end subroutine init_diagnostics_fluxes
 
-  !> FIXME : Add documentation  
+  !> Clean up module, deallocate module-level arrays
   subroutine finish_diagnostics_fluxes
     implicit none
+    if (.not. allocated(pflux)) return
+
     deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
          pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
          esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
-
+  !> Set averages in gnostics\%current_results to 0.
   subroutine reset_averages_and_counters(gnostics)
     use diagnostics_config, only: diagnostics_type
     implicit none
@@ -97,7 +89,11 @@ contains
     gnostics%current_results%species_momentum_flux_avg = 0.0
   end subroutine reset_averages_and_counters
 
-  !> FIXME : Add documentation  
+  !> Calculate and possibly write fluxes.
+  !>
+  !> The fluxes are actually calculated in the module dist_fn. They
+  !> are returned as a function of x, y and species. This function
+  !> writes the whole array, and also various averages of them.
   subroutine calculate_fluxes(gnostics)
     use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
     use dist_fn_arrays, only: g_adjust
