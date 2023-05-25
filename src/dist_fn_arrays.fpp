@@ -346,7 +346,7 @@ contains
        do ig = -ntgrid, ntgrid
           if (.not. is_bounce_point(ig, il)) cycle
           violated = violated .or. &
-               (abs(g_array(ig, 1, iglo) - g_array(ig, 2, iglo)) > local_tolerance)
+               (abs(g_array(ig, 1, iglo) - g_array(ig, 2, iglo)) > local_tolerance * abs(g_array(ig, 1, iglo)))
        end do
        ! If we've found a violation don't bother checking any other points
        if (violated) exit
