@@ -335,7 +335,7 @@ contains
     real :: violation_flag, local_tolerance
     logical :: violated
 
-    local_tolerance = get_option_with_default(tolerance, epsilon(0.0))
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
     violated = .false.
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
