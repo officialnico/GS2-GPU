@@ -17,8 +17,10 @@ module dist_fn_arrays
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
-  public :: check_is_zero_in_forbidden_region
   public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
+
+  public :: check_is_zero_in_forbidden_region
+  public :: check_are_bouncepoint_values_consistent
 
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
@@ -313,4 +315,49 @@ contains
     end if
   end subroutine check_is_zero_in_forbidden_region
 
+  !> Check if the passed distribution function shaped array has the same
+  !> value at bounce points for both signs of v||. This provides similar
+  !> functionality to check_g_bouncepoints but is intended to offer a
+  !> quieter approach which could be used more routinely (i.e. throughout
+  !> a run).
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_are_bouncepoint_values_consistent(g_array, tolerance)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx
+    use le_grids, only: il_is_passing, is_bounce_point
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    real, intent(in), optional :: tolerance
+    integer :: iglo, il, ig
+    real :: violation_flag, local_tolerance
+    logical :: violated
+
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0))
+    violated = .false.
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for passing particles
+       if (il_is_passing(il)) cycle
+
+       do ig = -ntgrid, ntgrid
+          if (.not. is_bounce_point(ig, il)) cycle
+          violated = violated .or. &
+               (abs(g_array(ig, 1, iglo) - g_array(ig, 2, iglo)) > local_tolerance)
+       end do
+       ! If we've found a violation don't bother checking any other points
+       if (violated) exit
+    end do
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = 0.0
+    if (violated) violation_flag = 1.0
+    call max_allreduce(violation_flag)
+    if (violation_flag > 0.0) then
+       call mp_abort('The passed array has inconsistent bounce points.', .true.)
+    end if
+  end subroutine check_are_bouncepoint_values_consistent
 end module dist_fn_arrays
