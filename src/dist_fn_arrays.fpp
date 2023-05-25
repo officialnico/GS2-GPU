@@ -278,18 +278,22 @@ contains
   !> in the forbidden region. If it is then trigger an abort.
   !>
   !> This is primarily intended as a utility to aid debugging.
-  subroutine check_is_zero_in_forbidden_region(g_array)
+  subroutine check_is_zero_in_forbidden_region(g_array, identifier)
     use mp, only: mp_abort, max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, il_idx
     use le_grids, only: forbid, il_is_passing
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    character(len=*), intent(in), optional :: identifier
     integer :: iglo, il, ig
     real :: violation_flag
     logical :: violated
 
+    id_message = get_option_with_default(identifier, '')
     violated = .false.
+
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        ! Don't check for passing particles
@@ -309,7 +313,8 @@ contains
     if (violated) violation_flag = 1.0
     call max_allreduce(violation_flag)
     if (violation_flag > 0.0) then
-       call mp_abort('The passed array is non-zero in the forbidden region', .true.)
+       call mp_abort(&
+            'The passed array is non-zero in the forbidden region. '//id_message, .true.)
     end if
   end subroutine check_is_zero_in_forbidden_region
 
