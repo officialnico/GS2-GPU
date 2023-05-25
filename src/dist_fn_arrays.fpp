@@ -287,6 +287,7 @@ contains
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
     character(len=*), intent(in), optional :: identifier
+    character(len=:), allocatable :: id_message
     integer :: iglo, il, ig
     real :: violation_flag
     logical :: violated
