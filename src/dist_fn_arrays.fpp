@@ -338,13 +338,7 @@ contains
     logical :: violated
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
-    if (present(identifier)) then
-       allocate(character(len=len_trim(identifier)) :: id_message)
-       id_message = trim(identifier)
-    else
-       allocate(character(len=1) :: id_message)
-       id_message = ' '
-    end if
+    id_message = get_option_with_default(identifier, '')
 
     violated = .false.
 
