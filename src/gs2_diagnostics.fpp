@@ -125,16 +125,7 @@ module gs2_diagnostics
   !GGH J_external
   real, dimension(:,:,:), allocatable ::  j_ext_hist
 
-  real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
-  ! (ntheta0,naky,nspec,3)
-
-  real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
   real, dimension (:,:,:), allocatable ::  pflux_tormom
-  !> Low-flow correction to turbulent momentum flux
-  real, dimension (:,:,:), allocatable :: vflux0, vflux1
-  real, dimension (:,:,:), allocatable :: pmflux, vmflux
-  real, dimension (:,:,:), allocatable :: pbflux, vbflux
-  real, dimension (:,:,:), allocatable :: exchange1, exchange
 
   ! (ntheta0,naky,nspec)
 
@@ -580,9 +571,9 @@ contains
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
-    use species, only: nspec
     use mp, only: proc0
     use standard_header, only: standard_header_type
+    use diagnostics_fluxes, only: init_diagnostics_fluxes
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -656,27 +647,7 @@ contains
 
     end if
 
-    !> Allocate arrays for storing the various fluxes which the diagnostics will output </doc>
-    allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
-    allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
-    allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
-    allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
-    allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
-
-    allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
-    allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
-
-    allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
-    allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
-
-    allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
-    allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
-    allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
-
-    allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
-    allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
-    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
+    call init_diagnostics_fluxes()
 
     if (.not. allocated(omega)) then
        allocate(omega(ntheta0, naky))
@@ -996,6 +967,7 @@ contains
     use mp, only: proc0
     use job_manage, only: trin_reset, trin_restart
     use gs2_heating, only: del_htype
+    use diagnostics_fluxes, only: finish_diagnostics_fluxes
     implicit none
 
     if (write_heating) then
@@ -1005,11 +977,10 @@ contains
        call del_htype (hk)
     end if
 
+    call finish_diagnostics_fluxes()
     if (allocated(h_hist)) deallocate (h_hist, hk_hist, hk)
     if (allocated(j_ext_hist)) deallocate (j_ext_hist)
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
-    if (allocated(pflux)) deallocate (pflux, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange1, exchange)
     if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
 
     if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
@@ -1051,10 +1022,8 @@ contains
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
-    use fields_arrays, only: phinew, aparnew, bparnew, phi
-    use dist_fn, only: flux, write_f, write_fyx,lf_flux, eexchange
-    use dist_fn, only: write_poly, collision_error
-    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn, only: write_poly, collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
@@ -1068,6 +1037,9 @@ contains
     use optionals, only: get_option_with_default
     use diagnostics_printout, only: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, &
          write_bpar_fluxes_to_unit
+    use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
+         pflux, vflux, vflux_par, vflux_perp, pflux_tormom, vflux0, vflux1, pmflux, vmflux, &
+         pbflux, vbflux, exchange
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1169,97 +1141,41 @@ contains
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (write_any_fluxes) then
-       call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
-       call flux (phinew, aparnew, bparnew, &
-            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
-            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
-#ifdef LOWFLOW
-       ! lowflow terms only implemented in electrostatic limit at present
-       call lf_flux (phinew, vflux0, vflux1)
-#endif
-       call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-       if (has_phi .and. &
-            (write_fluxes .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
-         call eexchange (phinew, phi, exchange1, exchange)
-       end if
-
+       call common_calculate_fluxes()
        if (proc0) then
           if (has_phi) then
              do is = 1, nspec
-                qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,1), heat_fluxes(is))
-
-                qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,2), heat_par(is))
-
-                qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,3), heat_perp(is))
-
-                pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pflux(:,:,is), part_fluxes(is))
-
-                pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
                 call get_volume_average (pflux_tormom(:,:,is), part_tormom_fluxes(is))
-
-                vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux(:,:,is), mom_fluxes(is))
-
-                vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux_par(:,:,is), parmom_fluxes(is))
-
-                vflux_perp(:,:,is) = vflux_perp(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vflux_perp(:,:,is), perpmom_fluxes(is))
-
-                exchange(:,:,is) = exchange(:,:,is) * spec(is)%dens*spec(is)%z
                 call get_volume_average (exchange(:,:,is), energy_exchange(is))
-
 #ifdef LOWFLOW
-                vflux0(:,:,is) = vflux0(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
-
-                vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
                 call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
-
-                ! TMP UNTIL VFLUX0 IS TESTED
-                !                   mom_fluxes = mom_fluxes + lfmom_fluxes
 #endif
              end do
           end if
           if (has_apar) then
              do is = 1, nspec
-                qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,1), mheat_fluxes(is))
-
                 call get_surf_average (qmheat(:,:,is,1), x_qmflux(:,is))
-
-                qmheat(:,:,is,2)=qmheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,2), mheat_par(is))
-
-                qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,3), mheat_perp(is))
-
-                pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pmflux(:,:,is), mpart_fluxes(is))
-
-                vmflux(:,:,is)=vmflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vmflux(:,:,is), mmom_fluxes(is))
              end do
           end if
           if (has_bpar) then
              do is = 1, nspec
-                qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,1), bheat_fluxes(is))
-
-                qbheat(:,:,is,2)=qbheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,2), bheat_par(is))
-
-                qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,3), bheat_perp(is))
-
-                pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pbflux(:,:,is), bpart_fluxes(is))
-
-                vbflux(:,:,is)=vbflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vbflux(:,:,is), bmom_fluxes(is))
              end do
           end if

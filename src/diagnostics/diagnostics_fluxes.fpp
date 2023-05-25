@@ -19,7 +19,12 @@ module diagnostics_fluxes
   !!  in the module dist_fn. They are returned as a function of
   !!  x, y and species. This function writes the whole array,
   !!  and also various averages of them.
-  public :: calculate_fluxes
+  public :: calculate_fluxes, common_calculate_fluxes
+
+  public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
+  public :: vflux_perp, pflux_tormom, vflux0, vflux1, pmflux
+  public :: vmflux, pbflux, vbflux, esflux_vs_e, apflux_vs_e
+  public :: bpflux_vs_e, exchange, exchange1
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -39,12 +44,14 @@ contains
     use le_grids, only: negrid
     use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(inout) :: gnostics
-    
-    gnostics%current_results%species_heat_flux_avg = 0.0
-    gnostics%current_results%species_momentum_flux_avg = 0.0
-    gnostics%current_results%species_particle_flux_avg = 0.0
-  
+    type(diagnostics_type), intent(inout), optional :: gnostics
+
+    if (present(gnostics)) then
+      gnostics%current_results%species_heat_flux_avg = 0.0
+      gnostics%current_results%species_momentum_flux_avg = 0.0
+      gnostics%current_results%species_particle_flux_avg = 0.0
+    end if
+
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
     allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
@@ -93,9 +100,7 @@ contains
   !> FIXME : Add documentation  
   subroutine calculate_fluxes(gnostics)
     use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
-    use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
-    use species, only: nspec, spec
-    use fields_arrays, only: phinew, bparnew, aparnew, phi
+    use dist_fn_arrays, only: g_adjust
     use run_parameters, only: has_phi, has_apar, has_bpar
     use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
     use diagnostics_config, only: diagnostics_type
@@ -104,7 +109,6 @@ contains
     use neasyf, only: neasyf_write
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-    integer :: is
 
     call debug_message(4, 'diagnostics_fluxes::calculate_fluxes starting')
     gnostics%current_results%total_heat_flux = 0.0
@@ -117,42 +121,9 @@ contains
     if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
          call write_diffusive_estimates(gnostics)
 
-    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
-    call flux (phinew, aparnew, bparnew, &
-         pflux,  qheat,  vflux, vflux_par, vflux_perp, &
-         pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
-    call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
+    call common_calculate_fluxes()
 
-#ifdef LOWFLOW
-    !lowflow terms only implemented in electrostatic limit at present
-    call lf_flux (phinew, vflux0, vflux1)
-#endif
-
-    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-    call eexchange (phinew, phi, exchange1, exchange)
-      
       if (has_phi) then
-         do is = 1, nspec
-            qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
-            qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
-            qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
-            
-            pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
-            pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
-
-            esflux_vs_e(:,is) = esflux_vs_e(:,is) * spec(is)%dens
-            
-            vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
-            vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
-            vflux_perp(:,:,is) = vflux_perp(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
-            exchange(:,:,is) = exchange(:,:,is) * spec(is)%dens*spec(is)%z
-            
-#ifdef LOWFLOW
-            vflux0(:,:,is) = vflux0(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
-            vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
-#endif
-         end do
-
        call calculate_standard_flux_properties(gnostics, &
             'es_heat_flux',  'Turbulent flux of heat', 'Q_gB = ', qheat(:,:,:,1), gnostics%distributed)
        call calculate_standard_flux_properties(gnostics, &
@@ -190,15 +161,6 @@ contains
     end if
 
     if (has_apar) then
-       do is = 1, nspec
-          qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
-          qmheat(:,:,is,2)=qmheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
-          qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
-          pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
-          vmflux(:,:,is)=vmflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
-
-          apflux_vs_e(:,is) = apflux_vs_e(:,is) * spec(is)%dens
-       end do
        call calculate_standard_flux_properties(gnostics, &
             'apar_heat_flux',  'Turbulent flux of heat resulting from &
             & perpendicular magnetic fluctuations', 'Q_gB = ', qmheat(:,:,:,1), gnostics%distributed)
@@ -221,14 +183,6 @@ contains
             start=starts(3, gnostics%nout))
     end if
     if (has_bpar) then
-       do is = 1, nspec
-          qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
-          qbheat(:,:,is,2)=qbheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
-          qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
-          pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
-          vbflux(:,:,is)=vbflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
-          bpflux_vs_e(:,is) = bpflux_vs_e(:,is) * spec(is)%dens
-       end do
        call calculate_standard_flux_properties(gnostics, &
             'bpar_heat_flux',  'Turbulent flux of heat resulting from &
             & parallel magnetic fluctuations', 'Q_gB = ', qbheat(:,:,:,1), gnostics%distributed)
@@ -280,6 +234,85 @@ contains
             long_name="Total particle flux, same as part_flux_tot, included for backwards compatiblity")
     end if    
   end subroutine calculate_fluxes
+
+  !> Calculate heat, particle, and momentum fluxes
+  !>
+  !> Shared between old and new diagnostics
+  subroutine common_calculate_fluxes()
+    use build_config, only: gs2_has_lowflow
+    use mp, only: proc0
+    use species, only: spec
+    use dist_fn, only: flux, lf_flux, eexchange, flux_vs_e
+    use dist_fn_arrays, only: g_adjust, gnew, to_g_gs2, from_g_gs2
+    use species, only: nspec, spec
+    use fields_arrays, only: phinew, bparnew, aparnew, phi
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use diagnostics_config, only: diagnostics_type
+    use unit_tests, only: debug_message
+
+    integer :: is
+
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
+    call flux (phinew, aparnew, bparnew, &
+         pflux,  qheat,  vflux, vflux_par, vflux_perp, &
+         pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+
+    if (gs2_has_lowflow) then
+      ! lowflow terms only implemented in electrostatic limit at present
+      call lf_flux (phinew, vflux0, vflux1)
+    end if
+
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
+
+    if (has_phi) then
+      call eexchange (phinew, phi, exchange1, exchange)
+    end if
+
+    if (.not. proc0) return
+
+    do is = 1, nspec
+      associate(species => spec(is), &
+           density_temperature => spec(is)%dens * spec(is)%temp, &
+           momentum => spec(is)%dens * sqrt(spec(is)%mass * spec(is)%temp), &
+           momentum_perp => spec(is)%dens * spec(is)%mass * spec(is)%stm &
+        )
+
+        if (has_phi) then
+          qheat(:,:,is,1) = qheat(:,:,is,1) * density_temperature
+          qheat(:,:,is,2) = qheat(:,:,is,2) * density_temperature
+          qheat(:,:,is,3) = qheat(:,:,is,3) * density_temperature
+
+          pflux(:,:,is) = pflux(:,:,is) * species%dens
+          pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * species%dens
+
+          vflux(:,:,is) = vflux(:,:,is) * momentum
+          vflux_par(:,:,is) = vflux_par(:,:,is) * momentum
+          vflux_perp(:,:,is) = vflux_perp(:,:,is) * momentum_perp
+
+          exchange(:,:,is) = exchange(:,:,is) * species%dens * species%z
+
+          if (gs2_has_lowflow) then
+            vflux0(:,:,is) = vflux0(:,:,is) * momentum
+            vflux1(:,:,is) = vflux1(:,:,is) * species%dens * species%mass * species%temp / species%z
+          end if
+        end if
+        if (has_apar) then
+          qmheat(:,:,is,1) = qmheat(:,:,is,1) * density_temperature
+          qmheat(:,:,is,2) = qmheat(:,:,is,2) * density_temperature
+          qmheat(:,:,is,3) = qmheat(:,:,is,3) * density_temperature
+          pmflux(:,:,is) = pmflux(:,:,is) * species%dens
+          vmflux(:,:,is) = vmflux(:,:,is) * momentum_perp
+        end if
+        if (has_bpar) then
+          qbheat(:,:,is,1) = qbheat(:,:,is,1) * density_temperature
+          qbheat(:,:,is,2) = qbheat(:,:,is,2) * density_temperature
+          qbheat(:,:,is,3) = qbheat(:,:,is,3) * density_temperature
+          pbflux(:,:,is) = pbflux(:,:,is) * species%dens
+          vbflux(:,:,is) = vbflux(:,:,is) * momentum_perp
+        end if
+      end associate
+    end do
+  end subroutine common_calculate_fluxes
 
   !> Calculate estimates of the heat and particles fluxes using
   !! gamma / k^2 estimate of the diffusivity
