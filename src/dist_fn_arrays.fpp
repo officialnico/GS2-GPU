@@ -21,6 +21,7 @@ module dist_fn_arrays
 
   public :: check_is_zero_in_forbidden_region
   public :: check_are_bouncepoint_values_consistent
+  public :: file_and_line_id
 
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
@@ -364,4 +365,24 @@ contains
        call mp_abort('The passed array has inconsistent bounce points. '//id_message, .true.)
     end if
   end subroutine check_are_bouncepoint_values_consistent
+
+  !> A small helper function which constructs and returns the string
+  !> '<filename> : <line_no>'. Intended for use in producing the
+  !> identifier string passed to the check routines of this module.
+  !> Might be worth finding a better location for this generic
+  !> utility.
+  !>
+  !> In preprocessed files can use `file_and_line_id(__FILE__, __LINE__)`
+  !> to automate the arguments.
+  pure function file_and_line_id(filename, line_no)
+    implicit none
+    character(len=*), intent(in) :: filename
+    integer, intent(in) :: line_no
+    character(len=:), allocatable :: file_and_line_id
+    character(len=64) :: line_no_string
+    write(line_no_string, '(I0)') line_no
+    allocate(character(len=len_trim(filename)+len_trim(line_no_string)+3) :: file_and_line_id)
+    write(file_and_line_id,'(A," : ",A)') trim(filename), trim(line_no_string)
+  end function file_and_line_id
+
 end module dist_fn_arrays
