@@ -4882,7 +4882,13 @@ contains
        ! First set BCs for trapped particles at lower bounce point
        if (is_trapped) then
           ! match boundary conditions at lower bounce point
-          do ig = -ntgrid, ntgrid
+          ! Note we can almost change this range to the full theta domain
+          ! now we use is_lower_bounce_point. We would require a slight
+          ! change in how we handle copying the bounce point value into the source
+          ! as currently we set it at one point before the bounce point. We might
+          ! be able to set gnew at the bounce point directly with some small
+          ! changes to ainv etc.
+          do ig = -ntgrid, ntgrid - 1
              ! Skip for ttp
              if (is_ttp(ig, il)) cycle
              if (is_lower_bounce_point(ig+1, il)) then
