@@ -2295,6 +2295,7 @@ contains
   !> FIXME : Add documentation
   subroutine check_theta_grid_file_nc(report_unit)
     use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
+    use gs2_io_grids, only: nc_get_lambda_grid_size
     implicit none
     integer, intent(in) :: report_unit
     real :: drhodpsi, kxfac, rmaj, shat, qval
@@ -2303,7 +2304,8 @@ contains
     write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
     write (report_unit, fmt="(a)") trim(gridout_file)
 
-    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod, nlambda=nbset)
+    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(gridout_file, nbset)
     call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
 
     write (report_unit, *)
@@ -2400,9 +2402,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine file_nc_get_sizes
-    use gs2_io_grids, only: nc_get_grid_sizes
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_lambda_grid_size
     implicit none
-    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod, nlambda=nbset)
+    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(gridout_file, nbset)
   end subroutine file_nc_get_sizes
 
   !> FIXME : Add documentation
@@ -2543,6 +2546,7 @@ contains
     use constants, only: pi
     use integration, only: trapezoidal_integration
     use gs2_io_grids, only: nc_get_grids, nc_get_grid_scalars
+    use gs2_io_grids, only: nc_get_lambda_grid
     implicit none
     integer, intent (in) :: nperiod
     integer, intent (in out) :: ntheta, ntgrid, nbset
@@ -2562,11 +2566,14 @@ contains
 
     call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
 
-    call nc_get_grids(gridout_file, nbset, ntgrid, bset, &
-       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+    call nc_get_grids(gridout_file, ntgrid, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
-       Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-       Bpol)
+       cdrift=cdrift, cdrift0=cdrift0, &
+       Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
+       Bpol=Bpol)
+
+    call nc_get_lambda_grid(gridout_file, nbset, bset)
 
     ! switch alambda to bset
     bset = 1.0/bset
