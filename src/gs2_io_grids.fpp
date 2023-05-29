@@ -426,6 +426,15 @@ contains
   end subroutine nc_write_lambda_grid
 
   subroutine ntgrid_padding(array)
+    ! RN>
+    ! If grid file does not have the end point data, they are generated
+    ! using information on the other end by assuming (anti-)symmetry
+    ! w.r.t theta=0.
+    ! If symmetric, array(ntgrid) = array(-ntgrid)
+    ! If anti-symmetric, array(ntgrid) = -array(-ntgrid)
+    !
+    ! If this deos not apply, do not use no_end_point = T grid file.
+    ! <RN
     real, dimension (:), intent (in out) :: array
     integer :: s
     integer :: l
