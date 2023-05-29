@@ -2205,7 +2205,6 @@ module theta_grid_file
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
-  logical :: no_end_point = .false.
   integer :: ntheta, nperiod, ntgrid, nbset
   logical :: exist, initialized = .false.
 
@@ -2218,7 +2217,6 @@ module theta_grid_file
      !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
      !> from [[theta_grid_file_knobs:gridout_file]].
      logical :: no_geo_info = .false.
-     logical :: no_end_point = .false.
    contains
      procedure, public :: read => read_theta_grid_file_config
      procedure, public :: write => write_theta_grid_file_config
@@ -2370,7 +2368,6 @@ contains
     ! Copy out internal values into module level parameters
     gridout_file = theta_grid_file_config%gridout_file
     no_geo_info = theta_grid_file_config%no_geo_info
-    no_end_point = theta_grid_file_config%no_end_point
     
     exist = theta_grid_file_config%exist
   end subroutine read_parameters
@@ -2643,9 +2640,8 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 2000) :: gridout_file
     logical :: no_geo_info
-    logical :: no_end_point
 
-    namelist /theta_grid_file_knobs/ gridout_file, no_geo_info, no_end_point
+    namelist /theta_grid_file_knobs/ gridout_file, no_geo_info
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -2653,7 +2649,6 @@ contains
     ! First set local variables from current values
     gridout_file = self%gridout_file
     no_geo_info = self%no_geo_info
-    no_end_point = self%no_end_point
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -2662,7 +2657,6 @@ contains
     ! Now copy from local variables into type members
     self%gridout_file = gridout_file
     self%no_geo_info = no_geo_info
-    self%no_end_point = no_end_point
 
     self%exist = exist
   end subroutine read_theta_grid_file_config
@@ -2682,7 +2676,6 @@ contains
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("gridout_file", self%gridout_file, unit_internal)
     call self%write_key_val("no_geo_info", self%no_geo_info, unit_internal)
-    call self%write_key_val("no_end_point", self%no_end_point, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_theta_grid_file_config
 
@@ -2704,7 +2697,6 @@ contains
     class(theta_grid_file_config_type), intent(in out) :: self
     call broadcast(self%gridout_file)
     call broadcast(self%no_geo_info)
-    call broadcast(self%no_end_point)
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_file_config
