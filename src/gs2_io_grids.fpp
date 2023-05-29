@@ -4,6 +4,7 @@ module gs2_io_grids
   use netcdf_utils, only: kind_nf
   use neasyf, only: neasyf_open, neasyf_close
   use neasyf, only: neasyf_read, neasyf_write
+  use neasyf, only: neasyf_dim
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
   use netcdf, only: NF90_NOERR
@@ -14,29 +15,36 @@ module gs2_io_grids
 
   private
 
-  public :: nc_get_grid_sizes, nc_get_grid_scalars, nc_get_grids
+  public :: nc_get_grid_sizes, nc_write_grid_sizes
+  public :: nc_get_lambda_grid_size
+  public :: nc_get_grid_scalars, nc_write_grid_scalars
+  public :: nc_get_grids, nc_write_grids
+  public :: nc_get_lambda_grid, nc_write_lambda_grid
+  public :: nc_grid_file_new
 
 contains
 
-  subroutine nc_get_grid_sizes(filename, ntheta, ntgrid, nperiod, nlambda)
+  subroutine nc_grid_file_new(filename)
+    use file_utils, only: get_unused_unit
     character (len=2000), intent(in) :: filename
-    integer, intent(out), optional :: ntheta
-    integer, intent(out), optional :: ntgrid
-    integer, intent(out), optional :: nperiod
-    integer, intent(out), optional :: nlambda
+    logical :: is_exist
+    integer :: unit
+    inquire(file=filename, exist=is_exist)
+    if (is_exist) then
+       write(6,*) 'WARNING: existing file will be over-written', trim(filename)
+       open(unit, file=filename)
+       close(unit, status='delete')
+    end if
+  end subroutine nc_grid_file_new
+
+  subroutine nc_get_grid_sizes(filename, ntheta, ntgrid, nperiod)
+    character (len=2000), intent(in) :: filename
+    integer, intent(out), optional :: ntheta, ntgrid, nperiod
 
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, dimid
-    integer :: status
+    integer (kind_nf) :: ncid
 
     ncid = neasyf_open(trim(filename), "r")
-
-    if (present(nlambda)) then
-       status = nf90_inq_dimid(ncid, "nlambda", dimid)
-       if (status == NF90_NOERR) then
-          status = nf90_inquire_dimension(ncid, dimid, len=nlambda)
-       end if
-    end if
 
     if (present(ntgrid)) call neasyf_read(ncid, "ntgrid", ntgrid)
     if (present(nperiod)) call neasyf_read(ncid, "nperiod", nperiod)
@@ -49,12 +57,56 @@ contains
 # endif
   end subroutine nc_get_grid_sizes
 
+  subroutine nc_write_grid_sizes(filename, ntheta, ntgrid, nperiod)
+    character (len=2000), intent(in) :: filename
+    integer, intent(in), optional :: ntheta, ntgrid, nperiod
+# ifdef NETCDF
+    integer (kind_nf) :: ncid
+    character (len=2) :: action
+    logical :: is_exist
+
+    ! always append mode if file exists
+    action="w"
+    inquire(file=trim(filename), exist=is_exist)
+    if (is_exist) then
+       action="rw"
+    end if
+
+    ncid = neasyf_open(trim(filename), action)
+
+    if (present(ntgrid)) call neasyf_write(ncid, "ntgrid", ntgrid)
+    if (present(nperiod)) call neasyf_write(ncid, "nperiod", nperiod)
+    if (present(ntheta)) call neasyf_write(ncid, "ntheta", ntheta)
+
+    call neasyf_close(ncid)
+
+# else
+    call mp_abort("nc_write_grid_sizes does not work without NetCDF")
+# endif
+  end subroutine nc_write_grid_sizes
+
+  subroutine nc_get_lambda_grid_size(filename, nlambda)
+    character (len=2000), intent(in) :: filename
+    integer, intent(out) :: nlambda
+# ifdef NETCDF
+    integer (kind_nf) :: ncid, dimid
+    integer :: status
+    ncid = neasyf_open(trim(filename), "r")
+    status = nf90_inq_dimid(ncid, "nlambda", dimid)
+    if (status == NF90_NOERR) then
+       status = nf90_inquire_dimension(ncid, dimid, len=nlambda)
+    end if
+    call neasyf_close(ncid)
+# else
+    call mp_abort("nc_get_lambda_grid_size does not work without NetCDF")
+# endif
+  end subroutine nc_get_lambda_grid_size
+
   subroutine nc_get_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
     character (len=2000), intent(in) :: filename
     real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, varid
-    integer :: status
+    integer (kind_nf) :: ncid
     ncid = neasyf_open(trim(filename), "r")
     call neasyf_read(ncid, "drhodpsi", drhodpsi)
     call neasyf_read(ncid, "rmaj", rmaj)
@@ -63,28 +115,56 @@ contains
     call neasyf_read(ncid, "q", qval)
     call neasyf_close(ncid)
 # else
-    call mp_abort("nc_get_grid_sizes does not work without NetCDF")
+    call mp_abort("nc_get_grid_scalars does not work without NetCDF")
 # endif
   end subroutine nc_get_grid_scalars
   
-  subroutine nc_get_grids(filename, nlambda, ntgrid, lambda, &
-       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+  subroutine nc_write_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
+    character (len=2000), intent(in) :: filename
+    real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj
+# ifdef NETCDF
+    integer (kind_nf) :: ncid
+    character (len=2) :: action
+    logical :: is_exist
+
+    ! always append mode if file exists
+    action="w"
+    inquire(file=trim(filename), exist=is_exist)
+    if (is_exist) then
+       action="rw"
+    end if
+
+    ncid = neasyf_open(trim(filename), action)
+    call neasyf_write(ncid, "drhodpsi", drhodpsi)
+    call neasyf_write(ncid, "rmaj", rmaj)
+    call neasyf_write(ncid, "shat", shat)
+    call neasyf_write(ncid, "kxfac", kxfac)
+    call neasyf_write(ncid, "q", qval)
+    call neasyf_close(ncid)
+# else
+    call mp_abort("nc_write_grid_scalars does not work without NetCDF")
+# endif
+  end subroutine nc_write_grid_scalars
+
+  subroutine nc_get_grids(filename, ntgrid, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
+       cdrift, cdrift0, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        Bpol, jacob)
     character (len=2000), intent(in) :: filename
-    integer, intent(in) :: nlambda, ntgrid
-    real, dimension(nlambda), intent(out) :: lambda
+    integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(out) :: bmag, gradpar, &
-         gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+         gbdrift, gbdrift0, cvdrift, cvdrift0, &
          gds2, gds21, gds22, grho, theta
     real, dimension(-ntgrid:ntgrid), intent(out), optional :: &
+         cdrift, cdrift0, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          Bpol, jacob
 # ifdef NETCDF
     integer (kind_nf) :: ncid, varid
     integer :: status
-    integer :: ulim
+    integer :: theta_end_point
     integer :: no_end_point_int
     logical :: no_end_point
 
@@ -96,23 +176,21 @@ contains
        call neasyf_read(ncid, "no_end_point", no_end_point_int)
        if (no_end_point_int /= 0) no_end_point = .true.
     end if
-    
-    call neasyf_read(ncid, "lambda", lambda)
 
-    ulim = ntgrid
-    if (no_end_point) ulim = ntgrid-1
+    theta_end_point = ntgrid
+    if (no_end_point) theta_end_point = ntgrid-1
     
-    call neasyf_read(ncid, "gbdrift", gbdrift(-ntgrid:ulim))
-    call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgrid:ulim))
-    call neasyf_read(ncid, "cvdrift", cvdrift(-ntgrid:ulim))
-    call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgrid:ulim))
-    call neasyf_read(ncid, "gradpar", gradpar(-ntgrid:ulim))
-    call neasyf_read(ncid, "bmag", bmag(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds2", gds2(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds21", gds21(-ntgrid:ulim))
-    call neasyf_read(ncid, "gds22", gds22(-ntgrid:ulim))
-    call neasyf_read(ncid, "theta", theta(-ntgrid:ulim))
-    call neasyf_read(ncid, "grho", grho(-ntgrid:ulim))
+    call neasyf_read(ncid, "gbdrift", gbdrift(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "cvdrift", cvdrift(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "gradpar", gradpar(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "bmag", bmag(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "gds2", gds2(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "gds21", gds21(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "gds22", gds22(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "theta", theta(-ntgrid:theta_end_point))
+    call neasyf_read(ncid, "grho", grho(-ntgrid:theta_end_point))
 
     if (no_end_point) then
        call ntgrid_padding(gbdrift)
@@ -128,10 +206,26 @@ contains
        call ntgrid_padding(grho)
     end if
 
+    if (present(cdrift)) then
+       status = nf90_inq_varid(ncid, "cdrift", varid)
+       if (status == NF90_NOERR) then
+          call neasyf_read(ncid, "cdrift", cdrift(-ntgrid:theta_end_point))
+       end if
+       if (no_end_point) call ntgrid_padding(cdrift)
+    end if
+
+    if (present(cdrift0)) then
+       status = nf90_inq_varid(ncid, "cdrift0", varid)
+       if (status == NF90_NOERR) then
+          call neasyf_read(ncid, "cdrift0", cdrift0(-ntgrid:theta_end_point))
+       end if
+       if (no_end_point) call ntgrid_padding(cdrift0)
+    end if
+
     if (present(Bpol)) then
        status = nf90_inq_varid(ncid, "bpol", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "bpol", Bpol(-ntgrid:ulim))
+          call neasyf_read(ncid, "bpol", Bpol(-ntgrid:theta_end_point))
        end if
        if (no_end_point) call ntgrid_padding(Bpol)
     end if
@@ -139,7 +233,7 @@ contains
     if (present(jacob)) then
        status = nf90_inq_varid(ncid, "jacob", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "jacob", jacob(-ntgrid:ulim))
+          call neasyf_read(ncid, "jacob", jacob(-ntgrid:theta_end_point))
        end if
        if (no_end_point) call ntgrid_padding(jacob)
     end if
@@ -147,28 +241,29 @@ contains
     if (present(Rplot)) then
        status = nf90_inq_varid(ncid, "Rplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:ulim))
+          call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(Rplot)
    end if
     if (present(Rprime)) then
        status = nf90_inq_varid(ncid, "Rprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:ulim))
+          call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(Rprime)
     end if
+
     if (present(Zplot)) then
        status = nf90_inq_varid(ncid, "Zplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:ulim))
+          call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(Zplot)
     end if
     if (present(Zprime)) then
        status = nf90_inq_varid(ncid, "Zprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:ulim))
+          call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(Zprime)
     end if
@@ -176,14 +271,14 @@ contains
     if (present(aplot)) then
        status = nf90_inq_varid(ncid, "aplot", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aplot", aplot(-ntgrid:ulim))
+          call neasyf_read(ncid, "aplot", aplot(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(aplot)
     end if
     if (present(aprime)) then
        status = nf90_inq_varid(ncid, "aprime", varid)
        if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aprime", aprime(-ntgrid:ulim))
+          call neasyf_read(ncid, "aprime", aprime(-ntgrid:theta_end_point))
        end if
         if (no_end_point) call ntgrid_padding(aprime)
     end if
@@ -194,6 +289,141 @@ contains
     call mp_abort("nc_get_grids does not work without NetCDF")
 # endif
   end subroutine nc_get_grids
+
+  subroutine nc_write_grids(filename, ntgrid, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+       gds2, gds21, gds22, grho, theta, &
+       cdrift, cdrift0, &
+       Rplot, Rprime, Zplot, Zprime, aplot, aprime, &
+       Bpol, jacob, no_end_point_in)
+    character (len=2000), intent(in) :: filename
+    integer, intent(in) :: ntgrid
+    real, dimension(-ntgrid:ntgrid), intent(in) :: bmag, gradpar, &
+         gbdrift, gbdrift0, cvdrift, cvdrift0, &
+         gds2, gds21, gds22, grho, theta
+    real, dimension(-ntgrid:ntgrid), intent(in), optional :: &
+         cdrift, cdrift0, &
+         Rplot, Rprime, Zplot, Zprime, aplot, aprime, &
+         Bpol, jacob
+    logical, intent(in), optional :: no_end_point_in
+# ifdef NETCDF
+    integer (kind_nf) :: ncid, nt_dim
+    integer :: theta_end_point
+    logical :: no_end_point
+    integer :: no_end_point_int
+
+    character (len=2) :: action
+    logical :: is_exist
+
+    ! always append mode if file exists
+    action="w"
+    inquire(file=trim(filename), exist=is_exist)
+    if (is_exist) then
+       action="rw"
+    end if
+
+    ncid = neasyf_open(trim(filename), action)
+
+    no_end_point = .false.
+    no_end_point_int = 0
+    if (present(no_end_point_in)) then
+       no_end_point = no_end_point_in
+       if (no_end_point) then
+          no_end_point_int = 1
+       end if
+    end if
+    call neasyf_write(ncid, "no_end_point", no_end_point_int)
+
+    if (no_end_point) then
+       theta_end_point = ntgrid-1
+    else
+       theta_end_point = ntgrid
+    end if
+    call neasyf_dim(ncid, "nt", dim_size=theta_end_point+ntgrid+1, dimid=nt_dim)
+    call neasyf_write(ncid, "gbdrift", gbdrift(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gbdrift0", gbdrift0(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "cvdrift", cvdrift(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "cvdrift0", cvdrift0(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gradpar", gradpar(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "bmag", bmag(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds2", gds2(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds21", gds21(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "gds22", gds22(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "theta", theta(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    call neasyf_write(ncid, "grho", grho(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+
+    if (present(Bpol)) then
+       call neasyf_write(ncid, "bpol", Bpol(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+
+    if (present(jacob)) then
+       call neasyf_write(ncid, "jacob", jacob(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+
+    if (present(Rplot)) then
+       call neasyf_write(ncid, "Rplot", Rplot(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+   end if
+    if (present(Rprime)) then
+       call neasyf_write(ncid, "Rprime", Rprime(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+    if (present(Zplot)) then
+       call neasyf_write(ncid, "Zplot", Zplot(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+    if (present(Zprime)) then
+       call neasyf_write(ncid, "Zprime", Zprime(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+    if (present(aplot)) then
+       call neasyf_write(ncid, "aplot", aplot(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+    if (present(aprime)) then
+       call neasyf_write(ncid, "aprime", aprime(-ntgrid:theta_end_point), dim_ids=[nt_dim])
+    end if
+
+    call neasyf_close(ncid)
+
+# else
+    call mp_abort("nc_write_grids does not work without NetCDF")
+# endif
+  end subroutine nc_write_grids
+
+  subroutine nc_get_lambda_grid(filename, nlambda, lambda)
+    character (len=2000), intent(in) :: filename
+    integer, intent(in) :: nlambda
+    real, dimension(nlambda), intent(out) :: lambda
+# ifdef NETCDF
+    integer (kind_nf) :: ncid
+    ncid = neasyf_open(trim(filename), "r")
+    call neasyf_read(ncid, "lambda", lambda)
+    call neasyf_close(ncid)
+# else
+    call mp_abort("nc_get_lambda_grid does not work without NetCDF")
+# endif
+  end subroutine nc_get_lambda_grid
+
+  subroutine nc_write_lambda_grid(filename, nlambda, lambda)
+    character (len=2000), intent(in) :: filename
+    integer, intent(in) :: nlambda
+    real, dimension(nlambda), intent(in) :: lambda
+# ifdef NETCDF
+    integer (kind_nf) :: ncid, nl_dim
+    character (len=2) :: action
+    logical :: is_exist
+
+    ! always append mode if file exists
+    action="w"
+    inquire(file=trim(filename), exist=is_exist)
+    if (is_exist) then
+       action="rw"
+    end if
+
+    ncid = neasyf_open(trim(filename), action)
+    call neasyf_dim(ncid, "nlambda", dim_size=nlambda, dimid=nl_dim)
+    call neasyf_write(ncid, "lambda", lambda, dim_ids=[nl_dim])
+    call neasyf_close(ncid)
+# else
+    call mp_abort("nc_write_lambda_grid does not work without NetCDF")
+# endif
+  end subroutine nc_write_lambda_grid
 
   subroutine ntgrid_padding(array)
     real, dimension (:), intent (in out) :: array
