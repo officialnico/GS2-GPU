@@ -19,7 +19,7 @@ program rungridgen
   integer :: max_autoiter
   logical :: list = .false.
   logical :: no_end_point
-  character(200) :: ncsource
+  character(2000) :: ncsource
 
   ! work variables
   integer :: ntheta, nlambda, ntgrid
@@ -97,36 +97,16 @@ contains
 
   !> FIXME : Add documentation  
   subroutine allocate_arrays
-# ifdef NETCDF
-    use netcdf_utils, only: kind_nf
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
-# endif
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
     implicit none
     integer :: unit
     character(200) :: line
     logical :: ncsource_exist
-# ifdef NETCDF
-    integer (kind_nf) :: ncid
-# endif
 
     inquire(file=ncsource, exist=ncsource_exist)
     if (ncsource_exist) then
-# ifdef NETCDF
-       ncid = neasyf_open(trim(ncsource), "r")
-
-       call neasyf_read(ncid, "ntgrid", ntgridin)
-       call neasyf_read(ncid, "nperiod", nperiodin)
-       call neasyf_read(ncid, "ntheta", nthetain)
-       call neasyf_read(ncid, "drhodpsi", drhodpsi)
-       call neasyf_read(ncid, "rmaj", rmaj)
-       call neasyf_read(ncid, "shat", shat)
-       call neasyf_read(ncid, "kxfac", kxfac)
-       call neasyf_read(ncid, "q", qval)
-
-       call neasyf_close(ncid)
-# else
-       call mp_abort("ncsource cannot be read without NetCDF")
-# endif
+       call nc_get_grid_sizes(ncsource, nthetain, ntgridin, nperiodin)
+       call nc_get_grid_scalars(ncsource, shat, drhodpsi, kxfac, qval, rmaj)
     else
        call get_unused_unit(unit)
        open (unit=unit, file=trim(source), status="old")
@@ -208,73 +188,21 @@ contains
 
   !> FIXME : Add documentation  
   subroutine get_initial_grids
-# ifdef NETCDF
-    use netcdf_utils, only: kind_nf
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
-# endif
     use file_utils, only: get_unused_unit
+    use gs2_io_grids, only: nc_get_grids
     implicit none
     integer :: unit
     integer :: i
 !    real :: discard
     character(200) :: line
     logical :: ncsource_exist
-# ifdef NETCDF
-    integer (kind_nf) :: ncid
-    integer :: ulim
-# endif
 
     inquire(file=ncsource, exist=ncsource_exist)
     if (ncsource_exist) then
-# ifdef NETCDF
-       ncid = neasyf_open(trim(ncsource), "r")
-
-       ulim = ntgridin
-       if (no_end_point) ulim = ntgridin-1
-
-       call neasyf_read(ncid, "gbdrift", gbdrift(-ntgridin:ulim))
-       call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgridin:ulim))
-       call neasyf_read(ncid, "cvdrift", cvdrift(-ntgridin:ulim))
-       call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgridin:ulim))
-       call neasyf_read(ncid, "gradpar", gradpar(-ntgridin:ulim))
-       call neasyf_read(ncid, "bmag", bmag(-ntgridin:ulim))
-       call neasyf_read(ncid, "gds2", gds2(-ntgridin:ulim))
-       call neasyf_read(ncid, "gds21", gds21(-ntgridin:ulim))
-       call neasyf_read(ncid, "gds22", gds22(-ntgridin:ulim))
-       call neasyf_read(ncid, "theta", thetagrid(-ntgridin:ulim))
-       call neasyf_read(ncid, "grho", grho(-ntgridin:ulim))
-
-       call neasyf_read(ncid, "Rplot", Rplot(-ntgridin:ulim))
-       call neasyf_read(ncid, "Rprime", Rprime(-ntgridin:ulim))
-       call neasyf_read(ncid, "Zplot", Zplot(-ntgridin:ulim))
-       call neasyf_read(ncid, "Zprime", Zprime(-ntgridin:ulim))
-       call neasyf_read(ncid, "aplot", aplot(-ntgridin:ulim))
-       call neasyf_read(ncid, "aprime", aprime(-ntgridin:ulim))
-
-       call neasyf_close(ncid)
-
-       if (no_end_point) then
-          call ntgrid_padding(gbdrift)
-          call ntgrid_padding(gbdrift0)
-          call ntgrid_padding(cvdrift)
-          call ntgrid_padding(cvdrift0)
-          call ntgrid_padding(gradpar)
-          call ntgrid_padding(bmag)
-          call ntgrid_padding(gds2)
-          call ntgrid_padding(gds21)
-          call ntgrid_padding(gds22)
-          call ntgrid_padding(thetagrid)
-          call ntgrid_padding(grho)
-          call ntgrid_padding(Rplot)
-          call ntgrid_padding(Rprime)
-          call ntgrid_padding(Zplot)
-          call ntgrid_padding(Zprime)
-          call ntgrid_padding(aplot)
-          call ntgrid_padding(aprime)
-       end if
-# else
-       call mp_abort("ncsource cannot be read without NetCDF")
-# endif
+       call nc_get_grids(ncsource, ntgridin, &
+            bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+            gds2, gds21, gds22, grho, thetagrid, &
+            Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime)
     else
        call get_unused_unit(unit)
        open (unit=unit, file=trim(source), status="old")
@@ -533,13 +461,11 @@ contains
 
   !> FIXME : Add documentation    
   subroutine write_output
-# ifdef NETCDF
-    use netcdf_utils, only: kind_nf
-    use neasyf, only: neasyf_open, neasyf_close, neasyf_dim, neasyf_write
-    use file_utils, only: run_name
-    use constants, only: run_name_size
-# endif
     use splines, only: fitp_curvp2
+    use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
+    use gs2_io_grids, only: nc_write_lambda_grid
+    use gs2_io_grids, only: nc_grid_file_new
+    use constants, only: run_name_size
     implicit none
     integer :: unit
     integer :: i
@@ -557,13 +483,7 @@ contains
     real :: bmin
 !    integer :: ierr
     integer, dimension (1) :: minloca
-# ifdef NETCDF
     character(len=run_name_size) :: ncout
-    integer (kind_nf) :: ncid
-    integer (kind_nf) :: nt_dim, nlambda_dim
-
-    integer :: nt
-# endif
 
     call open_output_file (unit, ".input.out")
     write (unit=unit, fmt="('#',i5)") nthetain+1
@@ -739,49 +659,15 @@ contains
 
     if (bmin < bmagin(minloca(1))) print *, "WARNING: interpolated new minimum"
 
-# ifdef NETCDF
     ncout = trim(run_name)//".out.nc"
-    ncid = neasyf_open(ncout, "w")
-
-    call neasyf_write(ncid, "ntgrid", ntgrid)
-    call neasyf_write(ncid, "nperiod", nperiodout)
-    call neasyf_write(ncid, "ntheta", ntheta)
-    call neasyf_write(ncid, "drhodpsi", drhodpsi)
-    call neasyf_write(ncid, "rmaj", rmaj)
-    call neasyf_write(ncid, "shat", shat)
-    call neasyf_write(ncid, "kxfac", kxfac)
-    call neasyf_write(ncid, "q", qval)
-
-    if (no_end_point) then
-       nt=2*ntgrid
-    else
-       nt=2*ntgrid+1
-    end if
-
-    call neasyf_dim(ncid, "nlambda", dim_size=nlambda, dimid=nlambda_dim)
-    call neasyf_write(ncid, "lambda", alambdaout(:nlambda), dim_ids=[nlambda_dim])
-
-    call neasyf_dim(ncid, "nt", dim_size=nt, dimid=nt_dim)
-    call neasyf_write(ncid, "theta", thetagridout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gbdrift", gbdriftout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gbdrift0", gbdrift0out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "cvdrift", cvdriftout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "cvdrift0", cvdrift0out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gradpar", gradparout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "grho", grhoout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "bmag", bmaggridout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gds2", gds2out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gds21", gds21out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "gds22", gds22out(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "Rplot", Rplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "Rprime", Rprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "Zplot", Zplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "Zprime", Zprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "aplot", aplotout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-    call neasyf_write(ncid, "aprime", aprimeout(-ntgrid:nt-ntgrid-1), dim_ids=[nt_dim])
-
-    call neasyf_close(ncid)
-# endif
+    call nc_grid_file_new(ncout)
+    call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiodout)
+    call nc_write_grid_scalars(ncout, shat, drhodpsi, kxfac, qval, rmaj)
+    call nc_write_grids(ncout, ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
+         cvdriftout, cvdrift0out, gds2out, gds21out, gds22out, grhoout, thetagridout, &
+         Rplot=Rplotout, Rprime=Rprimeout, Zplot=Zplotout, Zprime=Zprimeout, &
+         aplot=aplotout, aprime=aprimeout, no_end_point_in=no_end_point)
+    call nc_write_lambda_grid(ncout, nlambda, alambdaout(:nlambda))
 
   end subroutine write_output
 
