@@ -1,3 +1,23 @@
+## 8.2 (2023)
+
+### Breaking Changes
+
+* The entry points to GS2 when using it as a library have been
+  refactored, with some deprecated routines having been removed. The
+  main entry point is still `run_gs2`, but this now takes only two
+  arguments: the program `state`, and an option to delay finalising
+  the simulation until `finish_gs2` is called. The user is expected to
+  take care of initialising and finalising MPI, and passing the MPI
+  communicator through `state%mp_comm`.
+
+* The change to the GS2 entry points means that some interfaces to
+  external codes, such as Trinity, have also been removed. The caller
+  should now handle any customisation to the GS2 setup/teardown.
+
+* The "replay" feature to recalculate some diagnostics on a previous
+  run has been removed. This feature only interacted with the "new"
+  diagnostics module, and only a certain subset of diagnostics.
+
 ## 8.1.2 (2022-07-26)
 
 

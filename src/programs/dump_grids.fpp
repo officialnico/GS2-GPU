@@ -1,4 +1,5 @@
-!> FIXME : Add documentation
+!> For the given input file initialises the main grids
+!> and geometry and writes these to file (netcdf or binary).
 program dump_grids
   use job_manage, only: job_fork, time_message
   use mp, only: init_mp, proc0, nproc, broadcast
@@ -12,7 +13,6 @@ program dump_grids
   logical :: list
   logical :: accel_x, accel_y
   logical, parameter :: quiet=.false.
-  character (500), target :: cbuff
   character (len=500) :: filename
   real :: time_measure(2)
 
@@ -118,7 +118,7 @@ contains
     use netcdf_utils, only: get_netcdf_code_precision
     use netcdf_utils, only: netcdf_real
 
-    use kt_grids, only: aky, akx, theta0
+    use kt_grids, only: aky, akx, theta0, kperp2
     use theta_grid, only: theta
     use theta_grid, only: bmag, bpol, gradpar, grho
     use theta_grid, only: cdrift, cvdrift, gbdrift
@@ -142,7 +142,7 @@ contains
     integer :: cvdrift_th_varid, gbdrift_th_varid
     integer :: gds2_varid, gds21_varid, gds22_varid, gds23_varid, gds24_varid, gds24_noq_varid
     integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
-    integer :: wl_varid, w_varid
+    integer :: wl_varid, w_varid, kperp2_varid
 
     !First create a file
     ierr=nf90_create(trim(adjustl(fname))//".grids.nc", ior(NF90_CLOBBER, NF90_NETCDF4), ncid)
@@ -189,6 +189,7 @@ contains
     ierr=nf90_def_var(ncid,'rprime',netcdf_real,[theta_dimid], rprime_varid)
     ierr=nf90_def_var(ncid,'zprime',netcdf_real,[theta_dimid], zprime_varid)
     ierr=nf90_def_var(ncid,'aprime',netcdf_real,[theta_dimid], aprime_varid)
+    ierr=nf90_def_var(ncid,'kperp2',netcdf_real,[theta_dimid, kx_dimid, ky_dimid], kperp2_varid)
     ierr=nf90_def_var(ncid,'wl',netcdf_real,[theta_dimid, al_dimid], wl_varid)
     ierr=nf90_def_var(ncid,'w',netcdf_real,[energy_dimid, species_dimid], w_varid)
 
@@ -227,6 +228,7 @@ contains
     ierr=nf90_put_var(ncid, rprime_varid, rprime)
     ierr=nf90_put_var(ncid, zprime_varid, zprime)
     ierr=nf90_put_var(ncid, aprime_varid, aprime)
+    ierr=nf90_put_var(ncid, kperp2_varid, kperp2)
     ierr=nf90_put_var(ncid, wl_varid, wl)
     ierr=nf90_put_var(ncid, w_varid, w)
 
@@ -238,7 +240,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine write_grids_to_file(fname)
-    use kt_grids, only: aky, akx, theta0
+    use kt_grids, only: aky, akx, theta0, kperp2
     use theta_grid, only: theta
     use theta_grid, only: bmag, bpol, gradpar, grho
     use theta_grid, only: cdrift, cvdrift, gbdrift
@@ -374,6 +376,10 @@ contains
 
     open(unit=unit,file=trim(adjustl(fname))//".aprime",form="unformatted")
     write(unit) aprime
+    close(unit)
+
+    open(unit=unit,file=trim(adjustl(fname))//".kperp2",form="unformatted")
+    write(unit) kperp2
     close(unit)
 
     open(unit=unit,file=trim(adjustl(fname))//".wl",form="unformatted")

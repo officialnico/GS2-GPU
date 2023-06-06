@@ -25,7 +25,7 @@ contains
     use gs2_transforms, only: init_transforms
     use gs2_layouts, only: g_lo, init_dist_fn_layouts
     use hyper, only: init_hyper
-    
+    use mp, only: nproc, iproc
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     logical :: accel_x, accel_v
@@ -39,7 +39,7 @@ contains
     call init_le_grids(accel_x, accel_v)
     ! in order to use fft transform routines
     call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
-    call init_dist_fn_layouts(naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
 
 !!!!! now need to initiate and assign hypervisc_filter
     call init_hyper
@@ -67,10 +67,10 @@ contains
   end subroutine finish_collisional
 
   !> FIXME : Add documentation  
-  subroutine calculate_collisional(gnostics)
+  subroutine calculate_collisional()
     use dist_fn_arrays, only: g, gnew
     use diagnostics_config, only: diagnostics_type
-    use dist_fn_arrays, only: c_rate, g_adjust
+    use dist_fn_arrays, only: c_rate, g_adjust, from_g_gs2
     use theta_grid, only: ntgrid, delthet, jacob
     use kt_grids, only: naky, ntheta0, aky
     use species, only: spec, nspec
@@ -79,13 +79,11 @@ contains
     use gs2_time, only: code_dt
     use hyper, only: hyper_diff, hypervisc_filter
     use le_derivatives, only: vspace_derivatives
-    use fields_arrays, only: phi, bpar, phinew, bparnew
-    use run_parameters, only: fphi, fbpar
+    use fields_arrays, only: phi, bpar
     use collisions, only: heating
 
     implicit none
 
-    type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(-ntgrid:ntgrid) :: wgt !< weights for theta integration
     complex, dimension(ntheta0,naky) :: hyper_part, hyper_part_2, colls_part   !< two parts of c_rate array: collisions and hypervisocity
     !complex, dimension(-ntgrid:ntgrid,ntheta0,naky) :: tot
@@ -103,9 +101,8 @@ contains
     g0=g
     weights=1.
   
-    call g_adjust(g0,phi,bpar,fphi,fbpar)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
+    call g_adjust(g0,phi,bpar, direction = from_g_gs2)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
-    !call vspace_derivatives(gnew,g,g0,phi, bpar, phinew, bparnew)  !!!!! assigns values to c_rate
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
     if (heating) then
        do is = 1, nspec
@@ -162,24 +159,22 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_collisional(gnostics)
-    use diagnostics_create_and_write, only: create_and_write_distributed_fieldlike_variable
-    use diagnostics_dimensions, only: dim_string
+    use gs2_io, only: starts, netcdf_write_complex, omega_dims
     use fields_parallelization, only: field_k_local
     use diagnostics_config, only: diagnostics_type
-    
+    use mp, only: proc0
     implicit none
     
     type(diagnostics_type), intent(in) :: gnostics
+    if (.not. proc0) return
+
+    call netcdf_write_complex(gnostics%file_id, "collisional_heating", coll_heating, &
+         dim_names=omega_dims, start=starts(4, gnostics%nout),  &
+         long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t")
     
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Collisional and hyper viscous rate of loss of free energy for each mode and each t", &
-         "unit", coll_heating)
-    
-    call create_and_write_distributed_fieldlike_variable(gnostics, gnostics%rtype, "collisional_heating_2", &
-         dim_string([gnostics%dims%ri,gnostics%dims%kx,gnostics%dims%ky,gnostics%dims%time]), &
-         "Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method", &
-         "unit", coll_heating_2)
+    call netcdf_write_complex(gnostics%file_id, "collisional_heating_2", coll_heating_2, &
+         dim_names=omega_dims, start=starts(4, gnostics%nout),  &
+         long_name="Collisional and hyper viscous rate of loss of free energy for each mode and each t, other method")
     
   end subroutine write_collisional
 

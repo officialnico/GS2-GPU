@@ -40,7 +40,7 @@ module init_g
        ginitopt_default_odd=34, ginitopt_restart_memory=35, & !Note ginitopt_restart_memory isn't meant to be a user selected choice.
        ginitopt_restart_eig=36, ginitopt_no_zonal = 37, &
        ginitopt_stationary_mode = 38, ginitopt_cgyro = 39, &
-       ginitopt_random_sine = 40
+       ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
   real :: den0, upar0, tpar0, tperp0
@@ -286,6 +286,10 @@ module init_g
      real :: phiinit0 = 0.0
      !> Amplitude of random perturbation. Used by [[init_g_knobs:ginit_option]] `"recon3"`
      real :: phiinit_rand = 0.0
+     !> Which processor is responsible for saving/reading potentials to/from restart
+     !> files. If <0 then all procs write to restart files. If >= nproc then set to
+     !> proc_to_save_fields = mod(proc_to_save_fields, nproc)
+     integer :: proc_to_save_fields = -1
      !> Width of "porcelli", "doubleharris" profiles in
      !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
@@ -617,6 +621,11 @@ contains
        write (unit, fmt="(' zf_init = ',e17.10)") zf_init
        write (unit, fmt="(' max_mode = ',I0)") max_mode
 
+    case (ginitopt_constant)
+       write (unit, fmt="(' ginit_option = ',a)") '"constant"'
+       write (unit, fmt="(' phiinit = ',e17.10)") phiinit
+       write (unit, fmt="(' zf_init = ',e17.10)") zf_init
+
     end select
     write (unit, fmt="(' /')")
   end subroutine wnml_init_g
@@ -923,6 +932,12 @@ contains
        write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
        write (report_unit, fmt="('  Max mode:         ',I0)") max_mode
        write (report_unit, fmt="(' Random sum of sine waves up to max_mode mode number')")
+
+    case (ginitopt_constant)
+       write (report_unit, fmt="('Initial conditions:')")
+       write (report_unit, fmt="('  Amplitude:        ',f10.4)") phiinit
+       write (report_unit, fmt="('  Zonal amplitude:  ',f10.4)") zf_init
+       write (report_unit, fmt="(' Constant value')")
     end select
 
     if (ginitopt_switch == ginitopt_restart_many) then
@@ -958,9 +973,9 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_init_g(init_g_config_in)
-    use gs2_save, only: set_restart_file, read_many
+    use gs2_save, only: set_restart_file, read_many, proc_to_save_fields
     use gs2_layouts, only: init_gs2_layouts
-    use mp, only: proc0, broadcast, job
+    use mp, only: proc0, broadcast, job, nproc
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in    
     integer :: ind_slash
@@ -1017,6 +1032,7 @@ contains
     call broadcast (max_mode)
     call broadcast (clean_init)
     call broadcast (restart_file)
+    call broadcast (proc_to_save_fields)
     call broadcast (read_many)
     call broadcast (ikk)
     call broadcast (itt) 
@@ -1051,8 +1067,7 @@ contains
     call broadcast (constant_random_flag)
     ! <RN
     call set_restart_file (restart_file)
-    call broadcast(constant_random_flag)
-    
+    if (proc_to_save_fields >= 0) proc_to_save_fields = mod(proc_to_save_fields, nproc)
   end subroutine init_init_g
 
   !> FIXME : Add documentation  
@@ -1201,6 +1216,8 @@ contains
        call ginit_cgyro
     case (ginitopt_random_sine)
        call ginit_random_sine
+    case (ginitopt_constant)
+       call ginit_constant
     end select
 
     ! If the initial condition is the nonadiabatic dfn then
@@ -1227,11 +1244,8 @@ contains
   !> Take the existing gnew value and, assuming it is the nonadiabatic dfn,
   !> calculate the consistent potentials to set the true gnew value.
   subroutine set_gnew_from_nonadiabatic_dfn
-    use dist_fn_arrays, only: gnew, g, g_adjust
-    use kt_grids, only: naky, ntheta0
-    use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gnew, g, g_adjust, to_g_gs2
     use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn
-    use run_parameters, only: fphi, fbpar
     use species, only: spec, has_hybrid_electron_species
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
@@ -1253,7 +1267,7 @@ contains
     call calculate_potentials_from_nonadiabatic_dfn(gnew, phi, apar, bpar)
 
     ! Adjust the nonadiabatic dfn to give the actual gnew we evolve
-    call g_adjust(gnew, phi, bpar, -fphi, -fbpar)
+    call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! Ensure both timesteps are set correctly
     g = gnew
@@ -1266,9 +1280,8 @@ contains
   subroutine read_parameters(init_g_config_in)
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use gs2_save, only: read_many, include_explicit_source_in_restart
+    use gs2_save, only: read_many, include_explicit_source_in_restart, proc_to_save_fields
     use job_manage, only: trin_restart
-
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
@@ -1311,7 +1324,8 @@ contains
             text_option('eig_restart', ginitopt_restart_eig), &
             text_option('stationary_mode', ginitopt_stationary_mode), &
             text_option('cgyro', ginitopt_cgyro), &
-            text_option('random_sine', ginitopt_random_sine) &
+            text_option('random_sine', ginitopt_random_sine), &
+            text_option('constant', ginitopt_constant) &
             /)
     character(20) :: ginit_option
 
@@ -1367,6 +1381,7 @@ contains
     phiinit = init_g_config%phiinit
     phiinit0 = init_g_config%phiinit0
     phiinit_rand = init_g_config%phiinit_rand
+    proc_to_save_fields = init_g_config%proc_to_save_fields
     prof_width = init_g_config%prof_width
     read_many = init_g_config%read_many
     refac = init_g_config%refac
@@ -1947,7 +1962,7 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid 
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     implicit none
@@ -1989,7 +2004,7 @@ contains
        g(:,1,iglo) = -phi(:,it,ik)*phiinit*spec(is)%z
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = g(:,1,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
     gnew = g
   end subroutine ginit_nl
@@ -2006,7 +2021,7 @@ contains
     use species, only: spec
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0 
-    use le_grids, only: forbid, ng2
+    use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     implicit none
@@ -2050,7 +2065,7 @@ contains
        where (forbid(:,il)) g(:,1,iglo) = 0.0
        g(:,2,iglo) = -phi(:,it,ik)*phiinit*(1.+vpa(:,2,iglo)*sin(theta))*spec(is)%z
 !       g(:,1,iglo)*vpa(:,2,iglo)
-       if (il == ng2+1) g(:,:,iglo) = 0.0
+       if (il_is_wfb(il)) g(:,:,iglo) = 0.0
     end do
 
     gnew = g
@@ -2083,7 +2098,6 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
@@ -2184,7 +2198,6 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use fields_arrays, only: apar
     use fields_arrays, only: aparnew
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
@@ -2390,14 +2403,13 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, reality
     use le_grids, only: forbid
-!    use le_grids, only: ng2
     use gs2_save, only: gs2_restore
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use fields_arrays, only: phi, apar, bpar
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz, odd
@@ -2405,7 +2417,7 @@ contains
     integer :: iglo, istatus, ierr
     integer :: ig, ik, it, il, is, j
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -2515,14 +2527,14 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
     integer :: ig, ik, it, is, il, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -2617,14 +2629,14 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
     integer :: ig, ik, it, is, il, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -2707,14 +2719,14 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
 !    complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
 !    integer :: ig, ik, it, is, il, ierr
     integer :: ik, it, ierr
     
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -3247,15 +3259,18 @@ contains
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
     use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: mom_coeff, mom_shift_para, mom_shift_perp
+    use dist_fn, only: init_mom_coeff
     use dist_fn, only: gamtot, gamtot1, gamtot2
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
     implicit none
+    real, dimension(:, :, :, :), allocatable :: mom_coeff
+    real, dimension(:, :, :), allocatable :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable :: mom_shift_para, mom_shift_perp
     integer :: iglo
-!    integer :: ig, ik, it, is, is2
     integer :: ig, ik, it, is
     integer :: i,j
 
@@ -3603,6 +3618,10 @@ contains
 
     allocate(nnrm(nakx,naky,nspec),unrm(nakx,naky,nspec))
     allocate(tparanrm(nakx,naky,nspec),tperpnrm(nakx,naky,nspec))
+
+    call init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+         mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+
     do is=1,nspec
        nnrm(:,:,is)=mom_coeff(:,:,is,1)
        unrm(:,:,is)=2.*mom_coeff(:,:,is,2)
@@ -3959,11 +3978,11 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     integer :: istatus, ierr
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -3982,11 +4001,11 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     integer :: istatus, ierr
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
 
     if (istatus /= 0) then
        ierr = error_unit()
@@ -4005,13 +4024,13 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     integer :: istatus, ierr
     character(len=20) :: restart_unique_string
 
     write(restart_unique_string,'(".eig_",I0)') restart_eig_id
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar, fileopt=restart_unique_string)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt=restart_unique_string)
 
     if (istatus /= 0) then
        ierr = error_unit()
@@ -4046,13 +4065,13 @@ contains
     use gs2_save, only: gs2_restore
     use mp, only: proc0
     use file_utils, only: error_unit
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     integer :: istatus, ierr
 
     call ginit_noise
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -4075,7 +4094,7 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
 
     implicit none
@@ -4115,7 +4134,7 @@ contains
     end do
     gnew = g
 
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -4142,7 +4161,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use fields_arrays, only: phinew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
 
     implicit none
     integer :: istatus, ierr
@@ -4150,7 +4169,7 @@ contains
     integer :: ik, it, il, is
 
     !  Load phi and g from the restart file
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -4212,7 +4231,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use fields_arrays, only: phinew
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
 
     implicit none
     integer :: istatus, ierr
@@ -4220,7 +4239,7 @@ contains
     integer :: ik, it, il, is
 
     !Load phi and g from the restart file
-    call gs2_restore (g, scale, istatus, fphi, fapar, fbpar)
+    call gs2_restore (g, scale, istatus, has_phi, has_apar, has_bpar)
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
@@ -4330,7 +4349,6 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
 
     implicit none
-    integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, in
     real :: arg, kxrange
@@ -4387,7 +4405,7 @@ contains
     real, dimension(-ntgrid:ntgrid) :: sin_theta_mode
     real :: a, b
     real, parameter :: sqrt_two = sqrt(2.0)
-    integer :: iglo, ig, ik, it, il, imode, the_max_mode
+    integer :: iglo, ik, it, il, imode, the_max_mode
 
     phi = 0.0
 
@@ -4468,6 +4486,37 @@ contains
     end subroutine set_a_and_b_uniform_random_weighting
 
   end subroutine ginit_random_sine
+
+  !> Initialise the distribution function to a constant but satisfying
+  !> forbidden regions. Can scale the zonal component separately as
+  !> usual.
+  subroutine ginit_constant
+    use kt_grids, only: aky
+    use le_grids, only: forbid
+    use dist_fn_arrays, only: g, gnew
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
+    implicit none
+    integer :: iglo, ik, it, il
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       il = il_idx(g_lo, iglo)
+       if (aky(ik) == 0.0) then
+          g(:, 1, iglo) = zf_init * phiinit
+
+          ! Zero the ky=kx=0 mode
+          if (it == 1) g(:, 1, iglo) = 0.0
+       else
+          g(:, 1, iglo) = phiinit
+       end if
+
+       where (forbid(:, il)) g(:, 1, iglo) = 0.0
+       g(:, 2, iglo) = g(:, 1, iglo)
+    end do
+
+    gnew = g
+  end subroutine ginit_constant
 
   !> FIXME : Add documentation    
   subroutine reset_init(from_file)
@@ -4570,7 +4619,7 @@ contains
     character(len = 2000) :: restart_file
     complex, dimension(3) :: nkxy_pt, ukxy_pt
     complex, dimension(6) :: aparamp, phiamp
-    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, restart_eig_id
+    integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
     logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
@@ -4579,7 +4628,7 @@ contains
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
          include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, &
-         phifrac, phiinit, phiinit0, phiinit_rand, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
+         phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
          upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
@@ -4626,6 +4675,7 @@ contains
     phiinit = self%phiinit
     phiinit0 = self%phiinit0
     phiinit_rand = self%phiinit_rand
+    proc_to_save_fields = self%proc_to_save_fields
     prof_width = self%prof_width
     read_many = self%read_many
     refac = self%refac
@@ -4692,6 +4742,7 @@ contains
     self%phiinit = phiinit
     self%phiinit0 = phiinit0
     self%phiinit_rand = phiinit_rand
+    self%proc_to_save_fields = proc_to_save_fields
     self%prof_width = prof_width
     self%read_many = read_many
     self%refac = refac
@@ -4769,6 +4820,7 @@ contains
     call self%write_key_val("phiinit", self%phiinit, unit_internal)
     call self%write_key_val("phiinit0", self%phiinit0, unit_internal)
     call self%write_key_val("phiinit_rand", self%phiinit_rand, unit_internal)
+    call self%write_key_val("proc_to_save_fields", self%proc_to_save_fields, unit_internal)
     call self%write_key_val("prof_width", self%prof_width, unit_internal)
     call self%write_key_val("read_many", self%read_many, unit_internal)
     call self%write_key_val("refac", self%refac, unit_internal)
@@ -4848,6 +4900,7 @@ contains
     call broadcast(self%phiinit)
     call broadcast(self%phiinit0)
     call broadcast(self%phiinit_rand)
+    call broadcast(self%proc_to_save_fields)
     call broadcast(self%prof_width)
     call broadcast(self%read_many)
     call broadcast(self%refac)

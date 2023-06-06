@@ -66,6 +66,10 @@ ifndef USE_MPI
 BUILD_PFUNIT_FLAGS += -m
 endif
 
+ifdef USE_OPENMP
+BUILD_PFUNIT_FLAGS += -o
+endif
+
 ifdef BUILD_PFUNIT_BUILD_DIR
 BUILD_PFUNIT_FLAGS += -b ${BUILD_PFUNIT_BUILD_DIR}
 endif
@@ -90,7 +94,7 @@ $(PFUNIT_OBJS): $(GS2_OBJS)
 
 $(PFUNIT_TEST_EXE): $(PFUNIT_OBJS) $(PFUNIT_DRIVER) $(GS2_OBJS)
 	$(call messageOp,"Compiling","\\t:","pFUnit tests")
-	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(SIMPLEDATAIO_LIB) $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
+	$(QUIETSYM)$(FC) -o $@ $^ -DUSE_MPI=YES $(PFUNIT_INC) $(PFUNIT_LIB) -I. $(LIBS) $(F90FLAGS) -I$(PFUNIT_TEST_DIR) -D_TEST_SUITES='"$(PFUNIT_TEST_LIST)"'
 
 run_test: make_test
 	-@rm -f pfunit.log pfunit.error
@@ -100,8 +104,10 @@ run_test: make_test
       && cat $(PFUNIT_LOG) \
       || (cat $(PFUNIT_LOG) $(PFUNIT_ERROR); exit 1)
 
-run_gcov:
-	gcov *.f90
+run_gcov: run_test
+#Note we can't just pass $(OBJDIR)/*.o as not all objects are used/generate gcda
+#files, which gcov now indicates as an error, causing make to fail.
+	gcov -p -o $(OBJDIR) $(patsubst %.gcda, %.o, $(wildcard $(addsuffix /*.gcda, $(OBJDIR))))
 
 pfunit_tests: check_pfunit_install make_test run_test
 

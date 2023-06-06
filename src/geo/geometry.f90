@@ -145,6 +145,7 @@ module geometry
   public :: qfun, rpofrho, rcenter, nth_get, f_trap  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
+  public :: eqnormfile
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
   public :: advanced_parameters_type, advanced_parameters
   public :: rmin, rmax, isym, in_nt, writelots, itor
@@ -246,6 +247,7 @@ module geometry
   integer :: fort11_unit !For outputting geom values
 
   character(len=800) :: eqfile
+  character(len=800) :: eqnormfile
 
   !> FIXME : Add documentation  
   type advanced_parameters_type  
@@ -686,7 +688,7 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
              endif
           else if(dfit_eq) then
              if(big <= 0) big = 1
-             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
+             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
           else if(idfit_eq) then
              !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
              !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
@@ -2527,7 +2529,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> FIXME : Add documentation    
   subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,ier,soln)
     implicit none
-    real, external :: f
+    interface
+      real function f(x_)
+        real, intent(in) :: x_
+      end function f
+    end interface
     real, intent(in) :: fval, a, b, xerrbi, xerrsec
     real, intent(out) :: soln
     integer, intent(in) :: nsolv
@@ -3499,7 +3505,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: x1, x2, rootval, thetroot, tol
-    real, external :: func
+    interface
+      real function func(x_, root_)
+        real, intent(in) :: x_, root_
+      end function func
+    end interface
     real :: zbrent
     real, parameter :: eps = 3.e-8, eps1 = 2.e-8
     integer, parameter :: itmax = 100
@@ -3661,6 +3671,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     delth(-nth) = 0.5*(theta(-nth+1)-theta(-nth))
     delth(nth) = 0.5*(theta(nth)-theta(nth-1))
 
+    ! We might want to write this to use trapezoidal_integration instead
+    ! of this sum form. Currently only used in [[f_trap]], which itself
+    ! is only used here for one piece of information written to screen.
+    ! As it doesn't get into the simulated system we probably don't mind
+    ! too much beyond readability concerns.
     fluxavg = sum(f*jacob(-nth:nth)*delth)/sum(jacob(-nth:nth)*delth)
   end function fluxavg
 

@@ -2,23 +2,25 @@
 program eiktest
   use constants, only: pi
   use geometry
+  use file_utils, only: init_file_utils, run_name
   implicit none
 
-  integer :: i, nth, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta
   real :: broot
   real :: q, qq, qplus, qmnus
-  real :: bb, bm, bp, profile_fac
+  real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
   real :: rhocm, rhocp
   real :: bbar
+  real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
-  integer :: nbeta
+  integer :: nbeta, funit
 
-  real :: airat, wgt, wdavg, jac
-  logical :: fast, dipole
+  logical :: fast, dipole, list
+  character(len=:), allocatable :: in_stem, out_stem
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -28,7 +30,8 @@ program eiktest
        s_hat_input,p_prime_input,invLp_input,beta_prime_input, &
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
-       tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos
+       tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
+       eqnormfile
      
 ! set defaults
 
@@ -77,11 +80,23 @@ program eiktest
 
   eqinit = 1       ! Mike K. codes do not have this variable.
 
-      
+  if (command_argument_count() == 0) then
+     allocate(character(len=3)::in_stem)
+     in_stem = 'eik'
+     allocate(character(len=0)::out_stem)
+     out_stem = ''
+  else
+     call init_file_utils(list)
+     allocate(character(len=len_trim(run_name))::in_stem)
+     allocate(character(len=len_trim(run_name)+1)::out_stem)
+     in_stem = trim(run_name)
+     out_stem = trim(in_stem)//'.'
+  endif
+
 !     read in data
-  open(10,file='eik.in')
-  read(10,stuff)
-  close(10)
+  open(newunit=funit,file=in_stem//'.in')
+  read(funit,nml=stuff)
+  close(funit)
   
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
@@ -122,12 +137,12 @@ program eiktest
      chs_eq = .false.
   endif
   
-  open(unit=21,file='eik.out',status='unknown')
-  open(unit=24,file='shear.out',status='unknown')
-  open(unit=25,file='trap.out',status='unknown')
-  open(unit=11,file='eik2.out',status='unknown')
-  open(unit=99,file='eik3.out',status='unknown')
-  open(unit=78,file='eik7.out',status='unknown')
+  open(unit=21,file=out_stem//'eik.out',status='unknown')
+  open(unit=24,file=out_stem//'shear.out',status='unknown')
+  open(unit=25,file=out_stem//'trap.out',status='unknown')
+  open(unit=11,file=out_stem//'eik2.out',status='unknown')
+  open(unit=99,file=out_stem//'eik3.out',status='unknown')
+  open(unit=78,file=out_stem//'eik7.out',status='unknown')
   
   call eikcoefs(ntheta)
 ! note that ntheta may have changed
@@ -179,9 +194,6 @@ program eiktest
   call Hahm_Burrell(irho, profile_fac)
 
   broot=-1.
-!      write(*,*) 'rho ',rhoc
-!      write(*,*) 'rp ',rpofrho(rhoc)
-!      write(*,*) 'r ',rfun(rpofrho(rhoc),0.,broot)
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
@@ -244,19 +256,6 @@ program eiktest
      write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
      write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
-
-!      write(*,*) 'mag(Bp) at rho= ',rhoc
-!      do i=-nth,nth
-!         r=rfun(rpofrho(rhoc),theta(i))
-!         write(*,*) r,theta(i),bpmagfun(r,theta(i))
-!      enddo
-
-!      write(*,*) '    theta        gbdrift          gradpar        grho'
-!      do i= -5,5
-!      do i= -ntgrid,ntgrid
-!         write(*,1000) theta(i),gbdrift(i), gradpar(i),grho(i)
-!      enddo
-
      
   close(11)
   close(21)
@@ -294,5 +293,3 @@ program eiktest
   close (unit=21)
 1000  format(20(1x,1pg18.11))
 end program eiktest
-
-

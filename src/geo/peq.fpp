@@ -1248,7 +1248,6 @@ contains
   !> FIXME : Add documentation  
   subroutine Hahm_Burrell(irho, a)
     use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
     implicit none
     real, intent(in) :: a
     integer, intent(in) :: irho

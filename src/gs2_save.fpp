@@ -30,7 +30,7 @@ module gs2_save
   public :: gs2_restore, gs2_save_for_restart, finish_gs2_save
 
   public :: read_many, save_many, gs2_save_response, gs2_restore_response
-  public :: restore_current_scan_parameter_value
+  public :: restore_current_scan_parameter_value, proc_to_save_fields
   public :: init_gs2_save, init_dt, read_t0_from_restart_file, init_ant_amp
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
@@ -55,6 +55,11 @@ module gs2_save
   !> Do we want to include the explicit source terms and
   !> related timesteps when saving/restoring from the restart file.
   logical :: include_explicit_source_in_restart = .true.
+
+  !> Which processor should save the potentials. If <0 (default) then
+  !> all processors save their potentials. If >= nproc then will be
+  !> set to mod(proc_to_save_fields, nproc)
+  integer :: proc_to_save_fields
 
   !> Used to hold the base of the restart file name.
   character (run_name_size) :: restart_file
@@ -93,8 +98,10 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, delt0, vnm, istatus, fphi, fapar, fbpar, fileopt, &
-        save_glo_info_and_grids, save_velocities, header)
+       (g, t0, vnm, istatus, has_phi, has_apar, has_bpar, &
+       code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
+       fileopt, &
+       save_glo_info_and_grids, save_velocities, header)
 # ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
@@ -116,7 +123,6 @@ contains
     use dist_fn_arrays, only: vpa, vperp2
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
-    use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use optionals, only: get_option_with_default
     use standard_header, only : standard_header_type
     implicit none
@@ -124,16 +130,17 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     !> Current simulation time
     real, intent (in) :: t0
-    !> Current timestep size
-    real, intent (in) :: delt0
     !> FIXME: Collisionality multiplier?
     real, dimension (2), intent (in) :: vnm
-    !> Electrostatic potential, \(\phi\), scaling factor
-    real, intent (in) :: fphi
-    !> Vector potential, \(A_\parallel\), scaling factor
-    real, intent (in) :: fapar
-    !> Parallel magnetic field, \(B_\parallel\), scaling factor
-    real, intent (in) :: fbpar
+    !> The current time step, the two previous time steps and the
+    !> maximum allowed time step.
+    real, intent(in) :: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
+    !> Do we include electrostatic potential, \(\phi\)
+    logical, intent (in) :: has_phi
+    !> Do we include vector potential, \(A_\parallel\)
+    logical, intent (in) :: has_apar
+    !> Do we include parallel magnetic field, \(B_\parallel\)
+    logical, intent (in) :: has_bpar
     !> Last netCDF status: zero on success, non-zero on failure
     integer, intent (out) :: istatus
     !> Optional extra filename infix
@@ -152,7 +159,7 @@ contains
     integer :: total_elements
     integer, dimension(3) :: start_pos, counts
     integer, parameter :: tmpunit = 348
-    logical :: is_one_file_per_processor
+    logical :: is_one_file_per_processor, this_proc_saves_fields
     logical :: has_gexp_1
     logical :: save_glo_info_and_grids_local, save_velocities_info
     logical :: should_define_single_entry_variables
@@ -189,6 +196,9 @@ contains
 
     ! Decide if we want one file per processor or not
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
+
+    ! Decide if we are saving the fields
+    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0)
 
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
@@ -329,25 +339,27 @@ contains
        endif
     end if
 
-    if (fphi > epsilon(0.)) then
-       call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
-            [thetaid, kxid, kyid], phir_id)
-       call ensure_netcdf_var_exists(ncid, "phi_i", netcdf_real, &
-            [thetaid, kxid, kyid], phii_id)
-    end if
+    if (this_proc_saves_fields) then
+       if (has_phi) then
+          call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
+               [thetaid, kxid, kyid], phir_id)
+          call ensure_netcdf_var_exists(ncid, "phi_i", netcdf_real, &
+               [thetaid, kxid, kyid], phii_id)
+       end if
 
-    if (fapar > epsilon(0.)) then
-       call ensure_netcdf_var_exists(ncid, "apar_r", netcdf_real, &
-            [thetaid, kxid, kyid], aparr_id)
-       call ensure_netcdf_var_exists(ncid, "apar_i", netcdf_real, &
-            [thetaid, kxid, kyid], apari_id)
-    end if
+       if (has_apar) then
+          call ensure_netcdf_var_exists(ncid, "apar_r", netcdf_real, &
+               [thetaid, kxid, kyid], aparr_id)
+          call ensure_netcdf_var_exists(ncid, "apar_i", netcdf_real, &
+               [thetaid, kxid, kyid], apari_id)
+       end if
 
-    if (fbpar > epsilon(0.)) then
-       call ensure_netcdf_var_exists(ncid, "bpar_r", netcdf_real, &
-            [thetaid, kxid, kyid], bparr_id)
-       call ensure_netcdf_var_exists(ncid, "bpar_i", netcdf_real, &
-            [thetaid, kxid, kyid], bpari_id)
+       if (has_bpar) then
+          call ensure_netcdf_var_exists(ncid, "bpar_r", netcdf_real, &
+               [thetaid, kxid, kyid], bparr_id)
+          call ensure_netcdf_var_exists(ncid, "bpar_i", netcdf_real, &
+               [thetaid, kxid, kyid], bpari_id)
+       end if
     end if
 
     !For saving distribution function
@@ -778,36 +790,38 @@ contains
     if (is_one_file_per_processor .or. proc0) then
        if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
 
-       if (fphi > epsilon(0.)) then
-          ftmpr = real(phinew)
-          istatus = nf90_put_var (ncid, phir_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
-               var = 'phir put')
+       if (this_proc_saves_fields) then
+          if (has_phi) then
+             ftmpr = real(phinew)
+             istatus = nf90_put_var (ncid, phir_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
+                  var = 'phir put')
 
-          ftmpr = aimag(phinew)
-          istatus = nf90_put_var (ncid, phii_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
-               var = 'phir put')
-       end if
+             ftmpr = aimag(phinew)
+             istatus = nf90_put_var (ncid, phii_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
+                  var = 'phir put')
+          end if
 
-       if (fapar > epsilon(0.)) then
-          ftmpr = real(aparnew)
-          istatus = nf90_put_var (ncid, aparr_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
+          if (has_apar) then
+             ftmpr = real(aparnew)
+             istatus = nf90_put_var (ncid, aparr_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
 
-          ftmpr = aimag(aparnew)
-          istatus = nf90_put_var (ncid, apari_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
-       end if
+             ftmpr = aimag(aparnew)
+             istatus = nf90_put_var (ncid, apari_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
+          end if
 
-       if (fbpar > epsilon(0.)) then
-          ftmpr = real(bparnew)
-          istatus = nf90_put_var (ncid, bparr_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
+          if (has_bpar) then
+             ftmpr = real(bparnew)
+             istatus = nf90_put_var (ncid, bparr_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
 
-          ftmpr = aimag(bparnew)
-          istatus = nf90_put_var (ncid, bpari_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
+             ftmpr = aimag(bparnew)
+             istatus = nf90_put_var (ncid, bpari_id, ftmpr)
+             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
+          end if
        end if
 
        if (.not. allocated(stmp)) allocate (stmp(naky))
@@ -849,10 +863,10 @@ contains
   end subroutine gs2_save_for_restart
   
   !> FIXME : Add documentation
-  subroutine gs2_restore_many (g, scale, istatus, fphi, fapar, fbpar, fileopt)
+  subroutine gs2_restore_many (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
-    use mp, only: iproc, mp_abort, proc0
+    use mp, only: iproc, mp_abort, proc0, broadcast
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
@@ -864,9 +878,10 @@ contains
     use file_utils, only: error_unit
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
+    logical :: this_proc_reads_fields, need_to_broadcast_fields
     real, intent (in) :: scale
     integer, intent (out) :: istatus
-    real, intent (in) :: fphi, fapar, fbpar
+    logical, intent (in) :: has_phi, has_apar, has_bpar
     character (len=*), intent(in), optional :: fileopt
 # ifdef NETCDF
     !> This parameter controls whether or not gs2
@@ -888,6 +903,10 @@ contains
     n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
+
+    ! Decide if we are reading the fields
+    need_to_broadcast_fields = proc_to_save_fields >= 0
+    this_proc_reads_fields = (iproc == proc_to_save_fields) .or. (.not. need_to_broadcast_fields)
     
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
@@ -954,28 +973,30 @@ contains
          abort=abort_on_restart_fail)
     if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
 
-    if (fphi > epsilon(0.)) then
-       istatus = nf90_inq_varid (ncid, "phi_r", phir_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_r')
+    if (this_proc_reads_fields) then
+       if (has_phi) then
+          istatus = nf90_inq_varid (ncid, "phi_r", phir_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_r')
 
-       istatus = nf90_inq_varid (ncid, "phi_i", phii_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_i')
-    end if
+          istatus = nf90_inq_varid (ncid, "phi_i", phii_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_i')
+       end if
 
-    if (fapar > epsilon(0.)) then
-       istatus = nf90_inq_varid (ncid, "apar_r", aparr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_r')
+       if (has_apar) then
+          istatus = nf90_inq_varid (ncid, "apar_r", aparr_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_r')
 
-       istatus = nf90_inq_varid (ncid, "apar_i", apari_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_i')
-    end if
+          istatus = nf90_inq_varid (ncid, "apar_i", apari_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_i')
+       end if
 
-    if (fbpar > epsilon(0.)) then
-       istatus = nf90_inq_varid (ncid, "bpar_r", bparr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_r')
+       if (has_bpar) then
+          istatus = nf90_inq_varid (ncid, "bpar_r", bparr_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_r')
 
-       istatus = nf90_inq_varid (ncid, "bpar_i", bpari_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_i')
+          istatus = nf90_inq_varid (ncid, "bpar_i", bpari_id)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_i')
+       end if
     end if
 
     if (allocated(kx_shift)) then   ! MR begin
@@ -1174,9 +1195,6 @@ contains
        endif
     end if
 
-    if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
-    if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
-
     if (allocated(kx_shift)) then   ! MR begin
        if (.not. allocated(stmp)) allocate (stmp(naky))   ! MR 
        istatus = nf90_get_var (ncid, kx_shift_id, stmp)
@@ -1193,40 +1211,52 @@ contains
        theta0_shift = stmp
     endif
 
-    if (fphi > epsilon(0.)) then
-       istatus = nf90_get_var (ncid, phir_id, ftmpr)
-       if (istatus /= NF90_NOERR) &
-         call netcdf_error (istatus, ncid, phir_id, var= 'phir')
-       
-       istatus = nf90_get_var (ncid, phii_id, ftmpi)
-       if (istatus /= NF90_NOERR) &
-         call netcdf_error (istatus, ncid, phii_id, var='phii')
-       
-       phi = 0.
-       phinew = cmplx(ftmpr, ftmpi)
+    if (this_proc_reads_fields) then
+       if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
+       if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
+
+       if (has_phi) then
+          istatus = nf90_get_var (ncid, phir_id, ftmpr)
+          if (istatus /= NF90_NOERR) &
+               call netcdf_error (istatus, ncid, phir_id, var= 'phir')
+
+          istatus = nf90_get_var (ncid, phii_id, ftmpi)
+          if (istatus /= NF90_NOERR) &
+               call netcdf_error (istatus, ncid, phii_id, var='phii')
+
+          phinew = cmplx(ftmpr, ftmpi)
+       end if
+
+       if (has_apar) then
+          istatus = nf90_get_var (ncid, aparr_id, ftmpr)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
+
+          istatus = nf90_get_var (ncid, apari_id, ftmpi)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
+
+          aparnew = cmplx(ftmpr, ftmpi)
+       end if
+
+       if (has_bpar) then
+          istatus = nf90_get_var (ncid, bparr_id, ftmpr)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
+
+          istatus = nf90_get_var (ncid, bpari_id, ftmpi)
+          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
+
+          bparnew = cmplx(ftmpr, ftmpi)
+       end if
     end if
 
-    if (fapar > epsilon(0.)) then
-       istatus = nf90_get_var (ncid, aparr_id, ftmpr)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
-       
-       istatus = nf90_get_var (ncid, apari_id, ftmpi)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
-       
-       apar = 0.
-       aparnew = cmplx(ftmpr, ftmpi)
+    if (need_to_broadcast_fields) then
+       if (has_phi) call broadcast(phinew, proc_to_save_fields)
+       if (has_apar) call broadcast(aparnew, proc_to_save_fields)
+       if (has_bpar) call broadcast(bparnew, proc_to_save_fields)
     end if
 
-    if (fbpar > epsilon(0.)) then
-       istatus = nf90_get_var (ncid, bparr_id, ftmpr)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
-       
-       istatus = nf90_get_var (ncid, bpari_id, ftmpi)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
-       
-       bpar = 0.
-       bparnew = cmplx(ftmpr, ftmpi)
-    end if
+    if (has_phi) phi = 0.
+    if (has_apar) apar = 0.
+    if (has_bpar) bpar = 0.
 
     if (scale > 0.) then
        g = g*scale
@@ -1258,11 +1288,10 @@ contains
 
   !> This routine writes a passed square complex array to a file
   !> with passed name
-  subroutine gs2_save_response(resp, fname, condition, header)
+  subroutine gs2_save_response(resp, fname, code_dt, condition, header)
     use file_utils, only: error_unit
     use standard_header, only: standard_header_type
 #ifdef NETCDF
-    use gs2_time, only: code_dt
     use convert, only: c2r
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
     use gs2_metadata, only: create_metadata
@@ -1272,6 +1301,7 @@ contains
     implicit none
     complex,dimension(:,:), intent(in) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(in) :: code_dt
     real, intent(in), optional :: condition
     !> Header for files with build and run information
     type(standard_header_type), optional, intent(in) :: header
@@ -1357,7 +1387,7 @@ contains
 
   !> This routine reads a square complex array from a file
   !! with passed name
-  subroutine gs2_restore_response(resp, fname, condition)
+  subroutine gs2_restore_response(resp, fname, code_dt, condition)
     use file_utils, only: error_unit
 #ifdef NETCDF
     use convert, only: r2c
@@ -1367,10 +1397,11 @@ contains
     implicit none
     complex, dimension(:,:), intent(out) :: resp
     character(len=*), intent(in) :: fname
+    real, intent(out) :: code_dt
     real, intent(out), optional :: condition
     integer :: sz
 #ifdef NETCDF
-    integer :: ierr, respid, ncid, condition_id
+    integer :: ierr, respid, ncid, condition_id, dt_id
     real, dimension(:,:,:), allocatable :: ri_resp
 #else
     integer :: unit
@@ -1402,6 +1433,12 @@ contains
     call r2c(resp,ri_resp)
     deallocate(ri_resp)
 
+    !/Get the time step
+    ierr = nf90_inq_varid(ncid, "dt", dt_id)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr, var="dt")
+    ierr=nf90_get_var(ncid, dt_id, code_dt)
+    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
+
     !/Get the condition number
     if (present(condition)) then
        ierr = nf90_inq_varid(ncid, "condition", condition_id)
@@ -1427,7 +1464,7 @@ contains
   end subroutine gs2_restore_response
 
   !> Initialises a file for saving output of eigensolver to netcdf
-  subroutine init_eigenfunc_file(fname,fphi,fapar,fbpar,IDs)
+  subroutine init_eigenfunc_file(fname, has_phi, has_apar, has_bpar, IDs)
     use file_utils, only: error_unit
     use theta_grid, only: ntgrid, theta
 #ifdef NETCDF
@@ -1436,7 +1473,7 @@ contains
     implicit none
     character(len=*), intent(in) :: fname
     type(EigNetcdfID), intent(inout) :: IDs
-    real, intent(in) :: fphi, fapar, fbpar
+    logical, intent(in) :: has_phi, has_apar, has_bpar
 #ifdef NETCDF
     integer :: ierr
 #endif
@@ -1461,15 +1498,15 @@ contains
     call ensure_netcdf_var_exists(IDs%ncid, "conv", netcdf_real, &
          IDs%conv_dim_id, IDs%conv_var_id)
     !Fields
-    if(fphi.gt.epsilon(0.0))then
+    if(has_phi)then
        call ensure_netcdf_var_exists(IDs%ncid, "phi", netcdf_real, &
             [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%phi_var_id)
     endif
-    if(fapar.gt.epsilon(0.0))then
+    if(has_apar)then
        call ensure_netcdf_var_exists(IDs%ncid, "apar", netcdf_real, &
             [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%apar_var_id)
     endif
-    if(fbpar.gt.epsilon(0.0))then
+    if(has_bpar)then
        call ensure_netcdf_var_exists(IDs%ncid, "bpar", netcdf_real, &
             [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%bpar_var_id)
     endif
@@ -1489,14 +1526,14 @@ contains
   end subroutine init_eigenfunc_file
 
   !> Add an eigenpairs data to file
-  subroutine add_eigenpair_to_file(eval,fphi,fapar,fbpar,IDs,my_conv)
+  subroutine add_eigenpair_to_file(eval, has_phi, has_apar, has_bpar,IDs,my_conv)
     use fields_arrays, only: phinew, aparnew, bparnew
     use convert, only: c2r
     use theta_grid, only: ntgrid
     complex, intent(in) :: eval !Note just use fields to get eigenvectors
     real, intent(in), optional :: my_conv
     type(EigNetcdfID), intent(inout) :: IDs
-    real, intent(in) :: fphi, fapar, fbpar
+    logical, intent(in) :: has_phi, has_apar, has_bpar
 #ifdef NETCDF
     real, dimension(2) :: ri_omega
     real, dimension(:,:), allocatable :: ri_field
@@ -1535,17 +1572,17 @@ contains
 
     !/Fields
     allocate(ri_field(2,2*ntgrid+1))
-    if(fphi.gt.epsilon(0.0))then
+    if(has_phi)then
        call c2r(phinew(:,1,1),ri_field)
        ierr=nf90_put_var(IDs%ncid,IDs%phi_var_id,ri_field, start=start_field,count=count_field)
        if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%phi_var_id)
     endif
-    if(fapar.gt.epsilon(0.0))then
+    if(has_apar)then
        call c2r(aparnew(:,1,1),ri_field)
        ierr=nf90_put_var(IDs%ncid,IDs%apar_var_id,ri_field, start=start_field,count=count_field)
        if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%apar_var_id)
     endif
-    if(fbpar.gt.epsilon(0.0))then
+    if(has_bpar)then
        call c2r(bparnew(:,1,1),ri_field)
        ierr=nf90_put_var(IDs%ncid,IDs%bpar_var_id,ri_field, start=start_field,count=count_field)
        if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%bpar_var_id)

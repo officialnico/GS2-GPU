@@ -19,11 +19,9 @@ program test_field_solve_nonadiabatic
   logical, parameter :: debug = .false.
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   call announce_module_test('test_field_solve_nonadiabatic')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
 

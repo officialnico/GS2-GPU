@@ -113,28 +113,16 @@ module ingen_mod
 
 contains
 
-  !> FIXME : Add documentation  
-  subroutine run_ingen(ingen_config_in)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!      Main code starts here       !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!                                  !!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !> Entry point: initialise needed modules, run checks, and write namelists
+  subroutine run_ingen(ingen_config_in, input_file)
     use file_utils, only: init_file_utils
     use standard_header, only: standard_header_type
     use mp, only : proc0
     implicit none
+    !> Input options. Defaults to reading the 'ingen_knobs' namelist from the input file
     type(ingen_config_type), intent(in), optional :: ingen_config_in
+    !> Filename of input file. Default is to read from the command line
+    character(len=*), intent(in), optional :: input_file
     type(standard_header_type) :: local_header
     logical :: list
     
@@ -142,7 +130,7 @@ contains
 
     local_header = standard_header_type()
 
-    call init_file_utils (list, name="template")
+    call init_file_utils (list, name="template", input_file=input_file)
     call init_ingen(ingen_config_in)
  
     if (debug) write(6,*) 'ingen: call get_namelists'
@@ -896,6 +884,7 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     integer :: h, t, u
     character (4) :: suffix
+    character(len=:), allocatable :: filename
     
     if (present(header)) then
       local_header = header
@@ -911,10 +900,13 @@ if (debug) write(6,*) 'get_namelists: returning'
        t = (jr - h * 100) / 10
        u = (jr - h * 100 - t * 10)
        suffix = '_'//achar(48+h)//achar(48+t)//achar(48+u)
-       open (unit=unit, file=trim(run_name)//suffix//".in")
+       filename = trim(run_name) // suffix // ".in"
     else
-       open (unit=unit, file=trim(run_name)//".inp")
+       filename = trim(run_name) // ".inp"
     endif
+
+    open (unit=unit, file=filename)
+    write (*, *) "Writing processed input file to '" // filename // "'"
 
     write (unit, *)
 
@@ -1011,6 +1003,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use collisions, only: use_le_layout
     use standard_header, only: standard_header_type
+    use file_utils, only: run_name
 
     implicit none
     !> Header for files with build and run information
@@ -1030,8 +1023,9 @@ if (debug) write(6,*) 'get_namelists: returning'
     end if
 
     call open_output_file (report_unit, ".report")
+    write (*, *) "Writing report to '" // trim(run_name) // ".report'"
 
-    write (report_unit, *) 
+    write (report_unit, *)
 
     write (report_unit, fmt='(a)') local_header%to_string(file_description="Input file report from ingen")
     write (report_unit, fmt="(/'------------------------------------------------------------'/)")
@@ -1128,26 +1122,26 @@ if (debug) write(6,*) 'get_namelists: returning'
        call nprocs (nmesh)
        if (nonlin) then
           write (report_unit, fmt="(/'Nonlinear run => consider #proc sweetspots for xxf+yxf objects!')") 
-          call nprocs_xxf(nmesh)
-          call nprocs_yxf(nmesh)
+          call nprocs_xxf()
+          call nprocs_yxf()
        endif
 
        if(use_le_layout) then
           write (report_unit, fmt="(/'Collisions using le_lo')") 
-          call nprocs_le(nmesh)
+          call nprocs_le()
        else
           select case (collision_model_switch)
           case (collision_model_full)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           case(collision_model_lorentz,collision_model_lorentz_test)
              write (report_unit, fmt="(/'Collisions using lz_lo')") 
-             call nprocs_lz(nmesh)
+             call nprocs_lz()
           case (collision_model_ediffuse)
              write (report_unit, fmt="(/'Collisions using e_lo')") 
-             call nprocs_e(nmesh)
+             call nprocs_e()
           end select
        end if
     endif
@@ -1300,7 +1294,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine wsweetspots
 
   !> FIXME : Add documentation  
-  subroutine nprocs_xxf(nmesh)
+  subroutine nprocs_xxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky
@@ -1308,7 +1302,6 @@ if (debug) write(6,*) 'get_namelists: returning'
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1347,7 +1340,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_xxf
 
   !> FIXME : Add documentation    
-  subroutine nprocs_yxf(nmesh)
+  subroutine nprocs_yxf()
     use nonlinear_terms, only : nonlin
     use species, only : nspec
     use kt_grids, only: naky, nx
@@ -1356,7 +1349,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nlfacs, nkxfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1395,7 +1387,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_yxf
 
   !> FIXME : Add documentation  
-  subroutine nprocs_e(nmesh)
+  subroutine nprocs_e()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: nlambda
@@ -1403,7 +1395,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nlfacs, nkxfacs, nkyfacs, nsgfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1455,7 +1446,7 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_e
 
   !> FIXME : Add documentation  
-  subroutine nprocs_lz(nmesh)
+  subroutine nprocs_lz()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use le_grids, only: negrid
@@ -1463,7 +1454,6 @@ if (debug) write(6,*) 'get_namelists: returning'
 
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nefacs, nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1508,13 +1498,12 @@ if (debug) write(6,*) 'get_namelists: returning'
   end subroutine nprocs_lz
 
   !> FIXME : Add documentation  
-  subroutine nprocs_le(nmesh)
+  subroutine nprocs_le()
     use species, only : nspec
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, factors
     implicit none
-    integer, intent (in) :: nmesh
     integer :: nkxfacs, nkyfacs, nspfacs, ntgfacs
     integer, dimension(:,:), allocatable :: facs
     integer :: maxfacs
@@ -1559,6 +1548,7 @@ if (debug) write(6,*) 'get_namelists: returning'
     use le_grids, only: negrid, nlambda
     use theta_grid, only: ntgrid
     use gs2_layouts, only: layout, init_x_transform_layouts, init_y_transform_layouts, factors
+    use mp, only: nproc, iproc
     implicit none
     real :: fac
     integer, intent (in) :: nmesh
@@ -1579,8 +1569,8 @@ if (debug) write(6,*) 'get_namelists: returning'
        write (report_unit, fmt="('----------------------------------------------------------------------------------------------------------------------------------------------')")
 
 
-       call init_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-       call init_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+       call init_x_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+       call init_y_transform_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
 
        select case (layout)
        case ('lexys')

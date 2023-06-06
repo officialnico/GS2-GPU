@@ -69,48 +69,6 @@ skip this step.
 
 ### Compiling
 
-There are two approaches to compiling GS2:
-
-1. using the `build_gs2` script
-2. using `make` directly
-
-### Compilation using `build_gs2`
-
-The level of difficulty of compiling depends on how much your system is supported.
-
-To use the automated build system try:
-
-``` shell
-./build_gs2 -o ls
-```
-
-This will print a list of systems that are supported by the automated build system. This
-configures your environment and then executes `make` automatically. If your system is
-supported you can simply execute:
-
-``` shell
-./build_gs2 -s <system>
-```
-
-Where your `<system>` is replaced by your system name. If your system is not supported try
-
-``` shell
-./build_gs2 -o update
-```
-
-which will try and update the build system. Then try the previous instructions again.
-
-If your system is still not supported, you can try the older process described below.
-However, if your system is similar to one of the already supported systems, you could try
-copying that system Makefile in the folder Makefiles and editing it to make it work.
-
-Failing that, please [raise a support request][newissue].
-
-### Compilation using `make`
-
-`build_gs2` is essentially just a wrapper around the `Makefiles`, and they can still be
-used manually.
-
 To compile GS2, you must set two environment variables: `GK_SYSTEM` and `MAKEFLAGS`. Since
 system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`, you should
 specify what system you are on. There are many supported systems -- look in `Makefiles` to
@@ -163,12 +121,10 @@ The following is the full list of switches the possible options in
    (64-bit)
  - `USE_MPI` (defined [defined]): turns on distributed memory parallelization with MPI
  - `USE_SHMEM` (defined [undefined]): turns on SHMEM parallel communications on SGI (not working yet)
- - `USE_FFT` (`fftw`, `fftw3` [fftw]): which FFT library to use
+ - `USE_FFT` (`fftw3` [fftw]): turns on support for FFTs using FFTW3
  - `USE_NETCDF` (defined [defined]): uses NETCDF library or not
  - `USE_NETCDF_COMPRESSION` (defined [undefined]): default to creating compressed NETCDF files
- - `USE_HDF5` (defined [undefined]): uses HDF5 library or not
  - `USE_MDSPLUS` (defined [undefind]): uses MDSplus for geo (gs2 only)
- - `USE_POSIX` (defined [undefined]): uses posix routines for argument processing
  - `USE_LOCAL_RAN` (`mt` [undefined]): uses local random number generator
  - `USE_LOCAL_SPFUNC` (defined [undefined]): use local special functions (this overrides
    compiler's intrinsic special functions and NAG library's)
@@ -219,17 +175,14 @@ might expect).
 |                 | `_LAHEY_`     |                                                  |
 |                 |               |                                                  |
 | `FFT`           | `_NONE_`      | We can choose to not compile fftw.               |
-|                 | `_FFTW_`      | At the moment only fftw is the available         |
-|                 | `_FFTW3_`     | fft option.                                      |
+|                 | `_FFTW3_`     | At the moment only fftw3 is the available        |
+|                 |               | fft option.                                      |
 |                 |               |                                                  |
 | `MPI`           | `_NONE_`      | Do not use MPI                                   |
 |                 |               | Use of -DMPI makes mpi work.                     |
 |                 |               |                                                  |
 | `NETCDF`        | `_NONE_`      | Do not use NetCDF                                |
 |                 |               | Use of -DNETCDF makes netcdf work.               |
-|                 |               |                                                  |
-| `HDF`           | `_NONE_`      | Do not use HDF5                                  |
-|                 |               | Use of -DHDF makes hdf work.                     |
 |                 |               |                                                  |
 | `NO_SIZEOF`     | `_NONE_`      | This is for memory accounting.                   |
 |                 |               | In most compilers, non-standard sizeof function  |
@@ -337,6 +290,20 @@ Files](Example_Input_Files).
 Take the input file, edit it as you need and save it as `run_name.in`, where `run_name` is
 a name you have chosen for this simulation.
 
+GS2 has a built-in tool to check input files for consistency, as well as give some
+information on things like suggested number of cores to run on, and a description of some
+of the selected physics terms in plain English. You can run this checker on your input
+file with:
+
+    $ gs2 --check-input run_name.in
+
+This will create two files: `run_name.report` and `run_name.inp`. The first file is the
+report with all of the information above in, while the second file is a copy of the input
+file as GS2 sees it, with comments removed and all parameters set. Any parameters not set
+in the original input file will have their default value set here. This can be useful to
+see what defaults will be used, and to preserve the exact values used for a simulation,
+even if future GS2 versions change the default.
+
 Running GS2
 -----------
 
@@ -440,18 +407,18 @@ reproduce, before going on to explore new territory.
 Good luck!
 
 [newissue]: https://bitbucket.org/gyrokinetics/gs2/issues?status=new&status=open
-[readme]: https://bitbucket.org/gyrokinetics/gs2/src/6fbd2a6bc6ac5e5be0e0737f1860a0e0f78026ed/README.md?at=master&fileviewer=file-view-default
+[readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/README.md
 [simple_makefile]: https://bitbucket.org/gyrokinetics/makefiles/src/master/Makefile.simple
 [tests_readme]: https://bitbucket.org/gyrokinetics/gs2/src/master/tests/README.md
-[results_diagnostics]: |url|/page/user_manual/results_diagnostics.html
-[append_old]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-append_old
-[save_for_restart]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-save_for_restart
-[delt_option]: |url|/page/namelists/index.html#knobs-delt_option
-[ginit_option]: |url|/page/namelists/index.html#init_g_knobs-ginit_option
-[restart_dir_option]: |url|/page/namelists/index.html#init_g_knobs-restart_dir
-[restart_file_option]: |url|/page/namelists/index.html#init_g_knobs-restart_file
-[file_safety_check_option]: |url|/page/namelists/index.html#gs2_diagnostics_knobs-file_safety_check
-[use_old_diagnostics]: |url|/page/namelists/index.html#knobs-use_old_diagnostics
+[results_diagnostics]: results_diagnostics.html
+[append_old]: ../namelists/index.html#gs2_diagnostics_knobs-append_old
+[save_for_restart]: ../namelists/index.html#gs2_diagnostics_knobs-save_for_restart
+[delt_option]: ../namelists/index.html#knobs-delt_option
+[ginit_option]: ../namelists/index.html#init_g_knobs-ginit_option
+[restart_dir_option]: ../namelists/index.html#init_g_knobs-restart_dir
+[restart_file_option]: ../namelists/index.html#init_g_knobs-restart_file
+[file_safety_check_option]: ../namelists/index.html#gs2_diagnostics_knobs-file_safety_check
+[use_old_diagnostics]: ../namelists/index.html#knobs-use_old_diagnostics
 
 <!-- Local Variables: -->
 <!-- mode: gfm -->

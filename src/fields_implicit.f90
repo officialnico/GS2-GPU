@@ -67,7 +67,7 @@ contains
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
     use gs2_layouts, only: init_gs2_layouts
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use unit_tests, only: should_print
     use mp, only: mp_abort
 !    use parameter_scan_arrays, only: run_scan
@@ -83,7 +83,7 @@ contains
     !Check we have at least one field. If not abort.
     !Note, we do this here rather than as soon as we read input file
     !as other field types may support operation with no fields (e.g. 'local' does)
-    if((fphi.lt.epsilon(0.0)).and.(fapar.lt.epsilon(0.0)).and.(fbpar.lt.epsilon(0.0)))then
+    if(.not. (has_phi .or. has_apar .or. has_bpar)) then
        call mp_abort("Field_option='implicit' requires at least one field is non-zero",.true.)
     endif
 
@@ -142,45 +142,38 @@ contains
   !> FIXME : Add documentation  
   subroutine get_field_vector (fl, phi, apar, bpar)
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq
-    use run_parameters, only: fphi, fapar, fbpar
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (out) :: fl
-    complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
     integer :: istart, ifin
 
     call prof_entering ("get_field_vector", "fields_implicit")
-
-    allocate (fieldeq (-ntgrid:ntgrid,ntheta0,naky))
-    allocate (fieldeqa(-ntgrid:ntgrid,ntheta0,naky))
-    allocate (fieldeqp(-ntgrid:ntgrid,ntheta0,naky))
 
     call getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
 
     ifin = 0
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeq
     end if
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeqa
     end if
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        istart = ifin + 1
        ifin = (istart-1) + 2*ntgrid+1
        fl(istart:ifin,:,:) = fieldeqp
     end if
-
-    deallocate (fieldeq, fieldeqa, fieldeqp)
 
     call prof_leaving ("get_field_vector", "fields_implicit")
   end subroutine get_field_vector
@@ -190,7 +183,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: jf_lo, ij_idx
     use prof, only: prof_entering, prof_leaving
     implicit none
@@ -201,7 +194,7 @@ contains
 
     ifield = 0
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -212,7 +205,7 @@ contains
        end do
     endif
 
-    if (fapar > epsilon(0.0)) then
+    if (has_apar) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -223,7 +216,7 @@ contains
        end do
     endif
 
-    if (fbpar > epsilon(0.0)) then
+    if (has_bpar) then
        ifield = ifield + 1
        do ik = 1, naky
           do it = 1, ntheta0
@@ -240,11 +233,11 @@ contains
   !> FIXME : Add documentation  
   subroutine getfield (phi, apar, bpar)
     use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: f_lo, jf_lo, ij, mj, dj
+    use gs2_layouts, only: f_lo, jf_lo
     use prof, only: prof_entering, prof_leaving
     use theta_grid, only: ntgrid
     use dist_fn, only: N_class
-    use mp, only: sum_allreduce, allgatherv, iproc,nproc, proc0
+    use mp, only: sum_allreduce, allgatherv, iproc, nproc
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: fl
@@ -282,16 +275,16 @@ contains
     do jflo = jf_lo%llim_proc, jf_lo%ulim_proc
        
        !Class index
-       i = ij(jflo)
+       i =  jf_lo%ij(jflo)
        
        !Class member index (i.e. which member of the class)
-       m = mj(jflo)
+       m = jf_lo%mj(jflo)
 
        !Get ik index
        ik = f_lo(i)%ik(m,1)  ! For fixed i and m, ik does not change as n varies 
 
        !Get d(istributed) cell index
-       dc = dj(i,jflo)
+       dc =  jf_lo%dj(i,jflo)
        
        !Loop over cells in class (these are the 2pi domains in flux tube/box mode)
        do n = 1, N_class(i)
@@ -345,7 +338,7 @@ contains
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
     use job_manage, only: time_message
-    use mp, only: proc0, get_mp_times
+    use mp, only: get_mp_times
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -391,11 +384,11 @@ contains
     call debug_message(4, 'fields_implicit::advance_implicit called timeadv')
 
     ! Advance collisions, if separate from timeadv
-    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, istep, diagnostics)
+    call collisions_advance (phi, bpar, phinew, aparnew, bparnew, diagnostics)
 
   end subroutine advance_implicit
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine remove_zonal_flows
     use fields_arrays, only: phinew
     use theta_grid, only: ntgrid
@@ -403,48 +396,48 @@ contains
     implicit none
     complex, dimension(:,:,:), allocatable :: phi_avg
 
-    allocate(phi_avg(-ntgrid:ntgrid,ntheta0,naky)) 
-    phi_avg = 0.
-    ! fieldline_average_phi will calculate the field line average of phinew and 
+    allocate(phi_avg(-ntgrid:ntgrid,ntheta0,naky))
+    ! fieldline_average_phi will calculate the field line average of phinew and
     ! put it into phi_avg, but only for ik = 1 (the last parameter of the call)
     call fieldline_average_phi(phinew, phi_avg, 1)
     phinew = phinew - phi_avg
     deallocate(phi_avg)
   end subroutine remove_zonal_flows
 
-  !> This generates a field line average of phi_in and writes it to 
-  !! phi_average. If ik_only is supplied, it will only calculate the
-  !! field line average for that ky, leaving the rest of phi_avg unchanged. EGH
-  !!
-  !! It replaces the routines fieldlineavgphi_loc and fieldlineavgphi_tot,
-  !! in fields.f90, which I  think are defunct, as phi is always on every processor.
+  !> This generates a field line average of phi_in and writes it to
+  !> phi_average. If ik_only is supplied, it will only calculate the
+  !> field line average for that ky, leaving the rest of phi_avg unchanged. EGH
+  !>
+  !> It replaces the routines fieldlineavgphi_loc and fieldlineavgphi_tot,
+  !> in fields.f90, which I  think are defunct, as phi is always on every processor.
+  !>
+  !> @note This calculation is fairly generic so should perhaps be moved out into
+  !> a more accessible module to allow reuse (or replaced with such a method).
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
-    use theta_grid, only: ntgrid, drhodpsi, gradpar, bmag, delthet
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: ntheta0, naky
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi_in
     complex, dimension (-ntgrid:,:,:), intent (out) :: phi_average
     integer, intent (in), optional :: ik_only
-    real, dimension (-ntgrid:ntgrid) :: jac
     complex :: phi_avg_line
     integer it, ik, ik_only_actual
-    ik_only_actual = -1
-    if (present(ik_only)) ik_only_actual = ik_only
 
-    jac = 1.0/abs(drhodpsi*gradpar*bmag)
+    ik_only_actual = get_option_with_default(ik_only, -1)
+
     if (ik_only_actual .gt. 0) then
-      do it = 1,ntheta0
-         phi_avg_line = sum(phi_in(-ntgrid:ntgrid,it,ik_only_actual)* &
-            jac(-ntgrid:ntgrid)*delthet(-ntgrid:ntgrid))/ &
-            sum(delthet(-ntgrid:ntgrid)*jac(-ntgrid:ntgrid))
-           phi_average(:, it, ik_only_actual) = phi_avg_line
-      end do
+       phi_average = 0.
+       do it = 1,ntheta0
+          phi_avg_line = field_line_average(phi_in(:,it,ik_only_actual))
+          phi_average(:, it, ik_only_actual) = phi_avg_line
+       end do
     else
-      do it = 1,ntheta0
-        do ik = 1,naky
-          phi_average(:, it, ik) = sum(phi_in(-ntgrid:ntgrid,it,ik)*jac*delthet)/sum(delthet*jac)
-        end do
-      end do
+       do it = 1,ntheta0
+          do ik = 1,naky
+             phi_average(:, it, ik) = field_line_average(phi_in(:, it, ik))
+          end do
+       end do
     end if
 
   end subroutine fieldline_average_phi
@@ -482,13 +475,13 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_response_matrix
-    use mp, only: barrier, land_allreduce, proc0
+    use mp, only: barrier, land_allreduce, proc0, nproc, iproc
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn_arrays, only: g
     use dist_fn, only: M_class, N_class, i_class
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use prof, only: prof_entering, prof_leaving
@@ -501,13 +494,13 @@ contains
     call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
-    if (fphi > epsilon(0.0)) nfield = nfield + 1
-    if (fapar > epsilon(0.0)) nfield = nfield + 1
-    if (fbpar > epsilon(0.0)) nfield = nfield + 1
+    if (has_phi) nfield = nfield + 1
+    if (has_apar) nfield = nfield + 1
+    if (has_bpar) nfield = nfield + 1
     nidx = (2*ntgrid+1)*nfield
 
-    call init_fields_layouts (nfield, nidx, naky, ntheta0, M_class, N_class, i_class)
-    call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class)
+    call init_fields_layouts (nfield, nidx, naky, ntheta0, M_class, N_class, i_class, nproc, iproc)
+    call init_jfields_layouts (nfield, nidx, naky, ntheta0, i_class, nproc, iproc)
     call finish_fields_layouts
 
     response_was_read = .false.
@@ -600,7 +593,7 @@ contains
                 ifield = 0
 
                 !Find response to phi
-                if (fphi > epsilon(0.0)) then
+                if (has_phi) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -621,7 +614,7 @@ contains
                 end if
 
                 !Find response to apar
-                if (fapar > epsilon(0.0)) then
+                if (has_apar) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -642,7 +635,7 @@ contains
                 end if
 
                 !Find response to bpar
-                if (fbpar > epsilon(0.0)) then
+                if (has_bpar) then
                    ifield = ifield + 1
                    if (endpoint) then
                       !Do all members of supercell together
@@ -682,24 +675,18 @@ contains
   subroutine init_response_row (ig, ifield, am, ic, n)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq, timeadv, M_class, N_class
-    use run_parameters, only: fphi, fapar, fbpar
+    use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: f_lo, idx, idx_local
     use prof, only: prof_entering, prof_leaving
     implicit none
     integer, intent (in) :: ig, ifield, ic, n
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
-    complex, dimension (:,:,:), allocatable :: fieldeq, fieldeqa, fieldeqp
     integer :: irow, istart, iflo, ik, it, ifin, m, nn
 
     !For profiling
     call prof_entering ("init_response_row", "fields_implicit")
-
-    !Always the same size so why bother doing this each time?
-    allocate (fieldeq (-ntgrid:ntgrid, ntheta0, naky))
-    allocate (fieldeqa(-ntgrid:ntgrid, ntheta0, naky))
-    allocate (fieldeqp(-ntgrid:ntgrid, ntheta0, naky))
 
     !Find response to delta function fields
     !NOTE:Timeadv will loop over all iglo even though only one ik
@@ -735,19 +722,19 @@ contains
              !Where abouts in the supercell does this 2pi*nfield section start
              istart = 0 + nidx*(nn-1)
              
-             if (fphi > epsilon(0.0)) then
+             if (has_phi) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeq(:,it,ik) 
              end if
              
-             if (fapar > epsilon(0.0)) then
+             if (has_apar) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeqa(:,it,ik)
              end if
              
-             if (fbpar > epsilon(0.0)) then
+             if (has_bpar) then
                 ifin = istart + nidx
                 istart = istart + 1
                 am(istart:ifin:nfield,iflo) = fieldeqp(:,it,ik)
@@ -757,9 +744,6 @@ contains
                     
        end do
     end do
-
-    !Free memory
-    deallocate (fieldeq, fieldeqa, fieldeqp)
 
     !For profiling
     call prof_leaving ("init_response_row", "fields_implicit")
@@ -773,7 +757,7 @@ contains
     use mp, only: broadcast, send, receive, iproc
     use gs2_layouts, only: f_lo, idx, idx_local, proc_id, jf_lo
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
-    use gs2_layouts, only: ig_idx, ifield_idx, ij_idx, mj, dj
+    use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
     use prof, only: prof_entering, prof_leaving
     use dist_fn, only: i_class, M_class, N_class
     implicit none
@@ -995,9 +979,9 @@ contains
 ! count it
           dc = dc + 1
 ! save dcell address
-          dj(ic,jlo) = dc
+           jf_lo%dj(ic,jlo) = dc
 ! save supercell address
-          mj(jlo) = m
+          jf_lo%mj(jlo) = m
        endif
           
     end do
@@ -1020,7 +1004,7 @@ contains
        endif
        
        !Get the current "dcell" adress
-       k = dj(ic,jlo)
+       k = jf_lo%dj(ic,jlo)
 
        !No dcell should be 0 but this is a guard
        if (k > 0) then
@@ -1083,7 +1067,7 @@ contains
        !If the fast field index is on this processor
        if (idx_local(jf_lo, iflo)) then
           !Get "dcell" adress
-          dc = dj(ic,iflo)
+          dc = jf_lo%dj(ic,iflo)
 
           !Loop over supercell size
           do jlo = 0, nidx*N_class(ic)-1
@@ -1116,7 +1100,7 @@ contains
   subroutine finish_fields_layouts
     use dist_fn, only: N_class, i_class, itright, boundary
     use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: f_lo, jf_lo, ij, ik_idx, it_idx
+    use gs2_layouts, only: f_lo, jf_lo, ik_idx, it_idx
     implicit none
     integer :: i, m, n, ii, ik, it, itr, jflo
 
@@ -1155,7 +1139,7 @@ contains
           ik = ik_idx(jf_lo, jflo)
           it = it_idx(jf_lo, jflo)
           
-          call kt2ki (ij(jflo), n, ik, it)
+          call kt2ki ( jf_lo%ij(jflo), n, ik, it)
           
        end do
 
@@ -1169,7 +1153,7 @@ contains
           end do
        end do
        
-       ij = 1
+        jf_lo%ij = 1
     end if
 
   end subroutine finish_fields_layouts
@@ -1217,7 +1201,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
-    use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local,dj
+    use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_save_response
     implicit none
@@ -1350,7 +1334,7 @@ contains
                    !Now pack tmp_vec and do communications if needed
                    if(is_local)then
                       !Get dcell index
-                      dc=dj(ic,jflo)
+                      dc=jf_lo%dj(ic,jflo)
 
                       !Now we pack the tmp_vec in the correct order
                       !whilst ignoring the repeated boundary points
@@ -1431,7 +1415,7 @@ contains
 
           !Now make file name
           if(proc0)then
-             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix))
+             call gs2_save_response(tmp_arr_full, get_specific_response_file_name(ik, it_to_is(itmin, ik), code_dt, suffix), code_dt)
           endif
        end do
           
@@ -1451,7 +1435,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use dist_fn, only: i_class, N_class, M_class, get_leftmost_it, itright
-    use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local,dj
+    use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
     use file_utils, only: error_unit
@@ -1468,6 +1452,7 @@ contains
     logical :: is_local, is_local_dup
     character(len = 256) :: file_name
     logical :: file_found
+    real :: file_time_step
 
     could_read = .true.
 
@@ -1574,7 +1559,8 @@ contains
           end if
 
           if(proc0)then
-             call gs2_restore_response(tmp_arr_full, file_name)
+             call gs2_restore_response(tmp_arr_full, file_name, file_time_step)
+             ! Should perhaps double check that file_time_step == code_dt?
           endif
 
           !Initialise counter
@@ -1616,7 +1602,7 @@ contains
                       if(.not.proc0) call receive(tmp_vec_full,0)
 
                       !Get dcell index
-                      dc=dj(ic,jflo)
+                      dc=jf_lo%dj(ic,jflo)
 
                       !Now we pack the tmp_vec in the correct order
                       !We must fill in the boundary points
@@ -1717,8 +1703,8 @@ contains
                 is_local_dup=idx_local(jf_lo,jflo_dup)
 
                 !Get dcell values
-                if(is_local) dc=dj(ic,jflo)
-                if(is_local_dup) dc_dup=dj(ic,jflo_dup)
+                if(is_local) dc=jf_lo%dj(ic,jflo)
+                if(is_local_dup) dc_dup=jf_lo%dj(ic,jflo_dup)
 
                 !Now copy/communicate
                 if(is_local)then
@@ -1750,7 +1736,7 @@ contains
   !> A subroutine to allocate the response matrix storage objects
   subroutine alloc_response_objects
     use dist_fn, only: i_class, N_class
-    use gs2_layouts, only: jf_lo, f_lo, im_idx, in_idx, ig_idx, ifield_idx, ij_idx,dj,mj, idx_local
+    use gs2_layouts, only: jf_lo, f_lo, im_idx, in_idx, ig_idx, ifield_idx, ij_idx, idx_local
     use theta_grid, only: ntgrid
     implicit none
     integer :: ic, idc, sc_len, ilo, dc, im, in, ig, ifld, ik, it, jlo
@@ -1786,9 +1772,9 @@ contains
              ! count it
              dc = dc + 1
              ! save dcell address
-             dj(ic,jlo) = dc
+             jf_lo%dj(ic,jlo) = dc
              ! save supercell address
-             mj(jlo) = im
+             jf_lo%mj(jlo) = im
           endif
        enddo
 
