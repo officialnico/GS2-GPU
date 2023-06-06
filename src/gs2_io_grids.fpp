@@ -165,7 +165,6 @@ contains
 # ifdef NETCDF
     integer (kind_nf) :: ncid, varid
     integer :: status
-    integer :: theta_end_point
     integer :: no_end_point_int
     logical :: no_end_point
 
@@ -178,111 +177,29 @@ contains
        if (no_end_point_int /= 0) no_end_point = .true.
     end if
 
-    theta_end_point = ntgrid
-    if (no_end_point) theta_end_point = ntgrid-1
-    
-    call neasyf_read(ncid, "gbdrift", gbdrift(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "gbdrift0", gbdrift0(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "cvdrift", cvdrift(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "cvdrift0", cvdrift0(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "gradpar", gradpar(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "bmag", bmag(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "gds2", gds2(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "gds21", gds21(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "gds22", gds22(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "theta", theta(-ntgrid:theta_end_point))
-    call neasyf_read(ncid, "grho", grho(-ntgrid:theta_end_point))
+    call read_and_pad(ncid, gbdrift, "gbdrift", no_end_point)
+    call read_and_pad(ncid, gbdrift0, "gbdrift0", no_end_point)
+    call read_and_pad(ncid, cvdrift, "cvdrift", no_end_point)
+    call read_and_pad(ncid, cvdrift0, "cvdrift0", no_end_point)
+    call read_and_pad(ncid, gradpar, "gradpar", no_end_point)
+    call read_and_pad(ncid, bmag, "bmag", no_end_point)
+    call read_and_pad(ncid, gds2, "gds2", no_end_point)
+    call read_and_pad(ncid, gds21, "gds21", no_end_point)
+    call read_and_pad(ncid, gds22, "gds22", no_end_point)
+    call read_and_pad(ncid, theta, "theta", no_end_point)
+    call read_and_pad(ncid, grho, "gho", no_end_point)
 
-    if (no_end_point) then
-       call ntgrid_padding(gbdrift)
-       call ntgrid_padding(gbdrift0)
-       call ntgrid_padding(cvdrift)
-       call ntgrid_padding(cvdrift0)
-       call ntgrid_padding(gradpar)
-       call ntgrid_padding(bmag)
-       call ntgrid_padding(gds2)
-       call ntgrid_padding(gds21)
-       call ntgrid_padding(gds22)
-       call ntgrid_padding(theta)
-       call ntgrid_padding(grho)
-    end if
+    call read_and_pad(ncid, cdrift, "cdrift", no_end_point)
+    call read_and_pad(ncid, cdrift0, "cdrift0", no_end_point)
+    call read_and_pad(ncid, Bpol, "bpol", no_end_point)
+    call read_and_pad(ncid, jacob, "jacob", no_end_point)
 
-    if (present(cdrift)) then
-       status = nf90_inq_varid(ncid, "cdrift", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "cdrift", cdrift(-ntgrid:theta_end_point))
-       end if
-       if (no_end_point) call ntgrid_padding(cdrift)
-    end if
-
-    if (present(cdrift0)) then
-       status = nf90_inq_varid(ncid, "cdrift0", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "cdrift0", cdrift0(-ntgrid:theta_end_point))
-       end if
-       if (no_end_point) call ntgrid_padding(cdrift0)
-    end if
-
-    if (present(Bpol)) then
-       status = nf90_inq_varid(ncid, "bpol", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "bpol", Bpol(-ntgrid:theta_end_point))
-       end if
-       if (no_end_point) call ntgrid_padding(Bpol)
-    end if
-
-    if (present(jacob)) then
-       status = nf90_inq_varid(ncid, "jacob", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "jacob", jacob(-ntgrid:theta_end_point))
-       end if
-       if (no_end_point) call ntgrid_padding(jacob)
-    end if
-
-    if (present(Rplot)) then
-       status = nf90_inq_varid(ncid, "Rplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rplot", Rplot(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(Rplot)
-   end if
-    if (present(Rprime)) then
-       status = nf90_inq_varid(ncid, "Rprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Rprime", Rprime(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(Rprime)
-    end if
-
-    if (present(Zplot)) then
-       status = nf90_inq_varid(ncid, "Zplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zplot", Zplot(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(Zplot)
-    end if
-    if (present(Zprime)) then
-       status = nf90_inq_varid(ncid, "Zprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "Zprime", Zprime(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(Zprime)
-    end if
-
-    if (present(aplot)) then
-       status = nf90_inq_varid(ncid, "aplot", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aplot", aplot(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(aplot)
-    end if
-    if (present(aprime)) then
-       status = nf90_inq_varid(ncid, "aprime", varid)
-       if (status == NF90_NOERR) then
-          call neasyf_read(ncid, "aprime", aprime(-ntgrid:theta_end_point))
-       end if
-        if (no_end_point) call ntgrid_padding(aprime)
-    end if
+    call read_and_pad(ncid, Rplot, "Rplot", no_end_point)
+    call read_and_pad(ncid, Rprime, "Rpime", no_end_point)
+    call read_and_pad(ncid, Zplot, "Zplot", no_end_point)
+    call read_and_pad(ncid, Zprime, "Zpime", no_end_point)
+    call read_and_pad(ncid, aplot, "aplot", no_end_point)
+    call read_and_pad(ncid, aprime, "apime", no_end_point)
 
     call neasyf_close(ncid)
 
@@ -425,6 +342,31 @@ contains
     call mp_abort("nc_write_lambda_grid does not work without NetCDF")
 # endif
   end subroutine nc_write_lambda_grid
+
+# ifdef NETCDF
+  subroutine read_and_pad(ncid, array, name, no_end_point)
+    implicit none
+    integer (kind_nf), intent(in) :: ncid
+    real, dimension(:), intent(in out) :: array
+    character (len=*), intent(in) :: name
+    logical, intent(in) :: no_end_point
+    integer (kind_nf) :: varid
+    integer :: end_point
+    integer :: status
+    end_point = size(array)
+    ! array corresponding to the dummy argument array in the upstream subroutine
+    ! may be non-present optional argument, whose size will be 1 /= 2*ntgrid+1.!py
+    if (end_point == 1) return
+    if (no_end_point) then
+       end_point = end_point -1
+    end if
+    status = nf90_inq_varid(ncid, name, varid)
+    if (status == NF90_NOERR) then
+       call neasyf_read(ncid, name, array(:end_point))
+    end if
+    if (no_end_point) call ntgrid_padding(array)
+  end subroutine read_and_pad
+# endif
 
   subroutine ntgrid_padding(array)
     ! RN>
