@@ -179,10 +179,11 @@ contains
 
     if (present(mom_fluxes)) then
       ! This one writes two separate fluxes on the same line, so can't
-      ! reuse format string
+      ! reuse format string. Intel also requires unlimited-format '*'
+      ! to be last item, so we split over two statements
       write (unit=unit, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-           & ' lfmom fluxes:', *(1x,e13.6),' lfvflx1:', *(1x,e13.6))") &
-           time, phi2, lfmom_fluxes, vflux1_avg
+           & ' lfmom fluxes:', *(1x,e13.6))", advance="no") time, phi2, lfmom_fluxes
+      write (unit=unit, fmt="(' lfvflx1:', *(1x,e13.6))") vflux1_avg
     end if
   end subroutine write_phi_fluxes_to_unit
 
