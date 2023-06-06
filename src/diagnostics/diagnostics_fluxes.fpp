@@ -105,7 +105,9 @@ contains
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
     use gs2_io, only: starts, egrid_dim, species_dim, time_dim
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
 
@@ -145,10 +147,11 @@ contains
             'es_mom_flux_perp', 'Flux of the perpendicular component of the toroidal angular momentum', 'Pi_gB =  ', &
             vflux_perp, gnostics%distributed)
 
+#ifdef NETCDF
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "es_flux_vs_e", esflux_vs_e, &
             dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
-
+#endif
 #ifdef LOWFLOW
        call calculate_standard_flux_properties(gnostics, &
             'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
@@ -175,11 +178,12 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'apar_mom_flux',  'Turbulent flux of momentum resulting from &
             & perpendicular magnetic fluctuations', 'Pi_gB = ', vmflux(:,:,:), gnostics%distributed)
-
+#ifdef NETCDF
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "apar_flux_vs_e", apflux_vs_e, &
             dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Perpendicular magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
+#endif
     end if
     if (has_bpar) then
        call calculate_standard_flux_properties(gnostics, &
@@ -197,10 +201,12 @@ contains
        call calculate_standard_flux_properties(gnostics, &
             'bpar_mom_flux',  'Turbulent flux of momentum resulting from &
             & parallel magnetic fluctuations', 'Pi_gB = ', vbflux(:,:,:), gnostics%distributed)
+#ifdef NETCDF
        if (gnostics%writing) call neasyf_write(gnostics%file_id, "bpar_flux_vs_e", bpflux_vs_e, &
             dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Parallel magnetic flux, as function of energy", &
             start=starts(3, gnostics%nout))
+#endif
     end if
     
     ! Update averages
@@ -211,6 +217,7 @@ contains
     gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + &
          gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
     
+#ifdef NETCDF
     ! Write totals
     if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "heat_flux_tot", &
@@ -232,6 +239,7 @@ contains
             gnostics%current_results%total_particle_flux, dim_names=[time_dim], start=[gnostics%nout], &
             long_name="Total particle flux, same as part_flux_tot, included for backwards compatiblity")
     end if    
+#endif
   end subroutine calculate_fluxes
 
   !> Calculate heat, particle, and momentum fluxes
@@ -323,7 +331,9 @@ contains
     use diagnostics_config, only: diagnostics_type
     use mp, only: sum_allreduce
     use gs2_io, only: flux_dims, starts, time_dim
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(ntheta0, naky) :: diffusivity_by_k
@@ -391,6 +401,7 @@ contains
     heat_flux_max = sum(heat_flux_max_by_spec)
     particle_flux_max = sum(particle_flux_max_by_spec)
     
+#ifdef NETCDF
     if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "es_heat_flux_diff_max", heat_flux_max_by_spec, &
             dim_names=flux_dims, long_name="Linear estimate of the heat flux", units="Q_gB", &
@@ -408,6 +419,7 @@ contains
             dim_names=[time_dim], long_name="Linear estimate of the diffusivity", &
             start=[gnostics%nout])
     end if
+#endif
   end subroutine write_diffusive_estimates
 
   !> Writes a range of different summed and averaged properties of the given
@@ -421,7 +433,9 @@ contains
     use volume_averages, only: average_all, average_kx, average_ky
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     character(*), intent(in) :: flux_name, flux_description, flux_units
@@ -449,6 +463,7 @@ contains
 
     call average_kx(total_flux_by_mode, total_flux_by_ky, distributed)
     call average_ky(total_flux_by_mode, total_flux_by_kx, distributed)
+#ifdef NETCDF
     if (gnostics%write_fluxes .and. gnostics%writing) then
       call neasyf_write(gnostics%file_id, flux_name, flux_by_species, &
            dim_names=flux_dims, start=starts(2, gnostics%nout), &
@@ -480,6 +495,7 @@ contains
              units=flux_units, start=starts(3, gnostics%nout))
       end if
     end if
+#endif
 
     if (flux_name .eq. 'es_heat_flux') gnostics%current_results%species_es_heat_flux = flux_by_species
     if (flux_name .eq. 'es_energy_exchange') gnostics%current_results%species_energy_exchange = flux_by_species
