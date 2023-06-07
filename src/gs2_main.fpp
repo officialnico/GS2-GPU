@@ -959,6 +959,10 @@ contains
   !> FIXME : Add documentation
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
+#ifdef FIELDS_EIG
+    use fields_eigval, only: init_eigval, finish_eigval
+    use fields_eigval, only: BasicSolve
+#else
     use eigval, only: init_eigval, finish_eigval
     use eigval, only: BasicSolve
 #endif 

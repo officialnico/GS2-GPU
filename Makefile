@@ -84,6 +84,7 @@ LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
 # TODO : Rename USE_EIG for consistency
 WITH_EIG ?=
+USE_FIELDS_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
 # Compile with gcov flags to check for code coverage
@@ -530,6 +531,9 @@ endif
 
 #Setup the flags for using the eigensolver
 ifdef WITH_EIG
+ifdef USE_FIELDS_EIG
+	MACRO_DEFS += -DFIELDS_EIG
+endif
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
