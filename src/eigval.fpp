@@ -1055,7 +1055,7 @@ contains
     use gs2_save, only: add_eigenpair_to_file, finish_gs2_save
     use file_utils, only: run_name
     use gs2_diagnostics, only: save_distfn, save_glo_info_and_grids, save_restart_dist_fn
-    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities
+    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities, navg
     use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: run_diagnostics, gnostics
@@ -1073,7 +1073,7 @@ contains
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
-    integer :: istatus
+    integer :: istatus, original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)
@@ -1137,10 +1137,16 @@ contains
           if (has_bpar) bpar = bparnew * previous_field_factor
 
           if (use_old_diagnostics) then
+             original_navg = navg
+             navg = 1
              call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+             navg = original_navg
 #ifdef NEW_DIAG
           else
+             original_navg = gnostics%navg
+             gnostics%navg = 1
              call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+             gnostics%navg = original_navg
 #endif
           end if
 
