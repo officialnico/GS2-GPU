@@ -965,7 +965,8 @@ contains
 #else
     use eigval, only: init_eigval, finish_eigval
     use eigval, only: BasicSolve
-#endif 
+#endif
+#endif
     use job_manage, only: time_message
     use mp, only: mp_abort
     type(gs2_program_state_type), intent(inout) :: state
