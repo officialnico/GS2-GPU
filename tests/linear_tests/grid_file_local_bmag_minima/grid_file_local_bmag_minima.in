@@ -55,7 +55,7 @@
 &init_g_knobs
     chop_side = .true.
     phiinit = 1e-10
-    ginit_option = 'random_sine'
+    ginit_option = 'default'
 /
 
 &knobs
@@ -64,7 +64,6 @@
     fbpar = 0.0
     delt = 0.017166552592766653
     nstep = 10000
-    seed = 10001
 /
 
 &species_knobs
