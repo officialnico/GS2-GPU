@@ -1045,15 +1045,17 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
+    use constants, only: zi
     use gs2_time, only: user_time, code_dt
     use collisions, only: vnmult
     use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
+    use fields_arrays, only: phi, phinew, apar, aparnew, bpar, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
     use gs2_save, only: add_eigenpair_to_file, finish_gs2_save
     use file_utils, only: run_name
     use gs2_diagnostics, only: save_distfn, save_glo_info_and_grids, save_restart_dist_fn
-    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities
+    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities, navg
     use run_parameters, only: use_old_diagnostics
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: run_diagnostics, gnostics
@@ -1066,12 +1068,12 @@ contains
     PetscInt :: iteration_count, n_converged
     Vec :: eig_vec_r, eig_vec_i
     PetscScalar :: eig_val_r, eig_val_i
-    complex :: EigVal
+    complex :: EigVal, previous_field_factor
     logical :: all_found, diagnostics_exit
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
-    integer :: istatus
+    integer :: istatus, original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)
@@ -1125,27 +1127,42 @@ contains
           !Add to file
           if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
 
-         if (use_old_diagnostics) then
-           call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+          !/Calculate what the fields at the previous time step would
+          !/look like given current state and Eigval. This is intended
+          !/to allow diagnostics to recover Eigval from the usual
+          !/calculation of omega
+          previous_field_factor = exp(zi * Eigval * code_dt)
+          if (has_phi) phi = phinew * previous_field_factor
+          if (has_apar) apar = aparnew * previous_field_factor
+          if (has_bpar) bpar = bparnew * previous_field_factor
+
+          if (use_old_diagnostics) then
+             original_navg = navg
+             navg = 1
+             call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+             navg = original_navg
 #ifdef NEW_DIAG
-         else
-           call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+          else
+             original_navg = gnostics%navg
+             gnostics%navg = 1
+             call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+             gnostics%navg = original_navg
 #endif
-         end if
+          end if
 
-         !Save restart file if requested.
-         !First make the unique bit of the name
-         write(restart_unique_string,'(".eig_",I0)') ieig
+          !Save restart file if requested.
+          !First make the unique bit of the name
+          write(restart_unique_string,'(".eig_",I0)') ieig
 
-         call save_restart_dist_fn(save_restarts, save_distfn, &
-              save_glo_info_and_grids, save_velocities, &
-              user_time = (ieig+1) * code_dt, &
-              fileopt_base = restart_unique_string)
+          call save_restart_dist_fn(save_restarts, save_distfn, &
+               save_glo_info_and_grids, save_velocities, &
+               user_time = (ieig+1) * code_dt, &
+               fileopt_base = restart_unique_string)
 
-         !Reset the status of save_for_restart
-         if (save_restarts .or. save_distfn) call finish_gs2_save
+          !Reset the status of save_for_restart
+          if (save_restarts .or. save_distfn) call finish_gs2_save
 
-       enddo
+       end do
 
        !Close netcdf file
        if(proc0)call finish_eigenfunc_file(io_ids)
