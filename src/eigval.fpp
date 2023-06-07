@@ -1055,6 +1055,11 @@ contains
     use file_utils, only: run_name
     use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
     use gs2_diagnostics, only: save_distfn
+    use gs2_diagnostics, only: loop_diagnostics, nwrite
+    use run_parameters, only: use_old_diagnostics
+#ifdef NEW_DIAG
+    use gs2_diagnostics_new, only: run_diagnostics, gnostics
+#endif
     implicit none
     EPS, intent(in) :: my_solver
     Mat, intent(in) :: my_operator
@@ -1064,7 +1069,7 @@ contains
     Vec :: eig_vec_r, eig_vec_i
     PetscScalar :: eig_val_r, eig_val_i
     complex :: EigVal
-    logical :: all_found
+    logical :: all_found, diagnostics_exit
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
@@ -1121,6 +1126,14 @@ contains
 
           !Add to file
           if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
+
+         if (use_old_diagnostics) then
+           call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+#ifdef NEW_DIAG
+         else
+           call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+#endif
+         end if
 
           !Save restart file
           if(save_restarts) then
