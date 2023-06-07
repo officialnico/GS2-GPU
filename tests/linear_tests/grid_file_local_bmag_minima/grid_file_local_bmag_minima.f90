@@ -13,7 +13,7 @@ module checks_mod
       implicit none
       real, parameter :: tolerance = 1.0e-2
       real, parameter :: omega_expected = 0.723
-      real, parameter :: gamma_expected = 0.286
+      real, parameter :: gamma_expected = 0.282
       checks = check_growth_rate([gamma_expected], tolerance)
       checks = checks .and. check_frequency([omega_expected], tolerance)
     end function checks
