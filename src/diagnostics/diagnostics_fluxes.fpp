@@ -270,11 +270,11 @@ contains
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
+    if (.not. proc0) return
+
     if (has_phi) then
       call eexchange (phinew, phi, exchange1, exchange)
     end if
-
-    if (.not. proc0) return
 
     do is = 1, nspec
       associate(species => spec(is), &
@@ -883,7 +883,6 @@ contains
   !> Calculate energy exchange diagnostic that numerically guarantees that the total
   !> energy exchange (summed over species) is zero
   subroutine eexchange (phinew, phi, exchange1, exchange2)
-    use mp, only: proc0
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
@@ -909,92 +908,83 @@ contains
     allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total = 0.0
     allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total2 = 0.0
 
-    if (proc0) then
-       exchange1 = 0.0 ; exchange2 = 0.0
-    end if
+    exchange1 = 0.0 ; exchange2 = 0.0
 
-    if (has_phi) then
-       g_work = 0.
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)          
+    g_work = 0.
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+      it = it_idx(g_lo,iglo)
+      ik = ik_idx(g_lo,iglo)
+      if (nonlin .and. it==1 .and. ik==1) cycle
+      is = is_idx(g_lo,iglo)
+      il = il_idx(g_lo,iglo)
+      ie = ie_idx(g_lo,iglo)
+      do isgn = 1, 2
+        ! get v_magnetic piece of g_work at grid points instead of cell centers
+        do ig = -ntgrid, ntgrid
+          g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
+               * gnew(ig,isgn,iglo)*spec(is)%tz)
+        end do
+
+        ! add contribution to g_work from hyperviscosity at grid points
+        ! this is -(dg/dt)_hypervisc, equivalent to collisions term in eqn. 5 of PRL 109, 185003
+        do ig = -ntgrid, ntgrid
+          if (abs(hypervisc_filter(ig,it,ik)-1.0) > epsilon(0.0)) then
+            dgdt_hypervisc = (1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo)/code_dt
+            ! should gnew be (gnew+gold)/2?
+            g_work(ig,isgn,iglo) = g_work(ig,isgn,iglo) - dgdt_hypervisc
+          end if
+        end do
+
+        ! get v_magnetic piece of g_work at cell centers and add in vpar piece at cell centers
+        do ig = -ntgrid, ntgrid-1
+          g_work(ig,isgn,iglo) = 0.5*(g_work(ig,isgn,iglo)+g_work(ig+1,isgn,iglo)) &
+               + 0.5*vpac(ig,isgn,iglo)*(gradpar(ig)+gradpar(ig+1))/delthet(ig) &
+               * (gnew(ig+1,isgn,iglo)-gnew(ig,isgn,iglo))*spec(is)%stm
+        end do
+
+      end do
+    end do
+
+    call integrate_moment (g_work, total)
+
+    do is = 1, nspec
+      do ik = 1, naky
+        do it = 1, ntheta0
           if (nonlin .and. it==1 .and. ik==1) cycle
-          is = is_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          do isgn = 1, 2
-             ! get v_magnetic piece of g_work at grid points instead of cell centers
-             do ig = -ntgrid, ntgrid
-                g_work(ig,isgn,iglo) = aj0(ig,iglo)*(zi*wdrift_func(ig, iglo)/code_dt &
-                     * gnew(ig,isgn,iglo)*spec(is)%tz)
-             end do
+          exchange1(it,ik,is) = field_line_average( &
+               real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
+        end do
+      end do
+    end do
 
-             ! add contribution to g_work from hyperviscosity at grid points
-             ! this is -(dg/dt)_hypervisc, equivalent to collisions term in eqn. 5 of PRL 109, 185003
-             do ig = -ntgrid, ntgrid
-                if (abs(hypervisc_filter(ig,it,ik)-1.0) > epsilon(0.0)) then
-                   dgdt_hypervisc = (1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo)/code_dt
-                   ! should gnew be (gnew+gold)/2?
-                   g_work(ig,isgn,iglo) = g_work(ig,isgn,iglo) - dgdt_hypervisc
-                end if
-             end do
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+      do isgn = 1, 2
+        g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
+      end do
+    end do
+    call integrate_moment (g_work, total)
 
-             ! get v_magnetic piece of g_work at cell centers and add in vpar piece at cell centers
-             do ig = -ntgrid, ntgrid-1
-                g_work(ig,isgn,iglo) = 0.5*(g_work(ig,isgn,iglo)+g_work(ig+1,isgn,iglo)) &
-                     + 0.5*vpac(ig,isgn,iglo)*(gradpar(ig)+gradpar(ig+1))/delthet(ig) &
-                     * (gnew(ig+1,isgn,iglo)-gnew(ig,isgn,iglo))*spec(is)%stm
-             end do
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+      do isgn = 1, 2
+        g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
+      end do
+    end do
+    call integrate_moment (g_work, total2)
 
-          end do
-       end do
-
-       call integrate_moment (g_work, total)
-
-       if (proc0) then
-          do is = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   if (nonlin .and. it==1 .and. ik==1) cycle
-                   exchange1(it,ik,is) = field_line_average( &
-                        real(total(:,it,ik,is)*conjg(phinew(:,it,ik))))
-                end do
-             end do
-          end do
-       end if
-
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          do isgn = 1, 2
-             g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
-          end do
-       end do
-       call integrate_moment (g_work, total)
-
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          do isgn = 1, 2
-             g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
-          end do
-       end do
-       call integrate_moment (g_work, total2)
-
-       ! exchange2 is a symmetrized form of energy exchange,
-       ! which guarantees species-summed energy exchange is zero
-       if (proc0) then
-          do is = 1, nspec
-             do ik = 1, naky
-                do it = 1, ntheta0
-                   if (nonlin .and. it==1 .and. ik==1) cycle
-                   exchange2(it,ik,is) = field_line_average( &
-                        real(total(:,it,ik,is) &
-                        *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
-                        - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
-                        )/code_dt
-                end do
-             end do
-          end do
-       end if
-
-    end if
+    ! exchange2 is a symmetrized form of energy exchange,
+    ! which guarantees species-summed energy exchange is zero
+    do is = 1, nspec
+      do ik = 1, naky
+        do it = 1, ntheta0
+          if (nonlin .and. it==1 .and. ik==1) cycle
+          exchange2(it,ik,is) = field_line_average( &
+               real(total(:,it,ik,is) &
+               *conjg(phinew(:,it,ik)-phi(:,it,ik)) &
+               - (phinew(:,it,ik)+phi(:,it,ik))*conjg(total2(:,it,ik,is))) &
+               )/code_dt
+        end do
+      end do
+    end do
 
     deallocate (total, total2)
 
