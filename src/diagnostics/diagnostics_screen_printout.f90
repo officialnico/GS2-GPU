@@ -11,6 +11,7 @@ module diagnostics_printout
   public :: write_flux_line
   public :: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, write_bpar_fluxes_to_unit
 
+  !> Format string for writing fluxes to screen/text
   character(*), parameter :: flux_format = &
        "('t= ', e17.10, ' <', a, '**2>= ', e13.6, ' ', a, ':', *(1x, e13.6))"
 
@@ -38,7 +39,7 @@ contains
     call output_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_line
 
-!> FIXME : Add documentation  
+  !> Write growth rates to given unit
   subroutine output_line(gnostics, outunit)
     use mp, only: proc0, sum_reduce
     use kt_grids, only: naky, ntheta0, aky, akx, theta0
@@ -49,6 +50,7 @@ contains
 
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
+    !> Pre-existing opened unit
     integer, intent(in) :: outunit
     real, dimension (ntheta0, naky) :: phitot
     integer :: ik, it
@@ -76,7 +78,7 @@ contains
     write (outunit,*) 
 
   contains
-    !> FIXME : Add documentation    
+      !> Compute normalised flux-surface averaged field
       subroutine phinorm (phitot)
         use fields_arrays, only: phinew, aparnew, bparnew
         use theta_grid, only: theta
