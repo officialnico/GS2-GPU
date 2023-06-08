@@ -1035,8 +1035,7 @@ contains
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
     use optionals, only: get_option_with_default
-    use diagnostics_printout, only: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, &
-         write_bpar_fluxes_to_unit
+    use diagnostics_printout, only: write_phi_fluxes_to_unit, write_fluxes_to_unit
     use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
          pflux, vflux, vflux_par, vflux_perp, pflux_tormom, vflux0, vflux1, pmflux, vmflux, &
          pbflux, vbflux, exchange
@@ -1200,10 +1199,10 @@ contains
         call write_phi_fluxes_to_unit(output_unit, t, phi2, heat_fluxes, energy_exchange)
       end if
       if (has_apar) then
-        call write_apar_fluxes_to_unit(output_unit, t, apar2, mheat_fluxes)
+        call write_fluxes_to_unit(output_unit, t, apar2, "apar", mheat_fluxes)
       end if
       if (has_bpar) then
-        call write_bpar_fluxes_to_unit(output_unit, t, bpar2, bheat_fluxes)
+        call write_fluxes_to_unit(output_unit, t, bpar2, "bpar", bheat_fluxes)
       end if
     end if
 
@@ -1267,10 +1266,10 @@ contains
            wtmp_old = wtmp_new
          end if
          if (has_apar) then
-           call write_apar_fluxes_to_unit(out_unit, t, apar2, mheat_fluxes, mpart_fluxes)
+           call write_fluxes_to_unit(out_unit, t, apar2, "apar", mheat_fluxes, mpart_fluxes)
          end if
          if (has_bpar) then
-           call write_bpar_fluxes_to_unit(out_unit, t, bpar2, bheat_fluxes, bpart_fluxes)
+           call write_fluxes_to_unit(out_unit, t, bpar2, "bpar", bheat_fluxes, bpart_fluxes)
          end if
          write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
        end if

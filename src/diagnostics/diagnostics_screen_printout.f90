@@ -2,14 +2,14 @@
 !! the simulation
 module diagnostics_printout
   implicit none
-  
+
   private
 
   public :: print_line
   public :: write_line
   public :: print_flux_line
   public :: write_flux_line
-  public :: write_phi_fluxes_to_unit, write_apar_fluxes_to_unit, write_bpar_fluxes_to_unit
+  public :: write_phi_fluxes_to_unit, write_fluxes_to_unit
 
   !> Format string for writing fluxes to screen/text
   character(*), parameter :: flux_format = &
@@ -19,8 +19,8 @@ contains
 
   !> Print out growth rates to screen.
   !! Doesn't quite conform to the principle of having all
-  !! useful results stored in gnostics... takes stuff 
-  !! straight from diagnostics_omega 
+  !! useful results stored in gnostics... takes stuff
+  !! straight from diagnostics_omega
   subroutine print_line(gnostics)
     use file_utils, only: stdout_unit
     use diagnostics_config, only: diagnostics_type
@@ -28,7 +28,7 @@ contains
     type(diagnostics_type), intent(in) :: gnostics
     call output_line(gnostics, stdout_unit)
   end subroutine print_line
-  
+
   !> Print growth rates to run_name.new.out
   subroutine write_line(gnostics)
     use diagnostics_config, only: diagnostics_type
@@ -59,7 +59,7 @@ contains
     call phinorm (phitot)
 !WARNING: Phitot here has not been set
     if (gnostics%distributed) call sum_reduce(phitot, 0)
-    
+
     if(.not.(proc0 .and. gnostics%writing)) return
     write (unit=outunit, fmt="('time=',1pe12.4)") gnostics%user_time
     do ik = 1, naky
@@ -75,7 +75,7 @@ contains
                phitot(it,ik), theta0(it,ik)
        end do
     end do
-    write (outunit,*) 
+    write (outunit,*)
 
   contains
       !> Compute normalised flux-surface averaged field
@@ -97,7 +97,7 @@ contains
         end do
       end subroutine phinorm
   end subroutine output_line
-  
+
   !> Print instantaneous heat fluxes to run_name.new.out
   subroutine write_flux_line(gnostics)
     use diagnostics_config, only: diagnostics_type
@@ -107,7 +107,7 @@ contains
     if (gnostics%create) return
     call output_flux_line(gnostics, gnostics%ascii_files%out)
   end subroutine write_flux_line
-    
+
   !> Print instantaneous heat fluxes to screen
   subroutine print_flux_line(gnostics)
     use file_utils, only: stdout_unit
@@ -133,13 +133,13 @@ contains
            gnostics%current_results%species_energy_exchange)
     end if
     if (has_apar) then
-      call write_apar_fluxes_to_unit(outunit, gnostics%user_time, &
-           gnostics%current_results%apar2, &
+      call write_fluxes_to_unit(outunit, gnostics%user_time, &
+           gnostics%current_results%apar2, "apar", &
            gnostics%current_results%species_apar_heat_flux)
     end if
     if (has_bpar) then
-      call write_bpar_fluxes_to_unit(outunit, gnostics%user_time, &
-           gnostics%current_results%bpar2, &
+      call write_fluxes_to_unit(outunit, gnostics%user_time, &
+           gnostics%current_results%bpar2, "bpar", &
            gnostics%current_results%species_bpar_heat_flux)
     end if
   end subroutine output_flux_line
@@ -168,11 +168,8 @@ contains
     !> FIXME: Add documentation
     real, dimension(:), intent(in), optional :: vflux1_avg
 
-    write (unit=unit, fmt=flux_format) time, "phi", phi2, "heat fluxes", heat_fluxes
+    call write_fluxes_to_unit(unit, time, phi2, "phi", heat_fluxes, part_fluxes)
 
-    if (present(part_fluxes)) then
-      write (unit=unit, fmt=flux_format) time, "phi", phi2, "part fluxes", part_fluxes
-    end if
     if (present(mom_fluxes)) then
       write (unit=unit, fmt=flux_format) time, "phi", phi2, "mom fluxes", mom_fluxes
     end if
@@ -189,45 +186,35 @@ contains
     end if
   end subroutine write_phi_fluxes_to_unit
 
-  !> Write instantaneous fluxes from parallel magnetic vector
-  !> potential to screen or file
-  subroutine write_apar_fluxes_to_unit(unit, time, apar2, heat_fluxes, part_fluxes)
+  !> Write instantaneous heat and particle fluxes to screen/file
+  !>
+  !> Used directly for apar/bpar, but phi should use [[write_phi_fluxes_to_unit]]
+  subroutine write_fluxes_to_unit(unit, time, field, field_name, heat_fluxes, part_fluxes)
     !> An existing, open unit
     integer, intent(in) :: unit
     !> Current simulation time
     real, intent(in) :: time
     !> Average amplitude squared of the parallel magnetic potential
-    real, intent(in) :: apar2
+    real, intent(in) :: field
+    !> Name of the field
+    character(len=*), intent(in) :: field_name
     !> Heat flux due to A//
     real, dimension(:), intent(in) :: heat_fluxes
     !> Particle flux due to A//
     real, dimension(:), intent(in), optional :: part_fluxes
 
-    write (unit=unit, fmt=flux_format) time, "apar", apar2, "heat mluxes", heat_fluxes
+    ! Spelling of "fluxes" for different fields
+    character(len=6) :: flux_name
+    select case (field_name)
+      case("apar"); flux_name = "mluxes"
+      case("bpar"); flux_name = "bluxes"
+      case default; flux_name = "fluxes"
+    end select
+
+    write (unit=unit, fmt=flux_format) time, field_name, field, "heat " // flux_name, heat_fluxes
 
     if (present(part_fluxes)) then
-      write (unit=unit, fmt=flux_format) time, "apar", apar2, "part mluxes", part_fluxes
+      write (unit=unit, fmt=flux_format) time, field_name, field, "part " // flux_name, part_fluxes
     end if
-  end subroutine write_apar_fluxes_to_unit
-
-  !> Write instantaneous fluxes from parallel magnetic field to screen
-  !> or file
-  subroutine write_bpar_fluxes_to_unit(unit, time, bpar2, heat_fluxes, part_fluxes)
-    !> An existing, open unit
-    integer, intent(in) :: unit
-    !> Current simulation time
-    real, intent(in) :: time
-    !> Average amplitude squared of the parallel magnetic field
-    real, intent(in) :: bpar2
-    !> Heat flux due to B//
-    real, dimension(:), intent(in) :: heat_fluxes
-    !> Particle flux due to B//
-    real, dimension(:), intent(in), optional :: part_fluxes
-
-    write (unit=unit, fmt=flux_format) time, "bpar", bpar2, "heat bluxes", heat_fluxes
-
-    if (present(part_fluxes)) then
-      write (unit=unit, fmt=flux_format) time, "bpar", bpar2, "part bluxes", part_fluxes
-    end if
-  end subroutine write_bpar_fluxes_to_unit
+  end subroutine write_fluxes_to_unit
 end module diagnostics_printout
