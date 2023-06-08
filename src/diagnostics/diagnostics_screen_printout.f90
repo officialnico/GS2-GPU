@@ -148,7 +148,8 @@ contains
   !> or file
   subroutine write_phi_fluxes_to_unit(unit, time, phi2, &
        heat_fluxes, energy_exchange, part_fluxes, mom_fluxes, &
-       lfmom_fluxes, vflux1_avg)
+       lfmom_fluxes, vflux1_avg, use_lowflow)
+    use optionals, only: get_option_with_default
     !> An existing, open unit
     integer, intent(in) :: unit
     !> Current simulation time
@@ -165,8 +166,10 @@ contains
     real, dimension(:), intent(in), optional :: mom_fluxes
     !> "Low flow" momentum flux due to electrostatic potential
     real, dimension(:), intent(in), optional :: lfmom_fluxes
-    !> FIXME: Add documentation
+    !> FIXME: Add documentation (some other low-flow flux term)
     real, dimension(:), intent(in), optional :: vflux1_avg
+    !> If true, write the low-flow momentum fluxes
+    logical, intent(in), optional :: use_lowflow
 
     call write_fluxes_to_unit(unit, time, phi2, "phi", heat_fluxes, part_fluxes)
 
@@ -176,7 +179,10 @@ contains
 
     write (unit=unit, fmt=flux_format) time, "phi", phi2, "energy exchange", energy_exchange
 
-    if (present(mom_fluxes)) then
+    ! Bail if we don't want to write the low-flow momentum fluxes
+    if (.not. get_option_with_default(use_lowflow, .false.)) return
+
+    if (present(use_lowflow) .and. present(lfmom_fluxes) .and. present(vflux1_avg)) then
       ! This one writes two separate fluxes on the same line, so can't
       ! reuse format string. Intel also requires unlimited-format '*'
       ! to be last item, so we split over two statements

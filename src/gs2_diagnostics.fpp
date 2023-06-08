@@ -1019,6 +1019,7 @@ contains
   !> This is the main routine for the "old" diagnostics.
   subroutine loop_diagnostics (istep, exit, debopt, force)
     use, intrinsic :: iso_fortran_env, only: output_unit
+    use build_config, only: gs2_has_lowflow
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
@@ -1055,9 +1056,7 @@ contains
 
     real, dimension (ntheta0, nspec) :: x_qmflux
     real, dimension (nspec) ::  heat_fluxes,  part_fluxes, mom_fluxes, parmom_fluxes, perpmom_fluxes, part_tormom_fluxes
-#ifdef LOWFLOW
     real, dimension (nspec) :: lfmom_fluxes, vflux1_avg  ! low-flow correction to turbulent momentum fluxes
-#endif
     real, dimension (nspec) :: mheat_fluxes, mpart_fluxes, mmom_fluxes
     real, dimension (nspec) :: bheat_fluxes, bpart_fluxes, bmom_fluxes
     real, dimension (nspec) :: energy_exchange
@@ -1251,13 +1250,9 @@ contains
 
        if (write_flux_line .and. write_ascii) then
          if (has_phi) then
-           ! Horrible, nasty preprocessor hack
            call write_phi_fluxes_to_unit(out_unit, t, phi2, &
-                heat_fluxes, energy_exchange, part_fluxes, mom_fluxes &
-#ifdef LOWFLOW
-                , lfmom_fluxes, vflux1_avg &
-#endif
-                )
+                heat_fluxes, energy_exchange, part_fluxes, mom_fluxes, &
+                lfmom_fluxes, vflux1_avg, gs2_has_lowflow)
          end if
          if (write_lorentzian) then
            wtmp_new = antenna_w()
