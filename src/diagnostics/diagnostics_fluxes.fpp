@@ -534,6 +534,9 @@ contains
     use theta_grid, only: qval, shat, gds21, gds22
     use kt_grids, only: theta0, aky
     use le_grids, only: energy
+#ifdef LOWFLOW
+    use dist_fn, only: get_flux_tormom
+#endif
     use dist_fn_arrays, only: gnew, aj0, vpac, vpa, aj1, vperp2, g_work
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: has_phi, has_apar, has_bpar
