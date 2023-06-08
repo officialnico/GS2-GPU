@@ -299,7 +299,7 @@ contains
 
           if (gs2_has_lowflow) then
             vflux0(:,:,is) = vflux0(:,:,is) * momentum
-            vflux1(:,:,is) = vflux1(:,:,is) * species%dens * species%mass * species%temp / species%z
+            vflux1(:,:,is) = vflux1(:,:,is) * species%dens * species%mass * species%tz
           end if
         end if
         if (has_apar) then
