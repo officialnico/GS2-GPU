@@ -1,7 +1,7 @@
 !> Module which contains functions for calculating
 !! and writing out the fluxes of heat and momentum etc.
 module diagnostics_fluxes
- 
+
   implicit none
 
   private
@@ -49,26 +49,26 @@ contains
     end if
 
     allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
+    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0.
     allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
     allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
-    
+
     allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
     allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
 
     allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
     allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
-    
+
     allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
     allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
-    
+
     allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
     allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
     allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
-    
+
     allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
     allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
-    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.   
+    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
 
     allocate (esflux_vs_e(negrid,nspec)) ; esflux_vs_e = 0.
     allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
@@ -208,7 +208,7 @@ contains
             start=starts(3, gnostics%nout))
 #endif
     end if
-    
+
     ! Update averages
     gnostics%current_results%species_heat_flux_avg = gnostics%current_results%species_heat_flux_avg + &
          gnostics%current_results%species_heat_flux * (gnostics%user_time-gnostics%user_time_old)
@@ -216,7 +216,7 @@ contains
          gnostics%current_results%species_particle_flux * (gnostics%user_time-gnostics%user_time_old)
     gnostics%current_results%species_momentum_flux_avg = gnostics%current_results%species_momentum_flux_avg + &
          gnostics%current_results%species_momentum_flux * (gnostics%user_time-gnostics%user_time_old)
-    
+
 #ifdef NETCDF
     ! Write totals
     if (gnostics%write_fluxes .and. gnostics%writing) then
@@ -238,7 +238,7 @@ contains
        call neasyf_write(gnostics%file_id, "zflux_tot", &
             gnostics%current_results%total_particle_flux, dim_names=[time_dim], start=[gnostics%nout], &
             long_name="Total particle flux, same as part_flux_tot, included for backwards compatiblity")
-    end if    
+    end if
 #endif
   end subroutine calculate_fluxes
 
@@ -367,9 +367,9 @@ contains
                 ! = dens  n_r (gamma_N v_thr / k_N**2 rho_r a) dT / drho drho/dr
                 ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) T a / L_T drho/dr
                 ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) temp T_r tprim drho/dr_N/a
-                ! Q / (n_r  v_r T_r rho_r**2/a**2) 
+                ! Q / (n_r  v_r T_r rho_r**2/a**2)
                 ! = dens (gamma_N / k_N**2) temp tprim grho
-                !   
+                !
                 heat_flux(it,ik,is) = diffusivity_by_k(it,ik) * &
                      spec(is)%dens * spec(is)%temp * spec(is)%tprim *  grho(gnostics%igomega)
                 particle_flux(it,ik,is) = diffusivity_by_k(it,ik) * &
@@ -387,20 +387,20 @@ contains
     call calculate_standard_flux_properties(gnostics, &
          'heat_flux_diff',  'Diffusive estimate of turbulent flux of heat', &
          'Q_gB = ', heat_flux, gnostics%distributed)
-    
+
     call calculate_standard_flux_properties(gnostics, &
          'part_flux_diff',  'Diffusive estimate of turbulent flux of particles', &
          'n_r? ', particle_flux, gnostics%distributed)
-    
+
     heat_flux_by_ky = maxval(heat_flux, 1)
     particle_flux_by_ky = maxval(particle_flux, 1)
-    
+
     heat_flux_max_by_spec = maxval(heat_flux_by_ky, 1)
     particle_flux_max_by_spec = maxval(particle_flux_by_ky, 1)
-    
+
     heat_flux_max = sum(heat_flux_max_by_spec)
     particle_flux_max = sum(particle_flux_max_by_spec)
-    
+
 #ifdef NETCDF
     if (gnostics%write_fluxes .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "es_heat_flux_diff_max", heat_flux_max_by_spec, &
@@ -423,7 +423,7 @@ contains
   end subroutine write_diffusive_estimates
 
   !> Writes a range of different summed and averaged properties of the given
-  !! flux... e.g. the flux summed over kx as a function of ky, species and time 
+  !! flux... e.g. the flux summed over kx as a function of ky, species and time
   subroutine calculate_standard_flux_properties(gnostics, flux_name, flux_description, &
        flux_units, flux_value, distributed)
     use kt_grids, only: ntheta0, naky
@@ -447,7 +447,7 @@ contains
     real, dimension(nspec) :: flux_by_species
     integer :: is, ik, it
 
-    call average_all(flux_value, flux_by_species, distributed) 
+    call average_all(flux_value, flux_by_species, distributed)
 
     total_flux_by_mode = 0.
     do ik = 1,naky
@@ -484,7 +484,7 @@ contains
            long_name=flux_description//" summed over species and averaged over kx and ky", &
            units=flux_units, start=[gnostics%nout])
 
-      if (gnostics%write_fluxes_by_mode) then 
+      if (gnostics%write_fluxes_by_mode) then
         call neasyf_write(gnostics%file_id, flux_name//"_by_mode", flux_value, &
              dim_names=fluxk_dims, &
              long_name=flux_description//" as a function of species, kx and ky", &
@@ -504,7 +504,7 @@ contains
 
     if (flux_name .eq. 'es_heat_flux' &
          .or. flux_name .eq. 'apar_heat_flux' &
-         .or. flux_name .eq. 'bpar_heat_flux') then 
+         .or. flux_name .eq. 'bpar_heat_flux') then
       gnostics%current_results%total_heat_flux = gnostics%current_results%total_heat_flux + sum(flux_by_species)
       gnostics%current_results%species_heat_flux = gnostics%current_results%species_heat_flux + flux_by_species
     else if (flux_name .eq. 'es_mom_flux' &
@@ -551,12 +551,12 @@ contains
     integer :: it, ik, is, isgn, ig
     integer :: iglo
 
-    !CMR, 15/1/08: 
-    !  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
+    !CMR, 15/1/08:
+    !  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew
     !  so fields and distribution function are evaluated self-consistently in time.
-    !  This fixed unphysical oscillations in non-ambipolar particle fluxes 
+    !  This fixed unphysical oscillations in non-ambipolar particle fluxes
     !
-    
+
     pflux = 0.0;   qflux = 0.0;   vflux = 0.0 ; vflux_par = 0.0 ; vflux_perp = 0.0
     pmflux = 0.0;  qmflux = 0.0;  vmflux = 0.0
     pbflux = 0.0;  qbflux = 0.0;  vbflux = 0.0
@@ -634,7 +634,7 @@ contains
        end do
 
        call get_flux (g_work, apar, qmflux(:,:,:,1))
-       
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -656,7 +656,7 @@ contains
        end do
 
        call get_flux (g_work, apar, qmflux(:,:,:,3))
-       
+
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
@@ -731,7 +731,7 @@ contains
     end if
   end subroutine flux
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine flux_vs_e (phi, apar, bpar, pflux, pmflux, pbflux)
     use species, only: spec
     use theta_grid, only: ntgrid
@@ -746,7 +746,7 @@ contains
     integer :: iglo
 
     if (proc0) then
-        pflux = 0.0;   pmflux = 0.0; pbflux = 0.0 ; 
+        pflux = 0.0;   pmflux = 0.0; pbflux = 0.0 ;
     end if
 
     if (has_phi) then
@@ -800,7 +800,7 @@ contains
     use gs2_layouts, only: g_lo
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
-    !> Input weighted distribution    
+    !> Input weighted distribution
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     !> Input field
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
@@ -841,7 +841,7 @@ contains
     use integration, only: trapezoidal_integration
     use gs2_layouts, only: g_lo
     implicit none
-    !> Input weighted distribution    
+    !> Input weighted distribution
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:), intent (inout) :: flx
@@ -864,11 +864,11 @@ contains
        ik = ik_idx(g_lo,iglo)
        if (aky(ik) == 0.) fac = 1.0
 
-       total(ie,is) = total(ie,is) + fac*& 
+       total(ie,is) = total(ie,is) + fac*&
             trapezoidal_integration(theta, &
             aimag(g_in(:,1,iglo)*conjg(fld(:,it,ik))) &
             * wl(:,il) * jacob) * aky(ik) * wgt
-       total(ie,is) = total(ie,is) + fac*& 
+       total(ie,is) = total(ie,is) + fac*&
             trapezoidal_integration(theta, &
             aimag(g_in(:,2,iglo)*conjg(fld(:,it,ik))) &
             * wl(:,il) * jacob) * aky(ik) * wgt
@@ -876,7 +876,7 @@ contains
 
     call sum_reduce(total,0)
 
-    if (proc0) flx = 0.5*total  
+    if (proc0) flx = 0.5*total
 
   end subroutine get_flux_vs_e
 
@@ -1059,7 +1059,7 @@ contains
     use integration, only: trapezoidal_integration
     use gs2_layouts, only: g_lo
     implicit none
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in    
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     real, dimension (:,:,:), intent (out) :: flx
     complex, dimension (:,:,:,:), allocatable :: total
