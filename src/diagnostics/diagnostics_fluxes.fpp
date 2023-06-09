@@ -270,11 +270,11 @@ contains
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
-    if (.not. proc0) return
-
     if (has_phi) then
       call eexchange (phinew, phi, exchange1, exchange)
     end if
+
+    if (.not. proc0) return
 
     do is = 1, nspec
       associate(species => spec(is), &
@@ -891,7 +891,6 @@ contains
     use theta_grid, only: ntgrid, gradpar, delthet, field_line_average
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
-    use run_parameters, only: has_phi
     use species, only: spec, nspec
     use nonlinear_terms, only: nonlin
     use hyper, only: hypervisc_filter
