@@ -39,7 +39,6 @@ contains
     use species, only: nspec
     use le_grids, only: negrid
     use diagnostics_config, only: diagnostics_type
-    use run_parameters, only: has_phi, has_apar, has_bpar
     implicit none
     type(diagnostics_type), intent(inout), optional :: gnostics
 
@@ -49,54 +48,41 @@ contains
       gnostics%current_results%species_particle_flux_avg = 0.0
     end if
 
-    if (has_phi) then
-      allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-      allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0.
-      allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
-      allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
+    allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
+    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0.
+    allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
+    allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
 
-      allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
-      allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
+    allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
+    allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
 
-      allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
-      allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
+    allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
+    allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
 
-      allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
-      allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
+    allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
+    allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
 
-      allocate (esflux_vs_e(negrid,nspec)) ; esflux_vs_e = 0.
-    end if
+    allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
+    allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
+    allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
 
-    if (has_apar) then
-      allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
-      allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
-      allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
+    allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
+    allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
+    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
 
-      allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
-    end if
-
-    if (has_bpar) then
-      allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
-      allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
-      allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
-
-      allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
-    end if
+    allocate (esflux_vs_e(negrid,nspec)) ; esflux_vs_e = 0.
+    allocate (apflux_vs_e(negrid,nspec)) ; apflux_vs_e = 0.
+    allocate (bpflux_vs_e(negrid,nspec)) ; bpflux_vs_e = 0.
   end subroutine init_diagnostics_fluxes
 
   !> Clean up module, deallocate module-level arrays
   subroutine finish_diagnostics_fluxes
     implicit none
-    if (allocated(pflux)) then
-      deallocate(pflux, pflux_tormom, qheat, vflux, exchange, exchange1, vflux_par, vflux_perp, &
-           vflux0, vflux1, esflux_vs_e)
-    end if
-    if (allocated(pmflux)) then
-      deallocate(pmflux, qmheat, vmflux, apflux_vs_e)
-    end if
-    if (allocated(pbflux)) then
-      deallocate(pbflux, qbheat, vbflux, bpflux_vs_e)
-    end if
+    if (.not. allocated(pflux)) return
+
+    deallocate (pflux, pflux_tormom, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
+         pbflux, qbheat, vbflux, vflux0, vflux1, exchange, exchange1, &
+         esflux_vs_e, apflux_vs_e, bpflux_vs_e)
   end subroutine finish_diagnostics_fluxes
 
   !> Set averages in gnostics\%current_results to 0.
