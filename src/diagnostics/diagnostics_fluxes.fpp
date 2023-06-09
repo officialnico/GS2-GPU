@@ -262,6 +262,7 @@ contains
     call flux (phinew, aparnew, bparnew, &
          pflux,  qheat,  vflux, vflux_par, vflux_perp, &
          pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+    call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
     if (gs2_has_lowflow) then
       ! lowflow terms only implemented in electrostatic limit at present
@@ -291,6 +292,8 @@ contains
           pflux(:,:,is) = pflux(:,:,is) * species%dens
           pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * species%dens
 
+          esflux_vs_e(:,is) = esflux_vs_e(:,is) * spec(is)%dens
+
           vflux(:,:,is) = vflux(:,:,is) * momentum
           vflux_par(:,:,is) = vflux_par(:,:,is) * momentum
           vflux_perp(:,:,is) = vflux_perp(:,:,is) * momentum_perp
@@ -308,6 +311,7 @@ contains
           qmheat(:,:,is,3) = qmheat(:,:,is,3) * density_temperature
           pmflux(:,:,is) = pmflux(:,:,is) * species%dens
           vmflux(:,:,is) = vmflux(:,:,is) * momentum_perp
+          apflux_vs_e(:,is) = apflux_vs_e(:,is) * spec(is)%dens
         end if
         if (has_bpar) then
           qbheat(:,:,is,1) = qbheat(:,:,is,1) * density_temperature
@@ -315,6 +319,7 @@ contains
           qbheat(:,:,is,3) = qbheat(:,:,is,3) * density_temperature
           pbflux(:,:,is) = pbflux(:,:,is) * species%dens
           vbflux(:,:,is) = vbflux(:,:,is) * momentum_perp
+          bpflux_vs_e(:,is) = bpflux_vs_e(:,is) * spec(is)%dens
         end if
       end associate
     end do
