@@ -1171,7 +1171,7 @@ contains
   !> FIXME : Add documentation  
   subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use file_utils, only: error_unit
-    use theta_grid, only: shat
+    use theta_grid, only: is_effectively_zero_shear
     use text_options, only: text_option, get_option_value
     use species, only: nspec
     use mp, only: proc0, broadcast, mp_abort
@@ -1298,7 +1298,7 @@ contains
        end if
 
        ! Fully periodic at low enough shear
-       if(abs(shat) <=  1.e-5) then
+       if(is_effectively_zero_shear()) then
           boundary_option_switch = boundary_option_self_periodic
           boundary_option = 'periodic'
        end if
