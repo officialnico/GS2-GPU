@@ -1,0 +1,131 @@
+&collisions_knobs
+    collision_model = 'none'
+/
+
+&parameters
+    beta = 0.021272634780334476
+    zeff = 3.262000404398463
+/
+
+&theta_grid_knobs
+    equilibrium_option = 'file'
+/
+
+&theta_grid_parameters
+    geotype = 0
+    ntheta = 96
+    nperiod = 2
+    rhoc = 0.9537447151101494
+/
+
+&theta_grid_file_knobs
+  gridout_file = 'grid.example'
+/
+
+&fields_knobs
+    field_option = 'local'
+/
+
+&le_grids_knobs
+    npassing = 5
+    nesuper = 2
+    nesub = 6
+    radau_gauss_grid = F
+    new_trap_int = T
+/
+
+&dist_fn_knobs
+    boundary_option = 'default'
+    opt_source = T
+/
+
+&kt_grids_knobs
+    grid_option = 'range'
+/
+
+&kt_grids_range_parameters
+    naky = 1
+    aky_min = 0.08485281374238571
+    aky_max = 0.08485281374238571
+    ntheta0 = 1
+    theta0_min = 0.0
+    theta0_max = 0.0
+/
+
+&init_g_knobs
+    chop_side = .true.
+    phiinit = 1e-10
+    ginit_option = 'default'
+/
+
+&knobs
+    fphi = 1.0
+    fapar = 0.0
+    fbpar = 0.0
+    delt = 0.017166552592766653
+    nstep = 10000
+/
+
+&species_knobs
+    nspec = 2
+/
+
+&species_parameters_1
+    z = 1.0
+    mass = 1.0
+    dens = 1.0
+    temp = 1.2275
+    tprim = 65.20589698373594
+    fprim = 8.25082
+    uprim = 0.0
+    vnewk = 0.03432340836191258
+    type = 'ion'
+/
+
+&species_parameters_2
+    z = -1.0
+    mass = 0.000272444
+    dens = 1.0
+    temp = 1.0
+    tprim = 34.3258
+    fprim = 8.35481
+    uprim = 0.0
+    vnewk = 5.164389731735009
+    type = 'electron'
+/
+
+&dist_fn_species_knobs_1
+    fexpr = 0.48
+    bakdif = 0.05
+/
+
+&dist_fn_species_knobs_2
+    fexpr = 0.48
+    bakdif = 0.05
+/
+
+&gs2_diagnostics_knobs
+    write_hrate = .false.
+    print_flux_line = .false.
+    write_nl_flux = .false.
+    write_fluxes = .false.
+    write_fluxes_by_mode = .false.
+    print_line = .false.
+    write_line = .true.
+    write_omega = .true.
+    write_final_fields = .true.
+    write_eigenfunc = .false.
+    write_g = .false.
+    write_verr = .false.
+    write_symmetry = .false.
+    nwrite = 50
+    navg = 200
+    nsave = 3000
+    omegatinst = 500.0
+    save_for_restart = .false.
+    omegatol = 0.01
+/
+
+&layouts_knobs
+    layout = 'lexys'
+/

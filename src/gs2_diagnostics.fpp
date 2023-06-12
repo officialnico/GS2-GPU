@@ -945,13 +945,14 @@ contains
   !> Save some extra information in final restart files
   subroutine save_restart_dist_fn(save_for_restart, save_distfn, &
                                   save_glo_info_and_grids, &
-                                  save_velocities, user_time)
+                                  save_velocities, user_time, fileopt_base)
     use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
     use gs2_save, only: gs2_save_for_restart
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use fields_arrays, only: phinew, bparnew
     use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use optionals, only: get_option_with_default
     !> See [[gs2_diagnostics_knobs:save_for_restart]]
     logical, intent(in) :: save_for_restart
     !> See [[gs2_diagnostics_knobs:save_distfn]]
@@ -962,14 +963,20 @@ contains
     logical, intent(in) :: save_velocities
     !> Current simulation time
     real, intent(in) :: user_time
+    !> Optional string to add to file name
+    character, intent(in), optional :: fileopt_base
     integer :: istatus
+    character(len=:), allocatable :: fileopt
+
+    fileopt = get_option_with_default(fileopt_base, "")
 
     if (save_for_restart) then
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
-            save_velocities=save_velocities)
+            save_velocities=save_velocities, &
+            fileopt = fileopt)
     end if
 
     if (save_distfn) then
@@ -980,7 +987,7 @@ contains
        call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
-            fileopt=".dfn", &
+            fileopt= fileopt//".dfn", &
             save_glo_info_and_grids=save_glo_info_and_grids, &
             save_velocities=save_velocities)
 

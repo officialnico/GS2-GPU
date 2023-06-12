@@ -3118,7 +3118,15 @@ contains
 
        ! Instead we simply check if the _next_ theta grid point is part of an allowed
        ! region. This works for all pitch angles _except_ totally trapped particles.
-       is_lower = .not. forbid(ig + 1, il) .or. &
+       !is_lower = .not. forbid(ig + 1, il) .or. &
+       !     (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+
+       ! For now we choose to invert this logic and check if the _previous_ theta grid point
+       ! is forbidden. This means that internal wfb-like bounce points are not detected
+       ! as having an upper bounce point. This is a temporary work around to maintain
+       ! old behaviour whilst we improve our trapped particle handling. See issues 148
+       ! and 239
+       is_lower = forbid(ig - 1, il) .or. &
             (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
     end if
 
@@ -3158,8 +3166,16 @@ contains
 
        ! Instead we simply check if the _previous_ theta grid point is part of an allowed
        ! region. This works for all pitch angles _except_ totally trapped particles.
-       is_upper = .not. forbid(ig - 1, il) .or. &
-            (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+       !is_upper = .not. forbid(ig - 1, il) .or. &
+       !     (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
+
+       ! For now we choose to invert this logic and check if the _next_ theta grid point
+       ! is forbidden. This means that internal wfb-like bounce points are not detected
+       ! as having an upper bounce point. This is a temporary work around to maintain
+       ! old behaviour whilst we improve our trapped particle handling. See issues 148
+       ! and 239
+       is_upper = forbid(ig + 1, il) .or. &
+           (forbid(ig - 1, il) .and. forbid(ig + 1, il)) ! For totally trapped particles
     end if
 
   end function is_upper_bounce_point
