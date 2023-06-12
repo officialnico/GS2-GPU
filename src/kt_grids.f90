@@ -1654,7 +1654,7 @@ contains
 
   !> Calculate the grid of wavenumbers for box mode
   subroutine box_get_grids (aky, theta0, akx, ikx, iky)
-    use theta_grid, only: is_effectively_zero_shear, nperiod
+    use theta_grid, only: is_effectively_zero_shear, nperiod, shat
     use constants, only: pi
     use theta_grid, only: nperiod 
     implicit none
