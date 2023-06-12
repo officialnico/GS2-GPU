@@ -132,10 +132,12 @@ module dist_fn
        source_option_phiext_full = 5, source_option_homogeneous = 6
   
   integer :: boundary_option_switch
-  integer, parameter :: boundary_option_zero = 1, &
+  integer, parameter :: boundary_option_default = 0, &
+       boundary_option_zero = 1, &
        boundary_option_self_periodic = 2, &
        boundary_option_alternate_zero = 3, &
        boundary_option_linked = 4
+
   logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
@@ -280,8 +282,14 @@ module dist_fn
      !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
      !> ballooning space). Possible values are:
      !>
-     !> - 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
-     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
+     !> - 'default' - "Smart" default -- equivalent to 'zero' except if
+     !>                kt_grids:grid_option='box' in which case equivalent to 'linked'.
+     !>                In simulations with suffifienctly small shear default boundaries correspond
+     !>                to 'periodic'.
+     !> - 'zero', 'unconnected' - Use Kotschenreuther boundary condition at endpoints
+     !>                           of theta grid
+     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with
+     !>                                              itself.
      !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
      !> - 'alternate-zero' - Ignored
      !>
@@ -749,8 +757,11 @@ contains
 
        select case (boundary_option_switch)
 
-       case (boundary_option_zero)
+       case (boundary_option_default)
           write (unit, fmt="(' boundary_option = ',a)") '"default"'
+
+       case (boundary_option_zero)
+          write (unit, fmt="(' boundary_option = ',a)") '"zero"'
 
        case (boundary_option_self_periodic)
           write (unit, fmt="(' boundary_option = ',a)") '"periodic"'
@@ -1165,6 +1176,7 @@ contains
     use species, only: nspec
     use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
+    use kt_grids, only: gridopt_box, gridopt_switch
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
@@ -1177,7 +1189,7 @@ contains
     character(20) :: source_option
 
     type (text_option), dimension (8), parameter :: boundaryopts = &
-         (/ text_option('default', boundary_option_zero), &
+         (/ text_option('default', boundary_option_default), &
             text_option('zero', boundary_option_zero), &
             text_option('unconnected', boundary_option_zero), &
             text_option('self-periodic', boundary_option_self_periodic), &
@@ -1270,11 +1282,27 @@ contains
 
     ierr = error_unit()
 
-    if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
-
     call get_option_value &
          (boundary_option, boundaryopts, boundary_option_switch, &
          ierr, "boundary_option in dist_fn_knobs",.true.)
+
+    ! Handle a request for default boundaries
+    if (boundary_option_switch == boundary_option_default) then
+       ! Linked for box, zero otherwise
+       if (gridopt_switch == gridopt_box) then
+          boundary_option_switch = boundary_option_linked
+          boundary_option = 'linked'
+       else
+          boundary_option_switch = boundary_option_zero
+          boundary_option = 'zero'
+       end if
+
+       ! Fully periodic at low enough shear
+       if(abs(shat) <=  1.e-5) then
+          boundary_option_switch = boundary_option_self_periodic
+          boundary_option = 'periodic'
+       end if
+    end if
 
     call get_option_value &
          (source_option, sourceopts, source_option_switch, &
