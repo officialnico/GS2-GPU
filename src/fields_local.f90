@@ -851,6 +851,9 @@ contains
     !Now save if on head proc -- could probably only allocate tmp_arr and call
     !pull_rows_to_arr on this head proc as well, at least for now.
     if(self%is_head)then
+       ! Preserve compatibility with older response files which had a different
+       ! sign by convention.
+       tmp_arr = -tmp_arr
        call gs2_save_response(tmp_arr, get_specific_response_file_name(self%ik_ind, self%is_ind, code_dt, suffix), code_dt, self%condition_number)
     endif
 
@@ -905,6 +908,11 @@ contains
     if (self%is_head) then
        call gs2_restore_response(tmp_arr, file_name, file_time_step, self%condition_number)
        ! Should perhaps double check that file_time_step == code_dt?
+
+       ! Preserve compatibility with older response files which had a different
+       ! sign by convention.
+       tmp_arr = -tmp_arr
+
     end if
 
     !Now we need to broadcast the data to everyone with supercell.
