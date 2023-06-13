@@ -18,7 +18,7 @@ else # TEST_LEVEL
 TESTCOMMAND =
 
 all: $(BINDIR)/write_default_input_file $(BINDIR)/gs2
-	$(call RUNCOMMAND,PYTHONPATH=$(GK_HEAD_DIR)/scripts pytest)
+	$(call RUNCOMMAND,PYTHONPATH=$(GK_HEAD_DIR)/scripts $(GS2_PYTEST_NAME))
 
 .PHONY: all
 
