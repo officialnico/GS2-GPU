@@ -341,9 +341,9 @@ contains
     !As a 1d vector in fortran is a "row vector" (as the
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
-    rb_mv_mult_fun=-matmul(transpose(self%data),vect)
+    rb_mv_mult_fun = matmul(transpose(self%data),vect)
 !    do ir=1,self%nrow
-!       rb_mv_mult_fun(ir)=-sum(self%data(:,ir)*vect)
+!       rb_mv_mult_fun(ir)=sum(self%data(:,ir)*vect)
 !    enddo
   end function rb_mv_mult_fun
 
@@ -1089,7 +1089,7 @@ contains
     !Now invert in place
     if (self%is_head) then
        call invert_serial(tmp_arr, self%nrow)
-       tmp_arr=transpose(tmp_arr)
+       tmp_arr=-transpose(tmp_arr)
     end if
 
     !It would be quite nice if we could do the following in a non-blocking manner
