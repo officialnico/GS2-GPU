@@ -27,7 +27,7 @@ contains
 
   subroutine nc_grid_file_new(filename)
     use file_utils, only: get_unused_unit
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     logical :: is_exist
     integer :: unit
     inquire(file=filename, exist=is_exist)
@@ -39,7 +39,7 @@ contains
   end subroutine nc_grid_file_new
 
   subroutine nc_get_grid_sizes(filename, ntheta, ntgrid, nperiod)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(out), optional :: ntheta, ntgrid, nperiod
 
 # ifdef NETCDF
@@ -59,7 +59,7 @@ contains
   end subroutine nc_get_grid_sizes
 
   subroutine nc_write_grid_sizes(filename, ntheta, ntgrid, nperiod)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(in), optional :: ntheta, ntgrid, nperiod
 # ifdef NETCDF
     integer (kind_nf) :: ncid
@@ -87,7 +87,7 @@ contains
   end subroutine nc_write_grid_sizes
 
   subroutine nc_get_lambda_grid_size(filename, nlambda)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(out) :: nlambda
 # ifdef NETCDF
     integer (kind_nf) :: ncid, dimid
@@ -104,7 +104,7 @@ contains
   end subroutine nc_get_lambda_grid_size
 
   subroutine nc_get_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
     integer (kind_nf) :: ncid
@@ -121,7 +121,7 @@ contains
   end subroutine nc_get_grid_scalars
   
   subroutine nc_write_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
     integer (kind_nf) :: ncid
@@ -153,7 +153,7 @@ contains
        cdrift, cdrift0, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        Bpol, jacob)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(out) :: bmag, gradpar, &
          gbdrift, gbdrift0, cvdrift, cvdrift0, &
@@ -214,7 +214,7 @@ contains
        cdrift, cdrift0, &
        Rplot, Rprime, Zplot, Zprime, aplot, aprime, &
        Bpol, jacob, no_end_point_in)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(in) :: bmag, gradpar, &
          gbdrift, gbdrift0, cvdrift, cvdrift0, &
@@ -305,7 +305,7 @@ contains
   end subroutine nc_write_grids
 
   subroutine nc_get_lambda_grid(filename, nlambda, lambda)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(in) :: nlambda
     real, dimension(nlambda), intent(out) :: lambda
 # ifdef NETCDF
@@ -319,7 +319,7 @@ contains
   end subroutine nc_get_lambda_grid
 
   subroutine nc_write_lambda_grid(filename, nlambda, lambda)
-    character (len=2000), intent(in) :: filename
+    character (len=*), intent(in) :: filename
     integer, intent(in) :: nlambda
     real, dimension(nlambda), intent(in) :: lambda
 # ifdef NETCDF
