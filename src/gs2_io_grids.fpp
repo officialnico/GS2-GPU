@@ -242,6 +242,7 @@ contains
        cdrift, cdrift0, &
        Rplot, Rprime, Zplot, Zprime, aplot, aprime, &
        Bpol, jacob, no_end_point_in)
+    use optionals, only: get_option_with_default
     character (len=*), intent(in) :: filename
     integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(in) :: bmag, gradpar, &
@@ -273,14 +274,9 @@ contains
     ncid = neasyf_open(trim(filename), action)
 
     !> Store the no_end_point flag in the output netCDF file.
-    no_end_point = .false.
+    no_end_point = get_option_with_default(no_end_point_in, .false.)
     no_end_point_int = 0
-    if (present(no_end_point_in)) then
-       no_end_point = no_end_point_in
-       if (no_end_point) then
-          no_end_point_int = 1
-       end if
-    end if
+    if (no_end_point) no_end_point_int = 1
     call neasyf_write(ncid, "no_end_point", no_end_point_int)
 
     !> If no_end_point=.true., data at ntgrid are not stored.
