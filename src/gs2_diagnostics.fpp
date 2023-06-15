@@ -2809,14 +2809,14 @@ contains
     real, dimension(-ntgrid:ntgrid, ntheta0, naky) :: field_squared
     integer :: it, ik
     field_squared = abs(field) * abs(field)
-
+    average = 0.0
     do ik = 1, naky
        do it = 1, ntheta0
+          if (maxval(abs(field_squared(:, it, ik))) <= epsilon(0.0)) cycle
           average(it, ik) = field_line_average(field_squared(:, it, ik) * &
                kperp2(:, it, ik)) / field_line_average(field_squared(:, it, ik))
        end do
     end do
-
   end function get_field_weighted_average_kperp2
 
   !> Calculates a simple gamma/kperp2 QL flux metric
