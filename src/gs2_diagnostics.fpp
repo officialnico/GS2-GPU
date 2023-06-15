@@ -2828,21 +2828,25 @@ contains
     real, dimension(ntheta0, naky), intent(in) :: growth_rates
     real, dimension(ntheta0, naky) :: ql_flux, normalising_field, limited_growth_rates, average
 
+    ! Initialise flux to zero
     ql_flux = 0.0
 
     ! Decide on the normalising field
     if (has_phi) then
-       normalising_field = 1.0 / maxval(abs(phinew)**2, dim = 1)
+       normalising_field = maxval(abs(phinew)**2, dim = 1)
     else if (has_apar) then
-       normalising_field = 1.0 / maxval(abs(aparnew)**2, dim = 1)
+       normalising_field = maxval(abs(aparnew)**2, dim = 1)
     else if (has_bpar) then
-       normalising_field = 1.0 / maxval(abs(bparnew)**2, dim = 1)
+       normalising_field = maxval(abs(bparnew)**2, dim = 1)
     else
        ! If we get here then no fields are active so the QL flux
        ! is zero and we can exit
        return
     end if
 
+    where (normalising_field > 0)
+       normalising_field = 1.0 / normalising_field
+    end where
 
     if (has_phi) then
        average = get_field_weighted_average_kperp2(phinew)
