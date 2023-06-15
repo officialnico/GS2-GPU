@@ -2931,7 +2931,7 @@ contains
     if (tol_use == 0.0) then
        too_small = tiny(0.0)
     else
-       too_small = tiny(0.0) * 1000. / tol_use
+       too_small = tiny(0.0) * 1000. / abs(tol_use)
     end if
 
     ! Use where to guard against dividing by tool small a number
