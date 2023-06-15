@@ -311,6 +311,8 @@ contains
     type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(ntheta0, naky) :: ql_fluxes
 
+    if (.not. gnostics%writing) return
+
     ql_fluxes = calculate_simple_quasilinear_flux_metric_by_k( &
          imag(omegahist(mod(gnostics%istep, gnostics%navg), :, :)))
 
