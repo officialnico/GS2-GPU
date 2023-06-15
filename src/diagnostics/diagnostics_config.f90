@@ -116,6 +116,7 @@ module diagnostics_config
      logical :: write_pflux_sym !Not implemented?
      logical :: write_pflux_tormom !Not implemented?
      logical :: write_omega
+     logical :: write_ql_fluxes
      integer :: navg
      real :: omegatinst
      real :: omegatol
@@ -367,6 +368,7 @@ contains
     gnostics%write_ntot_over_time = new_gs2_diagnostics_config%write_ntot_over_time
     gnostics%write_omavg = new_gs2_diagnostics_config%write_omavg
     gnostics%write_omega = new_gs2_diagnostics_config%write_omega
+    gnostics%write_ql_fluxes = new_gs2_diagnostics_config%write_ql_fluxes
     gnostics%write_parity = new_gs2_diagnostics_config%write_parity
     gnostics%write_pflux_sym = new_gs2_diagnostics_config%write_pflux_sym
     gnostics%write_pflux_tormom = new_gs2_diagnostics_config%write_pflux_tormom

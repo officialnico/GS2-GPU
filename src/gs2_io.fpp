@@ -1115,7 +1115,8 @@ contains
   !> Write various fields, heating, and frequency diagnostics to netCDF
   subroutine nc_loop (file_id, nout, time, &
        phi2, apar2, bpar2, igomega, &
-       h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
+       h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_fluxes, &
+       write_omega, write_heating, write_ql_fluxes)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
     use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units
@@ -1141,12 +1142,12 @@ contains
     !> Fields, frequency and time-averaged frequency
     complex, dimension(:,:), intent (in) :: omega, omegaavg
     !> FIXME: add documentation
-    real, dimension(:,:), intent (in) :: phitot
+    real, dimension(:,:), intent (in) :: phitot, ql_fluxes
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
-    logical, intent(in) :: write_omega, write_heating
+    logical, intent(in) :: write_omega, write_heating, write_ql_fluxes
 # ifdef NETCDF
 
     call neasyf_write(file_id, time_dim, time, dim_names=[time_dim], start=[nout])
@@ -1174,6 +1175,8 @@ contains
     if (write_heating) call nc_write_heating(file_id, nout, h, hk)
 
     if (write_omega) call nc_write_omega(file_id, nout, omega, omegaavg, woutunits)
+
+    if (write_ql_fluxes) call nc_write_ql_fluxes(file_id, nout, ql_fluxes)
 
     if (write_scan_parameter) then
        call neasyf_write(file_id, &

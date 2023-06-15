@@ -55,7 +55,7 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly
+  logical, public :: write_gs, write_lpoly, write_ql_fluxes
   logical, public :: write_g, write_gg, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
@@ -788,6 +788,7 @@ contains
     write_pflux_sym = gs2_diagnostics_config%write_pflux_sym
     write_pflux_tormom = gs2_diagnostics_config%write_pflux_tormom
     write_phi_over_time = gs2_diagnostics_config%write_phi_over_time
+    write_ql_fluxes = gs2_diagnostics_config%write_ql_fluxes
     write_symmetry = gs2_diagnostics_config%write_symmetry
     write_verr = gs2_diagnostics_config%write_verr
 
@@ -1396,6 +1397,7 @@ contains
     use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
+    use kt_grids, only: ntheta0, naky
     implicit none
     !> Simulation time
     real, intent(in) :: time
@@ -1405,14 +1407,22 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
+    real, dimension (ntheta0, naky) :: ql_flux
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
+    if (write_ql_fluxes) then
+       ql_flux = calculate_simple_quasilinear_flux_metric_by_k(imag(omega))
+    else
+       ql_flux = 0.0
+    end if
+
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_flux, &
+         write_omega, write_heating, write_ql_fluxes)
 
   end subroutine do_write_ncloop
 
