@@ -1,3 +1,4 @@
+!> A module for writing geometry to netcdf.
 module gs2_io_grids
 
 # ifdef NETCDF
@@ -26,6 +27,7 @@ module gs2_io_grids
 
 contains
 
+  !> Remove the output netCDF file if already exists
   subroutine nc_grid_file_new(filename)
     use file_utils, only: get_unused_unit
     character (len=*), intent(in) :: filename
@@ -34,12 +36,13 @@ contains
     if (.not.proc0) return
     inquire(file=filename, exist=is_exist)
     if (is_exist) then
-       write(6,*) 'WARNING: existing file will be over-written', trim(filename)
+       write(6,*) 'WARNING: existing file will be over-written ', trim(filename)
        open(unit, file=filename)
        close(unit, status='delete')
     end if
   end subroutine nc_grid_file_new
 
+  !> Read sizes of geometry data from the input netCDF file
   subroutine nc_get_grid_sizes(filename, ntheta, ntgrid, nperiod)
     character (len=*), intent(in) :: filename
     integer, intent(out), optional :: ntheta, ntgrid, nperiod
@@ -48,7 +51,6 @@ contains
     integer (kind_nf) :: ncid
 
     if (.not.proc0) return
-
 
     ncid = neasyf_open(trim(filename), "r")
 
@@ -63,6 +65,7 @@ contains
 # endif
   end subroutine nc_get_grid_sizes
 
+  !> Writes sizes of geometry data to the output netCDF file
   subroutine nc_write_grid_sizes(filename, ntheta, ntgrid, nperiod)
     character (len=*), intent(in) :: filename
     integer, intent(in), optional :: ntheta, ntgrid, nperiod
@@ -73,7 +76,7 @@ contains
 
     if (.not.proc0) return
 
-    ! always append mode if file exists
+    !> always append mode if file exists
     action="w"
     inquire(file=trim(filename), exist=is_exist)
     if (is_exist) then
@@ -93,6 +96,7 @@ contains
 # endif
   end subroutine nc_write_grid_sizes
 
+  !> Read sizes of lambda grid data from the input netCDF file
   subroutine nc_get_lambda_grid_size(filename, nlambda)
     character (len=*), intent(in) :: filename
     integer, intent(out) :: nlambda
@@ -111,6 +115,7 @@ contains
 # endif
   end subroutine nc_get_lambda_grid_size
 
+  !> Read scalar geometry data from the input netCDF file
   subroutine nc_get_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
     character (len=*), intent(in) :: filename
     real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
@@ -129,6 +134,7 @@ contains
 # endif
   end subroutine nc_get_grid_scalars
   
+  !> Write scalar geometry data to the output netCDF file
   subroutine nc_write_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
     character (len=*), intent(in) :: filename
     real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj
@@ -139,7 +145,7 @@ contains
 
     if (.not.proc0) return
 
-    ! always append mode if file exists
+    !> always append mode if file exists
     action="w"
     inquire(file=trim(filename), exist=is_exist)
     if (is_exist) then
@@ -158,6 +164,7 @@ contains
 # endif
   end subroutine nc_write_grid_scalars
 
+  !> Read geometry data from the input netCDF file
   subroutine nc_get_grids(filename, ntgrid, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
@@ -196,6 +203,7 @@ contains
        if (no_end_point_int /= 0) no_end_point = .true.
     end if
 
+    !> read_and_pad handles the end point data
     call read_and_pad(ncid, gbdrift, "gbdrift", no_end_point)
     call read_and_pad(ncid, gbdrift0, "gbdrift0", no_end_point)
     call read_and_pad(ncid, cvdrift, "cvdrift", no_end_point)
@@ -227,6 +235,7 @@ contains
 # endif
   end subroutine nc_get_grids
 
+  !> Write geometry data to the output netCDF file
   subroutine nc_write_grids(filename, ntgrid, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
@@ -254,7 +263,7 @@ contains
 
     if (.not.proc0) return
 
-    ! always append mode if file exists
+    !> always append mode if file exists
     action="w"
     inquire(file=trim(filename), exist=is_exist)
     if (is_exist) then
@@ -263,6 +272,7 @@ contains
 
     ncid = neasyf_open(trim(filename), action)
 
+    !> Store the no_end_point flag in the output netCDF file.
     no_end_point = .false.
     no_end_point_int = 0
     if (present(no_end_point_in)) then
@@ -273,6 +283,9 @@ contains
     end if
     call neasyf_write(ncid, "no_end_point", no_end_point_int)
 
+    !> If no_end_point=.true., data at ntgrid are not stored.
+    !> Data at ntgrid may be generated from the data at -ntgrid with some symmetry assumption.
+    !> This option is meant to provide compatibility with GX.
     if (no_end_point) then
        theta_end_point = ntgrid-1
     else
@@ -325,6 +338,7 @@ contains
 # endif
   end subroutine nc_write_grids
 
+  !> Read lambda grid data from the input netCDF file
   subroutine nc_get_lambda_grid(filename, nlambda, lambda)
     character (len=*), intent(in) :: filename
     integer, intent(in) :: nlambda
@@ -340,6 +354,7 @@ contains
 # endif
   end subroutine nc_get_lambda_grid
 
+  !> Write lambda grid data to the output netCDF file
   subroutine nc_write_lambda_grid(filename, nlambda, lambda)
     character (len=*), intent(in) :: filename
     integer, intent(in) :: nlambda
@@ -351,7 +366,7 @@ contains
 
     if (.not.proc0) return
 
-    ! always append mode if file exists
+    !> always append mode if file exists
     action="w"
     inquire(file=trim(filename), exist=is_exist)
     if (is_exist) then
@@ -368,6 +383,9 @@ contains
   end subroutine nc_write_lambda_grid
 
 # ifdef NETCDF
+  !> Helper subroutine to appropriately get geometry data depending on the no_end_point flag.
+  !> Read geometry data from the input netCDF file with an appropriate size
+  !> and pad ntgrid data if no_end_point=.true.
   subroutine read_and_pad(ncid, array, name, no_end_point)
     implicit none
     integer (kind_nf), intent(in) :: ncid
@@ -378,8 +396,8 @@ contains
     integer :: end_point
     integer :: status
     end_point = size(array)
-    ! array corresponding to the dummy argument array in the upstream subroutine
-    ! may be non-present optional argument, whose size will be 1 /= 2*ntgrid+1.!py
+    !> The array corresponding to the dummy argument array in the upstream subroutine
+    !> may be non-present optional argument, whose size will be 1 /= 2*ntgrid+1.
     if (end_point == 1) return
     if (no_end_point) then
        end_point = end_point -1
@@ -392,16 +410,15 @@ contains
   end subroutine read_and_pad
 # endif
 
+  !> Generate data at ntgrid point using some symmetry assumption
   subroutine ntgrid_padding(array)
-    ! RN>
-    ! If grid file does not have the end point data, they are generated
-    ! using information on the other end by assuming (anti-)symmetry
-    ! w.r.t theta=0.
-    ! If symmetric, array(ntgrid) = array(-ntgrid)
-    ! If anti-symmetric, array(ntgrid) = -array(-ntgrid)
-    !
-    ! If this deos not apply, do not use no_end_point = T grid file.
-    ! <RN
+    !> If grid file does not have the end point data, they are generated
+    !> using information on the other end by assuming (anti-)symmetry
+    !> w.r.t theta=0.
+    !> If symmetric, array(ntgrid) = array(-ntgrid)
+    !> If anti-symmetric, array(ntgrid) = -array(-ntgrid)
+    !>
+    !> If this deos not apply, do not use no_end_point = T grid file.
     real, dimension (:), intent (in out) :: array
     integer :: s
     integer :: l
