@@ -10,6 +10,7 @@ module gs2_io_grids
   use netcdf, only: nf90_inq_varid
   use netcdf, only: NF90_NOERR
   use mp, only: proc0
+  use mp, only: mp_abort
 # else
   use mp, only: mp_abort
 # endif
@@ -108,6 +109,8 @@ contains
     status = nf90_inq_dimid(ncid, "nlambda", dimid)
     if (status == NF90_NOERR) then
        status = nf90_inquire_dimension(ncid, dimid, len=nlambda)
+    else
+       call mp_abort("failed to get nlambda fron netCDF grid file")
     end if
     call neasyf_close(ncid)
 # else
