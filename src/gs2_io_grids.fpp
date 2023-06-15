@@ -8,6 +8,7 @@ module gs2_io_grids
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
   use netcdf, only: NF90_NOERR
+  use mp, only: proc0
 # else
   use mp, only: mp_abort
 # endif
@@ -26,7 +27,6 @@ module gs2_io_grids
 contains
 
   subroutine nc_grid_file_new(filename)
-    use mp, only: proc0
     use file_utils, only: get_unused_unit
     character (len=*), intent(in) :: filename
     logical :: is_exist
@@ -46,6 +46,9 @@ contains
 
 # ifdef NETCDF
     integer (kind_nf) :: ncid
+
+    if (.not.proc0) return
+
 
     ncid = neasyf_open(trim(filename), "r")
 
@@ -67,6 +70,8 @@ contains
     integer (kind_nf) :: ncid
     character (len=2) :: action
     logical :: is_exist
+
+    if (.not.proc0) return
 
     ! always append mode if file exists
     action="w"
@@ -94,6 +99,7 @@ contains
 # ifdef NETCDF
     integer (kind_nf) :: ncid, dimid
     integer :: status
+    if (.not.proc0) return
     ncid = neasyf_open(trim(filename), "r")
     status = nf90_inq_dimid(ncid, "nlambda", dimid)
     if (status == NF90_NOERR) then
@@ -110,6 +116,7 @@ contains
     real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
     integer (kind_nf) :: ncid
+    if (.not.proc0) return
     ncid = neasyf_open(trim(filename), "r")
     call neasyf_read(ncid, "drhodpsi", drhodpsi)
     call neasyf_read(ncid, "rmaj", rmaj)
@@ -129,6 +136,8 @@ contains
     integer (kind_nf) :: ncid
     character (len=2) :: action
     logical :: is_exist
+
+    if (.not.proc0) return
 
     ! always append mode if file exists
     action="w"
@@ -169,6 +178,8 @@ contains
     integer :: status
     integer :: no_end_point_int
     logical :: no_end_point
+
+    if (.not.proc0) return
 
     ncid = neasyf_open(trim(filename), "r")
 
@@ -234,6 +245,8 @@ contains
 
     character (len=2) :: action
     logical :: is_exist
+
+    if (.not.proc0) return
 
     ! always append mode if file exists
     action="w"
@@ -312,6 +325,7 @@ contains
     real, dimension(nlambda), intent(out) :: lambda
 # ifdef NETCDF
     integer (kind_nf) :: ncid
+    if (.not.proc0) return
     ncid = neasyf_open(trim(filename), "r")
     call neasyf_read(ncid, "lambda", lambda)
     call neasyf_close(ncid)
@@ -328,6 +342,8 @@ contains
     integer (kind_nf) :: ncid, nl_dim
     character (len=2) :: action
     logical :: is_exist
+
+    if (.not.proc0) return
 
     ! always append mode if file exists
     action="w"
