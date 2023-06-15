@@ -2965,37 +2965,16 @@ contains
     !> If true, write some debug messages
     logical, intent (in), optional :: debopt
     real :: fac
-    !CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
-    !HJL - moved to top of module
-    !    complex, allocatable, save, dimension (:,:,:) :: domega
-    integer :: j
-
     logical :: debug=.false.
 
     if (debug) write(6,*) "get_omeaavg: allocate domega"
     if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
     if (present(debopt)) debug=debopt
     if (debug) write(6,*) "get_omeaavg: start"
-    j = igomega
-    !The logic below was originally
-    !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
-    !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
-    !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
-    !What we really want to do is prevent dividing by too small a number. 
-    if(omegatol.eq.0)then
-       fac=1.0
-    else
-       fac=1000/abs(omegatol)
-    endif
     if (debug) write(6,*) "get_omeaavg: set omegahist"
-    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < tiny(0.0)*fac &
-         .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < tiny(0.0)*fac)
-       omegahist(mod(istep,navg),:,:) = 0.0
-    elsewhere
-       omegahist(mod(istep,navg),:,:) &
-            = log((phinew(j,:,:) + aparnew(j,:,:) + bparnew(j,:,:)) &
-            /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
-    end where
+
+    ! Get and store the current instantaneous omega
+    omegahist(mod(istep, navg), :, :) = calculate_instantaneous_omega(igomega, omegatol)
 
     if (debug) write(6,*) "get_omeaavg: set omegahist at istep = 0"
     !During initialisation fieldnew==field but floating error can lead to finite omegahist
