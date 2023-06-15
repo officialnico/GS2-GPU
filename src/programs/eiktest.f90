@@ -304,14 +304,16 @@ program eiktest
   close (unit=21)
 1000 format(20(1x,1pg18.11))
 
-  ncout = trim(out_stem)//"out.nc"
-  if (proc0) call nc_grid_file_new(ncout)
-  call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiod)
-  call nc_write_grid_scalars(ncout, shat, drhodpsin, kxfac, qsf, rmaj)
-  call nc_write_grids(ncout, ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
-       gds2, gds21, gds22, grho, theta, &
-       Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
-       Bpol=Bpol, no_end_point_in=no_end_point)
+  if (proc0) then
+     ncout = trim(out_stem)//"out.nc"
+     call nc_grid_file_new(ncout)
+     call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiod)
+     call nc_write_grid_scalars(ncout, shat, drhodpsin, kxfac, qsf, rmaj)
+     call nc_write_grids(ncout, ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+          gds2, gds21, gds22, grho, theta, &
+          Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
+          Bpol=Bpol, no_end_point_in=no_end_point)
+  end if
 
   call finish_mp
 

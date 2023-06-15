@@ -660,15 +660,17 @@ contains
 
     if (bmin < bmagin(minloca(1))) print *, "WARNING: interpolated new minimum"
 
-    ncout = trim(run_name)//".out.nc"
-    if (proc0) call nc_grid_file_new(ncout)
-    call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiodout)
-    call nc_write_grid_scalars(ncout, shat, drhodpsi, kxfac, qval, rmaj)
-    call nc_write_grids(ncout, ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
-         cvdriftout, cvdrift0out, gds2out, gds21out, gds22out, grhoout, thetagridout, &
-         Rplot=Rplotout, Rprime=Rprimeout, Zplot=Zplotout, Zprime=Zprimeout, &
-         aplot=aplotout, aprime=aprimeout, no_end_point_in=no_end_point)
-    call nc_write_lambda_grid(ncout, nlambda, alambdaout(:nlambda))
+    if (proc0) then
+       ncout = trim(run_name)//".out.nc"
+       call nc_grid_file_new(ncout)
+       call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiodout)
+       call nc_write_grid_scalars(ncout, shat, drhodpsi, kxfac, qval, rmaj)
+       call nc_write_grids(ncout, ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
+            cvdriftout, cvdrift0out, gds2out, gds21out, gds22out, grhoout, thetagridout, &
+            Rplot=Rplotout, Rprime=Rprimeout, Zplot=Zplotout, Zprime=Zprimeout, &
+            aplot=aplotout, aprime=aprimeout, no_end_point_in=no_end_point)
+       call nc_write_lambda_grid(ncout, nlambda, alambdaout(:nlambda))
+    end if
 
   end subroutine write_output
 
