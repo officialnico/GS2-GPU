@@ -3289,7 +3289,7 @@ if (debug) write(6,*) 'get_sizes: call file_get_sizes'
     case (eqopt_file_nc)
 if (debug) write(6,*) 'get_sizes: call init_theta_grid_file'
        call init_theta_grid_file(theta_grid_file_config_in)
-if (debug) write(6,*) 'get_sizes: call file_get_sizes'
+if (debug) write(6,*) 'get_sizes: call file_nc_get_sizes'
        call file_nc_get_sizes
        ntheta=ntheta_file
        nperiod=nperiod_file
