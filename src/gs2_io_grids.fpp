@@ -273,7 +273,8 @@ contains
 
     ncid = neasyf_open(trim(filename), action)
 
-    !> Store the no_end_point flag in the output netCDF file.
+    !> Get the no_end_point flag from the input
+    !> and store it in the output netCDF file.
     no_end_point = get_option_with_default(no_end_point_in, .false.)
     no_end_point_int = 0
     if (no_end_point) no_end_point_int = 1
