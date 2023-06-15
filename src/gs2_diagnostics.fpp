@@ -2950,10 +2950,8 @@ contains
   !>
   !> Time average is over previous [[gs2_diagnostics_knobs:navg]] timesteps
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
-    use kt_grids, only: naky, ntheta0
-    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use kt_grids, only: ntheta0, naky
     use gs2_time, only: code_dt
-    use constants, only: zi
     implicit none
     !> The current timestep
     integer, intent (in) :: istep
@@ -2964,7 +2962,6 @@ contains
     complex, dimension (:,:), intent (out) :: omegaavg
     !> If true, write some debug messages
     logical, intent (in), optional :: debopt
-    real :: fac
     logical :: debug=.false.
 
     if (debug) write(6,*) "get_omeaavg: allocate domega"
