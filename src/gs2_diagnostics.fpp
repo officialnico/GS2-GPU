@@ -2826,7 +2826,9 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, dimension(ntheta0, naky), intent(in) :: growth_rates
-    real, dimension(ntheta0, naky) :: ql_flux, normalising_field, limited_growth_rates
+    real, dimension(ntheta0, naky) :: ql_flux, normalising_field, limited_growth_rates, average
+
+    ql_flux = 0.0
 
     ! Decide on the normalising field
     if (has_phi) then
@@ -2838,25 +2840,31 @@ contains
     else
        ! If we get here then no fields are active so the QL flux
        ! is zero and we can exit
-       ql_flux = 0.0
        return
     end if
 
+
     if (has_phi) then
-       ql_flux = maxval(abs(phinew)**2, dim = 1) * normalising_field / &
-            get_field_weighted_average_kperp2(phinew)
-    else
-       ql_flux = 0.0
+       average = get_field_weighted_average_kperp2(phinew)
+       where(average > 0.0)
+          ql_flux = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
+       end where
     end if
 
     if (has_apar) then
-       ql_flux = ql_flux + maxval(abs(aparnew)**2, dim = 1) * normalising_field / &
-            get_field_weighted_average_kperp2(aparnew)
+       average = get_field_weighted_average_kperp2(aparnew)
+       where(average > 0.0)
+          ql_flux = ql_flux + &
+               maxval(abs(aparnew)**2, dim = 1) * normalising_field / average
+       end where
     end if
 
     if (has_bpar) then
-       ql_flux = ql_flux + maxval(abs(bparnew)**2, dim = 1) * normalising_field / &
-            get_field_weighted_average_kperp2(bparnew)
+       average = get_field_weighted_average_kperp2(bparnew)
+       where(average > 0.0)
+          ql_flux = ql_flux + &
+               maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
+       end where
     end if
 
     ! Limit the growth rate to positive values
