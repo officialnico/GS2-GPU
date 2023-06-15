@@ -309,14 +309,11 @@ contains
     use gs2_io, only: nc_write_ql_fluxes
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-    real, dimension(ntheta0, naky) :: ql_fluxes
 
     if (.not. gnostics%writing) return
 
-    ql_fluxes = calculate_simple_quasilinear_flux_metric_by_k( &
-         imag(omegahist(mod(gnostics%istep, gnostics%navg), :, :)))
-
-    call nc_write_ql_fluxes(gnostics%file_id, gnostics%nout, ql_fluxes)
+    call nc_write_ql_fluxes(gnostics%file_id, gnostics%nout, &
+         ql_fluxes = calculate_simple_quasilinear_flux_metric_by_k())
   end subroutine write_ql_fluxes
   
   !> Create or write all variables according to the value of istep:
