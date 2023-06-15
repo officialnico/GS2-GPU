@@ -389,16 +389,7 @@ contains
        gnostics%print_line = .true.
        gnostics%print_flux_line = .true.
     end if
-
-    call copy_setup_into_old_diagnostics(gnostics)
   end subroutine read_parameters
-
-  !> Copies the flags from passed gnostics into the old diagnostics
-  subroutine copy_setup_into_old_diagnostics(gnostics)
-    use gs2_diagnostics, only: igomega
-    type(diagnostics_type), intent(out) :: gnostics
-    igomega = gnostics%igomega
-  end subroutine copy_setup_into_old_diagnostics
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
