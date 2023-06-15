@@ -2826,7 +2826,7 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, dimension(ntheta0, naky), intent(in) :: growth_rates
-    real, dimension(ntheta0, naky) :: ql_flux, normalising_field
+    real, dimension(ntheta0, naky) :: ql_flux, normalising_field, limited_growth_rates
 
     ! Decide on the normalising field
     if (has_phi) then
@@ -2859,7 +2859,14 @@ contains
             get_field_weighted_average_kperp2(bparnew)
     end if
 
-    ql_flux = ql_flux * growth_rates
+    ! Limit the growth rate to positive values
+    where (growth_rates > 0)
+       limited_growth_rates = growth_rates
+    elsewhere
+       limited_growth_rates = 0.0
+    end where
+
+    ql_flux = ql_flux * limited_growth_rates
   end function calculate_simple_quasilinear_flux_metric_by_k
 
   !> Calculate the time-averaged complex frequency, check convergence
