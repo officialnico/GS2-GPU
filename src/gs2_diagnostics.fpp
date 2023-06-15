@@ -2881,6 +2881,70 @@ contains
     ql_flux = ql_flux * limited_growth_rates
   end function calculate_simple_quasilinear_flux_metric_by_k
 
+  !> Calculates the instantaneous omega from chinew = chi * exp(-i * omega * dt)
+  !> with chi = phi + apar + bpar. This gives omega = log(chinew/chi) * i / dt.
+  pure function  calculate_instantaneous_omega(ig, tolerance) result(omega_inst)
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use gs2_time, only: code_dt
+    use constants, only: zi
+    use optionals, only: get_option_with_default
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    implicit none
+    integer, intent(in), optional :: ig
+    real, intent(in), optional :: tolerance
+    complex, dimension(ntheta0, naky) :: omega_inst, field_sum, field_sum_new
+    integer :: ig_use
+    real :: tol_use, too_small
+
+    ! Determine which theta grid point to evaluate the fields at
+    ig_use = get_option_with_default(ig, igomega)
+
+    ! Construct the field sums for current and old fields.
+    ! We always allocate the fields (for now) so we could just
+    ! unconditionally sum. This could make the code clearer
+    ! without really adding _much_ overhead.
+    if (has_phi) then
+       field_sum = phi(ig_use, :, :)
+       field_sum_new = phinew(ig_use, :, :)
+    else
+       field_sum = 0.0
+       field_sum_new = 0.0
+    end if
+
+    if (has_apar) then
+       field_sum = field_sum + apar(ig_use, :, :)
+       field_sum_new = field_sum_new + aparnew(ig_use, :, :)
+    end if
+
+    if (has_bpar) then
+       field_sum = field_sum + bpar(ig_use, :, :)
+       field_sum_new = field_sum_new + bparnew(ig_use, :, :)
+    end if
+
+    ! Determine what tolerance to use
+    tol_use = get_option_with_default(tolerance, omegatol)
+
+    ! Decide what size float we consider too small to divide by
+    ! Note this uses tiny rather than epsilon in order to allow
+    ! us to track modes with low amplitudes.
+    if (tol_use == 0.0) then
+       too_small = tiny(0.0)
+    else
+       too_small = tiny(0.0) * 1000. / tol_use
+    end if
+
+    ! Use where to guard against dividing by tool small a number
+    ! Note we don't divide by field_sum_new so we probably don't need to
+    ! check that here, just field_sum.
+    where (abs(field_sum) < too_small .or. abs(field_sum_new) < too_small)
+       omega_inst = 0.0
+    elsewhere
+       omega_inst = log(field_sum_new / field_sum) * zi / code_dt
+    end where
+
+  end function calculate_instantaneous_omega
+
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
   !>
