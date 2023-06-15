@@ -16,7 +16,7 @@ module gs2_io
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
-  public :: nc_write_omega, nc_write_field, nc_write_heating, starts
+  public :: nc_write_omega, nc_write_field, nc_write_heating, starts, nc_write_ql_fluxes
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
   public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
@@ -1222,6 +1222,29 @@ contains
          long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
 #endif
   end subroutine nc_write_omega
+
+  !> Writes the QL flux metric by mode number and summed over mode number to netcdf file
+  subroutine nc_write_ql_fluxes(file_id, nout, ql_fluxes)
+#ifdef NETCDF
+    use kt_grids, only: ntheta0, naky
+    use neasyf, only: neasyf_write
+#endif
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
+    !> Current output timestep
+    integer, intent (in) :: nout
+    !> The QL flux metric as a function of kx and ky
+    real, dimension(:,:), intent (in) :: ql_fluxes
+#ifdef NETCDF
+    character(*), dimension(*), parameter :: ql_dims = [kx_dim, ky_dim, time_dim]
+
+    call neasyf_write(file_id, "ql_flux_by_mode", ql_fluxes, dim_names=ql_dims, &
+         start=starts(3, nout), long_name="QL flux metric by mode number")
+
+    call neasyf_write(file_id, "ql_flux", sum(ql_fluxes), dim_names=[time_dim], &
+         start=starts(1, nout), long_name="QL flux metric")
+#endif
+  end subroutine nc_write_ql_fluxes
 
   !> Write a field ((/E, A_\Vert, B_\vert/)) to netCDF
   subroutine nc_write_field(file_id, nout, field, field_name, long_name, igomega, write_field_over_time, field2)
