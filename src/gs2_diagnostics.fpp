@@ -22,7 +22,7 @@ module gs2_diagnostics
   public :: ensemble_average
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
-  public :: diffusivity
+  public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
   public :: get_omegaavg, get_volume_average
 
   public :: gs2_diagnostics_config_type
@@ -2787,6 +2787,70 @@ contains
     diffusivity = maxval(diffusivity_by_k) * grho(igomega)
 
   end function diffusivity
+
+  !> Calculates <|field|**2 kperp2>_theta / <|field|**2>_theta.
+  !> Useful for simple quasilinear metric
+  function get_field_weighted_average_kperp2(field) result(average)
+    use kt_grids, only: kperp2, naky, ntheta0
+    use theta_grid, only: ntgrid, field_line_average
+    implicit none
+    complex, dimension(-ntgrid:ntgrid, ntheta0, naky), intent(in) :: field
+    real, dimension(ntheta0, naky) :: average
+    real, dimension(-ntgrid:ntgrid, ntheta0, naky) :: field_squared
+    integer :: it, ik
+    field_squared = abs(field) * abs(field)
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          average(it, ik) = field_line_average(field_squared(:, it, ik) * &
+               kperp2(:, it, ik)) / field_line_average(field_squared(:, it, ik))
+       end do
+    end do
+
+  end function get_field_weighted_average_kperp2
+
+  !> Calculates a simple gamma/kperp2 QL flux metric
+  function calculate_simple_quasilinear_flux_metric_by_k(growth_rates) result(ql_flux)
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phinew, aparnew, bparnew
+    implicit none
+    real, dimension(ntheta0, naky), intent(in) :: growth_rates
+    real, dimension(ntheta0, naky) :: ql_flux, normalising_field
+
+    ! Decide on the normalising field
+    if (has_phi) then
+       normalising_field = 1.0 / maxval(abs(phinew)**2, dim = 1)
+    else if (has_apar) then
+       normalising_field = 1.0 / maxval(abs(aparnew)**2, dim = 1)
+    else if (has_bpar) then
+       normalising_field = 1.0 / maxval(abs(bparnew)**2, dim = 1)
+    else
+       ! If we get here then no fields are active so the QL flux
+       ! is zero and we can exit
+       ql_flux = 0.0
+       return
+    end if
+
+    if (has_phi) then
+       ql_flux = maxval(abs(phinew)**2, dim = 1) * normalising_field / &
+            get_field_weighted_average_kperp2(phinew)
+    else
+       ql_flux = 0.0
+    end if
+
+    if (has_apar) then
+       ql_flux = ql_flux + maxval(abs(aparnew)**2, dim = 1) * normalising_field / &
+            get_field_weighted_average_kperp2(aparnew)
+    end if
+
+    if (has_bpar) then
+       ql_flux = ql_flux + maxval(abs(bparnew)**2, dim = 1) * normalising_field / &
+            get_field_weighted_average_kperp2(bparnew)
+    end if
+
+    ql_flux = ql_flux * growth_rates
+  end function calculate_simple_quasilinear_flux_metric_by_k
 
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
