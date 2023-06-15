@@ -16,7 +16,7 @@ module gs2_io
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
-  public :: nc_write_omega, nc_write_field, nc_write_heating, starts, nc_write_ql_fluxes
+  public :: nc_write_omega, nc_write_field, nc_write_heating, starts, nc_write_ql_metric
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
   public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
@@ -1115,8 +1115,8 @@ contains
   !> Write various fields, heating, and frequency diagnostics to netCDF
   subroutine nc_loop (file_id, nout, time, &
        phi2, apar2, bpar2, igomega, &
-       h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_fluxes, &
-       write_omega, write_heating, write_ql_fluxes)
+       h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_metric, &
+       write_omega, write_heating, write_ql_metric)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
     use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units
@@ -1142,12 +1142,12 @@ contains
     !> Fields, frequency and time-averaged frequency
     complex, dimension(:,:), intent (in) :: omega, omegaavg
     !> FIXME: add documentation
-    real, dimension(:,:), intent (in) :: phitot, ql_fluxes
+    real, dimension(:,:), intent (in) :: phitot, ql_metric
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
-    logical, intent(in) :: write_omega, write_heating, write_ql_fluxes
+    logical, intent(in) :: write_omega, write_heating, write_ql_metric
 # ifdef NETCDF
 
     call neasyf_write(file_id, time_dim, time, dim_names=[time_dim], start=[nout])
@@ -1176,7 +1176,7 @@ contains
 
     if (write_omega) call nc_write_omega(file_id, nout, omega, omegaavg, woutunits)
 
-    if (write_ql_fluxes) call nc_write_ql_fluxes(file_id, nout, ql_fluxes)
+    if (write_ql_metric) call nc_write_ql_metric(file_id, nout, ql_metric)
 
     if (write_scan_parameter) then
        call neasyf_write(file_id, &
@@ -1227,7 +1227,7 @@ contains
   end subroutine nc_write_omega
 
   !> Writes the QL flux metric by mode number and summed over mode number to netcdf file
-  subroutine nc_write_ql_fluxes(file_id, nout, ql_fluxes)
+  subroutine nc_write_ql_metric(file_id, nout, ql_metric)
 #ifdef NETCDF
     use kt_grids, only: ntheta0, naky
     use neasyf, only: neasyf_write
@@ -1237,17 +1237,17 @@ contains
     !> Current output timestep
     integer, intent (in) :: nout
     !> The QL flux metric as a function of kx and ky
-    real, dimension(:,:), intent (in) :: ql_fluxes
+    real, dimension(:,:), intent (in) :: ql_metric
 #ifdef NETCDF
     character(*), dimension(*), parameter :: ql_dims = [kx_dim, ky_dim, time_dim]
 
-    call neasyf_write(file_id, "ql_flux_by_mode", ql_fluxes, dim_names=ql_dims, &
+    call neasyf_write(file_id, "ql_metric_by_mode", ql_metric, dim_names=ql_dims, &
          start=starts(3, nout), long_name="QL flux metric by mode number")
 
-    call neasyf_write(file_id, "ql_flux", sum(ql_fluxes), dim_names=[time_dim], &
+    call neasyf_write(file_id, "ql_metric", sum(ql_metric), dim_names=[time_dim], &
          start=starts(1, nout), long_name="QL flux metric")
 #endif
-  end subroutine nc_write_ql_fluxes
+  end subroutine nc_write_ql_metric
 
   !> Write a field ((/E, A_\Vert, B_\vert/)) to netCDF
   subroutine nc_write_field(file_id, nout, field, field_name, long_name, igomega, write_field_over_time, field2)
