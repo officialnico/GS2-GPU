@@ -1,5 +1,6 @@
 !> FIXME : Add documentation
 program eiktest
+  use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
   use geometry
   use file_utils, only: init_file_utils, run_name
@@ -38,7 +39,9 @@ program eiktest
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
        eqnormfile, no_end_point
-     
+
+  call init_mp
+
 ! set defaults
 
   gen_eq = .false.
@@ -302,13 +305,14 @@ program eiktest
 1000 format(20(1x,1pg18.11))
 
   ncout = trim(out_stem)//"out.nc"
-
-  call nc_grid_file_new(ncout)
+  if (proc0) call nc_grid_file_new(ncout)
   call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiod)
   call nc_write_grid_scalars(ncout, shat, drhodpsin, kxfac, qsf, rmaj)
   call nc_write_grids(ncout, ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
        Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
        Bpol=Bpol, no_end_point_in=no_end_point)
+
+  call finish_mp
 
 end program eiktest

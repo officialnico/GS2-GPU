@@ -466,6 +466,7 @@ contains
     use gs2_io_grids, only: nc_write_lambda_grid
     use gs2_io_grids, only: nc_grid_file_new
     use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     integer :: unit
     integer :: i
@@ -660,7 +661,7 @@ contains
     if (bmin < bmagin(minloca(1))) print *, "WARNING: interpolated new minimum"
 
     ncout = trim(run_name)//".out.nc"
-    call nc_grid_file_new(ncout)
+    if (proc0) call nc_grid_file_new(ncout)
     call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiodout)
     call nc_write_grid_scalars(ncout, shat, drhodpsi, kxfac, qval, rmaj)
     call nc_write_grids(ncout, ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
