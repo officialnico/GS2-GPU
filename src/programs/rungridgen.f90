@@ -243,15 +243,6 @@ contains
 
   end subroutine get_initial_grids
 
-  subroutine ntgrid_padding(array)
-    real, dimension (:), intent (in out) :: array
-    integer :: s
-    integer :: l
-    l = size(array)
-    s = sign(1.,(array(l-1)-array(l-2))*(array(2)-array(3)))
-    array(l) = array(l-1) + s * (array(1)-array(2))
-  end subroutine ntgrid_padding
-
   subroutine get_plotdata
     implicit none
     integer :: unit
