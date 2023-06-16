@@ -1029,11 +1029,17 @@ contains
 
   !> A routine to invert the field matrix
   subroutine sc_invert(self)
+    use job_manage, only: time_message
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use mp, only: get_mp_times
     implicit none
     class(supercell_type), intent(inout) :: self
+    real :: mp_total, mp_total_after
 
     if(self%is_empty) return
     if(.not.self%is_local) return
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total)
     
     !If we have all of the supercell local then use an explictly local
     !matrix inversion
@@ -1046,6 +1052,9 @@ contains
        call self%invert_mpi
     endif
 
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_invert_mpi = time_field_invert_mpi + (mp_total_after - mp_total)
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
