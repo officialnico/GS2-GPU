@@ -9,11 +9,8 @@ module gs2_io_grids
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
   use netcdf, only: NF90_NOERR
-  use mp, only: proc0
-  use mp, only: mp_abort
-# else
-  use mp, only: mp_abort
 # endif
+  use mp, only: proc0, mp_abort
 
   implicit none
 
