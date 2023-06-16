@@ -97,6 +97,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine allocate_arrays
+    use gs2_io_grids, only:nc_grid_file_open
     use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
     implicit none
     integer :: unit
@@ -105,8 +106,9 @@ contains
 
     inquire(file=ncsource, exist=ncsource_exist)
     if (ncsource_exist) then
-       call nc_get_grid_sizes(ncsource, nthetain, ntgridin, nperiodin)
-       call nc_get_grid_scalars(ncsource, shat, drhodpsi, kxfac, qval, rmaj)
+       call nc_grid_file_open(ncsource, "r")
+       call nc_get_grid_sizes(nthetain, ntgridin, nperiodin)
+       call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
     else
        call get_unused_unit(unit)
        open (unit=unit, file=trim(source), status="old")
@@ -190,6 +192,7 @@ contains
   subroutine get_initial_grids
     use file_utils, only: get_unused_unit
     use gs2_io_grids, only: nc_get_grids
+    use gs2_io_grids, only: nc_grid_file_close
     implicit none
     integer :: unit
     integer :: i
@@ -199,10 +202,11 @@ contains
 
     inquire(file=ncsource, exist=ncsource_exist)
     if (ncsource_exist) then
-       call nc_get_grids(ncsource, ntgridin, &
+       call nc_get_grids(ntgridin, &
             bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
             gds2, gds21, gds22, grho, thetagrid, &
             Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime)
+       call nc_grid_file_close()
     else
        call get_unused_unit(unit)
        open (unit=unit, file=trim(source), status="old")
@@ -455,7 +459,7 @@ contains
     use splines, only: fitp_curvp2
     use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
     use gs2_io_grids, only: nc_write_lambda_grid
-    use gs2_io_grids, only: nc_grid_file_new
+    use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
     use constants, only: run_name_size
     use mp, only: proc0
     implicit none
@@ -653,14 +657,15 @@ contains
 
     if (proc0) then
        ncout = trim(run_name)//".out.nc"
-       call nc_grid_file_new(ncout)
-       call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiodout)
-       call nc_write_grid_scalars(ncout, shat, drhodpsi, kxfac, qval, rmaj)
-       call nc_write_grids(ncout, ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
+       call nc_grid_file_open(ncout, "w")
+       call nc_write_grid_sizes(ntheta, ntgrid, nperiodout)
+       call nc_write_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+       call nc_write_grids(ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
             cvdriftout, cvdrift0out, gds2out, gds21out, gds22out, grhoout, thetagridout, &
             Rplot=Rplotout, Rprime=Rprimeout, Zplot=Zplotout, Zprime=Zprimeout, &
             aplot=aplotout, aprime=aprimeout, no_end_point_in=no_end_point)
-       call nc_write_lambda_grid(ncout, nlambda, alambdaout(:nlambda))
+       call nc_write_lambda_grid(nlambda, alambdaout(:nlambda))
+       call nc_grid_file_close()
     end if
 
   end subroutine write_output

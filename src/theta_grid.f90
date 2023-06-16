@@ -2294,6 +2294,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_theta_grid_file_nc(report_unit)
+    use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
     use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
     use gs2_io_grids, only: nc_get_lambda_grid_size
     implicit none
@@ -2304,9 +2305,11 @@ contains
     write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
     write (report_unit, fmt="(a)") trim(gridout_file)
 
-    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
-    call nc_get_lambda_grid_size(gridout_file, nbset)
-    call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
+    call nc_grid_file_open(gridout_file, "r")
+    call nc_get_grid_sizes(ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(nbset)
+    call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+    call nc_grid_file_close()
 
     write (report_unit, *)
     write (report_unit, fmt="('Limited information available:')")
@@ -2402,10 +2405,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine file_nc_get_sizes
+    use gs2_io_grids, only: nc_grid_file_open
     use gs2_io_grids, only: nc_get_grid_sizes, nc_get_lambda_grid_size
     implicit none
-    call nc_get_grid_sizes(gridout_file, ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
-    call nc_get_lambda_grid_size(gridout_file, nbset)
+    call nc_grid_file_open(gridout_file, "r")
+    call nc_get_grid_sizes(ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(nbset)
   end subroutine file_nc_get_sizes
 
   !> FIXME : Add documentation
@@ -2545,6 +2550,7 @@ contains
        shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
     use constants, only: pi
     use integration, only: trapezoidal_integration
+    use gs2_io_grids, only: nc_grid_file_close
     use gs2_io_grids, only: nc_get_grids, nc_get_grid_scalars
     use gs2_io_grids, only: nc_get_lambda_grid
     implicit none
@@ -2564,16 +2570,18 @@ contains
     Zplot = 1.; Zprime = 0.
     aplot = 1.; aprime = 0.
 
-    call nc_get_grid_scalars(gridout_file, shat, drhodpsi, kxfac, qval, rmaj)
+    call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
 
-    call nc_get_grids(gridout_file, ntgrid, &
+    call nc_get_grids(ntgrid, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
        cdrift=cdrift, cdrift0=cdrift0, &
        Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
        Bpol=Bpol)
 
-    call nc_get_lambda_grid(gridout_file, nbset, bset)
+    call nc_get_lambda_grid(nbset, bset)
+
+    call nc_grid_file_close()
 
     ! switch alambda to bset
     bset = 1.0/bset

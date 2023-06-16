@@ -21,7 +21,9 @@ module gs2_io_grids
   public :: nc_get_grid_scalars, nc_write_grid_scalars
   public :: nc_get_grids, nc_write_grids
   public :: nc_get_lambda_grid, nc_write_lambda_grid
-  public :: nc_grid_file_new
+  public :: nc_grid_file_open, nc_grid_file_close
+
+  integer (kind_nf) :: ncid
 
 contains
 
@@ -40,138 +42,121 @@ contains
     end if
   end subroutine nc_grid_file_new
 
-  !> Read sizes of geometry data from the input netCDF file
-  subroutine nc_get_grid_sizes(filename, ntheta, ntgrid, nperiod)
+  !> Open the netCDF file
+  !> If the file already exists, remove it.
+  subroutine nc_grid_file_open(filename, mode)
+    use file_utils, only: get_unused_unit
     character (len=*), intent(in) :: filename
-    integer, intent(out), optional :: ntheta, ntgrid, nperiod
-
+    character (len=*), intent(in) :: mode
+    logical :: is_exist
+    integer :: unit
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
-
     if (.not.proc0) return
+    if (mode == "w") then
+       inquire(file=filename, exist=is_exist)
+       if (is_exist) then
+          write(6,*) 'WARNING: existing file will be over-written ', trim(filename)
+          open(unit, file=filename)
+          close(unit, status='delete')
+       end if
+    end if
+    ncid = neasyf_open(trim(filename), mode)
+# else
+    call mp_abort("nc_grid_file_open does not work without NetCDF")
+# endif
+  end subroutine nc_grid_file_open
 
-    ncid = neasyf_open(trim(filename), "r")
+  !> Close the netCDF file
+  subroutine nc_grid_file_close()
+# ifdef NETCDF
+    if (.not.proc0) return
+    call neasyf_close(ncid)
+# else
+    call mp_abort("nc_grid_file_close does not work without NetCDF")
+# endif
+  end subroutine nc_grid_file_close
 
+  !> Read sizes of geometry data from the input netCDF file
+  subroutine nc_get_grid_sizes(ntheta, ntgrid, nperiod)
+    integer, intent(out), optional :: ntheta, ntgrid, nperiod
+# ifdef NETCDF
+    if (.not.proc0) return
     if (present(ntgrid)) call neasyf_read(ncid, "ntgrid", ntgrid)
     if (present(nperiod)) call neasyf_read(ncid, "nperiod", nperiod)
     if (present(ntheta)) call neasyf_read(ncid, "ntheta", ntheta)
-
-    call neasyf_close(ncid)
-
 # else
     call mp_abort("nc_get_grid_sizes does not work without NetCDF")
 # endif
   end subroutine nc_get_grid_sizes
 
   !> Writes sizes of geometry data to the output netCDF file
-  subroutine nc_write_grid_sizes(filename, ntheta, ntgrid, nperiod)
-    character (len=*), intent(in) :: filename
+  subroutine nc_write_grid_sizes(ntheta, ntgrid, nperiod)
     integer, intent(in), optional :: ntheta, ntgrid, nperiod
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
-    character (len=2) :: action
-    logical :: is_exist
-
     if (.not.proc0) return
-
-    !> always append mode if file exists
-    action="w"
-    inquire(file=trim(filename), exist=is_exist)
-    if (is_exist) then
-       action="rw"
-    end if
-
-    ncid = neasyf_open(trim(filename), action)
-
     if (present(ntgrid)) call neasyf_write(ncid, "ntgrid", ntgrid)
     if (present(nperiod)) call neasyf_write(ncid, "nperiod", nperiod)
     if (present(ntheta)) call neasyf_write(ncid, "ntheta", ntheta)
-
-    call neasyf_close(ncid)
-
 # else
     call mp_abort("nc_write_grid_sizes does not work without NetCDF")
 # endif
   end subroutine nc_write_grid_sizes
 
   !> Read sizes of lambda grid data from the input netCDF file
-  subroutine nc_get_lambda_grid_size(filename, nlambda)
-    character (len=*), intent(in) :: filename
+  subroutine nc_get_lambda_grid_size(nlambda)
     integer, intent(out) :: nlambda
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, dimid
+    integer (kind_nf) :: dimid
     integer :: status
     if (.not.proc0) return
-    ncid = neasyf_open(trim(filename), "r")
     status = nf90_inq_dimid(ncid, "nlambda", dimid)
     if (status == NF90_NOERR) then
        status = nf90_inquire_dimension(ncid, dimid, len=nlambda)
     else
        call mp_abort("failed to get nlambda fron netCDF grid file")
     end if
-    call neasyf_close(ncid)
 # else
     call mp_abort("nc_get_lambda_grid_size does not work without NetCDF")
 # endif
   end subroutine nc_get_lambda_grid_size
 
   !> Read scalar geometry data from the input netCDF file
-  subroutine nc_get_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
-    character (len=*), intent(in) :: filename
+  subroutine nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
     real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
     if (.not.proc0) return
-    ncid = neasyf_open(trim(filename), "r")
     call neasyf_read(ncid, "drhodpsi", drhodpsi)
     call neasyf_read(ncid, "rmaj", rmaj)
     call neasyf_read(ncid, "shat", shat)
     call neasyf_read(ncid, "kxfac", kxfac)
     call neasyf_read(ncid, "q", qval)
-    call neasyf_close(ncid)
 # else
     call mp_abort("nc_get_grid_scalars does not work without NetCDF")
 # endif
   end subroutine nc_get_grid_scalars
   
   !> Write scalar geometry data to the output netCDF file
-  subroutine nc_write_grid_scalars(filename, shat, drhodpsi, kxfac, qval, rmaj)
-    character (len=*), intent(in) :: filename
+  subroutine nc_write_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
     real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
-    character (len=2) :: action
-    logical :: is_exist
-
     if (.not.proc0) return
-
-    !> always append mode if file exists
-    action="w"
-    inquire(file=trim(filename), exist=is_exist)
-    if (is_exist) then
-       action="rw"
-    end if
-
-    ncid = neasyf_open(trim(filename), action)
     call neasyf_write(ncid, "drhodpsi", drhodpsi)
     call neasyf_write(ncid, "rmaj", rmaj)
     call neasyf_write(ncid, "shat", shat)
     call neasyf_write(ncid, "kxfac", kxfac)
     call neasyf_write(ncid, "q", qval)
-    call neasyf_close(ncid)
 # else
     call mp_abort("nc_write_grid_scalars does not work without NetCDF")
 # endif
   end subroutine nc_write_grid_scalars
 
   !> Read geometry data from the input netCDF file
-  subroutine nc_get_grids(filename, ntgrid, &
+  subroutine nc_get_grids(ntgrid, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
        cdrift, cdrift0, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        Bpol, jacob)
-    character (len=*), intent(in) :: filename
     integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(out) :: bmag, gradpar, &
          gbdrift, gbdrift0, cvdrift, cvdrift0, &
@@ -181,14 +166,12 @@ contains
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          Bpol, jacob
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, varid
+    integer (kind_nf) :: varid
     integer :: status
     integer :: no_end_point_int
     logical :: no_end_point
 
     if (.not.proc0) return
-
-    ncid = neasyf_open(trim(filename), "r")
 
     !> The no_end_point flag in the input netCDF file tells if the grid data
     !> have the duplicate end point data at ntgrid.
@@ -227,23 +210,19 @@ contains
     call read_and_pad(ncid, Zprime, "Zpime", no_end_point)
     call read_and_pad(ncid, aplot, "aplot", no_end_point)
     call read_and_pad(ncid, aprime, "apime", no_end_point)
-
-    call neasyf_close(ncid)
-
 # else
     call mp_abort("nc_get_grids does not work without NetCDF")
 # endif
   end subroutine nc_get_grids
 
   !> Write geometry data to the output netCDF file
-  subroutine nc_write_grids(filename, ntgrid, &
+  subroutine nc_write_grids(ntgrid, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
        gds2, gds21, gds22, grho, theta, &
        cdrift, cdrift0, &
        Rplot, Rprime, Zplot, Zprime, aplot, aprime, &
        Bpol, jacob, no_end_point_in)
     use optionals, only: get_option_with_default
-    character (len=*), intent(in) :: filename
     integer, intent(in) :: ntgrid
     real, dimension(-ntgrid:ntgrid), intent(in) :: bmag, gradpar, &
          gbdrift, gbdrift0, cvdrift, cvdrift0, &
@@ -254,24 +233,12 @@ contains
          Bpol, jacob
     logical, intent(in), optional :: no_end_point_in
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, nt_dim
+    integer (kind_nf) :: nt_dim
     integer :: theta_end_point
     logical :: no_end_point
     integer :: no_end_point_int
 
-    character (len=2) :: action
-    logical :: is_exist
-
     if (.not.proc0) return
-
-    !> always append mode if file exists
-    action="w"
-    inquire(file=trim(filename), exist=is_exist)
-    if (is_exist) then
-       action="rw"
-    end if
-
-    ncid = neasyf_open(trim(filename), action)
 
     !> Get the no_end_point flag from the input
     !> and store it in the output netCDF file.
@@ -327,53 +294,32 @@ contains
     if (present(aprime)) then
        call neasyf_write(ncid, "aprime", aprime(-ntgrid:theta_end_point), dim_ids=[nt_dim])
     end if
-
-    call neasyf_close(ncid)
-
 # else
     call mp_abort("nc_write_grids does not work without NetCDF")
 # endif
   end subroutine nc_write_grids
 
   !> Read lambda grid data from the input netCDF file
-  subroutine nc_get_lambda_grid(filename, nlambda, lambda)
-    character (len=*), intent(in) :: filename
+  subroutine nc_get_lambda_grid(nlambda, lambda)
     integer, intent(in) :: nlambda
     real, dimension(nlambda), intent(out) :: lambda
 # ifdef NETCDF
-    integer (kind_nf) :: ncid
     if (.not.proc0) return
-    ncid = neasyf_open(trim(filename), "r")
     call neasyf_read(ncid, "lambda", lambda)
-    call neasyf_close(ncid)
 # else
     call mp_abort("nc_get_lambda_grid does not work without NetCDF")
 # endif
   end subroutine nc_get_lambda_grid
 
   !> Write lambda grid data to the output netCDF file
-  subroutine nc_write_lambda_grid(filename, nlambda, lambda)
-    character (len=*), intent(in) :: filename
+  subroutine nc_write_lambda_grid(nlambda, lambda)
     integer, intent(in) :: nlambda
     real, dimension(nlambda), intent(in) :: lambda
 # ifdef NETCDF
-    integer (kind_nf) :: ncid, nl_dim
-    character (len=2) :: action
-    logical :: is_exist
-
+    integer (kind_nf) :: nl_dim
     if (.not.proc0) return
-
-    !> always append mode if file exists
-    action="w"
-    inquire(file=trim(filename), exist=is_exist)
-    if (is_exist) then
-       action="rw"
-    end if
-
-    ncid = neasyf_open(trim(filename), action)
     call neasyf_dim(ncid, "nlambda", dim_size=nlambda, dimid=nl_dim)
     call neasyf_write(ncid, "lambda", lambda, dim_ids=[nl_dim])
-    call neasyf_close(ncid)
 # else
     call mp_abort("nc_write_lambda_grid does not work without NetCDF")
 # endif

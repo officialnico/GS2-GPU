@@ -5,7 +5,7 @@ program eiktest
   use geometry
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
-  use gs2_io_grids, only: nc_grid_file_new
+  use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
   integer :: i, ntgrid, ntheta
@@ -306,13 +306,14 @@ program eiktest
 
   if (proc0) then
      ncout = trim(out_stem)//"out.nc"
-     call nc_grid_file_new(ncout)
-     call nc_write_grid_sizes(ncout, ntheta, ntgrid, nperiod)
-     call nc_write_grid_scalars(ncout, shat, drhodpsin, kxfac, qsf, rmaj)
-     call nc_write_grids(ncout, ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+     call nc_grid_file_open(ncout, "w")
+     call nc_write_grid_sizes(ntheta, ntgrid, nperiod)
+     call nc_write_grid_scalars(shat, drhodpsin, kxfac, qsf, rmaj)
+     call nc_write_grids(ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
           gds2, gds21, gds22, grho, theta, &
           Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
           Bpol=Bpol, no_end_point_in=no_end_point)
+     call nc_grid_file_close()
   end if
 
   call finish_mp
