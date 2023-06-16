@@ -305,11 +305,10 @@ contains
     class(rowblock_type), intent(in) :: self
     complex,dimension(self%ncol), intent(in) :: vect
     complex,dimension(self%nrow) :: rb_mv_mult_fun
-!    integer :: ir
     !As a 1d vector in fortran is a "row vector" (as the
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
-    rb_mv_mult_fun=-matmul(transpose(self%data),vect)
+    rb_mv_mult_fun=matmul(vect,self%data)
   end function rb_mv_mult_fun
 
   !> Matrix vector multiplication stored in tmp_sum
@@ -428,7 +427,7 @@ contains
     do ifq=1,nfq
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
-            +self%rb(ifq)%tmp_sum
+            -self%rb(ifq)%tmp_sum
     enddo
 
   end subroutine c_get_field_update

@@ -341,9 +341,9 @@ contains
     !As a 1d vector in fortran is a "row vector" (as the
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
-    rb_mv_mult_fun=-matmul(transpose(self%data),vect)
+    rb_mv_mult_fun = matmul(vect,self%data)
 !    do ir=1,self%nrow
-!       rb_mv_mult_fun(ir)=-sum(self%data(:,ir)*vect)
+!       rb_mv_mult_fun(ir)=sum(self%data(:,ir)*vect)
 !    enddo
   end function rb_mv_mult_fun
 
@@ -463,7 +463,7 @@ contains
     do ifq=1,nfq
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
-            +self%rb(ifq)%tmp_sum
+            -self%rb(ifq)%tmp_sum
     enddo
 
   end subroutine c_get_field_update
