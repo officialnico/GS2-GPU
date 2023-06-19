@@ -1245,10 +1245,10 @@ contains
          start=starts(3, nout), long_name="QL flux metric by mode number")
 
     call neasyf_write(file_id, "ql_metric_by_ky", sum(ql_metric, dim = 2), dim_names=[kx_dim, time_dim], &
-         start=starts(1, nout), long_name="QL flux metric summed over kx")
+         start=starts(2, nout), long_name="QL flux metric summed over kx")
 
     call neasyf_write(file_id, "ql_metric_by_kx", sum(ql_metric, dim = 1), dim_names=[ky_dim, time_dim], &
-         start=starts(1, nout), long_name="QL flux metric summed over ky")
+         start=starts(2, nout), long_name="QL flux metric summed over ky")
 
     call neasyf_write(file_id, "ql_metric", sum(ql_metric), dim_names=[time_dim], &
          start=starts(1, nout), long_name="QL flux metric")
