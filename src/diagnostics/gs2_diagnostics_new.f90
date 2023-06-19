@@ -305,15 +305,18 @@ contains
   subroutine write_ql_metric(gnostics)
     use diagnostics_omega, only: omegahist
     use gs2_diagnostics, only: calculate_simple_quasilinear_flux_metric_by_k
+    use gs2_diagnostics, only: calculate_instantaneous_omega
     use kt_grids, only: ntheta0, naky
     use gs2_io, only: nc_write_ql_metric
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-
+    real, dimension(ntheta0, naky) :: growth_rates
     if (.not. gnostics%writing) return
 
+    growth_rates = imag(calculate_instantaneous_omega(&
+         ig = gnostics%igomega, tolerance = gnostics%omegatol))
     call nc_write_ql_metric(gnostics%file_id, gnostics%nout, &
-         ql_metric = calculate_simple_quasilinear_flux_metric_by_k())
+         ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates))
   end subroutine write_ql_metric
   
   !> Create or write all variables according to the value of istep:

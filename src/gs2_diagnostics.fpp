@@ -1407,14 +1407,17 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (ntheta0, naky) :: ql_metric
+    real, dimension (ntheta0, naky) :: ql_metric, growth_rates
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
     if (write_ql_metric) then
-       ql_metric = calculate_simple_quasilinear_flux_metric_by_k()
+
+       ! Calculate the instantaneous omega and keep the growth rate.
+       growth_rates = imag(calculate_instantaneous_omega())
+       ql_metric = calculate_simple_quasiinear_flux_metric_by_k(growth_rates)
     else
        ql_metric = 0.0
     end if
@@ -2820,12 +2823,13 @@ contains
   end function get_field_weighted_average_kperp2
 
   !> Calculates a simple gamma/kperp2 QL flux metric
-  function calculate_simple_quasilinear_flux_metric_by_k() result(ql_metric)
+  function calculate_simple_quasilinear_flux_metric_by_k(growth_rates) result(ql_metric)
     use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
-    real, dimension(ntheta0, naky) :: growth_rates, limited_growth_rates, average
+    real, dimension(ntheta0, naky), intent(in) :: growth_rates
+    real, dimension(ntheta0, naky) :: limited_growth_rates, average
     real, dimension(ntheta0, naky) :: ql_metric, normalising_field
 
     ! Initialise flux to zero
@@ -2870,9 +2874,6 @@ contains
                maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
        end where
     end if
-
-    ! Calculate the instantaneous omega and keep the growth rate.
-    growth_rates = imag(calculate_instantaneous_omega(ig = igomega))
 
     ! Limit the growth rate to positive values
     where (growth_rates > 0)
