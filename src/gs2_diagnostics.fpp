@@ -55,7 +55,7 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly, write_ql_fluxes
+  logical, public :: write_gs, write_lpoly, write_ql_metric
   logical, public :: write_g, write_gg, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
@@ -788,7 +788,7 @@ contains
     write_pflux_sym = gs2_diagnostics_config%write_pflux_sym
     write_pflux_tormom = gs2_diagnostics_config%write_pflux_tormom
     write_phi_over_time = gs2_diagnostics_config%write_phi_over_time
-    write_ql_fluxes = gs2_diagnostics_config%write_ql_fluxes
+    write_ql_metric = gs2_diagnostics_config%write_ql_metric
     write_symmetry = gs2_diagnostics_config%write_symmetry
     write_verr = gs2_diagnostics_config%write_verr
 
@@ -1407,22 +1407,22 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (ntheta0, naky) :: ql_flux
+    real, dimension (ntheta0, naky) :: ql_metric
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
-    if (write_ql_fluxes) then
-       ql_flux = calculate_simple_quasilinear_flux_metric_by_k()
+    if (write_ql_metric) then
+       ql_metric = calculate_simple_quasilinear_flux_metric_by_k()
     else
-       ql_flux = 0.0
+       ql_metric = 0.0
     end if
 
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_flux, &
-         write_omega, write_heating, write_ql_fluxes)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_metric, &
+         write_omega, write_heating, write_ql_metric)
 
   end subroutine do_write_ncloop
 
@@ -2820,16 +2820,16 @@ contains
   end function get_field_weighted_average_kperp2
 
   !> Calculates a simple gamma/kperp2 QL flux metric
-  function calculate_simple_quasilinear_flux_metric_by_k() result(ql_flux)
+  function calculate_simple_quasilinear_flux_metric_by_k() result(ql_metric)
     use run_parameters, only: has_phi, has_apar, has_bpar
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, dimension(ntheta0, naky) :: growth_rates, limited_growth_rates, average
-    real, dimension(ntheta0, naky) :: ql_flux, normalising_field
+    real, dimension(ntheta0, naky) :: ql_metric, normalising_field
 
     ! Initialise flux to zero
-    ql_flux = 0.0
+    ql_metric = 0.0
 
     ! Decide on the normalising field
     if (has_phi) then
@@ -2851,14 +2851,14 @@ contains
     if (has_phi) then
        average = get_field_weighted_average_kperp2(phinew)
        where(average > 0.0)
-          ql_flux = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
+          ql_metric = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
        end where
     end if
 
     if (has_apar) then
        average = get_field_weighted_average_kperp2(aparnew)
        where(average > 0.0)
-          ql_flux = ql_flux + &
+          ql_metric = ql_metric + &
                maxval(abs(aparnew)**2, dim = 1) * normalising_field / average
        end where
     end if
@@ -2866,7 +2866,7 @@ contains
     if (has_bpar) then
        average = get_field_weighted_average_kperp2(bparnew)
        where(average > 0.0)
-          ql_flux = ql_flux + &
+          ql_metric = ql_metric + &
                maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
        end where
     end if
@@ -2881,7 +2881,7 @@ contains
        limited_growth_rates = 0.0
     end where
 
-    ql_flux = ql_flux * limited_growth_rates
+    ql_metric = ql_metric * limited_growth_rates
   end function calculate_simple_quasilinear_flux_metric_by_k
 
   !> Calculates the instantaneous omega from chinew = chi * exp(-i * omega * dt)

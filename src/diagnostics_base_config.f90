@@ -529,8 +529,8 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
     !> (the default) to enable this
     logical :: write_phi_over_time = .false.
-    !> Write a simple QL Flux metric to netcdf.
-    logical :: write_ql_fluxes = .true.
+    !> Write a simple quasi-linear metric to netcdf.
+    logical :: write_ql_metric = .true.
     !> Write the particle and momentum flux as a function of \(\theta\) and
     !> velocity space. See [[gs2_diagnostics_knobs:write_pflux_sym]] and
     !> [[gs2_diagnostics_knobs:write_pflux_tormom]]
@@ -652,7 +652,7 @@ contains
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
     logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
     logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
-    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_fluxes, write_tperp_over_time
+    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
 
@@ -666,7 +666,7 @@ contains
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
          write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
          write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
-         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_fluxes, write_tperp_over_time, &
+         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
     ! Only proc0 reads from file
@@ -750,7 +750,7 @@ contains
     write_pflux_sym = self%write_pflux_sym
     write_pflux_tormom = self%write_pflux_tormom
     write_phi_over_time = self%write_phi_over_time
-    write_ql_fluxes = self%write_ql_fluxes
+    write_ql_metric = self%write_ql_metric
     write_symmetry = self%write_symmetry
     write_tperp_over_time = self%write_tperp_over_time
     write_upar_over_time = self%write_upar_over_time
@@ -854,7 +854,7 @@ contains
     self%write_pflux_sym = write_pflux_sym
     self%write_pflux_tormom = write_pflux_tormom
     self%write_phi_over_time = write_phi_over_time
-    self%write_ql_fluxes = write_ql_fluxes
+    self%write_ql_metric = write_ql_metric
     self%write_symmetry = write_symmetry
     self%write_tperp_over_time = write_tperp_over_time
     self%write_upar_over_time = write_upar_over_time
@@ -953,7 +953,7 @@ contains
     call self%write_key_val("write_pflux_sym", self%write_pflux_sym, unit_internal)
     call self%write_key_val("write_pflux_tormom", self%write_pflux_tormom, unit_internal)
     call self%write_key_val("write_phi_over_time", self%write_phi_over_time, unit_internal)
-    call self%write_key_val("write_ql_fluxes", self%write_ql_fluxes, unit_internal)
+    call self%write_key_val("write_ql_metric", self%write_ql_metric, unit_internal)
     call self%write_key_val("write_symmetry", self%write_symmetry, unit_internal)
     call self%write_key_val("write_tperp_over_time", self%write_tperp_over_time, unit_internal)
     call self%write_key_val("write_upar_over_time", self%write_upar_over_time, unit_internal)
@@ -1054,7 +1054,7 @@ contains
     call broadcast(self%write_pflux_sym)
     call broadcast(self%write_pflux_tormom)
     call broadcast(self%write_phi_over_time)
-    call broadcast(self%write_ql_fluxes)
+    call broadcast(self%write_ql_metric)
     call broadcast(self%write_symmetry)
     call broadcast(self%write_tperp_over_time)
     call broadcast(self%write_upar_over_time)
