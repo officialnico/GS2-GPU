@@ -1417,7 +1417,7 @@ contains
 
        ! Calculate the instantaneous omega and keep the growth rate.
        growth_rates = imag(calculate_instantaneous_omega())
-       ql_metric = calculate_simple_quasiinear_flux_metric_by_k(growth_rates)
+       ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates)
     else
        ql_metric = 0.0
     end if
