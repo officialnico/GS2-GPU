@@ -23,7 +23,7 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
-  public :: get_omegaavg, get_volume_average
+  public :: get_omegaavg, get_volume_average, calculate_instantaneous_omega
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
