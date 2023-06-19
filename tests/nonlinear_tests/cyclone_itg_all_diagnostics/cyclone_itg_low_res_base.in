@@ -221,7 +221,7 @@
  write_pflux_sym = .true.
  write_pflux_tormom = .true.
  write_phi_over_time = .true. ! Write entire Phi field to NetCDF file every nwrite.
- write_ql_fluxes = .true.
+ write_ql_metric = .true.
  write_symmetry = .true. ! Test the symmetry properties of the GK eqn.
  write_tperp_over_time = .true.
  write_upar_over_time = .true.
