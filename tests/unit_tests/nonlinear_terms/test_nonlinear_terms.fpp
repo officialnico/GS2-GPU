@@ -47,16 +47,13 @@ program test_nonlinear_terms
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy, name="gs")
-       if (proc0) then
-          cbuff = trim(run_name)
-       end if
-       
-       call broadcast (cbuff)
-       if (.not. proc0) run_name => cbuff
+  if (proc0) then
+    call init_file_utils(dummy, name="gs")
+    cbuff = trim(run_name)
+  end if
 
-  
-
+  call broadcast (cbuff)
+  if (.not. proc0) allocate(run_name, source=cbuff)
 
   call announce_module_test('nonlinear_terms')
 
