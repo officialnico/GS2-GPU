@@ -7,7 +7,10 @@ program box_to_ballooning_space
   use dist_fn, only: get_leftmost_it
   use theta_grid, only: nperiod
   use sorting, only: quicksort
+  use config_collection, only: gs2_config_type
+  use file_utils, only: open_output_file, close_output_file
   implicit none
+
   type :: supercell_properties
      real :: ky
      real, dimension(:), allocatable :: kxs, theta0s
@@ -16,12 +19,14 @@ program box_to_ballooning_space
   end type supercell_properties
 
   type(gs2_program_state_type) :: state
+  type(gs2_config_type) :: the_config
   type(supercell_properties), dimension(:), allocatable :: supercells
-  integer :: ik, it, is, ic, supercell_index, nsupercells, ncell, icell, supercell_length
+  integer :: ik, it, is, ic, supercell_index, nsupercells, ncell, unit, supercell_length
   integer, dimension(:, :), allocatable :: supercell_counter
   integer, dimension(:), allocatable :: temporary_values, nsupercells_per_ky
   integer, dimension(:), allocatable :: it_values, it_range
   real, dimension(:), allocatable :: kxs, theta0s
+  character(len=64) :: extension
   logical :: shift_cells
   logical, parameter :: debug = .true.
 
@@ -128,6 +133,7 @@ program box_to_ballooning_space
      end do
   end do
 
+  ! Debug output
   if (proc0 .and. debug) then
      do supercell_index = 1, nsupercells
         print*,'-------------------------------------------------------------'
@@ -140,6 +146,31 @@ program box_to_ballooning_space
         print*,'ncell:',supercells(supercell_index)%ncell
         print*,'-------------------------------------------------------------'
         print*,''
+     end do
+  end if
+
+  ! Create ballooning space input files
+  if (proc0) then
+     ! Get the setup from the existing file
+     call the_config%get_configs
+
+     ! Override some general settings
+     the_config%nonlinear_terms_config%nonlinear_mode = 'off'
+     the_config%kt_grids_config%grid_option = 'single'
+
+     do supercell_index = 1, nsupercells
+
+        ! Setup this specific case
+        the_config%kt_grids_single_config%aky = supercells(supercell_index)%ky
+        the_config%kt_grids_single_config%akx = supercells(supercell_index)%kx_middle
+        the_config%kt_grids_single_config%theta0 = supercells(supercell_index)%theta0_middle
+        the_config%theta_grid_parameters_config%nperiod = supercells(supercell_index)%nperiod
+
+        write(extension,'(".ballooning_supercell.",I0,".in")') supercell_index
+        call open_output_file(unit, extension)
+        call the_config%write_to_unit(unit)
+        call close_output_file(unit)
+
      end do
   end if
 
