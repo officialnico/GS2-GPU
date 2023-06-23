@@ -17,9 +17,11 @@ contains
     phi2 = 0
     do ik = 1, naky
        fac = 0.5
-       if ( aky(ik) == 0.) fac = 1.0
+       if (aky(ik) < epsilon(0.)) fac = 1.0
        do it = 1, ntheta0
-          phi2 = phi2 + sum(phinew(:, it, ik) * conjg(phinew(:, it, ik)) *delthet*jacob)*fac/anorm
+          ! complex * conjg(complex) always gives a real number, but type is still complex.
+          ! Explicit cast here is silence compiler warnings
+          phi2 = phi2 + real(sum(phinew(:, it, ik) * conjg(phinew(:, it, ik)) *delthet*jacob))*fac/anorm
        end do
     end do
 
