@@ -94,35 +94,18 @@ function test_ffts()
   use kt_grids, only: ntheta0, naky
   implicit none
   logical :: test_ffts
-  logical ::dummy
   integer :: ix, iy
   character(len=22) :: message = ''
-  dummy = .true.
 
   ! Need to default to true as process_check uses this value
   test_ffts = .true.
-
-  !ix =0
-  !iy=0
-    !write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-    !write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
   do ix=0,ntheta0/2-1
     do iy=0,naky-1
-       !write(message, '(22A1)') ' '
-
-       !write(*, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-       !write(*, *) message
-       write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-       !write(message, *) 'ffttest ix =', ix, ' iy = ', iy
-       !write(*, *) message
-      !write(message, '("ffttest ix = ")') 
-      !message = 'Hello'
+      write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
       call announce_check(message)
       call process_check(test_ffts, ffttest(ix,iy, .false.), message)
     enddo
   enddo
-
-  test_ffts = dummy
 
 end function test_ffts
 
