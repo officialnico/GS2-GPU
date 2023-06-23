@@ -58,6 +58,9 @@ results_of_test.txt
 *.check*
 tests/**/gs2
 tests/**/test_*
+!tests/**/test_*.f90
+!tests/**/test_*.F90
+!tests/**/test_*.fpp
 
 .patch.make
 Revision
