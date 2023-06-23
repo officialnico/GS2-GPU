@@ -8,7 +8,7 @@ program box_to_ballooning_space
   use theta_grid, only: nperiod
   use sorting, only: quicksort
   use config_collection, only: gs2_config_type
-  use file_utils, only: open_output_file, close_output_file
+  use file_utils, only: open_output_file, close_output_file, run_name
   implicit none
 
   type :: supercell_properties
@@ -29,6 +29,7 @@ program box_to_ballooning_space
   character(len=64) :: extension
   logical :: shift_cells
   logical, parameter :: debug = .true.
+  logical, parameter :: write_full_file = .true.
 
   call initialize_wall_clock_timer
   call init_mp
@@ -168,7 +169,17 @@ program box_to_ballooning_space
 
         write(extension,'(".ballooning_supercell.",I0,".in")') supercell_index
         call open_output_file(unit, extension)
-        call the_config%write_to_unit(unit)
+
+        if (write_full_file) then
+           call the_config%write_to_unit(unit)
+        else
+           call the_config%nonlinear_terms_config%write(unit)
+           call the_config%kt_grids_config%write(unit)
+           call the_config%kt_grids_single_config%write(unit)
+           call the_config%theta_grid_parameters_config%write(unit)
+           write(unit,'(A,"!include ",A,".in")') new_line('a'),trim(run_name)
+        end if
+
         call close_output_file(unit)
 
      end do
