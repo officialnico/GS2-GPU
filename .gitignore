@@ -53,6 +53,11 @@ results_of_test.txt
 *.vspace_integration_error
 .*.in
 *.used_inputs.in
+*.init_times
+*.eig.*
+*.check*
+tests/**/gs2
+tests/**/test_*
 
 .patch.make
 Revision
