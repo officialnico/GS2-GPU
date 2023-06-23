@@ -1,19 +1,19 @@
 
 sinclude ../Makefile.tests_common
-
-clean_individual_test: LOCAL_TEST_FILES:=test_gs2_main
+TEST_BASE_NAME:=test_gs2_main
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
 
 ifdef TESTNORUN
-all: test_gs2_main 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
-all: test_gs2_main 
-	$(call RUNCOMMAND,test_gs2_main,test_gs2_main.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
 endif
 
-test_gs2_main.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_gs2_main: test_gs2_main.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
