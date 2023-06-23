@@ -86,6 +86,8 @@ module build_config
   logical, parameter :: gs2_has_quad = .false.
 #endif
 
+  character(len=*), parameter :: gs2_build_tag = GS2_BUILD_TAG
+
 contains
 
   function formatted_build_config() result(output)
@@ -95,7 +97,7 @@ contains
     character(len=:), allocatable :: output
 
     character(len=*), parameter :: nl = new_line('a')
-    integer, parameter :: max_len = 2000
+    integer, parameter :: max_len = 3000
 
     allocate(character(len=max_len)::output)
 
@@ -107,6 +109,7 @@ contains
     write(output, '(a, a)') trim(output) // nl // "Build flags: Cannot be detected"
 #endif
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
+    write(output, '(a, a)') trim(output) // nl // "GS2_BUILD_TAG: ", gs2_build_tag
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
     write(output, '(a, l)') trim(output) // nl // "OPENMP: ", gs2_has_openmp
