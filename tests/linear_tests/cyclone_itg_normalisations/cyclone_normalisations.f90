@@ -1,14 +1,5 @@
-!> A test program to test that changes in the choice of normalisation don't
-!> alter results when correcting for normalisations.
-program test_cyclone_normalisations
-  use functional_tests, only: test_gs2
-  use mp, only: init_mp, finish_mp
+module check_mod
   implicit none
-
-  call init_mp
-  call test_gs2('cyclone itg normalisation cases', checks)
-  call finish_mp
-  
 contains
   logical function checks()
     use file_utils, only: input_unit_exist
@@ -28,6 +19,17 @@ contains
     checks = check_growth_rate([gamma_expected], tolerance)
     checks = checks .and. check_frequency([omega_expected], tolerance)
   end function checks
-  
-end program test_cyclone_normalisations
+end module check_mod
 
+!> A test program to test that changes in the choice of normalisation don't
+!> alter results when correcting for normalisations.
+program test_cyclone_normalisations
+  use functional_tests, only: test_gs2
+  use mp, only: init_mp, finish_mp
+  use check_mod, only: checks
+  implicit none
+
+  call init_mp
+  call test_gs2('cyclone itg normalisation cases', checks)
+  call finish_mp
+end program test_cyclone_normalisations
