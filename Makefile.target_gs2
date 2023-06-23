@@ -17,7 +17,7 @@ endif
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester
+needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester box_to_ballooning_space
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
@@ -80,6 +80,14 @@ $(BINDIR)/dump_grids: $(dump_grids_mod) | $(BINDIR)
 
 .PHONY: dump_grids
 dump_grids: $(BINDIR)/dump_grids
+
+#Reports the equivalent ballooning space setup for a box mode run.
+$(BINDIR)/box_to_ballooning_space: $(box_to_ballooning_space_mod) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
+
+.PHONY: box_to_ballooning_space
+box_to_ballooning_space: $(BINDIR)/box_to_ballooning_space
 
 #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
 $(BINDIR)/ideal_ball: $(ideal_ball_mod) | $(BINDIR)
