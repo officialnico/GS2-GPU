@@ -2825,12 +2825,13 @@ contains
   !> Calculates a simple gamma/kperp2 QL flux metric
   function calculate_simple_quasilinear_flux_metric_by_k(growth_rates) result(ql_metric)
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, aky
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, dimension(ntheta0, naky), intent(in) :: growth_rates
     real, dimension(ntheta0, naky) :: limited_growth_rates, average
     real, dimension(ntheta0, naky) :: ql_metric, normalising_field
+    integer :: ik
 
     ! Initialise flux to zero
     ql_metric = 0.0
@@ -2881,6 +2882,11 @@ contains
     elsewhere
        limited_growth_rates = 0.0
     end where
+
+    ! MG: Avoid spurious contribution from the zonal mode
+    do ik = 1, naky
+       if (aky(ik) == 0) ql_metric(:, ik) = 0.0
+    end do
 
     ql_metric = ql_metric * limited_growth_rates
   end function calculate_simple_quasilinear_flux_metric_by_k
