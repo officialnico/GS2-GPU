@@ -93,6 +93,8 @@ HAS_GCOV=$(USE_GCOV)
 GS2_PYTHON_NAME ?= python3
 # Name of pytest executable
 GS2_PYTEST_NAME ?= pytest
+# A user-settable name for this particular build of GS2
+GS2_BUILD_TAG ?= None
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -564,6 +566,10 @@ include $(SRCDIR)/diagnostics/Makefile.diagnostics
 else
 diagnostics:
 endif
+
+# NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
+# ensure that it gets quoted correctly on the command line
+MACRO_DEFS += -DGS2_BUILD_TAG='"$${GS2_BUILD_TAG}"'
 
 ############################################################################# Done dealing with user flags
 
