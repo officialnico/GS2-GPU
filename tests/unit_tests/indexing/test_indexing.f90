@@ -43,7 +43,7 @@ program test_indexing
 
   ! Begin test
   call announce_test('test index')
-  call process_test(test_index(.true.), 'test index')
+  call process_test(test_index(), 'test index')
 
   call close_module_test('indexing')
 
@@ -56,11 +56,10 @@ program test_indexing
   call finish_mp
 
   contains
-    function test_index(dummy)
+    function test_index()
 
       use unit_tests, only: announce_check, process_check, agrees_with
       use collisions, only: use_le_layout
-      logical, intent(in) :: dummy
       logical :: test_index
       logical :: test_result   !! Overall test result, true if all pass
       logical :: check_result  !! Result of individual tests
