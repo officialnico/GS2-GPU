@@ -1,3 +1,5 @@
+#include "unused_dummy.inc"
+
 module test_integrator
   implicit none
   complex :: exponential_coefficient
@@ -6,6 +8,8 @@ contains
     complex, dimension (:,:,:), intent(in) :: g_in
     complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
     logical, optional :: gf_lo, local_only
+    UNUSED_DUMMY(g_in); UNUSED_DUMMY(phi); UNUSED_DUMMY(apar);
+    UNUSED_DUMMY(bpar); UNUSED_DUMMY(gf_lo); UNUSED_DUMMY(local_only);
   end subroutine null_field_op
 
   subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)
@@ -16,6 +20,9 @@ contains
     real, intent(out) :: max_vel_local
     logical, intent(in) :: need_to_adjust
     logical, intent(in), optional :: calculate_cfl_limit
+    UNUSED_DUMMY(phi); UNUSED_DUMMY(apar); UNUSED_DUMMY(bpar);
+    UNUSED_DUMMY(need_to_adjust); UNUSED_DUMMY(calculate_cfl_limit);
+
     ! Factor 2 to cancel hard-coded 0.5 in regular NL term
     g1 = g_in * exponential_coefficient * 2
     max_vel_local = 1.0/cfl

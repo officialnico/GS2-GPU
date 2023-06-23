@@ -591,7 +591,8 @@ CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
 CPPFLAGS += $(MACRO_DEFS)
-FPPFLAGS += $(MACRO_DEFS)
+# Include GK_HEAD_DIR for "unused_dummy.inc"
+FPPFLAGS += $(MACRO_DEFS) -I$(SRCDIR)
 
 DATE:=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
