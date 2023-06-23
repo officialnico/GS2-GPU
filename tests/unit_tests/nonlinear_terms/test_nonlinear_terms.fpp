@@ -12,7 +12,7 @@ program test_nonlinear_terms
   use unit_tests
   use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, run_name
-  use species, only: init_species, nspec
+  use species, only: init_species
   use dist_fn, only: init_dist_fn, finish_dist_fn
   use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids

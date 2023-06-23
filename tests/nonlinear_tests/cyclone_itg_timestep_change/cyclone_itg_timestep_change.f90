@@ -41,12 +41,10 @@ program cyclone_itg_low_res
   use checks_mod, only: checks, phi2_value, target_value
   use fields_local, only: fields_local_functional
   use mp, only: init_mp, proc0, finish_mp
-  use gs2_time, only: code_dt_cfl
   implicit none
   ! Note the field type is currently determined by the input file
   ! so we will need to change this if we change [[fields_knobs:field_option]]
   ! in the future.
-  integer :: length, ierr
 
   ! If you want to see the minimal linear test look at slab_itg_low_res
   call init_mp

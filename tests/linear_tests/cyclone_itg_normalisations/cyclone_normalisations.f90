@@ -2,7 +2,7 @@
 !> alter results when correcting for normalisations.
 program test_cyclone_normalisations
   use functional_tests, only: test_gs2
-  use mp, only: init_mp, proc0, finish_mp
+  use mp, only: init_mp, finish_mp
   implicit none
 
   call init_mp

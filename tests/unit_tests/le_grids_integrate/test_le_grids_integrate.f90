@@ -103,7 +103,6 @@ program test_le_grids_integrate
 
   logical :: dummy
   complex, dimension (:,:,:,:), allocatable :: integrate_results
-  real, dimension(:, :,:), allocatable :: test_sum
   integer :: ig, il, ie, is, iglo
   real :: tolerance = 1.0e-8
   logical :: agrees
@@ -115,7 +114,7 @@ program test_le_grids_integrate
   real, parameter :: expected_lambda = 2.0, expected_energy = 0.25
   real, dimension(:), allocatable :: lambda_error, energy_error
   real, dimension(:, :), allocatable :: mixed_error, mixed_value
-  real :: relevant_value, tmp
+  real :: relevant_value
   character(len=22) :: error_name
   namelist /le_grids_integrate/ tolerance, check_all_values, run_failing_tests
 

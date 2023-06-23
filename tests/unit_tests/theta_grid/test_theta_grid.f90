@@ -11,8 +11,7 @@
 program test_theta_grid
 
   use unit_tests
-  use theta_grid, only: init_theta_grid, finish_theta_grid
-  use theta_grid, only: initialized, theta
+  use theta_grid, only: init_theta_grid, finish_theta_grid, theta
   use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21
   use egrid
   use mp, only: init_mp, finish_mp, proc0

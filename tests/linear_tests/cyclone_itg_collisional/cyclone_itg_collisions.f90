@@ -2,7 +2,7 @@
 !> This is essentially just a golden answer test for now.
 program test_cyclone_itg_collisions
   use functional_tests, only: test_gs2
-  use mp, only: init_mp, proc0, finish_mp
+  use mp, only: init_mp, finish_mp
   implicit none
 
   call init_mp

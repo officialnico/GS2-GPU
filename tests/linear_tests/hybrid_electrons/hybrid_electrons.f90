@@ -3,7 +3,7 @@
 !> limit and with adibatic electrons in the collisional limit.
 program test_hybrid_electrons
   use functional_tests, only: test_gs2
-  use mp, only: init_mp, proc0, finish_mp
+  use mp, only: init_mp, finish_mp
   implicit none
 
   call init_mp

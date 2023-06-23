@@ -10,17 +10,9 @@ program test_fields_gf_local
   use unit_tests
   use init_g, only: ginit
   use fields_gf_local, only: fields_gf_local_functional
-  use fields_gf_local, only: init_fields_gf_local, finish_fields_gf_local
-  use fields_implicit, only: init_fields_implicit
-  use fields, only: fieldopt_implicit,fieldopt_gf_local
-  use fields, only: fields_pre_init
   use egrid
-  use mp, only: init_mp, finish_mp, broadcast, mp_comm
-  use file_utils, only: init_file_utils
-  use species, only: init_species, nspec
-  use constants, only: pi
-  use dist_fn, only: init_dist_fn,  gf_lo_integrate
-  use dist_fn_arrays, only: g,gnew
+  use mp, only: init_mp, finish_mp, mp_comm
+  use dist_fn_arrays, only: g, gnew
   use kt_grids, only: naky, ntheta0
   use theta_grid, only: ntgrid
   use gs2_layouts, only: g_lo
@@ -227,6 +219,7 @@ contains
 
   !> Return true if fields_local can finish and initialize again without error
   function test_init_fields_local()
+    use fields_gf_local, only: init_fields_gf_local, finish_fields_gf_local
     logical :: test_init_fields_local
 
     call init_fields_gf_local
@@ -239,6 +232,7 @@ contains
 
   !> Initialize fields_implicit and return true if there is no error
   function test_init_fields_implicit()
+    use fields_implicit, only: init_fields_implicit
     implicit none
     logical :: test_init_fields_implicit
 

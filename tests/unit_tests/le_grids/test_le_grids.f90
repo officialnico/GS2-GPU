@@ -219,7 +219,6 @@ program test_le_grids
     function test_init_le_grids(sizes, energy_results, err)
       use unit_tests, only: announce_check, process_check, agrees_with
       use species, only: nspec
-      use mp, only: proc0
       integer, dimension(:), intent(in) :: sizes
       real, dimension(:,:,:), intent(in) :: energy_results
       real, intent(in) :: err
