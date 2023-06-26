@@ -2550,9 +2550,14 @@ contains
     ! Allocate M
     allocate (M_class(i_class))
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(j) &
+    !$OMP SHARED(i_class, M_class, n_k, N_class) &
+    !$OMP SCHEDULE(static)
     do j = 1, i_class
        M_class(j) = count(n_k == N_class(j))
     end do
+    !$OMP END PARALLEL DO
 
     ! Check for consistency:
 
