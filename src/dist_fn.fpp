@@ -2443,6 +2443,11 @@ contains
     integer, dimension(:, :), intent(out) :: links
     integer :: it, ik, it_star
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, it, it_star) &
+    !$OMP SHARED(naky, ntheta0, links, it_connections) &
+    !$OMP COLLAPSE(2) &
+    !$OMP SCHEDULE(static)
     do ik = 1, naky
        do it = 1, ntheta0
           ! count the links for each region
@@ -2463,6 +2468,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine count_links_one_side
 
   !> Count the links to the left and right of each {it, ik} point
