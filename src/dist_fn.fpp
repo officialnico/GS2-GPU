@@ -2235,24 +2235,36 @@ contains
     integer :: n, n_h, n_links_max, nn_max
     integer, dimension(naky*ntheta0) :: n_k
     logical :: has_trapped_particles
+    real :: theta_extent, theta0_spacing
     if (connectinit) return
     connectinit = .true.
 
     has_trapped_particles = grid_has_trapped_particles()
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
-    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one 
+    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
     ! parallel segment to the next to satisfy the twist and shift
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
+    theta_extent = theta(ntgrid) - theta(-ntgrid)
     if (naky > 1 .and. ntheta0 > 1) then
-       jshift0 = nint((theta(ntgrid)-theta(-ntgrid))/(theta0(2,2)-theta0(1,2)))
+       theta0_spacing = theta0(2, 2) - theta0(1, 2)
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
-       jshift0 = nint((theta(ntgrid)-theta(-ntgrid))/(theta0(2,1)-theta0(1,1)))
+       ! Not clear we _ever_ get here as box mode usually requires
+       ! aky(1) == 0. One could imagine potentially using linked boundary
+       ! conditions and kt_grids_range to end up here.
+       theta0_spacing = theta0(2, 1) - theta0(1, 1)
     else
-       jshift0 = 1
+       ! Not possible to work out a theta0 spacing here
+       ! so just set up such that jshift0 == 1
+       theta0_spacing = theta_extent
     end if
-    
+
+    ! Work out how many theta0 "grid points" we must step over
+    ! to travel a distance equiavlent from one end of a cell
+    ! to the other end.
+    jshift0 = nint(theta_extent/theta0_spacing)
+
     allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
     itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
     itright(:, 1) = -1
