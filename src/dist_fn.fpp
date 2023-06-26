@@ -245,6 +245,9 @@ module dist_fn
   logical :: fyxinit = .false.
   logical :: cerrinit = .false.
 
+  !> Arbitrary limit on the maximum number of allowed links in connected boundary conditions
+  integer, parameter :: max_allowed_links = 5000
+
 #ifdef NETCDF_PARALLEL
   logical, parameter :: moment_to_allprocs = .true.
 #else
@@ -2395,7 +2398,7 @@ contains
                 if (itleft(ik, it_star) >= 0) then
                    l_links(it, ik) = l_links(it, ik) + 1
                    it_star = itleft(ik, it_star)
-                   if (l_links(it, ik) > 5000) then
+                   if (l_links(it, ik) > max_allowed_links) then
                       call mp_abort('l_links error',.true.)
                    endif
                 else
@@ -2410,7 +2413,7 @@ contains
                 if (itright(ik, it_star) >= 0) then
                    r_links(it, ik) = r_links(it, ik) + 1
                    it_star = itright(ik, it_star)
-                   if (r_links(it, ik) > 5000) then
+                   if (r_links(it, ik) > max_allowed_links) then
                       call mp_abort('r_links error',.true.)
                    endif
                 else
