@@ -2093,25 +2093,29 @@ contains
   !> FIXME : Add documentation  
   subroutine init_bc
     use kt_grids, only: naky, ntheta0
+    use array_utils, only: zero_array
+    implicit none
+
+    if (.not. allocated(l_links)) then
+       allocate (l_links(ntheta0, naky))
+       allocate (r_links(ntheta0, naky))
+       allocate (n_links(2, ntheta0, naky))
+    end if
+    call zero_array(l_links)
+    call zero_array(r_links)
+    call zero_array(n_links)
+
     select case (boundary_option_switch)
     case (boundary_option_linked)
        call init_connected_bc
        if(def_parity)call init_enforce_parity(parity_redist)
     case default
-       if (.not. allocated(l_links)) then
-          allocate (l_links(ntheta0, naky))
-          allocate (r_links(ntheta0, naky))
-          allocate (n_links(2, ntheta0, naky))
-       end if
-       l_links = 0;   r_links = 0;  n_links = 0
-       
        i_class = 1
        if (.not. allocated(M_class)) then
           allocate (M_class(i_class))
           allocate (N_class(i_class))
        end if
        M_class = naky*ntheta0 ; N_class = 1
-       
     end select
   end subroutine init_bc
 
@@ -2381,10 +2385,6 @@ contains
                   save_h (:,iglo) = .true.
           endif
        end do
-
-       allocate (l_links(ntheta0, naky))
-       allocate (r_links(ntheta0, naky))
-       allocate (n_links(2, ntheta0, naky))
 
        n_links_max = 0
        do it = 1, ntheta0
