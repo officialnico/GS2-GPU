@@ -186,7 +186,6 @@ AWK 		= awk
 PERL		= perl
 FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
-ssssssssssssssssssssss
 MPI_INC	?=
 MPI_LIB ?=
 FFT_INC ?=
