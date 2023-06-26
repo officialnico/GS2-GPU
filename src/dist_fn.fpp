@@ -2555,7 +2555,7 @@ contains
     !$OMP SHARED(i_class, M_class, n_k, N_class) &
     !$OMP SCHEDULE(static)
     do j = 1, i_class
-       M_class(j) = count(n_k == N_class(j))
+       M_class(j) = count(n_k == N_class(j)) / N_class(j)
     end do
     !$OMP END PARALLEL DO
 
