@@ -2215,7 +2215,7 @@ contains
 
   !> Compute the spacing in kx indices between connected kx domains
   !> (cells) for the lowest non-zonal ky.
-  pure integer function compute_jshift0() result(jshift0)
+  integer function compute_jshift0() result(jshift0)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, theta0, aky
     use mp, only: mp_abort
