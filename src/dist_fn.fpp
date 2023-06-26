@@ -2345,48 +2345,45 @@ contains
     !$OMP SHARED(g_lo, itleft, itright, connections) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       il = il_idx(g_lo,iglo)
-
        ! get processors and indices for j' (kx') modes connecting
        ! to mode j (kx) so we can set up communication -- MAB
 
+       ! Initialise to no connections, indicated by negative values
+       connections(iglo)%iproc_left = -1
+       connections(iglo)%iglo_left = -1
+       connections(iglo)%iproc_right = -1
+       connections(iglo)%iglo_right = -1
+       connections(iglo)%neighbor = .false.
+
+       il = il_idx(g_lo,iglo)
+
        ! if non-wfb trapped particle, no connections
        ! or if wfb is trapped, no connections
-       if (il_is_trapped(il) .or. (il_is_wfb(il) .and. trapped_wfb)) then
-          connections(iglo)%iproc_left = -1
-          connections(iglo)%iglo_left = -1
-          connections(iglo)%iproc_right = -1
-          connections(iglo)%iglo_right = -1
-       else
-          ik = ik_idx(g_lo,iglo)
-          it = it_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
+       if (il_is_trapped(il) .or. (il_is_wfb(il) .and. trapped_wfb)) cycle
 
-          if (itleft(it, ik) < 0) then
-             connections(iglo)%iproc_left = -1
-             connections(iglo)%iglo_left = -1
-          else
-             connections(iglo)%iproc_left &
-                  = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
-             connections(iglo)%iglo_left &
-                  = idx(g_lo,ik,itleft(it, ik),il,ie,is)
-          end if
-          if (itright(it, ik) < 0) then
-             connections(iglo)%iproc_right = -1
-             connections(iglo)%iglo_right = -1
-          else
-             connections(iglo)%iproc_right &
-                  = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
-             connections(iglo)%iglo_right &
-                  = idx(g_lo,ik,itright(it, ik),il,ie,is)
-          end if
-       end if
-       if (connections(iglo)%iproc_left >= 0 .or. &
-            connections(iglo)%iproc_right >= 0) then
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+
+       ! If no links then cycle
+       if (itleft(it, ik) < 0 .and. itright(it, ik) < 0) cycle
+
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       if (itleft(it, ik) >= 0) then
+          connections(iglo)%iproc_left &
+               = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
+          connections(iglo)%iglo_left &
+               = idx(g_lo,ik,itleft(it, ik),il,ie,is)
           connections(iglo)%neighbor = .true.
-       else
-          connections(iglo)%neighbor = .false.
+       end if
+
+       if (itright(it, ik) >= 0) then
+          connections(iglo)%iproc_right &
+               = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
+          connections(iglo)%iglo_right &
+               = idx(g_lo,ik,itright(it, ik),il,ie,is)
+          connections(iglo)%neighbor = .true.
        end if
     end do
     !$OMP END PARALLEL DO
