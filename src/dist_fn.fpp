@@ -2213,6 +2213,77 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_source_term
 
+  !> For the passed jshift0 value determine the it (kx) indices to
+  !> the left and right of each {it, ik} index pair. Used to construct
+  !> the connected boundary conditions.
+  subroutine compute_itleft_and_itright(jshift0, itleft, itright)
+    use kt_grids, only: naky, ntheta0, aky
+    implicit none
+    integer, intent(in) :: jshift0
+    integer, dimension(:, :), intent(out) :: itleft, itright
+    integer :: ik, it, it0, itl, itr
+
+    ! Note the below appears to assume ik = 1 is always the ky = 0
+    ! mode but this is not consistent with potentially more general
+    ! treatement in the init_connected_bc related code. We also revisit
+    ! ik = 1 in the below loop so this initialisation is likely
+    ! overwritten in all cases.
+    itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
+    itright(:, 1) = -1
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          if (it > (ntheta0+1)/2) then
+             ! akx is negative (-1 shift because akx(1) = 0) -- MAB
+             it0 = it - ntheta0 - 1
+          else
+             ! akx is positive (-1 shift because akx(1) = 0) -- MAB
+             it0 = it - 1
+          end if
+
+          if (ik == 1) then
+             if (aky(ik) /= 0.0 .and. naky == 1) then
+                ! for this case, jshift0 is delta j from Beer thesis -- MAB
+                itl = it0 + jshift0
+                itr = it0 - jshift0
+             else
+                itl = it0
+                itr = it0
+             end if
+          else
+             ! ik = 1 corresponds to aky=0, so shift index by 1
+             ! (ik-1)*jshift0 is delta j from Beer thesis -- MAB
+             itl = it0 + (ik-1)*jshift0
+             itr = it0 - (ik-1)*jshift0
+          end if
+
+          ! remap to usual GS2 indices -- MAB
+          if (itl >= 0 .and. itl < (ntheta0+1)/2) then
+             itleft(it, ik) = itl + 1
+          else if (itl + ntheta0 + 1 > (ntheta0+1)/2 &
+               .and. itl + ntheta0 + 1 <= ntheta0) then
+             itleft(it, ik) = itl + ntheta0 + 1
+          else
+             ! for periodic, need to change below -- MAB/BD
+             ! j' = j + delta j not included in simulation, so can't connect -- MAB
+             itleft(it, ik) = -1
+          end if
+
+          ! same stuff for j' = j - delta j -- MAB
+          if (itr >= 0 .and. itr < (ntheta0+1)/2) then
+             itright(it, ik) = itr + 1
+          else if (itr + ntheta0 + 1 > (ntheta0+1)/2 &
+               .and. itr + ntheta0 + 1 <= ntheta0) then
+             itright(it, ik) = itr + ntheta0 + 1
+          else
+             ! for periodic, need to change below -- MAB/BD
+             itright(it, ik) = -1
+          end if
+       end do
+    end do
+
+  end subroutine compute_itleft_and_itright
+
   !> FIXME : Add documentation
   subroutine init_connected_bc
     use theta_grid, only: ntgrid, theta
@@ -2271,59 +2342,7 @@ contains
     end if
 
     allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
-    itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
-    itright(:, 1) = -1
-
-    do ik = 1, naky
-       do it = 1, ntheta0
-          if (it > (ntheta0+1)/2) then
-             ! akx is negative (-1 shift because akx(1) = 0) -- MAB
-             it0 = it - ntheta0 - 1
-          else
-             ! akx is positive (-1 shift because akx(1) = 0) -- MAB
-             it0 = it - 1
-          end if
-
-          if (ik == 1) then
-             if (aky(ik) /= 0.0 .and. naky == 1) then
-                ! for this case, jshift0 is delta j from Beer thesis -- MAB
-                itl = it0 + jshift0
-                itr = it0 - jshift0
-             else
-                itl = it0
-                itr = it0
-             end if
-          else
-             ! ik = 1 corresponds to aky=0, so shift index by 1
-             ! (ik-1)*jshift0 is delta j from Beer thesis -- MAB
-             itl = it0 + (ik-1)*jshift0
-             itr = it0 - (ik-1)*jshift0
-          end if
-
-          ! remap to usual GS2 indices -- MAB
-          if (itl >= 0 .and. itl < (ntheta0+1)/2) then
-             itleft(it, ik) = itl + 1
-          else if (itl + ntheta0 + 1 > (ntheta0+1)/2 &
-             .and. itl + ntheta0 + 1 <= ntheta0) then
-             itleft(it, ik) = itl + ntheta0 + 1
-          else
-             ! for periodic, need to change below -- MAB/BD
-             ! j' = j + delta j not included in simulation, so can't connect -- MAB
-             itleft(it, ik) = -1
-          end if
-
-          ! same stuff for j' = j - delta j -- MAB
-          if (itr >= 0 .and. itr < (ntheta0+1)/2) then
-             itright(it, ik) = itr + 1
-          else if (itr + ntheta0 + 1 > (ntheta0+1)/2 &
-             .and. itr + ntheta0 + 1 <= ntheta0) then
-             itright(it, ik) = itr + ntheta0 + 1
-          else
-             ! for periodic, need to change below -- MAB/BD
-             itright(it, ik) = -1
-          end if
-       end do
-    end do
+    call compute_itleft_and_itright(jshift0, itleft, itright)
 
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
 
