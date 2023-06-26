@@ -2566,11 +2566,11 @@ contains
     do i = 1, i_class
        j = j + N_class(i)*M_class(i)
        ! Check that we have N_class which is a factor of the matching n_k
-       if ( abs(M_class(j) - count(n_k == N_class(j)) / (1.0 * N_class(j))) &
+       if ( abs(M_class(i) - count(n_k == N_class(i)) / (1.0 * N_class(i))) &
             > 10 * epsilon(0.0)) then
           write(*,*) 'PE ',iproc,'number of instances of supercell size not ' // &
                'an integer times the size of supercell: M,N,n_N',&
-               M_class(j), N_class(j), count(n_k == N_class(j))
+               M_class(i), N_class(i), count(n_k == N_class(i))
           call mp_abort('Problem with connected BC fields implicit arrays.')
        end if
     end do
