@@ -2515,7 +2515,7 @@ contains
     integer, dimension(:, :), intent(in) :: l_links, r_links
     integer, dimension(:), allocatable, intent(out) :: M_class, N_class
     integer, intent(out) :: i_class
-    integer, dimension(naky*ntheta0) :: n_k
+    integer, dimension(naky*ntheta0) :: n_k, N_class_full
     integer :: k, it, ik, i, j
     ! Now set up class arrays for the implicit fields
 
@@ -2534,34 +2534,25 @@ contains
     ! Sort:
     call quicksort(naky*ntheta0, n_k)
 
-    ! Then count:
+    ! Then count how many unique values there are, storing
+    ! each unique value as it is encountered.
     i_class = 1
-    do k = 1, naky*ntheta0-1
-       if (n_k(k) == n_k(k+1)) cycle
-       i_class = i_class + 1
-    end do
-
-    ! Allocate M, N:
-    allocate (M_class(i_class))
-    allocate (N_class(i_class))
-
-    ! Initial values
-    M_class = 1 ; N_class = 0
-
-    ! Fill M, N arrays:
-    j = 1
+    N_class_full(i_class) = n_k(1)
     do k = 2, naky*ntheta0
-       if (n_k(k) == n_k(k-1)) then
-          M_class(j) = M_class(j) + 1
-       else
-          N_class(j) = n_k(k-1)
-          M_class(j) = M_class(j)/N_class(j)
-          j = j + 1
-       end if
+       if (n_k(k) == n_k(k-1)) cycle
+       i_class = i_class + 1
+       N_class_full(i_class) = n_k(k)
     end do
-    j = i_class
-    N_class(j) = n_k(naky*ntheta0)
-    M_class(j) = M_class(j)/N_class(j)
+
+    ! Extract the unique sizes into N_class
+    N_class = N_class_full(1:i_class)
+
+    ! Allocate M
+    allocate (M_class(i_class))
+
+    do j = 1, i_class
+       M_class(j) = count(n_k == N_class(j))
+    end do
 
     ! Check for consistency:
 
