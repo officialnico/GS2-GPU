@@ -2254,9 +2254,9 @@ contains
        jshift0 = 1
     end if
     
-    allocate (itleft(naky,ntheta0), itright(naky,ntheta0))
-    itleft(1,:) = -1 ! No connected segments when ky = 0. EGH
-    itright(1,:) = -1
+    allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
+    itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
+    itright(:, 1) = -1
 
     do ik = 1, naky
        do it = 1, ntheta0
@@ -2286,25 +2286,25 @@ contains
 
           ! remap to usual GS2 indices -- MAB
           if (itl >= 0 .and. itl < (ntheta0+1)/2) then
-             itleft(ik,it) = itl + 1
+             itleft(it, ik) = itl + 1
           else if (itl + ntheta0 + 1 > (ntheta0+1)/2 &
              .and. itl + ntheta0 + 1 <= ntheta0) then
-             itleft(ik,it) = itl + ntheta0 + 1
+             itleft(it, ik) = itl + ntheta0 + 1
           else
              ! for periodic, need to change below -- MAB/BD
              ! j' = j + delta j not included in simulation, so can't connect -- MAB
-             itleft(ik,it) = -1
+             itleft(it, ik) = -1
           end if
 
           ! same stuff for j' = j - delta j -- MAB
           if (itr >= 0 .and. itr < (ntheta0+1)/2) then
-             itright(ik,it) = itr + 1
+             itright(it, ik) = itr + 1
           else if (itr + ntheta0 + 1 > (ntheta0+1)/2 &
              .and. itr + ntheta0 + 1 <= ntheta0) then
-             itright(ik,it) = itr + ntheta0 + 1
+             itright(it, ik) = itr + ntheta0 + 1
           else
              ! for periodic, need to change below -- MAB/BD
-             itright(ik,it) = -1
+             itright(it, ik) = -1
           end if
        end do
     end do
@@ -2331,23 +2331,23 @@ contains
           ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
           
-          if (itleft(ik,it) < 0) then
+          if (itleft(it, ik) < 0) then
              connections(iglo)%iproc_left = -1
              connections(iglo)%iglo_left = -1
           else
              connections(iglo)%iproc_left &
-                  = proc_id(g_lo,idx(g_lo,ik,itleft(ik,it),il,ie,is))
+                  = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
              connections(iglo)%iglo_left &
-                  = idx(g_lo,ik,itleft(ik,it),il,ie,is)
+                  = idx(g_lo,ik,itleft(it, ik),il,ie,is)
           end if
-          if (itright(ik,it) < 0) then
+          if (itright(it, ik) < 0) then
              connections(iglo)%iproc_right = -1
              connections(iglo)%iglo_right = -1
           else
              connections(iglo)%iproc_right &
-                  = proc_id(g_lo,idx(g_lo,ik,itright(ik,it),il,ie,is))
+                  = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
              connections(iglo)%iglo_right &
-                  = idx(g_lo,ik,itright(ik,it),il,ie,is)
+                  = idx(g_lo,ik,itright(it, ik),il,ie,is)
           end if
        end if
        if (connections(iglo)%iproc_left >= 0 .or. &
@@ -2394,10 +2394,10 @@ contains
              l_links(it, ik) = 0
              it_star = it
              do 
-                if (it_star == itleft(ik, it_star)) exit
-                if (itleft(ik, it_star) >= 0) then
+                if (it_star == itleft(it_star, ik)) exit
+                if (itleft(it_star, ik) >= 0) then
                    l_links(it, ik) = l_links(it, ik) + 1
-                   it_star = itleft(ik, it_star)
+                   it_star = itleft(it_star, ik)
                    if (l_links(it, ik) > max_allowed_links) then
                       call mp_abort('l_links error',.true.)
                    endif
@@ -2409,10 +2409,10 @@ contains
              r_links(it, ik) = 0
              it_star = it
              do 
-                if (it_star == itright(ik, it_star)) exit
-                if (itright(ik, it_star) >= 0) then
+                if (it_star == itright(it_star, ik)) exit
+                if (itright(it_star, ik) >= 0) then
                    r_links(it, ik) = r_links(it, ik) + 1
-                   it_star = itright(ik, it_star)
+                   it_star = itright(it_star, ik)
                    if (r_links(it, ik) > max_allowed_links) then
                       call mp_abort('r_links error',.true.)
                    endif
@@ -3168,7 +3168,7 @@ contains
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
     
-    if (itleft(ik,it) < 0) then
+    if (itleft(it, ik) < 0) then
        iglo_left = -1
        iproc_left = -1
        return
@@ -3178,7 +3178,7 @@ contains
     ie = ie_idx(g_lo,iglo)
     is = is_idx(g_lo,iglo)
 
-    iglo_left = idx(g_lo,ik,itleft(ik,it),il,ie,is)
+    iglo_left = idx(g_lo,ik,itleft(it, ik),il,ie,is)
     iproc_left = proc_id(g_lo,iglo_left)
   end subroutine get_left_connection
 
@@ -3194,7 +3194,7 @@ contains
     ik = ik_idx(g_lo,iglo)
     it = it_idx(g_lo,iglo)
     
-    if (itright(ik,it) < 0) then
+    if (itright(it, ik) < 0) then
        iglo_right = -1
        iproc_right = -1
        return
@@ -3204,7 +3204,7 @@ contains
     ie = ie_idx(g_lo,iglo)
     is = is_idx(g_lo,iglo)
 
-    iglo_right = idx(g_lo,ik,itright(ik,it),il,ie,is)
+    iglo_right = idx(g_lo,ik,itright(it, ik),il,ie,is)
     iproc_right = proc_id(g_lo,iglo_right)
   end subroutine get_right_connection
 
@@ -3217,10 +3217,10 @@ contains
     !If not linked then no connections so only one cell in supercell
     if (boundary_option_switch.eq.boundary_option_linked) then
        it_cur=it
-       do while(itleft(ik,it_cur).ge.0.and.itleft(ik,it_cur).ne.it_cur)
+       do while(itleft(it_cur, ik).ge.0.and.itleft(it_cur, ik).ne.it_cur)
           !Keep updating it_cur with left connected it until there are no
           !connections to left
-          it_cur=itleft(ik,it_cur)
+          it_cur=itleft(it_cur, ik)
        enddo
     else
        it_cur=it
@@ -3237,10 +3237,10 @@ contains
     !If not linked then no connections so only one cell in supercell
     if (boundary_option_switch.eq.boundary_option_linked) then
        it_cur=it
-       do while(itright(ik,it_cur).ge.0.and.itright(ik,it_cur).ne.it_cur)
+       do while(itright(it_cur, ik).ge.0.and.itright(it_cur, ik).ne.it_cur)
           !Keep updating it_cur with right connected it until there are no
           !connections to right
-          it_cur=itright(ik,it_cur)
+          it_cur=itright(it_cur, ik)
        enddo
     else
        it_cur=it
@@ -5381,7 +5381,7 @@ contains
     if (boundary_option_switch.ne.boundary_option_linked) return
     do ik=1,naky
        do it=1,ntheta0
-          link_it=itright(ik,it)
+          link_it=itright(it, ik)
           if (link_it.lt.0) cycle
           arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
        enddo
@@ -5404,7 +5404,7 @@ contains
     if (boundary_option_switch.ne.boundary_option_linked) return
     do ik=1,naky
        do it=1,ntheta0
-          link_it=itright(ik,it)
+          link_it=itright(it, ik)
           if (link_it.lt.0) cycle
           arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
        enddo
@@ -6166,8 +6166,8 @@ contains
        do it = 1, ntheta0
           do ik = 1, naky
              if (aky(ik) == 0.0) cycle
-             if (itleft(ik,it) < 0) gridfac1(-ntgrid,it,ik) = gridfac
-             if (itright(ik,it) < 0) gridfac1(ntgrid,it,ik) = gridfac
+             if (itleft(it, ik) < 0) gridfac1(-ntgrid,it,ik) = gridfac
+             if (itright(it, ik) < 0) gridfac1(ntgrid,it,ik) = gridfac
           end do
        end do
     case default

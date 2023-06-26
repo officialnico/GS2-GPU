@@ -1876,7 +1876,7 @@ contains
              enddo
 
              !Update it
-             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(ik,it)
+             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(it, ik)
 
           enddo
        enddo
