@@ -2332,7 +2332,7 @@ contains
   !> to the left and right of each local iglo index. Note this is only interested
   !> in passing particles and the non-trapped wfb. Trapped particles are
   !> considered to have no connections.
-  subroutine compute_connnections(itleft, itright, connections)
+  subroutine compute_connections(itleft, itright, connections)
     use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, ie_idx, is_idx, proc_id, idx
     use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     implicit none
@@ -2387,7 +2387,7 @@ contains
        end if
     end do
     !$OMP END PARALLEL DO
-  end subroutine compute_connnections
+  end subroutine compute_connections
 
   !> FIXME : Add documentation
   subroutine init_connected_bc
@@ -2423,7 +2423,7 @@ contains
     call compute_itleft_and_itright(jshift0, itleft, itright)
 
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
-    call compute_connnections(itleft, itright, connections)
+    call compute_connections(itleft, itright, connections)
 
     if (boundary_option_switch == boundary_option_linked) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc          
@@ -2980,7 +2980,7 @@ contains
 
        if (j /= naky*ntheta0) then
           write(*,*) 'PE ',iproc,'has j= ',j,' k= ',naky*ntheta0,' : Stopping'
-          call mp_abort('problem with connnected bc')
+          call mp_abort('problem with connected bc')
        end if
 
     end if
