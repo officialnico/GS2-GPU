@@ -2215,7 +2215,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_connected_bc
-    use theta_grid, only: ntgrid, nperiod, ntheta, theta
+    use theta_grid, only: ntgrid, theta
     use kt_grids, only: naky, ntheta0, aky, theta0
     use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
          il_is_trapped, il_is_wfb
@@ -2233,13 +2233,11 @@ contains
     integer :: iglo_left, iglo_right, i, j, k
     integer :: iglo_star, it_star, ncell
     integer :: n, n_h, n_links_max, nn_max
-    integer :: ng
     integer, dimension(naky*ntheta0) :: n_k
     logical :: has_trapped_particles
     if (connectinit) return
     connectinit = .true.
 
-    ng = ntheta/2 + (nperiod-1)*ntheta
     has_trapped_particles = grid_has_trapped_particles()
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
@@ -2248,9 +2246,9 @@ contains
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
     if (naky > 1 .and. ntheta0 > 1) then
-       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)))
+       jshift0 = nint((theta(ntgrid)-theta(-ntgrid))/(theta0(2,2)-theta0(1,2)))
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
-       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,1)-theta0(1,1)))
+       jshift0 = nint((theta(ntgrid)-theta(-ntgrid))/(theta0(2,1)-theta0(1,1)))
     else
        jshift0 = 1
     end if
