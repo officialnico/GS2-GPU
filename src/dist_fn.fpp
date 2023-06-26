@@ -2213,6 +2213,45 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_source_term
 
+  !> Compute the spacing in kx indices between connected kx domains
+  !> (cells) for the lowest non-zonal ky.
+  pure integer function compute_jshift0 result(jshift0)
+    use theta_grid, only: ntgrid, theta
+    use kt_grids, only: naky, ntheta0, theta0, aky
+    use mp, only: mp_abort
+    implicit none
+    real :: theta_extent, theta0_spacing
+
+    ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
+    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
+    ! parallel segment to the next to satisfy the twist and shift
+    ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
+
+    theta_extent = theta(ntgrid) - theta(-ntgrid)
+    if (naky > 1 .and. ntheta0 > 1) then
+       theta0_spacing = theta0(2, 2) - theta0(1, 2)
+    else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
+       ! Not clear we _ever_ get here as box mode usually requires
+       ! aky(1) == 0. One could imagine potentially using linked boundary
+       ! conditions and kt_grids_range to end up here.
+       theta0_spacing = theta0(2, 1) - theta0(1, 1)
+    else
+       ! Not possible to work out a theta0 spacing here
+       ! so just set up such that jshift0 == 1
+       theta0_spacing = theta_extent
+    end if
+
+    ! Work out how many theta0 "grid points" we must step over
+    ! to travel a distance equiavlent from one end of a cell
+    ! to the other end.
+    jshift0 = nint(theta_extent/theta0_spacing)
+
+    ! Sanity check the setup.
+    if (abs(jshift0 * theta0_spacing - theta_extent) > 100*epsilon(0.0)) then
+       call mp_abort('Calculation of jshift0 indicates inconsistent grids.', .true.)
+    end if
+  end function compute_jshift0
+
   !> For the passed jshift0 value determine the it (kx) indices to
   !> the left and right of each {it, ik} index pair. Used to construct
   !> the connected boundary conditions.
@@ -2286,7 +2325,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_connected_bc
-    use theta_grid, only: ntgrid, theta
+    use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0, aky, theta0
     use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
          il_is_trapped, il_is_wfb
@@ -2306,40 +2345,13 @@ contains
     integer :: n, n_h, n_links_max, nn_max
     integer, dimension(naky*ntheta0) :: n_k
     logical :: has_trapped_particles
-    real :: theta_extent, theta0_spacing
     if (connectinit) return
     connectinit = .true.
 
     has_trapped_particles = grid_has_trapped_particles()
 
-    ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
-    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
-    ! parallel segment to the next to satisfy the twist and shift
-    ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
-
-    theta_extent = theta(ntgrid) - theta(-ntgrid)
-    if (naky > 1 .and. ntheta0 > 1) then
-       theta0_spacing = theta0(2, 2) - theta0(1, 2)
-    else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
-       ! Not clear we _ever_ get here as box mode usually requires
-       ! aky(1) == 0. One could imagine potentially using linked boundary
-       ! conditions and kt_grids_range to end up here.
-       theta0_spacing = theta0(2, 1) - theta0(1, 1)
-    else
-       ! Not possible to work out a theta0 spacing here
-       ! so just set up such that jshift0 == 1
-       theta0_spacing = theta_extent
-    end if
-
-    ! Work out how many theta0 "grid points" we must step over
-    ! to travel a distance equiavlent from one end of a cell
-    ! to the other end.
-    jshift0 = nint(theta_extent/theta0_spacing)
-
-    ! Sanity check the setup.
-    if (abs(jshift0 * theta0_spacing - theta_extent) > 100*epsilon(0.0)) then
-       call mp_abort('Calculation of jshift0 indicates inconsistent grids.', .true.)
-    end if
+    ! Get the kx index spacing between connections
+    jshift0 = compute_jshift0()
 
     allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
     call compute_itleft_and_itright(jshift0, itleft, itright)
