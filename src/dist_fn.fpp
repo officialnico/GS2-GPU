@@ -2265,6 +2265,11 @@ contains
     ! to the other end.
     jshift0 = nint(theta_extent/theta0_spacing)
 
+    ! Sanity check the setup.
+    if (abs(jshift0 * theta0_spacing - theta_extent) > 100*epsilon(0.0)) then
+       call mp_abort('Calculation of jshift0 indicates inconsistent grids.', .true.)
+    end if
+
     allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
     itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
     itright(:, 1) = -1
