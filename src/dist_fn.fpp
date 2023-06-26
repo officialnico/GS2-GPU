@@ -2342,7 +2342,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ik, it, ie, is) &
-    !$OMP SHARED(g_lo, itleft, itright, connections) &
+    !$OMP SHARED(g_lo, itleft, itright, connections, trapped_wfb) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ! get processors and indices for j' (kx') modes connecting
