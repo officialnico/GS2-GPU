@@ -2551,7 +2551,8 @@ contains
        n_links_max = maxval(n_links)
 
        ! wfb
-       if (n_links_max > 0 .and. (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
+       if (n_links_max > 0 .and. &
+            (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
        
 ! now set up communication pattern:
 ! excluding wfb
