@@ -2096,9 +2096,9 @@ contains
        if(def_parity)call init_enforce_parity(parity_redist)
     case default
        if (.not. allocated(l_links)) then
-          allocate (l_links(naky, ntheta0))
-          allocate (r_links(naky, ntheta0))
-          allocate (n_links(2, naky, ntheta0))
+          allocate (l_links(ntheta0, naky))
+          allocate (r_links(ntheta0, naky))
+          allocate (n_links(2, ntheta0, naky))
        end if
        l_links = 0;   r_links = 0;  n_links = 0
        
@@ -2379,23 +2379,23 @@ contains
           endif
        end do
 
-       allocate (l_links(naky, ntheta0))
-       allocate (r_links(naky, ntheta0))
-       allocate (n_links(2, naky, ntheta0))
+       allocate (l_links(ntheta0, naky))
+       allocate (r_links(ntheta0, naky))
+       allocate (n_links(2, ntheta0, naky))
 
        n_links_max = 0
        do it = 1, ntheta0
           do ik = 1, naky
 ! count the links for each region
 ! l_links = number of links to the left
-             l_links(ik, it) = 0
+             l_links(it, ik) = 0
              it_star = it
              do 
                 if (it_star == itleft(ik, it_star)) exit
                 if (itleft(ik, it_star) >= 0) then
-                   l_links(ik, it) = l_links(ik, it) + 1
+                   l_links(it, ik) = l_links(it, ik) + 1
                    it_star = itleft(ik, it_star)
-                   if (l_links(ik, it) > 5000) then
+                   if (l_links(it, ik) > 5000) then
                       call mp_abort('l_links error',.true.)
                    endif
                 else
@@ -2403,35 +2403,35 @@ contains
                 end if
              end do
 ! r_links = number of links to the right
-             r_links(ik, it) = 0
+             r_links(it, ik) = 0
              it_star = it
              do 
                 if (it_star == itright(ik, it_star)) exit
                 if (itright(ik, it_star) >= 0) then
-                   r_links(ik, it) = r_links(ik, it) + 1
+                   r_links(it, ik) = r_links(it, ik) + 1
                    it_star = itright(ik, it_star)
-                   if (r_links(ik, it) > 5000) then
+                   if (r_links(it, ik) > 5000) then
                       call mp_abort('r_links error',.true.)
                    endif
                 else
                    exit
                 end if
              end do
-! 'n_links' complex numbers are needed to specify bc for (ik, it) region
+! 'n_links' complex numbers are needed to specify bc for (it, ik) region
 ! ignoring wfb
 ! n_links(1,:,:) is for v_par > 0, etc.
-             if (l_links(ik, it) == 0) then
-                n_links(1, ik, it) = 0
+             if (l_links(it, ik) == 0) then
+                n_links(1, it, ik) = 0
              else 
-                n_links(1, ik, it) = 2*l_links(ik, it) - 1
+                n_links(1, it, ik) = 2*l_links(it, ik) - 1
              end if
 
-             if (r_links(ik, it) == 0) then
-                n_links(2, ik, it) = 0
+             if (r_links(it, ik) == 0) then
+                n_links(2, it, ik) = 0
              else 
-                n_links(2, ik, it) = 2*r_links(ik, it) - 1
+                n_links(2, it, ik) = 2*r_links(it, ik) - 1
              end if
-             n_links_max = max(n_links_max, n_links(1,ik,it), n_links(2,ik,it))
+             n_links_max = max(n_links_max, n_links(1, it, ik), n_links(2, it, ik))
           end do
        end do
 ! wfb
@@ -2475,13 +2475,13 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
-          ncell = r_links(ik, it) + l_links(ik, it) + 1
+          ncell = r_links(it, ik) + l_links(it, ik) + 1
           if (ncell == 1) cycle
 
           ip = proc_id(g_lo,iglo)
 
           iglo_star = iglo
-          do j = 1, r_links(ik, it)
+          do j = 1, r_links(it, ik)
              call get_right_connection (iglo_star, iglo_right, ipright)
 ! sender
              if (ip == iproc) nn_from(ipright) = nn_from(ipright) + 1
@@ -2491,14 +2491,14 @@ contains
              iglo_star = iglo_right
 
              !Special counting for links_h
-             if(l_links(ik,it)>0) then
+             if(l_links(it, ik)>0) then
                 if (ip == iproc) nn_from_h(ipright) = nn_from_h(ipright) + 1
                 if (ipright == iproc) nn_to_h(ip) = nn_to_h(ip) + 1
              endif
           end do
              
           iglo_star = iglo
-          do j = 1, l_links(ik, it)
+          do j = 1, l_links(it, ik)
              call get_left_connection (iglo_star, iglo_left, ipleft)
 ! sender
              if (ip == iproc) nn_from(ipleft) = nn_from(ipleft) + 1
@@ -2508,7 +2508,7 @@ contains
              iglo_star = iglo_left
 
              !Special counting for links_h
-             if(r_links(ik,it)>0) then
+             if(r_links(it, ik)>0) then
                 if (ip == iproc) nn_from_h(ipleft) = nn_from_h(ipleft) + 1
                 if (ipleft == iproc) nn_to_h(ip) = nn_to_h(ip) + 1
              endif             
@@ -2564,13 +2564,13 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
-          ncell = r_links(ik, it) + l_links(ik, it) + 1
+          ncell = r_links(it, ik) + l_links(it, ik) + 1
           if (ncell == 1) cycle
 
           ip = proc_id(g_lo,iglo)          
 
           iglo_star = iglo
-          do j = 1, r_links(ik, it)
+          do j = 1, r_links(it, ik)
              call get_right_connection (iglo_star, iglo_right, ipright)
 ! sender
              if (ip == iproc) then
@@ -2580,7 +2580,7 @@ contains
                 from_p(ipright)%second(n) = 1
                 from_p(ipright)%third(n) = iglo
                 !Special restriction for links_h
-                if(l_links(ik,it)>0)then
+                if(l_links(it, ik)>0)then
                    n_h=nn_from_h(ipright)+1
                    nn_from_h(ipright)=n_h
                    from_h(ipright)%first(n_h) = ntgrid
@@ -2596,10 +2596,10 @@ contains
                 to_p(ip)%second(n) = 1
                 to_p(ip)%third(n) = iglo_right
                 !Special restriction for links_h
-                if(l_links(ik,it)>0)then
+                if(l_links(it, ik)>0)then
                    n_h=nn_to_h(ip)+1
                    nn_to_h(ip)=n_h
-                   to_h(ip)%first(n_h) = 2*l_links(ik,it)+j
+                   to_h(ip)%first(n_h) = 2*l_links(it, ik)+j
                    to_h(ip)%second(n_h) = 1
                    to_h(ip)%third(n_h) = iglo_right
                 endif
@@ -2608,7 +2608,7 @@ contains
           end do
              
           iglo_star = iglo
-          do j = 1, l_links(ik, it)
+          do j = 1, l_links(it, ik)
              call get_left_connection (iglo_star, iglo_left, ipleft)
 ! sender
              if (ip == iproc) then
@@ -2618,7 +2618,7 @@ contains
                 from_p(ipleft)%second(n) = 2
                 from_p(ipleft)%third(n) = iglo
                 !Special restriction for links_h
-                if(r_links(ik,it)>0)then
+                if(r_links(it, ik)>0)then
                    n_h=nn_from_h(ipleft)+1
                    nn_from_h(ipleft)=n_h
                    from_h(ipleft)%first(n_h) = -ntgrid
@@ -2634,10 +2634,10 @@ contains
                 to_p(ip)%second(n) = 2
                 to_p(ip)%third(n) = iglo_left
                 !Special restriction for links_h
-                if(r_links(ik,it)>0)then
+                if(r_links(it, ik)>0)then
                    n_h = nn_to_h(ip) + 1
                    nn_to_h(ip) = n_h
-                   to_h(ip)%first(n_h) = 2*r_links(ik,it)+j 
+                   to_h(ip)%first(n_h) = 2*r_links(it, ik)+j
                    to_h(ip)%second(n_h) = 2
                    to_h(ip)%third(n_h) = iglo_left
                 endif
@@ -2695,7 +2695,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
-          ncell = r_links(ik, it) + l_links(ik, it) + 1
+          ncell = r_links(it, ik) + l_links(it, ik) + 1
           if (ncell == 1) cycle
 
           ip = proc_id(g_lo,iglo)
@@ -2754,7 +2754,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           
-          ncell = r_links(ik, it) + l_links(ik, it) + 1
+          ncell = r_links(it, ik) + l_links(it, ik) + 1
           if (ncell == 1) cycle
 
           ip = proc_id(g_lo,iglo)
@@ -2776,10 +2776,10 @@ contains
              if (ipright == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to_p(ip)%first(n) = r_links(ik, it) + 1
+                to_p(ip)%first(n) = r_links(it, ik) + 1
                 to_p(ip)%second(n) = 1
                 to_p(ip)%third(n) = iglo_star
-                to_h(ip)%first(n) = 2*ncell-r_links(ik,it)
+                to_h(ip)%first(n) = 2*ncell-r_links(it, ik)
                 to_h(ip)%second(n) = 1
                 to_h(ip)%third(n) = iglo_star
              end if
@@ -2802,10 +2802,10 @@ contains
              if (ipleft == iproc) then
                 n = nn_to(ip) + 1
                 nn_to(ip) = n
-                to_p(ip)%first(n) = l_links(ik, it) + 1
+                to_p(ip)%first(n) = l_links(it, ik) + 1
                 to_p(ip)%second(n) = 2
                 to_p(ip)%third(n) = iglo_star
-                to_h(ip)%first(n) = 2*ncell-l_links(ik, it)
+                to_h(ip)%first(n) = 2*ncell-l_links(it, ik)
                 to_h(ip)%second(n) = 2
                 to_h(ip)%third(n) = iglo_star
              end if
@@ -2856,7 +2856,7 @@ contains
        k = 1
        do it = 1, ntheta0
           do ik = 1, naky
-             n_k(k) = 1 + l_links(ik, it) + r_links(ik, it)
+             n_k(k) = 1 + l_links(it, ik) + r_links(it, ik)
              k = k + 1
           end do
        end do
@@ -4042,14 +4042,14 @@ contains
     tmp=iglo
     
     !Now check number of links
-    if(l_links(ik,it).eq.r_links(ik,it))then
+    if(l_links(it, ik).eq.r_links(it, ik))then
        !If in the middle of the domain then iglo doesn't change
        !Just get the proc id
        iproc_conn=proc_id(g_lo,iglo)
        iglo_conn=tmp
-    elseif(l_links(ik,it).gt.r_links(ik,it))then
+    elseif(l_links(it, ik).gt.r_links(it, ik))then
        !If we're on the right then look left
-       do link=1,l_links(ik,it)
+       do link=1,l_links(it, ik)
           !Get the next connected domain
           call get_left_connection(tmp,iglo_conn,iproc_conn)
 
@@ -4060,11 +4060,11 @@ contains
           tmp=iglo_conn
 
           !If the number of right links now matches the left then we've got the match
-          if(r_links(ik,it_conn).eq.l_links(ik,it)) exit
+          if(r_links(it_conn, ik).eq.l_links(it, ik)) exit
        enddo
     else
        !If we're on the left then look right
-       do link=1,r_links(ik,it)
+       do link=1,r_links(it, ik)
           !Get the next connected domain
           call get_right_connection(tmp,iglo_conn,iproc_conn)
 
@@ -4075,7 +4075,7 @@ contains
           tmp=iglo_conn
 
           !If the number of left links now matches the right then we've got the match
-          if(l_links(ik,it_conn).eq.r_links(ik,it)) exit
+          if(l_links(it_conn, ik).eq.r_links(it, ik)) exit
        enddo
     endif
   end subroutine get_parity_conn
@@ -4892,7 +4892,7 @@ contains
           if (is_passing .or. (is_wfb .and. passing_wfb) ) then
              !Only apply the new boundary condition to the leftmost
              !cell for sign going from left to right
-             if (l_links(ik,it) .eq. 0) then
+             if (l_links(it, ik) .eq. 0) then
                 adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
                      *bparnew(-ntgrid,it,ik)*fbpar &
                      + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
@@ -4901,7 +4901,7 @@ contains
              end if
              !Only apply the new boundary condition to the rightmost
              !cell for sign going from right to left
-             if (r_links(ik,it) .eq. 0) then
+             if (r_links(it, ik) .eq. 0) then
                 adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
                      *bparnew(ntgrid,it,ik)*fbpar &
                      + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
@@ -5157,7 +5157,7 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
 
-          ncell = r_links(ik, it) + l_links(ik, it) + 1
+          ncell = r_links(it, ik) + l_links(it, ik) + 1
           if (ncell == 1) cycle
           
           il = il_idx(g_lo,iglo)
@@ -5239,7 +5239,7 @@ contains
 ! Solve matrix BC equation by cascading homog amplitude, b0, rightwards 
 !        from leftmost cell to THIS cell.
 
-                do i = 1, l_links(ik, it)
+                do i = 1, l_links(it, ik)
 !  Loop implements cascade to right, using CMR note equ'n:  
 !           a^r_{j+1} = a^r_j h^r_j + i^r_j 
 
@@ -5270,7 +5270,7 @@ contains
                 end do
                 b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
 
-                do i = 1, r_links(ik, it)
+                do i = 1, r_links(it, ik)
                    b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
                 end do
                 
@@ -5283,9 +5283,9 @@ contains
 ! cells, and for which the bounce point is not at theta=pi.
 !
              if (save_h(1, iglo)) then
-                n = n_links(1, ik, it)
+                n = n_links(1, it, ik)
                 b0 = 0.0
-                do i = 1, l_links(ik, it)
+                do i = 1, l_links(it, ik)
                    fac = 1.0
                    do j = 1, i-1
                       fac = fac * g_adj(n+1-j, 1, iglo)
@@ -5297,9 +5297,9 @@ contains
              end if
 
              if (save_h(2, iglo)) then
-                n = n_links(2, ik, it)
+                n = n_links(2, it, ik)
                 b0 = 0.0
-                do i = 1, r_links(ik, it)
+                do i = 1, r_links(it, ik)
                    fac = 1.0
                    do j = 1, i-1
                       fac = fac * g_adj(n+1-j, 2, iglo)

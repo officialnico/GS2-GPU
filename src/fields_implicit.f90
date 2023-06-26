@@ -1179,7 +1179,7 @@ contains
 !
 ! Get size of this supercell
 !
-    nn = 1 + l_links(ik,it) + r_links(ik,it)
+    nn = 1 + l_links(it, ik) + r_links(it, ik)
 !
 ! Find i = N_class**-1(nn)
 !
@@ -1199,7 +1199,7 @@ contains
 ! 
 ! Get position in this supercell, counting from the left
 !
-    n = 1 + l_links(ik, it)
+    n = 1 + l_links(it, ik)
 
   end subroutine kt2ki
 
