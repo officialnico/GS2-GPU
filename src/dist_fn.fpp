@@ -2521,8 +2521,8 @@ contains
 
     ! First count number of linked cells for each (kx, ky)
     k = 1
-    do it = 1, ntheta0
-       do ik = 1, naky
+    do ik = 1, naky
+       do it = 1, ntheta0
           n_k(k) = 1 + l_links(it, ik) + r_links(it, ik)
           k = k + 1
        end do
