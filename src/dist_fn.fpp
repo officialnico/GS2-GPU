@@ -2390,15 +2390,19 @@ contains
   end subroutine compute_connnections
 
   !> Set the save_h flag based on connections data
-  subroutine set_save_h(connnections, save_h)
+  subroutine set_save_h(connections, save_h)
     use gs2_layouts, only: g_lo, il_idx, ik_idx
     use kt_grids, only: aky
     use le_grids, only: il_is_wfb, passing_wfb
     implicit none
-    type(connections_type), dimension(g_lo%llim_proc:), intent(in) :: connnections
+    type(connections_type), dimension(g_lo%llim_proc:), intent(in) :: connections
     logical, dimension(:, g_lo%llim_proc:), intent(out) :: save_h
     integer :: iglo, ik, il
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, il) &
+    !$OMP SHARED(g_lo, connections, aky, save_h, wfb_cmr, passing_wfb) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
@@ -2425,8 +2429,9 @@ contains
                   aky(ik) /= 0.0) &
                   save_h (:,iglo) = .true.
           end if
-       endif
+       end if
     end do
+    !$OMP END PARALLEL DO
   end subroutine set_save_h
 
   !> FIXME : Add documentation
