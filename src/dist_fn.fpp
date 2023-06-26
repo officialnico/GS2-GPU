@@ -2093,7 +2093,6 @@ contains
   !> FIXME : Add documentation  
   subroutine init_bc
     use kt_grids, only: naky, ntheta0
-    use array_utils, only: zero_array
     implicit none
 
     if (.not. allocated(l_links)) then
@@ -2101,9 +2100,7 @@ contains
        allocate (r_links(ntheta0, naky))
        allocate (n_links(2, ntheta0, naky))
     end if
-    call zero_array(l_links)
-    call zero_array(r_links)
-    call zero_array(n_links)
+    l_links = 0. ; r_links = 0. ; n_links = 0.
 
     select case (boundary_option_switch)
     case (boundary_option_linked)
