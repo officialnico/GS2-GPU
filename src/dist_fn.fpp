@@ -2510,6 +2510,7 @@ contains
   subroutine setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
     use kt_grids, only: naky, ntheta0
     use mp, only: mp_abort, iproc
+    use sorting, only: quicksort
     implicit none
     integer, dimension(:, :), intent(in) :: l_links, r_links
     integer, dimension(:), allocatable, intent(out) :: M_class, N_class
@@ -2531,15 +2532,7 @@ contains
     ! of classes.
 
     ! Sort:
-    do j = 1, naky*ntheta0-1
-       do k = 1, naky*ntheta0-1
-          if (n_k(k+1) < n_k(k)) then
-             i = n_k(k)
-             n_k(k) = n_k(k+1)
-             n_k(k+1) = i
-          end if
-       end do
-    end do
+    call quicksort(naky*ntheta0, n_k)
 
     ! Then count:
     i_class = 1
