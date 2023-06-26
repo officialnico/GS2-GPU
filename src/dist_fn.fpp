@@ -2270,6 +2270,11 @@ contains
     itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
     itright(:, 1) = -1
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, it, it0, itl, itr) &
+    !$OMP SHARED(naky, ntheta0, aky, jshift0, itleft, itright) &
+    !$OMP COLLAPSE(2) &
+    !$OMP SCHEDULE(static)
     do ik = 1, naky
        do it = 1, ntheta0
           if (it > (ntheta0+1)/2) then
@@ -2320,7 +2325,7 @@ contains
           end if
        end do
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine compute_itleft_and_itright
 
   !> FIXME : Add documentation
