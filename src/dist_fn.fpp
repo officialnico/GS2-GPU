@@ -2502,6 +2502,88 @@ contains
 
   end subroutine count_links
 
+  !> Setup the fields implicit arrays M_class and N_class.
+  !> These are:
+  !> i_class  : number of classes (sizes of supercell)
+  !> N_class(i) = number of linked cells for i_th class (Size of supercell)
+  ! M_class(i) = number of members in i_th class (How many supercells of this size)
+  subroutine setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
+    use kt_grids, only: naky, ntheta0
+    use mp, only: mp_abort, iproc
+    implicit none
+    integer, dimension(:, :), intent(in) :: l_links, r_links
+    integer, dimension(:), allocatable, intent(out) :: M_class, N_class
+    integer, intent(out) :: i_class
+    integer, dimension(naky*ntheta0) :: n_k
+    integer :: k, it, ik, i, j
+    ! Now set up class arrays for the implicit fields
+
+    ! First count number of linked cells for each (kx, ky)
+    k = 1
+    do it = 1, ntheta0
+       do ik = 1, naky
+          n_k(k) = 1 + l_links(it, ik) + r_links(it, ik)
+          k = k + 1
+       end do
+    end do
+
+    ! Count how many unique values of n_k there are.  This is the number
+    ! of classes.
+
+    ! Sort:
+    do j = 1, naky*ntheta0-1
+       do k = 1, naky*ntheta0-1
+          if (n_k(k+1) < n_k(k)) then
+             i = n_k(k)
+             n_k(k) = n_k(k+1)
+             n_k(k+1) = i
+          end if
+       end do
+    end do
+
+    ! Then count:
+    i_class = 1
+    do k = 1, naky*ntheta0-1
+       if (n_k(k) == n_k(k+1)) cycle
+       i_class = i_class + 1
+    end do
+
+    ! Allocate M, N:
+    allocate (M_class(i_class))
+    allocate (N_class(i_class))
+
+    ! Initial values
+    M_class = 1 ; N_class = 0
+
+    ! Fill M, N arrays:
+    j = 1
+    do k = 2, naky*ntheta0
+       if (n_k(k) == n_k(k-1)) then
+          M_class(j) = M_class(j) + 1
+       else
+          N_class(j) = n_k(k-1)
+          M_class(j) = M_class(j)/N_class(j)
+          j = j + 1
+       end if
+    end do
+    j = i_class
+    N_class(j) = n_k(naky*ntheta0)
+    M_class(j) = M_class(j)/N_class(j)
+
+    ! Check for consistency:
+
+    ! j is number of linked cells in class structure
+    j = 0
+    do i = 1, i_class
+       j = j + N_class(i)*M_class(i)
+    end do
+
+    if (j /= naky*ntheta0) then
+       write(*,*) 'PE ',iproc,'has j= ',j,' k= ',naky*ntheta0,' : Stopping'
+       call mp_abort('problem with connnected bc')
+    end if
+  end subroutine setup_fields_implicit_class_arrays
+
   !> FIXME : Add documentation
   subroutine init_connected_bc
     use theta_grid, only: ntgrid
@@ -2522,7 +2604,6 @@ contains
     integer :: iglo_left, iglo_right, i, j, k
     integer :: iglo_star, it_star, ncell
     integer :: n, n_h, n_links_max, nn_max
-    integer, dimension(naky*ntheta0) :: n_k
     logical :: has_trapped_particles
     if (connectinit) return
     connectinit = .true.
@@ -2962,77 +3043,11 @@ contains
 !End of linked comms setup
 !################################
 
-200    continue
+200 continue
 
-! Now set up class arrays for the implicit fields 
-! i_class classes
-! N_class(i) = number of linked cells for i_th class 
-! M_class(i) = number of members in i_th class
-
-! First count number of linked cells for each (kx, ky) 
-       k = 1
-       do it = 1, ntheta0
-          do ik = 1, naky
-             n_k(k) = 1 + l_links(it, ik) + r_links(it, ik)
-             k = k + 1
-          end do
-       end do
-
-! Count how many unique values of n_k there are.  This is the number 
-! of classes.
-
-! Sort: 
-       do j = 1, naky*ntheta0-1
-          do k = 1, naky*ntheta0-1                       
-             if (n_k(k+1) < n_k(k)) then
-                i = n_k(k)
-                n_k(k) = n_k(k+1)
-                n_k(k+1) = i
-             end if
-          end do
-       end do
-
-! Then count:
-       i_class = 1
-       do k = 1, naky*ntheta0-1
-          if (n_k(k) == n_k(k+1)) cycle
-          i_class = i_class + 1
-       end do
-
-! Allocate M, N:
-       allocate (M_class(i_class))
-       allocate (N_class(i_class))
-
-! Initial values
-       M_class = 1 ; N_class = 0
-
-! Fill M, N arrays: 
-       j = 1
-       do k = 2, naky*ntheta0
-          if (n_k(k) == n_k(k-1)) then
-             M_class(j) = M_class(j) + 1
-          else 
-             N_class(j) = n_k(k-1)
-             M_class(j) = M_class(j)/N_class(j)
-             j = j + 1
-          end if
-       end do       
-       j = i_class
-       N_class(j) = n_k(naky*ntheta0)
-       M_class(j) = M_class(j)/N_class(j)
-
-! Check for consistency:
-       
-! j is number of linked cells in class structure
-       j = 0
-       do i = 1, i_class
-          j = j + N_class(i)*M_class(i)
-       end do
-
-       if (j /= naky*ntheta0) then
-          write(*,*) 'PE ',iproc,'has j= ',j,' k= ',naky*ntheta0,' : Stopping'
-          call mp_abort('problem with connnected bc')
-       end if
+    ! Could we move this call to init_bc? Would have to check that it returns
+    ! the expected values when l_links = r_links = 0
+    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
     end if
 
