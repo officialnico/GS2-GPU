@@ -202,10 +202,14 @@ module dist_fn
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
+  !> A type to record information about connections between iglo points
+  !> Store the iglo and iproc indices for connections to the left and
+  !> right of a given point.
+  !> Initialised to no connections, indicated by negative values
   type :: connections_type
-     integer :: iproc_left,  iglo_left
-     integer :: iproc_right, iglo_right
-     logical :: neighbor
+     integer :: iproc_left = -1,  iglo_left = -1
+     integer :: iproc_right = -1, iglo_right = -1
+     logical :: neighbor = .false.
   end type connections_type
 
   type (connections_type), dimension (:), allocatable, save :: connections
@@ -2340,6 +2344,9 @@ contains
     type(connections_type), dimension(g_lo%llim_proc:), intent(out) :: connections
     integer :: iglo, il, ik, it, ie, is, iglo_connection
 
+    ! Note connections_type have initial values reflecting no connections
+    ! so we don't need to explicitly populate every instance.
+
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ik, it, ie, is, iglo_connection) &
     !$OMP SHARED(g_lo, itleft, itright, connections, trapped_wfb) &
@@ -2347,13 +2354,6 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ! get processors and indices for j' (kx') modes connecting
        ! to mode j (kx) so we can set up communication -- MAB
-
-       ! Initialise to no connections, indicated by negative values
-       connections(iglo)%iproc_left = -1
-       connections(iglo)%iglo_left = -1
-       connections(iglo)%iproc_right = -1
-       connections(iglo)%iglo_right = -1
-       connections(iglo)%neighbor = .false.
 
        il = il_idx(g_lo,iglo)
 
