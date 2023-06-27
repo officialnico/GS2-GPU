@@ -5306,9 +5306,13 @@ contains
        !update (i.e. what we do below) in a parallel manner, so the below code would
        !become partially serial.
        call fill (links_p, gnew, g_adj)
+       ! We probably don't need to do this each step as the homogeneous
+       ! solution is now cached.
        call fill (links_h, g_h, g_adj)
        if( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
           call fill (wfb_p, gnew, g_adj)
+          ! We probably don't need to do this each step as the homogeneous
+          ! solution is now cached.
           call fill (wfb_h, g_h, g_adj)
        endif
 
