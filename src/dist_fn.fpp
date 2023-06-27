@@ -2338,10 +2338,10 @@ contains
     implicit none
     integer, dimension(:, :), intent(in) :: itleft, itright
     type(connections_type), dimension(g_lo%llim_proc:), intent(out) :: connections
-    integer :: iglo, il, ik, it, ie, is
+    integer :: iglo, il, ik, it, ie, is, iglo_connection
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, il, ik, it, ie, is) &
+    !$OMP PRIVATE(iglo, il, ik, it, ie, is, iglo_connection) &
     !$OMP SHARED(g_lo, itleft, itright, connections, trapped_wfb) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2371,18 +2371,20 @@ contains
        is = is_idx(g_lo,iglo)
 
        if (itleft(it, ik) >= 0) then
+          iglo_connection = idx(g_lo, ik, itleft(it, ik), il, ie, is)
           connections(iglo)%iproc_left &
-               = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
+               = proc_id(g_lo, iglo_connection)
           connections(iglo)%iglo_left &
-               = idx(g_lo,ik,itleft(it, ik),il,ie,is)
+               = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
 
        if (itright(it, ik) >= 0) then
+          iglo_connection = idx(g_lo, ik, itright(it, ik), il, ie, is)
           connections(iglo)%iproc_right &
-               = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
+               = proc_id(g_lo, iglo_connection)
           connections(iglo)%iglo_right &
-               = idx(g_lo,ik,itright(it, ik),il,ie,is)
+               = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
     end do
