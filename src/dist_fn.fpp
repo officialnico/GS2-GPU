@@ -2623,6 +2623,12 @@ contains
     ! local g_lo range. We may be better off writing this as an explicit loop over
     ! the xyles dimensions with yles range being set my the min/max that this
     ! processor sees. For now we can just get the indices and cycle.
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ik, ie, is, it, ip, ncell, iglo_star, iglo_right, &
+    !$OMP ipright, iglo_left, ipleft, j) &
+    !$OMP SHARED(g_lo, iproc, r_links, l_links, passing_wfb) &
+    !$OMP REDUCTION(+: nn_to, nn_from, nn_to_h, nn_from_h) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !CMR, 20/10/2013:
        !     Communicate pattern sends passing particles to downwind linked cells
@@ -2685,8 +2691,8 @@ contains
              if (ipleft == iproc) nn_to_h(ip) = nn_to_h(ip) + 1
           endif
        end do
-
     end do
+    !$OMP END PARALLEL DO
 
     ! Check if we have any communication to to do or not
     nn_max = maxval(nn_to)
@@ -2883,6 +2889,12 @@ contains
     ! local g_lo range. We may be better off writing this as an explicit loop over
     ! the xyles dimensions with yles range being set my the min/max that this
     ! processor sees. For now we can just get the indices and cycle.
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ik, ie, is, it, ncell, ip, iglo_right, iglo_left, &
+    !$OMP ipleft, j, ipright, iglo_star) &
+    !$OMP SHARED(g_lo, iproc, l_links, r_links) &
+    !$OMP REDUCTION(+: nn_to, nn_from) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !CMR, 20/10/2013:
        !     Communicate pattern sends wfb endpoint to ALL linked cells
@@ -2937,6 +2949,7 @@ contains
           iglo_star=iglo_left
        end do
     end do
+    !$OMP END PARALLEL DO
 
     do ip = 0, nproc-1
        if (nn_from(ip) > 0) then
