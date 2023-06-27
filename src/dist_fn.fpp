@@ -3023,7 +3023,10 @@ contains
     call delete_list (to_h)
   end subroutine setup_connected_bc_redistribute_mixed_wfb
 
-  !> FIXME : Add documentation
+  !> Coordinates the calculation of all data required for later application
+  !> of linked boundary conditions. Deals with identifying the communication
+  !> pattern and creating the associated redistributes used to perform the
+  !> required communication.
   subroutine init_connected_bc
     use kt_grids, only: naky, ntheta0
     use le_grids, only: passing_wfb, trapped_wfb
@@ -3058,9 +3061,8 @@ contains
     call count_links(itleft, itright, l_links, r_links, n_links)
     n_links_max = maxval(n_links)
 
-    ! wfb
-    if (n_links_max > 0 .and. &
-         (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
+    ! wfb -- mixed treatment requires some extra links to be communicated
+    if (n_links_max > 0 .and. mixed_wfb) n_links_max = n_links_max + 3
 
     ! now set up communication pattern:
     ! excluding wfb
