@@ -2588,7 +2588,7 @@ contains
   !> passing particles, including the wfb _if_ passing_wfb is true.
   subroutine setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
        links_p, links_h, no_comm)
-    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id
+    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx
     use le_grids, only: il_is_passing, il_is_wfb, passing_wfb
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
     use mp, only: nproc, max_allreduce, iproc
@@ -2602,7 +2602,7 @@ contains
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
-    integer :: iglo_right, ipright, iglo_left, ipleft
+    integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
     no_comm = .false.
     !<DD>Note the communications setup here are often equivalent to an all-to-all type
@@ -2618,6 +2618,11 @@ contains
     nn_to_h = 0
     nn_from_h = 0
 
+    ! Whilst we loop over the entire domain here, we should not have any work
+    ! to do for ik, ie, is and il indices which do not belong to this processor's
+    ! local g_lo range. We may be better off writing this as an explicit loop over
+    ! the xyles dimensions with yles range being set my the min/max that this
+    ! processor sees. For now we can just get the indices and cycle.
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !CMR, 20/10/2013:
        !     Communicate pattern sends passing particles to downwind linked cells
@@ -2627,13 +2632,21 @@ contains
        !                         (nb j=1 is nearest connection)
 
        il = il_idx(g_lo,iglo)
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
 
        ! Exclude trapped particles (inc wfb if it is not passing)
        if (.not. (il_is_passing(il) .or. (il_is_wfb(il) .and. passing_wfb))) cycle
 
        ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
 
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
 
@@ -2715,12 +2728,21 @@ contains
     do iglo = g_lo%llim_world, g_lo%ulim_world
 
        il = il_idx(g_lo,iglo)
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
+
        ! Exclude trapped particles (inc wfb if it is not passing)
        if (.not. (il_is_passing(il) .or. (il_is_wfb(il) .and. passing_wfb))) cycle
 
        ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
 
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
 
@@ -2837,7 +2859,7 @@ contains
   !> This is the default.
   subroutine setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
        wfb_p, wfb_h)
-    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id
+    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx
     use le_grids, only: il_is_wfb
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
     use theta_grid, only: ntgrid
@@ -2850,12 +2872,17 @@ contains
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
-    integer :: iglo_right, ipright, iglo_left, ipleft
+    integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
     nn_to = 0
     nn_from = 0
 
     !NOTE: No special restriction/counting for wfb_h unlike links_h
+    ! Whilst we loop over the entire domain here, we should not have any work
+    ! to do for ik, ie, is and il indices which do not belong to this processor's
+    ! local g_lo range. We may be better off writing this as an explicit loop over
+    ! the xyles dimensions with yles range being set my the min/max that this
+    ! processor sees. For now we can just get the indices and cycle.
     do iglo = g_lo%llim_world, g_lo%ulim_world
        !CMR, 20/10/2013:
        !     Communicate pattern sends wfb endpoint to ALL linked cells
@@ -2867,10 +2894,18 @@ contains
 
        il = il_idx(g_lo,iglo)
        if (.not. il_is_wfb(il)) cycle
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
 
        ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
 
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
 
@@ -2926,10 +2961,18 @@ contains
 
        il = il_idx(g_lo,iglo)
        if (.not. il_is_wfb(il)) cycle
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
 
        ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
 
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
 
