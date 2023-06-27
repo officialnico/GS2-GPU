@@ -2442,10 +2442,10 @@ contains
     integer, dimension(:, :), intent(in) :: it_connections
     !> Links is the number of links to the left or right
     integer, dimension(:, :), intent(out) :: links
-    integer :: it, ik, it_star
+    integer :: it, ik, it_star, it_star_next
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik, it, it_star) &
+    !$OMP PRIVATE(ik, it, it_star, it_star_next) &
     !$OMP SHARED(naky, ntheta0, links, it_connections) &
     !$OMP COLLAPSE(2) &
     !$OMP SCHEDULE(static)
@@ -2453,18 +2453,18 @@ contains
        do it = 1, ntheta0
           links(it, ik) = 0
           it_star = it
-          do
-             if (it_star == it_connections(it_star, ik)) exit
-             if (it_connections(it_star, ik) >= 0) then
-                links(it, ik) = links(it, ik) + 1
-                it_star = it_connections(it_star, ik)
-                if (links(it, ik) > max_allowed_links) then
-                   call mp_abort('links error',.true.)
-                endif
-             else
-                exit
-             end if
-          end do
+          loop_over_connections: do
+             it_star_next = it_connections(it_star, ik)
+             ! If connected to self (periodic) exit
+             if (it_star == it_star_next) exit loop_over_connections
+             ! If no more connections exit
+             if (it_star_next < 0) exit loop_over_connections
+             links(it, ik) = links(it, ik) + 1
+             it_star = it_star_next
+             if (links(it, ik) > max_allowed_links) then
+                call mp_abort('links error',.true.)
+             endif
+          end do loop_over_connections
        end do
     end do
     !$OMP END PARALLEL DO
