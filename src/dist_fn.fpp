@@ -2502,18 +2502,19 @@ contains
 
   end subroutine count_links
 
-  !> Setup the fields implicit arrays M_class and N_class.
-  !> These are:
-  !> i_class  : number of classes (sizes of supercell)
-  !> N_class(i) = number of linked cells for i_th class (Size of supercell)
-  ! M_class(i) = number of members in i_th class (How many supercells of this size)
+  !> Count the number of unique supercell sizes and setup the fields
+  !> implicit arrays M_class and N_class.
   subroutine setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
     use kt_grids, only: naky, ntheta0
     use mp, only: mp_abort, iproc
     use sorting, only: quicksort
     implicit none
     integer, dimension(:, :), intent(in) :: l_links, r_links
-    integer, dimension(:), allocatable, intent(out) :: M_class, N_class
+    !> N_class(i) = number of linked cells for i_th class (Size of supercell)
+    integer, dimension(:), allocatable, intent(out) :: N_class
+    !> M_class(i) = number of members in i_th class (How many supercells of this size)
+    integer, dimension(:), allocatable, intent(out) :: M_class
+    !> i_class = number of classes (unique sizes of supercell)
     integer, intent(out) :: i_class
     integer, dimension(naky*ntheta0) :: n_k, N_class_full
     integer :: k, it, ik, i, j
