@@ -2405,10 +2405,8 @@ contains
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
-       if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
-            save_h (1,iglo) = .true.
-       if (connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0) &
-            save_h (2,iglo) = .true.
+       save_h (1, iglo) = connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0
+       save_h (2, iglo) = connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0
 
        il = il_idx(g_lo,iglo)
        if (il_is_wfb(il)) then
