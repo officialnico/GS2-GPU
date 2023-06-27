@@ -3025,29 +3025,18 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_connected_bc
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0, aky, theta0
-    use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
-         il_is_trapped, il_is_wfb
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use gs2_layouts, only: idx, proc_id
-    use mp, only: iproc, nproc, max_allreduce, mp_abort
-    use redistribute, only: index_list_type, init_fill, delete_list
+    use kt_grids, only: naky, ntheta0
+    use le_grids, only: passing_wfb, trapped_wfb
+    use gs2_layouts, only: g_lo
     use array_utils, only: zero_array
     implicit none
-    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
-    integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
-    integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: ik, it, il, ie, is, iglo, it0, itl, itr, jshift0
-    integer :: ip, ipleft, ipright
-    integer :: iglo_left, iglo_right, i, j, k
-    integer :: iglo_star, it_star, ncell
-    integer :: n, n_h, n_links_max, nn_max
-    logical :: has_trapped_particles
+    integer :: jshift0, n_links_max
+    logical :: mixed_wfb
+
     if (connectinit) return
     connectinit = .true.
 
-    has_trapped_particles = grid_has_trapped_particles()
+    mixed_wfb = (.not. passing_wfb) .and. (.not. trapped_wfb)
 
     ! Get the kx index spacing between connections
     jshift0 = compute_jshift0()
@@ -3079,24 +3068,23 @@ contains
        call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
             links_p, links_h, no_comm)
 
-! take care of wfb
-    if ( wfb_cmr .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-       call init_pass_wfb
-    else if ( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
-       call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
-            wfb_p, wfb_h)
-    endif
+       ! take care of wfb
+       if (mixed_wfb) then
+          if (wfb_cmr) then
+             call init_pass_wfb
+          else
+             call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
+                  wfb_p, wfb_h)
+          end if
+       end if
 
-! n_links_max is typically 2 * number of cells in largest supercell
-    allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    call zero_array(g_adj)
-!################################
-!End of linked comms setup
-!################################
+       ! n_links_max is typically 2 * number of cells in largest supercell
+       allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+       call zero_array(g_adj)
 
-    ! Could we move this call to init_bc? Would have to check that it returns
-    ! the expected values when l_links = r_links = 0
-    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
+       ! Could we move this call to init_bc? Would have to check that it returns
+       ! the expected values when l_links = r_links = 0
+       call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
     end if
 
