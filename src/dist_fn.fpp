@@ -3072,6 +3072,8 @@ contains
     ! take care of wfb
     if (mixed_wfb) then
        if (wfb_cmr) then
+          ! Note -- this populates pass_wfb but this is not used. In invert_rhs_linked
+          ! we unconditionally use wfb_p and wfb_h if we have a mixed_wfb treatment.
           call init_pass_wfb
        else
           call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
