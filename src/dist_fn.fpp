@@ -2410,9 +2410,8 @@ contains
 
        il = il_idx(g_lo,iglo)
        if (il_is_wfb(il)) then
-       ! wfb (linked)
+          ! wfb (linked)
           if ( wfb_cmr ) then
-          ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
              save_h(:,iglo) = .false.
           else
              ! MRH below should not occur if we are treating wfb as standard passing
