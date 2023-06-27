@@ -3036,6 +3036,11 @@ contains
     if (connectinit) return
     connectinit = .true.
 
+    ! Skip setup of linked bc data in cases without linked boundaries.
+    ! We might want to remove this check so that we can calculate
+    ! the linked bc data for testing etc.
+    if (boundary_option_switch /= boundary_option_linked) return
+
     mixed_wfb = (.not. passing_wfb) .and. (.not. trapped_wfb)
 
     ! Get the kx index spacing between connections
@@ -3047,46 +3052,38 @@ contains
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
     call compute_connnections(itleft, itright, connections)
 
-    ! Note we can replace this with checking if we're not linked and returning
-    ! to save adding indentation to everything below. Note also that connections
-    ! is only used after checks for boundary_option_linked so we could move
-    ! that into here. Indeed, we only call this routine if boundary_option_switch
-    ! is boundary_option_linked so this check could be considered redundant.
-    if (boundary_option_switch == boundary_option_linked) then
-       allocate (save_h(2, g_lo%llim_proc:g_lo%ulim_alloc))
-       call set_save_h(connections, save_h)
+    allocate (save_h(2, g_lo%llim_proc:g_lo%ulim_alloc))
+    call set_save_h(connections, save_h)
 
-       call count_links(itleft, itright, l_links, r_links, n_links)
-       n_links_max = maxval(n_links)
+    call count_links(itleft, itright, l_links, r_links, n_links)
+    n_links_max = maxval(n_links)
 
-       ! wfb
-       if (n_links_max > 0 .and. &
-            (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
+    ! wfb
+    if (n_links_max > 0 .and. &
+         (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
 
-       ! now set up communication pattern:
-       ! excluding wfb
-       call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-            links_p, links_h, no_comm)
+    ! now set up communication pattern:
+    ! excluding wfb
+    call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
+         links_p, links_h, no_comm)
 
-       ! take care of wfb
-       if (mixed_wfb) then
-          if (wfb_cmr) then
-             call init_pass_wfb
-          else
-             call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
-                  wfb_p, wfb_h)
-          end if
+    ! take care of wfb
+    if (mixed_wfb) then
+       if (wfb_cmr) then
+          call init_pass_wfb
+       else
+          call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
+               wfb_p, wfb_h)
        end if
-
-       ! n_links_max is typically 2 * number of cells in largest supercell
-       allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-       call zero_array(g_adj)
-
-       ! Could we move this call to init_bc? Would have to check that it returns
-       ! the expected values when l_links = r_links = 0
-       call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
-
     end if
+
+    ! n_links_max is typically 2 * number of cells in largest supercell
+    allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    call zero_array(g_adj)
+
+    ! Could we move this call to init_bc? Would have to check that it returns
+    ! the expected values when l_links = r_links = 0
+    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
   end subroutine init_connected_bc
 
