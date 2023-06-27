@@ -2213,52 +2213,68 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_source_term
 
-  !> FIXME : Add documentation
-  subroutine init_connected_bc
-    use theta_grid, only: ntgrid, nperiod, ntheta, theta
-    use kt_grids, only: naky, ntheta0, aky, theta0
-    use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
-         il_is_trapped, il_is_wfb
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use gs2_layouts, only: idx, proc_id
-    use mp, only: iproc, nproc, max_allreduce, mp_abort
-    use redistribute, only: index_list_type, init_fill, delete_list
-    use array_utils, only: zero_array
+  !> Compute the spacing in kx indices between connected kx domains
+  !> (cells) for the lowest non-zonal ky.
+  integer function compute_jshift0() result(jshift0)
+    use theta_grid, only: ntgrid, theta
+    use kt_grids, only: naky, ntheta0, theta0, aky
+    use mp, only: mp_abort
     implicit none
-    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
-    integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
-    integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: ik, it, il, ie, is, iglo, it0, itl, itr, jshift0
-    integer :: ip, ipleft, ipright
-    integer :: iglo_left, iglo_right, i, j, k
-    integer :: iglo_star, it_star, ncell
-    integer :: n, n_h, n_links_max, nn_max
-    integer :: ng
-    integer, dimension(naky*ntheta0) :: n_k
-    logical :: has_trapped_particles
-    if (connectinit) return
-    connectinit = .true.
-
-    ng = ntheta/2 + (nperiod-1)*ntheta
-    has_trapped_particles = grid_has_trapped_particles()
+    real :: theta_extent, theta0_spacing
 
     ! jshift0 corresponds to J (not delta j) from Beer thesis (unsure about +0.01) -- MAB
-    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one 
+    ! delta j is the number of akxs (i.e. theta0s) 'skipped' when connecting one
     ! parallel segment to the next to satisfy the twist and shift
     ! boundary conditions. delta j = (ik - 1) * jshift0 . EGH
 
+    theta_extent = theta(ntgrid) - theta(-ntgrid)
     if (naky > 1 .and. ntheta0 > 1) then
-       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,2)-theta0(1,2)))
+       theta0_spacing = theta0(2, 2) - theta0(1, 2)
     else if (naky == 1 .and. ntheta0 > 1 .and. aky(1) /= 0.0) then
-       jshift0 = nint((theta(ng)-theta(-ng))/(theta0(2,1)-theta0(1,1)))
+       ! Not clear we _ever_ get here as box mode usually requires
+       ! aky(1) == 0. One could imagine potentially using linked boundary
+       ! conditions and kt_grids_range to end up here.
+       theta0_spacing = theta0(2, 1) - theta0(1, 1)
     else
-       jshift0 = 1
+       ! Not possible to work out a theta0 spacing here
+       ! so just set up such that jshift0 == 1
+       theta0_spacing = theta_extent
     end if
-    
-    allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
+
+    ! Work out how many theta0 "grid points" we must step over
+    ! to travel a distance equiavlent from one end of a cell
+    ! to the other end.
+    jshift0 = nint(theta_extent/theta0_spacing)
+
+    ! Sanity check the setup.
+    if (abs(jshift0 * theta0_spacing - theta_extent) > 100*epsilon(0.0)) then
+       call mp_abort('Calculation of jshift0 indicates inconsistent grids.', .true.)
+    end if
+  end function compute_jshift0
+
+  !> For the passed jshift0 value determine the it (kx) indices to
+  !> the left and right of each {it, ik} index pair. Used to construct
+  !> the connected boundary conditions.
+  subroutine compute_itleft_and_itright(jshift0, itleft, itright)
+    use kt_grids, only: naky, ntheta0, aky
+    implicit none
+    integer, intent(in) :: jshift0
+    integer, dimension(:, :), intent(out) :: itleft, itright
+    integer :: ik, it, it0, itl, itr
+
+    ! Note the below appears to assume ik = 1 is always the ky = 0
+    ! mode but this is not consistent with potentially more general
+    ! treatement in the init_connected_bc related code. We also revisit
+    ! ik = 1 in the below loop so this initialisation is likely
+    ! overwritten in all cases.
     itleft(:, 1) = -1 ! No connected segments when ky = 0. EGH
     itright(:, 1) = -1
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, it, it0, itl, itr) &
+    !$OMP SHARED(naky, ntheta0, aky, jshift0, itleft, itright) &
+    !$OMP COLLAPSE(2) &
+    !$OMP SCHEDULE(static)
     do ik = 1, naky
        do it = 1, ntheta0
           if (it > (ntheta0+1)/2) then
@@ -2289,7 +2305,7 @@ contains
           if (itl >= 0 .and. itl < (ntheta0+1)/2) then
              itleft(it, ik) = itl + 1
           else if (itl + ntheta0 + 1 > (ntheta0+1)/2 &
-             .and. itl + ntheta0 + 1 <= ntheta0) then
+               .and. itl + ntheta0 + 1 <= ntheta0) then
              itleft(it, ik) = itl + ntheta0 + 1
           else
              ! for periodic, need to change below -- MAB/BD
@@ -2301,7 +2317,7 @@ contains
           if (itr >= 0 .and. itr < (ntheta0+1)/2) then
              itright(it, ik) = itr + 1
           else if (itr + ntheta0 + 1 > (ntheta0+1)/2 &
-             .and. itr + ntheta0 + 1 <= ntheta0) then
+               .and. itr + ntheta0 + 1 <= ntheta0) then
              itright(it, ik) = itr + ntheta0 + 1
           else
              ! for periodic, need to change below -- MAB/BD
@@ -2309,6 +2325,41 @@ contains
           end if
        end do
     end do
+    !$OMP END PARALLEL DO
+  end subroutine compute_itleft_and_itright
+
+  !> FIXME : Add documentation
+  subroutine init_connected_bc
+    use theta_grid, only: ntgrid
+    use kt_grids, only: naky, ntheta0, aky, theta0
+    use le_grids, only: passing_wfb, trapped_wfb, grid_has_trapped_particles, &
+         il_is_trapped, il_is_wfb
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
+    use gs2_layouts, only: idx, proc_id
+    use mp, only: iproc, nproc, max_allreduce, mp_abort
+    use redistribute, only: index_list_type, init_fill, delete_list
+    use array_utils, only: zero_array
+    implicit none
+    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
+    integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
+    integer, dimension (3) :: to_low, from_low, to_high, from_high
+    integer :: ik, it, il, ie, is, iglo, it0, itl, itr, jshift0
+    integer :: ip, ipleft, ipright
+    integer :: iglo_left, iglo_right, i, j, k
+    integer :: iglo_star, it_star, ncell
+    integer :: n, n_h, n_links_max, nn_max
+    integer, dimension(naky*ntheta0) :: n_k
+    logical :: has_trapped_particles
+    if (connectinit) return
+    connectinit = .true.
+
+    has_trapped_particles = grid_has_trapped_particles()
+
+    ! Get the kx index spacing between connections
+    jshift0 = compute_jshift0()
+
+    allocate (itleft(ntheta0, naky), itright(ntheta0, naky))
+    call compute_itleft_and_itright(jshift0, itleft, itright)
 
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
 
