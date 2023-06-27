@@ -2440,6 +2440,7 @@ contains
     use mp, only: mp_abort
     implicit none
     integer, dimension(:, :), intent(in) :: it_connections
+    !> Links is the number of links to the left or right
     integer, dimension(:, :), intent(out) :: links
     integer :: it, ik, it_star
 
@@ -2450,8 +2451,6 @@ contains
     !$OMP SCHEDULE(static)
     do ik = 1, naky
        do it = 1, ntheta0
-          ! count the links for each region
-          ! links = number of links to the left or right
           links(it, ik) = 0
           it_star = it
           do
