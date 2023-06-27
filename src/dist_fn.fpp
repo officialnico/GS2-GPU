@@ -2372,19 +2372,15 @@ contains
 
        if (itleft(it, ik) >= 0) then
           iglo_connection = idx(g_lo, ik, itleft(it, ik), il, ie, is)
-          connections(iglo)%iproc_left &
-               = proc_id(g_lo, iglo_connection)
-          connections(iglo)%iglo_left &
-               = iglo_connection
+          connections(iglo)%iproc_left = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_left = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
 
        if (itright(it, ik) >= 0) then
           iglo_connection = idx(g_lo, ik, itright(it, ik), il, ie, is)
-          connections(iglo)%iproc_right &
-               = proc_id(g_lo, iglo_connection)
-          connections(iglo)%iglo_right &
-               = iglo_connection
+          connections(iglo)%iproc_right = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_right = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
     end do
