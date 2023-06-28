@@ -1131,7 +1131,7 @@ contains
                       itr = it
                       ! Follow links to the right
                       do n = 2, N_class(i)
-                         itr = itright (ik, itr)
+                         itr = itright (itr, ik)
                          f_lo(i)%ik(m,n) = ik
                          f_lo(i)%it(m,n) = itr
                       end do
@@ -1179,7 +1179,7 @@ contains
 !
 ! Get size of this supercell
 !
-    nn = 1 + l_links(ik,it) + r_links(ik,it)
+    nn = 1 + l_links(it, ik) + r_links(it, ik)
 !
 ! Find i = N_class**-1(nn)
 !
@@ -1199,7 +1199,7 @@ contains
 ! 
 ! Get position in this supercell, counting from the left
 !
-    n = 1 + l_links(ik, it)
+    n = 1 + l_links(it, ik)
 
   end subroutine kt2ki
 
@@ -1391,7 +1391,7 @@ contains
                          !This check is needed to avoid trying to access itright
                          !in non-box simulations where this array is not allocated.
                          if(in_tmp < N_class(ic)) then
-                            it_tmp=itright(ik, it_tmp)
+                            it_tmp=itright(it_tmp, ik)
                          end if
 
                       enddo
@@ -1417,7 +1417,7 @@ contains
                 !This check is needed to avoid trying to access itright
                 !in non-box simulations where this array is not allocated.
                 if(in < N_class(ic)) then
-                   it=itright(ik, it)
+                   it=itright(it, ik)
                 end if
              enddo
           enddo
@@ -1675,7 +1675,7 @@ contains
                          !This check is needed to avoid trying to access itright
                          !in non-box simulations where this array is not allocated.
                          if(in_tmp < N_class(ic)) then
-                            it_tmp=itright(ik, it_tmp)
+                            it_tmp=itright(it_tmp, ik)
                          end if
 
                       enddo
@@ -1689,7 +1689,7 @@ contains
                 !This check is needed to avoid trying to access itright
                 !in non-box simulations where this array is not allocated.
                 if(in < N_class(ic)) then
-                   it=itright(ik, it)
+                   it=itright(it, ik)
                 end if
              enddo
           enddo
@@ -1705,7 +1705,7 @@ contains
                 jflo=ij_idx(jf_lo,ntgrid,ifld,ik,it)
 
                 !Now we get the index of the point which has this data
-                jflo_dup=ij_idx(jf_lo,-ntgrid,ifld,ik,itright(ik,it))
+                jflo_dup=ij_idx(jf_lo,-ntgrid,ifld,ik,itright(it, ik))
 
                 !Now get locality
                 is_local=idx_local(jf_lo,jflo)
@@ -1730,7 +1730,7 @@ contains
              !Increment it -- note we don't need to guard against access to itright
              !here as for non-box runs we won't enter the outer in=1,N_class(ic)-1
              !loop as N_class(ic) == 1
-             it=itright(ik,it)
+             it=itright(it,ik)
           enddo
        end do
        

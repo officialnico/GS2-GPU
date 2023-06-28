@@ -1647,10 +1647,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the right than the left?
                    !If so then it's on the left so set to zero
-                   if (l_links(ik,it) .lt. r_links(ik,it)) then
+                   if (l_links(it, ik) .lt. r_links(it, ik)) then
                       phi(:,it,ik) = 0.0 
                    !This tube is in the middle so only set the left half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(:-1,it,ik) = 0.0
                    endif
                 else
@@ -1660,10 +1660,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the left than the right?
                    !If so then it's on the right so set to zero
-                   if (r_links(ik,it) .lt. l_links(ik,it)) then
+                   if (r_links(it, ik) .lt. l_links(it, ik)) then
                       phi(:,it,ik) = 0.0
                    !This tube is in the middle so only set the right half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(1:,it,ik) = 0.0
                    endif
                 else
@@ -1724,9 +1724,9 @@ contains
           !                         and outgoing particles
           !                      as initial condition sets g(:,1,:) = g(:,2,:) )
           !If no links to the left then we're at the left boundary
-          if ( l_links(ik,it) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
+          if ( l_links(it, ik) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
           !If no links to the right then we're at the right boundary
-          if ( r_links(ik,it) .eq. 0 ) g(ntgrid,1,iglo)=0.0
+          if ( r_links(it, ik) .eq. 0 ) g(ntgrid,1,iglo)=0.0
        endif
     end do
 
