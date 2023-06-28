@@ -2427,6 +2427,73 @@ contains
     !$OMP END PARALLEL DO
   end subroutine set_save_h
 
+  !> Count how many links are to the left/right of each {it,ik} point
+  subroutine count_links_one_side(it_connections, links)
+    use kt_grids, only: ntheta0, naky
+    use mp, only: mp_abort
+    implicit none
+    integer, dimension(:, :), intent(in) :: it_connections
+    !> Links is the number of links to the left or right
+    integer, dimension(:, :), intent(out) :: links
+    integer :: it, ik, it_star, it_star_next
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, it, it_star, it_star_next) &
+    !$OMP SHARED(naky, ntheta0, links, it_connections) &
+    !$OMP COLLAPSE(2) &
+    !$OMP SCHEDULE(static)
+    do ik = 1, naky
+       do it = 1, ntheta0
+          links(it, ik) = 0
+          it_star = it
+          loop_over_connections: do
+             it_star_next = it_connections(it_star, ik)
+             ! If connected to self (periodic) exit
+             if (it_star == it_star_next) exit loop_over_connections
+             ! If no more connections exit
+             if (it_star_next < 0) exit loop_over_connections
+             links(it, ik) = links(it, ik) + 1
+             it_star = it_star_next
+             if (links(it, ik) > max_allowed_links) then
+                call mp_abort('links error',.true.)
+             endif
+          end do loop_over_connections
+       end do
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine count_links_one_side
+
+  !> Count the links to the left and right of each {it, ik} point
+  !> and work out how many values are required to set the bc.
+  subroutine count_links(itleft, itright, l_links, r_links, n_links)
+    implicit none
+    integer, dimension(:, :), intent(in) :: itleft, itright
+    integer, dimension(:, :), intent(out) :: l_links, r_links
+    integer, dimension(:, :, :), intent(out) :: n_links
+
+    ! First count the number of links to the left and right
+    call count_links_one_side(itleft, l_links)
+    call count_links_one_side(itright, r_links)
+
+    ! Then work out the number of values needed for the bc.
+    ! 'n_links' complex numbers are needed to specify bc for (it, ik) region
+    ! ignoring wfb
+    ! n_links(1,:,:) is for v_par > 0, etc.
+
+    where (l_links == 0)
+       n_links(1, :, :) = 0
+    elsewhere
+       n_links(1, :, :) = 2 * l_links - 1
+    end where
+
+    where (r_links == 0)
+       n_links(2, :, :) = 0
+    elsewhere
+       n_links(2, :, :) = 2 * r_links - 1
+    end where
+
+  end subroutine count_links
+
   !> FIXME : Add documentation
   subroutine init_connected_bc
     use theta_grid, only: ntgrid
@@ -2463,63 +2530,21 @@ contains
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
     call compute_connections(itleft, itright, connections)
 
+    ! Note we can replace this with checking if we're not linked and returning
+    ! to save adding indentation to everything below. Note also that connections
+    ! is only used after checks for boundary_option_linked so we could move
+    ! that into here. Indeed, we only call this routine if boundary_option_switch
+    ! is boundary_option_linked so this check could be considered redundant.
     if (boundary_option_switch == boundary_option_linked) then
        allocate (save_h(2, g_lo%llim_proc:g_lo%ulim_alloc))
        call set_save_h(connections, save_h)
 
-       n_links_max = 0
-       do it = 1, ntheta0
-          do ik = 1, naky
-! count the links for each region
-! l_links = number of links to the left
-             l_links(it, ik) = 0
-             it_star = it
-             do 
-                if (it_star == itleft(it_star, ik)) exit
-                if (itleft(it_star, ik) >= 0) then
-                   l_links(it, ik) = l_links(it, ik) + 1
-                   it_star = itleft(it_star, ik)
-                   if (l_links(it, ik) > max_allowed_links) then
-                      call mp_abort('l_links error',.true.)
-                   endif
-                else
-                   exit
-                end if
-             end do
-! r_links = number of links to the right
-             r_links(it, ik) = 0
-             it_star = it
-             do 
-                if (it_star == itright(it_star, ik)) exit
-                if (itright(it_star, ik) >= 0) then
-                   r_links(it, ik) = r_links(it, ik) + 1
-                   it_star = itright(it_star, ik)
-                   if (r_links(it, ik) > max_allowed_links) then
-                      call mp_abort('r_links error',.true.)
-                   endif
-                else
-                   exit
-                end if
-             end do
-! 'n_links' complex numbers are needed to specify bc for (it, ik) region
-! ignoring wfb
-! n_links(1,:,:) is for v_par > 0, etc.
-             if (l_links(it, ik) == 0) then
-                n_links(1, it, ik) = 0
-             else 
-                n_links(1, it, ik) = 2*l_links(it, ik) - 1
-             end if
+       call count_links(itleft, itright, l_links, r_links, n_links)
+       n_links_max = maxval(n_links)
 
-             if (r_links(it, ik) == 0) then
-                n_links(2, it, ik) = 0
-             else 
-                n_links(2, it, ik) = 2*r_links(it, ik) - 1
-             end if
-             n_links_max = max(n_links_max, n_links(1, it, ik), n_links(2, it, ik))
-          end do
-       end do
-! wfb
-       if (n_links_max > 0 .and. (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
+       ! wfb
+       if (n_links_max > 0 .and. &
+            (.not. trapped_wfb) .and. (.not. passing_wfb)) n_links_max = n_links_max + 3
        
 ! now set up communication pattern:
 ! excluding wfb
