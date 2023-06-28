@@ -304,7 +304,7 @@ contains
 
         call run_ingen(input_file=argument)
         stop
-     else if (argument == "--") then
+      else if (argument == "--") then
         exit
       else if (argument(1:1) == "-") then
         write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
@@ -1716,8 +1716,6 @@ contains
 
     logical :: local_finalize
     type(standard_header_type) :: local_header
-
-    call parse_command_line()
 
     local_finalize = get_option_with_default(finalize, .true.)
 

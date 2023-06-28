@@ -202,10 +202,14 @@ module dist_fn
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
+  !> A type to record information about connections between iglo points
+  !> Store the iglo and iproc indices for connections to the left and
+  !> right of a given point.
+  !> Initialised to no connections, indicated by negative values
   type :: connections_type
-     integer :: iproc_left,  iglo_left
-     integer :: iproc_right, iglo_right
-     logical :: neighbor
+     integer :: iproc_left = -1,  iglo_left = -1
+     integer :: iproc_right = -1, iglo_right = -1
+     logical :: neighbor = .false.
   end type connections_type
 
   type (connections_type), dimension (:), allocatable, save :: connections
@@ -2332,28 +2336,24 @@ contains
   !> to the left and right of each local iglo index. Note this is only interested
   !> in passing particles and the non-trapped wfb. Trapped particles are
   !> considered to have no connections.
-  subroutine compute_connnections(itleft, itright, connections)
+  subroutine compute_connections(itleft, itright, connections)
     use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, ie_idx, is_idx, proc_id, idx
     use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     implicit none
     integer, dimension(:, :), intent(in) :: itleft, itright
     type(connections_type), dimension(g_lo%llim_proc:), intent(out) :: connections
-    integer :: iglo, il, ik, it, ie, is
+    integer :: iglo, il, ik, it, ie, is, iglo_connection
+
+    ! Note connections_type have initial values reflecting no connections
+    ! so we don't need to explicitly populate every instance.
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, il, ik, it, ie, is) &
+    !$OMP PRIVATE(iglo, il, ik, it, ie, is, iglo_connection) &
     !$OMP SHARED(g_lo, itleft, itright, connections, trapped_wfb) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ! get processors and indices for j' (kx') modes connecting
        ! to mode j (kx) so we can set up communication -- MAB
-
-       ! Initialise to no connections, indicated by negative values
-       connections(iglo)%iproc_left = -1
-       connections(iglo)%iglo_left = -1
-       connections(iglo)%iproc_right = -1
-       connections(iglo)%iglo_right = -1
-       connections(iglo)%neighbor = .false.
 
        il = il_idx(g_lo,iglo)
 
@@ -2371,23 +2371,21 @@ contains
        is = is_idx(g_lo,iglo)
 
        if (itleft(it, ik) >= 0) then
-          connections(iglo)%iproc_left &
-               = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
-          connections(iglo)%iglo_left &
-               = idx(g_lo,ik,itleft(it, ik),il,ie,is)
+          iglo_connection = idx(g_lo, ik, itleft(it, ik), il, ie, is)
+          connections(iglo)%iproc_left = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_left = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
 
        if (itright(it, ik) >= 0) then
-          connections(iglo)%iproc_right &
-               = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
-          connections(iglo)%iglo_right &
-               = idx(g_lo,ik,itright(it, ik),il,ie,is)
+          iglo_connection = idx(g_lo, ik, itright(it, ik), il, ie, is)
+          connections(iglo)%iproc_right = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_right = iglo_connection
           connections(iglo)%neighbor = .true.
        end if
     end do
     !$OMP END PARALLEL DO
-  end subroutine compute_connnections
+  end subroutine compute_connections
 
   !> Set the save_h flag based on connections data
   subroutine set_save_h(connections, save_h)
@@ -2405,18 +2403,16 @@ contains
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
-       if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
-            save_h (1,iglo) = .true.
-       if (connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0) &
-            save_h (2,iglo) = .true.
+       save_h (1, iglo) = connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0
+       save_h (2, iglo) = connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0
 
        il = il_idx(g_lo,iglo)
        if (il_is_wfb(il)) then
-       ! wfb (linked)
+          ! wfb (linked)
           if ( wfb_cmr ) then
-          ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
              save_h(:,iglo) = .false.
-          else
+          else if ( connections(iglo)%neighbor .and. &
+               (.not. passing_wfb) .and. aky(ik) /= 0.0) then
              ! MRH below should not occur if we are treating wfb as standard passing
              ! since save_h for passing particles is handled above
              ! If trapped_wfb then neighbor will be false, here we are
@@ -2424,10 +2420,7 @@ contains
              ! trapped_wfb = passing_wfb = .false.
              ! One might expect neighbor to be false if aky == 0
              ! as the zonal mode is periodic rather than linked.
-             if ( connections(iglo)%neighbor         .and. &
-                  (.not. passing_wfb)                .and. &
-                  aky(ik) /= 0.0) &
-                  save_h (:,iglo) = .true.
+             save_h (:,iglo) = .true.
           end if
        end if
     end do
@@ -2440,32 +2433,31 @@ contains
     use mp, only: mp_abort
     implicit none
     integer, dimension(:, :), intent(in) :: it_connections
+    !> Links is the number of links to the left or right
     integer, dimension(:, :), intent(out) :: links
-    integer :: it, ik, it_star
+    integer :: it, ik, it_star, it_star_next
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik, it, it_star) &
+    !$OMP PRIVATE(ik, it, it_star, it_star_next) &
     !$OMP SHARED(naky, ntheta0, links, it_connections) &
     !$OMP COLLAPSE(2) &
     !$OMP SCHEDULE(static)
     do ik = 1, naky
        do it = 1, ntheta0
-          ! count the links for each region
-          ! links = number of links to the left or right
           links(it, ik) = 0
           it_star = it
-          do
-             if (it_star == it_connections(it_star, ik)) exit
-             if (it_connections(it_star, ik) >= 0) then
-                links(it, ik) = links(it, ik) + 1
-                it_star = it_connections(it_star, ik)
-                if (links(it, ik) > max_allowed_links) then
-                   call mp_abort('links error',.true.)
-                endif
-             else
-                exit
-             end if
-          end do
+          loop_over_connections: do
+             it_star_next = it_connections(it_star, ik)
+             ! If connected to self (periodic) exit
+             if (it_star == it_star_next) exit loop_over_connections
+             ! If no more connections exit
+             if (it_star_next < 0) exit loop_over_connections
+             links(it, ik) = links(it, ik) + 1
+             it_star = it_star_next
+             if (links(it, ik) > max_allowed_links) then
+                call mp_abort('links error',.true.)
+             endif
+          end do loop_over_connections
        end do
     end do
     !$OMP END PARALLEL DO
@@ -2502,18 +2494,19 @@ contains
 
   end subroutine count_links
 
-  !> Setup the fields implicit arrays M_class and N_class.
-  !> These are:
-  !> i_class  : number of classes (sizes of supercell)
-  !> N_class(i) = number of linked cells for i_th class (Size of supercell)
-  ! M_class(i) = number of members in i_th class (How many supercells of this size)
+  !> Count the number of unique supercell sizes and setup the fields
+  !> implicit arrays M_class and N_class.
   subroutine setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
     use kt_grids, only: naky, ntheta0
     use mp, only: mp_abort, iproc
     use sorting, only: quicksort
     implicit none
     integer, dimension(:, :), intent(in) :: l_links, r_links
-    integer, dimension(:), allocatable, intent(out) :: M_class, N_class
+    !> N_class(i) = number of linked cells for i_th class (Size of supercell)
+    integer, dimension(:), allocatable, intent(out) :: N_class
+    !> M_class(i) = number of members in i_th class (How many supercells of this size)
+    integer, dimension(:), allocatable, intent(out) :: M_class
+    !> i_class = number of classes (unique sizes of supercell)
     integer, intent(out) :: i_class
     integer, dimension(naky*ntheta0) :: n_k, N_class_full
     integer :: k, it, ik, i, j
@@ -3056,7 +3049,7 @@ contains
     call compute_itleft_and_itright(jshift0, itleft, itright)
 
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
-    call compute_connnections(itleft, itright, connections)
+    call compute_connections(itleft, itright, connections)
 
     ! Note we can replace this with checking if we're not linked and returning
     ! to save adding indentation to everything below. Note also that connections
