@@ -3106,6 +3106,10 @@ contains
     ! wfb -- mixed treatment requires some extra links to be communicated
     if (n_links_max > 0 .and. mixed_wfb) n_links_max = n_links_max + 3
 
+    ! Could we move this call to init_bc? Would have to check that it returns
+    ! the expected values when l_links = r_links = 0
+    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
+
     ! now set up communication pattern:
     ! excluding wfb
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
@@ -3126,10 +3130,6 @@ contains
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
-
-    ! Could we move this call to init_bc? Would have to check that it returns
-    ! the expected values when l_links = r_links = 0
-    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
   end subroutine init_connected_bc
 
