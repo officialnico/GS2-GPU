@@ -2387,6 +2387,46 @@ contains
     !$OMP END PARALLEL DO
   end subroutine compute_connections
 
+  !> Set the save_h flag based on connections data
+  subroutine set_save_h(connections, save_h)
+    use gs2_layouts, only: g_lo, il_idx, ik_idx
+    use kt_grids, only: aky
+    use le_grids, only: il_is_wfb, passing_wfb
+    implicit none
+    type(connections_type), dimension(g_lo%llim_proc:), intent(in) :: connections
+    logical, dimension(:, g_lo%llim_proc:), intent(out) :: save_h
+    integer :: iglo, ik, il
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, il) &
+    !$OMP SHARED(g_lo, connections, aky, save_h, wfb_cmr, passing_wfb) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       save_h (1, iglo) = connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0
+       save_h (2, iglo) = connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0
+
+       il = il_idx(g_lo,iglo)
+       if (il_is_wfb(il)) then
+          ! wfb (linked)
+          if ( wfb_cmr ) then
+             save_h(:,iglo) = .false.
+          else if ( connections(iglo)%neighbor .and. &
+               (.not. passing_wfb) .and. aky(ik) /= 0.0) then
+             ! MRH below should not occur if we are treating wfb as standard passing
+             ! since save_h for passing particles is handled above
+             ! If trapped_wfb then neighbor will be false, here we are
+             ! dealing with the original "mixed" wfb treatment where
+             ! trapped_wfb = passing_wfb = .false.
+             ! One might expect neighbor to be false if aky == 0
+             ! as the zonal mode is periodic rather than linked.
+             save_h (:,iglo) = .true.
+          end if
+       end if
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine set_save_h
+
   !> FIXME : Add documentation
   subroutine init_connected_bc
     use theta_grid, only: ntgrid
@@ -2424,28 +2464,8 @@ contains
     call compute_connections(itleft, itright, connections)
 
     if (boundary_option_switch == boundary_option_linked) then
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc          
-          ik = ik_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          if (connections(iglo)%iglo_left >= 0 .and. aky(ik) /= 0.0) &
-               save_h (1,iglo) = .true.
-          if (connections(iglo)%iglo_right >= 0 .and. aky(ik) /= 0.0) &
-               save_h (2,iglo) = .true.
-          
-          ! wfb (linked)
-          if ( wfb_cmr ) then
-             ! if wfb_cmr = .t.  do NOT save homogeneous solutions for wfb
-             if (has_trapped_particles .and. il_is_wfb(il)) save_h(:,iglo) = .false.
-          else ! MRH below should not occur if we are treating wfb as standard passing
-               ! since save_h for passing particles is handled above
-             if (has_trapped_particles               .and. &
-                  il_is_wfb(il)                      .and. &
-                  connections(iglo)%neighbor         .and. &
-                  (.not. passing_wfb)                .and. &
-                  aky(ik) /= 0.0) &
-                  save_h (:,iglo) = .true.
-          endif
-       end do
+       allocate (save_h(2, g_lo%llim_proc:g_lo%ulim_alloc))
+       call set_save_h(connections, save_h)
 
        n_links_max = 0
        do it = 1, ntheta0
@@ -3367,10 +3387,6 @@ contains
        end if
 #endif
 
-       if (boundary_option_switch == boundary_option_linked) then
-          allocate (save_h(2,g_lo%llim_proc:g_lo%ulim_alloc))
-          save_h = .false.
-       endif
        if (abs(g_exb*g_exbfac) > epsilon(0.)) then           ! MR
           if (box .or. shat .eq. 0.0) then
              allocate (kx_shift(naky))
