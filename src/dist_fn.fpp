@@ -2687,7 +2687,9 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    ! Check if we have any communication to to do or not
+    ! Check if we have any communication to to do or not. Note here communication
+    ! includes local copying -- this is really checking do we need to fix up the
+    ! parallel boundaries anywhere or not -- effectively no_comm --> no_connections
     nn_max = maxval(nn_to)
     call max_allreduce (nn_max)
     if (nn_max == 0) then
