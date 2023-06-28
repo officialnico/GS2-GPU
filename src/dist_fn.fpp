@@ -202,10 +202,14 @@ module dist_fn
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
+  !> A type to record information about connections between iglo points
+  !> Store the iglo and iproc indices for connections to the left and
+  !> right of a given point.
+  !> Initialised to no connections, indicated by negative values
   type :: connections_type
-     integer :: iproc_left,  iglo_left
-     integer :: iproc_right, iglo_right
-     logical :: neighbor
+     integer :: iproc_left = -1,  iglo_left = -1
+     integer :: iproc_right = -1, iglo_right = -1
+     logical :: neighbor = .false.
   end type connections_type
 
   type (connections_type), dimension (:), allocatable, save :: connections
@@ -2328,6 +2332,61 @@ contains
     !$OMP END PARALLEL DO
   end subroutine compute_itleft_and_itright
 
+  !> Look up and store the iglo index and responsible processor for connections
+  !> to the left and right of each local iglo index. Note this is only interested
+  !> in passing particles and the non-trapped wfb. Trapped particles are
+  !> considered to have no connections.
+  subroutine compute_connections(itleft, itright, connections)
+    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, ie_idx, is_idx, proc_id, idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    implicit none
+    integer, dimension(:, :), intent(in) :: itleft, itright
+    type(connections_type), dimension(g_lo%llim_proc:), intent(out) :: connections
+    integer :: iglo, il, ik, it, ie, is, iglo_connection
+
+    ! Note connections_type have initial values reflecting no connections
+    ! so we don't need to explicitly populate every instance.
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ik, it, ie, is, iglo_connection) &
+    !$OMP SHARED(g_lo, itleft, itright, connections, trapped_wfb) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ! get processors and indices for j' (kx') modes connecting
+       ! to mode j (kx) so we can set up communication -- MAB
+
+       il = il_idx(g_lo,iglo)
+
+       ! if non-wfb trapped particle, no connections
+       ! or if wfb is trapped, no connections
+       if (il_is_trapped(il) .or. (il_is_wfb(il) .and. trapped_wfb)) cycle
+
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+
+       ! If no links then cycle
+       if (itleft(it, ik) < 0 .and. itright(it, ik) < 0) cycle
+
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+
+       if (itleft(it, ik) >= 0) then
+          iglo_connection = idx(g_lo, ik, itleft(it, ik), il, ie, is)
+          connections(iglo)%iproc_left = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_left = iglo_connection
+          connections(iglo)%neighbor = .true.
+       end if
+
+       if (itright(it, ik) >= 0) then
+          iglo_connection = idx(g_lo, ik, itright(it, ik), il, ie, is)
+          connections(iglo)%iproc_right = proc_id(g_lo, iglo_connection)
+          connections(iglo)%iglo_right = iglo_connection
+          connections(iglo)%neighbor = .true.
+       end if
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine compute_connections
+
   !> FIXME : Add documentation
   subroutine init_connected_bc
     use theta_grid, only: ntgrid
@@ -2362,53 +2421,7 @@ contains
     call compute_itleft_and_itright(jshift0, itleft, itright)
 
     allocate (connections(g_lo%llim_proc:g_lo%ulim_alloc))
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       il = il_idx(g_lo,iglo)
-
-       ! get processors and indices for j' (kx') modes connecting
-       ! to mode j (kx) so we can set up communication -- MAB
-
-       ! if non-wfb trapped particle, no connections
-       ! or if wfb is trapped, no connections
-       if (has_trapped_particles .and. (il_is_trapped(il) .or. &
-            (il_is_wfb(il) .and. trapped_wfb))) then
-          connections(iglo)%iproc_left = -1
-          connections(iglo)%iglo_left = -1
-          connections(iglo)%iproc_right = -1
-          connections(iglo)%iglo_right = -1
-       else
-          ik = ik_idx(g_lo,iglo)
-          it = it_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          
-          if (itleft(it, ik) < 0) then
-             connections(iglo)%iproc_left = -1
-             connections(iglo)%iglo_left = -1
-          else
-             connections(iglo)%iproc_left &
-                  = proc_id(g_lo,idx(g_lo,ik,itleft(it, ik),il,ie,is))
-             connections(iglo)%iglo_left &
-                  = idx(g_lo,ik,itleft(it, ik),il,ie,is)
-          end if
-          if (itright(it, ik) < 0) then
-             connections(iglo)%iproc_right = -1
-             connections(iglo)%iglo_right = -1
-          else
-             connections(iglo)%iproc_right &
-                  = proc_id(g_lo,idx(g_lo,ik,itright(it, ik),il,ie,is))
-             connections(iglo)%iglo_right &
-                  = idx(g_lo,ik,itright(it, ik),il,ie,is)
-          end if
-       end if
-       if (connections(iglo)%iproc_left >= 0 .or. &
-            connections(iglo)%iproc_right >= 0) then
-          connections(iglo)%neighbor = .true.
-       else
-          connections(iglo)%neighbor = .false.
-       end if
-    end do
+    call compute_connections(itleft, itright, connections)
 
     if (boundary_option_switch == boundary_option_linked) then
        do iglo = g_lo%llim_proc, g_lo%ulim_proc          
@@ -2965,7 +2978,7 @@ contains
 
        if (j /= naky*ntheta0) then
           write(*,*) 'PE ',iproc,'has j= ',j,' k= ',naky*ntheta0,' : Stopping'
-          call mp_abort('problem with connnected bc')
+          call mp_abort('problem with connected bc')
        end if
 
     end if
