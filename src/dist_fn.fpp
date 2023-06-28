@@ -2413,7 +2413,8 @@ contains
           ! wfb (linked)
           if ( wfb_cmr ) then
              save_h(:,iglo) = .false.
-          else
+          else if ( connections(iglo)%neighbor .and. &
+               (.not. passing_wfb) .and. aky(ik) /= 0.0) then
              ! MRH below should not occur if we are treating wfb as standard passing
              ! since save_h for passing particles is handled above
              ! If trapped_wfb then neighbor will be false, here we are
@@ -2421,10 +2422,7 @@ contains
              ! trapped_wfb = passing_wfb = .false.
              ! One might expect neighbor to be false if aky == 0
              ! as the zonal mode is periodic rather than linked.
-             if ( connections(iglo)%neighbor         .and. &
-                  (.not. passing_wfb)                .and. &
-                  aky(ik) /= 0.0) &
-                  save_h (:,iglo) = .true.
+             save_h (:,iglo) = .true.
           end if
        end if
     end do
