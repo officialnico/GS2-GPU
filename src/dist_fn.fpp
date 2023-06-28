@@ -227,7 +227,13 @@ module dist_fn
   integer, dimension (:,:), allocatable :: l_links, r_links
   integer, dimension (:,:,:), allocatable :: n_links
   logical, dimension (:,:), allocatable :: save_h
+
+  !> Indicates if there are connected theta domains in this simulation or not.
+  !> Should only be used as a part of linked boundary conditions, but worth
+  !> noting that the default given may suggest that there are connections in
+  !> simulations with boundary conditions other than linked.
   logical :: no_connections = .false.
+
   integer, dimension(:), allocatable :: M_class, N_class
   integer :: i_class
 
