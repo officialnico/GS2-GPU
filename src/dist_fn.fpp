@@ -3115,6 +3115,9 @@ contains
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
          links_p, links_h, no_comm)
 
+    ! If no connections then don't need to do any more work here
+    if (no_comm) return
+
     ! take care of wfb
     if (mixed_wfb) then
        if (wfb_cmr) then
