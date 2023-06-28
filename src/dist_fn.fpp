@@ -227,7 +227,7 @@ module dist_fn
   integer, dimension (:,:), allocatable :: l_links, r_links
   integer, dimension (:,:,:), allocatable :: n_links
   logical, dimension (:,:), allocatable :: save_h
-  logical :: no_comm = .false.
+  logical :: no_connections = .false.
   integer, dimension(:), allocatable :: M_class, N_class
   integer :: i_class
 
@@ -1070,7 +1070,7 @@ contains
     initialized_dist_fn_level_1 = .false.
 
     accelerated_x = .false. ; accelerated_v = .false.
-    no_comm = .false.
+    no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
     increase = .true. ; decrease = .false.
@@ -2580,7 +2580,7 @@ contains
   !> required to deal with linked boundary conditions. Only deals with
   !> passing particles, including the wfb _if_ passing_wfb is true.
   subroutine setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-       links_p, links_h, no_comm)
+       links_p, links_h, no_connections)
     use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx
     use le_grids, only: il_is_passing, il_is_wfb, passing_wfb
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
@@ -2590,14 +2590,14 @@ contains
     integer, dimension(:, :), intent(in) :: l_links, r_links
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
-    logical, intent(out) :: no_comm
+    logical, intent(out) :: no_connections
     type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
-    no_comm = .false.
+    no_connections = .false.
     !<DD>Note the communications setup here are often equivalent to an all-to-all type
     !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
     !See comments in invert_rhs_linked for more details.
@@ -2689,11 +2689,11 @@ contains
 
     ! Check if we have any communication to to do or not. Note here communication
     ! includes local copying -- this is really checking do we need to fix up the
-    ! parallel boundaries anywhere or not -- effectively no_comm --> no_connections
+    ! parallel boundaries anywhere or not.
     nn_max = maxval(nn_to)
     call max_allreduce (nn_max)
     if (nn_max == 0) then
-       no_comm = .true.
+       no_connections = .true.
        ! Note we don't set links_p and links_h in this case
        return
     end if
@@ -3113,10 +3113,10 @@ contains
     ! now set up communication pattern:
     ! excluding wfb
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-         links_p, links_h, no_comm)
+         links_p, links_h, no_connections)
 
     ! If no connections then don't need to do any more work here
-    if (no_comm) return
+    if (no_connections) return
 
     ! take care of wfb
     if (mixed_wfb) then
@@ -5340,7 +5340,7 @@ contains
 
     call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
 
-    if (no_comm) then
+    if (no_connections) then
        ! nothing
     else       
        !<DD>Note these fill routines are often equivalent to an all-to-all type
