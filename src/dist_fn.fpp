@@ -3080,6 +3080,8 @@ contains
     use le_grids, only: passing_wfb, trapped_wfb
     use gs2_layouts, only: g_lo
     use array_utils, only: zero_array
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     integer :: jshift0, n_links_max
     logical :: mixed_wfb
@@ -3122,7 +3124,11 @@ contains
          links_p, links_h, no_connections)
 
     ! If no connections then don't need to do any more work here
-    if (no_connections) return
+    if (no_connections) then
+       if (proc0) write(error_unit(), &
+            '("No connections found when setting up linked boundaries.")')
+       return
+    end if
 
     ! take care of wfb
     if (mixed_wfb) then
