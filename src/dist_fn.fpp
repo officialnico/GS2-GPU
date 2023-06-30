@@ -1899,7 +1899,7 @@ contains
     use le_grids, only: passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
-         is_lower_bounce_point, ng2
+         is_lower_bounce_point, ng2, mixed_wfb
     use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
@@ -1935,7 +1935,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, il, g2, use_pass_homog, ig, &
     !$OMP ilmin, is_wfb, is_not_ttp, is_passing, is_trapped) &
-    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, &
+    !$OMP SHARED(g_lo, g_h, use_pass_homog_boundary, have_trapped_particles, mixed_wfb, &
     !$OMP aky, wfb, passing_wfb, trapped_wfb, ntgrid, r, ng2, force_include_passing) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2004,7 +2004,7 @@ contains
           g_h( ntgrid, 2, iglo) = 1.0
        end if
 
-       if (is_wfb .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+       if (is_wfb .and. mixed_wfb ) then
           ! wfb should be unity here; variable is for testing
           g_h(-ntgrid, 1, iglo) = wfb
           g_h( ntgrid, 2, iglo) = wfb
@@ -3069,12 +3069,11 @@ contains
   !> required communication.
   subroutine init_connected_bc
     use kt_grids, only: naky, ntheta0
-    use le_grids, only: passing_wfb, trapped_wfb
+    use le_grids, only: mixed_wfb
     use gs2_layouts, only: g_lo
     use array_utils, only: zero_array
     implicit none
     integer :: jshift0, n_links_max
-    logical :: mixed_wfb
 
     if (connectinit) return
     connectinit = .true.
@@ -3083,8 +3082,6 @@ contains
     ! We might want to remove this check so that we can calculate
     ! the linked bc data for testing etc.
     if (boundary_option_switch /= boundary_option_linked) return
-
-    mixed_wfb = (.not. passing_wfb) .and. (.not. trapped_wfb)
 
     ! Get the kx index spacing between connections
     jshift0 = compute_jshift0()
@@ -4936,7 +4933,7 @@ contains
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, il_is_ttp, il_is_passing, il_is_trapped, &
          grid_has_trapped_particles, is_upper_bounce_point, &
-         is_lower_bounce_point, ittp
+         is_lower_bounce_point, ittp, mixed_wfb
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use prof, only: prof_entering, prof_leaving
@@ -4969,7 +4966,7 @@ contains
     !$OMP adjright, adjleft, ig, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, ittp, &
-    !$OMP aky, ng2, have_trapped_particles, forbid, g_h, zero_forbid, &
+    !$OMP aky, ng2, have_trapped_particles, forbid, g_h, zero_forbid, mixed_wfb, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -5070,7 +5067,7 @@ contains
           is_self_periodic = (speriod_flag .and. is_passing) & ! Passing particle with ky=0
                .or. (speriod_flag .and. is_wfb .and. .not. trapped_wfb) & ! Non-trapped wfb treatment of wfb with ky = 0
                .or. (is_wfb .and. .not. connections(iglo)%neighbor & ! Isolated (i.e. ky/=0 cell with no connections) wfb
-               .and. .not. trapped_wfb .and. .not. passing_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
+               .and. mixed_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
        else
           is_self_periodic = (use_pass_homog .and. is_passing) & ! Passing particle with ky=0 or with self-periodic boundaries
                .or. (is_wfb .and. .not. trapped_wfb) ! Non-trapped treatment of wfb with any B.C.
@@ -5310,7 +5307,7 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj0, aj1
     use theta_grid, only: ntgrid
-    use le_grids, only: is_passing_hybrid_electron, passing_wfb, trapped_wfb, il_is_wfb
+    use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
@@ -5349,7 +5346,7 @@ contains
        ! We probably don't need to do this each step as the homogeneous
        ! solution is now cached.
        call fill (links_h, g_h, g_adj)
-       if( (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+       if( mixed_wfb ) then
           call fill (wfb_p, gnew, g_adj)
           ! We probably don't need to do this each step as the homogeneous
           ! solution is now cached.
@@ -5359,7 +5356,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
        !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
-       !$OMP SHARED(g_lo, r_links, l_links, trapped_wfb, passing_wfb, nonad_zero, &
+       !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
        !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
        !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
        !$OMP SCHEDULE(static)
@@ -5379,7 +5376,7 @@ contains
           ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
           ! wfb
-          if ( il_is_wfb(il) .and. (.not. trapped_wfb) .and. (.not. passing_wfb) ) then
+          if ( il_is_wfb(il) .and. mixed_wfb ) then
              if (nonad_zero) then
                 ie = ie_idx(g_lo,iglo)
 
