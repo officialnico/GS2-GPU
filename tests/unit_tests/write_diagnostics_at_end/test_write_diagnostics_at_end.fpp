@@ -14,7 +14,7 @@ program test_write_diagnostics_at_end
   call run_gs2(state)
 
   call announce_test(test_name)
-  call process_test(check_number_of_time_points(), 'results')
+  call process_test(check_number_of_time_points(), test_name)
   call finish_mp()
     
 contains
