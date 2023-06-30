@@ -10,6 +10,7 @@ contains
     use fields_arrays, only: phinew
     use theta_grid, only: delthet, jacob
     use kt_grids, only: ntheta0, naky, aky
+    use warning_helpers, only: is_zero
     implicit none
     real :: anorm, fac
     integer :: ik, it
@@ -17,7 +18,7 @@ contains
     phi2 = 0
     do ik = 1, naky
        fac = 0.5
-       if (aky(ik) == 0.0) fac = 1.0
+       if (is_zero(aky(ik))) fac = 1.0
        do it = 1, ntheta0
           ! complex * conjg(complex) always gives a real number, but type is still complex.
           ! Explicit cast here is silence compiler warnings
