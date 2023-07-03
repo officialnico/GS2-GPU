@@ -2260,7 +2260,17 @@ contains
 
     theta0_values = pack(theta0(:, ik), supercell_mask)
     theta0_indices_real = pack([(it0*1.0, it0 = 1, ntheta0)], supercell_mask)
+
+    ! Here we're sorting theta0 indices for member of the supercell
+    ! with the theta0 values as a key so that theta0_indices_real will give
+    ! the it values of the supercell members in order of increasing theta0.
+    ! We could skip this sorting and just work out where we transition from the
+    ! +ve kx to the -ve kx and slice there, but sorting should work in general
+    ! and avoids potentially confusing integer index calculations
     call quicksort(ncell, theta0_values, theta0_indices_real)
+
+    ! Convert theta0_indices_real to integer to allow use for indexing
+    ! arrays later.
     theta0_indices = int(theta0_indices_real)
 
     allocate(extracted_field(-ntgrid:ntgrid, ncell))
