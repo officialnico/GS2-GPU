@@ -2228,6 +2228,53 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_source_term
 
+  !> Extracts the field like data corresponding to the supercell with
+  !> the {it, ik} wavenumber pair as a member and constructs the
+  !> ballooning space form.  Doesn't attempt to avoid the duplicate
+  !> theta points which this introduces currently.
+  subroutine flux_tube_field_like_to_ballooning_space(it, ik, field_like_ft, &
+       theta_bs, field_like_bs)
+    use theta_grid, only: ntgrid, theta
+    use kt_grids, only: theta0, ntheta0
+    use sorting, only: quicksort
+    implicit none
+    integer, intent(in) :: it, ik
+    complex, dimension(-ntgrid:, :, :), intent(in) :: field_like_ft
+    real, dimension(:), allocatable, intent(out) :: theta_bs
+    complex, dimension(:), allocatable, intent(out) :: field_like_bs
+    real, dimension(:), allocatable :: theta0_values
+    real, dimension(:), allocatable :: theta0_indices_real
+    integer, dimension(:), allocatable :: theta0_indices
+    logical, dimension(:), allocatable :: supercell_mask
+    real, dimension(:, :), allocatable :: theta_2d
+    complex, dimension(:, :), allocatable :: extracted_field
+    integer :: isc, ncell, it0, icell
+
+    ! Get the supercell label related to the point of interest and
+    ! form a logical mask selecting members of this supercell
+    isc = supercell_labels(it, ik)
+    supercell_mask = supercell_labels(:, ik) == isc
+
+    ! Count how many cells there are.
+    ncell = count(supercell_mask)
+
+    theta0_values = pack(theta0(:, ik), supercell_mask)
+    theta0_indices_real = pack([(it0*1.0, it0 = 1, ntheta0)], supercell_mask)
+    call quicksort(ncell, theta0_values, theta0_indices_real)
+    theta0_indices = int(theta0_indices_real)
+
+    allocate(extracted_field(-ntgrid:ntgrid, ncell))
+    allocate(theta_2d(-ntgrid:ntgrid, ncell))
+
+    do icell = 1, ncell
+       extracted_field(:, icell) = field_like_ft(:, theta0_indices(icell), ik)
+       theta_2d(:, icell) = theta - theta0(theta0_indices(icell), ik)
+    end do
+
+    theta_bs = reshape(theta_2d, [size(theta_2d)])
+    field_like_bs = reshape(extracted_field, [size(extracted_field)])
+  end subroutine flux_tube_field_like_to_ballooning_space
+
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
   subroutine calculate_supercell_labels(supercell_labels)
