@@ -2272,6 +2272,7 @@ contains
     ! Convert theta0_indices_real to integer to allow use for indexing
     ! arrays later.
     theta0_indices = int(theta0_indices_real)
+    theta0_indices = theta0_indices(ncell:1:-1)
 
     allocate(extracted_field(-ntgrid:ntgrid, ncell))
     allocate(theta_2d(-ntgrid:ntgrid, ncell))
