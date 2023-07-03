@@ -2233,15 +2233,17 @@ contains
   !> ballooning space form.  Doesn't attempt to avoid the duplicate
   !> theta points which this introduces currently.
   subroutine flux_tube_field_like_to_ballooning_space(it, ik, field_like_ft, &
-       theta_bs, field_like_bs)
+       theta_bs, field_like_bs, drop_duplicates)
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: theta0, ntheta0
     use sorting, only: quicksort
+    use optionals, only: get_option_with_default
     implicit none
     integer, intent(in) :: it, ik
     complex, dimension(-ntgrid:, :, :), intent(in) :: field_like_ft
     real, dimension(:), allocatable, intent(out) :: theta_bs
     complex, dimension(:), allocatable, intent(out) :: field_like_bs
+    logical, intent(in), optional :: drop_duplicates
     real, dimension(:), allocatable :: theta0_values
     real, dimension(:), allocatable :: theta0_indices_real
     integer, dimension(:), allocatable :: theta0_indices
@@ -2249,6 +2251,8 @@ contains
     real, dimension(:, :), allocatable :: theta_2d
     complex, dimension(:, :), allocatable :: extracted_field
     integer :: isc, ncell, it0, icell
+    integer :: nextend, iend, istart, ntheta_minus_1
+    logical :: drop_duplicate_theta_points
 
     ! Get the supercell label related to the point of interest and
     ! form a logical mask selecting members of this supercell
@@ -2282,8 +2286,30 @@ contains
        theta_2d(:, icell) = theta - theta0(theta0_indices(icell), ik)
     end do
 
-    theta_bs = reshape(theta_2d, [size(theta_2d)])
-    field_like_bs = reshape(extracted_field, [size(extracted_field)])
+    drop_duplicate_theta_points = get_option_with_default(drop_duplicates, .false.)
+    if (drop_duplicate_theta_points) then
+       ! Get the size of the domain, dropping one theta point for all but the last cell
+       nextend = size(theta_2d) - (ncell - 1)
+       allocate(theta_bs(nextend))
+       allocate(field_like_bs(nextend))
+
+       ntheta_minus_1 = size(theta) - 1
+       istart = 1
+       iend = istart + ntheta_minus_1 - 1
+
+       do icell = 1, ncell - 1
+          theta_bs(istart:iend) = theta_2d(:ntgrid-1, icell)
+          field_like_bs(istart:iend) = extracted_field(:ntgrid-1, icell)
+          istart = iend + 1
+          iend = istart + ntheta_minus_1 - 1
+       end do
+       theta_bs(istart:) = theta_2d(:, ncell)
+       field_like_bs(istart:) = extracted_field(:, ncell)
+    else
+       theta_bs = reshape(theta_2d, [size(theta_2d)])
+       field_like_bs = reshape(extracted_field, [size(extracted_field)])
+    end if
+
   end subroutine flux_tube_field_like_to_ballooning_space
 
   !> Assigns a label to each {it, ik} point denoting which unique
