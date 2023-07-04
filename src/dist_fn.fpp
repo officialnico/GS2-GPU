@@ -5581,6 +5581,8 @@ contains
 
     select case (boundary_option_switch)
     case (boundary_option_linked)
+       ! Note if no_connections default was true we could also unconditionally call apply_linked_boundary_conditions
+       ! or just call the below if no_connections is false.
        call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
     end select
 
