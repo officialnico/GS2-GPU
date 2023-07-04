@@ -341,9 +341,9 @@ contains
     !As a 1d vector in fortran is a "row vector" (as the
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
-    rb_mv_mult_fun=-matmul(transpose(self%data),vect)
+    rb_mv_mult_fun = matmul(vect,self%data)
 !    do ir=1,self%nrow
-!       rb_mv_mult_fun(ir)=-sum(self%data(:,ir)*vect)
+!       rb_mv_mult_fun(ir)=sum(self%data(:,ir)*vect)
 !    enddo
   end function rb_mv_mult_fun
 
@@ -463,7 +463,7 @@ contains
     do ifq=1,nfq
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
-            +self%rb(ifq)%tmp_sum
+            -self%rb(ifq)%tmp_sum
     enddo
 
   end subroutine c_get_field_update
@@ -1029,11 +1029,17 @@ contains
 
   !> A routine to invert the field matrix
   subroutine sc_invert(self)
+    use job_manage, only: time_message
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use mp, only: get_mp_times
     implicit none
     class(supercell_type), intent(inout) :: self
+    real :: mp_total, mp_total_after
 
     if(self%is_empty) return
     if(.not.self%is_local) return
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total)
     
     !If we have all of the supercell local then use an explictly local
     !matrix inversion
@@ -1046,6 +1052,9 @@ contains
        call self%invert_mpi
     endif
 
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_invert_mpi = time_field_invert_mpi + (mp_total_after - mp_total)
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
@@ -1867,7 +1876,7 @@ contains
              enddo
 
              !Update it
-             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(ik,it)
+             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(it, ik)
 
           enddo
        enddo

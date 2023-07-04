@@ -63,7 +63,7 @@ module gs2_diagnostics
   logical, public :: write_full_moments_notgc, write_cross_phase = .false.
   logical, public :: write_final_epar, write_kpar
   logical, public :: write_heating, write_lorentzian
-  logical, public :: write_nl_flux
+  logical, public :: write_fluxes, write_fluxes_by_mode
   logical, public :: write_verr, write_cerr, write_max_verr
   logical, public :: exit_when_converged
   logical, public :: use_nonlin_convergence
@@ -125,16 +125,7 @@ module gs2_diagnostics
   !GGH J_external
   real, dimension(:,:,:), allocatable ::  j_ext_hist
 
-  real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
-  ! (ntheta0,naky,nspec,3)
-
-  real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
   real, dimension (:,:,:), allocatable ::  pflux_tormom
-  !> Low-flow correction to turbulent momentum flux
-  real, dimension (:,:,:), allocatable :: vflux0, vflux1
-  real, dimension (:,:,:), allocatable :: pmflux, vmflux
-  real, dimension (:,:,:), allocatable :: pbflux, vbflux
-  real, dimension (:,:,:), allocatable :: exchange1, exchange
 
   ! (ntheta0,naky,nspec)
 
@@ -195,7 +186,8 @@ contains
     write (unit, fmt="(' write_final_db = ',L1)") write_final_db
     write (unit, fmt="(' write_final_moments = ',L1)") write_final_moments
     write (unit, fmt="(' write_final_antot = ',L1)") write_final_antot
-    write (unit, fmt="(' write_nl_flux = ',L1)") write_nl_flux
+    write (unit, fmt="(' write_fluxes = ',L1)") write_fluxes
+    write (unit, fmt="(' write_fluxes_by_mode = ',L1)") write_fluxes_by_mode
     write (unit, fmt="(' exit_when_converged = ',L1)") exit_when_converged
     write (unit, fmt="(' use_nonlin_convergence = ',L1)") use_nonlin_convergence
     if (write_avg_moments) write (unit, fmt="(' write_avg_moments = ',L1)") write_avg_moments
@@ -350,12 +342,12 @@ contains
        write (report_unit, fmt="('write_final_epar = T:      E_parallel(theta) written to ',a)") trim(run_name)//'.out.nc'
     end if
 
-    if (write_nl_flux) then
+    if (write_fluxes) then
        if (write_ascii) then
-          write (report_unit, fmt="('write_nl_flux = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
+          write (report_unit, fmt="('write_fluxes = T:         Phi**2(kx, ky) written to ',a)") trim(run_name)//'.out'
        end if
     else
-       write (report_unit, fmt="('write_nl_flux = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
+       write (report_unit, fmt="('write_fluxes = F:         Phi**2(kx, ky) NOT written to ',a)") trim(run_name)//'.out'
     end if
 
     if (dump_check1) then
@@ -579,9 +571,9 @@ contains
     use run_parameters, only: fapar
     use file_utils, only: open_output_file, get_unused_unit
     use kt_grids, only: naky, ntheta0
-    use species, only: nspec
     use mp, only: proc0
     use standard_header, only: standard_header_type
+    use diagnostics_fluxes, only: init_diagnostics_fluxes
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -655,27 +647,7 @@ contains
 
     end if
 
-    !> Allocate arrays for storing the various fluxes which the diagnostics will output </doc>
-    allocate (pflux (ntheta0,naky,nspec)) ; pflux = 0.
-    allocate (pflux_tormom (ntheta0,naky,nspec)) ; pflux_tormom = 0. 
-    allocate (qheat (ntheta0,naky,nspec,3)) ; qheat = 0.
-    allocate (vflux (ntheta0,naky,nspec)) ; vflux = 0.
-    allocate (exchange1 (ntheta0,naky,nspec)) ; exchange1 = 0.
-    allocate (exchange (ntheta0,naky,nspec)) ; exchange = 0.
-
-    allocate (vflux_par (ntheta0,naky,nspec)) ; vflux_par = 0.
-    allocate (vflux_perp (ntheta0,naky,nspec)) ; vflux_perp = 0.
-
-    allocate (vflux0 (ntheta0,naky,nspec)) ; vflux0 = 0.
-    allocate (vflux1 (ntheta0,naky,nspec)) ; vflux1 = 0.
-
-    allocate (pmflux(ntheta0,naky,nspec)) ; pmflux = 0.
-    allocate (qmheat(ntheta0,naky,nspec,3)) ; qmheat = 0.
-    allocate (vmflux(ntheta0,naky,nspec)) ; vmflux = 0.
-
-    allocate (pbflux(ntheta0,naky,nspec)) ; pbflux = 0.
-    allocate (qbheat(ntheta0,naky,nspec,3)) ; qbheat = 0.
-    allocate (vbflux(ntheta0,naky,nspec)) ; vbflux = 0.
+    call init_diagnostics_fluxes()
 
     if (.not. allocated(omega)) then
        allocate(omega(ntheta0, naky))
@@ -727,7 +699,8 @@ contains
     ! Smart defaults
     if (.not. gs2_diagnostics_config%is_initialised()) then
       if (nonlin) then
-        gs2_diagnostics_config%write_nl_flux = .true.
+        gs2_diagnostics_config%write_fluxes = .true.
+        gs2_diagnostics_config%write_fluxes_by_mode = .true.
       end if
       call apply_old_defaults(gs2_diagnostics_config)
     end if
@@ -742,7 +715,6 @@ contains
     call warn_about_nonfunctional_selection(.not. gs2_diagnostics_config%write_any, "write_any")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_collisional, "write_collisional")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_density_over_time, "write_density_over_time")
-    call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_fluxes, "write_fluxes")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_ntot_over_time, "write_ntot_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_tperp_over_time, "write_tperp_over_time")
     call warn_about_nonfunctional_selection(gs2_diagnostics_config%write_upar_over_time, "write_upar_over_time")
@@ -807,7 +779,8 @@ contains
     write_lpoly = gs2_diagnostics_config%write_lpoly
     write_max_verr = gs2_diagnostics_config%write_max_verr
     write_moments = gs2_diagnostics_config%write_moments
-    write_nl_flux = gs2_diagnostics_config%write_nl_flux
+    write_fluxes = gs2_diagnostics_config%write_fluxes
+    write_fluxes_by_mode = gs2_diagnostics_config%write_fluxes_by_mode
     write_nl_flux_dist = gs2_diagnostics_config%write_nl_flux_dist
     write_omavg = gs2_diagnostics_config%write_omavg
     write_omega = gs2_diagnostics_config%write_omega
@@ -853,9 +826,9 @@ contains
     write_avg_moments = write_avg_moments
 
     write_any = write_line .or. write_omega     .or. write_omavg &
-         .or. write_flux_line                   .or. write_nl_flux  &
+         .or. write_flux_line .or. write_fluxes .or. write_fluxes_by_mode  &
          .or. write_kpar   .or. write_heating     .or. write_lorentzian  .or. write_gs
-    write_any_fluxes =  write_flux_line .or. print_flux_line .or. write_nl_flux 
+    write_any_fluxes = write_flux_line .or. print_flux_line .or. write_fluxes .or. write_fluxes_by_mode
     dump_any = dump_check1  .or. dump_fields_periodically &
          .or.  dump_check2 .or. make_movie .or. print_summary &
          .or. write_full_moments_notgc
@@ -1001,6 +974,7 @@ contains
     use mp, only: proc0
     use job_manage, only: trin_reset, trin_restart
     use gs2_heating, only: del_htype
+    use diagnostics_fluxes, only: finish_diagnostics_fluxes
     implicit none
 
     if (write_heating) then
@@ -1010,11 +984,10 @@ contains
        call del_htype (hk)
     end if
 
+    call finish_diagnostics_fluxes()
     if (allocated(h_hist)) deallocate (h_hist, hk_hist, hk)
     if (allocated(j_ext_hist)) deallocate (j_ext_hist)
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
-    if (allocated(pflux)) deallocate (pflux, qheat, vflux, vflux_par, vflux_perp, pmflux, qmheat, vmflux, &
-         pbflux, qbheat, vbflux, vflux0, vflux1, exchange1, exchange)
     if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
 
     if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
@@ -1052,13 +1025,13 @@ contains
   !>
   !> This is the main routine for the "old" diagnostics.
   subroutine loop_diagnostics (istep, exit, debopt, force)
+    use, intrinsic :: iso_fortran_env, only: output_unit
+    use build_config, only: gs2_has_lowflow
     use species, only: nspec, spec, has_electron_species
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
-    use fields_arrays, only: phinew, aparnew, bparnew, phi
-    use dist_fn, only: flux, write_f, write_fyx,lf_flux, eexchange
-    use dist_fn, only: write_poly, collision_error
-    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn, only: write_poly, collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use prof, only: prof_entering, prof_leaving
@@ -1070,6 +1043,10 @@ contains
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
     use parameter_scan, only: scan_type_switch, scan_type_none
     use optionals, only: get_option_with_default
+    use diagnostics_printout, only: write_phi_fluxes_to_unit, write_fluxes_to_unit
+    use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
+         pflux, vflux, vflux_par, vflux_perp, pflux_tormom, vflux0, vflux1, pmflux, vmflux, &
+         pbflux, vbflux, exchange
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1086,9 +1063,7 @@ contains
 
     real, dimension (ntheta0, nspec) :: x_qmflux
     real, dimension (nspec) ::  heat_fluxes,  part_fluxes, mom_fluxes, parmom_fluxes, perpmom_fluxes, part_tormom_fluxes
-#ifdef LOWFLOW
     real, dimension (nspec) :: lfmom_fluxes, vflux1_avg  ! low-flow correction to turbulent momentum fluxes
-#endif
     real, dimension (nspec) :: mheat_fluxes, mpart_fluxes, mmom_fluxes
     real, dimension (nspec) :: bheat_fluxes, bpart_fluxes, bmom_fluxes
     real, dimension (nspec) :: energy_exchange
@@ -1171,97 +1146,41 @@ contains
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (write_any_fluxes) then
-       call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
-       call flux (phinew, aparnew, bparnew, &
-            pflux,  qheat,  vflux, vflux_par, vflux_perp, &
-            pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
-#ifdef LOWFLOW
-       ! lowflow terms only implemented in electrostatic limit at present
-       call lf_flux (phinew, vflux0, vflux1)
-#endif
-       call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
-       if (has_phi .and. &
-            (write_nl_flux .or. print_flux_line .or. (write_flux_line .and. write_ascii))) then
-         call eexchange (phinew, phi, exchange1, exchange)
-       end if
-
+       call common_calculate_fluxes()
        if (proc0) then
           if (has_phi) then
              do is = 1, nspec
-                qheat(:,:,is,1) = qheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,1), heat_fluxes(is))
-
-                qheat(:,:,is,2) = qheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,2), heat_par(is))
-
-                qheat(:,:,is,3) = qheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qheat(:,:,is,3), heat_perp(is))
-
-                pflux(:,:,is) = pflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pflux(:,:,is), part_fluxes(is))
-
-                pflux_tormom(:,:,is) = pflux_tormom(:,:,is) * spec(is)%dens  
                 call get_volume_average (pflux_tormom(:,:,is), part_tormom_fluxes(is))
-
-                vflux(:,:,is) = vflux(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux(:,:,is), mom_fluxes(is))
-
-                vflux_par(:,:,is) = vflux_par(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux_par(:,:,is), parmom_fluxes(is))
-
-                vflux_perp(:,:,is) = vflux_perp(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vflux_perp(:,:,is), perpmom_fluxes(is))
-
-                exchange(:,:,is) = exchange(:,:,is) * spec(is)%dens*spec(is)%z
                 call get_volume_average (exchange(:,:,is), energy_exchange(is))
-
 #ifdef LOWFLOW
-                vflux0(:,:,is) = vflux0(:,:,is) * spec(is)%dens*sqrt(spec(is)%mass*spec(is)%temp)
                 call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
-
-                vflux1(:,:,is) = vflux1(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%temp/spec(is)%z
                 call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
-
-                ! TMP UNTIL VFLUX0 IS TESTED
-                !                   mom_fluxes = mom_fluxes + lfmom_fluxes
 #endif
              end do
           end if
           if (has_apar) then
              do is = 1, nspec
-                qmheat(:,:,is,1)=qmheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,1), mheat_fluxes(is))
-
                 call get_surf_average (qmheat(:,:,is,1), x_qmflux(:,is))
-
-                qmheat(:,:,is,2)=qmheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,2), mheat_par(is))
-
-                qmheat(:,:,is,3)=qmheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qmheat(:,:,is,3), mheat_perp(is))
-
-                pmflux(:,:,is)=pmflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pmflux(:,:,is), mpart_fluxes(is))
-
-                vmflux(:,:,is)=vmflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vmflux(:,:,is), mmom_fluxes(is))
              end do
           end if
           if (has_bpar) then
              do is = 1, nspec
-                qbheat(:,:,is,1)=qbheat(:,:,is,1) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,1), bheat_fluxes(is))
-
-                qbheat(:,:,is,2)=qbheat(:,:,is,2) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,2), bheat_par(is))
-
-                qbheat(:,:,is,3)=qbheat(:,:,is,3) * spec(is)%dens*spec(is)%temp
                 call get_volume_average (qbheat(:,:,is,3), bheat_perp(is))
-
-                pbflux(:,:,is)=pbflux(:,:,is) * spec(is)%dens
                 call get_volume_average (pbflux(:,:,is), bpart_fluxes(is))
-
-                vbflux(:,:,is)=vbflux(:,:,is) * spec(is)%dens*spec(is)%mass*spec(is)%stm
                 call get_volume_average (vbflux(:,:,is), bmom_fluxes(is))
              end do
           end if
@@ -1281,27 +1200,16 @@ contains
        if (write_heating) call broadcast (heat_avg)
     end if
 
-    if (proc0) then
-       if (print_flux_line) then
-          if (has_phi) then
-             write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-                  & ' heat fluxes: ', 5(1x,e13.6))") &
-                  t, phi2, heat_fluxes(1:min(nspec,5))
-             write (unit=*, fmt="('t= ',e17.10,' <phi**2>= ',e13.6, &
-                  & ' energy exchange: ', 5(1x,e13.6))") &
-                  t, phi2, energy_exchange(1:min(nspec,5))
-          end if
-          if (has_apar) then
-             write (unit=*, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                  & ' heat flux m: ', 5(1x,e11.4))") &
-                  t, apar2, mheat_fluxes(1:min(nspec,5))
-          end if
-          if (has_bpar) then
-             write (unit=*, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                  & ' heat flux b: ', 5(1x,e11.4))") &
-                  t, bpar2, bheat_fluxes(1:min(nspec,5))
-          end if
-       end if
+    if (proc0 .and. print_flux_line) then
+      if (has_phi) then
+        call write_phi_fluxes_to_unit(output_unit, t, phi2, heat_fluxes, energy_exchange)
+      end if
+      if (has_apar) then
+        call write_fluxes_to_unit(output_unit, t, apar2, "apar", mheat_fluxes)
+      end if
+      if (has_bpar) then
+        call write_fluxes_to_unit(output_unit, t, bpar2, "bpar", bheat_fluxes)
+      end if
     end if
 
     ! Check for convergence
@@ -1318,110 +1226,79 @@ contains
        return
     end if
 
-    if (debug) write(6,*) "loop_diagnostics: -2"
+    if (debug) write(output_unit, *) "loop_diagnostics: -2"
     call prof_entering ("loop_diagnostics-2")
 
     if (proc0 .and. write_any) then
-       if (write_ascii) write (unit=out_unit, fmt=*) 'time=', t
-       if (write_ascii .and. write_heating) call do_write_heating(t, heat_unit, heat_unit2, h)
-
-       if (write_ascii .and. write_jext) call do_write_jext(t,istep)
-
-       ! DONE
-       if (write_flux_line) then
-          hflux_tot = 0.
-          zflux_tot = 0.
-          vflux_tot = 0.
-          if (has_phi) then
-             if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' heat fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, heat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' part fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, part_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' mom fluxes: ', 5(1x,e11.4))") &
-                     t, phi2, mom_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' energy exchange: ', 5(1x,e11.4))") &
-                     t, phi2, energy_exchange(1:min(nspec,5))
-
-#ifdef LOWFLOW
-                write (unit=out_unit, fmt="('t= ',e17.10,' <phi**2>= ',e11.4, &
-                     & ' lfmom fluxes: ', 5(1x,e11.4),' lfvflx1: ', 5(1x,e11.4))") &
-                     t, phi2, lfmom_fluxes(1:min(nspec,5)), vflux1_avg(1:min(nspec,5))
-#endif
-             end if
-             hflux_tot = sum(heat_fluxes)
-             vflux_tot = sum(mom_fluxes)
-             zflux_tot = sum(part_fluxes*spec%z)
-          end if
-          if (has_apar) then
-             if (write_lorentzian .and. write_ascii) then
-                wtmp_new = antenna_w()
-                if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
-                     write (unit=out_unit, fmt="('w= ',e17.10, &
-                     &  ' amp= ',e17.10)") real(wtmp_new), sqrt(2.*apar2)
-                wtmp_old = wtmp_new                
-             end if
-             if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                     & ' heat mluxes: ', 5(1x,e11.4))") &
-                     t, apar2, mheat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <apar**2>= ',e11.4, &
-                     & ' part mluxes: ', 5(1x,e11.4))") &
-                     t, apar2, mpart_fluxes(1:min(nspec,5))
-             end if
-             hflux_tot = hflux_tot + sum(mheat_fluxes)
-             vflux_tot = vflux_tot + sum(mmom_fluxes)
-             zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
-          end if
-          if (has_bpar) then
-             if (write_ascii) then
-                write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                     & ' heat bluxes: ', 5(1x,e11.4))") &
-                     t, bpar2, bheat_fluxes(1:min(nspec,5))
-                write (unit=out_unit, fmt="('t= ',e17.10,' <bpar**2>= ',e11.4, &
-                     & ' part bluxes: ', 5(1x,e11.4))") &
-                     t, bpar2, bpart_fluxes(1:min(nspec,5))
-             end if
-             hflux_tot = hflux_tot + sum(bheat_fluxes)
-             vflux_tot = vflux_tot + sum(bmom_fluxes)
-             zflux_tot = zflux_tot + sum(bpart_fluxes*spec%z)
-          end if
-          if (write_ascii) write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, &
-               & ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
-          if (write_nl_flux) then
-             call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
-                  heat_par, mheat_par, bheat_par, &
-                  heat_perp, mheat_perp, bheat_perp, &
-                  heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
-             call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
-             ! Update the target array in parameter_scan_arrays
-             !Do you really want the scan parameter to rely on a diagnostic flag?
-             ! below line gives out-of-bounds array for runs inside trinity
-             !                  scan_hflux(nout) = hflux_tot
-             scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
-
-             call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
-                  mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
-                  vflux_par, vflux_perp, vflux0, vflux1)
-             ! Update the target array in parameter_scan_arrays
-             !Do you really want the scan parameter to rely on a diagnostic flag?
-             ! below line gives out-of-bounds array for runs inside trinity
-             !                  scan_momflux(nout) = vflux_tot
-             scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
-             call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
-                  part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
-          end if
-
-          if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
-
-          ! below line gives out-of-bounds array for runs inside trinity
-          !               scan_phi2_tot(nout) = phi2
-          scan_phi2_tot(mod(nout-1,nstep/nwrite+1)+1) = phi2
+       if (write_ascii) then
+         write (unit=out_unit, fmt=*) 'time=', t
+         if (write_heating) call do_write_heating(t, heat_unit, heat_unit2, h)
+         if (write_jext) call do_write_jext(t,istep)
        end if
+
+       hflux_tot = 0.
+       zflux_tot = 0.
+       vflux_tot = 0.
+       if (has_phi) then
+         hflux_tot = sum(heat_fluxes)
+         vflux_tot = sum(mom_fluxes)
+         zflux_tot = sum(part_fluxes*spec%z)
+       end if
+       if (has_apar) then
+         hflux_tot = hflux_tot + sum(mheat_fluxes)
+         vflux_tot = vflux_tot + sum(mmom_fluxes)
+         zflux_tot = zflux_tot + sum(mpart_fluxes*spec%z)
+       end if
+       if (has_bpar) then
+         hflux_tot = hflux_tot + sum(bheat_fluxes)
+         vflux_tot = vflux_tot + sum(bmom_fluxes)
+         zflux_tot = zflux_tot + sum(bpart_fluxes*spec%z)
+       end if
+
+       if (write_flux_line .and. write_ascii) then
+         if (has_phi) then
+           call write_phi_fluxes_to_unit(out_unit, t, phi2, &
+                heat_fluxes, energy_exchange, part_fluxes, mom_fluxes, &
+                lfmom_fluxes, vflux1_avg, gs2_has_lowflow)
+         end if
+         if (write_lorentzian) then
+           wtmp_new = antenna_w()
+           if (real(wtmp_old) /= 0. .and. wtmp_new /= wtmp_old) &
+                write (unit=out_unit, fmt="('w= ',e17.10, ' amp= ',e17.10)") real(wtmp_new), sqrt(2.*apar2)
+           wtmp_old = wtmp_new
+         end if
+         if (has_apar) then
+           call write_fluxes_to_unit(out_unit, t, apar2, "apar", mheat_fluxes, mpart_fluxes)
+         end if
+         if (has_bpar) then
+           call write_fluxes_to_unit(out_unit, t, bpar2, "bpar", bheat_fluxes, bpart_fluxes)
+         end if
+         write (unit=out_unit, fmt="('t= ',e17.10,' h_tot= ',e11.4, ' z_tot= ',e11.4)") t, hflux_tot, zflux_tot
+       end if
+
+       if (write_fluxes) then
+         call nc_qflux (get_netcdf_file_id(), nout, qheat(:,:,:,1), qmheat(:,:,:,1), qbheat(:,:,:,1), &
+              heat_par, mheat_par, bheat_par, &
+              heat_perp, mheat_perp, bheat_perp, &
+              heat_fluxes, mheat_fluxes, bheat_fluxes, x_qmflux, hflux_tot)
+         call nc_exchange (get_netcdf_file_id(), nout, exchange, energy_exchange)
+         ! Update the target array in parameter_scan_arrays
+         !Do you really want the scan parameter to rely on a diagnostic flag?
+         scan_hflux(mod(nout-1,nstep/nwrite+1)+1) = hflux_tot
+
+         call nc_vflux (get_netcdf_file_id(), nout, vflux, vmflux, vbflux, &
+              mom_fluxes, mmom_fluxes, bmom_fluxes, vflux_tot, &
+              vflux_par, vflux_perp, vflux0, vflux1)
+         ! Update the target array in parameter_scan_arrays
+         !Do you really want the scan parameter to rely on a diagnostic flag?
+         scan_momflux(mod(nout-1,nstep/nwrite+1)+1) = vflux_tot
+         call nc_pflux (get_netcdf_file_id(), nout, pflux, pmflux, pbflux, &
+              part_fluxes, mpart_fluxes, bpart_fluxes, zflux_tot)
+       end if
+
+       if (write_pflux_tormom) call nc_pflux_tormom (get_netcdf_file_id(), nout, pflux_tormom, part_tormom_fluxes)
+
+       scan_phi2_tot(mod(nout-1,nstep/nwrite+1)+1) = phi2
 
        if (write_ascii) then
           do ik = 1, naky
@@ -1549,9 +1426,9 @@ contains
 
     select case(target_parameter_switch)
     case(target_parameter_hflux_tot)
-       call broadcast(scan_hflux) !This is only set if write_nl_flux
+       call broadcast(scan_hflux) !This is only set if write_fluxes
     case(target_parameter_momflux_tot)
-       call broadcast(scan_momflux) !This is only set if write_nl_flux
+       call broadcast(scan_momflux) !This is only set if write_fluxes
     case(target_parameter_phi2_tot)
        call broadcast(scan_phi2)
     case default

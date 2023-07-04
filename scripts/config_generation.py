@@ -428,7 +428,6 @@ class config():
         st.append("")
 
         # Table header
-        st.append("<html>")
         st.append('<table class="divNamelistTable" markdown="1">')
         st.append("<thead><tr>")
         header_cell = "<th> {val} </th>"
@@ -457,7 +456,6 @@ class config():
         st.append("</tbody>")
 
         st.append("</table>")
-        st.append("</html>")
         st.append("")
         return st
 

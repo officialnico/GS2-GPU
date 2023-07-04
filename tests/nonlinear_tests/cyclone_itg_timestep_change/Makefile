@@ -2,9 +2,9 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=cyclone_itg_timestep_change
 clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} ${TEST_BASE_NAME}_*.response ${TEST_BASE_NAME}.nc.* ${TEST_BASE_NAME}_*.vspace* *~
-
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -18,7 +18,7 @@ ifndef USE_FFT
 all:
 	$(call SKIPCOMMAND,compiled without FFT library; compile with USE_FFT=on to run this test)
 else
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_error_based.in)
 	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},${TEST_BASE_NAME}_no_limits.in)

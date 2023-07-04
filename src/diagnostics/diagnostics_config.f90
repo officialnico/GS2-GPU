@@ -160,7 +160,6 @@ module diagnostics_config
      logical :: write_omavg
      logical :: write_gg
      logical :: ob_midplane
-     logical :: write_nl_flux
      logical :: write_avg_moments
      logical :: dump_check1
      logical :: dump_check2
@@ -292,7 +291,6 @@ contains
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check1, "dump_check1")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%dump_check2, "dump_check2")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%ob_midplane, "ob_midplane")
-    call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_nl_flux, "write_nl_flux")
     call warn_about_nonfunctional_selection(.not. new_gs2_diagnostics_config%write_omavg, "write_omavg")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_sym, "write_pflux_sym")
     call warn_about_nonfunctional_selection(new_gs2_diagnostics_config%write_pflux_tormom, "write_pflux_tormom")
@@ -365,7 +363,6 @@ contains
     gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
     gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
     gnostics%write_moments = new_gs2_diagnostics_config%write_moments
-    gnostics%write_nl_flux = new_gs2_diagnostics_config%write_nl_flux
     gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist
     gnostics%write_ntot_over_time = new_gs2_diagnostics_config%write_ntot_over_time
     gnostics%write_omavg = new_gs2_diagnostics_config%write_omavg
