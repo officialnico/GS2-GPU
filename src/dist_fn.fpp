@@ -5376,12 +5376,12 @@ contains
     !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       if (.not. any(save_h(:, iglo))) cycle
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
 
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
-
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        if (is_passing_hybrid_electron(is, ik, il))  cycle
