@@ -5439,13 +5439,11 @@ contains
              b0 = 0.
 
              ! i labels cell counting from LEFTmost cell.
-             ! Note: If we looped backwards from ncell-1 to 1 we could probably
-             ! use the same approach as in the non-wfb particles were we reuse
-             ! fac from the previous iteration - fac = 1 ; do i = ... ; fac = fac * a(i)
-             do i = 1, ncell-1
+             fac = 1
+             do i = ncell - 1, 1, -1
                 ! fac is product of all homog sol's from cells to RIGHT on cell i
                 ! g_adj(ncell+j,1,iglo) accesses these homog solutions
-                fac = product(g_adj(ncell + i + 1: 2 * ncell, 1, iglo))
+                fac = fac * g_adj(ncell + i + 1, 1, iglo)
                 ! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
                 b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
              end do
@@ -5475,8 +5473,9 @@ contains
              facd = 1./(1. - product(g_adj(ncell + 1 : 2 * ncell, 2, iglo)))
 
              b0 = 0.
-             do i = 1, ncell-1
-                fac = product(g_adj(ncell + i + 1: 2 * ncell, 2, iglo))
+             fac = 1.0
+             do i = ncell - 1, 1, -1
+                fac = fac * g_adj(ncell + i + 1, 2, iglo)
                 b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
              end do
              b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
