@@ -5506,28 +5506,28 @@ contains
           ! conditions in each cell that is a member of a supercell with at least two
           ! cells, and for which the bounce point is not at theta=pi.
           !
-          if (save_h(1, iglo)) then
+          if (save_h(1, iglo) .and. l_links(it, ik) > 0) then
+             ! The l_links test might already be part of save_h?
              n = n_links(1, it, ik)
-             b0 = 0.0
+             b0 = g_adj(1, 1, iglo)
              fac = 1.0
-             do i = 1, l_links(it, ik)
-                if (i > 1) fac = fac * g_adj(n + 2 - i, 1, iglo)
-                b0 = b0 + g_adj(i,1,iglo) * fac
+             do i = 2, l_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 1, iglo)
+                b0 = b0 + g_adj(i, 1, iglo) * fac
              end do
-
-             g_in(:,1,iglo) = g_in(:,1,iglo) + b0*g_h(:,1,iglo)
+             g_in(:, 1, iglo) = g_in(:, 1, iglo) + b0 * g_h(:, 1, iglo)
           end if
 
-          if (save_h(2, iglo)) then
+          if (save_h(2, iglo) .and. r_links(it, ik) > 0) then
+             ! The r_links test might already be part of save_h?
              n = n_links(2, it, ik)
-             b0 = 0.0
+             b0 = g_adj(1, 2, iglo)
              fac = 1.0
-             do i = 1, r_links(it, ik)
-                if (i > 1) fac = fac * g_adj(n + 2 - i, 2, iglo)
-                b0 = b0 + g_adj(i,2,iglo) * fac
+             do i = 2, r_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 2, iglo)
+                b0 = b0 +  g_adj(i, 2, iglo) * fac
              end do
-
-             g_in(:,2,iglo) = g_in(:,2,iglo) + b0*g_h(:,2,iglo)
+             g_in(:, 2, iglo) = g_in(:, 2, iglo) + b0 * g_h(:, 2, iglo)
           end if
        end if
 
