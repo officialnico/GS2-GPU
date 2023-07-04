@@ -937,7 +937,7 @@ contains
     !> Current simulation time
     real, intent(in) :: user_time
     !> Optional string to add to file name
-    character, intent(in), optional :: fileopt_base
+    character(len=*), intent(in), optional :: fileopt_base
     integer :: istatus
     character(len=:), allocatable :: fileopt
 
