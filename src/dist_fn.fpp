@@ -2230,8 +2230,8 @@ contains
 
   !> Extracts the field like data corresponding to the supercell with
   !> the {it, ik} wavenumber pair as a member and constructs the
-  !> ballooning space form.  Doesn't attempt to avoid the duplicate
-  !> theta points which this introduces currently.
+  !> ballooning space form. By default includes duplicate theta points
+  !> but can drop these on request.
   subroutine flux_tube_field_like_to_ballooning_space(it, ik, field_like_ft, &
        theta_bs, field_like_bs, drop_duplicates)
     use theta_grid, only: ntgrid, theta
