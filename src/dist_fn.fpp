@@ -5336,7 +5336,7 @@ contains
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
     complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
-    integer :: il, ik, it, n, i, j
+    integer :: il, ik, it, n, i
     integer :: iglo, ncell
 !
 ! adding adjr, adjl to cope with application of self-periodic to WFB
@@ -5370,7 +5370,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
-    !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
+    !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
     !$OMP SHARED(g_lo, r_links, l_links, trapped_wfb, passing_wfb, nonad_zero, &
     !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
     !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
@@ -5440,12 +5440,9 @@ contains
 
              ! i labels cell counting from LEFTmost cell.
              do i = 1, ncell-1
-                fac = 1.0
-                do j = i+1, ncell
-                   ! fac is product of all homog sol's from cells to RIGHT on cell i
-                   ! g_adj(ncell+j,1,iglo) accesses these homog solutions
-                   fac = fac * g_adj(ncell+j,1,iglo)
-                end do
+                ! fac is product of all homog sol's from cells to RIGHT on cell i
+                ! g_adj(ncell+j,1,iglo) accesses these homog solutions
+                fac = product(g_adj(ncell + i + 1: 2 * ncell, 1, iglo))
                 ! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
                 b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
              end do
@@ -5476,10 +5473,7 @@ contains
 
              b0 = 0.
              do i = 1, ncell-1
-                fac = 1.0
-                do j = i+1, ncell
-                   fac = fac * g_adj(ncell+j,2,iglo)
-                end do
+                fac = product(g_adj(ncell + i + 1: 2 * ncell, 2, iglo))
                 b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
              end do
              b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
