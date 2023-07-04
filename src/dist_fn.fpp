@@ -5331,8 +5331,6 @@ contains
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
-    use spfunc, only: j0, j1
-    use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
