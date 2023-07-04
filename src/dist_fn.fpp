@@ -5436,9 +5436,9 @@ contains
              !  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)
              !    where h^r_j is the homogeneous exit solution from cell j for RP
              !
-             facd = 1.0
-             do j = 1, ncell
-                facd = facd * g_adj(ncell+j,1,iglo)
+             facd = g_adj(ncell + 1, 1, iglo)
+             do j = 2, ncell
+                facd = facd * g_adj(ncell + j, 1, iglo)
              end do
              facd = 1./(1.-facd)
 
@@ -5478,9 +5478,9 @@ contains
           ! Following code repeats same calculation for LEFTWARD travelling wfb.
           !CMRend
           if (save_h(2, iglo)) then
-             facd = 1.0
-             do j = 1, ncell
-                facd = facd * g_adj(ncell+j,2,iglo)
+             facd = g_adj(ncell + 1, 2, iglo)
+             do j = 2, ncell
+                facd = facd * g_adj(ncell + j, 2, iglo)
              end do
              facd = 1./(1.-facd)
 
