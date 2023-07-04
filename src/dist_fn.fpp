@@ -5509,11 +5509,9 @@ contains
           if (save_h(1, iglo)) then
              n = n_links(1, it, ik)
              b0 = 0.0
+             fac = 1.0
              do i = 1, l_links(it, ik)
-                fac = 1.0
-                do j = 1, i-1
-                   fac = fac * g_adj(n+1-j, 1, iglo)
-                end do
+                if (i > 1) fac = fac * g_adj(n + 2 - i, 1, iglo)
                 b0 = b0 + g_adj(i,1,iglo) * fac
              end do
 
@@ -5523,11 +5521,9 @@ contains
           if (save_h(2, iglo)) then
              n = n_links(2, it, ik)
              b0 = 0.0
+             fac = 1.0
              do i = 1, r_links(it, ik)
-                fac = 1.0
-                do j = 1, i-1
-                   fac = fac * g_adj(n+1-j, 2, iglo)
-                end do
+                if (i > 1) fac = fac * g_adj(n + 2 - i, 2, iglo)
                 b0 = b0 + g_adj(i,2,iglo) * fac
              end do
 
