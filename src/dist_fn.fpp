@@ -5507,7 +5507,6 @@ contains
        ! solution is now cached.
        call fill (wfb_h, g_h, g_adj)
     endif
-    call fill (links_h, g_h, g_adj)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
