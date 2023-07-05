@@ -2256,6 +2256,90 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_source_term
 
+  !> Extracts the field like data corresponding to the supercell with
+  !> the {it, ik} wavenumber pair as a member and constructs the
+  !> ballooning space form. By default includes duplicate theta points
+  !> but can drop these on request.
+  subroutine flux_tube_field_like_to_ballooning_space(it, ik, field_like_ft, &
+       theta_bs, field_like_bs, drop_duplicates)
+    use theta_grid, only: ntgrid, theta
+    use kt_grids, only: theta0, ntheta0
+    use sorting, only: quicksort
+    use optionals, only: get_option_with_default
+    implicit none
+    integer, intent(in) :: it, ik
+    complex, dimension(-ntgrid:, :, :), intent(in) :: field_like_ft
+    real, dimension(:), allocatable, intent(out) :: theta_bs
+    complex, dimension(:), allocatable, intent(out) :: field_like_bs
+    logical, intent(in), optional :: drop_duplicates
+    real, dimension(:), allocatable :: theta0_values
+    real, dimension(:), allocatable :: theta0_indices_real
+    integer, dimension(:), allocatable :: theta0_indices
+    logical, dimension(:), allocatable :: supercell_mask
+    real, dimension(:, :), allocatable :: theta_2d
+    complex, dimension(:, :), allocatable :: extracted_field
+    integer :: isc, ncell, it0, icell
+    integer :: nextend, iend, istart, ntheta_minus_1
+    logical :: drop_duplicate_theta_points
+
+    ! Get the supercell label related to the point of interest and
+    ! form a logical mask selecting members of this supercell
+    isc = supercell_labels(it, ik)
+    supercell_mask = supercell_labels(:, ik) == isc
+
+    ! Count how many cells there are.
+    ncell = count(supercell_mask)
+
+    theta0_values = pack(theta0(:, ik), supercell_mask)
+    theta0_indices_real = pack([(it0*1.0, it0 = 1, ntheta0)], supercell_mask)
+
+    ! Here we're sorting theta0 indices for member of the supercell
+    ! with the theta0 values as a key so that theta0_indices_real will give
+    ! the it values of the supercell members in order of increasing theta0.
+    ! We could skip this sorting and just work out where we transition from the
+    ! +ve kx to the -ve kx and slice there, but sorting should work in general
+    ! and avoids potentially confusing integer index calculations
+    call quicksort(ncell, theta0_values, theta0_indices_real)
+
+    ! Convert theta0_indices_real to integer to allow use for indexing
+    ! arrays later.
+    theta0_indices = int(theta0_indices_real)
+    theta0_indices = theta0_indices(ncell:1:-1)
+
+    allocate(extracted_field(-ntgrid:ntgrid, ncell))
+    allocate(theta_2d(-ntgrid:ntgrid, ncell))
+
+    do icell = 1, ncell
+       extracted_field(:, icell) = field_like_ft(:, theta0_indices(icell), ik)
+       theta_2d(:, icell) = theta - theta0(theta0_indices(icell), ik)
+    end do
+
+    drop_duplicate_theta_points = get_option_with_default(drop_duplicates, .false.)
+    if (drop_duplicate_theta_points) then
+       ! Get the size of the domain, dropping one theta point for all but the last cell
+       nextend = size(theta_2d) - (ncell - 1)
+       allocate(theta_bs(nextend))
+       allocate(field_like_bs(nextend))
+
+       ntheta_minus_1 = size(theta) - 1
+       istart = 1
+       iend = istart + ntheta_minus_1 - 1
+
+       do icell = 1, ncell - 1
+          theta_bs(istart:iend) = theta_2d(:ntgrid-1, icell)
+          field_like_bs(istart:iend) = extracted_field(:ntgrid-1, icell)
+          istart = iend + 1
+          iend = istart + ntheta_minus_1 - 1
+       end do
+       theta_bs(istart:) = theta_2d(:, ncell)
+       field_like_bs(istart:) = extracted_field(:, ncell)
+    else
+       theta_bs = reshape(theta_2d, [size(theta_2d)])
+       field_like_bs = reshape(extracted_field, [size(extracted_field)])
+    end if
+
+  end subroutine flux_tube_field_like_to_ballooning_space
+
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
   subroutine calculate_supercell_labels(supercell_labels)
