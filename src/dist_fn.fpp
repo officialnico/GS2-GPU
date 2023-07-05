@@ -69,7 +69,7 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, boundary
+  public :: l_links, r_links, itright, boundary, supercell_labels
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
@@ -200,6 +200,13 @@ module dist_fn
   ! connected bc
   integer, dimension (:,:), allocatable :: itleft, itright
   ! (naky,ntheta0)
+
+  !> Labels the supercells as a function of {it, ik}. Primarily
+  !> to help with post-processing, although can also help with
+  !> conversion from flux tube to ballooning space. This probably
+  !> really belongs in kt_grids, but placing here alongside related
+  !> itleft, itright etc.
+  integer, dimension(:, :), allocatable :: supercell_labels
 
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
@@ -1092,6 +1099,7 @@ contains
     if (allocated(l_links)) deallocate (l_links, r_links, n_links)
     if (allocated(M_class)) deallocate (M_class, N_class)
     if (allocated(itleft)) deallocate (itleft, itright)
+    if (allocated(supercell_labels)) deallocate (supercell_labels)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -2146,6 +2154,9 @@ contains
        end if
        M_class = naky*ntheta0 ; N_class = 1
     end select
+
+    allocate(supercell_labels(ntheta0, naky))
+    call calculate_supercell_labels(supercell_labels)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2244,6 +2255,38 @@ contains
     enddo
     !$OMP END PARALLEL DO
   end subroutine init_source_term
+
+  !> Assigns a label to each {it, ik} point denoting which unique
+  !> supercell the point belongs to.
+  subroutine calculate_supercell_labels(supercell_labels)
+    use kt_grids, only: naky, ntheta0
+    implicit none
+    integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:), allocatable :: temporary_it_leftmost
+    integer :: it, ik, isc
+
+    supercell_labels = -1
+    isc = -1
+
+    allocate(temporary_it_leftmost(ntheta0))
+    temporary_it_leftmost = -1
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          temporary_it_leftmost(it) = get_leftmost_it(it, ik)
+       end do
+
+       do it = 1, ntheta0
+          if (temporary_it_leftmost(it) >= 0) then
+             isc = isc + 1
+             where (temporary_it_leftmost == temporary_it_leftmost(it))
+                temporary_it_leftmost = -1
+                supercell_labels(:, ik) = isc
+             end where
+          end if
+       end do
+    end do
+  end subroutine calculate_supercell_labels
 
   !> Compute the spacing in kx indices between connected kx domains
   !> (cells) for the lowest non-zonal ky.
