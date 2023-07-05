@@ -19,13 +19,13 @@ module kt_grids_single
   integer :: n0
   logical :: parameters_read = .false.
   logical :: initialized = .false.
-  
+  real, parameter :: default_unset_value = -12345.6789
   !> Used to represent the input configuration of kt_grids_single
   type, extends(abstract_config_type) :: kt_grids_single_config_type
      ! namelist : kt_grids_single_parameters
      ! indexed : false     
      !> \(k_x \rho\) for the reference species (but recommended to set `theta0` instead).
-     real :: akx = 0.0
+     real :: akx = default_unset_value
      !> \(k_y \rho\) for the reference species.
      real :: aky = 0.4
      !> if `n0`>0 use toroidal mode number to override `aky` and set
@@ -89,7 +89,7 @@ contains
 !CMR, 14/10/2013: 
 ! New namelist variables n0, rhostar_single to set aky using toroidal mode number.
 ! Toroidal modenumber used if n0> 0 prescribed in input file. 
-    use theta_grid, only: drhodpsi
+    use theta_grid, only: drhodpsi, shat
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
 
@@ -102,6 +102,17 @@ contains
 !CMR if n0>0 then override aky inputs and use n0 to determine aky
        aky=n0*drhodpsi*rhostar_single
     endif
+
+    ! Try to ensure consistency between akx and theta0
+    if (akx == default_unset_value) then
+       ! If kx hasn't been set, set it from theta0
+       akx = theta0 * aky * shat
+    else
+       ! If kx has been set, force theta0 to be calculated from this
+       if (shat /= 0 .and. aky /= 0 ) then
+          theta0 = akx / (aky * shat)
+       end if
+    end if
 
   end subroutine init_kt_grids_single
 
