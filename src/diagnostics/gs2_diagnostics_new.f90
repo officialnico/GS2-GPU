@@ -300,6 +300,24 @@ contains
     if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
     if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.false.,gnostics%istep)
   end subroutine run_diagnostics_to_be_updated
+
+  !> Calculates and write the QL flux metric to netcdf
+  subroutine write_ql_metric(gnostics)
+    use diagnostics_omega, only: omegahist
+    use gs2_diagnostics, only: calculate_simple_quasilinear_flux_metric_by_k
+    use kt_grids, only: ntheta0, naky
+    use gs2_io, only: nc_write_ql_metric
+    implicit none
+    type(diagnostics_type), intent(inout) :: gnostics
+    real, dimension(ntheta0, naky) :: ql_metric
+
+    if (.not. gnostics%writing) return
+
+    ql_metric = calculate_simple_quasilinear_flux_metric_by_k( &
+         imag(omegahist(mod(gnostics%istep, gnostics%navg), :, :)))
+
+    call nc_write_ql_metric(gnostics%file_id, gnostics%nout, ql_metric)
+  end subroutine write_ql_metric
   
   !> Create or write all variables according to the value of istep:
   !! istep=-1 --> Create all netcdf variables
@@ -417,6 +435,7 @@ contains
        if (gnostics%write_fields) call write_fields(gnostics)
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics written fields')
        if (gnostics%dump_fields_periodically) call do_dump_fields_periodically(gnostics%user_time)
+       if (gnostics%write_ql_metric)  call write_ql_metric(gnostics)
        if (gnostics%calculate_fluxes) call calculate_fluxes(gnostics) ! NB  also writes fluxes if on
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics calculated fluxes')
        if (gnostics%write_symmetry) then

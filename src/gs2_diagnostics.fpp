@@ -22,7 +22,7 @@ module gs2_diagnostics
   public :: ensemble_average
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
-  public :: diffusivity
+  public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
   public :: get_omegaavg, get_volume_average
 
   public :: gs2_diagnostics_config_type
@@ -55,7 +55,7 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly
+  logical, public :: write_gs, write_lpoly, write_ql_metric
   logical, public :: write_g, write_gg, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
@@ -788,6 +788,7 @@ contains
     write_pflux_sym = gs2_diagnostics_config%write_pflux_sym
     write_pflux_tormom = gs2_diagnostics_config%write_pflux_tormom
     write_phi_over_time = gs2_diagnostics_config%write_phi_over_time
+    write_ql_metric = gs2_diagnostics_config%write_ql_metric
     write_symmetry = gs2_diagnostics_config%write_symmetry
     write_verr = gs2_diagnostics_config%write_verr
 
@@ -1396,6 +1397,7 @@ contains
     use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
+    use kt_grids, only: ntheta0, naky
     implicit none
     !> Simulation time
     real, intent(in) :: time
@@ -1405,14 +1407,22 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
+    real, dimension (ntheta0, naky) :: ql_metric
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
+    if (write_ql_metric) then
+       ql_metric = calculate_simple_quasilinear_flux_metric_by_k(imag(omega))
+    else
+       ql_metric = 0.0
+    end if
+
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_metric, &
+         write_omega, write_heating, write_ql_metric)
 
   end subroutine do_write_ncloop
 
@@ -2787,6 +2797,95 @@ contains
     diffusivity = maxval(diffusivity_by_k) * grho(igomega)
 
   end function diffusivity
+
+  !> Calculates <|field|**2 kperp2>_theta / <|field|**2>_theta.
+  !> Useful for simple quasilinear metric
+  function get_field_weighted_average_kperp2(field) result(average)
+    use kt_grids, only: kperp2, naky, ntheta0
+    use theta_grid, only: ntgrid, field_line_average
+    implicit none
+    complex, dimension(-ntgrid:ntgrid, ntheta0, naky), intent(in) :: field
+    real, dimension(ntheta0, naky) :: average
+    real, dimension(-ntgrid:ntgrid, ntheta0, naky) :: field_squared
+    integer :: it, ik
+    field_squared = abs(field) * abs(field)
+    average = 0.0
+    do ik = 1, naky
+       do it = 1, ntheta0
+          if (maxval(abs(field_squared(:, it, ik))) <= epsilon(0.0)) cycle
+          average(it, ik) = field_line_average(field_squared(:, it, ik) * &
+               kperp2(:, it, ik)) / field_line_average(field_squared(:, it, ik))
+       end do
+    end do
+  end function get_field_weighted_average_kperp2
+
+  !> Calculates a simple gamma/kperp2 QL flux metric
+  function calculate_simple_quasilinear_flux_metric_by_k(growth_rates) result(ql_metric)
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use kt_grids, only: naky, ntheta0, aky
+    use fields_arrays, only: phinew, aparnew, bparnew
+    implicit none
+    real, dimension(ntheta0, naky), intent(in) :: growth_rates
+    real, dimension(ntheta0, naky) :: ql_metric, normalising_field, limited_growth_rates, average
+    integer :: ik
+
+    ! Initialise flux to zero
+    ql_metric = 0.0
+
+    ! Decide on the normalising field
+    if (has_phi) then
+       normalising_field = maxval(abs(phinew)**2, dim = 1)
+    else if (has_apar) then
+       normalising_field = maxval(abs(aparnew)**2, dim = 1)
+    else if (has_bpar) then
+       normalising_field = maxval(abs(bparnew)**2, dim = 1)
+    else
+       ! If we get here then no fields are active so the QL flux
+       ! is zero and we can exit
+       return
+    end if
+
+    where (normalising_field > 0)
+       normalising_field = 1.0 / normalising_field
+    end where
+
+    if (has_phi) then
+       average = get_field_weighted_average_kperp2(phinew)
+       where(average > 0.0)
+          ql_metric = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    if (has_apar) then
+       average = get_field_weighted_average_kperp2(aparnew)
+       where(average > 0.0)
+          ql_metric = ql_metric + &
+               maxval(abs(aparnew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    if (has_bpar) then
+       average = get_field_weighted_average_kperp2(bparnew)
+       where(average > 0.0)
+          ql_metric = ql_metric + &
+               maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    ! Limit the growth rate to positive values
+    where (growth_rates > 0)
+       limited_growth_rates = growth_rates
+    elsewhere
+       limited_growth_rates = 0.0
+    end where
+
+    ! MG: Avoid spurious contribution from the zonal mode
+    do ik = 1, naky
+       if (aky(ik) == 0) ql_metric(:, ik) = 0.0
+    end do
+    
+    ql_metric = ql_metric * limited_growth_rates
+  end function calculate_simple_quasilinear_flux_metric_by_k
 
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
