@@ -23,7 +23,7 @@ module gs2_diagnostics
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
   public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
-  public :: get_omegaavg, get_volume_average
+  public :: get_omegaavg, get_volume_average, calculate_instantaneous_omega
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
@@ -1407,14 +1407,17 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
-    real, dimension (ntheta0, naky) :: ql_metric
+    real, dimension (ntheta0, naky) :: ql_metric, growth_rates
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
     if (write_ql_metric) then
-       ql_metric = calculate_simple_quasilinear_flux_metric_by_k(imag(omega))
+
+       ! Calculate the instantaneous omega and keep the growth rate.
+       growth_rates = imag(calculate_instantaneous_omega())
+       ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates)
     else
        ql_metric = 0.0
     end if
@@ -2826,7 +2829,8 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     implicit none
     real, dimension(ntheta0, naky), intent(in) :: growth_rates
-    real, dimension(ntheta0, naky) :: ql_metric, normalising_field, limited_growth_rates, average
+    real, dimension(ntheta0, naky) :: limited_growth_rates, average
+    real, dimension(ntheta0, naky) :: ql_metric, normalising_field
     integer :: ik
 
     ! Initialise flux to zero
@@ -2883,19 +2887,81 @@ contains
     do ik = 1, naky
        if (aky(ik) == 0) ql_metric(:, ik) = 0.0
     end do
-    
+
     ql_metric = ql_metric * limited_growth_rates
   end function calculate_simple_quasilinear_flux_metric_by_k
+
+  !> Calculates the instantaneous omega from chinew = chi * exp(-i * omega * dt)
+  !> with chi = phi + apar + bpar. This gives omega = log(chinew/chi) * i / dt.
+  pure function  calculate_instantaneous_omega(ig, tolerance) result(omega_inst)
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use gs2_time, only: code_dt
+    use constants, only: zi
+    use optionals, only: get_option_with_default
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    implicit none
+    integer, intent(in), optional :: ig
+    real, intent(in), optional :: tolerance
+    complex, dimension(ntheta0, naky) :: omega_inst, field_sum, field_sum_new
+    integer :: ig_use
+    real :: tol_use, too_small
+
+    ! Determine which theta grid point to evaluate the fields at
+    ig_use = get_option_with_default(ig, igomega)
+
+    ! Construct the field sums for current and old fields.
+    ! We always allocate the fields (for now) so we could just
+    ! unconditionally sum. This could make the code clearer
+    ! without really adding _much_ overhead.
+    if (has_phi) then
+       field_sum = phi(ig_use, :, :)
+       field_sum_new = phinew(ig_use, :, :)
+    else
+       field_sum = 0.0
+       field_sum_new = 0.0
+    end if
+
+    if (has_apar) then
+       field_sum = field_sum + apar(ig_use, :, :)
+       field_sum_new = field_sum_new + aparnew(ig_use, :, :)
+    end if
+
+    if (has_bpar) then
+       field_sum = field_sum + bpar(ig_use, :, :)
+       field_sum_new = field_sum_new + bparnew(ig_use, :, :)
+    end if
+
+    ! Determine what tolerance to use
+    tol_use = get_option_with_default(tolerance, omegatol)
+
+    ! Decide what size float we consider too small to divide by
+    ! Note this uses tiny rather than epsilon in order to allow
+    ! us to track modes with low amplitudes.
+    if (tol_use == 0.0) then
+       too_small = tiny(0.0)
+    else
+       too_small = tiny(0.0) * 1000. / abs(tol_use)
+    end if
+
+    ! Use where to guard against dividing by tool small a number
+    ! Note we don't divide by field_sum_new so we probably don't need to
+    ! check that here, just field_sum.
+    where (abs(field_sum) < too_small .or. abs(field_sum_new) < too_small)
+       omega_inst = 0.0
+    elsewhere
+       omega_inst = log(field_sum_new / field_sum) * zi / code_dt
+    end where
+
+  end function calculate_instantaneous_omega
 
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
   !>
   !> Time average is over previous [[gs2_diagnostics_knobs:navg]] timesteps
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
-    use kt_grids, only: naky, ntheta0
-    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use kt_grids, only: ntheta0, naky
     use gs2_time, only: code_dt
-    use constants, only: zi
     implicit none
     !> The current timestep
     integer, intent (in) :: istep
@@ -2906,38 +2972,16 @@ contains
     complex, dimension (:,:), intent (out) :: omegaavg
     !> If true, write some debug messages
     logical, intent (in), optional :: debopt
-    real :: fac
-    !CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
-    !HJL - moved to top of module
-    !    complex, allocatable, save, dimension (:,:,:) :: domega
-    integer :: j
-
     logical :: debug=.false.
 
     if (debug) write(6,*) "get_omeaavg: allocate domega"
     if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
     if (present(debopt)) debug=debopt
     if (debug) write(6,*) "get_omeaavg: start"
-    j = igomega
-    !The logic below was originally
-    !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
-    !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
-    !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
-    !What we really want to do is prevent dividing by too small a number. 
-    if(omegatol.eq.0)then
-       fac=1.0
-    else
-       fac=1000/abs(omegatol)
-    endif
     if (debug) write(6,*) "get_omeaavg: set omegahist"
-    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < tiny(0.0)*fac &
-         .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < tiny(0.0)*fac)
-       omegahist(mod(istep,navg),:,:) = 0.0
-    elsewhere
-       omegahist(mod(istep,navg),:,:) &
-            = log((phinew(j,:,:) + aparnew(j,:,:) + bparnew(j,:,:)) &
-            /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
-    end where
+
+    ! Get and store the current instantaneous omega
+    omegahist(mod(istep, navg), :, :) = calculate_instantaneous_omega(igomega, omegatol)
 
     if (debug) write(6,*) "get_omeaavg: set omegahist at istep = 0"
     !During initialisation fieldnew==field but floating error can lead to finite omegahist
