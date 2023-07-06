@@ -186,7 +186,6 @@ AWK 		= awk
 PERL		= perl
 FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
-
 MPI_INC	?=
 MPI_LIB ?=
 FFT_INC ?=
@@ -569,7 +568,7 @@ endif
 
 # NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
 # ensure that it gets quoted correctly on the command line
-MACRO_DEFS += -DGS2_BUILD_TAG='"$${GS2_BUILD_TAG}"'
+MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
 
 ############################################################################# Done dealing with user flags
 
