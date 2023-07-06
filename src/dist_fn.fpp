@@ -5933,6 +5933,11 @@ contains
     call zero_array(g_pass)
     call fill(pass_right, g_array, g_pass)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, l_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        ! Don't check for trapped particles
@@ -5946,10 +5951,16 @@ contains
           err = max(err, abs(g_array(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
        end if
     end do
+    !$OMP END PARALLEL DO
 
     call zero_array(g_pass)
     call fill(pass_left, g_array, g_pass)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, r_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        ! Don't check for trapped particles
@@ -5963,6 +5974,7 @@ contains
           err = max(err, abs(g_array(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
        end if
     end do
+    !$OMP END PARALLEL DO
 
     ! Use a real to represent the outcome so we can use existing mp routines
     violation_flag = err
