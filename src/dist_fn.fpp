@@ -1185,7 +1185,7 @@ contains
   !> FIXME : Add documentation  
   subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use file_utils, only: error_unit
-    use theta_grid, only: shat
+    use theta_grid, only: is_effectively_zero_shear
     use text_options, only: text_option, get_option_value
     use species, only: nspec
     use mp, only: proc0, broadcast, mp_abort
@@ -1311,7 +1311,7 @@ contains
        end if
 
        ! Fully periodic at low enough shear
-       if(abs(shat) <=  1.e-5) then
+       if(is_effectively_zero_shear()) then
           boundary_option_switch = boundary_option_self_periodic
           boundary_option = 'periodic'
        end if
@@ -5092,7 +5092,6 @@ contains
          is_lower_bounce_point, ittp, mixed_wfb
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
@@ -5691,7 +5690,6 @@ contains
     use theta_grid, only: ntgrid
     use gs2_time, only: code_time
     use constants, only: zi, pi
-    use prof, only: prof_entering, prof_leaving
     use dist_fn_arrays, only: g_work, gnew
     use array_utils, only: zero_array
     implicit none
@@ -5701,8 +5699,6 @@ contains
 
     real :: time
     complex :: sourcefac
-
-    call prof_entering ("invert_rhs", "dist_fn")
 
     time = code_time
     !Sourcefac ends up being passed all the way through to get_source_term
@@ -5732,7 +5728,6 @@ contains
        call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
     end select
 
-    call prof_leaving ("invert_rhs", "dist_fn")
   end subroutine invert_rhs
 
   !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
@@ -5798,7 +5793,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
-    use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     use optionals, only: get_option_with_default
     implicit none
@@ -5810,7 +5804,6 @@ contains
     logical :: local_local_only
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
-    call prof_entering ("getan_from_dfn", "dist_fn")
     local_local_only = get_option_with_default(local_only, .false.)
 
     if (local_local_only) then
@@ -5889,7 +5882,6 @@ contains
        if(esv) call ensure_single_val_fields_pass(antotp)
     end if
 
-    call prof_leaving ("getan_from_dfn", "dist_fn")
   end subroutine getan_from_dfn
 
   !> Compute velocity space integrals over \(h_s\):
@@ -5905,13 +5897,10 @@ contains
   subroutine getan (antot, antota, antotp, local_only)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, intent(in), optional :: local_only
-    call prof_entering ("getan", "dist_fn")
     call getan_from_dfn(gnew, antot, antota, antotp, local_only)
-    call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
   !> Calculate various moments of the distribution function
@@ -5921,7 +5910,6 @@ contains
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
-    use prof, only: prof_entering, prof_leaving
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Total perturbed density
@@ -5946,8 +5934,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent(in) :: bparnew
 
     integer :: ik, it, isgn, ie, is, iglo
-
-    call prof_entering ("getmoms", "dist_fn")
 
 ! DJA+CMR: 17/1/06, use g_adjust routine to extract g_wesson
 !                   from gnew, phinew and bparnew.
@@ -6065,8 +6051,6 @@ contains
 
 ! return gnew to its initial state, the variable evolved in GS2
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
-
-    call prof_leaving ("getmoms", "dist_fn")
   end subroutine getmoms
 
   !> FIXME : Add documentation
@@ -6076,7 +6060,6 @@ contains
     use species, only: nspec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
-    use prof, only: prof_entering, prof_leaving
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -6272,14 +6255,13 @@ contains
     call integrate_moment (g_work, glm,  moment_to_allprocs, full_arr)
   end subroutine get_mom_glm
 
-  !> FIXME : Add documentation
+  !> Returns electron density and Tperp moment integrals to PE 0
   subroutine getemoms (phinew, bparnew, ntot, tperp)
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
-    use prof, only: prof_entering, prof_leaving
 
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -6288,8 +6270,6 @@ contains
 
     integer :: ik, it, isgn, ie, is, iglo
 
-! returns electron density and Tperp moment integrals to PE 0
-    call prof_entering ("getemoms", "dist_fn")
 !
 ! What are <delta_f> and g_wesson in the note below?
 ! g_wesson = <delta_f> + q phi/T    [ignore F_m factors for simplicity]
@@ -6358,7 +6338,6 @@ contains
 ! return gnew to its initial state, the variable evolved in GS2
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
-    call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
   
   !> Calculates moments at not guiding center coordinate

@@ -145,13 +145,10 @@ contains
     use dist_fn, only: getfieldeq
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (out) :: fl
     integer :: istart, ifin
-
-    call prof_entering ("get_field_vector", "fields_implicit")
 
     call getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
 
@@ -175,7 +172,6 @@ contains
        fl(istart:ifin,:,:) = fieldeqp
     end if
 
-    call prof_leaving ("get_field_vector", "fields_implicit")
   end subroutine get_field_vector
 
   !> FIXME : Add documentation  
@@ -185,12 +181,9 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: jf_lo, ij_idx
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (0:), intent (in) :: u
     integer :: ik, it, ifield, ll, lr
-
-    call prof_entering ("get_field_solution", "fields_implicit")
 
     ifield = 0
 
@@ -227,14 +220,12 @@ contains
        end do
     endif
 
-    call prof_leaving ("get_field_solution", "fields_implicit")
   end subroutine get_field_solution
 
   !> FIXME : Add documentation  
   subroutine getfield (phi, apar, bpar)
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: f_lo, jf_lo
-    use prof, only: prof_entering, prof_leaving
     use theta_grid, only: ntgrid
     use dist_fn, only: N_class
     use mp, only: sum_allreduce, allgatherv, iproc, nproc
@@ -245,7 +236,6 @@ contains
     complex, dimension (:), allocatable :: u_small
     integer :: jflo, ik, it, nl, nr, i, m, n, dc
 
-    call prof_entering ("getfield", "fields_implicit")
     allocate (fl(nidx, ntheta0, naky))
 
     !On first call to this routine setup the receive counts (recvcnts)
@@ -322,9 +312,6 @@ contains
        call get_field_solution (u_small)
        deallocate(u_small)
     endif
-
-    !For profiling
-    call prof_leaving ("getfield", "fields_implicit")
 
   end subroutine getfield
 
@@ -484,14 +471,12 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
-    use prof, only: prof_entering, prof_leaving
     use file_utils, only: error_unit
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
     logical :: endpoint
     logical :: response_was_read
-    call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
     if (has_phi) nfield = nfield + 1
@@ -667,8 +652,6 @@ contains
     endif 
 
     if(dump_response) call dump_response_to_file_imp
-    call prof_leaving ("init_response_matrix", "fields_implicit")
-
   end subroutine init_response_matrix
 
   !> FIXME : Add documentation  
@@ -679,14 +662,10 @@ contains
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: f_lo, idx, idx_local
-    use prof, only: prof_entering, prof_leaving
     implicit none
     integer, intent (in) :: ig, ifield, ic, n
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
     integer :: irow, istart, iflo, ik, it, ifin, m, nn
-
-    !For profiling
-    call prof_entering ("init_response_row", "fields_implicit")
 
     !Find response to delta function fields
     !NOTE:Timeadv will loop over all iglo even though only one ik
@@ -745,8 +724,6 @@ contains
        end do
     end do
 
-    !For profiling
-    call prof_leaving ("init_response_row", "fields_implicit")
   end subroutine init_response_row
 
   !> FIXME : Add documentation  
@@ -760,7 +737,6 @@ contains
     use gs2_layouts, only: f_lo, idx, idx_local, proc_id, jf_lo
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
     use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
-    use prof, only: prof_entering, prof_leaving
     use dist_fn, only: i_class, M_class, N_class
     implicit none
     integer, intent (in) :: ic
@@ -773,7 +749,6 @@ contains
     logical :: iskip, jskip
     real :: mp_total, mp_total_after
 
-    call prof_entering ("init_inverse_matrix", "fields_implicit")
     call time_message(.false.,time_field_invert,' Field Matrix Invert')
     call get_mp_times(total_time = mp_total)
     
@@ -1100,9 +1075,6 @@ contains
     call time_message(.false.,time_field_invert,' Field Matrix Invert')
     call get_mp_times(total_time = mp_total_after)
     time_field_invert_mpi = time_field_invert_mpi + (mp_total_after - mp_total)
-
-    !For profiling
-    call prof_leaving ("init_inverse_matrix", "fields_implicit")
   end subroutine init_inverse_matrix
 
   !> FIXME : Add documentation  
