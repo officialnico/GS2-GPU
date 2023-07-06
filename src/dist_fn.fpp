@@ -5967,7 +5967,7 @@ contains
     ! Use a real to represent the outcome so we can use existing mp routines
     violation_flag = err
     call max_allreduce(violation_flag)
-    if (violation_flag > tolerance) then
+    if (violation_flag > local_tolerance) then
        call mp_abort('The passed array has inconsistent linked boundaries. '//id_message, .true.)
     end if
   end subroutine check_linked_boundaries_are_satisfied
