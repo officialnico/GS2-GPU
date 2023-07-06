@@ -1935,6 +1935,7 @@ contains
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ng2, mixed_wfb
     use optionals, only: get_option_with_default
+    use redistribute, only: fill
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
     logical, intent(in), optional :: force_passing
@@ -2125,6 +2126,13 @@ contains
 
     end do
     !$OMP END PARALLEL DO
+
+    ! Communicate the homogeneous solution boundary values for use in the
+    ! twist-shift boundary conditions if required.
+    if (allocated(g_adj) .and. .not. no_connections) then
+       call fill (links_h, g_h, g_adj)
+       if (mixed_wfb) call fill(wfb_h, g_h, g_adj)
+    end if
 
   end subroutine init_homogeneous_g
 
@@ -5504,15 +5512,7 @@ contains
     !update (i.e. what we do below) in a parallel manner, so the below code would
     !become partially serial.
     call fill (links_p, g_in, g_adj)
-    ! We probably don't need to do this each step as the homogeneous
-    ! solution is now cached.
-    call fill (links_h, g_h, g_adj)
-    if( mixed_wfb ) then
-       call fill (wfb_p, g_in, g_adj)
-       ! We probably don't need to do this each step as the homogeneous
-       ! solution is now cached.
-       call fill (wfb_h, g_h, g_adj)
-    endif
+    if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
