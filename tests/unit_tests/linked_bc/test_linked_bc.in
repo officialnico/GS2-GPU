@@ -1,0 +1,39 @@
+  &kt_grids_knobs
+    grid_option = 'box'
+  /
+  &kt_grids_box_parameters
+  ny = 4
+  nx = 4
+  jtwist = 1
+  y0 = -0.1
+  /
+
+  &dist_fn_knobs
+  boundary_option = 'linked'
+  nonad_zero = T
+  /
+
+  &theta_grid_parameters
+  nperiod = 1
+  ntheta = 32
+  eps = 0.3
+  /
+
+  &species_knobs
+  nspec = 1
+  /
+  &dist_fn_species_knobs_1
+  bakdif = 0.5
+  /
+  &species_parameters_1
+  /
+
+  &le_grids_knobs
+  npassing = 3
+  nesuper = 2
+  nesub = 6
+  /
+
+  &layouts_knobs
+  layout = 'xyles'
+  /

@@ -69,7 +69,8 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, boundary, supercell_labels
+  public :: l_links, r_links, itright, itleft, boundary, supercell_labels
+  public :: enforce_linked_boundary_conditions
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
@@ -5456,6 +5457,16 @@ contains
     ! so we might want to at least check that gnew _is_ self-periodic already and if not abort as we've
     ! asked to make this point self-periodic and we've not been able to.
   end subroutine self_periodic
+
+  !> A shorthand for [apply_linked_boundary_conditions] passing the regular
+  !> module level instances of each of the required arguments. Primarily
+  !> intended for testing to avoid having to expose additional data arrays.
+  subroutine enforce_linked_boundary_conditions
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew
+    implicit none
+    call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
+  end subroutine enforce_linked_boundary_conditions
 
   !> Applies linked (twist-shift) boundary conditions to passed distribution function
   subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
