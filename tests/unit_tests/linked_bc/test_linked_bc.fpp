@@ -153,7 +153,6 @@ contains
 
   real function check_error2(g_in) result(err)
     use mp, only: max_allreduce, sum_allreduce
-    use dist_fn, only: itright, itleft
     use gs2_layouts, only: ie_idx, is_idx, idx
     use le_grids, only: il_is_trapped
     use redistribute, only: fill
