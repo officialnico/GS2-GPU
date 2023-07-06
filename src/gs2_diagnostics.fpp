@@ -22,8 +22,8 @@ module gs2_diagnostics
   public :: ensemble_average
   public :: reset_init
   public :: pflux_avg, qflux_avg, heat_avg, vflux_avg, start_time
-  public :: diffusivity
-  public :: get_omegaavg, get_volume_average
+  public :: diffusivity, calculate_simple_quasilinear_flux_metric_by_k
+  public :: get_omegaavg, get_volume_average, calculate_instantaneous_omega
 
   public :: gs2_diagnostics_config_type
   public :: set_gs2_diagnostics_config
@@ -55,7 +55,7 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly
+  logical, public :: write_gs, write_lpoly, write_ql_metric
   logical, public :: write_g, write_gg, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
@@ -788,6 +788,7 @@ contains
     write_pflux_sym = gs2_diagnostics_config%write_pflux_sym
     write_pflux_tormom = gs2_diagnostics_config%write_pflux_tormom
     write_phi_over_time = gs2_diagnostics_config%write_phi_over_time
+    write_ql_metric = gs2_diagnostics_config%write_ql_metric
     write_symmetry = gs2_diagnostics_config%write_symmetry
     write_verr = gs2_diagnostics_config%write_verr
 
@@ -937,7 +938,7 @@ contains
     !> Current simulation time
     real, intent(in) :: user_time
     !> Optional string to add to file name
-    character, intent(in), optional :: fileopt_base
+    character(len=*), intent(in), optional :: fileopt_base
     integer :: istatus
     character(len=:), allocatable :: fileopt
 
@@ -1396,6 +1397,7 @@ contains
     use gs2_time, only: woutunits, tunits
     use gs2_io, only: nc_loop
     use mp, only: proc0
+    use kt_grids, only: ntheta0, naky
     implicit none
     !> Simulation time
     real, intent(in) :: time
@@ -1405,14 +1407,25 @@ contains
     real, intent(out) :: phi2, apar2, bpar2
     !> FIXME: add documentation. Needs [[phinorm]] documenting
     real, dimension (:, :), intent(out) :: phitot
+    real, dimension (ntheta0, naky) :: ql_metric, growth_rates
 
     omega = omegahist(mod(istep,navg),:,:)
 
     call phinorm (phitot)
 
+    if (write_ql_metric) then
+
+       ! Calculate the instantaneous omega and keep the growth rate.
+       growth_rates = imag(calculate_instantaneous_omega())
+       ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates)
+    else
+       ql_metric = 0.0
+    end if
+
     if(proc0) call nc_loop (get_netcdf_file_id(), nout, time, &
          phi2, apar2, bpar2, igomega, &
-         h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
+         h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_metric, &
+         write_omega, write_heating, write_ql_metric)
 
   end subroutine do_write_ncloop
 
@@ -2788,15 +2801,167 @@ contains
 
   end function diffusivity
 
+  !> Calculates <|field|**2 kperp2>_theta / <|field|**2>_theta.
+  !> Useful for simple quasilinear metric
+  function get_field_weighted_average_kperp2(field) result(average)
+    use kt_grids, only: kperp2, naky, ntheta0
+    use theta_grid, only: ntgrid, field_line_average
+    implicit none
+    complex, dimension(-ntgrid:ntgrid, ntheta0, naky), intent(in) :: field
+    real, dimension(ntheta0, naky) :: average
+    real, dimension(-ntgrid:ntgrid, ntheta0, naky) :: field_squared
+    integer :: it, ik
+    field_squared = abs(field) * abs(field)
+    average = 0.0
+    do ik = 1, naky
+       do it = 1, ntheta0
+          if (maxval(abs(field_squared(:, it, ik))) <= epsilon(0.0)) cycle
+          average(it, ik) = field_line_average(field_squared(:, it, ik) * &
+               kperp2(:, it, ik)) / field_line_average(field_squared(:, it, ik))
+       end do
+    end do
+  end function get_field_weighted_average_kperp2
+
+  !> Calculates a simple gamma/kperp2 QL flux metric
+  function calculate_simple_quasilinear_flux_metric_by_k(growth_rates) result(ql_metric)
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    use kt_grids, only: naky, ntheta0, aky
+    use fields_arrays, only: phinew, aparnew, bparnew
+    implicit none
+    real, dimension(ntheta0, naky), intent(in) :: growth_rates
+    real, dimension(ntheta0, naky) :: limited_growth_rates, average
+    real, dimension(ntheta0, naky) :: ql_metric, normalising_field
+    integer :: ik
+
+    ! Initialise flux to zero
+    ql_metric = 0.0
+
+    ! Decide on the normalising field
+    if (has_phi) then
+       normalising_field = maxval(abs(phinew)**2, dim = 1)
+    else if (has_apar) then
+       normalising_field = maxval(abs(aparnew)**2, dim = 1)
+    else if (has_bpar) then
+       normalising_field = maxval(abs(bparnew)**2, dim = 1)
+    else
+       ! If we get here then no fields are active so the QL flux
+       ! is zero and we can exit
+       return
+    end if
+
+    where (normalising_field > 0)
+       normalising_field = 1.0 / normalising_field
+    end where
+
+    if (has_phi) then
+       average = get_field_weighted_average_kperp2(phinew)
+       where(average > 0.0)
+          ql_metric = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    if (has_apar) then
+       average = get_field_weighted_average_kperp2(aparnew)
+       where(average > 0.0)
+          ql_metric = ql_metric + &
+               maxval(abs(aparnew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    if (has_bpar) then
+       average = get_field_weighted_average_kperp2(bparnew)
+       where(average > 0.0)
+          ql_metric = ql_metric + &
+               maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
+       end where
+    end if
+
+    ! Limit the growth rate to positive values
+    where (growth_rates > 0)
+       limited_growth_rates = growth_rates
+    elsewhere
+       limited_growth_rates = 0.0
+    end where
+
+    ! MG: Avoid spurious contribution from the zonal mode
+    do ik = 1, naky
+       if (aky(ik) == 0) ql_metric(:, ik) = 0.0
+    end do
+
+    ql_metric = ql_metric * limited_growth_rates
+  end function calculate_simple_quasilinear_flux_metric_by_k
+
+  !> Calculates the instantaneous omega from chinew = chi * exp(-i * omega * dt)
+  !> with chi = phi + apar + bpar. This gives omega = log(chinew/chi) * i / dt.
+  pure function  calculate_instantaneous_omega(ig, tolerance) result(omega_inst)
+    use kt_grids, only: naky, ntheta0
+    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use gs2_time, only: code_dt
+    use constants, only: zi
+    use optionals, only: get_option_with_default
+    use run_parameters, only: has_phi, has_apar, has_bpar
+    implicit none
+    integer, intent(in), optional :: ig
+    real, intent(in), optional :: tolerance
+    complex, dimension(ntheta0, naky) :: omega_inst, field_sum, field_sum_new
+    integer :: ig_use
+    real :: tol_use, too_small
+
+    ! Determine which theta grid point to evaluate the fields at
+    ig_use = get_option_with_default(ig, igomega)
+
+    ! Construct the field sums for current and old fields.
+    ! We always allocate the fields (for now) so we could just
+    ! unconditionally sum. This could make the code clearer
+    ! without really adding _much_ overhead.
+    if (has_phi) then
+       field_sum = phi(ig_use, :, :)
+       field_sum_new = phinew(ig_use, :, :)
+    else
+       field_sum = 0.0
+       field_sum_new = 0.0
+    end if
+
+    if (has_apar) then
+       field_sum = field_sum + apar(ig_use, :, :)
+       field_sum_new = field_sum_new + aparnew(ig_use, :, :)
+    end if
+
+    if (has_bpar) then
+       field_sum = field_sum + bpar(ig_use, :, :)
+       field_sum_new = field_sum_new + bparnew(ig_use, :, :)
+    end if
+
+    ! Determine what tolerance to use
+    tol_use = get_option_with_default(tolerance, omegatol)
+
+    ! Decide what size float we consider too small to divide by
+    ! Note this uses tiny rather than epsilon in order to allow
+    ! us to track modes with low amplitudes.
+    if (tol_use == 0.0) then
+       too_small = tiny(0.0)
+    else
+       too_small = tiny(0.0) * 1000. / abs(tol_use)
+    end if
+
+    ! Use where to guard against dividing by tool small a number
+    ! Note we don't divide by field_sum_new so we probably don't need to
+    ! check that here, just field_sum.
+    where (abs(field_sum) < too_small .or. abs(field_sum_new) < too_small)
+       omega_inst = 0.0
+    elsewhere
+       omega_inst = log(field_sum_new / field_sum) * zi / code_dt
+    end where
+
+  end function calculate_instantaneous_omega
+
   !> Calculate the time-averaged complex frequency, check convergence
   !> criterion, and numerical instability criterion.
   !>
   !> Time average is over previous [[gs2_diagnostics_knobs:navg]] timesteps
   subroutine get_omegaavg (istep, exit, omegaavg, debopt)
-    use kt_grids, only: naky, ntheta0
-    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use kt_grids, only: ntheta0, naky
     use gs2_time, only: code_dt
-    use constants, only: zi
     implicit none
     !> The current timestep
     integer, intent (in) :: istep
@@ -2807,38 +2972,16 @@ contains
     complex, dimension (:,:), intent (out) :: omegaavg
     !> If true, write some debug messages
     logical, intent (in), optional :: debopt
-    real :: fac
-    !CMR, 7/11/2008: save here crucial to avoid crippling memory leak with mpixl!
-    !HJL - moved to top of module
-    !    complex, allocatable, save, dimension (:,:,:) :: domega
-    integer :: j
-
     logical :: debug=.false.
 
     if (debug) write(6,*) "get_omeaavg: allocate domega"
     if (.not. allocated(domega)) allocate(domega(navg,ntheta0,naky))
     if (present(debopt)) debug=debopt
     if (debug) write(6,*) "get_omeaavg: start"
-    j = igomega
-    !The logic below was originally
-    !    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < epsilon(0.0) &
-    !           .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < epsilon(0.0))
-    !This results in not calculating the frequency whenever the fields drop below epsilon(0.0) [~1d-16 for DP]
-    !What we really want to do is prevent dividing by too small a number. 
-    if(omegatol.eq.0)then
-       fac=1.0
-    else
-       fac=1000/abs(omegatol)
-    endif
     if (debug) write(6,*) "get_omeaavg: set omegahist"
-    where (abs(phinew(j,:,:)+aparnew(j,:,:)+bparnew(j,:,:)) < tiny(0.0)*fac &
-         .or. abs(phi(j,:,:)+apar(j,:,:)+bpar(j,:,:)) < tiny(0.0)*fac)
-       omegahist(mod(istep,navg),:,:) = 0.0
-    elsewhere
-       omegahist(mod(istep,navg),:,:) &
-            = log((phinew(j,:,:) + aparnew(j,:,:) + bparnew(j,:,:)) &
-            /(phi(j,:,:)   + apar(j,:,:)    + bpar(j,:,:)))*zi/code_dt
-    end where
+
+    ! Get and store the current instantaneous omega
+    omegahist(mod(istep, navg), :, :) = calculate_instantaneous_omega(igomega, omegatol)
 
     if (debug) write(6,*) "get_omeaavg: set omegahist at istep = 0"
     !During initialisation fieldnew==field but floating error can lead to finite omegahist
