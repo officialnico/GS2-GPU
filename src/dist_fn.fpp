@@ -5896,6 +5896,78 @@ contains
     call prof_leaving ("getan", "dist_fn")
   end subroutine getan
 
+
+  !> Check if the passed distribution function shaped array has the same
+  !> value at the duplicate theta points arising from the linked boundary conditions.
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_linked_boundaries_are_satisfied(g_array, pass_right, pass_left, &
+       identifier, tolerance)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx, it_idx, ik_idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    use optionals, only: get_option_with_default
+    use redistribute, only: redist_type, fill
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    type(redist_type), intent(in out) :: pass_right, pass_left
+    character(len=*), intent(in), optional :: identifier
+    real, intent(in), optional :: tolerance
+    complex, dimension(:, :, :), allocatable :: g_pass
+    character(len=:), allocatable :: id_message
+    integer :: iglo, il, it, ik
+    real :: violation_flag, local_tolerance, err
+
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
+    id_message = get_option_with_default(identifier, '')
+    allocate(g_pass, mold = g_array)
+
+    err = 0.0
+
+    call zero_array(g_pass)
+    call fill(pass_right, g_array, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (l_links(it, ik) > 0) then
+          err = max(err, abs(g_array(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
+       end if
+    end do
+
+    call zero_array(g_pass)
+    call fill(pass_left, g_array, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          err = max(err, abs(g_array(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
+       end if
+    end do
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = err
+    call max_allreduce(violation_flag)
+    if (violation_flag > tolerance) then
+       call mp_abort('The passed array has inconsistent linked boundaries. '//id_message, .true.)
+    end if
+  end subroutine check_linked_boundaries_are_satisfied
+
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_adjust, to_g_gs2, from_g_gs2, g_work
