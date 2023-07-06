@@ -5519,7 +5519,7 @@ contains
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
     !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
     !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
-    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
+    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, kwork_filter, &
     !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
