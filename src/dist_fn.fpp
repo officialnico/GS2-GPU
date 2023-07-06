@@ -69,7 +69,8 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, boundary, supercell_labels
+  public :: l_links, r_links, itright, itleft, boundary, supercell_labels
+  public :: enforce_linked_boundary_conditions
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
@@ -5456,10 +5457,19 @@ contains
     ! asked to make this point self-periodic and we've not been able to.
   end subroutine self_periodic
 
-  !> FIXME : Add documentation  
-  subroutine invert_rhs_linked &
-       (phi, apar, bpar, phinew, aparnew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj0, aj1
+  !> A shorthand for [[apply_linked_boundary_conditions]] passing the regular
+  !> module level instances of each of the required arguments. Primarily
+  !> intended for testing to avoid having to expose additional data arrays.
+  subroutine enforce_linked_boundary_conditions
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew
+    implicit none
+    call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
+  end subroutine enforce_linked_boundary_conditions
+
+  !> Applies linked (twist-shift) boundary conditions to passed distribution function
+  subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
+    use dist_fn_arrays, only: vperp2, aj0, aj1
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
@@ -5469,9 +5479,9 @@ contains
     use spfunc, only: j0, j1
     use array_utils, only: zero_array
     implicit none
-    complex, dimension (-ntgrid:, :, :), intent(in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, aparnew, bparnew
-    complex, dimension (-ntgrid:, :, :), intent(in out) :: source
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
+    complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
     integer :: il, ik, it, n, i, j
     integer :: iglo, ncell
@@ -5484,8 +5494,6 @@ contains
     integer :: ie, is, itl, itr, iglo_l, iglo_r
     complex :: adjl, adjr, dadj
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
-
     ! No more work to do if no connections so return
     if (no_connections) return
 
@@ -5496,12 +5504,12 @@ contains
     !scaling. However, if we do this then we lose the ability to perform the linked
     !update (i.e. what we do below) in a parallel manner, so the below code would
     !become partially serial.
-    call fill (links_p, gnew, g_adj)
+    call fill (links_p, g_in, g_adj)
     ! We probably don't need to do this each step as the homogeneous
     ! solution is now cached.
     call fill (links_h, g_h, g_adj)
     if( mixed_wfb ) then
-       call fill (wfb_p, gnew, g_adj)
+       call fill (wfb_p, g_in, g_adj)
        ! We probably don't need to do this each step as the homogeneous
        ! solution is now cached.
        call fill (wfb_h, g_h, g_adj)
@@ -5512,7 +5520,7 @@ contains
     !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
     !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
     !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
-    !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
+    !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -5609,7 +5617,7 @@ contains
 
              ! Resultant b0 is homog amplitude for THIS cell.
              ! Finally add correct homog amplitude to gnew to match the parallel BC.
-             gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
+             g_in(:,1,iglo) = g_in(:,1,iglo) + b0*g_h(:,1,iglo)
           endif
 
           ! Following code repeats same calculation for LEFTWARD travelling wfb.
@@ -5635,7 +5643,7 @@ contains
                 b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
              end do
 
-             gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
+             g_in(:,2,iglo) = g_in(:,2,iglo) + b0*g_h(:,2,iglo)
           end if
        else
           !
@@ -5654,7 +5662,7 @@ contains
                 b0 = b0 + g_adj(i,1,iglo) * fac
              end do
 
-             gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
+             g_in(:,1,iglo) = g_in(:,1,iglo) + b0*g_h(:,1,iglo)
           end if
 
           if (save_h(2, iglo)) then
@@ -5668,21 +5676,21 @@ contains
                 b0 = b0 + g_adj(i,2,iglo) * fac
              end do
 
-             gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
+             g_in(:,2,iglo) = g_in(:,2,iglo) + b0*g_h(:,2,iglo)
           end if
        end if
 
     end do
     !$OMP END PARALLEL DO
 
-  end subroutine invert_rhs_linked
+  end subroutine apply_linked_boundary_conditions
 
   !> FIXME : Add documentation
   subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
     use gs2_time, only: code_time
     use constants, only: zi, pi
-    use dist_fn_arrays, only: g_work
+    use dist_fn_arrays, only: g_work, gnew
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5710,13 +5718,14 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
+    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
+         source = g_work)
+
     select case (boundary_option_switch)
     case (boundary_option_linked)
-       call invert_rhs_linked (phi, apar, bpar, phinew, aparnew, bparnew, &
-            source = g_work)
-    case default
-       call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-            source = g_work)
+       ! Note if no_connections default was true we could also unconditionally call apply_linked_boundary_conditions
+       ! or just call the below if no_connections is false.
+       call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
     end select
 
   end subroutine invert_rhs
