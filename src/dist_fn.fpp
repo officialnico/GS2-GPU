@@ -5922,6 +5922,7 @@ contains
 
     ! Exit if no connections as nothing to check
     if (no_connections) return
+    if (boundary_option_switch /= boundary_option_linked) return
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
     id_message = get_option_with_default(identifier, '')
