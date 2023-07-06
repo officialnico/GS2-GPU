@@ -232,7 +232,13 @@ module dist_fn
   integer, dimension (:,:), allocatable :: l_links, r_links
   integer, dimension (:,:,:), allocatable :: n_links
   logical, dimension (:,:), allocatable :: save_h
-  logical :: no_comm = .false.
+
+  !> Indicates if there are connected theta domains in this simulation or not.
+  !> Should only be used as a part of linked boundary conditions, but worth
+  !> noting that the default given may suggest that there are connections in
+  !> simulations with boundary conditions other than linked.
+  logical :: no_connections = .false.
+
   integer, dimension(:), allocatable :: M_class, N_class
   integer :: i_class
 
@@ -1081,7 +1087,7 @@ contains
     initialized_dist_fn_level_1 = .false.
 
     accelerated_x = .false. ; accelerated_v = .false.
-    no_comm = .false.
+    no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
     increase = .true. ; decrease = .false.
@@ -2724,7 +2730,7 @@ contains
   !> required to deal with linked boundary conditions. Only deals with
   !> passing particles, including the wfb _if_ passing_wfb is true.
   subroutine setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-       links_p, links_h, no_comm)
+       links_p, links_h, no_connections)
     use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx
     use le_grids, only: il_is_passing, il_is_wfb, passing_wfb
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
@@ -2734,14 +2740,14 @@ contains
     integer, dimension(:, :), intent(in) :: l_links, r_links
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
-    logical, intent(out) :: no_comm
+    logical, intent(out) :: no_connections
     type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
-    no_comm = .false.
+    no_connections = .false.
     !<DD>Note the communications setup here are often equivalent to an all-to-all type
     !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
     !See comments in invert_rhs_linked for more details.
@@ -2831,11 +2837,13 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    ! Check if we have any communication to to do or not
+    ! Check if we have any communication to to do or not. Note here communication
+    ! includes local copying -- this is really checking do we need to fix up the
+    ! parallel boundaries anywhere or not.
     nn_max = maxval(nn_to)
     call max_allreduce (nn_max)
     if (nn_max == 0) then
-       no_comm = .true.
+       no_connections = .true.
        ! Note we don't set links_p and links_h in this case
        return
     end if
@@ -3216,6 +3224,8 @@ contains
     use le_grids, only: mixed_wfb
     use gs2_layouts, only: g_lo
     use array_utils, only: zero_array
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     integer :: jshift0, n_links_max
 
@@ -3245,10 +3255,21 @@ contains
     ! wfb -- mixed treatment requires some extra links to be communicated
     if (n_links_max > 0 .and. mixed_wfb) n_links_max = n_links_max + 3
 
+    ! Could we move this call to init_bc? Would have to check that it returns
+    ! the expected values when l_links = r_links = 0
+    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
+
     ! now set up communication pattern:
     ! excluding wfb
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-         links_p, links_h, no_comm)
+         links_p, links_h, no_connections)
+
+    ! If no connections then don't need to do any more work here
+    if (no_connections) then
+       if (proc0) write(error_unit(), &
+            '("No connections found when setting up linked boundaries.")')
+       return
+    end if
 
     ! take care of wfb
     if (mixed_wfb) then
@@ -3259,10 +3280,6 @@ contains
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
-
-    ! Could we move this call to init_bc? Would have to check that it returns
-    ! the expected values when l_links = r_links = 0
-    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
   end subroutine init_connected_bc
 
@@ -5470,195 +5487,194 @@ contains
 
     call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
 
-    if (no_comm) then
-       ! nothing
-    else       
-       !<DD>Note these fill routines are often equivalent to an all-to-all type
-       !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
-       !By only communicating with our direct neighbours we would significantly
-       !reduce the amount of data to communicate and we should improve the communication
-       !scaling. However, if we do this then we lose the ability to perform the linked
-       !update (i.e. what we do below) in a parallel manner, so the below code would
-       !become partially serial.
-       call fill (links_p, gnew, g_adj)
+    ! No more work to do if no connections so return
+    if (no_connections) return
+
+    !<DD>Note these fill routines are often equivalent to an all-to-all type
+    !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
+    !By only communicating with our direct neighbours we would significantly
+    !reduce the amount of data to communicate and we should improve the communication
+    !scaling. However, if we do this then we lose the ability to perform the linked
+    !update (i.e. what we do below) in a parallel manner, so the below code would
+    !become partially serial.
+    call fill (links_p, gnew, g_adj)
+    ! We probably don't need to do this each step as the homogeneous
+    ! solution is now cached.
+    call fill (links_h, g_h, g_adj)
+    if( mixed_wfb ) then
+       call fill (wfb_p, gnew, g_adj)
        ! We probably don't need to do this each step as the homogeneous
        ! solution is now cached.
-       call fill (links_h, g_h, g_adj)
-       if( mixed_wfb ) then
-          call fill (wfb_p, gnew, g_adj)
-          ! We probably don't need to do this each step as the homogeneous
-          ! solution is now cached.
-          call fill (wfb_h, g_h, g_adj)
-       endif
+       call fill (wfb_h, g_h, g_adj)
+    endif
 
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
-       !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
-       !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
-       !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
-       !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          it = it_idx(g_lo,iglo)
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
+    !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
+    !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
+    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
+    !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
 
-          ncell = r_links(it, ik) + l_links(it, ik) + 1
-          if (ncell == 1) cycle
-          
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          if (is_passing_hybrid_electron(is, ik, il))  cycle
-          ! MRH above line causes us to skip the loops below which
-          ! build the solution along the connected cells
-          ! MRH we skip this in the case that we have taken the non-zonal
-          ! passing electron (il<=ng2+1 including wfb) solution to be h=0
+       ncell = r_links(it, ik) + l_links(it, ik) + 1
+       if (ncell == 1) cycle
 
-          ! wfb
-          if ( il_is_wfb(il) .and. mixed_wfb ) then
-             if (nonad_zero) then
-                ie = ie_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       if (is_passing_hybrid_electron(is, ik, il))  cycle
+       ! MRH above line causes us to skip the loops below which
+       ! build the solution along the connected cells
+       ! MRH we skip this in the case that we have taken the non-zonal
+       ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
-                itl=get_leftmost_it(it,ik)
-                itr=get_rightmost_it(it,ik)
+       ! wfb
+       if ( il_is_wfb(il) .and. mixed_wfb ) then
+          if (nonad_zero) then
+             ie = ie_idx(g_lo,iglo)
 
-                iglo_l = idx(g_lo, ik, itl, il, ie, is)
-                iglo_r = idx(g_lo, ik, itr, il, ie, is)
+             itl=get_leftmost_it(it,ik)
+             itr=get_rightmost_it(it,ik)
 
-                !CMR, 29/8/2014:
-                !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
-                !                     at the extreme left and right of the supercell
-                !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
-                !    (was previously applied to g)
-                !
-                adjl = 2.0*vperp2(-ntgrid, iglo_l)*aj1(-ntgrid, iglo_l) &
-                     *bparnew(-ntgrid,itl,ik)*fbpar &
-                     + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0(-ntgrid, iglo_l) &
-                     *nonmaxw_corr(ie,is)*fphi
-                adjr = 2.0*vperp2(ntgrid, iglo_r)*aj1(ntgrid, iglo_r) &
-                     *bparnew(ntgrid,itr,ik)*fbpar &
-                     + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0(ntgrid, iglo_r) &
-                     *nonmaxw_corr(ie,is)*fphi
-                dadj = adjl-adjr
-             else
-                dadj = 0.0
-             end if
+             iglo_l = idx(g_lo, ik, itl, il, ie, is)
+             iglo_r = idx(g_lo, ik, itr, il, ie, is)
 
-             if (save_h(1, iglo)) then
-!CMR, 7/8/2014:
-! This code implements "self-periodic" parallel BC for wfb
-! g_adj contains exit point inhomog and homog sol'ns from ALL wfb cells
-! g_adj(j,1,iglo):    bcs for rightwards travelling particles (RP)
-!  j=1:ncell : inhom sol'n at ntgrid in cell j from RIGHT for RP
-!  j=ncell+1:2ncell : hom sol'n at ntgrid in cell (2ncell+1-j) from RIGHT for RP
-! g_adj(j,2,iglo):    bcs for leftwards travelling particles (LP)
-!  j=1:ncell : inhom sol'n at -ntgrid in cell j from LEFT for LP
-!  j=ncell+1:2ncell : hom sol'n at -ntgrid in cell (2ncell+1-j) from LEFT for LP
-!
-!  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)    
-!    where h^r_j is the homogeneous exit solution from cell j for RP
-!                      
-                facd = 1.0
-                do j = 1, ncell
-                   facd = facd * g_adj(ncell+j,1,iglo)
-                end do
-                facd = 1./(1.-facd)
-                
-                b0 = 0.
-
-! i labels cell counting from LEFTmost cell.
-                do i = 1, ncell-1
-                   fac = 1.0
-                   do j = i+1, ncell
-! fac is product of all homog sol's from cells to RIGHT on cell i
-! g_adj(ncell+j,1,iglo) accesses these homog solutions
-                      fac = fac * g_adj(ncell+j,1,iglo)
-                   end do
-! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
-                   b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
-                end do
-
-! b0 computed next line is homog amplitude in leftmost cell  (see CMR note)
-                b0 = (b0 + g_adj(1,1,iglo)-dadj)*facd
-
-! BUT we NEED homog amplitude in THIS cell.
-! Solve matrix BC equation by cascading homog amplitude, b0, rightwards 
-!        from leftmost cell to THIS cell.
-
-                do i = 1, l_links(it, ik)
-!  Loop implements cascade to right, using CMR note equ'n:  
-!           a^r_{j+1} = a^r_j h^r_j + i^r_j 
-
-                   b0 = b0 * g_adj(ncell+i,1,iglo) + g_adj(ncell+1-i,1,iglo)
-                end do
-
-! Resultant b0 is homog amplitude for THIS cell.
-! Finally add correct homog amplitude to gnew to match the parallel BC.
-                gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
-             endif
-
-! Following code repeats same calculation for LEFTWARD travelling wfb.
-!CMRend
-             if (save_h(2, iglo)) then
-                facd = 1.0
-                do j = 1, ncell
-                   facd = facd * g_adj(ncell+j,2,iglo)
-                end do
-                facd = 1./(1.-facd)
-                
-                b0 = 0.
-                do i = 1, ncell-1
-                   fac = 1.0
-                   do j = i+1, ncell
-                      fac = fac * g_adj(ncell+j,2,iglo)
-                   end do
-                   b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
-                end do
-                b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
-
-                do i = 1, r_links(it, ik)
-                   b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
-                end do
-                
-                gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
-             end if
+             !CMR, 29/8/2014:
+             !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
+             !                     at the extreme left and right of the supercell
+             !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
+             !    (was previously applied to g)
+             !
+             adjl = 2.0*vperp2(-ntgrid, iglo_l)*aj1(-ntgrid, iglo_l) &
+                  *bparnew(-ntgrid,itl,ik)*fbpar &
+                  + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0(-ntgrid, iglo_l) &
+                  *nonmaxw_corr(ie,is)*fphi
+             adjr = 2.0*vperp2(ntgrid, iglo_r)*aj1(ntgrid, iglo_r) &
+                  *bparnew(ntgrid,itr,ik)*fbpar &
+                  + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0(ntgrid, iglo_r) &
+                  *nonmaxw_corr(ie,is)*fphi
+             dadj = adjl-adjr
           else
-!
-! n_links is the number of complex numbers required to fix the boundary 
-! conditions in each cell that is a member of a supercell with at least two
-! cells, and for which the bounce point is not at theta=pi.
-!
-             if (save_h(1, iglo)) then
-                n = n_links(1, it, ik)
-                b0 = 0.0
-                do i = 1, l_links(it, ik)
-                   fac = 1.0
-                   do j = 1, i-1
-                      fac = fac * g_adj(n+1-j, 1, iglo)
-                   end do
-                   b0 = b0 + g_adj(i,1,iglo) * fac
-                end do
-                
-                gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
-             end if
-
-             if (save_h(2, iglo)) then
-                n = n_links(2, it, ik)
-                b0 = 0.0
-                do i = 1, r_links(it, ik)
-                   fac = 1.0
-                   do j = 1, i-1
-                      fac = fac * g_adj(n+1-j, 2, iglo)
-                   end do
-                   b0 = b0 + g_adj(i,2,iglo) * fac
-                end do
-                
-                gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
-             end if
+             dadj = 0.0
           end if
 
-       end do
-       !$OMP END PARALLEL DO
-    end if
+          if (save_h(1, iglo)) then
+             !CMR, 7/8/2014:
+             ! This code implements "self-periodic" parallel BC for wfb
+             ! g_adj contains exit point inhomog and homog sol'ns from ALL wfb cells
+             ! g_adj(j,1,iglo):    bcs for rightwards travelling particles (RP)
+             !  j=1:ncell : inhom sol'n at ntgrid in cell j from RIGHT for RP
+             !  j=ncell+1:2ncell : hom sol'n at ntgrid in cell (2ncell+1-j) from RIGHT for RP
+             ! g_adj(j,2,iglo):    bcs for leftwards travelling particles (LP)
+             !  j=1:ncell : inhom sol'n at -ntgrid in cell j from LEFT for LP
+             !  j=ncell+1:2ncell : hom sol'n at -ntgrid in cell (2ncell+1-j) from LEFT for LP
+             !
+             !  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)
+             !    where h^r_j is the homogeneous exit solution from cell j for RP
+             !
+             facd = 1.0
+             do j = 1, ncell
+                facd = facd * g_adj(ncell+j,1,iglo)
+             end do
+             facd = 1./(1.-facd)
+
+             b0 = 0.
+
+             ! i labels cell counting from LEFTmost cell.
+             do i = 1, ncell-1
+                fac = 1.0
+                do j = i+1, ncell
+                   ! fac is product of all homog sol's from cells to RIGHT on cell i
+                   ! g_adj(ncell+j,1,iglo) accesses these homog solutions
+                   fac = fac * g_adj(ncell+j,1,iglo)
+                end do
+                ! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
+                b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
+             end do
+
+             ! b0 computed next line is homog amplitude in leftmost cell  (see CMR note)
+             b0 = (b0 + g_adj(1,1,iglo)-dadj)*facd
+
+             ! BUT we NEED homog amplitude in THIS cell.
+             ! Solve matrix BC equation by cascading homog amplitude, b0, rightwards
+             !        from leftmost cell to THIS cell.
+
+             do i = 1, l_links(it, ik)
+                !  Loop implements cascade to right, using CMR note equ'n:
+                !           a^r_{j+1} = a^r_j h^r_j + i^r_j
+
+                b0 = b0 * g_adj(ncell+i,1,iglo) + g_adj(ncell+1-i,1,iglo)
+             end do
+
+             ! Resultant b0 is homog amplitude for THIS cell.
+             ! Finally add correct homog amplitude to gnew to match the parallel BC.
+             gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
+          endif
+
+          ! Following code repeats same calculation for LEFTWARD travelling wfb.
+          !CMRend
+          if (save_h(2, iglo)) then
+             facd = 1.0
+             do j = 1, ncell
+                facd = facd * g_adj(ncell+j,2,iglo)
+             end do
+             facd = 1./(1.-facd)
+
+             b0 = 0.
+             do i = 1, ncell-1
+                fac = 1.0
+                do j = i+1, ncell
+                   fac = fac * g_adj(ncell+j,2,iglo)
+                end do
+                b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
+             end do
+             b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
+
+             do i = 1, r_links(it, ik)
+                b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
+             end do
+
+             gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
+          end if
+       else
+          !
+          ! n_links is the number of complex numbers required to fix the boundary
+          ! conditions in each cell that is a member of a supercell with at least two
+          ! cells, and for which the bounce point is not at theta=pi.
+          !
+          if (save_h(1, iglo)) then
+             n = n_links(1, it, ik)
+             b0 = 0.0
+             do i = 1, l_links(it, ik)
+                fac = 1.0
+                do j = 1, i-1
+                   fac = fac * g_adj(n+1-j, 1, iglo)
+                end do
+                b0 = b0 + g_adj(i,1,iglo) * fac
+             end do
+
+             gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
+          end if
+
+          if (save_h(2, iglo)) then
+             n = n_links(2, it, ik)
+             b0 = 0.0
+             do i = 1, r_links(it, ik)
+                fac = 1.0
+                do j = 1, i-1
+                   fac = fac * g_adj(n+1-j, 2, iglo)
+                end do
+                b0 = b0 + g_adj(i,2,iglo) * fac
+             end do
+
+             gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
+          end if
+       end if
+
+    end do
+    !$OMP END PARALLEL DO
 
   end subroutine invert_rhs_linked
 
