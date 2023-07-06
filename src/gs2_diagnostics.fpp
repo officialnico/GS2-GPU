@@ -1035,7 +1035,6 @@ contains
     use dist_fn, only: write_poly, collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
-    use prof, only: prof_entering, prof_leaving
     use gs2_time, only: user_time
     use gs2_io, only: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_exchange, nc_final_fields, nc_sync, get_netcdf_movie_file_id
     use nonlinear_terms, only: nonlin
@@ -1079,7 +1078,6 @@ contains
     logical :: do_force
     integer, save :: istep_last = -1
     if (present(debopt)) debug = debopt
-    call prof_entering ("loop_diagnostics")
 
     !Set the current time
     t = user_time
@@ -1106,7 +1104,6 @@ contains
 
     if (write_verr .and. write_mod == 0) call do_write_verr
 
-    call prof_leaving ("loop_diagnostics")
     if (debug) write(6,*) "loop_diagnostics: call update_time"
 
     !########################################################
@@ -1143,7 +1140,6 @@ contains
     part_tormom_fluxes = 0.0
     energy_exchange = 0.0
 
-    call prof_entering ("loop_diagnostics-1")
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (write_any_fluxes) then
@@ -1216,7 +1212,6 @@ contains
     ! Check for convergence
     if (nonlin .and. use_nonlin_convergence) call check_nonlin_convergence(istep, heat_fluxes(1), exit)
 
-    call prof_leaving ("loop_diagnostics-1")
     if (debug) write(6,*) "loop_diagnostics: -1"
 
     if (.not. (write_any .or. dump_any)) then
@@ -1228,7 +1223,6 @@ contains
     end if
 
     if (debug) write(output_unit, *) "loop_diagnostics: -2"
-    call prof_entering ("loop_diagnostics-2")
 
     if (proc0 .and. write_any) then
        if (write_ascii) then
@@ -1352,8 +1346,6 @@ contains
     !Update time
     t_old = t
 
-    !Profiling
-    call prof_leaving ("loop_diagnostics-2")
     if (debug) write(6,*) "loop_diagnostics: done"
   end subroutine loop_diagnostics
 
