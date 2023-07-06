@@ -1935,6 +1935,7 @@ contains
          grid_has_trapped_particles, is_upper_bounce_point, &
          is_lower_bounce_point, ng2, mixed_wfb
     use optionals, only: get_option_with_default
+    use redistribute, only: fill
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
     logical, intent(in), optional :: force_passing
@@ -2125,6 +2126,13 @@ contains
 
     end do
     !$OMP END PARALLEL DO
+
+    ! Communicate the homogeneous solution boundary values for use in the
+    ! twist-shift boundary conditions if required.
+    if (allocated(g_adj) .and. .not. no_connections) then
+       call fill (links_h, g_h, g_adj)
+       if (mixed_wfb) call fill(wfb_h, g_h, g_adj)
+    end if
 
   end subroutine init_homogeneous_g
 
@@ -5476,14 +5484,12 @@ contains
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
-    use spfunc, only: j0, j1
-    use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
     complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
-    integer :: il, ik, it, n, i, j
+    integer :: il, ik, it, n, i
     integer :: iglo, ncell
 !
 ! adding adjr, adjl to cope with application of self-periodic to WFB
@@ -5505,30 +5511,22 @@ contains
     !update (i.e. what we do below) in a parallel manner, so the below code would
     !become partially serial.
     call fill (links_p, g_in, g_adj)
-    ! We probably don't need to do this each step as the homogeneous
-    ! solution is now cached.
-    call fill (links_h, g_h, g_adj)
-    if( mixed_wfb ) then
-       call fill (wfb_p, g_in, g_adj)
-       ! We probably don't need to do this each step as the homogeneous
-       ! solution is now cached.
-       call fill (wfb_h, g_h, g_adj)
-    endif
+    if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
-    !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
+    !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
     !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
     !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
     !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       if (.not. any(save_h(:, iglo))) cycle
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
 
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
-
        il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        if (is_passing_hybrid_electron(is, ik, il))  cycle
@@ -5581,22 +5579,16 @@ contains
              !  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)
              !    where h^r_j is the homogeneous exit solution from cell j for RP
              !
-             facd = 1.0
-             do j = 1, ncell
-                facd = facd * g_adj(ncell+j,1,iglo)
-             end do
-             facd = 1./(1.-facd)
+             facd = 1./(1. - product(g_adj(ncell + 1 : 2 * ncell, 1, iglo)))
 
              b0 = 0.
 
              ! i labels cell counting from LEFTmost cell.
-             do i = 1, ncell-1
-                fac = 1.0
-                do j = i+1, ncell
-                   ! fac is product of all homog sol's from cells to RIGHT on cell i
-                   ! g_adj(ncell+j,1,iglo) accesses these homog solutions
-                   fac = fac * g_adj(ncell+j,1,iglo)
-                end do
+             fac = 1
+             do i = ncell - 1, 1, -1
+                ! fac is product of all homog sol's from cells to RIGHT on cell i
+                ! g_adj(ncell+j,1,iglo) accesses these homog solutions
+                fac = fac * g_adj(ncell + i + 1, 1, iglo)
                 ! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
                 b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
              end do
@@ -5623,18 +5615,12 @@ contains
           ! Following code repeats same calculation for LEFTWARD travelling wfb.
           !CMRend
           if (save_h(2, iglo)) then
-             facd = 1.0
-             do j = 1, ncell
-                facd = facd * g_adj(ncell+j,2,iglo)
-             end do
-             facd = 1./(1.-facd)
+             facd = 1./(1. - product(g_adj(ncell + 1 : 2 * ncell, 2, iglo)))
 
              b0 = 0.
-             do i = 1, ncell-1
-                fac = 1.0
-                do j = i+1, ncell
-                   fac = fac * g_adj(ncell+j,2,iglo)
-                end do
+             fac = 1.0
+             do i = ncell - 1, 1, -1
+                fac = fac * g_adj(ncell + i + 1, 2, iglo)
                 b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
              end do
              b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
@@ -5651,32 +5637,28 @@ contains
           ! conditions in each cell that is a member of a supercell with at least two
           ! cells, and for which the bounce point is not at theta=pi.
           !
-          if (save_h(1, iglo)) then
+          if (save_h(1, iglo) .and. l_links(it, ik) > 0) then
+             ! The l_links test might already be part of save_h?
              n = n_links(1, it, ik)
-             b0 = 0.0
-             do i = 1, l_links(it, ik)
-                fac = 1.0
-                do j = 1, i-1
-                   fac = fac * g_adj(n+1-j, 1, iglo)
-                end do
-                b0 = b0 + g_adj(i,1,iglo) * fac
+             b0 = g_adj(1, 1, iglo)
+             fac = 1.0
+             do i = 2, l_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 1, iglo)
+                b0 = b0 + g_adj(i, 1, iglo) * fac
              end do
-
-             g_in(:,1,iglo) = g_in(:,1,iglo) + b0*g_h(:,1,iglo)
+             g_in(:, 1, iglo) = g_in(:, 1, iglo) + b0 * g_h(:, 1, iglo)
           end if
 
-          if (save_h(2, iglo)) then
+          if (save_h(2, iglo) .and. r_links(it, ik) > 0) then
+             ! The r_links test might already be part of save_h?
              n = n_links(2, it, ik)
-             b0 = 0.0
-             do i = 1, r_links(it, ik)
-                fac = 1.0
-                do j = 1, i-1
-                   fac = fac * g_adj(n+1-j, 2, iglo)
-                end do
-                b0 = b0 + g_adj(i,2,iglo) * fac
+             b0 = g_adj(1, 2, iglo)
+             fac = 1.0
+             do i = 2, r_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 2, iglo)
+                b0 = b0 +  g_adj(i, 2, iglo) * fac
              end do
-
-             g_in(:,2,iglo) = g_in(:,2,iglo) + b0*g_h(:,2,iglo)
+             g_in(:, 2, iglo) = g_in(:, 2, iglo) + b0 * g_h(:, 2, iglo)
           end if
        end if
 
