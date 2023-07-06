@@ -12,7 +12,7 @@ program test_nonlinear_terms
   use unit_tests
   use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, run_name
-  use species, only: init_species, nspec
+  use species, only: init_species
   use dist_fn, only: init_dist_fn, finish_dist_fn
   use dist_fn_arrays, only: g
   use kt_grids, only: naky, ntheta0, init_kt_grids
@@ -47,16 +47,13 @@ program test_nonlinear_terms
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy, name="gs")
-       if (proc0) then
-          cbuff = trim(run_name)
-       end if
-       
-       call broadcast (cbuff)
-       if (.not. proc0) run_name => cbuff
+  if (proc0) then
+    call init_file_utils(dummy, name="gs")
+    cbuff = trim(run_name)
+  end if
 
-  
-
+  call broadcast (cbuff)
+  if (.not. proc0) allocate(run_name, source=cbuff)
 
   call announce_module_test('nonlinear_terms')
 
@@ -97,35 +94,18 @@ function test_ffts()
   use kt_grids, only: ntheta0, naky
   implicit none
   logical :: test_ffts
-  logical ::dummy
   integer :: ix, iy
   character(len=22) :: message = ''
-  dummy = .true.
 
   ! Need to default to true as process_check uses this value
   test_ffts = .true.
-
-  !ix =0
-  !iy=0
-    !write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-    !write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
   do ix=0,ntheta0/2-1
     do iy=0,naky-1
-       !write(message, '(22A1)') ' '
-
-       !write(*, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-       !write(*, *) message
-       write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
-       !write(message, *) 'ffttest ix =', ix, ' iy = ', iy
-       !write(*, *) message
-      !write(message, '("ffttest ix = ")') 
-      !message = 'Hello'
+      write(message, fmt="(A12, I2, A6, I2)") 'ffttest ix =', ix, ' iy = ', iy
       call announce_check(message)
       call process_check(test_ffts, ffttest(ix,iy, .false.), message)
     enddo
   enddo
-
-  test_ffts = dummy
 
 end function test_ffts
 
