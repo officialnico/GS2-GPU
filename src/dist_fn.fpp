@@ -5485,6 +5485,7 @@ contains
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
+    use kt_grids, only: kwork_filter
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
@@ -5525,7 +5526,7 @@ contains
        if (.not. any(save_h(:, iglo))) cycle
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
-
+       if (kwork_filter(it, ik)) cycle
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
        il = il_idx(g_lo,iglo)
