@@ -5457,7 +5457,7 @@ contains
     ! asked to make this point self-periodic and we've not been able to.
   end subroutine self_periodic
 
-  !> A shorthand for [apply_linked_boundary_conditions] passing the regular
+  !> A shorthand for [[apply_linked_boundary_conditions]] passing the regular
   !> module level instances of each of the required arguments. Primarily
   !> intended for testing to avoid having to expose additional data arrays.
   subroutine enforce_linked_boundary_conditions
