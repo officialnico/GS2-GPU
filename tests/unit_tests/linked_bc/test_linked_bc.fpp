@@ -15,11 +15,14 @@ program test_linked_bc
   use kt_grids, only: naky, ntheta0, theta0
   use theta_grid, only: ntgrid, theta
   use gs2_diagnostics, only: save_restart_dist_fn
+  use dist_fn, only: init_pass_ends
+  use redistribute, only: redist_type
   implicit none
-  real :: maxerr
+  real :: maxerr, maxerr2
   real, parameter :: tolerance = epsilon(maxerr) * 100.0
   logical, parameter :: debug = .false.
   type(gs2_program_state_type) :: state
+  type(redist_type) :: pass_right, pass_left
   integer :: iglo, it, ik, il
   complex, dimension(:, :, :), allocatable :: target_function
   logical :: passes
@@ -31,6 +34,8 @@ program test_linked_bc
   call init(state%init, init_level_list%dist_fn_level_3)
   call announce_module_test('linked_boundary_conditions')
 
+  call init_pass_ends(pass_right, 'r', 1, 'c', 1)
+  call init_pass_ends(pass_left, 'l', 2, 'c', 1)
   phinew = 0. ; bparnew = 0.
   gnew = 0.
 
@@ -59,6 +64,13 @@ program test_linked_bc
   end do
 
   maxerr = check_error(gnew)
+  maxerr2 = check_error2(gnew)
+
+  if (.not. (maxerr2 == maxerr)) then
+     if(proc0) print*,'ERRORS 1 ',maxerr,maxerr2
+     call mp_abort("Methods (1) give different answers",.true.)
+  end if
+
   if(proc0 .and. debug) print*,'Initial error : ',maxerr,maxval(abs(gnew)),maxval(abs(target_function)),ntheta0
   if (maxerr < epsilon(0.0)) call mp_abort(&
        "Function error pre boundary conditions already very small.", .true.)
@@ -67,8 +79,14 @@ program test_linked_bc
   if (debug) call dump('.post')
 
   maxerr = check_error(gnew)
+  maxerr2 = check_error2(gnew)
 
   passes = maxerr < tolerance
+
+  if (.not. (maxerr2 == maxerr)) then
+     if(proc0) print*,'ERRORS 2 ',maxerr,maxerr2
+     call mp_abort("Methods (2) give different answers",.true.)
+  end if
 
   if (.not. passes) then
      if (proc0) print*,'Test fails with error : ',maxerr
@@ -132,6 +150,52 @@ contains
     end do
     call max_allreduce(err)
   end function check_error
+
+  real function check_error2(g_in) result(err)
+    use mp, only: max_allreduce, sum_allreduce
+    use dist_fn, only: itright, itleft
+    use gs2_layouts, only: ie_idx, is_idx, idx
+    use le_grids, only: il_is_trapped
+    use redistribute, only: fill
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
+    complex, dimension(:, :, :), allocatable :: g_pass
+    integer :: iglo, it, ik, il
+    allocate(g_pass, mold = g_in)
+    err = 0.0
+
+    g_pass = 0.0
+    call fill(pass_right, g_in, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       if (il_is_trapped(il)) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (l_links(it, ik) > 0) then
+          err = max(err, abs(g_in(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
+       end if
+    end do
+
+    g_pass = 0.0
+    call fill(pass_left, g_in, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       if (il_is_trapped(il)) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          err = max(err, abs(g_in(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
+       end if
+    end do
+
+    call max_allreduce(err)
+  end function check_error2
 
   subroutine dump(ext)
     implicit none
