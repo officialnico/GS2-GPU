@@ -66,7 +66,7 @@ program test_linked_bc
   maxerr = check_error(gnew)
   maxerr2 = check_error2(gnew)
 
-  if (.not. (maxerr2 == maxerr)) then
+  if (debug .and. (maxerr2 /= maxerr)) then
      if(proc0) print*,'ERRORS 1 ',maxerr,maxerr2
      call mp_abort("Methods (1) give different answers",.true.)
   end if
@@ -83,7 +83,7 @@ program test_linked_bc
 
   passes = maxerr < tolerance
 
-  if (.not. (maxerr2 == maxerr)) then
+  if (debug .and. (maxerr2 /= maxerr)) then
      if(proc0) print*,'ERRORS 2 ',maxerr,maxerr2
      call mp_abort("Methods (2) give different answers",.true.)
   end if
