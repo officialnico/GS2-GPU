@@ -624,24 +624,25 @@ contains
   !> Initialise the supercell instance by setting and calculating
   !> some basic properties. Does not deal with allocating all
   !> storage etc.
-  subroutine sc_init(self, is, is_label, itmin, ik, ncell, nfield, nbound)
+  subroutine sc_init(self, is, itmin, ik, nfield, nbound)
     use theta_grid, only: ntgrid
     use mp, only: mp_request_null
-    use dist_fn, only: itright
+    use dist_fn, only: itright, supercell_labels, r_links, l_links
     implicit none
     class(supercell_type), intent(in out) :: self
-    integer, intent(in) :: is, is_label, ik, itmin, ncell, nfield
+    integer, intent(in) :: is, ik, itmin, nfield
     integer, intent(in out) :: nbound
     integer :: it, ic
     logical :: ignore_boundary
 
     self%is_ind = is
-    self%is_label = is_label
     self%it_leftmost = itmin
-    self%ncell = ncell
+    ! Work out the number of cells from the number of links
+    self%ncell = r_links(itmin, ik) + l_links(itmin, ik) + 1
     self%ik_ind = ik
+    self%is_label = supercell_labels(itmin, ik)
 
-    self%nextend = 1 + 2 * ntgrid * ncell
+    self%nextend = 1 + 2 * ntgrid * self%ncell
     self%nrow = self%nextend * nfield
     self%ncol = self%nrow
 
@@ -651,19 +652,19 @@ contains
     self%initialised = .false.
 
     ! Now setup cells
-    allocate (self%cells(ncell))
+    allocate (self%cells(self%ncell))
 
     it = itmin
-    do ic = 1, ncell
+    do ic = 1, self%ncell
        !We ignore the boundary for all cells except the rightmost
-       ignore_boundary = ic < ncell
+       ignore_boundary = ic < self%ncell
        if (ignore_boundary) nbound = nbound + 1
 
        call self%cells(ic)%init( ic, it, is, ik, nfield, &
             self%nrow, self%nextend, ignore_boundary)
 
        !Update it
-       if (ic < ncell) it = itright(it, ik)
+       if (ic < self%ncell) it = itright(it, ik)
     end do
 
   end subroutine sc_init
@@ -1823,7 +1824,7 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: get_leftmost_it, supercell_labels
+    use dist_fn, only: get_leftmost_it
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     implicit none
@@ -1928,9 +1929,7 @@ contains
        !/Now make the supercell objects
        do is = 1, nsuper(ik)
           itmin = is_to_itmin(is, ik)
-
-          call self%kyb(ik)%supercells(is)%init( is, supercell_labels(itmin, ik), &
-               itmin, ik, ncells(itmin, ik), nfield, self%nbound)
+          call self%kyb(ik)%supercells(is)%init( is, itmin, ik, nfield, self%nbound)
        end do
     end do
 
