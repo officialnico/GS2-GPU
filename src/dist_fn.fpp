@@ -2359,7 +2359,7 @@ contains
     integer, dimension(:, :), intent(out) :: supercell_labels
     integer, dimension(:), intent(out) :: n_supercells
     integer, dimension(:), allocatable :: temporary_it_leftmost
-    integer :: it, ik, isc
+    integer :: it, ik, isc, ncell
 
     supercell_labels = -1
     n_supercells = 0
@@ -2375,6 +2375,14 @@ contains
 
        do it = 1, ntheta0
           if (temporary_it_leftmost(it) >= 0) then
+             ! Note ncell isn't currently used but records the number
+             ! of cells for the current supercell. We struggle to
+             ! store it efficiently at this point as we don't yet know
+             ! how many supercells there are. We _could_ store it in
+             ! an array of shape [ntheta0, naky] so that we can look
+             ! up the number of cells given {it, ik} rather than
+             ! {isc}.
+             ncell = count(temporary_it_leftmost == temporary_it_leftmost(it))
              isc = isc + 1
              where (temporary_it_leftmost == temporary_it_leftmost(it))
                 temporary_it_leftmost = -1
