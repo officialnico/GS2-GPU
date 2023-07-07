@@ -2386,10 +2386,10 @@ contains
              ! Note ncell isn't currently used but records the number
              ! of cells for the current supercell. We struggle to
              ! store it efficiently at this point as we don't yet know
-             ! how many supercells there are. We _could_ store it in
+             ! how many supercells there are. We currently store it in
              ! an array of shape [ntheta0, naky] so that we can look
              ! up the number of cells given {it, ik} rather than
-             ! {isc}.
+             ! {isc}, so there is some duplication.
              ncell = count(temporary_it_leftmost == temporary_it_leftmost(it))
              isc = isc + 1
              where (temporary_it_leftmost == temporary_it_leftmost(it))
