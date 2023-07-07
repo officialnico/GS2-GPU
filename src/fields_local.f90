@@ -1815,9 +1815,9 @@ contains
           self%kyb(ik)%supercells(is)%nrow=self%kyb(ik)%supercells(is)%nextend*nfield
           self%kyb(ik)%supercells(is)%ncol=self%kyb(ik)%supercells(is)%nrow
 
-          if(field_local_nonblocking_collectives) then
-            self%kyb(ik)%supercells(is)%collective_request = mp_request_null
-          end if
+          ! This handle is only set later if field_local_nonblocking_collectives
+          ! but unconditionally initialise here.
+          self%kyb(ik)%supercells(is)%collective_request = mp_request_null
 
           !Now allocate the cell list
           allocate(self%kyb(ik)%supercells(is)%cells(self%kyb(ik)%supercells(is)%ncell))
