@@ -206,8 +206,13 @@ module dist_fn
   !> itleft, itright etc.
   integer, dimension(:, :), allocatable :: supercell_labels
 
-  !> Records the number of unique supercells for each ky
+  !> Records the number of unique supercells for each ky,
   integer, dimension(:), allocatable :: n_supercells
+
+  !> Records the number of cells which are members of the supercell
+  !> which owns the particular {it, ik} point. One would expect this
+  !> to be equivalent to l_links + r_links + 1.
+  integer, dimension(:, :), allocatable :: n_cells
 
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
@@ -1104,6 +1109,7 @@ contains
     if (allocated(itleft)) deallocate (itleft, itright)
     if (allocated(supercell_labels)) deallocate (supercell_labels)
     if (allocated(n_supercells)) deallocate (n_supercells)
+    if (allocated(n_cells)) deallocate (n_cells)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -2167,7 +2173,8 @@ contains
 
     allocate(supercell_labels(ntheta0, naky))
     allocate(n_supercells(naky))
-    call calculate_supercell_labels(supercell_labels, n_supercells)
+    allocate(n_cells(ntheta0, naky))
+    call calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2353,16 +2360,17 @@ contains
 
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
-  subroutine calculate_supercell_labels(supercell_labels, n_supercells)
+  subroutine calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
     use kt_grids, only: naky, ntheta0
     implicit none
-    integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:, :), intent(out) :: supercell_labels, n_cells
     integer, dimension(:), intent(out) :: n_supercells
     integer, dimension(:), allocatable :: temporary_it_leftmost
     integer :: it, ik, isc, ncell
 
     supercell_labels = -1
     n_supercells = 0
+    n_cells = 0
     isc = -1
 
     allocate(temporary_it_leftmost(ntheta0))
@@ -2387,6 +2395,7 @@ contains
              where (temporary_it_leftmost == temporary_it_leftmost(it))
                 temporary_it_leftmost = -1
                 supercell_labels(:, ik) = isc
+                n_cells(:, ik) = ncell
              end where
              n_supercells(ik) = n_supercells(ik) + 1
           end if
