@@ -2022,51 +2022,51 @@ contains
     !$OMP SHARED(self, kwork_filter, field, ntgrid) &
     !$OMP REDUCTION(+:pts_set_here) &
     !$OMP SCHEDULE(static)
-    do ik=1,self%naky
+    do ik = 1, self%naky
        !Technically should be able to skip ik values which are not local (though could be empty)
        !/would have to remember to decrease pts_remain
 
        !If we've finished this ky set the 
        !filter and move on to next ik
-       if(self%kyb(ik)%initdone)then
-          kwork_filter(:,ik)=.true.
+       if (self%kyb(ik)%initdone) then
+          kwork_filter(:, ik) = .true.
           cycle
-       endif
+       end if
 
        !Now look at all supercells with this ik
-       do is=1,self%kyb(ik)%nsupercell
+       do is = 1, self%kyb(ik)%nsupercell
           !If we've finished with this supercell
           !then set the filter and move on to next
-          if(self%kyb(ik)%supercells(is)%initdone)then
+          if (self%kyb(ik)%supercells(is)%initdone) then
              !Set filter for all it on supercell
-             do ic=1,self%kyb(ik)%supercells(is)%ncell
-                kwork_filter(self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=.true.
-             enddo
+             do ic = 1, self%kyb(ik)%supercells(is)%ncell
+                kwork_filter(self%kyb(ik)%supercells(is)%cells(ic)%it_ind, ik) = .true.
+             end do
              cycle
-          endif
+          end if
 
           !//If we get to this point then we know that we have at least
           !one grid point on supercell for which we've not made a delta-fn
 
           !Now look for the first point that we've not initialised
-          iex_init=0
-          do iex=1,self%kyb(ik)%supercells(is)%nextend
+          iex_init = 0
+          do iex = 1, self%kyb(ik)%supercells(is)%nextend
              !If we've already done this point then cycle
-             if(self%kyb(ik)%supercells(is)%initialised(iex)) cycle
+             if (self%kyb(ik)%supercells(is)%initialised(iex)) cycle
              !Else this is the first point so store it and exit
-             iex_init=iex
+             iex_init = iex
              exit
-          enddo
+          end do
 
           !If this is the last point then mark supercell as done
           !but don't set filter yet, this will be automatically
           !applied on next loop
-          if(iex_init.eq.self%kyb(ik)%supercells(is)%nextend) then
-             self%kyb(ik)%supercells(is)%initdone=.true.
+          if (iex_init.eq.self%kyb(ik)%supercells(is)%nextend) then
+             self%kyb(ik)%supercells(is)%initdone = .true.
           endif
 
           !Mark this point as initialised
-          self%kyb(ik)%supercells(is)%initialised(iex_init)=.true.
+          self%kyb(ik)%supercells(is)%initialised(iex_init) = .true.
 
           !Increment the number of points handled in this call
           pts_set_here = pts_set_here + 1
@@ -2076,44 +2076,47 @@ contains
           call self%kyb(ik)%supercells(is)%iex_to_it(iex_init,it)
 
           !Initialise field
-          field(ig,it,ik)=1.0
+          field(ig, it, ik) = 1.0
 
-          !Set the duplicate boundary point
-          if((ig.eq.-ntgrid).and.(it.ne.self%kyb(ik)%supercells(is)%it_left)) then
+          !Set the duplicate boundary point if we're at the left
+          !boundary of this call and we are not the leftmost cell in
+          !the chain.
+          if ((ig == -ntgrid) .and. (it /= self%kyb(ik)%supercells(is)%it_left)) then
              !Get the left connection
-             it=self%kyb(ik)%supercells(is)%get_left_it(it)
-             field(ntgrid,it,ik)=1.0
-          endif
-       enddo !Ends loop over supercells
+             it = self%kyb(ik)%supercells(is)%get_left_it(it)
+             field(ntgrid, it, ik) = 1.0
+          end if
+       end do !Ends loop over supercells
 
        !Decide if we've done this kyb
-       self%kyb(ik)%initdone=all(self%kyb(ik)%supercells%initdone)
+       self%kyb(ik)%initdone = all(self%kyb(ik)%supercells%initdone)
 
-    enddo !Ends loop over ik
+    end do !Ends loop over ik
     !$OMP END PARALLEL DO
 
     ! Update the number of points remaining
     pts_remain = pts_remain - pts_set_here
 
     !Now do the time advance
-    call timeadv(phi,apar,bpar,phinew,aparnew,bparnew,0)
+    call timeadv(phi, apar, bpar, phinew, aparnew, bparnew, 0)
+
     !Now get the field equations
     !In some(/most) situations the nogath version should
     !be ok, and will be better for scaling.
-    if(pc%has_to_gather)then
-       call getfieldeq(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
+    if (pc%has_to_gather) then
+       call getfieldeq(phinew, aparnew, bparnew, fieldeq, fieldeqa, fieldeqp)
     else
-!       call getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
-!<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
-       call self%getfieldeq_nogath(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
-    endif
+       !       call getfieldeq_nogath(phinew,aparnew,bparnew,fq,fqa,fqp)
+       !<DD>Could improve performance by using a "smart" routine which only operates on local/not empty data
+       call self%getfieldeq_nogath(phinew, aparnew, bparnew, fieldeq, fieldeqa, fieldeqp)
+    end if
 
     !Now we need to store the field equations in the appropriate places
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, ig_cur, it_cur, found_ig, found_it, it, is) &
     !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fieldeq, fieldeqa, fieldeqp) &
     !$OMP SCHEDULE(static)
-    do ik=1,self%naky
+    do ik = 1, self%naky
        !If no data then skip ik -- because we don't skip setting
        !the field in the first loop of this routine but we do skip
        !zeroing it out here on processors which don't have any interest
@@ -2123,10 +2126,12 @@ contains
        !instead, although this could mean the field is different on
        !different processors (which should be fine) and might complicate
        !how we track the number of points we need to visit etc.
-       if(self%kyb(ik)%is_empty) cycle
+       if (self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
-       do while(sum(field(:,:,ik)).ne.0)
+       ! We could change the sum to max(abs(field(:,:,ik))) > 0
+       ! in order to save a little bit of work.
+       do while (sum(field(: , : ,ik)) /= 0)
           !Reset variables
           ig_cur = -ntgrid-1
           it_cur = 0
@@ -2134,8 +2139,8 @@ contains
           found_it = .false.
           
           !Look for first entry which was set to a delta-fn
-          do it=1,ntheta0
-             do ig=-ntgrid,ntgrid
+          do it = 1, ntheta0
+             do ig = -ntgrid, ntgrid
                 !If this point wasn't touched ignore
                 if (field(ig, it, ik) == 0) cycle
                 ig_cur = ig
@@ -2146,8 +2151,8 @@ contains
                 it_cur = it
                 found_it = .true.
                 exit
-             endif
-          enddo
+             end if
+          end do
 
           !Now check we've found a point, else cycle
           !NOTE: If this triggers we're probably in trouble
@@ -2158,21 +2163,21 @@ contains
 
           !Zero out the field at this point so we ignore
           !it on future iterations
-          field(ig_cur,it_cur,ik)=0.0
+          field(ig_cur, it_cur, ik)=0.0
 
           !Find the appropriate supercell
-          is=self%kyb(ik)%is_from_it(it_cur)
+          is = self%kyb(ik)%is_from_it(it_cur)
 
           !Also zero out the boundary point if needed
-          if((ig_cur.eq.-ntgrid).and.(it_cur.ne.self%kyb(ik)%supercells(is)%it_left))then
-             it=self%kyb(ik)%supercells(is)%get_left_it(it_cur)
-             field(ntgrid,it,ik)=0.0
-          endif
+          if((ig_cur == -ntgrid) .and. (it_cur /= self%kyb(ik)%supercells(is)%it_left)) then
+             it = self%kyb(ik)%supercells(is)%get_left_it(it_cur)
+             field(ntgrid, it, ik) = 0.0
+          end if
 
           !Now store data
-          call self%kyb(ik)%store_fq(fieldeq,fieldeqa,fieldeqp,ifl,it_cur,ig_cur)
-       enddo !Ends loop over points
-    enddo !Ends loop over ky
+          call self%kyb(ik)%store_fq(fieldeq, fieldeqa, fieldeqp, ifl, it_cur, ig_cur)
+       end do !Ends loop over points
+    end do !Ends loop over ky
     !$OMP END PARALLEL DO
 
     ! See comment in above loop for why this is needed
