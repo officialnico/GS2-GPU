@@ -82,6 +82,7 @@ module fields_local
      private
      procedure :: deallocate => c_deallocate
      procedure :: allocate => c_allocate
+     procedure :: init => c_init
      procedure :: debug_print => c_debug_print
      procedure :: mv_mult_rb => c_mv_mult_rb
      procedure :: get_field_update => c_get_field_update
@@ -125,6 +126,7 @@ module fields_local
      private
      procedure :: deallocate => sc_deallocate
      procedure :: allocate => sc_allocate
+     procedure :: init => sc_init
      procedure :: debug_print => sc_debug_print
      procedure :: get_field_update => sc_get_field_update
      procedure :: reduce_tmpsum => sc_reduce_tmpsum
@@ -445,6 +447,47 @@ contains
     if(allocated(self%rb)) deallocate(self%rb)
   end subroutine c_deallocate
 
+  !> Initialise the members of the cell instance
+  subroutine c_init(self, ic, it, is, ik, nfield, nrow, nextend, ignore_boundary)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(cell_type), intent(in out) :: self
+    integer, intent(in) :: ic, it, is, ik, nfield, nrow, nextend
+    logical, intent(in) :: ignore_boundary
+    integer :: ifq
+
+    ! Store basic cell properties
+    self%nrb = nfield
+    self%ic_ind = ic
+    self%it_ind = it
+    self%ignore_boundary = ignore_boundary
+    ! Store parent properties
+    self%is_ind = is
+    self%ik_ind = ik
+
+    ! Store related/derived properties
+    self%row_llim = 1
+    self%row_ulim = nrow
+    self%nrow = nrow
+
+    self%ncol = 2 * ntgrid
+    if (.not. ignore_boundary) self%ncol = self%ncol + 1
+
+    allocate (self%col_llim(nfield), self%col_ulim(nfield))
+    do ifq = 1, nfield
+       self%col_llim(ifq) = 1 + (ic - 1) + (2 * ntgrid) + (ifq - 1) * nrow
+       self%col_ulim(ifq) = self%col_llim(ifq) + self%ncol - 1
+    end do
+    self%ncol_tot = self%ncol * nfield
+
+    allocate (self%rb(self%nrb))
+
+    !Now make row block objects
+    do ifq = 1, nfield
+       call self%rb(ifq)%init(ifq, ic, it, is, ik, self%ncol, nextend)
+    end do
+  end subroutine c_init
+
   !> Debug printing
   subroutine c_debug_print(self)
     implicit none
@@ -577,6 +620,53 @@ contains
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
     if(allocated(self%cells)) deallocate(self%cells)
   end subroutine sc_deallocate
+
+  !> Initialise the supercell instance by setting and calculating
+  !> some basic properties. Does not deal with allocating all
+  !> storage etc.
+  subroutine sc_init(self, is, is_label, itmin, ik, ncell, nfield, nbound)
+    use theta_grid, only: ntgrid
+    use mp, only: mp_request_null
+    use dist_fn, only: itright
+    implicit none
+    class(supercell_type), intent(in out) :: self
+    integer, intent(in) :: is, is_label, ik, itmin, ncell, nfield
+    integer, intent(in out) :: nbound
+    integer :: it, ic
+    logical :: ignore_boundary
+
+    self%is_ind = is
+    self%is_label = is_label
+    self%it_left = itmin
+    self%ncell = ncell
+    self%ik_ind = ik
+
+    self%nextend = 1 + 2 * ntgrid * ncell
+    self%nrow = self%nextend * nfield
+    self%ncol = self%nrow
+
+    self%collective_request = mp_request_null
+
+    allocate (self%initialised(self%nextend))
+    self%initialised = .false.
+
+    ! Now setup cells
+    allocate (self%cells(ncell))
+
+    it = itmin
+    do ic = 1, ncell
+       !We ignore the boundary for all cells except the rightmost
+       ignore_boundary = ic < ncell
+       if (ignore_boundary) nbound = nbound + 1
+
+       call self%cells(ic)%init( ic, it, is, ik, nfield, &
+            self%nrow, self%nextend, ignore_boundary)
+
+       !Update it
+       if (ic < ncell) it = itright(it, ik)
+    end do
+
+  end subroutine sc_init
 
   !> Debug printing
   subroutine sc_debug_print(self)
@@ -1733,10 +1823,9 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: itright, get_leftmost_it, supercell_labels
+    use dist_fn, only: get_leftmost_it, supercell_labels
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
-    use mp, only: mp_request_null
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: it, cur_id, ifq, itmin
@@ -1747,6 +1836,7 @@ contains
     integer, dimension(:,:), allocatable :: supercell_ids
     integer, dimension(:,:), allocatable :: ncells
     integer, dimension(:,:), allocatable :: is_to_itmin
+    logical :: ignore_boundary
 
     !Count the fields
     nfield = count([has_phi, has_apar, has_bpar])
@@ -1839,77 +1929,8 @@ contains
        do is = 1, nsuper(ik)
           itmin = is_to_itmin(is, ik)
 
-          !Store the basic properties
-          self%kyb(ik)%supercells(is)%is_ind = is
-          self%kyb(ik)%supercells(is)%ik_ind = ik
-          self%kyb(ik)%supercells(is)%it_left = itmin
-          self%kyb(ik)%supercells(is)%is_label = supercell_labels(itmin, ik)
-          self%kyb(ik)%supercells(is)%ncell = ncells(itmin, ik)
-          self%kyb(ik)%supercells(is)%nextend = 1 + 2 * ntgrid * self%kyb(ik)%supercells(is)%ncell
-          self%kyb(ik)%supercells(is)%nrow = self%kyb(ik)%supercells(is)%nextend * nfield
-          self%kyb(ik)%supercells(is)%ncol = self%kyb(ik)%supercells(is)%nrow
-
-          ! This handle is only set later if field_local_nonblocking_collectives
-          ! but unconditionally initialise here.
-          self%kyb(ik)%supercells(is)%collective_request = mp_request_null
-
-          !Now allocate the cell list
-          allocate(self%kyb(ik)%supercells(is)%cells(self%kyb(ik)%supercells(is)%ncell))
-          allocate(self%kyb(ik)%supercells(is)%initialised(self%kyb(ik)%supercells(is)%nextend))
-          self%kyb(ik)%supercells(is)%initialised=.false.
-
-          !Get the first it -- this should be itmin?
-          it = supercell_ids(itmin, ik)
-
-          ! Number of cells for this supercell
-          ncell = ncells(itmin, ik)
-
-          !/Now make the cell objects
-          do ic = 1, ncell
-             
-             !Store the basic properties
-             self%kyb(ik)%supercells(is)%cells(ic)%nrb = nfield
-             self%kyb(ik)%supercells(is)%cells(ic)%ic_ind = ic
-             self%kyb(ik)%supercells(is)%cells(ic)%it_ind = it
-             self%kyb(ik)%supercells(is)%cells(ic)%ik_ind = ik
-             self%kyb(ik)%supercells(is)%cells(ic)%is_ind = is
-             self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary = (ic < ncell) !We ignore the boundary for all cells except the rightmost
-             self%kyb(ik)%supercells(is)%cells(ic)%row_llim = 1
-             self%kyb(ik)%supercells(is)%cells(ic)%row_ulim = self%kyb(ik)%supercells(is)%nrow
-             self%kyb(ik)%supercells(is)%cells(ic)%nrow = self%kyb(ik)%supercells(is)%nrow
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfield))
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfield))
-             if (.not. self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary) then
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol = 2*ntgrid+1
-             else
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol = 2*ntgrid
-                self%nbound = self%nbound+1
-             end if
-             
-             do ifq = 1, nfield
-                self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * self%kyb(ik)%supercells(is)%nrow
-                self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq) = &
-                     self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) + &
-                     self%kyb(ik)%supercells(is)%cells(ic)%ncol - 1
-             end do
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = &
-                  self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfield
-
-             !Now allocate row blocks
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
-
-             !/Now make row block objects
-             do ifq = 1, nfield
-                !Store basic row block properties
-                call self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%init( &
-                     ifq, ic, it, is, ik, self%kyb(ik)%supercells(is)%cells(ic)%ncol, &
-                     self%kyb(ik)%supercells(is)%nextend)
-             end do
-
-             !Update it
-             if (ic < ncells(ncell, ik)) it = itright(it, ik)
-
-          end do
+          call self%kyb(ik)%supercells(is)%init( is, supercell_labels(itmin, ik), &
+               itmin, ik, ncells(itmin, ik), nfield, self%nbound)
        end do
     end do
 
