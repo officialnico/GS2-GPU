@@ -1717,17 +1717,16 @@ contains
     integer, dimension(:,:), allocatable :: is_to_itmin
 
     !Count the fields
-    nfield=0
-    if(has_phi) nfield=nfield+1
-    if(has_apar) nfield=nfield+1
-    if(has_bpar) nfield=nfield+1
+    nfield = count([has_phi, has_apar, has_bpar])
     nfq=nfield
 
     !Allocate temp arrays
     allocate(nsuper(naky))
-    allocate(tmp_supercell_ids(ntheta0))
-    allocate(supercell_ids(ntheta0,naky))
-    allocate(ncells(ntheta0,naky))
+    allocate(supercell_ids(ntheta0, naky))
+    allocate(ncells(ntheta0, naky))
+    ! Here the first dimension is allocated as ntheta0
+    ! but for each ky we only use the first nsupercell(ik)
+    ! entries.
     allocate(is_to_itmin(ntheta0,naky))
 
     !Initialise arrays
@@ -1736,12 +1735,14 @@ contains
     is_to_itmin=0
     supercell_ids=-1
 
-    !Find the leftmost it for each supercell
-    do ik=1,naky
-       do it=1,ntheta0
-          supercell_ids(it,ik)=get_leftmost_it(it,ik)
-       enddo
-    enddo
+    !Find the leftmost it for each supercell and use this to label the
+    !supercell.  Note that this is different from the supercell_label
+    !from dist_fn.
+    do ik = 1, naky
+       do it = 1, ntheta0
+          supercell_ids(it, ik) = get_leftmost_it(it, ik)
+       end do
+    end do
 
     !Now work out how many supercells there are for each
     !ik and what their properties are.
