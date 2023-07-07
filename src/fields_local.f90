@@ -1392,14 +1392,15 @@ contains
     integer :: colour, cc
     integer, dimension(3) :: colours
     type(comm_type) :: tmp
-    logical :: some_empty, some_pd, some_all, head_notfull
+    logical :: some_empty, some_pd, some_all, head_notfull, is_partial_data
     !Exit if we don't have this supercell
     if (.not. self%is_local) return
 
     ! Set local flags
     colours = 0
+    is_partial_data = .not. (self%is_empty .or. self%is_all_local)
     if (self%is_empty) colours(1) = 1
-    if (.not. (self%is_empty .or. self%is_all_local)) colours(2) = 1
+    if (is_partial_data) colours(2) = 1
     if (self%is_all_local) colours(3) = 1
 
     ! Get global flags
@@ -1416,7 +1417,7 @@ contains
     !which have part of the supercell data range (but not all of it)
     if (some_pd) then
        colour = mp_undefined
-       if ((.not.(self%is_empty .or. self%is_all_local))) colour=1
+       if (is_partial_data) colour = 1
        call split(colour, tmp, self%sc_sub_all%id)
        if (colour /= mp_undefined) then
           !/Store communicator
