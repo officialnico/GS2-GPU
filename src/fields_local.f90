@@ -1709,7 +1709,7 @@ contains
     class(fieldmat_type), intent(inout) :: self
     integer :: it, cur_id, ifq
     integer :: it_start, is_count
-    integer :: ik, is, ic
+    integer :: ik, is, ic, ncell
     integer, dimension(:), allocatable :: nsuper
     integer, dimension(:), allocatable :: tmp_supercell_ids
     integer, dimension(:,:), allocatable :: supercell_ids
@@ -1727,13 +1727,13 @@ contains
     ! Here the first dimension is allocated as ntheta0
     ! but for each ky we only use the first nsupercell(ik)
     ! entries.
-    allocate(is_to_itmin(ntheta0,naky))
+    allocate(is_to_itmin(ntheta0, naky))
 
     !Initialise arrays
-    nsuper=0
-    ncells=0
-    is_to_itmin=0
-    supercell_ids=-1
+    nsuper = 0
+    ncells = 0
+    is_to_itmin = 0
+    supercell_ids = -1
 
     !Find the leftmost it for each supercell and use this to label the
     !supercell.  Note that this is different from the supercell_label
@@ -1746,74 +1746,75 @@ contains
 
     !Now work out how many supercells there are for each
     !ik and what their properties are.
-    do ik=1,naky
+    do ik = 1, naky
        !Store the leftmost it values for current ik
-       tmp_supercell_ids=supercell_ids(:,ik)
+       tmp_supercell_ids = supercell_ids(:, ik)
        
        !Now loop over all it values and count how many
        !have which it as the leftmost one.
-       it_start=0
-       is_count=0
-       do while(sum(tmp_supercell_ids).ne.-1*ntheta0)
+       it_start = 0
+       is_count = 0
+       do while (sum(tmp_supercell_ids) /= -ntheta0)
           !Increase the it value
-          it_start=it_start+1
+          it_start = it_start + 1
 
           !Get the leftmost it for supercell with it_start in it
-          cur_id=tmp_supercell_ids(it_start)
+          cur_id = tmp_supercell_ids(it_start)
 
           !If we've seen this supercell then cycle
-          if(cur_id.eq.-1) cycle
+          if (cur_id == -1) cycle
 
           !Increase supercell counter
-          nsuper(ik)=nsuper(ik)+1
-          is_count=is_count+1
+          nsuper(ik) = nsuper(ik) + 1
+          is_count = is_count + 1
 
           !Store the leftmost it value
-          is_to_itmin(is_count,ik)=cur_id
+          is_to_itmin(is_count, ik) = cur_id
 
           !Set all matching entries to -1 so we know to skip
           !this supercell again
-          do it=it_start,ntheta0
-             if(tmp_supercell_ids(it).eq.cur_id) then
-                tmp_supercell_ids(it)=-1
+          do it = it_start, ntheta0
+             if (tmp_supercell_ids(it) == cur_id) then
+                tmp_supercell_ids(it) = -1
 
                 !Increase cell counter
-                ncells(cur_id,ik)=ncells(cur_id,ik)+1
-             endif
-          enddo
-       enddo
-    enddo
+                ncells(cur_id, ik) = ncells(cur_id, ik) + 1
+             end if
+          end do
+       end do
+    end do
     
     !Free memory
     deallocate(tmp_supercell_ids)
 
     !Now we want to allocate the basic field structure
     !Store the basic properties
-    self%naky=naky
-    self%ntheta0=ntheta0
-    self%npts=naky*ntheta0*(2*ntgrid+1)
-    self%nbound=0 !Calculated whilst we create objects
+    self%naky = naky
+    self%ntheta0 = ntheta0
+    self%npts = naky * ntheta0 * (2 * ntgrid + 1)
+    self%nbound = 0 !Calculated whilst we create objects
     allocate(self%kyb(naky))
+    
     !/Make the kyb objects
-    do ik=1,naky
+    do ik = 1, naky
        !Store the basic properties
-       self%kyb(ik)%ik_ind=ik
-       self%kyb(ik)%nsupercell=nsuper(ik)
+       self%kyb(ik)%ik_ind = ik
+       self%kyb(ik)%nsupercell = nsuper(ik)
 
        !Allocate the supercell list
        allocate(self%kyb(ik)%supercells(nsuper(ik)))
 
        !/Now make the supercell objects
-       do is=1,nsuper(ik)
+       do is = 1, nsuper(ik)
 
           !Store the basic properties
-          self%kyb(ik)%supercells(is)%is_ind=is
-          self%kyb(ik)%supercells(is)%ik_ind=ik
-          self%kyb(ik)%supercells(is)%it_left=is_to_itmin(is,ik)
-          self%kyb(ik)%supercells(is)%ncell=ncells(is_to_itmin(is,ik),ik)
-          self%kyb(ik)%supercells(is)%nextend=1+2*ntgrid*self%kyb(ik)%supercells(is)%ncell
-          self%kyb(ik)%supercells(is)%nrow=self%kyb(ik)%supercells(is)%nextend*nfield
-          self%kyb(ik)%supercells(is)%ncol=self%kyb(ik)%supercells(is)%nrow
+          self%kyb(ik)%supercells(is)%is_ind = is
+          self%kyb(ik)%supercells(is)%ik_ind = ik
+          self%kyb(ik)%supercells(is)%it_left = is_to_itmin(is, ik)
+          self%kyb(ik)%supercells(is)%ncell = ncells(is_to_itmin(is, ik), ik)
+          self%kyb(ik)%supercells(is)%nextend = 1 + 2 * ntgrid * self%kyb(ik)%supercells(is)%ncell
+          self%kyb(ik)%supercells(is)%nrow = self%kyb(ik)%supercells(is)%nextend * nfield
+          self%kyb(ik)%supercells(is)%ncol = self%kyb(ik)%supercells(is)%nrow
 
           ! This handle is only set later if field_local_nonblocking_collectives
           ! but unconditionally initialise here.
@@ -1825,63 +1826,67 @@ contains
           self%kyb(ik)%supercells(is)%initialised=.false.
 
           !Get the first it
-          it=supercell_ids(is_to_itmin(is,ik),ik)
+          it = supercell_ids(is_to_itmin(is, ik), ik)
+
+          ! Number of cells for this supercell
+          ncell = ncells(is_to_itmin(is, ik), ik)
 
           !/Now make the cell objects
-          do ic=1,ncells(is_to_itmin(is,ik),ik)
+          do ic = 1, ncell
              
              !Store the basic properties
-             self%kyb(ik)%supercells(is)%cells(ic)%nrb=nfq
-             self%kyb(ik)%supercells(is)%cells(ic)%ic_ind=ic
-             self%kyb(ik)%supercells(is)%cells(ic)%it_ind=it
-             self%kyb(ik)%supercells(is)%cells(ic)%ik_ind=ik
-             self%kyb(ik)%supercells(is)%cells(ic)%is_ind=is
-             self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary=(ic.lt.ncells(is_to_itmin(is,ik),ik)) !We ignore the boundary for all cells except the rightmost
-             self%kyb(ik)%supercells(is)%cells(ic)%row_llim=1
-             self%kyb(ik)%supercells(is)%cells(ic)%row_ulim=self%kyb(ik)%supercells(is)%nrow
-             self%kyb(ik)%supercells(is)%cells(ic)%nrow=self%kyb(ik)%supercells(is)%nrow
+             self%kyb(ik)%supercells(is)%cells(ic)%nrb = nfq
+             self%kyb(ik)%supercells(is)%cells(ic)%ic_ind = ic
+             self%kyb(ik)%supercells(is)%cells(ic)%it_ind = it
+             self%kyb(ik)%supercells(is)%cells(ic)%ik_ind = ik
+             self%kyb(ik)%supercells(is)%cells(ic)%is_ind = is
+             self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary = (ic < ncell) !We ignore the boundary for all cells except the rightmost
+             self%kyb(ik)%supercells(is)%cells(ic)%row_llim = 1
+             self%kyb(ik)%supercells(is)%cells(ic)%row_ulim = self%kyb(ik)%supercells(is)%nrow
+             self%kyb(ik)%supercells(is)%cells(ic)%nrow = self%kyb(ik)%supercells(is)%nrow
              allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfq))
              allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfq))
-             if(.not.self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary)then
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid+1
+             if (.not. self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary) then
+                self%kyb(ik)%supercells(is)%cells(ic)%ncol = 2*ntgrid+1
              else
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid
-                self%nbound=self%nbound+1
-             endif
-             do ifq=1,nfq
-                self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)=1+(ic-1)*(2*ntgrid)+(ifq-1)*self%kyb(ik)%supercells(is)%nrow
-                self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq)=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%ncol-1
-             enddo
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot=self%kyb(ik)%supercells(is)%cells(ic)%ncol*nfq
+                self%kyb(ik)%supercells(is)%cells(ic)%ncol = 2*ntgrid
+                self%nbound = self%nbound+1
+             end if
+             
+             do ifq = 1, nfq
+                self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * self%kyb(ik)%supercells(is)%nrow
+                self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq) = &
+                     self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) + &
+                     self%kyb(ik)%supercells(is)%cells(ic)%ncol - 1
+             end do
+             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfq
 
              !Now allocate row blocks
              allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
 
              !/Now make row block objects
-             do ifq=1,nfq
+             do ifq = 1, nfq
                 !Store basic properties
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind=ifq
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind=is
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ik_ind=ik
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ic_ind=ic
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%it_ind=it
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol=self%kyb(ik)%supercells(is)%cells(ic)%ncol
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim=1+&
-                     (ic-1)*(2*ntgrid)+&
-                     (ifq-1)*self%kyb(ik)%supercells(is)%nextend
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_ulim=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol-1
-             enddo
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind = ifq
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind = is
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ik_ind = ik
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ic_ind = ic
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%it_ind = it
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol = self%kyb(ik)%supercells(is)%cells(ic)%ncol
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim=1 + &
+                     (ic - 1) * (2 * ntgrid) + &
+                     (ifq - 1) * self%kyb(ik)%supercells(is)%nextend
+                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_ulim = &
+                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim + &
+                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol - 1
+             end do
 
              !Update it
-             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(it, ik)
+             if (ic < ncells(ncell, ik)) it = itright(it, ik)
 
-          enddo
-       enddo
-    enddo
+          end do
+       end do
+    end do
 
     !Free memory
     deallocate(nsuper,supercell_ids,ncells,is_to_itmin)
