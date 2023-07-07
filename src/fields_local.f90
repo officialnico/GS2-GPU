@@ -98,7 +98,7 @@ module fields_local
      integer :: ncell
      integer :: nextend !< Length of the extended domain
      integer :: nrow, ncol !< The number of rows and columns. Equal to nextend*nfield
-     integer :: it_left !< It index of leftmost cell
+     integer :: it_leftmost !< It index of leftmost cell
      integer :: head_iproc !< The proc id (in sc_sub_all) of the head proc
      integer :: head_iproc_pd !< The proc id (in sc_sub_pd) of the head proc
      logical :: is_local !< Does this supercell have any data on this proc?
@@ -637,7 +637,7 @@ contains
 
     self%is_ind = is
     self%is_label = is_label
-    self%it_left = itmin
+    self%it_leftmost = itmin
     self%ncell = ncell
     self%ik_ind = ik
 
@@ -2133,7 +2133,8 @@ contains
           !Set the duplicate boundary point if we're at the left
           !boundary of this call and we are not the leftmost cell in
           !the chain.
-          if ((ig == -ntgrid) .and. (it /= self%kyb(ik)%supercells(is)%it_left)) then
+          if ((ig == -ntgrid) .and. &
+               (it /= self%kyb(ik)%supercells(is)%it_leftmost)) then
              !Get the left connection
              it = self%kyb(ik)%supercells(is)%get_left_it(it)
              field(ntgrid, it, ik) = 1.0
@@ -2223,7 +2224,8 @@ contains
           is = self%kyb(ik)%is_from_it(it_cur)
 
           !Also zero out the boundary point if needed
-          if((ig_cur == -ntgrid) .and. (it_cur /= self%kyb(ik)%supercells(is)%it_left)) then
+          if((ig_cur == -ntgrid) .and. &
+               (it_cur /= self%kyb(ik)%supercells(is)%it_leftmost)) then
              it = self%kyb(ik)%supercells(is)%get_left_it(it_cur)
              field(ntgrid, it, ik) = 0.0
           end if
