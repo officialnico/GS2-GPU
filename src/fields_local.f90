@@ -2061,7 +2061,7 @@ contains
           !If this is the last point then mark supercell as done
           !but don't set filter yet, this will be automatically
           !applied on next loop
-          if (iex_init.eq.self%kyb(ik)%supercells(is)%nextend) then
+          if (iex_init == self%kyb(ik)%supercells(is)%nextend) then
              self%kyb(ik)%supercells(is)%initdone = .true.
           endif
 
