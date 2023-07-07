@@ -2010,8 +2010,9 @@ contains
     integer, intent(in) :: ifl
     logical, dimension(ntheta0, naky), intent(inout) :: kwork_filter
     integer :: ik, is, iex, ic, iex_init, ig, it
-    integer :: it_cur, ig_cur, found_it, found_ig
+    integer :: it_cur, ig_cur
     integer :: pts_set_here
+    logical :: found_ig, found_it
 
     pts_set_here = 0
 
@@ -2127,23 +2128,23 @@ contains
        !Loop until we've done all supercells
        do while(sum(field(:,:,ik)).ne.0)
           !Reset variables
-          ig_cur=-ntgrid-1
-          it_cur=0
-          found_ig=0
-          found_it=0
+          ig_cur = -ntgrid-1
+          it_cur = 0
+          found_ig = .false.
+          found_it = .false.
           
           !Look for first entry which was set to a delta-fn
           do it=1,ntheta0
              do ig=-ntgrid,ntgrid
                 !If this point wasn't touched ignore
-                if(field(ig,it,ik).eq.0) cycle
-                ig_cur=ig
-                found_ig=1
+                if (field(ig, it, ik) == 0) cycle
+                ig_cur = ig
+                found_ig = .true.
                 exit
-             enddo
-             if(found_ig.ne.0) then
-                it_cur=it
-                found_it=1
+             end do
+             if (found_ig) then
+                it_cur = it
+                found_it = .true.
                 exit
              endif
           enddo
@@ -2153,7 +2154,7 @@ contains
           !as nothing will be different on the next iteration
           !and hence we will be stuck in an infinite loop.
           !As such this should really trigger an abort.
-          if(found_it.eq.0) cycle
+          if (.not. found_it) cycle
 
           !Zero out the field at this point so we ignore
           !it on future iterations
