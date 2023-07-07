@@ -1850,15 +1850,11 @@ contains
     use theta_grid, only: ntgrid
     implicit none
     class(fieldmat_type), intent(inout) :: self
-    integer :: it, cur_id, ifq, itmin
-    integer :: it_start, is_count
-    integer :: ik, is, ic, ncell
+    integer :: it, cur_id, it_start, is_count, ik
     integer, dimension(:), allocatable :: nsuper
     integer, dimension(:), allocatable :: tmp_supercell_ids
     integer, dimension(:,:), allocatable :: supercell_ids
-    integer, dimension(:,:), allocatable :: ncells
     integer, dimension(:,:), allocatable :: is_to_itmin
-    logical :: ignore_boundary
 
     !Count the fields
     nfield = count([has_phi, has_apar, has_bpar])
@@ -1866,7 +1862,6 @@ contains
     !Allocate temp arrays
     allocate(nsuper(naky))
     allocate(supercell_ids(ntheta0, naky))
-    allocate(ncells(ntheta0, naky))
     ! Here the first dimension is allocated as ntheta0
     ! but for each ky we only use the first nsupercell(ik)
     ! entries.
@@ -1874,7 +1869,6 @@ contains
 
     !Initialise arrays
     nsuper = 0
-    ncells = 0
     is_to_itmin = 0
     supercell_ids = -1
 
@@ -1919,9 +1913,6 @@ contains
           do it = it_start, ntheta0
              if (tmp_supercell_ids(it) == cur_id) then
                 tmp_supercell_ids(it) = -1
-
-                !Increase cell counter
-                ncells(cur_id, ik) = ncells(cur_id, ik) + 1
              end if
           end do
        end do
@@ -1944,7 +1935,7 @@ contains
     end do
 
     !Free memory
-    deallocate(nsuper,supercell_ids,ncells,is_to_itmin)
+    deallocate(nsuper, supercell_ids, is_to_itmin)
   end subroutine fm_init
 
   !> Find the response of g to delta-fn field perturbations 
