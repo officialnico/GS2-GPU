@@ -3594,7 +3594,7 @@ contains
   end subroutine get_right_connection
 
   !> Helper function for finding the leftmost it of supercell
-  function get_leftmost_it(it,ik)
+  elemental function get_leftmost_it(it,ik)
     implicit none
     integer, intent(in) :: ik, it
     integer :: get_leftmost_it
@@ -3614,7 +3614,7 @@ contains
   end function get_leftmost_it
 
   !> Helper function for finding the rightmost it of supercell
-  function get_rightmost_it(it,ik)
+  elemental function get_rightmost_it(it,ik)
     implicit none
     integer, intent(in) :: ik, it
     integer :: get_rightmost_it
