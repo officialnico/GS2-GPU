@@ -1390,31 +1390,27 @@ contains
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, cc
+    integer, dimension(3) :: colours
     type(comm_type) :: tmp
     logical :: some_empty, some_pd, some_all, head_notfull
     !Exit if we don't have this supercell
-    if(.not.self%is_local)return
+    if (.not. self%is_local) return
+
+    ! Set local flags
+    colours = 0
+    if (self%is_empty) colours(1) = 1
+    if (.not. (self%is_empty .or. self%is_all_local)) colours(2) = 1
+    if (self%is_all_local) colours(3) = 1
+
+    ! Get global flags
+    call sum_allreduce_sub(colours, self%sc_sub_all%id)
 
     !/Work out if we have any empty procs
-    some_empty=.false.
-    colour=0
-    if(self%is_empty)colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_empty=.true.
-
+    some_empty = colours(1) /= 0
     !/Work out if we have any partial data procs
-    some_pd=.false.
-    colour=0
-    if(.not.(self%is_empty.or.self%is_all_local))colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_pd=.true.
-
+    some_pd = colours(2) /= 0
     !/Work out if we have any all local procs
-    some_all=.false.
-    colour=0
-    if(self%is_all_local)colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_all=.true.
+    some_all = colours(3) /= 0
 
     !/Now make a subcommunicator involving all procs
     !which have part of the supercell data range (but not all of it)
