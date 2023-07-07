@@ -287,7 +287,6 @@ module fields_local
   logical :: field_local_tuneminnrow = .false. !< Are auto-tuning minnrow
   logical :: field_local_nonblocking_collectives = .false.
   integer :: nfield !< How many fields
-  integer :: nfq !< How many field equations (always equal to nfield)
   integer :: minNRow = 16 !< Tuning this can influence both init and advance times
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
@@ -460,7 +459,7 @@ contains
 
     !Now store at cell level
     self%tmp_sum=0
-    do ifq=1,nfq
+    do ifq=1,nfield
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
             -self%rb(ifq)%tmp_sum
@@ -1718,7 +1717,6 @@ contains
 
     !Count the fields
     nfield = count([has_phi, has_apar, has_bpar])
-    nfq=nfield
 
     !Allocate temp arrays
     allocate(nsuper(naky))
@@ -1835,7 +1833,7 @@ contains
           do ic = 1, ncell
              
              !Store the basic properties
-             self%kyb(ik)%supercells(is)%cells(ic)%nrb = nfq
+             self%kyb(ik)%supercells(is)%cells(ic)%nrb = nfield
              self%kyb(ik)%supercells(is)%cells(ic)%ic_ind = ic
              self%kyb(ik)%supercells(is)%cells(ic)%it_ind = it
              self%kyb(ik)%supercells(is)%cells(ic)%ik_ind = ik
@@ -1844,8 +1842,8 @@ contains
              self%kyb(ik)%supercells(is)%cells(ic)%row_llim = 1
              self%kyb(ik)%supercells(is)%cells(ic)%row_ulim = self%kyb(ik)%supercells(is)%nrow
              self%kyb(ik)%supercells(is)%cells(ic)%nrow = self%kyb(ik)%supercells(is)%nrow
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfq))
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfq))
+             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfield))
+             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfield))
              if (.not. self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary) then
                 self%kyb(ik)%supercells(is)%cells(ic)%ncol = 2*ntgrid+1
              else
@@ -1853,19 +1851,19 @@ contains
                 self%nbound = self%nbound+1
              end if
              
-             do ifq = 1, nfq
+             do ifq = 1, nfield
                 self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * self%kyb(ik)%supercells(is)%nrow
                 self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq) = &
                      self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) + &
                      self%kyb(ik)%supercells(is)%cells(ic)%ncol - 1
              end do
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfq
+             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfield
 
              !Now allocate row blocks
              allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
 
              !/Now make row block objects
-             do ifq = 1, nfq
+             do ifq = 1, nfield
                 !Store basic properties
                 self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind = ifq
                 self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind = is
