@@ -48,6 +48,7 @@ module fields_local
      private
      procedure :: deallocate => rb_deallocate
      procedure :: allocate => rb_allocate
+     procedure :: init => rb_init
      procedure :: debug_print => rb_debug_print
      procedure :: mv_mult_fun => rb_mv_mult_fun
      procedure :: mv_mult => rb_mv_mult
@@ -324,6 +325,33 @@ contains
     if(allocated(self%data)) deallocate(self%data)
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
   end subroutine rb_deallocate
+
+  !> Initialise the members of the rowblock instance
+  subroutine rb_init(self, ifq, ic, it, is, ik, ncol, nextend)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(rowblock_type), intent(in out) :: self
+    integer, intent(in) :: ifq, ic, it, is, ik, ncol
+    !> The length of the parent supercell's real space
+    !> domain. Represents the spacing between the start of different
+    !> field/field equations as we store data as the full real space
+    !> domain for each field, e.g. [fieldeq(:), fieldeqa(:),
+    !> fieldeqp(:)], rather than say interleaved, e.g. [[fieldeq(1),
+    !> fieldeqa(1), fieldeqp(1)], [fieldeq(2), fieldeqa(2),
+    !> fieldeqp(2)],...]
+    integer, intent(in) :: nextend
+    ! Store rowblock index, essentially which fieldeq we represent
+    self%ir_ind = ifq
+    ! Store indices of parent types
+    self%ic_ind = ic
+    self%it_ind = it
+    self%is_ind = is
+    self%ik_ind = ik
+    ! Store data limits
+    self%ncol = ncol
+    self%col_llim = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * nextend
+    self%col_ulim = self%col_llim + ncol - 1
+  end subroutine rb_init
 
   !> Debug printing
   subroutine rb_debug_print(self)
@@ -1872,19 +1900,10 @@ contains
 
              !/Now make row block objects
              do ifq = 1, nfield
-                !Store basic properties
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind = ifq
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind = is
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ik_ind = ik
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ic_ind = ic
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%it_ind = it
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol = self%kyb(ik)%supercells(is)%cells(ic)%ncol
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim=1 + &
-                     (ic - 1) * (2 * ntgrid) + &
-                     (ifq - 1) * self%kyb(ik)%supercells(is)%nextend
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_ulim = &
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim + &
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol - 1
+                !Store basic row block properties
+                call self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%init( &
+                     ifq, ic, it, is, ik, self%kyb(ik)%supercells(is)%cells(ic)%ncol, &
+                     self%kyb(ik)%supercells(is)%nextend)
              end do
 
              !Update it
