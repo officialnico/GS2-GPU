@@ -2139,20 +2139,22 @@ contains
           found_it = .false.
           
           !Look for first entry which was set to a delta-fn
-          do it = 1, ntheta0
-             do ig = -ntgrid, ntgrid
-                !If this point wasn't touched ignore
-                if (field(ig, it, ik) == 0) cycle
-                ig_cur = ig
-                found_ig = .true.
-                exit
-             end do
+          theta0: do it = 1, ntheta0
+             ! Find the first theta grid point equal to 1.0
+             ig_cur = findloc(field(:, it, ik), 1.0, dim = 1)
+             found_ig = ig_cur > 0
+             ! If we didn't find a theta grid value move on to
+             ! next it
+             if (.not. found_ig) cycle
+             ! Adjust ig_cur to correct index range (findloc
+             ! assumes arrays are 1 indexed)
+             ig_cur = ig_cur - (ntgrid + 1)
              if (found_ig) then
                 it_cur = it
                 found_it = .true.
-                exit
+                exit theta0
              end if
-          end do
+          end do theta0
 
           !Now check we've found a point, else cycle
           !NOTE: If this triggers we're probably in trouble
