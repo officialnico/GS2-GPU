@@ -2129,9 +2129,9 @@ contains
        if (self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
-       ! We could change the sum to max(abs(field(:,:,ik))) > 0
-       ! in order to save a little bit of work.
-       do while (sum(field(: , : ,ik)) /= 0)
+       ! Note we dont use gs2_max_abs here as we are already inside
+       ! an OpenMP region.
+       do while (maxval(abs(field(: , : ,ik))) > 0)
           !Reset variables
           ig_cur = -ntgrid-1
           it_cur = 0
