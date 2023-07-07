@@ -206,6 +206,9 @@ module dist_fn
   !> itleft, itright etc.
   integer, dimension(:, :), allocatable :: supercell_labels
 
+  !> Records the number of unique supercells for each ky
+  integer, dimension(:), allocatable :: n_supercells
+
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
@@ -1100,6 +1103,7 @@ contains
     if (allocated(M_class)) deallocate (M_class, N_class)
     if (allocated(itleft)) deallocate (itleft, itright)
     if (allocated(supercell_labels)) deallocate (supercell_labels)
+    if (allocated(n_supercells)) deallocate (n_supercells)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -2162,7 +2166,8 @@ contains
     end select
 
     allocate(supercell_labels(ntheta0, naky))
-    call calculate_supercell_labels(supercell_labels)
+    allocate(n_supercells(naky))
+    call calculate_supercell_labels(supercell_labels, n_supercells)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2348,14 +2353,16 @@ contains
 
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
-  subroutine calculate_supercell_labels(supercell_labels)
+  subroutine calculate_supercell_labels(supercell_labels, n_supercells)
     use kt_grids, only: naky, ntheta0
     implicit none
     integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:), intent(out) :: n_supercells
     integer, dimension(:), allocatable :: temporary_it_leftmost
     integer :: it, ik, isc
 
     supercell_labels = -1
+    n_supercells = 0
     isc = -1
 
     allocate(temporary_it_leftmost(ntheta0))
@@ -2373,9 +2380,11 @@ contains
                 temporary_it_leftmost = -1
                 supercell_labels(:, ik) = isc
              end where
+             n_supercells(ik) = n_supercells(ik) + 1
           end if
        end do
     end do
+
   end subroutine calculate_supercell_labels
 
   !> Compute the spacing in kx indices between connected kx domains
