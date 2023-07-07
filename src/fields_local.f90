@@ -1432,7 +1432,9 @@ contains
     !Note: We try to make proc0 the head proc if it is a member of the supercell
     !which has data as it means we don't need to send this supercell to anyone.
     if (some_all) then
-       !Here we make a temporary communicator for the all_local procs
+       ! Here we make a temporary communicator for the all_local procs
+       ! It would be nice if we could avoid this as creating and destroying
+       ! communicators often leads to communicator fragmentation issues
        cc = mp_undefined
        if (self%is_all_local) cc = 1
        !/Note we don't destroy this until later
@@ -1483,14 +1485,16 @@ contains
        head_notfull = (min(1, self%sc_sub_pd%nproc-1) == self%sc_sub_pd%iproc)
     end if
 
-    !Store the head_iproc
-    self%head_iproc = 0
-    if (self%is_head) self%head_iproc = self%sc_sub_all%iproc
-    call sum_allreduce_sub(self%head_iproc, self%sc_sub_all%id)
+    !Store the head_iproc values
+    colours = 0
+    if (self%is_head) then
+       colours(1) = self%sc_sub_all%iproc
+       colours(2) = self%sc_sub_pd%iproc
+    end if
 
-    self%head_iproc_pd = 0
-    if (self%is_head) self%head_iproc_pd = self%sc_sub_pd%iproc
-    call sum_allreduce_sub(self%head_iproc_pd, self%sc_sub_all%id)
+    call sum_allreduce_sub(colours, self%sc_sub_all%id)
+    self%head_iproc = colours(1)
+    self%head_iproc_pd = colours(2)
   end subroutine sc_make_subcom_2
 
 !------------------------------------------------------------------------
