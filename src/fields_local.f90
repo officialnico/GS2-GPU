@@ -1414,15 +1414,15 @@ contains
 
     !/Now make a subcommunicator involving all procs
     !which have part of the supercell data range (but not all of it)
-    if(some_pd)then
+    if (some_pd) then
        colour = mp_undefined
-       if((.not.(self%is_empty.or.self%is_all_local))) colour=1
-       call split(colour,tmp,self%sc_sub_all%id)
-       if(colour /= mp_undefined) then
+       if ((.not.(self%is_empty .or. self%is_all_local))) colour=1
+       call split(colour, tmp, self%sc_sub_all%id)
+       if (colour /= mp_undefined) then
           !/Store communicator
-          self%sc_sub_pd=tmp
-       endif
-    endif
+          self%sc_sub_pd = tmp
+       end if
+    end if
 
     !Decide if we're the head proc
     !Note: We also decide which proc is in charge of filling the empty
@@ -1430,66 +1430,66 @@ contains
     !we have a better chance of being able to overlap comms and computations
     !Note: We try to make proc0 the head proc if it is a member of the supercell
     !which has data as it means we don't need to send this supercell to anyone.
-    if(some_all)then
+    if (some_all) then
        !Here we make a temporary communicator for the all_local procs
        cc = mp_undefined
-       if(self%is_all_local) cc=1
+       if (self%is_all_local) cc = 1
        !/Note we don't destroy this until later
-       call split(cc,tmp,self%sc_sub_all%id)
+       call split(cc, tmp, self%sc_sub_all%id)
 
        !Now find out if we have proc0 in our new comm
-       if(self%is_all_local)then
-          cc=0
-          if(proc0) cc=1
-          call sum_allreduce_sub(cc,tmp%id)
+       if (self%is_all_local) then
+          cc = 0
+          if (proc0) cc = 1
+          call sum_allreduce_sub(cc, tmp%id)
 
           !Decide if we're the head, prefer proc0 to be head
           !if it's a member of our group
-          if(cc.ne.0)then
-             self%is_head=proc0
+          if (cc /= 0) then
+             self%is_head = proc0
           else
-             self%is_head=tmp%proc0
-          endif
+             self%is_head = tmp%proc0
+          end if
 
           !Here we decide which proc should be in charge of
           !informing the empty procs of the result
-          head_notfull=(min(1,tmp%nproc-1).eq.tmp%iproc)
+          head_notfull = (min(1, tmp%nproc-1) == tmp%iproc)
 
           !Free the communicator
           call free_comm(tmp)
 
        else
-          head_notfull=.false.
-       endif
+          head_notfull = .false.
+       end if
 
     else
-       if(self%sc_sub_pd%nproc.gt.0)then
-          cc=0
-          if(proc0) cc=1
-          call sum_allreduce_sub(cc,self%sc_sub_pd%id)
+       if (self%sc_sub_pd%nproc > 0)then
+          cc = 0
+          if (proc0) cc = 1
+          call sum_allreduce_sub(cc, self%sc_sub_pd%id)
 
           !Decide if we're the head, prefer proc0 to be head
           !if it's a member of our group
-          if(cc.ne.0)then
-             self%is_head=proc0
+          if (cc /= 0) then
+             self%is_head = proc0
           else
-             self%is_head=self%sc_sub_pd%proc0
-          endif
-       endif
+             self%is_head = self%sc_sub_pd%proc0
+          end if
+       end if
 
        !Here we decide which proc should be in charge of
        !informing the empty procs of the result
-       head_notfull=(min(1,self%sc_sub_pd%nproc-1).eq.self%sc_sub_pd%iproc)
-    endif
+       head_notfull = (min(1, self%sc_sub_pd%nproc-1) == self%sc_sub_pd%iproc)
+    end if
 
     !Store the head_iproc
-    self%head_iproc=0
-    if(self%is_head) self%head_iproc=self%sc_sub_all%iproc
-    call sum_allreduce_sub(self%head_iproc,self%sc_sub_all%id)
+    self%head_iproc = 0
+    if (self%is_head) self%head_iproc = self%sc_sub_all%iproc
+    call sum_allreduce_sub(self%head_iproc, self%sc_sub_all%id)
 
-    self%head_iproc_pd=0
-    if(self%is_head) self%head_iproc_pd=self%sc_sub_pd%iproc
-    call sum_allreduce_sub(self%head_iproc_pd,self%sc_sub_all%id)
+    self%head_iproc_pd = 0
+    if (self%is_head) self%head_iproc_pd = self%sc_sub_pd%iproc
+    call sum_allreduce_sub(self%head_iproc_pd, self%sc_sub_all%id)
   end subroutine sc_make_subcom_2
 
 !------------------------------------------------------------------------
