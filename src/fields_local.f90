@@ -170,6 +170,7 @@ module fields_local
      private
      procedure :: deallocate => ky_deallocate
      procedure :: allocate => ky_allocate
+     procedure :: init => ky_init
      procedure :: debug_print => ky_debug_print
      procedure :: get_field_update => ky_get_field_update
      procedure :: wait_for_nonblocking_collectives => ky_wait_for_nonblocking_collectives
@@ -1518,6 +1519,26 @@ contains
     if(allocated(self%supercells)) deallocate(self%supercells)
   end subroutine ky_deallocate
 
+  !> Setup properties of ky_type instance
+  subroutine ky_init(self, ik, itmins, nsupercell, nfield, nbound)
+    implicit none
+    class(ky_type), intent(in out) :: self
+    integer, intent(in) :: ik, nsupercell, nfield
+    integer, dimension(:), intent(in) :: itmins
+    integer, intent(in out) :: nbound
+    integer :: is
+
+    self%ik_ind = ik
+    self%nsupercell = nsupercell
+
+    allocate (self%supercells(nsupercell))
+
+    do is = 1, nsupercell
+       call self%supercells(is)%init(is, itmins(is), ik, nfield, nbound)
+    end do
+
+  end subroutine ky_init
+
   !> Debug printing
   subroutine ky_debug_print(self)
     implicit none
@@ -1919,18 +1940,7 @@ contains
     
     !/Make the kyb objects
     do ik = 1, naky
-       !Store the basic properties
-       self%kyb(ik)%ik_ind = ik
-       self%kyb(ik)%nsupercell = nsuper(ik)
-
-       !Allocate the supercell list
-       allocate(self%kyb(ik)%supercells(nsuper(ik)))
-
-       !/Now make the supercell objects
-       do is = 1, nsuper(ik)
-          itmin = is_to_itmin(is, ik)
-          call self%kyb(ik)%supercells(is)%init( is, itmin, ik, nfield, self%nbound)
-       end do
+       call self%kyb(ik)%init(ik, is_to_itmin(:, ik), nsuper(ik), nfield, self%nbound)
     end do
 
     !Free memory
