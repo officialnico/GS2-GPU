@@ -1891,7 +1891,7 @@ contains
        !have which it as the leftmost one.
        it_start = 0
        is_count = 0
-       do while (sum(tmp_supercell_ids) /= -ntheta0)
+       do while (any(tmp_supercell_ids >= 0))
           !Increase the it value
           it_start = it_start + 1
 
