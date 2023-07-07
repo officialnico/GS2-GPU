@@ -111,7 +111,12 @@ module fields_local
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
      logical :: is_head = .false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
+     !> The is_ind value is the index of the supercell in the parent ky_type's
+     !> supercell array.
      integer :: is_ind
+     !> The is_label is the supercell_label of this supercell as determined
+     !> by calculate_supercell_labels from elsewhere.
+     integer :: is_label
      integer :: ik_ind !< Parent properties
      integer :: collective_request
      real :: condition_number = -1 !< Condition number of the associated response matrix. Only valid on the head.
@@ -1700,13 +1705,13 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: itright, get_leftmost_it
+    use dist_fn, only: itright, get_leftmost_it, supercell_labels
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     use mp, only: mp_request_null
     implicit none
     class(fieldmat_type), intent(inout) :: self
-    integer :: it, cur_id, ifq
+    integer :: it, cur_id, ifq, itmin
     integer :: it_start, is_count
     integer :: ik, is, ic, ncell
     integer, dimension(:), allocatable :: nsuper
@@ -1804,12 +1809,14 @@ contains
 
        !/Now make the supercell objects
        do is = 1, nsuper(ik)
+          itmin = is_to_itmin(is, ik)
 
           !Store the basic properties
           self%kyb(ik)%supercells(is)%is_ind = is
           self%kyb(ik)%supercells(is)%ik_ind = ik
-          self%kyb(ik)%supercells(is)%it_left = is_to_itmin(is, ik)
-          self%kyb(ik)%supercells(is)%ncell = ncells(is_to_itmin(is, ik), ik)
+          self%kyb(ik)%supercells(is)%it_left = itmin
+          self%kyb(ik)%supercells(is)%is_label = supercell_labels(itmin, ik)
+          self%kyb(ik)%supercells(is)%ncell = ncells(itmin, ik)
           self%kyb(ik)%supercells(is)%nextend = 1 + 2 * ntgrid * self%kyb(ik)%supercells(is)%ncell
           self%kyb(ik)%supercells(is)%nrow = self%kyb(ik)%supercells(is)%nextend * nfield
           self%kyb(ik)%supercells(is)%ncol = self%kyb(ik)%supercells(is)%nrow
@@ -1823,11 +1830,11 @@ contains
           allocate(self%kyb(ik)%supercells(is)%initialised(self%kyb(ik)%supercells(is)%nextend))
           self%kyb(ik)%supercells(is)%initialised=.false.
 
-          !Get the first it
-          it = supercell_ids(is_to_itmin(is, ik), ik)
+          !Get the first it -- this should be itmin?
+          it = supercell_ids(itmin, ik)
 
           ! Number of cells for this supercell
-          ncell = ncells(is_to_itmin(is, ik), ik)
+          ncell = ncells(itmin, ik)
 
           !/Now make the cell objects
           do ic = 1, ncell
@@ -1857,7 +1864,8 @@ contains
                      self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq) + &
                      self%kyb(ik)%supercells(is)%cells(ic)%ncol - 1
              end do
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfield
+             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot = &
+                  self%kyb(ik)%supercells(is)%cells(ic)%ncol * nfield
 
              !Now allocate row blocks
              allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
