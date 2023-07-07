@@ -1392,7 +1392,7 @@ contains
     integer :: colour, cc
     integer, dimension(3) :: colours
     type(comm_type) :: tmp
-    logical :: some_empty, some_pd, some_all, head_notfull, is_partial_data
+    logical :: some_empty, some_pd, some_all, is_partial_data
     !Exit if we don't have this supercell
     if (.not. self%is_local) return
 
@@ -1433,8 +1433,11 @@ contains
     !which has data as it means we don't need to send this supercell to anyone.
     if (some_all) then
        ! Here we make a temporary communicator for the all_local procs
-       ! It would be nice if we could avoid this as creating and destroying
-       ! communicators often leads to communicator fragmentation issues
+       ! It would be nice if we could avoid this as creating and
+       ! destroying communicators often leads to communicator
+       ! fragmentation issues If we didn't try to prefer proc0 then we
+       ! wouldn't need to do this The performance impact of not
+       ! preferring proc0 has not been measured to date.
        cc = mp_undefined
        if (self%is_all_local) cc = 1
        !/Note we don't destroy this until later
@@ -1454,17 +1457,9 @@ contains
              self%is_head = tmp%proc0
           end if
 
-          !Here we decide which proc should be in charge of
-          !informing the empty procs of the result
-          head_notfull = (min(1, tmp%nproc-1) == tmp%iproc)
-
           !Free the communicator
           call free_comm(tmp)
-
-       else
-          head_notfull = .false.
        end if
-
     else
        if (self%sc_sub_pd%nproc > 0)then
           cc = 0
@@ -1479,10 +1474,6 @@ contains
              self%is_head = self%sc_sub_pd%proc0
           end if
        end if
-
-       !Here we decide which proc should be in charge of
-       !informing the empty procs of the result
-       head_notfull = (min(1, self%sc_sub_pd%nproc-1) == self%sc_sub_pd%iproc)
     end if
 
     !Store the head_iproc values
