@@ -1934,7 +1934,7 @@ contains
           !Look for first entry which was set to a delta-fn
           theta0: do it = 1, ntheta0
              ! Find the first theta grid point equal to 1.0
-             ig_cur = findloc(field(:, it, ik), 1.0, dim = 1)
+             ig_cur = findloc(field(:, it, ik), cmplx(1.0, 0.0), dim = 1)
              found_ig = ig_cur > 0
              ! If we didn't find a theta grid value move on to
              ! next it
