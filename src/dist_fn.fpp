@@ -3594,43 +3594,37 @@ contains
   end subroutine get_right_connection
 
   !> Helper function for finding the leftmost it of supercell
-  elemental function get_leftmost_it(it,ik)
+  elemental integer function get_leftmost_it(it,ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_leftmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itleft(it_cur, ik).ge.0.and.itleft(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itleft(it_cur, ik) > 0 .and. itleft(it_cur, ik) /= it_cur)
           !Keep updating it_cur with left connected it until there are no
           !connections to left
-          it_cur=itleft(it_cur, ik)
-       enddo
+          it_cur = itleft(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_leftmost_it=it_cur
+       it_cur = it
+    end if
   end function get_leftmost_it
 
   !> Helper function for finding the rightmost it of supercell
-  elemental function get_rightmost_it(it,ik)
+  elemental integer function get_rightmost_it(it, ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_rightmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itright(it_cur, ik).ge.0.and.itright(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itright(it_cur, ik) > 0 .and. itright(it_cur, ik) /= it_cur)
           !Keep updating it_cur with right connected it until there are no
           !connections to right
-          it_cur=itright(it_cur, ik)
-       enddo
+          it_cur = itright(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_rightmost_it=it_cur
+       it_cur = it
+    end if
   end function get_rightmost_it
   
   !> FIXME : Add documentation
