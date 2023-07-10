@@ -1436,8 +1436,23 @@ contains
        ! It would be nice if we could avoid this as creating and
        ! destroying communicators often leads to communicator
        ! fragmentation issues If we didn't try to prefer proc0 then we
-       ! wouldn't need to do this The performance impact of not
+       ! wouldn't need to do this. The performance impact of not
        ! preferring proc0 has not been measured to date.
+       !
+       ! Currently we split a communicator so that we can both detect
+       ! if proc0 is included and has is_all_local and if not we can
+       ! identify the head as the proc0 of the sub-communicator. We
+       ! should be able to avoid this split, whilst keeping the same
+       ! functionality by noting:
+       ! 1. We can determine if proc0 is present and has is_all_local
+       !    by simply setting cc = (proc0 .and. self%is_all_local) ? 1 : 0
+       !    and then reducing that on sc_sub_all.
+       ! 2. If proc0 is not present then the effective proc0 of the
+       !    current tmp sub-communicator will just be the proc with
+       !    the lowest rank in sc_sub_all with is_all_local true as
+       !    we do not pass a key to the split call. Therefore we could
+       !    instead take min_allreduce of cc = is_all_local ? sc_sub_all%iproc : nproc + 1
+       !    and then set self%is_head = sc_sub_all%iproc == cc
        cc = mp_undefined
        if (self%is_all_local) cc = 1
        !/Note we don't destroy this until later
