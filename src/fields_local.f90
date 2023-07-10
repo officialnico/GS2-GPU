@@ -1386,7 +1386,8 @@ contains
 
   !> Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
-    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
+    use mp, only: comm_type, split, sum_allreduce_sub, proc0
+    use mp, only: mp_undefined, min_allreduce_sub, nproc
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, cc
@@ -1432,68 +1433,34 @@ contains
     !Note: We try to make proc0 the head proc if it is a member of the supercell
     !which has data as it means we don't need to send this supercell to anyone.
     if (some_all) then
-       ! Here we make a temporary communicator for the all_local procs
-       ! It would be nice if we could avoid this as creating and
-       ! destroying communicators often leads to communicator
-       ! fragmentation issues If we didn't try to prefer proc0 then we
-       ! wouldn't need to do this. The performance impact of not
-       ! preferring proc0 has not been measured to date.
-       !
-       ! Currently we split a communicator so that we can both detect
-       ! if proc0 is included and has is_all_local and if not we can
-       ! identify the head as the proc0 of the sub-communicator. We
-       ! should be able to avoid this split, whilst keeping the same
-       ! functionality by noting:
+       ! Here we try to determine which processor will be the head.
+       ! If proc0 is included and has is_all_local we prefer that. If not we can
+       ! identify the head as the first proc in sc_sub_all which has is_all_local.
        ! 1. We can determine if proc0 is present and has is_all_local
        !    by simply setting cc = (proc0 .and. self%is_all_local) ? 1 : 0
        !    and then reducing that on sc_sub_all.
-       ! 2. If proc0 is not present then the effective proc0 of the
-       !    current tmp sub-communicator will just be the proc with
-       !    the lowest rank in sc_sub_all with is_all_local true as
-       !    we do not pass a key to the split call. Therefore we could
+       ! 2. If proc0 is not present then the head will just be the proc with
+       !    the lowest rank in sc_sub_all with is_all_local true. Therefore we
        !    instead take min_allreduce of cc = is_all_local ? sc_sub_all%iproc : nproc + 1
        !    and then set self%is_head = sc_sub_all%iproc == cc
        ! Work out if proc0 is a member of sc_sub_all _and_ has is_all_local
-       ! cc = 0
-       ! if (proc0 .and. self%is_all_local) cc = 1
-       ! call sum_allreduce_sub(cc, self%sc_sub_all%id)
-       ! if (cc == 1) then
-       !    ! If we have proc0 then that is head
-       !    self%is_head = proc0
-       ! else
-       !    if (self%is_all_local) then
-       !       cc = self%sc_sub_all%iproc
-       !    else
-       !       cc = nproc + 1
-       !    end if
-       !    ! We don't currently have an implementation for this.
-       !    call min_allreduce_sub(cc, self%sc_sub_all%id)
-       !    ! If we don't have proc0 then the head is the processor
-       !    ! with the lowest rank in sc_sub_all which has is_all_local
-       !    self%is_head = cc == self%sc_sub_all%iproc
-       ! end if
-
-       cc = mp_undefined
-       if (self%is_all_local) cc = 1
-       !/Note we don't destroy this until later
-       call split(cc, tmp, self%sc_sub_all%id)
-
-       !Now find out if we have proc0 in our new comm
-       if (self%is_all_local) then
-          cc = 0
-          if (proc0) cc = 1
-          call sum_allreduce_sub(cc, tmp%id)
-
-          !Decide if we're the head, prefer proc0 to be head
-          !if it's a member of our group
-          if (cc /= 0) then
-             self%is_head = proc0
+       cc = 0
+       if (proc0 .and. self%is_all_local) cc = 1
+       call sum_allreduce_sub(cc, self%sc_sub_all%id)
+       if (cc == 1) then
+          ! If we have proc0 then that is head
+          self%is_head = proc0
+       else
+          if (self%is_all_local) then
+             cc = self%sc_sub_all%iproc
           else
-             self%is_head = tmp%proc0
+             cc = nproc + 1
           end if
-
-          !Free the communicator
-          call free_comm(tmp)
+          ! We don't currently have an implementation for this.
+          call min_allreduce_sub(cc, self%sc_sub_all%id)
+          ! If we don't have proc0 then the head is the processor
+          ! with the lowest rank in sc_sub_all which has is_all_local
+          self%is_head = cc == self%sc_sub_all%iproc
        end if
     else
        if (self%sc_sub_pd%nproc > 0)then
