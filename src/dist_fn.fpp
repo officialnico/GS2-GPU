@@ -5484,6 +5484,7 @@ contains
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
+    use kt_grids, only: kwork_filter
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
@@ -5517,14 +5518,14 @@ contains
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
     !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
     !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
-    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
+    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, kwork_filter, &
     !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (.not. any(save_h(:, iglo))) cycle
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
-
+       if (kwork_filter(it, ik)) cycle
        ncell = r_links(it, ik) + l_links(it, ik) + 1
        if (ncell == 1) cycle
        il = il_idx(g_lo,iglo)
@@ -5884,6 +5885,94 @@ contains
     logical, intent(in), optional :: local_only
     call getan_from_dfn(gnew, antot, antota, antotp, local_only)
   end subroutine getan
+
+
+  !> Check if the passed distribution function shaped array has the same
+  !> value at the duplicate theta points arising from the linked boundary conditions.
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_linked_boundaries_are_satisfied(g_array, pass_right, pass_left, &
+       identifier, tolerance)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx, it_idx, ik_idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    use optionals, only: get_option_with_default
+    use redistribute, only: redist_type, fill
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    type(redist_type), intent(in out) :: pass_right, pass_left
+    character(len=*), intent(in), optional :: identifier
+    real, intent(in), optional :: tolerance
+    complex, dimension(:, :, :), allocatable :: g_pass
+    character(len=:), allocatable :: id_message
+    integer :: iglo, il, it, ik
+    real :: violation_flag, local_tolerance, err
+
+    ! Exit if no connections as nothing to check
+    if (no_connections) return
+    if (boundary_option_switch /= boundary_option_linked) return
+
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
+    id_message = get_option_with_default(identifier, '')
+    allocate(g_pass, mold = g_array)
+
+    err = 0.0
+
+    call zero_array(g_pass)
+    call fill(pass_right, g_array, g_pass)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, l_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (l_links(it, ik) > 0) then
+          err = max(err, abs(g_array(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
+       end if
+    end do
+    !$OMP END PARALLEL DO
+
+    call zero_array(g_pass)
+    call fill(pass_left, g_array, g_pass)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, r_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          err = max(err, abs(g_array(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
+       end if
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = err
+    call max_allreduce(violation_flag)
+    if (violation_flag > local_tolerance) then
+       call mp_abort('The passed array has inconsistent linked boundaries. '//id_message, .true.)
+    end if
+  end subroutine check_linked_boundaries_are_satisfied
 
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
