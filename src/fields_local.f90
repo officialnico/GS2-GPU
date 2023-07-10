@@ -1453,6 +1453,26 @@ contains
        !    we do not pass a key to the split call. Therefore we could
        !    instead take min_allreduce of cc = is_all_local ? sc_sub_all%iproc : nproc + 1
        !    and then set self%is_head = sc_sub_all%iproc == cc
+       ! Work out if proc0 is a member of sc_sub_all _and_ has is_all_local
+       ! cc = 0
+       ! if (proc0 .and. self%is_all_local) cc = 1
+       ! call sum_allreduce_sub(cc, self%sc_sub_all%id)
+       ! if (cc == 1) then
+       !    ! If we have proc0 then that is head
+       !    self%is_head = proc0
+       ! else
+       !    if (self%is_all_local) then
+       !       cc = self%sc_sub_all%iproc
+       !    else
+       !       cc = nproc + 1
+       !    end if
+       !    ! We don't currently have an implementation for this.
+       !    call min_allreduce_sub(cc, self%sc_sub_all%id)
+       !    ! If we don't have proc0 then the head is the processor
+       !    ! with the lowest rank in sc_sub_all which has is_all_local
+       !    self%is_head = cc == self%sc_sub_all%iproc
+       ! end if
+
        cc = mp_undefined
        if (self%is_all_local) cc = 1
        !/Note we don't destroy this until later
