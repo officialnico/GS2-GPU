@@ -93,6 +93,8 @@ HAS_GCOV=$(USE_GCOV)
 GS2_PYTHON_NAME ?= python3
 # Name of pytest executable
 GS2_PYTEST_NAME ?= pytest
+# A user-settable name for this particular build of GS2
+GS2_BUILD_TAG ?= None
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -184,7 +186,6 @@ AWK 		= awk
 PERL		= perl
 FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
-
 MPI_INC	?=
 MPI_LIB ?=
 FFT_INC ?=
@@ -565,6 +566,10 @@ else
 diagnostics:
 endif
 
+# NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
+# ensure that it gets quoted correctly on the command line
+MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
+
 ############################################################################# Done dealing with user flags
 
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
@@ -585,7 +590,7 @@ CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
 CPPFLAGS += $(MACRO_DEFS)
-FPPFLAGS += $(MACRO_DEFS)
+FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
 DATE:=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)

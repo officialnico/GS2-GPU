@@ -985,7 +985,6 @@ contains
   !> FIXME : Add documentation
   subroutine transform_x5d (g, xxf)
     use gs2_layouts, only: xxf_lo, g_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
@@ -993,8 +992,6 @@ contains
     implicit none
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
-
-    call prof_entering ("transform_x5d", "gs2_transforms")
 
     ! Zero out the array as the subsequent gather doesn't populate
     ! every element as we skip communicating forbidden points and
@@ -1011,22 +1008,17 @@ contains
     call FFTW_PREFIX(_execute_dft)(xf_fft%plan, xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
 #endif
-
-    call prof_leaving ("transform_x5d", "gs2_transforms")
   end subroutine transform_x5d
 
   !> FIXME : Add documentation  
   subroutine inverse_x5d (xxf, g)
     use gs2_layouts, only: xxf_lo, g_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
     use job_manage, only: time_message
     use fft_work, only: time_fft
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in out) :: xxf
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
-
-    call prof_entering ("inverse_x5d", "gs2_transforms")
 
 #if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
@@ -1035,14 +1027,11 @@ contains
 #endif
 
     call scatter (g2x, xxf, g)
-
-    call prof_leaving ("inverse_x5d", "gs2_transforms")
   end subroutine inverse_x5d
 
   !> FIXME : Add documentation
   subroutine transform_y5d (xxf, yxf)
     use gs2_layouts, only: xxf_lo, yxf_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather
     use job_manage, only: time_message
     use fft_work, only: time_fft
@@ -1054,8 +1043,6 @@ contains
 # else
     real, dimension (:,yxf_lo%llim_proc:), intent(in out) :: yxf
 # endif
-
-    call prof_entering ("transform_y5d", "gs2_transforms")
 
     ! Zero out the array as the subsequent gather doesn't populate
     ! every element as we skip communicating forbidden points and
@@ -1071,22 +1058,17 @@ contains
     call FFTW_PREFIX(_execute_dft_c2r) (yf_fft%plan, fft, yxf)
     call time_message(.false., time_fft, ' FFT')
 #endif
-
-    call prof_leaving ("transform_y5d", "gs2_transforms")
   end subroutine transform_y5d
 
   !> FIXME : Add documentation  
   subroutine inverse_y5d (yxf, xxf)
     use gs2_layouts, only: xxf_lo, yxf_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: scatter
     use job_manage, only: time_message
     use fft_work, only: time_fft
     implicit none
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
-
-    call prof_entering ("inverse_y5d", "gs2_transforms")
 
 #if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
@@ -1095,8 +1077,6 @@ contains
 #endif
 
     call scatter (x2y, fft, xxf)
-
-    call prof_leaving ("inverse_y5d", "gs2_transforms")
   end subroutine inverse_y5d
 
   !> FIXME : Add documentation  

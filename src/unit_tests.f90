@@ -123,15 +123,14 @@ contains
   end function agrees_with_real_1d_array
 
   function agrees_with_real(val, correct, err)
+    use warning_helpers, only: is_zero
     real, intent(in) :: val, correct, err
     logical :: agrees_with_real
     call should_be(val, correct)
-    if (correct .eq. 0.0 .or. abs(correct) .lt. 10.0**(-maxexponent(err)/4)) then 
-!       write (*,*) 'testing abs',abs(val),err
-       agrees_with_real = abs(val) .lt. err 
+    if (is_zero(correct) .or. abs(correct) < 10.0**(-maxexponent(err)/4)) then
+       agrees_with_real = abs(val) < err
     else
-!       write (*,*) 'testing rel',abs((val-correct)/correct),err
-       agrees_with_real = (abs((val-correct)/correct) .lt. err)
+       agrees_with_real = (abs((val-correct)/correct) < err)
     end if
   end function agrees_with_real
 

@@ -10,8 +10,9 @@ contains
     class (MpiTestMethod), intent(inout) :: this
 
     character(len=36) :: uuid1, uuid2
-
-    call init_mp(this%getMpiCommunicator())
+    integer :: mp_comm
+    mp_comm = this%getMpiCommunicator()
+    call init_mp(mp_comm)
 
     uuid1 = simulation_run_uuid()
     uuid2 = simulation_run_uuid()

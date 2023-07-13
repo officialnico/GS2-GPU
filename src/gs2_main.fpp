@@ -304,7 +304,7 @@ contains
 
         call run_ingen(input_file=argument)
         stop
-     else if (argument == "--") then
+      else if (argument == "--") then
         exit
       else if (argument(1:1) == "-") then
         write(*, '(a)') "Error: Unrecognised argument '" // argument // "'. Usage is:" // nl // nl // usage
@@ -1450,6 +1450,7 @@ contains
     use redistribute, only: get_redist_times
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1484,6 +1485,8 @@ contains
 
     timer_dat = [ &
          timer_data(timers%init(1), "Initialization"), &
+         timer_data(time_field_invert(1), "field matrix invert"), &
+         timer_data(time_field_invert_mpi, "field matrix invert mpi"), &
          timer_data(timers%advance(1), "Advance steps"), &
 #ifdef WITH_EIG
          timer_data(timers%eigval(1), "Eigensolver"), &
@@ -1560,6 +1563,7 @@ contains
     use redistribute, only: get_redist_times
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1586,6 +1590,8 @@ contains
       !Blank line to force separation from other outputs
       write(*, '("")')
       write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
+      write(*, '("(", a, ")")') formatted_time("field matrix invert", time_field_invert(1))
+      write(*, '("(", a, ")")') formatted_time("field matrix invert mpi", time_field_invert_mpi)
       write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
       write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
@@ -1710,8 +1716,6 @@ contains
 
     logical :: local_finalize
     type(standard_header_type) :: local_header
-
-    call parse_command_line()
 
     local_finalize = get_option_with_default(finalize, .true.)
 

@@ -4246,7 +4246,6 @@ contains
     use le_grids, only: nlambda, jend, ng2, lambda_map, nxi, il_is_wfb
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -4264,8 +4263,6 @@ contains
     complex :: fac, gwfb
     integer :: ig, ik, il, is, it, je, ie
     integer :: nxi_scatt
-
-    call prof_entering ("solfp_lorentz", "collisions")
 
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
@@ -4420,15 +4417,12 @@ contains
     deallocate (glz)
     if (heating) deallocate (glzc)
 
-    call prof_leaving ("solfp_lorentz", "collisions")
-
   end subroutine solfp_lorentz_standard_layout
 
   !> FIXME : Add documentation
   subroutine solfp_lorentz_le_layout (gle, diagnostics)
     use le_grids, only: jend, ng2, negrid, nxi, integrate_moment, il_is_wfb
     use gs2_layouts, only: ig_idx, ik_idx, is_idx, it_idx
-    use prof, only: prof_entering, prof_leaving
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo
     use dist_fn_arrays, only: c_rate
@@ -4444,8 +4438,6 @@ contains
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie
     integer :: nxi_scatt
-
-    call prof_entering ("solfp_lorentz", "collisions")
 
     allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
 
@@ -4616,8 +4608,6 @@ contains
     !$OMP END PARALLEL DO
     deallocate (tmp)
     
-    call prof_leaving ("solfp_lorentz", "collisions")
-
   end subroutine solfp_lorentz_le_layout
 
   !> Energy diffusion subroutine used with energy layout (not le_layout)
@@ -4629,7 +4619,6 @@ contains
     use le_grids, only: negrid, forbid
     use le_grids, only: energy_map
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, il_idx, is_idx, e_lo, g_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter

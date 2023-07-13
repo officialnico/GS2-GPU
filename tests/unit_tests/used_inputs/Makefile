@@ -1,5 +1,5 @@
 sinclude ../Makefile.tests_common
-
+build_test_exe:
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)

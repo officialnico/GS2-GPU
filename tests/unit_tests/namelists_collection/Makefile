@@ -1,7 +1,8 @@
 sinclude ../Makefile.tests_common
 
+build_test_exe: $(BINDIR)/write_default_input_file $(BINDIR)/gs2
 ifdef TESTNORUN
-all:
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -17,7 +18,7 @@ else # TEST_LEVEL
 # We want to run 'pytest' without MPI, so undefine TESTCOMMAND
 TESTCOMMAND =
 
-all: $(BINDIR)/write_default_input_file $(BINDIR)/gs2
+all: build_test_exe
 	$(call RUNCOMMAND,PYTHONPATH=$(GK_HEAD_DIR)/scripts $(GS2_PYTEST_NAME))
 
 .PHONY: all
