@@ -1,3 +1,34 @@
+#include "unused_dummy.inc"
+
+module test_integrator
+  implicit none
+  complex :: exponential_coefficient
+contains
+  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo, local_only)
+    complex, dimension (:,:,:), intent(in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
+    logical, optional :: gf_lo, local_only
+    UNUSED_DUMMY(g_in); UNUSED_DUMMY(phi); UNUSED_DUMMY(apar);
+    UNUSED_DUMMY(bpar); UNUSED_DUMMY(gf_lo); UNUSED_DUMMY(local_only);
+  end subroutine null_field_op
+
+  subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)
+    use nonlinear_terms, only: cfl
+    complex, dimension (:,:,:), intent (in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: g1
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(out) :: max_vel_local
+    logical, intent(in) :: need_to_adjust
+    logical, intent(in), optional :: calculate_cfl_limit
+    UNUSED_DUMMY(phi); UNUSED_DUMMY(apar); UNUSED_DUMMY(bpar);
+    UNUSED_DUMMY(need_to_adjust); UNUSED_DUMMY(calculate_cfl_limit);
+
+    ! Factor 2 to cancel hard-coded 0.5 in regular NL term
+    g1 = g_in * exponential_coefficient * 2
+    max_vel_local = 1.0/cfl
+  end subroutine exponential_source
+end module test_integrator
+
 program test_split_nonlinear_integrators
   use iso_fortran_env, only: output_unit
   use unit_tests
@@ -14,11 +45,11 @@ program test_split_nonlinear_integrators
   use gs2_time, only: code_dt
   use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
   use run_parameters, only: nstep
+  use test_integrator, only: null_field_op, exponential_source, exponential_coefficient
   implicit none
   type(gs2_program_state_type) :: state
   logical :: agrees
   real, parameter :: tolerance = 1.0e-6
-  complex :: exponential_coefficient
   real :: error
   character(len=40) :: name
   integer :: i
@@ -68,26 +99,4 @@ program test_split_nonlinear_integrators
   call finalize_equations(state)
   call finalize_gs2(state)
   call finish_mp
-
-contains
-
-  subroutine null_field_op(g_in, phi, apar, bpar, gf_lo, local_only)
-    complex, dimension (:,:,:), intent(in) :: g_in
-    complex, dimension (:,:,:), intent (out) :: phi, apar, bpar
-    logical, optional :: gf_lo, local_only
-  end subroutine null_field_op
-
-  subroutine exponential_source(g_in, g1, phi, apar, bpar, max_vel_local, need_to_adjust, calculate_cfl_limit)
-    use nonlinear_terms, only: cfl
-    complex, dimension (:,:,:), intent (in) :: g_in
-    complex, dimension (:,:,:), intent (out) :: g1
-    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
-    real, intent(out) :: max_vel_local
-    logical, intent(in) :: need_to_adjust
-    logical, intent(in), optional :: calculate_cfl_limit
-    ! Factor 2 to cancel hard-coded 0.5 in regular NL term
-    g1 = g_in * exponential_coefficient * 2
-    max_vel_local = 1.0/cfl
-  end subroutine exponential_source
-
 end program test_split_nonlinear_integrators

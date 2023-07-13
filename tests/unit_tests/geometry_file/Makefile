@@ -1,7 +1,7 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_geometry_file
 clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} grid.file
-
+build_test_exe:
 ifdef TESTNORUN
 all:
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
