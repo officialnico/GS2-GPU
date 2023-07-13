@@ -172,7 +172,7 @@ module le_grids
   public :: setup_passing_lambda_grids
   public :: passing_wfb, trapped_wfb, mixed_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
-  public :: il_is_wfb, il_is_ttp, can_be_ttp
+  public :: il_is_wfb, can_be_ttp, is_ttp
   public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
   public :: le_grids_config_type
@@ -223,7 +223,7 @@ module le_grids
   real, dimension (:), allocatable :: al, delal ! (nlambda)
   real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
-  logical, dimension (:,:), allocatable :: forbid, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
+  logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
   logical, dimension (:), allocatable :: can_be_ttp
 
   real, dimension (:,:), allocatable :: xi
@@ -486,6 +486,7 @@ contains
        allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
+       allocate (is_ttp(-ntgrid:ntgrid,nlambda))
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
@@ -514,6 +515,7 @@ contains
 
     call broadcast(wl)
     call broadcast(forbid)
+    call broadcast(is_ttp)
     call broadcast(is_bounce_point)
     call broadcast(can_be_ttp)
 
@@ -685,20 +687,6 @@ contains
     ! treatment we should hopefully rarely need to specificaly
     ! identify the wfb
   end function il_is_wfb
-
-  !> Returns true if the passed pitch angle grid point
-  !> is considered the totally trapped particle
-  !>
-  !> @note This method appears to discount the possibility
-  !> of ttp at anything other than the global minimum in B.
-  !> For surfaces with multiple local minima this method might
-  !> need generalising, with il==nlamdba replaced by something
-  !> like can_be_ttp(il).
-  elemental logical function il_is_ttp(il) result(is_ttp)
-    implicit none
-    integer, intent(in) :: il
-    is_ttp = grid_has_trapped_particles() .and. il == nlambda 
-  end function il_is_ttp
 
   !> Calculates energy grid and (untrapped) pitch angle weights for
   !> integrals which drop a point from the energy/lambda
@@ -2398,6 +2386,7 @@ contains
     allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
+    allocate (is_ttp(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (can_be_ttp(nlambda))
     allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
@@ -2645,7 +2634,7 @@ contains
 
     ! Calculate the ittp values indicating which pitch angles are
     ! considered totally trapped.
-    call calculate_ittp(ittp, can_be_ttp)
+    call calculate_ittp(ittp, can_be_ttp, is_ttp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -3229,15 +3218,17 @@ contains
 
   !> Determine which lambda grid point is totally trapped at this
   !> theta grid point.
-  subroutine calculate_ittp(ittp_indices, can_be_ttp_flag)
+  subroutine calculate_ittp(ittp_indices, can_be_ttp_flag, is_ttp_value)
     use theta_grid, only: ntgrid
 
     implicit none
     integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
     logical, dimension(nlambda), intent(out) :: can_be_ttp_flag
+    logical, dimension(-ntgrid:ntgrid, nlambda), intent(out) :: is_ttp_value
     integer :: ig, il
     ittp_indices = nlambda+1
     can_be_ttp_flag = .false.
+    is_ttp_value = .false.
     if (.not. grid_has_trapped_particles()) return
 
     ! Note we exclude the possibility of totally trapped particles
@@ -3247,7 +3238,7 @@ contains
        do il = ng2+1, nlambda
           if (forbid(ig-1,il) .and. forbid(ig+1, il) &
                .and. .not. forbid(ig, il)) then
-             ittp(ig) = il
+             ittp_indices(ig) = il
 
              ! Record the lowest il which satisfies the condition
              exit
@@ -3256,7 +3247,15 @@ contains
     end do
 
     do il = ng2+1, nlambda
-       can_be_ttp_flag(il) = any(il >= ittp)
+       can_be_ttp_flag(il) = any(il >= ittp_indices)
+    end do
+
+    ! Calculate is_ttp_value, indicating which pitch angles can reach
+    ! and are totally trapped at this theta location.
+    do il = ng2 + 1, nlambda
+       do ig = -ntgrid, ntgrid
+          if (il >= ittp_indices(ig) .and. .not. forbid(ig, il)) is_ttp_value(ig, il) = .true.
+       end do
     end do
 
   end subroutine calculate_ittp
@@ -4920,6 +4919,7 @@ contains
     if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
          jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
+    if (allocated(is_ttp)) deallocate(is_ttp)
     if (allocated(can_be_ttp)) deallocate(can_be_ttp)
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
