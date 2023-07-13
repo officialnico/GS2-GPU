@@ -8,26 +8,20 @@
 program test_fields_local
 
   use unit_tests
-  use fields_local, only: fields_local_testing, advance_local, fields_local_functional, minnrow, do_smart_update
+  use fields_local, only: advance_local, fields_local_functional, minnrow, do_smart_update
   use fields_local, only: init_fields_local, finish_fields_local
   use fields_implicit, only: advance_implicit, init_fields_implicit
-
   use fields, only: fields_pre_init
   use egrid
   use mp, only: init_mp, finish_mp, broadcast, mp_comm
-  use file_utils, only: init_file_utils
-  use species, only: init_species, nspec
-  use dist_fn, only: init_dist_fn
-  use kt_grids, only: naky, ntheta0, init_kt_grids
-  use theta_grid, only: ntgrid, init_theta_grid
-  use gs2_layouts, only: init_gs2_layouts, g_lo, ie_idx
+  use kt_grids, only: naky, ntheta0
+  use theta_grid, only: ntgrid
+  use gs2_layouts, only: g_lo, ie_idx
   use gs2_main, only: initialize_gs2, gs2_program_state_type
   use gs2_init, only: init, init_level_list
   implicit none
   real :: eps
   type(gs2_program_state_type) :: gs2_state
-  !> Instance for access to private functions in fields_local
-  type(fields_local_testing) :: fields_local_tests
 
   ! General config
   eps = 1.0e-7

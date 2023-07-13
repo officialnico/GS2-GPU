@@ -2623,7 +2623,7 @@ module theta_grid
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: shape, gb_to_cv
   public :: surfarea, dvdrhon
-  public :: initialized
+  public :: initialized, is_effectively_zero_shear
 
   public :: field_line_average
   public :: theta_grid_config_type
@@ -2644,6 +2644,8 @@ module theta_grid
   real :: surfarea, dvdrhon
   integer :: ntheta, ntgrid, nperiod, nbset
   logical :: gb_to_cv
+
+  real, parameter :: smallest_non_zero_shear = 1.0e-5
 
   ! internal variables
   integer :: eqopt_switch
@@ -3263,6 +3265,17 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     complex, dimension(:), intent(in) :: quantity
     integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
   end function field_line_average_complex
+
+  !> Helper function to determine if the shear is small enough that we consider
+  !> it to be zero for the purposes of periodicity etc.
+  pure logical function is_effectively_zero_shear(shear_in) result(zero_shear)
+    use optionals, only: get_option_with_default
+    implicit none
+    real, intent(in), optional :: shear_in
+    real :: the_shear
+    the_shear = get_option_with_default(shear_in, shat)
+    zero_shear = abs(the_shear) <= smallest_non_zero_shear
+  end function is_effectively_zero_shear
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid

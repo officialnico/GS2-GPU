@@ -16,7 +16,7 @@ end module checks_mod
 program test_cyclone_itg_eigensolver
   use functional_tests, only: test_gs2
   use checks_mod, only: checks
-  use mp, only: init_mp, proc0, finish_mp
+  use mp, only: init_mp, finish_mp
   implicit none
 
   call init_mp

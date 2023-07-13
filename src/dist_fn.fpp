@@ -69,7 +69,8 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, boundary
+  public :: l_links, r_links, itright, itleft, boundary, supercell_labels
+  public :: enforce_linked_boundary_conditions
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
@@ -117,9 +118,6 @@ module dist_fn
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
-  !CMR, 12/9/13: New logical cllc to modify order of operator in timeadv
-  !CMR, 21/5/14: New logical wfb_cmr to enforce trapping conditions on wfb
-  logical :: wfb_cmr
 
   integer :: adiabatic_option_switch
   integer, parameter :: adiabatic_option_default = 1, &
@@ -132,10 +130,12 @@ module dist_fn
        source_option_phiext_full = 5, source_option_homogeneous = 6
   
   integer :: boundary_option_switch
-  integer, parameter :: boundary_option_zero = 1, &
+  integer, parameter :: boundary_option_default = 0, &
+       boundary_option_zero = 1, &
        boundary_option_self_periodic = 2, &
        boundary_option_alternate_zero = 3, &
        boundary_option_linked = 4
+
   logical :: def_parity, even
   logical :: zero_forbid
   logical :: gf_lo_integrate
@@ -199,6 +199,13 @@ module dist_fn
   integer, dimension (:,:), allocatable :: itleft, itright
   ! (naky,ntheta0)
 
+  !> Labels the supercells as a function of {it, ik}. Primarily
+  !> to help with post-processing, although can also help with
+  !> conversion from flux tube to ballooning space. This probably
+  !> really belongs in kt_grids, but placing here alongside related
+  !> itleft, itright etc.
+  integer, dimension(:, :), allocatable :: supercell_labels
+
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
@@ -221,13 +228,18 @@ module dist_fn
   type (redist_type), save :: wfb_p, wfb_h
   type (redist_type), save :: pass_right
   type (redist_type), save :: pass_left
-  type (redist_type), save :: pass_wfb
   type (redist_type), save :: parity_redist
 
   integer, dimension (:,:), allocatable :: l_links, r_links
   integer, dimension (:,:,:), allocatable :: n_links
   logical, dimension (:,:), allocatable :: save_h
-  logical :: no_comm = .false.
+
+  !> Indicates if there are connected theta domains in this simulation or not.
+  !> Should only be used as a part of linked boundary conditions, but worth
+  !> noting that the default given may suggest that there are connections in
+  !> simulations with boundary conditions other than linked.
+  logical :: no_connections = .false.
+
   integer, dimension(:), allocatable :: M_class, N_class
   integer :: i_class
 
@@ -287,8 +299,14 @@ module dist_fn
      !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
      !> ballooning space). Possible values are:
      !>
-     !> - 'zero', 'default', 'unconnected' - Use Kotschenreuther boundary condition at endpoints of theta grid
-     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with itself
+     !> - 'default' - "Smart" default -- equivalent to 'zero' except if
+     !>                kt_grids:grid_option='box' in which case equivalent to 'linked'.
+     !>                In simulations with suffifienctly small shear default boundaries correspond
+     !>                to 'periodic'.
+     !> - 'zero', 'unconnected' - Use Kotschenreuther boundary condition at endpoints
+     !>                           of theta grid
+     !> - 'self-periodic', 'periodic', 'kperiod=1' - Each mode is periodic in theta with
+     !>                                              itself.
      !> - 'linked' - Twist and shift boundary conditions (used for kt_grids:grid_option='box')
      !> - 'alternate-zero' - Ignored
      !>
@@ -399,8 +417,6 @@ module dist_fn
      real :: vparknob = 1.0
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
-     !> If true, do NOT save homogeneous solutions for WFB
-     logical :: wfb_cmr = .false.
      !> Deprecated option, moved to [le_grids]. Setting
      !> will lead to an error message and abort. To be removed
      !> entirely in future release
@@ -756,8 +772,11 @@ contains
 
        select case (boundary_option_switch)
 
-       case (boundary_option_zero)
+       case (boundary_option_default)
           write (unit, fmt="(' boundary_option = ',a)") '"default"'
+
+       case (boundary_option_zero)
+          write (unit, fmt="(' boundary_option = ',a)") '"zero"'
 
        case (boundary_option_self_periodic)
           write (unit, fmt="(' boundary_option = ',a)") '"periodic"'
@@ -773,7 +792,6 @@ contains
        write (unit, fmt="(' nonad_zero = ',L1)") nonad_zero
        write (unit, fmt="(' gridfac = ',e17.10)") gridfac
        write (unit, fmt="(' esv = ',L1)") esv
-       write (unit, fmt="(' wfb_cmr = ',L1)") wfb_cmr
        write (unit, fmt="(' opt_source = ',L1)") opt_source
 
        if (.not. has_electron_species(spec)) then
@@ -1070,7 +1088,7 @@ contains
     initialized_dist_fn_level_1 = .false.
 
     accelerated_x = .false. ; accelerated_v = .false.
-    no_comm = .false.
+    no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
     increase = .true. ; decrease = .false.
@@ -1081,6 +1099,7 @@ contains
     if (allocated(l_links)) deallocate (l_links, r_links, n_links)
     if (allocated(M_class)) deallocate (M_class, N_class)
     if (allocated(itleft)) deallocate (itleft, itright)
+    if (allocated(supercell_labels)) deallocate (supercell_labels)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -1098,7 +1117,6 @@ contains
     call delete_redist(wfb_h)
     call delete_redist(pass_right)
     call delete_redist(pass_left)
-    call delete_redist(pass_wfb)
     call delete_redist(parity_redist)
 
 #ifdef LOWFLOW
@@ -1167,11 +1185,12 @@ contains
   !> FIXME : Add documentation  
   subroutine read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
     use file_utils, only: error_unit
-    use theta_grid, only: shat
+    use theta_grid, only: is_effectively_zero_shear
     use text_options, only: text_option, get_option_value
     use species, only: nspec
     use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
+    use kt_grids, only: gridopt_box, gridopt_switch
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
@@ -1184,7 +1203,7 @@ contains
     character(20) :: source_option
 
     type (text_option), dimension (8), parameter :: boundaryopts = &
-         (/ text_option('default', boundary_option_zero), &
+         (/ text_option('default', boundary_option_default), &
             text_option('zero', boundary_option_zero), &
             text_option('unconnected', boundary_option_zero), &
             text_option('self-periodic', boundary_option_self_periodic), &
@@ -1262,7 +1281,6 @@ contains
     tpdriftknob = dist_fn_config%tpdriftknob
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
-    wfb_cmr = dist_fn_config%wfb_cmr
     wfbbc_option = dist_fn_config%wfbbc_option
     zero_forbid = dist_fn_config%zero_forbid
 
@@ -1277,11 +1295,27 @@ contains
 
     ierr = error_unit()
 
-    if(abs(shat) <=  1.e-5) boundary_option = 'periodic'
-
     call get_option_value &
          (boundary_option, boundaryopts, boundary_option_switch, &
          ierr, "boundary_option in dist_fn_knobs",.true.)
+
+    ! Handle a request for default boundaries
+    if (boundary_option_switch == boundary_option_default) then
+       ! Linked for box, zero otherwise
+       if (gridopt_switch == gridopt_box) then
+          boundary_option_switch = boundary_option_linked
+          boundary_option = 'linked'
+       else
+          boundary_option_switch = boundary_option_zero
+          boundary_option = 'zero'
+       end if
+
+       ! Fully periodic at low enough shear
+       if(is_effectively_zero_shear()) then
+          boundary_option_switch = boundary_option_self_periodic
+          boundary_option = 'periodic'
+       end if
+    end if
 
     call get_option_value &
          (source_option, sourceopts, source_option_switch, &
@@ -1884,6 +1918,7 @@ contains
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          is_upper_bounce_point, is_lower_bounce_point, ng2
     use optionals, only: get_option_with_default
+    use redistribute, only: fill
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(out) :: g_h
     logical, intent(in), optional :: force_passing
@@ -2055,6 +2090,13 @@ contains
     end do
     !$OMP END PARALLEL DO
 
+    ! Communicate the homogeneous solution boundary values for use in the
+    ! twist-shift boundary conditions if required.
+    if (allocated(g_adj) .and. .not. no_connections) then
+       call fill (links_h, g_h, g_adj)
+       if (mixed_wfb) call fill(wfb_h, g_h, g_adj)
+    end if
+
   end subroutine init_homogeneous_g
 
   !> FIXME : Add documentation  
@@ -2081,6 +2123,9 @@ contains
        end if
        M_class = naky*ntheta0 ; N_class = 1
     end select
+
+    allocate(supercell_labels(ntheta0, naky))
+    call calculate_supercell_labels(supercell_labels)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2179,6 +2224,122 @@ contains
     enddo
     !$OMP END PARALLEL DO
   end subroutine init_source_term
+
+  !> Extracts the field like data corresponding to the supercell with
+  !> the {it, ik} wavenumber pair as a member and constructs the
+  !> ballooning space form. By default includes duplicate theta points
+  !> but can drop these on request.
+  subroutine flux_tube_field_like_to_ballooning_space(it, ik, field_like_ft, &
+       theta_bs, field_like_bs, drop_duplicates)
+    use theta_grid, only: ntgrid, theta
+    use kt_grids, only: theta0, ntheta0
+    use sorting, only: quicksort
+    use optionals, only: get_option_with_default
+    implicit none
+    integer, intent(in) :: it, ik
+    complex, dimension(-ntgrid:, :, :), intent(in) :: field_like_ft
+    real, dimension(:), allocatable, intent(out) :: theta_bs
+    complex, dimension(:), allocatable, intent(out) :: field_like_bs
+    logical, intent(in), optional :: drop_duplicates
+    real, dimension(:), allocatable :: theta0_values
+    real, dimension(:), allocatable :: theta0_indices_real
+    integer, dimension(:), allocatable :: theta0_indices
+    logical, dimension(:), allocatable :: supercell_mask
+    real, dimension(:, :), allocatable :: theta_2d
+    complex, dimension(:, :), allocatable :: extracted_field
+    integer :: isc, ncell, it0, icell
+    integer :: nextend, iend, istart, ntheta_minus_1
+    logical :: drop_duplicate_theta_points
+
+    ! Get the supercell label related to the point of interest and
+    ! form a logical mask selecting members of this supercell
+    isc = supercell_labels(it, ik)
+    supercell_mask = supercell_labels(:, ik) == isc
+
+    ! Count how many cells there are.
+    ncell = count(supercell_mask)
+
+    theta0_values = pack(theta0(:, ik), supercell_mask)
+    theta0_indices_real = pack([(it0*1.0, it0 = 1, ntheta0)], supercell_mask)
+
+    ! Here we're sorting theta0 indices for member of the supercell
+    ! with the theta0 values as a key so that theta0_indices_real will give
+    ! the it values of the supercell members in order of increasing theta0.
+    ! We could skip this sorting and just work out where we transition from the
+    ! +ve kx to the -ve kx and slice there, but sorting should work in general
+    ! and avoids potentially confusing integer index calculations
+    call quicksort(ncell, theta0_values, theta0_indices_real)
+
+    ! Convert theta0_indices_real to integer to allow use for indexing
+    ! arrays later.
+    theta0_indices = int(theta0_indices_real)
+    theta0_indices = theta0_indices(ncell:1:-1)
+
+    allocate(extracted_field(-ntgrid:ntgrid, ncell))
+    allocate(theta_2d(-ntgrid:ntgrid, ncell))
+
+    do icell = 1, ncell
+       extracted_field(:, icell) = field_like_ft(:, theta0_indices(icell), ik)
+       theta_2d(:, icell) = theta - theta0(theta0_indices(icell), ik)
+    end do
+
+    drop_duplicate_theta_points = get_option_with_default(drop_duplicates, .false.)
+    if (drop_duplicate_theta_points) then
+       ! Get the size of the domain, dropping one theta point for all but the last cell
+       nextend = size(theta_2d) - (ncell - 1)
+       allocate(theta_bs(nextend))
+       allocate(field_like_bs(nextend))
+
+       ntheta_minus_1 = size(theta) - 1
+       istart = 1
+       iend = istart + ntheta_minus_1 - 1
+
+       do icell = 1, ncell - 1
+          theta_bs(istart:iend) = theta_2d(:ntgrid-1, icell)
+          field_like_bs(istart:iend) = extracted_field(:ntgrid-1, icell)
+          istart = iend + 1
+          iend = istart + ntheta_minus_1 - 1
+       end do
+       theta_bs(istart:) = theta_2d(:, ncell)
+       field_like_bs(istart:) = extracted_field(:, ncell)
+    else
+       theta_bs = reshape(theta_2d, [size(theta_2d)])
+       field_like_bs = reshape(extracted_field, [size(extracted_field)])
+    end if
+
+  end subroutine flux_tube_field_like_to_ballooning_space
+
+  !> Assigns a label to each {it, ik} point denoting which unique
+  !> supercell the point belongs to.
+  subroutine calculate_supercell_labels(supercell_labels)
+    use kt_grids, only: naky, ntheta0
+    implicit none
+    integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:), allocatable :: temporary_it_leftmost
+    integer :: it, ik, isc
+
+    supercell_labels = -1
+    isc = -1
+
+    allocate(temporary_it_leftmost(ntheta0))
+    temporary_it_leftmost = -1
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          temporary_it_leftmost(it) = get_leftmost_it(it, ik)
+       end do
+
+       do it = 1, ntheta0
+          if (temporary_it_leftmost(it) >= 0) then
+             isc = isc + 1
+             where (temporary_it_leftmost == temporary_it_leftmost(it))
+                temporary_it_leftmost = -1
+                supercell_labels(:, ik) = isc
+             end where
+          end if
+       end do
+    end do
+  end subroutine calculate_supercell_labels
 
   !> Compute the spacing in kx indices between connected kx domains
   !> (cells) for the lowest non-zonal ky.
@@ -2362,7 +2523,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, il) &
-    !$OMP SHARED(g_lo, connections, aky, save_h, wfb_cmr, passing_wfb) &
+    !$OMP SHARED(g_lo, connections, aky, save_h, passing_wfb) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -2372,9 +2533,7 @@ contains
        il = il_idx(g_lo,iglo)
        if (il_is_wfb(il)) then
           ! wfb (linked)
-          if ( wfb_cmr ) then
-             save_h(:,iglo) = .false.
-          else if ( connections(iglo)%neighbor .and. &
+          if ( connections(iglo)%neighbor .and. &
                (.not. passing_wfb) .and. aky(ik) /= 0.0) then
              ! MRH below should not occur if we are treating wfb as standard passing
              ! since save_h for passing particles is handled above
@@ -2543,7 +2702,7 @@ contains
   !> required to deal with linked boundary conditions. Only deals with
   !> passing particles, including the wfb _if_ passing_wfb is true.
   subroutine setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-       links_p, links_h, no_comm)
+       links_p, links_h, no_connections)
     use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx
     use le_grids, only: il_is_passing, il_is_wfb, passing_wfb
     use redistribute, only: index_list_type, init_fill, delete_list, redist_type
@@ -2553,14 +2712,14 @@ contains
     integer, dimension(:, :), intent(in) :: l_links, r_links
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
-    logical, intent(out) :: no_comm
+    logical, intent(out) :: no_connections
     type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
-    no_comm = .false.
+    no_connections = .false.
     !<DD>Note the communications setup here are often equivalent to an all-to-all type
     !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
     !See comments in invert_rhs_linked for more details.
@@ -2650,11 +2809,13 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    ! Check if we have any communication to to do or not
+    ! Check if we have any communication to to do or not. Note here communication
+    ! includes local copying -- this is really checking do we need to fix up the
+    ! parallel boundaries anywhere or not.
     nn_max = maxval(nn_to)
     call max_allreduce (nn_max)
     if (nn_max == 0) then
-       no_comm = .true.
+       no_connections = .true.
        ! Note we don't set links_p and links_h in this case
        return
     end if
@@ -2817,7 +2978,7 @@ contains
 
   !> Populates the redistribute types describing the communication pattern
   !> required to deal with linked boundary conditions for the mixed wfb.
-  !> This is used when passing_wfb = trapped_wfb = wfb_cmr = false.
+  !> This is used when passing_wfb = trapped_wfb = false.
   !> This is the default.
   subroutine setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
        wfb_p, wfb_h)
@@ -3035,6 +3196,8 @@ contains
     use le_grids, only: mixed_wfb
     use gs2_layouts, only: g_lo
     use array_utils, only: zero_array
+    use mp, only: proc0
+    use file_utils, only: error_unit
     implicit none
     integer :: jshift0, n_links_max
 
@@ -3064,30 +3227,31 @@ contains
     ! wfb -- mixed treatment requires some extra links to be communicated
     if (n_links_max > 0 .and. mixed_wfb) n_links_max = n_links_max + 3
 
+    ! Could we move this call to init_bc? Would have to check that it returns
+    ! the expected values when l_links = r_links = 0
+    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
+
     ! now set up communication pattern:
     ! excluding wfb
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
-         links_p, links_h, no_comm)
+         links_p, links_h, no_connections)
+
+    ! If no connections then don't need to do any more work here
+    if (no_connections) then
+       if (proc0) write(error_unit(), &
+            '("No connections found when setting up linked boundaries.")')
+       return
+    end if
 
     ! take care of wfb
     if (mixed_wfb) then
-       if (wfb_cmr) then
-          ! Note -- this populates pass_wfb but this is not used. In invert_rhs_linked
-          ! we unconditionally use wfb_p and wfb_h if we have a mixed_wfb treatment.
-          call init_pass_wfb
-       else
-          call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
-               wfb_p, wfb_h)
-       end if
+       call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
+            wfb_p, wfb_h)
     end if
 
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
-
-    ! Could we move this call to init_bc? Would have to check that it returns
-    ! the expected values when l_links = r_links = 0
-    call setup_fields_implicit_class_arrays(l_links, r_links, M_class, N_class, i_class)
 
   end subroutine init_connected_bc
 
@@ -4898,7 +5062,6 @@ contains
          is_upper_bounce_point, is_lower_bounce_point, mixed_wfb
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use prof, only: prof_entering, prof_leaving
     use run_parameters, only: fbpar, fphi, ieqzip
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
@@ -5245,24 +5408,32 @@ contains
     ! asked to make this point self-periodic and we've not been able to.
   end subroutine self_periodic
 
-  !> FIXME : Add documentation  
-  subroutine invert_rhs_linked &
-       (phi, apar, bpar, phinew, aparnew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj0, aj1
+  !> A shorthand for [[apply_linked_boundary_conditions]] passing the regular
+  !> module level instances of each of the required arguments. Primarily
+  !> intended for testing to avoid having to expose additional data arrays.
+  subroutine enforce_linked_boundary_conditions
+    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew
+    implicit none
+    call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
+  end subroutine enforce_linked_boundary_conditions
+
+  !> Applies linked (twist-shift) boundary conditions to passed distribution function
+  subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
+    use dist_fn_arrays, only: vperp2, aj0, aj1
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
-    use spfunc, only: j0, j1
-    use array_utils, only: zero_array
+    use kt_grids, only: kwork_filter
     implicit none
-    complex, dimension (-ntgrid:, :, :), intent(in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, aparnew, bparnew
-    complex, dimension (-ntgrid:, :, :), intent(in out) :: source
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
+    complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
+    complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
-    integer :: il, ik, it, n, i, j
+    integer :: il, ik, it, n, i
     integer :: iglo, ncell
 !
 ! adding adjr, adjl to cope with application of self-periodic to WFB
@@ -5273,207 +5444,179 @@ contains
     integer :: ie, is, itl, itr, iglo_l, iglo_r
     complex :: adjl, adjr, dadj
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, source)
+    ! No more work to do if no connections so return
+    if (no_connections) return
 
-    if (no_comm) then
-       ! nothing
-    else       
-       !<DD>Note these fill routines are often equivalent to an all-to-all type
-       !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
-       !By only communicating with our direct neighbours we would significantly
-       !reduce the amount of data to communicate and we should improve the communication
-       !scaling. However, if we do this then we lose the ability to perform the linked
-       !update (i.e. what we do below) in a parallel manner, so the below code would
-       !become partially serial.
-       call fill (links_p, gnew, g_adj)
-       ! We probably don't need to do this each step as the homogeneous
-       ! solution is now cached.
-       call fill (links_h, g_h, g_adj)
-       if( mixed_wfb ) then
-          call fill (wfb_p, gnew, g_adj)
-          ! We probably don't need to do this each step as the homogeneous
-          ! solution is now cached.
-          call fill (wfb_h, g_h, g_adj)
-       endif
+    !<DD>Note these fill routines are often equivalent to an all-to-all type
+    !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
+    !By only communicating with our direct neighbours we would significantly
+    !reduce the amount of data to communicate and we should improve the communication
+    !scaling. However, if we do this then we lose the ability to perform the linked
+    !update (i.e. what we do below) in a parallel manner, so the below code would
+    !become partially serial.
+    call fill (links_p, g_in, g_adj)
+    if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
 
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
-       !$OMP adjl, adjr, dadj, facd, j, b0, fac, i, n) &
-       !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
-       !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, &
-       !$OMP fphi, phinew, save_h, g_adj, gnew, g_h, n_links, vperp2, aj0, aj1) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          it = it_idx(g_lo,iglo)
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
+    !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
+    !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
+    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, kwork_filter, &
+    !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       if (.not. any(save_h(:, iglo))) cycle
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       if (kwork_filter(it, ik)) cycle
+       ncell = r_links(it, ik) + l_links(it, ik) + 1
+       if (ncell == 1) cycle
+       il = il_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       if (is_passing_hybrid_electron(is, ik, il))  cycle
+       ! MRH above line causes us to skip the loops below which
+       ! build the solution along the connected cells
+       ! MRH we skip this in the case that we have taken the non-zonal
+       ! passing electron (il<=ng2+1 including wfb) solution to be h=0
 
-          ncell = r_links(it, ik) + l_links(it, ik) + 1
-          if (ncell == 1) cycle
-          
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          if (is_passing_hybrid_electron(is, ik, il))  cycle
-          ! MRH above line causes us to skip the loops below which
-          ! build the solution along the connected cells
-          ! MRH we skip this in the case that we have taken the non-zonal
-          ! passing electron (il<=ng2+1 including wfb) solution to be h=0
+       ! wfb
+       if ( il_is_wfb(il) .and. mixed_wfb ) then
+          if (nonad_zero) then
+             ie = ie_idx(g_lo,iglo)
 
-          ! wfb
-          if ( il_is_wfb(il) .and. mixed_wfb ) then
-             if (nonad_zero) then
-                ie = ie_idx(g_lo,iglo)
+             itl=get_leftmost_it(it,ik)
+             itr=get_rightmost_it(it,ik)
 
-                itl=get_leftmost_it(it,ik)
-                itr=get_rightmost_it(it,ik)
+             iglo_l = idx(g_lo, ik, itl, il, ie, is)
+             iglo_r = idx(g_lo, ik, itr, il, ie, is)
 
-                iglo_l = idx(g_lo, ik, itl, il, ie, is)
-                iglo_r = idx(g_lo, ik, itr, il, ie, is)
-
-                !CMR, 29/8/2014:
-                !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
-                !                     at the extreme left and right of the supercell
-                !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
-                !    (was previously applied to g)
-                !
-                adjl = 2.0*vperp2(-ntgrid, iglo_l)*aj1(-ntgrid, iglo_l) &
-                     *bparnew(-ntgrid,itl,ik)*fbpar &
-                     + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0(-ntgrid, iglo_l) &
-                     *nonmaxw_corr(ie,is)*fphi
-                adjr = 2.0*vperp2(ntgrid, iglo_r)*aj1(ntgrid, iglo_r) &
-                     *bparnew(ntgrid,itr,ik)*fbpar &
-                     + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0(ntgrid, iglo_r) &
-                     *nonmaxw_corr(ie,is)*fphi
-                dadj = adjl-adjr
-             else
-                dadj = 0.0
-             end if
-
-             if (save_h(1, iglo)) then
-!CMR, 7/8/2014:
-! This code implements "self-periodic" parallel BC for wfb
-! g_adj contains exit point inhomog and homog sol'ns from ALL wfb cells
-! g_adj(j,1,iglo):    bcs for rightwards travelling particles (RP)
-!  j=1:ncell : inhom sol'n at ntgrid in cell j from RIGHT for RP
-!  j=ncell+1:2ncell : hom sol'n at ntgrid in cell (2ncell+1-j) from RIGHT for RP
-! g_adj(j,2,iglo):    bcs for leftwards travelling particles (LP)
-!  j=1:ncell : inhom sol'n at -ntgrid in cell j from LEFT for LP
-!  j=ncell+1:2ncell : hom sol'n at -ntgrid in cell (2ncell+1-j) from LEFT for LP
-!
-!  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)    
-!    where h^r_j is the homogeneous exit solution from cell j for RP
-!                      
-                facd = 1.0
-                do j = 1, ncell
-                   facd = facd * g_adj(ncell+j,1,iglo)
-                end do
-                facd = 1./(1.-facd)
-                
-                b0 = 0.
-
-! i labels cell counting from LEFTmost cell.
-                do i = 1, ncell-1
-                   fac = 1.0
-                   do j = i+1, ncell
-! fac is product of all homog sol's from cells to RIGHT on cell i
-! g_adj(ncell+j,1,iglo) accesses these homog solutions
-                      fac = fac * g_adj(ncell+j,1,iglo)
-                   end do
-! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
-                   b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
-                end do
-
-! b0 computed next line is homog amplitude in leftmost cell  (see CMR note)
-                b0 = (b0 + g_adj(1,1,iglo)-dadj)*facd
-
-! BUT we NEED homog amplitude in THIS cell.
-! Solve matrix BC equation by cascading homog amplitude, b0, rightwards 
-!        from leftmost cell to THIS cell.
-
-                do i = 1, l_links(it, ik)
-!  Loop implements cascade to right, using CMR note equ'n:  
-!           a^r_{j+1} = a^r_j h^r_j + i^r_j 
-
-                   b0 = b0 * g_adj(ncell+i,1,iglo) + g_adj(ncell+1-i,1,iglo)
-                end do
-
-! Resultant b0 is homog amplitude for THIS cell.
-! Finally add correct homog amplitude to gnew to match the parallel BC.
-                gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
-             endif
-
-! Following code repeats same calculation for LEFTWARD travelling wfb.
-!CMRend
-             if (save_h(2, iglo)) then
-                facd = 1.0
-                do j = 1, ncell
-                   facd = facd * g_adj(ncell+j,2,iglo)
-                end do
-                facd = 1./(1.-facd)
-                
-                b0 = 0.
-                do i = 1, ncell-1
-                   fac = 1.0
-                   do j = i+1, ncell
-                      fac = fac * g_adj(ncell+j,2,iglo)
-                   end do
-                   b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
-                end do
-                b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
-
-                do i = 1, r_links(it, ik)
-                   b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
-                end do
-                
-                gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
-             end if
+             !CMR, 29/8/2014:
+             !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
+             !                     at the extreme left and right of the supercell
+             !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
+             !    (was previously applied to g)
+             !
+             adjl = 2.0*vperp2(-ntgrid, iglo_l)*aj1(-ntgrid, iglo_l) &
+                  *bparnew(-ntgrid,itl,ik)*fbpar &
+                  + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0(-ntgrid, iglo_l) &
+                  *nonmaxw_corr(ie,is)*fphi
+             adjr = 2.0*vperp2(ntgrid, iglo_r)*aj1(ntgrid, iglo_r) &
+                  *bparnew(ntgrid,itr,ik)*fbpar &
+                  + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0(ntgrid, iglo_r) &
+                  *nonmaxw_corr(ie,is)*fphi
+             dadj = adjl-adjr
           else
-!
-! n_links is the number of complex numbers required to fix the boundary 
-! conditions in each cell that is a member of a supercell with at least two
-! cells, and for which the bounce point is not at theta=pi.
-!
-             if (save_h(1, iglo)) then
-                n = n_links(1, it, ik)
-                b0 = 0.0
-                do i = 1, l_links(it, ik)
-                   fac = 1.0
-                   do j = 1, i-1
-                      fac = fac * g_adj(n+1-j, 1, iglo)
-                   end do
-                   b0 = b0 + g_adj(i,1,iglo) * fac
-                end do
-                
-                gnew(:,1,iglo) = gnew(:,1,iglo) + b0*g_h(:,1,iglo)
-             end if
-
-             if (save_h(2, iglo)) then
-                n = n_links(2, it, ik)
-                b0 = 0.0
-                do i = 1, r_links(it, ik)
-                   fac = 1.0
-                   do j = 1, i-1
-                      fac = fac * g_adj(n+1-j, 2, iglo)
-                   end do
-                   b0 = b0 + g_adj(i,2,iglo) * fac
-                end do
-                
-                gnew(:,2,iglo) = gnew(:,2,iglo) + b0*g_h(:,2,iglo)
-             end if
+             dadj = 0.0
           end if
 
-       end do
-       !$OMP END PARALLEL DO
-    end if
+          if (save_h(1, iglo)) then
+             !CMR, 7/8/2014:
+             ! This code implements "self-periodic" parallel BC for wfb
+             ! g_adj contains exit point inhomog and homog sol'ns from ALL wfb cells
+             ! g_adj(j,1,iglo):    bcs for rightwards travelling particles (RP)
+             !  j=1:ncell : inhom sol'n at ntgrid in cell j from RIGHT for RP
+             !  j=ncell+1:2ncell : hom sol'n at ntgrid in cell (2ncell+1-j) from RIGHT for RP
+             ! g_adj(j,2,iglo):    bcs for leftwards travelling particles (LP)
+             !  j=1:ncell : inhom sol'n at -ntgrid in cell j from LEFT for LP
+             !  j=ncell+1:2ncell : hom sol'n at -ntgrid in cell (2ncell+1-j) from LEFT for LP
+             !
+             !  facd= 1/(1-\Prod_{j=1,ncell} h^r_j)  (see CMR Parallel BC note)
+             !    where h^r_j is the homogeneous exit solution from cell j for RP
+             !
+             facd = 1./(1. - product(g_adj(ncell + 1 : 2 * ncell, 1, iglo)))
 
-  end subroutine invert_rhs_linked
+             b0 = 0.
+
+             ! i labels cell counting from LEFTmost cell.
+             fac = 1
+             do i = ncell - 1, 1, -1
+                ! fac is product of all homog sol's from cells to RIGHT on cell i
+                ! g_adj(ncell+j,1,iglo) accesses these homog solutions
+                fac = fac * g_adj(ncell + i + 1, 1, iglo)
+                ! g_adj(ncell+1-i,1,iglo) accesses inhom solution from cell i
+                b0 = b0 + fac * g_adj(ncell+1-i,1,iglo)
+             end do
+
+             ! b0 computed next line is homog amplitude in leftmost cell  (see CMR note)
+             b0 = (b0 + g_adj(1,1,iglo)-dadj)*facd
+
+             ! BUT we NEED homog amplitude in THIS cell.
+             ! Solve matrix BC equation by cascading homog amplitude, b0, rightwards
+             !        from leftmost cell to THIS cell.
+
+             do i = 1, l_links(it, ik)
+                !  Loop implements cascade to right, using CMR note equ'n:
+                !           a^r_{j+1} = a^r_j h^r_j + i^r_j
+
+                b0 = b0 * g_adj(ncell+i,1,iglo) + g_adj(ncell+1-i,1,iglo)
+             end do
+
+             ! Resultant b0 is homog amplitude for THIS cell.
+             ! Finally add correct homog amplitude to gnew to match the parallel BC.
+             g_in(:,1,iglo) = g_in(:,1,iglo) + b0*g_h(:,1,iglo)
+          endif
+
+          ! Following code repeats same calculation for LEFTWARD travelling wfb.
+          !CMRend
+          if (save_h(2, iglo)) then
+             facd = 1./(1. - product(g_adj(ncell + 1 : 2 * ncell, 2, iglo)))
+
+             b0 = 0.
+             fac = 1.0
+             do i = ncell - 1, 1, -1
+                fac = fac * g_adj(ncell + i + 1, 2, iglo)
+                b0 = b0 + fac * g_adj(ncell+1-i,2,iglo)
+             end do
+             b0 = (b0 + g_adj(1,2,iglo)+dadj)*facd
+
+             do i = 1, r_links(it, ik)
+                b0 = b0 * g_adj(ncell+i,2,iglo) + g_adj(ncell+1-i,2,iglo)
+             end do
+
+             g_in(:,2,iglo) = g_in(:,2,iglo) + b0*g_h(:,2,iglo)
+          end if
+       else
+          !
+          ! n_links is the number of complex numbers required to fix the boundary
+          ! conditions in each cell that is a member of a supercell with at least two
+          ! cells, and for which the bounce point is not at theta=pi.
+          !
+          if (save_h(1, iglo) .and. l_links(it, ik) > 0) then
+             ! The l_links test might already be part of save_h?
+             n = n_links(1, it, ik)
+             b0 = g_adj(1, 1, iglo)
+             fac = 1.0
+             do i = 2, l_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 1, iglo)
+                b0 = b0 + g_adj(i, 1, iglo) * fac
+             end do
+             g_in(:, 1, iglo) = g_in(:, 1, iglo) + b0 * g_h(:, 1, iglo)
+          end if
+
+          if (save_h(2, iglo) .and. r_links(it, ik) > 0) then
+             ! The r_links test might already be part of save_h?
+             n = n_links(2, it, ik)
+             b0 = g_adj(1, 2, iglo)
+             fac = 1.0
+             do i = 2, r_links(it, ik)
+                fac = fac * g_adj(n + 2 - i, 2, iglo)
+                b0 = b0 +  g_adj(i, 2, iglo) * fac
+             end do
+             g_in(:, 2, iglo) = g_in(:, 2, iglo) + b0 * g_h(:, 2, iglo)
+          end if
+       end if
+
+    end do
+    !$OMP END PARALLEL DO
+
+  end subroutine apply_linked_boundary_conditions
 
   !> FIXME : Add documentation
   subroutine invert_rhs (phi, apar, bpar, phinew, aparnew, bparnew, istep)
     use theta_grid, only: ntgrid
     use gs2_time, only: code_time
     use constants, only: zi, pi
-    use prof, only: prof_entering, prof_leaving
-    use dist_fn_arrays, only: g_work
+    use dist_fn_arrays, only: g_work, gnew
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
@@ -5482,8 +5625,6 @@ contains
 
     real :: time
     complex :: sourcefac
-
-    call prof_entering ("invert_rhs", "dist_fn")
 
     time = code_time
     !Sourcefac ends up being passed all the way through to get_source_term
@@ -5503,16 +5644,16 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
+    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
+         source = g_work)
+
     select case (boundary_option_switch)
     case (boundary_option_linked)
-       call invert_rhs_linked (phi, apar, bpar, phinew, aparnew, bparnew, &
-            source = g_work)
-    case default
-       call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-            source = g_work)
+       ! Note if no_connections default was true we could also unconditionally call apply_linked_boundary_conditions
+       ! or just call the below if no_connections is false.
+       call apply_linked_boundary_conditions(gnew, g_h, g_adj, phinew, bparnew)
     end select
 
-    call prof_leaving ("invert_rhs", "dist_fn")
   end subroutine invert_rhs
 
   !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
@@ -5578,7 +5719,6 @@ contains
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
-    use prof, only: prof_entering, prof_leaving
     use gs2_layouts, only: g_lo
     use optionals, only: get_option_with_default
     implicit none
@@ -5590,7 +5730,6 @@ contains
     logical :: local_local_only
     integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
-    call prof_entering ("getan_from_dfn", "dist_fn")
     local_local_only = get_option_with_default(local_only, .false.)
 
     if (local_local_only) then
@@ -5669,7 +5808,6 @@ contains
        if(esv) call ensure_single_val_fields_pass(antotp)
     end if
 
-    call prof_leaving ("getan_from_dfn", "dist_fn")
   end subroutine getan_from_dfn
 
   !> Compute velocity space integrals over \(h_s\):
@@ -5685,14 +5823,99 @@ contains
   subroutine getan (antot, antota, antotp, local_only)
     use dist_fn_arrays, only: gnew
     use theta_grid, only: ntgrid
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: antot, antota, antotp
     logical, intent(in), optional :: local_only
-    call prof_entering ("getan", "dist_fn")
     call getan_from_dfn(gnew, antot, antota, antotp, local_only)
-    call prof_leaving ("getan", "dist_fn")
   end subroutine getan
+
+
+  !> Check if the passed distribution function shaped array has the same
+  !> value at the duplicate theta points arising from the linked boundary conditions.
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_linked_boundaries_are_satisfied(g_array, pass_right, pass_left, &
+       identifier, tolerance)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx, it_idx, ik_idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    use optionals, only: get_option_with_default
+    use redistribute, only: redist_type, fill
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    type(redist_type), intent(in out) :: pass_right, pass_left
+    character(len=*), intent(in), optional :: identifier
+    real, intent(in), optional :: tolerance
+    complex, dimension(:, :, :), allocatable :: g_pass
+    character(len=:), allocatable :: id_message
+    integer :: iglo, il, it, ik
+    real :: violation_flag, local_tolerance, err
+
+    ! Exit if no connections as nothing to check
+    if (no_connections) return
+    if (boundary_option_switch /= boundary_option_linked) return
+
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
+    id_message = get_option_with_default(identifier, '')
+    allocate(g_pass, mold = g_array)
+
+    err = 0.0
+
+    call zero_array(g_pass)
+    call fill(pass_right, g_array, g_pass)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, l_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (l_links(it, ik) > 0) then
+          err = max(err, abs(g_array(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
+       end if
+    end do
+    !$OMP END PARALLEL DO
+
+    call zero_array(g_pass)
+    call fill(pass_left, g_array, g_pass)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, it, ik) &
+    !$OMP SHARED(g_lo, trapped_wfb, g_array, g_pass, r_links, ntgrid) &
+    !$OMP REDUCTION(max: err) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for trapped particles
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          err = max(err, abs(g_array(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
+       end if
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = err
+    call max_allreduce(violation_flag)
+    if (violation_flag > local_tolerance) then
+       call mp_abort('The passed array has inconsistent linked boundaries. '//id_message, .true.)
+    end if
+  end subroutine check_linked_boundaries_are_satisfied
 
   !> Calculate various moments of the distribution function
   subroutine getmoms (phinew, bparnew, ntot, density, upar, tpar, tperp, qparflux, pperpj1, qpperpj1)
@@ -5701,7 +5924,6 @@ contains
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment, energy
-    use prof, only: prof_entering, prof_leaving
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
     !> Total perturbed density
@@ -5726,8 +5948,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent(in) :: bparnew
 
     integer :: ik, it, isgn, ie, is, iglo
-
-    call prof_entering ("getmoms", "dist_fn")
 
 ! DJA+CMR: 17/1/06, use g_adjust routine to extract g_wesson
 !                   from gnew, phinew and bparnew.
@@ -5845,8 +6065,6 @@ contains
 
 ! return gnew to its initial state, the variable evolved in GS2
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
-
-    call prof_leaving ("getmoms", "dist_fn")
   end subroutine getmoms
 
   !> FIXME : Add documentation
@@ -5856,7 +6074,6 @@ contains
     use species, only: nspec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
-    use prof, only: prof_entering, prof_leaving
     use fields_arrays, only: phinew
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -6052,14 +6269,13 @@ contains
     call integrate_moment (g_work, glm,  moment_to_allprocs, full_arr)
   end subroutine get_mom_glm
 
-  !> FIXME : Add documentation
+  !> Returns electron density and Tperp moment integrals to PE 0
   subroutine getemoms (phinew, bparnew, ntot, tperp)
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_moment
-    use prof, only: prof_entering, prof_leaving
 
     implicit none
     logical, parameter :: full_arr=moment_to_allprocs
@@ -6068,8 +6284,6 @@ contains
 
     integer :: ik, it, isgn, ie, is, iglo
 
-! returns electron density and Tperp moment integrals to PE 0
-    call prof_entering ("getemoms", "dist_fn")
 !
 ! What are <delta_f> and g_wesson in the note below?
 ! g_wesson = <delta_f> + q phi/T    [ignore F_m factors for simplicity]
@@ -6138,7 +6352,6 @@ contains
 ! return gnew to its initial state, the variable evolved in GS2
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
 
-    call prof_leaving ("getemoms", "dist_fn")
   end subroutine getemoms
   
   !> Calculates moments at not guiding center coordinate
@@ -9934,139 +10147,6 @@ contains
     deallocate(gtmp,coeff0,wgt)
   end subroutine init_mom_coeff
   
-  !> FIXME : Add documentation
-  subroutine init_pass_wfb
-    ! CMR, 21/5/2014: 
-    !       simple experimental new routine sets up "pass_wfb" redist_type to pass 
-    !       g(ntgrid,1,iglo)  => g(-ntgrid,1,iglo_right) in right connected cell.
-    !       g(-ntgrid,2,iglo) => g(ntgrid,1,iglo_right) in left connected cell.
-    use gs2_layouts, only: g_lo, il_idx, idx, proc_id
-    use le_grids, only: il_is_wfb
-    use mp, only: iproc, nproc, max_allreduce
-    use redistribute, only: redist_type
-    use redistribute, only: index_list_type, init_fill, delete_list
-    use theta_grid, only:ntgrid 
-    implicit none
-    type (index_list_type), dimension(0:nproc-1) :: to, from
-    integer, dimension (0:nproc-1) :: nn_from, nn_to
-    integer, dimension(3) :: from_low, from_high, to_low, to_high
-    integer :: il, iglo, ip, iglo_left, iglo_right, ipleft, ipright, n, nn_max
-    logical :: haslinks=.true.
-    logical :: debug=.false.
-
-      if (boundary_option_switch .eq. boundary_option_linked) then
-! Need communications to satisfy || boundary conditions
-! First find required blocksizes 
-         nn_to = 0   ! # communicates from ip TO HERE (iproc)
-         nn_from = 0 ! # communicates to ip FROM HERE (iproc)
-         do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)
-            if (.not. il_is_wfb(il)) cycle     ! ONLY consider wfb
-            ip = proc_id(g_lo,iglo)
-! First consider rightward connections 
-            call get_right_connection (iglo, iglo_right, ipright)
-            if (ipright .eq. iproc ) then
-               nn_to(ip)=nn_to(ip)+1
-            endif
-            if (ip .eq. iproc .and. ipright .ge. 0 ) then
-               nn_from(ipright)=nn_from(ipright)+1
-            endif
-! Then leftward connections 
-            call get_left_connection (iglo, iglo_left, ipleft)
-            if (ipleft .eq. iproc ) then
-               nn_to(ip)=nn_to(ip)+1
-            endif
-            if (ip .eq. iproc .and. ipleft .ge. 0 ) then
-               nn_from(ipleft)=nn_from(ipleft)+1
-            endif
-         end do
-         nn_max = maxval(nn_to+nn_from)
-         call max_allreduce (nn_max)
-! skip addressing if no links are needed
-         if (nn_max == 0) then 
-            haslinks=.false.
-         endif
-      endif
-      if (debug) then
-         write(6,*) 'init_pass_wfb processor, nn_to:',iproc,nn_to
-         write(6,*) 'init_pass_wfb processor, nn_from:',iproc,nn_from
-      endif
-
-      if (boundary_option_switch.eq.boundary_option_linked .and. haslinks) then
-! 
-! CMR, 12/11/2013: 
-!      communication required to satisfy linked BC for wfb
-!      allocate indirect addresses for sends/receives 
-!     
-!      NB communications use "c_fill_3" as g has 3 indices
-!      but 1 index sufficient as only communicating g(ntgrid,1,*)! 
-!      if "c_fill_1" in redistribute we'd only need allocate: from|to(ip)%first 
-!                             could be more efficient
-!  
-         do ip = 0, nproc-1
-            if (nn_from(ip) > 0) then
-               allocate (from(ip)%first(nn_from(ip)))
-               allocate (from(ip)%second(nn_from(ip)))
-               allocate (from(ip)%third(nn_from(ip)))
-            endif
-            if (nn_to(ip) > 0) then
-               allocate (to(ip)%first(nn_to(ip)))
-               allocate (to(ip)%second(nn_to(ip)))
-               allocate (to(ip)%third(nn_to(ip)))
-            endif
-         end do
-! Now fill the indirect addresses...
-         nn_from = 0 ; nn_to = 0          
-         do iglo = g_lo%llim_world, g_lo%ulim_world
-            il = il_idx(g_lo,iglo)
-            if (.not. il_is_wfb(il)) cycle     ! ONLY consider wfb
-            ip = proc_id(g_lo,iglo)
-! First consider rightward connections
-            call get_right_connection (iglo, iglo_right, ipright)
-            if (ip .eq. iproc .and. ipright .ge. 0 ) then 
-               n=nn_from(ipright)+1 ; nn_from(ipright)=n
-               from(ipright)%first(n)=ntgrid
-               from(ipright)%second(n)=1
-               from(ipright)%third(n)=iglo
-            endif
-            if (ipright .eq. iproc ) then 
-               n=nn_to(ip)+1 ; nn_to(ip)=n
-               to(ip)%first(n)=-ntgrid
-               to(ip)%second(n)=1
-               to(ip)%third(n)=iglo_right
-            endif
-! Then leftward connections 
-            call get_left_connection (iglo, iglo_left, ipleft)
-            if (ip .eq. iproc .and. ipleft .ge. 0 ) then
-               n=nn_from(ipleft)+1 ; nn_from(ipleft)=n
-               from(ipleft)%first(n)=-ntgrid
-               from(ipleft)%second(n)=2
-               from(ipleft)%third(n)=iglo
-            endif
-            if (ipleft .eq. iproc ) then
-               n=nn_to(ip)+1 ; nn_to(ip)=n
-               to(ip)%first(n)=ntgrid
-               to(ip)%second(n)=2
-               to(ip)%third(n)=iglo_left
-            endif
-         end do
-         if (debug) then
-            write(6,*) 'init_pass_wfb processor, nn_to:',iproc,nn_to
-            write(6,*) 'init_pass_wfb processor, nn_from:',iproc,nn_from
-         endif
-
-         from_low(1)=-ntgrid ; from_low(2)=1 ; from_low(3)=g_lo%llim_proc       
-         from_high(1)=ntgrid; from_high(2)=2; from_high(3)=g_lo%ulim_alloc
-         to_low(1)=-ntgrid  ; to_low(2)=1   ; to_low(3)=g_lo%llim_proc       
-         to_high(1)=ntgrid ; to_high(2)=2  ; to_high(3)=g_lo%ulim_alloc
-         call init_fill (pass_wfb, 'c', to_low, to_high, to, &
-               from_low, from_high, from)
-
-         call delete_list (from)
-         call delete_list (to)
-      endif
-  end subroutine init_pass_wfb
-  
   !> Calculate the flux surface average term for the adiabatic response.
   !>
   !> If using adiabatic electrons and the option
@@ -10203,12 +10283,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, wfb_cmr, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, zero_forbid
     real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         tpdriftknob, vparknob, wfb, wfb_cmr, zero_forbid
+         tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10242,7 +10322,6 @@ contains
     tpdriftknob = self%tpdriftknob
     vparknob = self%vparknob
     wfb = self%wfb
-    wfb_cmr = self%wfb_cmr
     zero_forbid = self%zero_forbid
 
     ! Now read in the main namelist
@@ -10278,7 +10357,6 @@ contains
     self%tpdriftknob = tpdriftknob
     self%vparknob = vparknob
     self%wfb = wfb
-    self%wfb_cmr = wfb_cmr
     self%zero_forbid = zero_forbid
 
     self%exist = exist
@@ -10325,7 +10403,6 @@ contains
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
-    call self%write_key_val("wfb_cmr", self%wfb_cmr, unit_internal)
     call self%write_key_val("zero_forbid", self%zero_forbid, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_dist_fn_config
@@ -10374,7 +10451,6 @@ contains
     call broadcast(self%tpdriftknob)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)
-    call broadcast(self%wfb_cmr)
     call broadcast(self%zero_forbid)
 
     call broadcast(self%exist)

@@ -61,6 +61,7 @@ tests/**/test_*
 !tests/**/test_*.f90
 !tests/**/test_*.F90
 !tests/**/test_*.fpp
+!tests/**/test_*.in
 
 .patch.make
 Revision

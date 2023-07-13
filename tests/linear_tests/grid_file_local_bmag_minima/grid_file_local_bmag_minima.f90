@@ -22,7 +22,7 @@ end module checks_mod
 program test_grid_file_local_bmag_minima
   use functional_tests, only: test_gs2
   use checks_mod, only: checks
-  use mp, only: init_mp, proc0, finish_mp
+  use mp, only: init_mp, finish_mp
   implicit none
 
   call init_mp
