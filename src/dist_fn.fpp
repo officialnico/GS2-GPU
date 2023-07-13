@@ -3609,7 +3609,7 @@ contains
     !If not linked then no connections so only one cell in supercell
     if (boundary_option_switch == boundary_option_linked) then
        it_cur = it
-       do while (itleft(it_cur, ik) > 0 .and. itleft(it_cur, ik) /= it_cur)
+       do while (itleft(it_cur, ik) >= 0 .and. itleft(it_cur, ik) /= it_cur)
           !Keep updating it_cur with left connected it until there are no
           !connections to left
           it_cur = itleft(it_cur, ik)
@@ -3626,7 +3626,7 @@ contains
     !If not linked then no connections so only one cell in supercell
     if (boundary_option_switch == boundary_option_linked) then
        it_cur = it
-       do while (itright(it_cur, ik) > 0 .and. itright(it_cur, ik) /= it_cur)
+       do while (itright(it_cur, ik) >= 0 .and. itright(it_cur, ik) /= it_cur)
           !Keep updating it_cur with right connected it until there are no
           !connections to right
           it_cur = itright(it_cur, ik)
