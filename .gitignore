@@ -46,12 +46,22 @@ objs/
 results_of_test.txt
 *.scratch
 *.timing.*
+*.timing_stats
 *.trinpars
 *.vres
 *.vres2
 *.vspace_integration_error
 .*.in
 *.used_inputs.in
+*.init_times
+*.eig.*
+*.check*
+tests/**/gs2
+tests/**/test_*
+!tests/**/test_*.f90
+!tests/**/test_*.F90
+!tests/**/test_*.fpp
+!tests/**/test_*.in
 
 .patch.make
 Revision

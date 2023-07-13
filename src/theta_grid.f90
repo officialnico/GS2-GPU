@@ -1134,6 +1134,9 @@ module theta_grid_eik
      logical :: efit_eq = .false.
      !> Name of file with numerical equilibrium data (if required)
      character(len = 800) :: eqfile = "default_unset_value"
+     !> Name of file with numerical equilibrium normalization data (if required)
+     !> currently, only used for dipole equilibrium (deq)
+     character(len = 800) :: eqnormfile = "default_unset_value"
      !> Change field-line coordinate. Recommended value: F
      !> @note We recommend `.false.` but default to `.true.`. We should consider
      !> changing the default.
@@ -1214,6 +1217,7 @@ contains
     use geometry, only: delrho, dp_mult, rmin, rmax
     use geometry, only: bishop, iflux, irho, itor, isym
     use geometry, only: eqfile
+    use geometry, only: eqnormfile
     !  use geometry, only: idfit_eq
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc
@@ -1247,6 +1251,7 @@ contains
     write (unit, fmt="(' isym =  ',i1)") isym
     write (unit, fmt="(' writelots =  ',L1)") writelots
     write (unit, fmt="(' eqfile = ',a)") '"'//trim(eqfile)//'"'
+    write (unit, fmt="(' eqnormfile = ',a)") '"'//trim(eqnormfile)//'"'
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_eik
 
@@ -1260,6 +1265,7 @@ contains
     use geometry, only: rhoc, rmaj, r_geo, qinp
     use geometry, only: bishop, iflux, irho
     use geometry, only: eqfile, chs_eq
+    use geometry, only: eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
     implicit none
     integer, intent(in) :: report_unit
@@ -1413,6 +1419,7 @@ contains
           write (report_unit, *) 
           write (report_unit, fmt="('Dipole equilibrium information obtained from file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
+          write (report_unit, fmt="(a)") trim(eqnormfile)
        end if
        if (idfit_eq) then
           write (report_unit, *) 
@@ -1660,7 +1667,6 @@ contains
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
-    use geometry, only: gen_eq, ppl_eq, transp_eq, chs_eq
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: job_id_geo => job_id
     use geometry, only: ntheta_geometry
@@ -1868,6 +1874,7 @@ contains
     use geometry, only: rhoc
     use geometry, only: itor, iflux, irho
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
+    use geometry, only: eqnormfile
     use geometry, only: equal_arc, transp_eq, idfit_eq
     use geometry, only: bishop
     use geometry, only: s_hat_input
@@ -1935,6 +1942,7 @@ contains
     dp_mult = theta_grid_eik_config%dp_mult
     efit_eq = theta_grid_eik_config%efit_eq
     eqfile = theta_grid_eik_config%eqfile
+    eqnormfile = theta_grid_eik_config%eqnormfile
     equal_arc = theta_grid_eik_config%equal_arc
     gen_eq = theta_grid_eik_config%gen_eq
     gs2d_eq = theta_grid_eik_config%gs2d_eq
@@ -1993,12 +2001,14 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 800) :: eqfile
+    character(len = 800) :: eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
 
     namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
-         rmax, rmin, s_hat_input, transp_eq, writelots
+         rmax, rmin, s_hat_input, transp_eq, writelots, &
+         eqnormfile
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -2013,6 +2023,7 @@ contains
     dp_mult = self%dp_mult
     efit_eq = self%efit_eq
     eqfile = self%eqfile
+    eqnormfile = self%eqnormfile
     equal_arc = self%equal_arc
     gen_eq = self%gen_eq
     gs2d_eq = self%gs2d_eq
@@ -2045,6 +2056,7 @@ contains
     self%dp_mult = dp_mult
     self%efit_eq = efit_eq
     self%eqfile = eqfile
+    self%eqnormfile = eqnormfile
     self%equal_arc = equal_arc
     self%gen_eq = gen_eq
     self%gs2d_eq = gs2d_eq
@@ -2088,6 +2100,7 @@ contains
     call self%write_key_val("dp_mult", self%dp_mult, unit_internal)
     call self%write_key_val("efit_eq", self%efit_eq, unit_internal)
     call self%write_key_val("eqfile", self%eqfile, unit_internal)
+    call self%write_key_val("eqnormfile", self%eqnormfile, unit_internal)
     call self%write_key_val("equal_arc", self%equal_arc, unit_internal)
     call self%write_key_val("gen_eq", self%gen_eq, unit_internal)
     call self%write_key_val("gs2d_eq", self%gs2d_eq, unit_internal)
@@ -2133,6 +2146,7 @@ contains
     call broadcast(self%dp_mult)
     call broadcast(self%efit_eq)
     call broadcast(self%eqfile)
+    call broadcast(self%eqnormfile)
     call broadcast(self%equal_arc)
     call broadcast(self%gen_eq)
     call broadcast(self%gs2d_eq)
@@ -2278,7 +2292,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
-    use theta_grid_params, only: init_theta_grid_params
+    use theta_grid_params, only: init_theta_grid_params, rhoc
+    use geometry, only: rhoc_geo => rhoc
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
     
@@ -2286,6 +2301,11 @@ contains
     initialized = .true.
 
     call init_theta_grid_params
+
+    ! As the eqfile doesn't specify rhoc we simply set from the value
+    ! from theta_grid_params here.
+    rhoc_geo = rhoc
+
     call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
@@ -2411,6 +2431,10 @@ contains
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
     gbdrift_th = 0. ; cvdrift_th = 0.
 
+    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
+    ! set coriolis drift to zero
+    cdrift = 0. ; cdrift0 = 0.
+
     read (unit=unit, fmt="(a)") line
     do i = -ntgrid, ntgrid
        read (unit=unit, fmt=*) cvdrift0(i), gbdrift0(i)
@@ -2423,6 +2447,12 @@ contains
           gbdrift_th(i) = cvdrift_th(i)
        end do
     end if
+
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
 
     if (.not. no_geo_info) then
 
@@ -2441,16 +2471,14 @@ contains
           read (unit=unit, fmt=*, err=100) aplot(i), aprime(i)
        end do
 
-       close (unit=unit)    
-       return
     end if
 
-    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
-    ! set coriolis drift to zero
-    cdrift = 0. ; cdrift0 = 0.
+    close (unit=unit)
+
+    return
 
 100 continue
-
+    write(6,*) 'Error reading Rplot etc. setting to dummy values.'
 ! dummy values for backward compatibility
     Rplot = 1. ; Rprime = 0.
     Zplot = 1. ; Zprime = 0.
@@ -2458,11 +2486,6 @@ contains
 
     close (unit=unit)
 
-    ! Possibly crude approximations for file
-    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
-    ! but isn't yet stored here.
-    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
-    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
   end subroutine file_get_grids
 
   !> Set the module level config type
@@ -2600,8 +2623,9 @@ module theta_grid
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: shape, gb_to_cv
   public :: surfarea, dvdrhon
-  public :: initialized
+  public :: initialized, is_effectively_zero_shear
 
+  public :: field_line_average
   public :: theta_grid_config_type
   public :: set_theta_grid_config
   public :: get_theta_grid_config
@@ -2621,11 +2645,19 @@ module theta_grid
   integer :: ntheta, ntgrid, nperiod, nbset
   logical :: gb_to_cv
 
+  real, parameter :: smallest_non_zero_shear = 1.0e-5
+
   ! internal variables
   integer :: eqopt_switch
   integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3
   character (8) :: shape
   logical :: exist, initialized = .false.
+  real :: field_line_average_weight
+
+  interface field_line_average
+     module procedure field_line_average_real
+     module procedure field_line_average_complex
+  end interface field_line_average
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_config_type
@@ -2851,6 +2883,7 @@ contains
     call broadcast (gds24_noq)
     call broadcast (grho)
     call broadcast (jacob)
+    call broadcast (field_line_average_weight)
     call broadcast (Rplot)
     call broadcast (Zplot)
     call broadcast (aplot)
@@ -2973,6 +3006,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_init
+    use integration, only: trapezoidal_integration
     implicit none
     real, dimension (nbset) :: bset_save
     real, dimension (-ntgrid:ntgrid) :: eik_save
@@ -3090,7 +3124,13 @@ contains
     delthet(ntgrid) = 0.!delthet(-ntgrid)
     delthet2 = delthet*delthet
 
+    ! Note here we redefine jacob despite the handling in the above if block
+    ! suggesting this has been defined.
     jacob = 1.0/(drhodpsi*gradpar*bmag)
+
+    ! Calculate the weight used in the field line average routine to save
+    ! repeated calculation of this constant
+    field_line_average_weight = 1.0/trapezoidal_integration(theta, jacob)
   end subroutine finish_init
 
   !> FIXME : Add documentation
@@ -3197,14 +3237,45 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
 ! (which effectively depends on the angle the field lines make with the flow)
 ! note that the following is only valid in a torus!
 ! itor_over_B = (q/rho) * Rmaj*Btor/(a*B)
-       IoB = sqrt(Rplot**2 - (grho/(bmag*drhodpsi))**2)
+       IoB = sqrt(max(Rplot**2 - (grho/(bmag*drhodpsi))**2,0.))
     ! RN> 2011/1/25: fix here avoids dividing by rhoc if rhoc=0
     ! CMR, 2/2/2011: set itor_over_B=0 if rhoc=0
     !                Dropping parallel sheared flow source term in GKE
     !                using itor_over_B=0 is safer than itor_over_B=NaN!
-       if (rhoc /= 0.) itor_over_B = qval / rhoc * IoB
+       if (rhoc /= 0.) then
+          itor_over_B = qval / rhoc * IoB
+       else
+          itor_over_B = btor_slab
+       end if
      endif
   end subroutine get_grids
+
+  !> Calculates the field line / theta average of a passed quantity
+  real function field_line_average_real(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    real, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
+  end function field_line_average_real
+
+  !> Calculates the field line / theta average of a passed quantity
+  complex function field_line_average_complex(quantity) result(integral)
+    use integration, only: trapezoidal_integration
+    implicit none
+    complex, dimension(:), intent(in) :: quantity
+    integral = trapezoidal_integration(theta, quantity*jacob) * field_line_average_weight
+  end function field_line_average_complex
+
+  !> Helper function to determine if the shear is small enough that we consider
+  !> it to be zero for the purposes of periodicity etc.
+  pure logical function is_effectively_zero_shear(shear_in) result(zero_shear)
+    use optionals, only: get_option_with_default
+    implicit none
+    real, intent(in), optional :: shear_in
+    real :: the_shear
+    the_shear = get_option_with_default(shear_in, shat)
+    zero_shear = abs(the_shear) <= smallest_non_zero_shear
+  end function is_effectively_zero_shear
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid

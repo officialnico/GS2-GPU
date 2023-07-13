@@ -1,9 +1,10 @@
 sinclude ../Makefile.tests_common
 
-clean_individual_test: LOCAL_TEST_FILES:=zonal_flow_residual
-
+TEST_BASE_NAME:=zonal_flow_residual
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: zonal_flow_residual
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 MY_TEST_LEVEL=1
@@ -12,13 +13,13 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: zonal_flow_residual
-	$(call RUNCOMMAND,zonal_flow_residual,zonal_flow_residual.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
 endif
 endif
 
-zonal_flow_residual.o:  ${TEST_MODS}
+${TEST_BASE_NAME}.o:  ${TEST_MODS}
 
-zonal_flow_residual: zonal_flow_residual.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

@@ -397,7 +397,7 @@ contains
   subroutine init_species(species_config_in, species_elements_config_in)
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
 
     if (initialized) return
     initialized = .true.
@@ -413,7 +413,7 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_elements_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
@@ -1181,7 +1181,7 @@ contains
   subroutine set_species_config(species_config_in, species_element_config_in)
     use mp, only: mp_abort
     type(species_config_type), intent(in), optional :: species_config_in
-    type(species_element_config_type), intent(in), dimension(:), optional :: species_element_config_in
+    type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_element_config_in
 
     if (initialized) then
        call mp_abort("Trying to set species_config when already initialized.", to_screen = .true.)

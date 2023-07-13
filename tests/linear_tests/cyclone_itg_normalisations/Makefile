@@ -2,9 +2,9 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=cyclone_normalisations
 clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} *.vspace_*
-
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,7 +14,7 @@ ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 ifeq "$(shell expr ${TEST_LEVEL} \<= 2)" "1"
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_baseline.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},collisionless_ions_electron_mass.in)

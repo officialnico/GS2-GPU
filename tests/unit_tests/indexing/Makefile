@@ -1,10 +1,10 @@
 
 sinclude ../Makefile.tests_common
-
-clean_individual_test: LOCAL_TEST_FILES:=test_indexing
-
+TEST_BASE_NAME:=test_indexing
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: test_indexing
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,19 +14,19 @@ ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
-all: test_indexing
-	$(call RUNCOMMAND,test_indexing,test_indexing_lexys.in)
-	$(call RUNCOMMAND,test_indexing,test_indexing_xyles.in)
-	$(call RUNCOMMAND,test_indexing,test_indexing_yxles.in)
-	$(call RUNCOMMAND,test_indexing,test_indexing_lexys_lz.in)
-	$(call RUNCOMMAND,test_indexing,test_indexing_xyles_lz.in)
-	$(call RUNCOMMAND,test_indexing,test_indexing_yxles_lz.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_lexys.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_xyles.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_yxles.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_lexys_lz.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_xyles_lz.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_yxles_lz.in)
 endif
 endif
 
-test_indexing.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_indexing: test_indexing.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -19,13 +19,13 @@ module kt_grids_single
   integer :: n0
   logical :: parameters_read = .false.
   logical :: initialized = .false.
-  
+  real, parameter :: default_unset_value = -12345.6789
   !> Used to represent the input configuration of kt_grids_single
   type, extends(abstract_config_type) :: kt_grids_single_config_type
      ! namelist : kt_grids_single_parameters
      ! indexed : false     
      !> \(k_x \rho\) for the reference species (but recommended to set `theta0` instead).
-     real :: akx = 0.0
+     real :: akx = default_unset_value
      !> \(k_y \rho\) for the reference species.
      real :: aky = 0.4
      !> if `n0`>0 use toroidal mode number to override `aky` and set
@@ -89,7 +89,7 @@ contains
 !CMR, 14/10/2013: 
 ! New namelist variables n0, rhostar_single to set aky using toroidal mode number.
 ! Toroidal modenumber used if n0> 0 prescribed in input file. 
-    use theta_grid, only: drhodpsi
+    use theta_grid, only: drhodpsi, shat
     implicit none
     type(kt_grids_single_config_type), intent(in), optional :: kt_grids_single_config_in
 
@@ -102,6 +102,17 @@ contains
 !CMR if n0>0 then override aky inputs and use n0 to determine aky
        aky=n0*drhodpsi*rhostar_single
     endif
+
+    ! Try to ensure consistency between akx and theta0
+    if (akx == default_unset_value) then
+       ! If kx hasn't been set, set it from theta0
+       akx = theta0 * aky * shat
+    else
+       ! If kx has been set, force theta0 to be calculated from this
+       if (shat /= 0 .and. aky /= 0 ) then
+          theta0 = akx / (aky * shat)
+       end if
+    end if
 
   end subroutine init_kt_grids_single
 
@@ -1432,7 +1443,6 @@ contains
     use constants, only: pi
     implicit none
     type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in    
-    integer :: in_file
     logical :: exist
 
     if (parameters_read) return
@@ -1655,7 +1665,7 @@ contains
 
   !> Calculate the grid of wavenumbers for box mode
   subroutine box_get_grids (aky, theta0, akx, ikx, iky)
-    use theta_grid, only: shat, nperiod
+    use theta_grid, only: is_effectively_zero_shear, nperiod, shat
     use constants, only: pi
     use theta_grid, only: nperiod 
     implicit none
@@ -1678,7 +1688,7 @@ contains
 
     dky = 2.0*pi/ly
 
-    if(abs(shat) <=  1.e-5) then   ! non-quantized b/c assumed to be periodic instead linked boundary conditions       
+    if(is_effectively_zero_shear()) then   ! non-quantized b/c assumed to be periodic instead linked boundary conditions       
 
        if (x0 == 0.) then          
           
@@ -1739,11 +1749,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine check_kt_grids_box(report_unit)
-    use theta_grid, only: shat_real => shat
+    use theta_grid, only: shat, is_effectively_zero_shear
     use constants, only: pi
     implicit none
     integer, intent(in) :: report_unit
-    real :: lx, shat
+    real :: lx
     integer :: nx, ny, naky, ntheta0
     integer :: naky_calc, ntheta0_calc
 
@@ -1751,7 +1761,6 @@ contains
     ntheta0=ntheta0_private
     nx=nx_private
     ny=ny_private
-    shat=shat_real
 
     if (y0 /= 2.) then
        if (abs(2.0*pi*y0 - ly) > 1.0e-7) then
@@ -1772,7 +1781,7 @@ contains
     write (report_unit, fmt="('The domain is ',f10.4,' rho in the y direction.')") ly
 
     
-    if (abs(shat) <= 1.e-5) then
+    if (is_effectively_zero_shear()) then
        if (x0 == 0.) then
           if (rtwist > 0) then
              write (report_unit, fmt="('At theta=0, the domain has Lx = ',f10.5)")  ly*rtwist
@@ -2008,15 +2017,15 @@ module kt_grids
   public :: ikx, iky, jtwist_out
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
-  public :: kwork_filter, kperp2
+  public :: kwork_filter, kperp2, inv_kperp2
   public :: gryfx
 
   public :: kt_grids_config_type
   public :: set_kt_grids_config
   public :: get_kt_grids_config
-  
+
   logical, dimension(:,:), allocatable :: kwork_filter
-  real, dimension (:,:,:), allocatable :: kperp2
+  real, dimension (:,:,:), allocatable :: kperp2, inv_kperp2
   !> The \(\theta_0(k_x, k_y)\) grid
   real, dimension (:,:), allocatable :: theta0
   !> The \(k_x \rho\) grid
@@ -2327,7 +2336,7 @@ contains
   subroutine init_kperp2
     use theta_grid, only: ntgrid, gds2, gds21, gds22, shat
     implicit none
-    integer :: ik, it
+    integer :: ik, it, ig
 
     if (kp2init) return
     kp2init = .true.
@@ -2346,6 +2355,20 @@ contains
           end do
        end if
     end do
+
+    allocate (inv_kperp2(-ntgrid:ntgrid,ntheta0,naky))
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          do ig = -ntgrid, ntgrid
+             if (abs(kperp2(ig, it, ik)) > epsilon(0.0)) then
+                inv_kperp2(ig, it, ik) = 1.0/kperp2(ig, it, ik)
+             else
+                inv_kperp2(ig, it, ik) = 0.0
+             end if
+          end do
+       end do
+    end do
   end subroutine init_kperp2
 
   !> FIXME : Add documentation  
@@ -2356,6 +2379,7 @@ contains
     if (allocated(aky)) deallocate (akx, aky, theta0, ikx, iky)
     if (allocated(kwork_filter)) deallocate(kwork_filter)
     if (allocated(kperp2)) deallocate(kperp2)
+    if (allocated(inv_kperp2)) deallocate(inv_kperp2)
     reality = .false. ; box = .false.
     kp2init = .false.
     initialized = .false.

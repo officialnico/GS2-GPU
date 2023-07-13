@@ -631,7 +631,6 @@ contains
 
   !> Create a default settings object
   subroutine InitSettings(eps_settings)
-    use gs2_time, only: code_dt
     implicit none
     type(EpsSettings), intent(inout) :: eps_settings
     eps_settings%analyse_ddt_operator=analyse_ddt_operator
@@ -814,8 +813,6 @@ contains
           SolverType=EPSLAPACK
        case(SolverTypeArpack)
           SolverType=EPSARPACK
-       case(SolverTypeBlzpack)
-          SolverType=EPSBLZPACK
        case(SolverTypeTrlan)
           SolverType=EPSTRLAN
        case(SolverTypeBlopex)
@@ -1048,16 +1045,21 @@ contains
   !> Routine to write results to screen and netcdf
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
-    use gs2_time, only: code_dt, user_time, user_dt
+    use constants, only: zi
+    use gs2_time, only: user_time, code_dt
     use collisions, only: vnmult
-    use run_parameters, only: fphi, fapar, fbpar
+    use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
-    use fields_arrays, only: phinew, bparnew
+    use fields_arrays, only: phi, phinew, apar, aparnew, bpar, bparnew
     use gs2_save, only: EigNetcdfID, init_eigenfunc_file, finish_eigenfunc_file
-    use gs2_save, only: add_eigenpair_to_file, gs2_save_for_restart, finish_gs2_save
+    use gs2_save, only: add_eigenpair_to_file, finish_gs2_save
     use file_utils, only: run_name
-    use dist_fn_arrays, only: gnew, g_adjust
-    use gs2_diagnostics, only: save_distfn
+    use gs2_diagnostics, only: save_distfn, save_glo_info_and_grids, save_restart_dist_fn
+    use gs2_diagnostics, only: loop_diagnostics, nwrite, save_velocities, navg
+    use run_parameters, only: use_old_diagnostics
+#ifdef NEW_DIAG
+    use gs2_diagnostics_new, only: run_diagnostics, gnostics
+#endif
     implicit none
     EPS, intent(in) :: my_solver
     Mat, intent(in) :: my_operator
@@ -1066,12 +1068,12 @@ contains
     PetscInt :: iteration_count, n_converged
     Vec :: eig_vec_r, eig_vec_i
     PetscScalar :: eig_val_r, eig_val_i
-    complex :: EigVal
-    logical :: all_found
+    complex :: EigVal, previous_field_factor
+    logical :: all_found, diagnostics_exit
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
-    integer :: istatus
+    integer :: istatus, original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)
@@ -1093,7 +1095,8 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc",fphi,fapar,fbpar,io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", &
+            has_phi, has_apar, has_bpar, io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1
@@ -1122,32 +1125,44 @@ contains
           call set_init_fields
 
           !Add to file
-          if(proc0)call add_eigenpair_to_file(EigVal,fphi,fapar,fbpar,io_ids)
+          if(proc0)call add_eigenpair_to_file(EigVal, has_phi, has_apar, has_bpar, io_ids)
 
-          !Save restart file
-          if(save_restarts) then
-             !First make the unique bit of the name
-             write(restart_unique_string,'(".eig_",I0)') ieig
+          !/Calculate what the fields at the previous time step would
+          !/look like given current state and Eigval. This is intended
+          !/to allow diagnostics to recover Eigval from the usual
+          !/calculation of omega
+          previous_field_factor = exp(zi * Eigval * code_dt)
+          if (has_phi) phi = phinew * previous_field_factor
+          if (has_apar) apar = aparnew * previous_field_factor
+          if (has_bpar) bpar = bparnew * previous_field_factor
 
-             !Save restart files
-             call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=restart_unique_string)
+          if (use_old_diagnostics) then
+             original_navg = navg
+             navg = 1
+             call loop_diagnostics ((ieig+1) * nwrite, diagnostics_exit)
+             navg = original_navg
+#ifdef NEW_DIAG
+          else
+             original_navg = gnostics%navg
+             gnostics%navg = 1
+             call run_diagnostics ((ieig+1) * gnostics%nwrite, diagnostics_exit)
+             gnostics%navg = original_navg
+#endif
+          end if
 
-             !Save distfn files
-             if(save_distfn)then
-                !Convert h to distribution function
-                call g_adjust(gnew,phinew,bparnew,fphi,fbpar)
+          !Save restart file if requested.
+          !First make the unique bit of the name
+          write(restart_unique_string,'(".eig_",I0)') ieig
 
-                !Save dfn, fields and velocity grids to file
-                call gs2_save_for_restart(gnew, user_time, user_dt, vnmult, istatus, fphi, fapar, fbpar,fileopt=trim(restart_unique_string)//".dfn")
+          call save_restart_dist_fn(save_restarts, save_distfn, &
+               save_glo_info_and_grids, save_velocities, &
+               user_time = (ieig+1) * code_dt, &
+               fileopt_base = restart_unique_string)
 
-                !Convert distribution function back to h
-                call g_adjust(gnew,phinew,bparnew,-fphi,-fbpar)
-             endif
+          !Reset the status of save_for_restart
+          if (save_restarts .or. save_distfn) call finish_gs2_save
 
-             !Reset the status of save_for_restart
-             call finish_gs2_save
-          endif
-       enddo
+       end do
 
        !Close netcdf file
        if(proc0)call finish_eigenfunc_file(io_ids)
@@ -1382,7 +1397,6 @@ contains
   !> An example of a custom SLEPc monitor -- may not work well
   PetscErrorCode function SimpleMonitor(solver,iters,nconv,eig_r,eig_i,err_est,n_est,mm)
     use mp, only: proc0
-    use gs2_time, only: code_dt
     implicit none
     EPS, intent(inout) :: solver
     PetscInt, intent(inout) :: iters, nconv, n_est

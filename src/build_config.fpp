@@ -14,6 +14,12 @@ module build_config
   logical, parameter :: gs2_has_mpi3 = .false.
 #endif
 
+#ifdef OPENMP
+  logical, parameter :: gs2_has_openmp = .true.
+#else
+  logical, parameter :: gs2_has_openmp = .false.
+#endif
+
 #ifdef FFT
   logical, parameter :: gs2_has_fft = .true.
 #else
@@ -62,12 +68,6 @@ module build_config
   logical, parameter :: gs2_has_with_eig = .false.
 #endif
 
-#ifdef HDF
-  logical, parameter :: gs2_has_hdf5 = .true.
-#else
-  logical, parameter :: gs2_has_hdf5 = .false.
-#endif
-
 #ifdef F200X_INTRINSICS
   logical, parameter :: gs2_has_f200x_intrinsics = .true.
 #else
@@ -86,6 +86,8 @@ module build_config
   logical, parameter :: gs2_has_quad = .false.
 #endif
 
+  character(len=*), parameter :: gs2_build_tag = GS2_BUILD_TAG
+
 contains
 
   function formatted_build_config() result(output)
@@ -95,7 +97,7 @@ contains
     character(len=:), allocatable :: output
 
     character(len=*), parameter :: nl = new_line('a')
-    integer, parameter :: max_len = 2000
+    integer, parameter :: max_len = 3000
 
     allocate(character(len=max_len)::output)
 
@@ -107,8 +109,10 @@ contains
     write(output, '(a, a)') trim(output) // nl // "Build flags: Cannot be detected"
 #endif
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
+    write(output, '(a, a)') trim(output) // nl // "GS2_BUILD_TAG: ", gs2_build_tag
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
+    write(output, '(a, l)') trim(output) // nl // "OPENMP: ", gs2_has_openmp
     write(output, '(a, l)') trim(output) // nl // "FFTW: ", gs2_has_fft
     write(output, '(a, l)') trim(output) // nl // "iso_c_binding: ", gs2_has_iso_c_binding
     write(output, '(a, l)') trim(output) // nl // "New diagnostics: ", gs2_has_new_diag
@@ -117,7 +121,6 @@ contains
     write(output, '(a, l)') trim(output) // nl // "LAPACK: ", gs2_has_lapack
     write(output, '(a, l)') trim(output) // nl // "Lowflow: ", gs2_has_lowflow
     write(output, '(a, l)') trim(output) // nl // "Eigensolver: ", gs2_has_with_eig
-    write(output, '(a, l)') trim(output) // nl // "HDF5: ", gs2_has_hdf5
     write(output, '(a, l)') trim(output) // nl // "F200X intrinsics: ", gs2_has_f200x_intrinsics
     write(output, '(a, l)') trim(output) // nl // "Single precision: ", gs2_is_single_precision
     write(output, '(a, l)') trim(output) // nl // "Quad precision: ", gs2_has_quad

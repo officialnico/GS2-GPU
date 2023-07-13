@@ -1,0 +1,39 @@
+&knobs
+beta = 0.0
+delt = 0.1
+nstep = 10
+fphi = 1.0
+fapar = 0.0
+fbpar = 0.0
+/
+
+&kt_grids_knobs
+  grid_option = 'box'
+/
+
+&kt_grids_box_parameters
+  nx = 1
+  ny = 4
+  jtwist = 1
+  y0 = -0.1
+/
+
+&theta_grid_parameters
+  nperiod = 1
+  ntheta = 4
+/
+
+&species_knobs
+  nspec = 1
+/
+
+&species_parameters_1
+/
+&dist_fn_species_knobs_1
+/
+
+&nonlinear_terms_knobs
+  nonlinear_mode = 'on'
+  split_nonlinear = T
+  cfl = 1.0e-4
+/
