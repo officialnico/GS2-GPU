@@ -19,7 +19,7 @@ program dump_response
   use constants, only: run_name_size
   use standard_header, only: standard_header_type
   implicit none
-  logical :: list, exist, jnk_exit
+  logical :: list, exist
   logical, parameter :: quiet=.false.
   character (run_name_size), target :: cbuff
   integer :: istep, n_time_steps, in_file

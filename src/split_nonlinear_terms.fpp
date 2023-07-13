@@ -40,7 +40,7 @@ module split_nonlinear_terms
   ! Related to inputs
   integer :: split_method_switch
   integer, parameter :: split_method_ab3 = 1, split_method_backwards_euler = 2, &
-       split_method_rk = 3
+       split_method_rk = 3, split_method_picard = 4
   type(rk_scheme_type) :: the_rk_scheme
   logical :: show_statistics, advance_nonadiabatic_dfn
   real :: convergence_tolerance, time_step_safety_factor
@@ -88,6 +88,8 @@ module split_nonlinear_terms
      !>  - 'default' -- The same as 'RK'.
      !>  - 'RK' -- RK scheme with embedded error estimate. Exact scheme can be switched out
      !>            using rk_method switch. Relative and absolute error controlled time step.
+     !>  - 'picard' -- Use simple Picard iteration. Not generally recommended but available
+     !>            for experimentation.
      !>
      character(len = 20) :: split_method = 'default'
      !> Multiplies the new time step calculated from either the error or
@@ -132,7 +134,8 @@ contains
          text_option('default', split_method_rk), &
          text_option('AB3', split_method_ab3), &
          text_option('RK', split_method_rk), &
-         text_option('beuler', split_method_backwards_euler)  &
+         text_option('beuler', split_method_backwards_euler),  &
+         text_option('picard', split_method_picard)  &
          ]
     character(len = 20) :: rk_method, split_method
     logical :: exist
@@ -243,6 +246,9 @@ contains
     case(split_method_rk)
        call advance_nonlinear_term_rk(phinew, aparnew, bparnew, dt, &
             fields_func, source_func)
+    case(split_method_picard)
+       call advance_nonlinear_term_picard(phinew, aparnew, bparnew, dt, &
+            fields_func, source_func)
     case default
        call mp_abort("Invalid split_method_switch", .true.)
     end select
@@ -273,7 +279,7 @@ contains
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
-    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3, g
+    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
     use gs2_layouts, only: g_lo
@@ -394,7 +400,6 @@ contains
     real :: internal_time, time_step, max_vel
     integer :: counter, iglo
     integer, parameter :: iteration_limit = 20
-    integer, parameter :: iteration_lower_limit = 7
     real, parameter :: time_adjust_factor = 2
     logical, parameter :: debug = .false.
     real :: inverse_error, error, actual_dt, half_time, cfl_time_step
@@ -607,11 +612,11 @@ contains
     real, intent(in) :: dt
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
-    real :: internal_time, time_step, max_vel, inverse_error, actual_time_step
+    real :: internal_time, time_step, max_vel, inverse_error
     real :: new_time_step, cfl_time_step
     integer :: counter, nstages
     logical, parameter :: debug = .false.
-    integer :: istage, istage_sub, validity, iglo
+    integer :: istage, istage_sub, iglo
     real, dimension(:), allocatable :: solution_coeffs, error_coeffs
     real, dimension(3) :: errors
     real, save :: time_step_last = -1
@@ -776,6 +781,169 @@ contains
 
     time_step_last = time_step
   end subroutine advance_nonlinear_term_rk_implementation
+
+  !> Advances dg/dt = NL(g,chi) from current gnew, chi from t -> t+dt by using
+  !> a simple Picard iteration scheme
+  subroutine advance_nonlinear_term_picard(phinew, &
+       aparnew, bparnew, dt, fields_func, source_func)
+    use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: gnew, g, gexp_1
+    use gs2_time, only: code_dt_min
+    use mp, only: mp_abort, proc0, max_allreduce
+    use gs2_layouts, only: g_lo
+    use array_utils, only: copy, gs2_max_abs
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    real, intent(in) :: dt
+    real :: internal_time, time_step, max_vel, cfl_limit
+    integer :: counter, ipic, iglo
+    logical, parameter :: debug = .false.
+    real, dimension(4) :: errors
+    real, save :: time_step_last = -1
+    procedure(invert_field_func) :: fields_func
+    procedure(source_term_func) :: source_func
+    complex, dimension(:, :, :), allocatable :: g_start
+    integer, parameter :: npic_limit = 15, npic_low_limit = 3
+    real, parameter :: time_step_factor = 2.0
+    logical, parameter :: check_cfl = .true.
+    logical :: converged
+
+    ! Initialise internal variables
+    if (time_step_last < 0) time_step_last = dt
+    internal_time = 0.0
+    counter = 1
+    time_step = time_step_last
+
+    allocate(g_start, mold = gnew)
+
+    ! Keep taking explicit steps until we have advanced by dt
+    do while (internal_time < dt)
+       call copy(gnew, g_start)
+
+       if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
+       ipic = 1
+
+       call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
+
+       ! Get the current nonlinear source term
+       call source_func(gnew, gexp_1, &
+            phinew, aparnew, bparnew, &
+            max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+            calculate_cfl_limit = check_cfl)
+       nrhs_calls = nrhs_calls + 1
+
+       errors(1) = 0.0
+       errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
+       errors(3) = gs2_max_abs(g_start)
+       errors(4) = max_vel
+       call max_allreduce(errors)
+
+       ! Check for CFL limit - we can simply rescale the change in g and carry on
+       ! so here we simply rescale the effective time step,
+       cfl_limit = 1.0 / errors(4)
+       if (time_step > cfl_limit .and. check_cfl) then
+          ! Drop the effective time step a little from the limit
+          cfl_limit = 0.9 * cfl_limit
+          if(proc0.and.debug) print*,'Dropping time step due to cfl from',time_step,'to',cfl_limit
+          errors(2) = errors(2) * cfl_limit / time_step
+          time_step = cfl_limit
+       end if
+
+       converged = picard_converged(errors)
+
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+       end do
+       !$OMP END PARALLEL DO
+
+       do while(.not. converged)
+          ! Note the first step (i.e. call before this loop) is included in
+          ! ipic here (i.e. it counts towards our approach towards npic_limit).
+          ipic = ipic + 1
+          if (ipic > npic_limit) exit
+
+          call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
+
+          ! Get the current nonlinear source term
+          call source_func(gnew, gexp_1, &
+               phinew, aparnew, bparnew, &
+               max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
+               calculate_cfl_limit = check_cfl)
+          nrhs_calls = nrhs_calls + 1
+
+          errors(1) = errors(2)
+          errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
+          errors(4) = max_vel
+          call max_allreduce(errors)
+          cfl_limit = 1.0 / errors(4)
+
+          converged = picard_converged(errors)
+
+          if(proc0.and.debug) print*,'ipic',ipic,converged,'|',errors
+
+          if (time_step > cfl_limit .and. .not. converged) exit
+
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo) &
+          !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+          end do
+          !$OMP END PARALLEL DO
+       end do
+
+       if (.not. converged) then
+          ! If we didn't converge in the limit then reset state
+          ! to the start of the step and reduce the time step.
+          call copy(g_start, gnew)
+          time_step = time_step / time_step_factor
+          nfailed_steps = nfailed_steps + 1
+
+          ! If the time step is too small then abort
+          if (time_step < code_dt_min) &
+               call mp_abort("Time step has become too small in advance_nonlinear_term.", .true.)
+       else
+          internal_time = internal_time + time_step
+          nsuccessful_steps = nsuccessful_steps + 1
+          ! If we converged quickly then increase the time step
+          if (ipic <= npic_low_limit) time_step = time_step * time_step_factor
+       end if
+
+       !Now update the time step, capped to dt
+       time_step = min(time_step, dt)
+
+       ! Make sure we don't overshoot the target time by limiting time step.
+       if(internal_time < dt) then
+          time_step = min(time_step, dt - internal_time)
+          counter = counter + 1
+       end if
+
+    end do
+
+    if(proc0.and.debug) print*,'Completed Picard step in',counter,'steps to',internal_time,'last time step',time_step
+
+    time_step_last = time_step
+  contains
+    pure logical function picard_converged(errors) result(converged)
+      implicit none
+      real, dimension(4), intent(in) :: errors
+      converged = &
+           !Change in solution less than abs tol
+           (errors(2) < absolute_tolerance) .or.  &
+           ! Change in the change, less than abs tol
+           (abs(errors(2) - errors(1)) < absolute_tolerance) .or. &
+           ! Change is less than the relative tolerance
+           (errors(2) < relative_tolerance * errors(3)) .or. &
+           ! Change in the change less than the relative tolerance
+           (abs(errors(2) - errors(1)) < relative_tolerance * errors(3))
+    end function picard_converged
+
+  end subroutine advance_nonlinear_term_picard
 
   !> Returns the normalised inverse error estimate. In other words
   !> the error tolerance, rtol*errors(2) + atol, divided by the error

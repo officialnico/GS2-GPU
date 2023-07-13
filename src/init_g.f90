@@ -1647,10 +1647,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the right than the left?
                    !If so then it's on the left so set to zero
-                   if (l_links(ik,it) .lt. r_links(ik,it)) then
+                   if (l_links(it, ik) .lt. r_links(it, ik)) then
                       phi(:,it,ik) = 0.0 
                    !This tube is in the middle so only set the left half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(:-1,it,ik) = 0.0
                    endif
                 else
@@ -1660,10 +1660,10 @@ contains
                 if (clean_init.and.(boundary_option_switch .eq. boundary_option_linked)) then
                    !Does this tube have more links to the left than the right?
                    !If so then it's on the right so set to zero
-                   if (r_links(ik,it) .lt. l_links(ik,it)) then
+                   if (r_links(it, ik) .lt. l_links(it, ik)) then
                       phi(:,it,ik) = 0.0
                    !This tube is in the middle so only set the right half to 0
-                   else if (l_links(ik,it) .eq. r_links(ik,it)) then
+                   else if (l_links(it, ik) .eq. r_links(it, ik)) then
                       phi(1:,it,ik) = 0.0
                    endif
                 else
@@ -1724,9 +1724,9 @@ contains
           !                         and outgoing particles
           !                      as initial condition sets g(:,1,:) = g(:,2,:) )
           !If no links to the left then we're at the left boundary
-          if ( l_links(ik,it) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
+          if ( l_links(it, ik) .eq. 0 ) g(-ntgrid,1,iglo)=0.0
           !If no links to the right then we're at the right boundary
-          if ( r_links(ik,it) .eq. 0 ) g(ntgrid,1,iglo)=0.0
+          if ( r_links(it, ik) .eq. 0 ) g(ntgrid,1,iglo)=0.0
        endif
     end do
 
@@ -1767,7 +1767,7 @@ contains
   !> for linear calculations.
   subroutine ginit_single_parallel_mode
     use species, only: spec, tracer_species
-    use theta_grid, only: ntgrid, shat, theta 
+    use theta_grid, only: ntgrid, is_effectively_zero_shear, theta
     use kt_grids, only: naky, ntheta0, aky, reality
     use le_grids, only: forbid
     use mp, only: mp_abort
@@ -1787,13 +1787,12 @@ contains
        phit (:, it, 1) = (-1)**nn*exp(-8.*(real(nn)/ntheta0)**2)
     end do
 
-    if (abs(shat) < 1.0e-05) then 
-      if (ikpar_init+1 > ntgrid) then 
+    if (is_effectively_zero_shear()) then
+      if (ikpar_init+1 > ntgrid) then
         call mp_abort("Error: this value of k_parallel is too large. Increase ntheta or decrease ikpar_init.")
       end if
       kpar_init = ikpar_init
     end if
-
 
     do it = 1, ntheta0
        do ik = 1, naky
@@ -1801,10 +1800,10 @@ contains
               !Set the field to cos(kpar_init*theta), where we remember that the gridpoints are not necessarily evenly spaced in the parallel direction, so we use theta(ig).
                !reality for ky=0 means we must use -kpar for kx < 0
               !if (naky == 1 .and. it > (ntheta0+1)/2) then
-                !a = cos(-kpar_init * theta(ig)) 
+                !a = cos(-kpar_init * theta(ig))
                 !b = sin(-kpar_init * theta(ig))
               !else
-                a = cos(kpar_init * theta(ig)) 
+                a = cos(kpar_init * theta(ig))
                 b = sin(kpar_init * theta(ig))
               !end if
               
@@ -1862,13 +1861,11 @@ contains
   subroutine ginit_all_modes_equal
     use species, only: spec, tracer_species
     use theta_grid, only: ntgrid, theta, ntheta 
-!    use theta_grid, only: shat
     use kt_grids, only: naky, ntheta0, aky, reality
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use mp, only: mp_abort
-!     use file_utils, only: error_unit
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
@@ -1881,15 +1878,6 @@ contains
 ! extra factor of 4 to reduce the high k wiggles for now
        phit (:, it, 1) = (-1)**nn*exp(-8.*(real(nn)/ntheta0)**2)
     end do
-
-    !if (abs(shat) < 1.0e-05) then 
-      !if (ikpar_init+1 > ntgrid) then 
-        !call mp_abort("Error: this value of k_parallel is too large. Increase ntheta or decrease ikpar_init.")
-!!         stop 'Aborting...'
-      !end if
-      !kpar_init = ikpar_init
-    !end if
-
 
     do it = 1, ntheta0
        do ik = 1, naky
@@ -4349,7 +4337,6 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
 
     implicit none
-    integer :: istatus, ierr
     integer :: iglo
     integer :: ik, it, il, in
     real :: arg, kxrange

@@ -26,15 +26,15 @@ gs2_all: diagnostics modules gs2 ingen rungridgen generate_fftw_wisdom dump_resp
 gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
-$(BINDIR)/gs2: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+$(BINDIR)/gs2: $(gs2_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
 .PHONY: gs2
 gs2: $(BINDIR)/gs2
 
-#Main code, may not work as missing SIMPLEDATAIO_LIB dependency
-$(BINDIR)/gs2.x: $(gs2_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+#Main code
+$(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -50,7 +50,7 @@ $(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) | $(BINDIR)
 mat_inv_benchmark: $(BINDIR)/mat_inv_benchmark
 
 #Input file checker
-$(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+$(BINDIR)/ingen: $(ingen_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -58,7 +58,7 @@ $(BINDIR)/ingen: $(ingen_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
 ingen: $(BINDIR)/ingen
 
 #Utility to produce fftw wisdom files for given problem size
-$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+$(BINDIR)/generate_fftw_wisdom: $(generate_fftw_wisdom_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS) 
 
@@ -106,7 +106,7 @@ $(BINDIR)/regress: $(drive_mod) | $(BINDIR)
 regress: $(BINDIR)/regress
 
 #A program which test the fft transforms used in GS2 | DOES NOT COMPILE
-$(BINDIR)/ffttester: $(ffttester_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+$(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -130,7 +130,7 @@ $(BINDIR)/eiktest: $(eiktest_mod) | $(BINDIR)
 eiktest: $(BINDIR)/eiktest
 
 #Writes an instance of each namelist with default values
-$(BINDIR)/write_default_input_file: $(write_default_input_file_mod) $(SIMPLEDATAIO_LIB) | $(BINDIR)
+$(BINDIR)/write_default_input_file: $(write_default_input_file_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$^,"\\n\\t\-\-\-\-\-\-\>",$@)
 	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $@ $^ $(LIBS)
 
@@ -187,7 +187,7 @@ geo_c.a: geometry_c_interface.o ../geo.a ../utils.a
 ### LIBGS2
 libgs2_all: $(LIBDIR)/libgs2.a
 
-$(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o $(OBJDIR)/simpledataiof.o $(OBJDIR)/simpledataio_write.o, $(gs2_mod)) $(OBJDIR)/gs2_gryfx_zonal.o |$(LIBDIR)
+$(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) $(OBJDIR)/gs2_gryfx_zonal.o |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@

@@ -142,17 +142,13 @@ contains
   !> FIXME : Add documentation  
   subroutine get_field_vector (fl, phi, apar, bpar)
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), intent (out) :: fl
     integer :: istart, ifin
-
-    call prof_entering ("get_field_vector", "fields_implicit")
 
     call getfieldeq (phi, apar, bpar, fieldeq, fieldeqa, fieldeqp)
 
@@ -176,7 +172,6 @@ contains
        fl(istart:ifin,:,:) = fieldeqp
     end if
 
-    call prof_leaving ("get_field_vector", "fields_implicit")
   end subroutine get_field_vector
 
   !> FIXME : Add documentation  
@@ -186,12 +181,9 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: jf_lo, ij_idx
-    use prof, only: prof_entering, prof_leaving
     implicit none
     complex, dimension (0:), intent (in) :: u
     integer :: ik, it, ifield, ll, lr
-
-    call prof_entering ("get_field_solution", "fields_implicit")
 
     ifield = 0
 
@@ -228,17 +220,15 @@ contains
        end do
     endif
 
-    call prof_leaving ("get_field_solution", "fields_implicit")
   end subroutine get_field_solution
 
   !> FIXME : Add documentation  
   subroutine getfield (phi, apar, bpar)
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: f_lo, jf_lo
-    use prof, only: prof_entering, prof_leaving
     use theta_grid, only: ntgrid
     use dist_fn, only: N_class
-    use mp, only: sum_allreduce, allgatherv, iproc,nproc, proc0
+    use mp, only: sum_allreduce, allgatherv, iproc, nproc
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (:,:,:), allocatable :: fl
@@ -246,7 +236,6 @@ contains
     complex, dimension (:), allocatable :: u_small
     integer :: jflo, ik, it, nl, nr, i, m, n, dc
 
-    call prof_entering ("getfield", "fields_implicit")
     allocate (fl(nidx, ntheta0, naky))
 
     !On first call to this routine setup the receive counts (recvcnts)
@@ -324,9 +313,6 @@ contains
        deallocate(u_small)
     endif
 
-    !For profiling
-    call prof_leaving ("getfield", "fields_implicit")
-
   end subroutine getfield
 
   !> FIXME : Add documentation  
@@ -339,7 +325,7 @@ contains
     use dist_fn_arrays, only: g, gnew, kx_shift, theta0_shift
     use unit_tests, only: debug_message
     use job_manage, only: time_message
-    use mp, only: proc0, get_mp_times
+    use mp, only: get_mp_times
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -415,7 +401,7 @@ contains
   !> @note This calculation is fairly generic so should perhaps be moved out into
   !> a more accessible module to allow reuse (or replaced with such a method).
   subroutine fieldline_average_phi (phi_in, phi_average, ik_only)
-    use theta_grid, only: ntgrid, jacob, theta, field_line_average
+    use theta_grid, only: ntgrid, field_line_average
     use kt_grids, only: ntheta0, naky
     use optionals, only: get_option_with_default
     implicit none
@@ -485,14 +471,12 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
-    use prof, only: prof_entering, prof_leaving
     use file_utils, only: error_unit
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
     logical :: endpoint
     logical :: response_was_read
-    call prof_entering ("init_response_matrix", "fields_implicit")
 
     nfield = 0
     if (has_phi) nfield = nfield + 1
@@ -668,27 +652,20 @@ contains
     endif 
 
     if(dump_response) call dump_response_to_file_imp
-    call prof_leaving ("init_response_matrix", "fields_implicit")
-
   end subroutine init_response_matrix
 
   !> FIXME : Add documentation  
   subroutine init_response_row (ig, ifield, am, ic, n)
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0
     use dist_fn, only: getfieldeq, timeadv, M_class, N_class
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: f_lo, idx, idx_local
-    use prof, only: prof_entering, prof_leaving
     implicit none
     integer, intent (in) :: ig, ifield, ic, n
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
     integer :: irow, istart, iflo, ik, it, ifin, m, nn
-
-    !For profiling
-    call prof_entering ("init_response_row", "fields_implicit")
 
     !Find response to delta function fields
     !NOTE:Timeadv will loop over all iglo even though only one ik
@@ -747,8 +724,6 @@ contains
        end do
     end do
 
-    !For profiling
-    call prof_leaving ("init_response_row", "fields_implicit")
   end subroutine init_response_row
 
   !> FIXME : Add documentation  
@@ -756,11 +731,12 @@ contains
     use file_utils, only: error_unit
     use kt_grids, only: aky, akx
     use theta_grid, only: ntgrid
-    use mp, only: broadcast, send, receive, iproc
+    use mp, only: broadcast, send, receive, iproc, get_mp_times
+    use job_manage, only: time_message
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
     use gs2_layouts, only: f_lo, idx, idx_local, proc_id, jf_lo
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
     use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
-    use prof, only: prof_entering, prof_leaving
     use dist_fn, only: i_class, M_class, N_class
     implicit none
     integer, intent (in) :: ic
@@ -771,8 +747,10 @@ contains
     integer :: i, j, k, ik, it, m, n, nn, if, ig, jsc, jf, jg, jc
     integer :: irow, ilo, jlo, dc, iflo, ierr
     logical :: iskip, jskip
+    real :: mp_total, mp_total_after
 
-    call prof_entering ("init_inverse_matrix", "fields_implicit")
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total)
     
     allocate (lhscol (nidx*N_class(ic),M_class(ic)))
     allocate (rhsrow (nidx*N_class(ic),M_class(ic)))
@@ -1094,8 +1072,9 @@ contains
     !Free memory
     deallocate (am_tmp)
 
-    !For profiling
-    call prof_leaving ("init_inverse_matrix", "fields_implicit")
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_invert_mpi = time_field_invert_mpi + (mp_total_after - mp_total)
   end subroutine init_inverse_matrix
 
   !> FIXME : Add documentation  
@@ -1124,7 +1103,7 @@ contains
                       itr = it
                       ! Follow links to the right
                       do n = 2, N_class(i)
-                         itr = itright (ik, itr)
+                         itr = itright (itr, ik)
                          f_lo(i)%ik(m,n) = ik
                          f_lo(i)%it(m,n) = itr
                       end do
@@ -1172,7 +1151,7 @@ contains
 !
 ! Get size of this supercell
 !
-    nn = 1 + l_links(ik,it) + r_links(ik,it)
+    nn = 1 + l_links(it, ik) + r_links(it, ik)
 !
 ! Find i = N_class**-1(nn)
 !
@@ -1192,7 +1171,7 @@ contains
 ! 
 ! Get position in this supercell, counting from the left
 !
-    n = 1 + l_links(ik, it)
+    n = 1 + l_links(it, ik)
 
   end subroutine kt2ki
 
@@ -1384,7 +1363,7 @@ contains
                          !This check is needed to avoid trying to access itright
                          !in non-box simulations where this array is not allocated.
                          if(in_tmp < N_class(ic)) then
-                            it_tmp=itright(ik, it_tmp)
+                            it_tmp=itright(it_tmp, ik)
                          end if
 
                       enddo
@@ -1410,7 +1389,7 @@ contains
                 !This check is needed to avoid trying to access itright
                 !in non-box simulations where this array is not allocated.
                 if(in < N_class(ic)) then
-                   it=itright(ik, it)
+                   it=itright(it, ik)
                 end if
              enddo
           enddo
@@ -1668,7 +1647,7 @@ contains
                          !This check is needed to avoid trying to access itright
                          !in non-box simulations where this array is not allocated.
                          if(in_tmp < N_class(ic)) then
-                            it_tmp=itright(ik, it_tmp)
+                            it_tmp=itright(it_tmp, ik)
                          end if
 
                       enddo
@@ -1682,7 +1661,7 @@ contains
                 !This check is needed to avoid trying to access itright
                 !in non-box simulations where this array is not allocated.
                 if(in < N_class(ic)) then
-                   it=itright(ik, it)
+                   it=itright(it, ik)
                 end if
              enddo
           enddo
@@ -1698,7 +1677,7 @@ contains
                 jflo=ij_idx(jf_lo,ntgrid,ifld,ik,it)
 
                 !Now we get the index of the point which has this data
-                jflo_dup=ij_idx(jf_lo,-ntgrid,ifld,ik,itright(ik,it))
+                jflo_dup=ij_idx(jf_lo,-ntgrid,ifld,ik,itright(it, ik))
 
                 !Now get locality
                 is_local=idx_local(jf_lo,jflo)
@@ -1723,7 +1702,7 @@ contains
              !Increment it -- note we don't need to guard against access to itright
              !here as for non-box runs we won't enter the outer in=1,N_class(ic)-1
              !loop as N_class(ic) == 1
-             it=itright(ik,it)
+             it=itright(it,ik)
           enddo
        end do
        

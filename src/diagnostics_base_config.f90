@@ -360,15 +360,13 @@ module diagnostics_base_config
     !>
     !> @warning Output formats and quantities differ between old and new
     !> diagnostics
-    logical :: write_flux_line = .true.
-
+    logical :: write_flux_line = .false.
     !> Write fluxes (heat, momentum and particle; total and per-species) every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
     !>
     !> If run is nonlinear, this defaults to true
     !>
-    !> @warning Only in new diagnostics. In old diagnostics, this is combined
-    !> with write_fluxes_by_mode and called write_nl_flux.
+    !> @warning In old diagnostics, this also turns on `write_fluxes_by_mode`
     logical :: write_fluxes = .false.
     !> Write fluxes (heat, momentum and particle; total and per-species) as a
     !> function of Fourier mode every [[gs2_diagnostics_knobs:nwrite]]
@@ -376,8 +374,7 @@ module diagnostics_base_config
     !>
     !> If run is nonlinear, this defaults to true
     !>
-    !> @warning Only in new diagnostics. In old diagnostics, this is combined
-    !> with write_fluxes and called write_nl_flux.
+    !> @warning In old diagnostics, this is combined with `write_fluxes`
     logical :: write_fluxes_by_mode = .false.
 
     !> Write moments (density, parallel flow, and parallel and perpendicular
@@ -463,7 +460,7 @@ module diagnostics_base_config
     !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
-    !> @warning Non-functional in new diagnostics
+    !> @deprecated Use [[gs2_diagnostics_knobs:write_fluxes]]
     logical :: write_nl_flux = .false.
     !> Write the poloidal distributions of the fluxes of particles,
     !> parallel momentum, perpendicular momentum, and energy every
@@ -532,6 +529,8 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
     !> (the default) to enable this
     logical :: write_phi_over_time = .false.
+    !> Write a simple quasi-linear metric to netcdf.
+    logical :: write_ql_metric = .true.
     !> Write the particle and momentum flux as a function of \(\theta\) and
     !> velocity space. See [[gs2_diagnostics_knobs:write_pflux_sym]] and
     !> [[gs2_diagnostics_knobs:write_pflux_tormom]]
@@ -653,8 +652,8 @@ contains
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
     logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
     logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
-    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_tperp_over_time, write_symmetry
-    logical :: write_upar_over_time, write_verr, write_zonal_transfer
+    logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
+    logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
 
     namelist /gs2_diagnostics_knobs/ append_old, conv_max_step, conv_min_step, conv_nstep_av, conv_nsteps_converged, &
@@ -667,8 +666,8 @@ contains
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
          write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
          write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
-         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_tperp_over_time, write_symmetry, &
-         write_upar_over_time, write_verr, write_zonal_transfer
+         write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
+         write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -751,6 +750,7 @@ contains
     write_pflux_sym = self%write_pflux_sym
     write_pflux_tormom = self%write_pflux_tormom
     write_phi_over_time = self%write_phi_over_time
+    write_ql_metric = self%write_ql_metric
     write_symmetry = self%write_symmetry
     write_tperp_over_time = self%write_tperp_over_time
     write_upar_over_time = self%write_upar_over_time
@@ -768,6 +768,12 @@ contains
 
     call warn_about_deprecated_option(write_hrate, "write_hrate", &
                                       write_heating, "write_heating")
+
+    write_fluxes = write_fluxes .or. write_nl_flux
+    write_fluxes_by_mode = write_fluxes_by_mode .or. write_nl_flux
+    call warn_about_deprecated_option(write_nl_flux, "write_nl_flux", &
+                                      write_fluxes, "write_fluxes")
+
     !!!!!!!!!!!!!!!!!!!!
 
     ! Now copy from local variables into type members
@@ -848,6 +854,7 @@ contains
     self%write_pflux_sym = write_pflux_sym
     self%write_pflux_tormom = write_pflux_tormom
     self%write_phi_over_time = write_phi_over_time
+    self%write_ql_metric = write_ql_metric
     self%write_symmetry = write_symmetry
     self%write_tperp_over_time = write_tperp_over_time
     self%write_upar_over_time = write_upar_over_time
@@ -946,6 +953,7 @@ contains
     call self%write_key_val("write_pflux_sym", self%write_pflux_sym, unit_internal)
     call self%write_key_val("write_pflux_tormom", self%write_pflux_tormom, unit_internal)
     call self%write_key_val("write_phi_over_time", self%write_phi_over_time, unit_internal)
+    call self%write_key_val("write_ql_metric", self%write_ql_metric, unit_internal)
     call self%write_key_val("write_symmetry", self%write_symmetry, unit_internal)
     call self%write_key_val("write_tperp_over_time", self%write_tperp_over_time, unit_internal)
     call self%write_key_val("write_upar_over_time", self%write_upar_over_time, unit_internal)
@@ -1046,6 +1054,7 @@ contains
     call broadcast(self%write_pflux_sym)
     call broadcast(self%write_pflux_tormom)
     call broadcast(self%write_phi_over_time)
+    call broadcast(self%write_ql_metric)
     call broadcast(self%write_symmetry)
     call broadcast(self%write_tperp_over_time)
     call broadcast(self%write_upar_over_time)

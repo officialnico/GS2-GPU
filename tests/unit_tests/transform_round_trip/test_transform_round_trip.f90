@@ -22,7 +22,7 @@ program test_transform_round_trip
   complex, dimension(:, :), allocatable :: xxf, xxf_original
   real, parameter :: tolerance = epsilon(error) * 100.0
   character(len=40) :: name
-  integer :: i, iglo, il, ig
+  integer :: iglo, il, ig
 
   call init_mp
   state%mp_comm = mp_comm
