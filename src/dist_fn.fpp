@@ -3299,7 +3299,10 @@ contains
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
          links_p, links_h, no_connections)
 
-    ! If no connections then don't need to do any more work here
+    ! If no connections then don't need to do any more work here. One
+    ! might expect us to be able to set no_connections = n_links_max == 0
+    ! rather than having to call setup_connected_bc_redistribute to
+    ! determine this. This would allow a little bit of work to be skipped.
     ! Note that no_connections is a global quantity (i.e. agreed value
     ! on all processors). We may wish to introduce a local version as well.
     ! At scale each processor may only be responsible for one pitch angle,
