@@ -5207,9 +5207,6 @@ contains
        !// Initialisation
        !/////////////////////////
 
-       ! gnew is the inhomogeneous solution
-       gnew(:,:,iglo) = 0.0
-
        !/////////////////////////
        !// Boundaries
        !/////////////////////////
