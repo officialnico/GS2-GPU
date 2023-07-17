@@ -5480,8 +5480,8 @@ contains
     !$OMP SHARED(g_lo, g_work, g_in, g_tmp, ntgrid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       g_work(:, 1, iglo) = g_in(:, 1, iglo) - g_tmp(ntgrid, 1, iglo)
-       g_work(:, 2, iglo) = g_in(:, 2, iglo) - g_tmp(-ntgrid, 2, iglo)
+       g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_tmp(ntgrid, 1, iglo)
+       g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_tmp(-ntgrid, 2, iglo)
     end do
     !$OMP END PARALLEL DO
 
