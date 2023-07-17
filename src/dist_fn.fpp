@@ -5492,8 +5492,8 @@ contains
     !scaling. However, if we do this then we lose the ability to perform the linked
     !update (i.e. what we do below) in a parallel manner, so the below code would
     !become partially serial.
-    call fill (links_p, g_in, g_adj)
-    if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
+    call fill (links_p, g_work, g_adj)
+    if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
