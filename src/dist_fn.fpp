@@ -3249,6 +3249,12 @@ contains
             wfb_p, wfb_h)
     end if
 
+    ! Setup redistributes for passing the incoming boundary to the previous linked
+    ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
+    ! the linked location.
+    call init_pass_ends(pass_right, 'r', 2, 'c', 1)
+    call init_pass_ends(pass_left, 'l', 1, 'c', 1)
+
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
