@@ -5227,7 +5227,7 @@ contains
                      *bparnew(-ntgrid,it,ik)*fbpar &
                      + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
                      *fphi*nonmaxw_corr(ie,is)
-                gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+                gnew(-ntgrid,1,iglo) = -adjleft
              end if
              !Only apply the new boundary condition to the rightmost
              !cell for sign going from right to left
@@ -5236,7 +5236,7 @@ contains
                      *bparnew(ntgrid,it,ik)*fbpar &
                      + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
                      *fphi*nonmaxw_corr(ie,is)
-                gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+                gnew(ntgrid,2,iglo) = -adjright
              end if
           endif
        endif
