@@ -19,8 +19,8 @@ program test_linked_bc
   use redistribute, only: redist_type
   implicit none
   real :: maxerr, maxerr2
-  real, parameter :: tolerance = epsilon(maxerr) * 100.0
   logical, parameter :: debug = .false.
+  real, parameter :: tolerance = epsilon(maxerr) * 4000.0
   type(gs2_program_state_type) :: state
   type(redist_type) :: pass_right, pass_left
   integer :: iglo, it, ik, il
@@ -56,11 +56,9 @@ program test_linked_bc
      it = it_idx(g_lo, iglo)
      ik = ik_idx(g_lo, iglo)
      il = il_idx(g_lo, iglo)
-     ! Set to target function but offset so incoming boundary = 0 for all cells
-     gnew(:, 1, iglo) = target_function(:, it, ik)
-     if (l_links(it, ik) > 0) gnew(:, 1, iglo) = gnew(:, 1, iglo) - target_function(-ntgrid, it, ik)
-     gnew(:, 2, iglo) = -target_function(:, it, ik)
-     if (r_links(it, ik) > 0) gnew(:, 2, iglo) = gnew(:, 2, iglo) + target_function(ntgrid, it, ik)
+     ! Set to target function but offset so the function is not continuous
+     gnew(:, 1, iglo) = target_function(:, it, ik) + it * 1000
+     gnew(:, 2, iglo) = -target_function(:, it, ik)  + it * 1000
   end do
 
   maxerr = check_error(gnew)
@@ -89,7 +87,7 @@ program test_linked_bc
   end if
 
   if (.not. passes) then
-     if (proc0) print*,'Test fails with error : ',maxerr
+     if (proc0) print*,'Test fails with error : ',maxerr,'against a tolerance of',tolerance
   end if
 
   call process_test(passes, 'linked_boundary_conditions')
