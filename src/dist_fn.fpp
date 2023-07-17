@@ -5477,7 +5477,7 @@ contains
     ! non-zero incoming boundary conditions (gnew /= 0 ) for internal (i.e. connected cells)
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo) &
-    !$OMP SHARED(g_lo, g_work, g_in, g_tmp)
+    !$OMP SHARED(g_lo, g_work, g_in, g_tmp, ntgrid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        g_work(:, 1, iglo) = g_in(:, 1, iglo) - g_tmp(ntgrid, 1, iglo)
