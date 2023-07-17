@@ -5060,7 +5060,7 @@ contains
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 &
        (phi, apar, bpar, phinew, aparnew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -5072,6 +5072,7 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5084,6 +5085,16 @@ contains
     logical :: use_pass_homog, speriod_flag
     logical :: is_wfb, is_passing, is_trapped
     logical :: is_self_periodic
+
+    ! Initialise gnew to g. Note we probably only need to do this when
+    ! istep == istep_last (i.e. on the second half of a timestep). We
+    ! may also be able to get a slight improvement by copying over the
+    ! non-adiabatic part of g and then forming gnew using the new fields.
+    ! For example we could do
+    ! call g_adjust(gnew, phi, bpar, from_g_gs2)
+    ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
+    ! after copying g into gnew.
+    call copy(g, gnew)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
