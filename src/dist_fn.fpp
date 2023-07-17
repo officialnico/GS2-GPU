@@ -5445,7 +5445,6 @@ contains
     use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
-    complex, dimension(:, :, :), allocatable :: g_tmp
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
     complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
@@ -5467,21 +5466,22 @@ contains
     ! at its connected boundary. This requires two redistribute calls _and_ a full
     ! dist_fn sized array even though there should be at most two non-zero values
     ! per iglo point. Future work should be able to make this much more efficient
-    allocate(g_tmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    call zero_array(g_tmp)
-    call fill(pass_left, g_in, g_tmp)
-    call fill(pass_right, g_in, g_tmp)
+    call zero_array(g_work)
+    call fill(pass_left, g_in, g_work)
+    call fill(pass_right, g_in, g_work)
 
-    ! Construct g_work = g_in - g_tmp where g_tmp contains the incoming boundary values from
-    ! the upstream connected cell. This adapts the linked boundary conditions to allow for
-    ! non-zero incoming boundary conditions (gnew /= 0 ) for internal (i.e. connected cells)
+    ! Construct g_work = g_in - g_work where g_work initially contains
+    ! the incoming boundary values from the upstream connected
+    ! cell. This adapts the linked boundary conditions to allow for
+    ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
+    ! (i.e. connected cells)
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo) &
-    !$OMP SHARED(g_lo, g_work, g_in, g_tmp, ntgrid) &
+    !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_tmp(ntgrid, 1, iglo)
-       g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_tmp(-ntgrid, 2, iglo)
+       g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
+       g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
     end do
     !$OMP END PARALLEL DO
 
