@@ -5471,6 +5471,20 @@ contains
     call zero_array(g_tmp)
     call fill(pass_left, g_in, g_tmp)
     call fill(pass_right, g_in, g_tmp)
+
+    ! Construct g_work = g_in - g_tmp where g_tmp contains the incoming boundary values from
+    ! the upstream connected cell. This adapts the linked boundary conditions to allow for
+    ! non-zero incoming boundary conditions (gnew /= 0 ) for internal (i.e. connected cells)
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo) &
+    !$OMP SHARED(g_lo, g_work, g_in, g_tmp)
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       g_work(:, 1, iglo) = g_in(:, 1, iglo) - g_tmp(ntgrid, 1, iglo)
+       g_work(:, 2, iglo) = g_in(:, 2, iglo) - g_tmp(-ntgrid, 2, iglo)
+    end do
+    !$OMP END PARALLEL DO
+
     !<DD>Note these fill routines are often equivalent to an all-to-all type
     !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
     !By only communicating with our direct neighbours we would significantly
