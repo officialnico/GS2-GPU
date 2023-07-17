@@ -5434,7 +5434,7 @@ contains
 
   !> Applies linked (twist-shift) boundary conditions to passed distribution function
   subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
-    use dist_fn_arrays, only: vperp2, aj0, aj1
+    use dist_fn_arrays, only: vperp2, aj0, aj1, g_work
     use theta_grid, only: ntgrid
     use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
@@ -5442,8 +5442,10 @@ contains
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
+    complex, dimension(:, :, :), allocatable :: g_tmp
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
     complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
@@ -5461,6 +5463,14 @@ contains
     ! No more work to do if no connections so return
     if (no_connections) return
 
+    ! Pass the incoming boundary values to the previous connected cell, storing
+    ! at its connected boundary. This requires two redistribute calls _and_ a full
+    ! dist_fn sized array even though there should be at most two non-zero values
+    ! per iglo point. Future work should be able to make this much more efficient
+    allocate(g_tmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    call zero_array(g_tmp)
+    call fill(pass_left, g_in, g_tmp)
+    call fill(pass_right, g_in, g_tmp)
     !<DD>Note these fill routines are often equivalent to an all-to-all type
     !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
     !By only communicating with our direct neighbours we would significantly
