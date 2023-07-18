@@ -3549,7 +3549,9 @@ contains
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
     ! the linked location.
-    call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
+    if (start_from_previous_solution) then
+       call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
+    end if
 
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
@@ -5385,8 +5387,8 @@ contains
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
@@ -5491,15 +5493,19 @@ contains
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
-       ! Initialise gnew to g. Note we probably only need to do this when
-       ! istep == istep_last (i.e. on the second half of a timestep). We
-       ! may also be able to get a slight improvement by copying over the
-       ! non-adiabatic part of g and then forming gnew using the new fields.
-       ! For example we could do the equivalent of
-       ! call g_adjust(gnew, phi, bpar, from_g_gs2)
-       ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
-       ! after copying g into gnew.
-       gnew(:, :, iglo) = g(:, :, iglo)
+       if (start_from_previous_solution) then
+          ! Initialise gnew to g. Note we probably only need to do this when
+          ! istep == istep_last (i.e. on the second half of a timestep). We
+          ! may also be able to get a slight improvement by copying over the
+          ! non-adiabatic part of g and then forming gnew using the new fields.
+          ! For example we could do the equivalent of
+          ! call g_adjust(gnew, phi, bpar, from_g_gs2)
+          ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
+          ! after copying g into gnew.
+          gnew(:, :, iglo) = g(:, :, iglo)
+       else
+          gnew(:, :, iglo) = 0.0
+       end if
 
        !/////////////////////////
        !// Boundaries
@@ -5756,37 +5762,43 @@ contains
     ! No more work to do if no connections so return
     if (no_connections) return
 
-    ! Pass the incoming boundary values to the previous connected cell, storing
-    ! at its connected boundary. This requires two redistribute calls _and_ a full
-    ! dist_fn sized array even though there should be at most two non-zero values
-    ! per iglo point. Future work should be able to make this much more efficient
-    call zero_array(g_work)
+    ! Some extra work to do if we allow non-zero incoming boundary conditions
+    if (start_from_previous_solution) then
+       ! Pass the incoming boundary values to the previous connected cell, storing
+       ! at its connected boundary. This requires two redistribute calls _and_ a full
+       ! dist_fn sized array even though there should be at most two non-zero values
+       ! per iglo point. Future work should be able to make this much more efficient
+       call zero_array(g_work)
+       call fill(incoming_links, g_in, g_work)
 
-    call fill(incoming_links, g_in, g_work)
-    ! Construct g_work = g_in - g_work where g_work initially contains
-    ! the incoming boundary values from the upstream connected
-    ! cell. This adapts the linked boundary conditions to allow for
-    ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
-    ! (i.e. connected cells)
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo) &
-    !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
-       g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
-    end do
-    !$OMP END PARALLEL DO
+       ! Construct g_work = g_in - g_work where g_work initially contains
+       ! the incoming boundary values from the upstream connected
+       ! cell. This adapts the linked boundary conditions to allow for
+       ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
+       ! (i.e. connected cells)
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
+          g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
+       end do
+       !$OMP END PARALLEL DO
 
-    !<DD>Note these fill routines are often equivalent to an all-to-all type
-    !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
-    !By only communicating with our direct neighbours we would significantly
-    !reduce the amount of data to communicate and we should improve the communication
-    !scaling. However, if we do this then we lose the ability to perform the linked
-    !update (i.e. what we do below) in a parallel manner, so the below code would
-    !become partially serial.
-    call fill (links_p, g_work, g_adj)
-    if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
+       !<DD>Note these fill routines are often equivalent to an all-to-all type
+       !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
+       !By only communicating with our direct neighbours we would significantly
+       !reduce the amount of data to communicate and we should improve the communication
+       !scaling. However, if we do this then we lose the ability to perform the linked
+       !update (i.e. what we do below) in a parallel manner, so the below code would
+       !become partially serial.
+       call fill (links_p, g_work, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
+    else
+       call fill (links_p, g_in, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
+    end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
