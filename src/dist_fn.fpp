@@ -3543,8 +3543,8 @@ contains
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
     ! the linked location.
-
     call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
+
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
@@ -5362,7 +5362,6 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5375,16 +5374,6 @@ contains
     logical :: use_pass_homog, speriod_flag
     logical :: is_wfb, is_passing, is_trapped
     logical :: is_self_periodic
-
-    ! Initialise gnew to g. Note we probably only need to do this when
-    ! istep == istep_last (i.e. on the second half of a timestep). We
-    ! may also be able to get a slight improvement by copying over the
-    ! non-adiabatic part of g and then forming gnew using the new fields.
-    ! For example we could do
-    ! call g_adjust(gnew, phi, bpar, from_g_gs2)
-    ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
-    ! after copying g into gnew.
-    call copy(g, gnew)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
@@ -5496,6 +5485,15 @@ contains
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
+       ! Initialise gnew to g. Note we probably only need to do this when
+       ! istep == istep_last (i.e. on the second half of a timestep). We
+       ! may also be able to get a slight improvement by copying over the
+       ! non-adiabatic part of g and then forming gnew using the new fields.
+       ! For example we could do the equivalent of
+       ! call g_adjust(gnew, phi, bpar, from_g_gs2)
+       ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
+       ! after copying g into gnew.
+       gnew(:, :, iglo) = g(:, :, iglo)
 
        !/////////////////////////
        !// Boundaries
