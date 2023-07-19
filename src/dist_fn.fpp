@@ -2256,6 +2256,7 @@ contains
     ! Get the supercell label related to the point of interest and
     ! form a logical mask selecting members of this supercell
     isc = supercell_labels(it, ik)
+    allocate(supercell_mask(ntheta0))
     supercell_mask = supercell_labels(:, ik) == isc
 
     ! Count how many cells there are.
@@ -2274,6 +2275,7 @@ contains
 
     ! Convert theta0_indices_real to integer to allow use for indexing
     ! arrays later.
+    allocate(theta0_indices(size(theta0_indices_real)))
     theta0_indices = int(theta0_indices_real)
     theta0_indices = theta0_indices(ncell:1:-1)
 
