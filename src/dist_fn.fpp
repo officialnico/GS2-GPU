@@ -94,6 +94,8 @@ module dist_fn
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
+  public :: flux_tube_field_like_to_ballooning_space
+  public :: check_linked_boundaries_are_satisfied
 
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
