@@ -633,13 +633,13 @@ contains
     ! Copy the relevant coefficients for forming the solution to reduce
     ! later duplication.
     if (scheme%follow_high_order) then
-       solution_coeffs = scheme%high_order_coeffs
+       allocate(solution_coeffs, source = scheme%high_order_coeffs)
     else
-       solution_coeffs = scheme%lower_order_coeffs
+       allocate(solution_coeffs, source = scheme%lower_order_coeffs)
     end if
 
     ! Get the error coefficients
-    error_coeffs = scheme%high_order_coeffs - scheme%lower_order_coeffs
+    allocate(error_coeffs, source = scheme%high_order_coeffs - scheme%lower_order_coeffs)
 
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
