@@ -5672,15 +5672,27 @@ contains
   !>
   !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
   !> routine will also copy one periodic boundary value into the other one.
-  subroutine ensure_single_val_fields_pass(arr)
+  subroutine ensure_single_val_fields_pass(arr, force_all)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
+    use kt_grids, only: naky, ntheta0
     implicit none
     integer :: it, ik, link_it
     complex, dimension (-ntgrid:,:,:), intent (in out) :: arr
+    logical, intent(in), optional :: force_all
+    logical :: force
     if (boundary_option_switch /= boundary_option_linked) return
-    do ik = g_lo%ik_min, g_lo%ik_max
-       do it = g_lo%it_min, g_lo%it_max
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
           link_it = itright(it, ik)
           if (link_it < 0) cycle
           arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
@@ -5694,15 +5706,27 @@ contains
   !>
   !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
   !> routine will also copy one periodic boundary value into the other one.
-  subroutine ensure_single_val_fields_pass_r(arr)
+  subroutine ensure_single_val_fields_pass_r(arr, force_all)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
+    use kt_grids, only: naky, ntheta0
     implicit none
-    integer :: it, ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     real, dimension (-ntgrid:,:,:), intent (in out) :: arr
+    logical, intent(in), optional :: force_all
+    logical :: force
     if (boundary_option_switch /= boundary_option_linked) return
-    do ik = g_lo%ik_min, g_lo%ik_max
-       do it = g_lo%it_min, g_lo%it_max
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
           link_it = itright(it, ik)
           if (link_it < 0) cycle
           arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
