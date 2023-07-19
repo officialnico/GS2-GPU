@@ -1228,7 +1228,6 @@ contains
   !> Writes the QL flux metric by mode number and summed over mode number to netcdf file
   subroutine nc_write_ql_metric(file_id, nout, ql_metric)
 #ifdef NETCDF
-    use kt_grids, only: ntheta0, naky
     use neasyf, only: neasyf_write
 #endif
     !> NetCDF ID of the file
