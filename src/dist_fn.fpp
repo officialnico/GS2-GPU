@@ -5734,20 +5734,22 @@ contains
 
   !> Applies linked (twist-shift) boundary conditions to passed distribution function
   subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
-    use dist_fn_arrays, only: vperp2, aj0, aj1, g_work
-    use theta_grid, only: ntgrid
-    use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb
+    use dist_fn_arrays, only: g_work
+    use theta_grid, only: ntgrid, bmag
+    use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb, energy, al
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
-    use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
+    use kt_grids, only: kwork_filter, kperp2
+    use spfunc, only: j0, j1
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_in, g_h
     complex, dimension(:, :, g_lo%llim_proc:), intent(in out) :: g_adj
     complex, dimension (-ntgrid:, :, :), intent(in) :: phinew, bparnew
     complex :: b0, fac, facd
+    real :: vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r
     integer :: il, ik, it, n, i
     integer :: iglo, ncell
 !
@@ -5756,7 +5758,7 @@ contains
 ! This change sets g_wesson (or h) to be self-periodic for wfb, not g !!!
 ! NB this code change implement this in a linked fluxtube.
 !
-    integer :: ie, is, itl, itr, iglo_l, iglo_r
+    integer :: ie, is, itl, itr
     complex :: adjl, adjr, dadj
 
     ! No more work to do if no connections so return
@@ -5801,11 +5803,12 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, iglo_l, iglo_r, &
+    !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, &
+    !$OMP vperp2left, vperp2right, argl, argr, aj0l, aj0r, aj1l, aj1r, &
     !$OMP adjl, adjr, dadj, facd, b0, fac, i, n) &
-    !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, &
-    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, kwork_filter, &
-    !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, vperp2, aj0, aj1) &
+    !$OMP SHARED(g_lo, r_links, l_links, mixed_wfb, nonad_zero, kperp2, &
+    !$OMP ntgrid, spec, bparnew, fbpar, nonmaxw_corr, kwork_filter, al, &
+    !$OMP fphi, phinew, save_h, g_adj, g_in, g_h, n_links, bmag, energy) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (.not. any(save_h(:, iglo))) cycle
@@ -5830,8 +5833,16 @@ contains
              itl=get_leftmost_it(it,ik)
              itr=get_rightmost_it(it,ik)
 
-             iglo_l = idx(g_lo, ik, itl, il, ie, is)
-             iglo_r = idx(g_lo, ik, itr, il, ie, is)
+             vperp2left = bmag(-ntgrid)*al(il)*energy(ie,is)
+             vperp2right = bmag(ntgrid)*al(il)*energy(ie,is)
+
+             argl = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(-ntgrid)*kperp2(-ntgrid,itl,ik))
+             argr = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ntgrid)*kperp2(ntgrid,itr,ik))
+
+             aj0l = j0(argl)
+             aj0r = j0(argr)
+             aj1l = j1(argl)
+             aj1r = j1(argr)
 
              !CMR, 29/8/2014:
              !(1) compute adjl, adjr: the corrections in mapping from g_gs2 to g_wesson
@@ -5839,13 +5850,13 @@ contains
              !(2) dadj=adjl-adjr then used to apply the self-periodic bc to g_wesson
              !    (was previously applied to g)
              !
-             adjl = 2.0*vperp2(-ntgrid, iglo_l)*aj1(-ntgrid, iglo_l) &
+             adjl = 2.0*vperp2left*aj1l &
                   *bparnew(-ntgrid,itl,ik)*fbpar &
-                  + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0(-ntgrid, iglo_l) &
+                  + spec(is)%zt*phinew(-ntgrid,itl,ik)*aj0l &
                   *nonmaxw_corr(ie,is)*fphi
-             adjr = 2.0*vperp2(ntgrid, iglo_r)*aj1(ntgrid, iglo_r) &
+             adjr = 2.0*vperp2right*aj1r &
                   *bparnew(ntgrid,itr,ik)*fbpar &
-                  + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0(ntgrid, iglo_r) &
+                  + spec(is)%zt*phinew(ntgrid,itr,ik)*aj0r &
                   *nonmaxw_corr(ie,is)*fphi
              dadj = adjl-adjr
           else
