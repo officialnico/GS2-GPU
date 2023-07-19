@@ -644,7 +644,7 @@ contains
   !> and g(t-dt2) = g3 using 2nd and 3rd order methods and comparing
   !> the difference to estimate the error.
   real function estimate_error(g1, g2, g3) result(error)
-    use gs2_time, only: get_adams_bashforth_coefficients
+    use gs2_time, only: get_adams_bashforth_coefficients, time_history_available
     use mp, only: max_allreduce
     use array_utils, only: gs2_max_abs
     implicit none
@@ -653,9 +653,8 @@ contains
     real, dimension(2) :: intermediate_error
     real, dimension(:), allocatable :: coeff_3rd, coeff_2nd
 
-    ! Calculate the coefficients required for variable time step schemes
-    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
-    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+    allocate(coeff_3rd(min(time_history_available(), 3)))
+    allocate(coeff_2nd(min(time_history_available(), 2)))
 
     ! Check that we actually have 3rd and 2nd order coefficients.
     ! This could fail on the first two time steps of a simulation, for
@@ -668,7 +667,13 @@ contains
        return
     end if
 
+    ! Calculate the coefficients required for variable time step schemes
+    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
+    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+
     ! Calculate the source terms using 3rd and 2nd order methods
+    allocate(source_order_3, mold = g1)
+    allocate(source_order_2, mold = g1)
     source_order_3 = coeff_3rd(1) * g1 + coeff_3rd(2) * g2 + coeff_3rd(3) * g3
     source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
 
