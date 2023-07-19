@@ -7128,6 +7128,7 @@ contains
             !$OMP END PARALLEL DO
           endif
           call integrate_species (g_work, wgt, antot, nogath=.true.)
+          if(esv) call ensure_single_val_fields_pass(antot)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7204,7 +7205,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antota)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7285,7 +7286,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antotp)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
