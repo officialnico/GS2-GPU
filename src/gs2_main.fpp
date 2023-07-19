@@ -1485,7 +1485,7 @@ contains
     call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
     call get_redist_times(redist_total, redist_mpi, redist_copy)
 
-    timer_dat = [ &
+    allocate( timer_dat, source = [ &
          timer_data(timers%init(1), "Initialization"), &
          timer_data(time_field_invert(1), "field matrix invert"), &
          timer_data(time_field_invert_mpi, "field matrix invert mpi"), &
@@ -1513,7 +1513,7 @@ contains
          timer_data(mp_ptp, "PTP"), &
          timer_data(mp_sync, "Sync"), &
          timer_data(timers%total(1), "Total") &
-         ]
+         ])
 
     call write_parallel_statistics_header()
     do i = 1, size(timer_dat)
