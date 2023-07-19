@@ -5057,8 +5057,7 @@ contains
   !>     - Solve for homogeneous and inhomogeneous solution
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
-  subroutine invert_rhs_1 &
-       (phi, apar, bpar, phinew, aparnew, bparnew, source)
+  subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
@@ -5072,8 +5071,7 @@ contains
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
     integer :: ig, ik, it, il, ie, is
@@ -5659,8 +5657,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g_work)
+    call invert_rhs_1 (phinew, bparnew, source = g_work)
 
     select case (boundary_option_switch)
     case (boundary_option_linked)
