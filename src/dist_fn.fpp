@@ -2717,7 +2717,7 @@ contains
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
     logical, intent(out) :: no_connections
-    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
+    type (index_list_type), dimension(0:nproc-1) :: from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
@@ -2998,7 +2998,7 @@ contains
     type(index_list_type), dimension(0:nproc-1) :: from, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
+    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
     nn_to = 0
