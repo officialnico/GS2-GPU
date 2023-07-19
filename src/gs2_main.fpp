@@ -581,9 +581,11 @@ contains
     use gs2_diagnostics_new, only: diagnostics_init_options_type
     use gs2_diagnostics_new, only: init_gs2_diagnostics_new
     use gs2_diagnostics_new, only: run_diagnostics
+#else
+    use mp, only: proc0
 #endif
     use job_manage, only: time_message
-    use mp, only: proc0, mp_abort, broadcast
+    use mp, only: mp_abort
     use parameter_scan, only: allocate_target_arrays
     use run_parameters, only: nstep, use_old_diagnostics
     use unit_tests, only: debug_message
