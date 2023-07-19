@@ -787,7 +787,7 @@ contains
   subroutine advance_nonlinear_term_picard(phinew, &
        aparnew, bparnew, dt, fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g, gexp_1
+    use dist_fn_arrays, only: gnew, gexp_1
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
