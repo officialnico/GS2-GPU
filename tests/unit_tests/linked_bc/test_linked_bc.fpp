@@ -103,7 +103,7 @@ contains
     use mp, only: max_allreduce, sum_allreduce
     use dist_fn, only: itright, itleft
     use gs2_layouts, only: ie_idx, is_idx, idx
-    use le_grids, only: il_is_trapped
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
     complex, dimension(:, :), allocatable :: right_boundaries, left_boundaries
@@ -129,7 +129,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        if (il_is_trapped(il)) cycle
-
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
        ie = ie_idx(g_lo, iglo)
@@ -154,7 +154,7 @@ contains
   real function check_error2(g_in) result(err)
     use mp, only: max_allreduce, sum_allreduce
     use gs2_layouts, only: ie_idx, is_idx, idx
-    use le_grids, only: il_is_trapped
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
     use redistribute, only: fill
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
@@ -169,6 +169,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
        if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
 
        it = it_idx(g_lo, iglo)
        ik = ik_idx(g_lo, iglo)
