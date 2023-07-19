@@ -5678,7 +5678,7 @@ contains
     use optionals, only: get_option_with_default
     use kt_grids, only: naky, ntheta0
     implicit none
-    integer :: it, ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     complex, dimension (-ntgrid:,:,:), intent (in out) :: arr
     logical, intent(in), optional :: force_all
     logical :: force
