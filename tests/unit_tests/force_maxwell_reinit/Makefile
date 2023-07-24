@@ -2,8 +2,9 @@
 sinclude ../Makefile.tests_common
 
 #export LOCAL_TEST_FILES
-
+TEST_BASE_NAME:=test_force_maxwell_reinit
 clean_individual_test: LOCAL_TEST_FILES:=*.{error,exit_reason,fort*,g,gridgen*,nc*,optim,out*}
+build_test_exe: ${TEST_BASE_NAME}
 
 PYTHONCOMPARE:=./compare.py initial.out.nc phi restart.out.nc phi
 
@@ -16,7 +17,7 @@ echo "passed: `basename $$PWD` ($(PYTHONCOMPARE))" >> results_of_test.txt ; $(TE
 endef
 
 ifdef TESTNORUN
-all: test_force_maxwell_reinit 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 ifndef USE_NETCDF
@@ -31,7 +32,7 @@ all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
 
-all: test_force_maxwell_reinit 
+all: build_test_exe
 	@$(TESTCOMMAND)../../../bin/gs2 initial.in > OUTPUT
 	@$(TESTCOMMAND)../../../bin/gs2 restart.in > OUTPUT
 	@$(PYTHONCOMPARE) ; rc=$$? ; if test "$$rc" != 0; then $(LOCALFAILCOMMAND) ; else $(LOCALPASSCOMMAND) ;  fi
@@ -39,4 +40,4 @@ endif
 endif
 endif
 
-test_force_maxwell_reinit: $(TEST_MODS)
+${TEST_BASE_NAME}: $(TEST_MODS)

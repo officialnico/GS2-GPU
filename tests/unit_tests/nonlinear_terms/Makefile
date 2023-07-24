@@ -1,10 +1,10 @@
 
 sinclude ../Makefile.tests_common
-
-clean_individual_test: LOCAL_TEST_FILES:=test_nonlinear_terms
-
+TEST_BASE_NAME:=test_nonlinear_terms
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: test_nonlinear_terms 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -18,15 +18,15 @@ ifndef USE_FFT
 all:
 	$(call SKIPCOMMAND,compiled without FFT library; compile with USE_FFT=on to run this test)
 else
-all: test_nonlinear_terms 
-	$(call RUNCOMMAND,test_nonlinear_terms,test_nonlinear_terms.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
 endif
 endif
 endif
 
-test_nonlinear_terms.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_nonlinear_terms: test_nonlinear_terms.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

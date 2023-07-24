@@ -9,7 +9,6 @@ program test_init_g_nonadiabatic
   use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
   use fields, only: set_init_fields
   use init_g, only: ginit
-  use init_g, only: ginitopt_restart_many
   use run_parameters, only: fphi, fbpar
   implicit none
   type(gs2_program_state_type) :: state

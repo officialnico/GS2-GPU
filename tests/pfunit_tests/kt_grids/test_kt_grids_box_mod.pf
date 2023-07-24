@@ -68,7 +68,9 @@ contains
     use constants, only : run_name_size
     use mp, only : init_mp
     class (test_kt_grids_case), intent(inout) :: this
-    call init_mp(this%getMpiCommunicator())
+    integer :: mp_comm
+    mp_comm = this%getMpiCommunicator()
+    call init_mp(mp_comm)
 
     allocate(character(len=run_name_size)::run_name)
     run_name = "test_kt_grids_box"

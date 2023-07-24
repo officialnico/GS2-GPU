@@ -814,7 +814,7 @@ contains
     counter = 1
     time_step = time_step_last
 
-    allocate(g_start, mold = gnew)
+    allocate(g_start(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)

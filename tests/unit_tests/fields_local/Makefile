@@ -1,10 +1,11 @@
 
 sinclude ../Makefile.tests_common
+TEST_BASE_NAME=test_fields_local
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} ${TEST_BASE_NAME}_tuning
 
-clean_individual_test: LOCAL_TEST_FILES:=test_fields_local test_fields_local_tuning
-
+build_test_exe: ${TEST_BASE_NAME} ${TEST_BASE_NAME}_tuning
 ifdef TESTNORUN
-all: test_fields_local test_fields_local_tuning 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,21 +15,21 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: test_fields_local test_fields_local_tuning 
-	$(call RUNCOMMAND,test_fields_local,test_fields_local.in)
-	$(call RUNCOMMAND,test_fields_local_tuning,test_fields_local_tuning.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME}_tuning,${TEST_BASE_NAME}_tuning.in)
 endif
 endif
 
-test_fields_local.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-test_fields_local: test_fields_local.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-test_fields_local_tuning.o:  ${TEST_MODS}
+${TEST_BASE_NAME}_tuning.o:  ${TEST_MODS}
 
-test_fields_local_tuning: test_fields_local_tuning.o $(TEST_MODS)
+${TEST_BASE_NAME}_tuning: ${TEST_BASE_NAME}_tuning.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
