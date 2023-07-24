@@ -1818,6 +1818,7 @@ contains
     !AJ The problem does not occur on small core counts (we see it between 2000 and 3000 cores)
     call barrier()
     
+    pts_set_here=0
     !Loop over all ik
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, is, ic, iex_init, iex, ig, it) &
