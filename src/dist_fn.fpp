@@ -1572,31 +1572,29 @@ contains
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: vperp2
-    use le_grids, only: energy, al
+    use le_grids, only: energy, al, forbid
     use array_utils, only: zero_array
     implicit none
     real :: al1, e1
-    integer :: iglo, is
+    integer :: iglo, is, il
     if (.not.allocated(vperp2)) then
        allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
     endif
     call zero_array(vperp2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, is, e1) &
-    !$OMP SHARED(g_lo, al, bmag, energy, vperp2) &
+    !$OMP PRIVATE(iglo, al1, is, e1, il) &
+    !$OMP SHARED(g_lo, al, bmag, energy, vperp2, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        is = is_idx(g_lo,iglo)
        e1 = energy(ie_idx(g_lo,iglo),is)
 
-       ! Note that this sets vperp2 even in the forbid region.
-       ! Whilst this doesn't directly cause issues, we might
-       ! want to consider setting to a special value (0, -1, ...)
-       ! in the forbidden region. This might help highlight/avoid
-       ! issues with using values from the forbidden region.
-       vperp2(:,iglo) = bmag*al1*e1
+       where (.not. forbid(:, il))
+          vperp2(:,iglo) = bmag*al1*e1
+       end where
     end do
     !$OMP END PARALLEL DO
   end subroutine init_vperp2
