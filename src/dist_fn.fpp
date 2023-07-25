@@ -1676,15 +1676,13 @@ contains
 !  ie  vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT
 ! 
 !   comments on vpac, vpar
-!     (i) surely vpac=0 at or beyond bounce points, so WHY was it set to +-1?
-!                                seems unphysical!
-!    (ii) should some be weighted by bakdif?
+!    (i) should some be weighted by bakdif?
 !CMR 
 
        where (1.0 - al1*0.5*(bmag(-ntgrid:ntgrid-1)+bmag(-ntgrid+1:ntgrid)) &
               < 0.0)
-          vpac(-ntgrid:ntgrid-1,1,iglo) = 1.0
-          vpac(-ntgrid:ntgrid-1,2,iglo) = -1.0
+          vpac(-ntgrid:ntgrid-1,1,iglo) = 0.0
+          vpac(-ntgrid:ntgrid-1,2,iglo) = 0.0
        elsewhere
           vpac(-ntgrid:ntgrid-1,1,iglo) = &
               0.5*(vpa(-ntgrid:ntgrid-1,1,iglo) + vpa(-ntgrid+1:ntgrid,1,iglo))
