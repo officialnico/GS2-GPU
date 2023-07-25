@@ -1661,8 +1661,7 @@ contains
        vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
 
-       ! We could perhaps use forbid here instead to help consistency of treatment?
-       where (1.0 - al1*bmag < 100.0*epsilon(0.0))
+       where (forbid(:, il))
           vpa(:,1,iglo) = 0.0
           vpa(:,2,iglo) = 0.0
        end where
