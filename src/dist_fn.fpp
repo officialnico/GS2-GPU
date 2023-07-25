@@ -94,6 +94,8 @@ module dist_fn
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
+  public :: flux_tube_field_like_to_ballooning_space
+  public :: check_linked_boundaries_are_satisfied
 
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
@@ -2254,6 +2256,7 @@ contains
     ! Get the supercell label related to the point of interest and
     ! form a logical mask selecting members of this supercell
     isc = supercell_labels(it, ik)
+    allocate(supercell_mask(ntheta0))
     supercell_mask = supercell_labels(:, ik) == isc
 
     ! Count how many cells there are.
@@ -2272,6 +2275,7 @@ contains
 
     ! Convert theta0_indices_real to integer to allow use for indexing
     ! arrays later.
+    allocate(theta0_indices(size(theta0_indices_real)))
     theta0_indices = int(theta0_indices_real)
     theta0_indices = theta0_indices(ncell:1:-1)
 
@@ -2713,7 +2717,7 @@ contains
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
     logical, intent(out) :: no_connections
-    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
+    type (index_list_type), dimension(0:nproc-1) :: from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
@@ -2994,7 +2998,7 @@ contains
     type(index_list_type), dimension(0:nproc-1) :: from, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
+    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
     nn_to = 0
@@ -5001,7 +5005,8 @@ contains
     include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) allocate(ab_coefficients, &
+         source = get_adams_bashforth_coefficients())
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
@@ -5052,8 +5057,7 @@ contains
   !>     - Solve for homogeneous and inhomogeneous solution
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
-  subroutine invert_rhs_1 &
-       (phi, apar, bpar, phinew, aparnew, bparnew, source)
+  subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
@@ -5067,8 +5071,7 @@ contains
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
     integer :: ig, ik, it, il, ie, is
@@ -5654,8 +5657,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g_work)
+    call invert_rhs_1 (phinew, bparnew, source = g_work)
 
     select case (boundary_option_switch)
     case (boundary_option_linked)

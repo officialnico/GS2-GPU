@@ -303,7 +303,6 @@ contains
 
   !> Calculates and write the QL flux metric to netcdf
   subroutine write_ql_metric(gnostics)
-    use diagnostics_omega, only: omegahist
     use gs2_diagnostics, only: calculate_simple_quasilinear_flux_metric_by_k
     use gs2_diagnostics, only: calculate_instantaneous_omega
     use kt_grids, only: ntheta0, naky

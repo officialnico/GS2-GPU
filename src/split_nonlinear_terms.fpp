@@ -633,13 +633,13 @@ contains
     ! Copy the relevant coefficients for forming the solution to reduce
     ! later duplication.
     if (scheme%follow_high_order) then
-       solution_coeffs = scheme%high_order_coeffs
+       allocate(solution_coeffs, source = scheme%high_order_coeffs)
     else
-       solution_coeffs = scheme%lower_order_coeffs
+       allocate(solution_coeffs, source = scheme%lower_order_coeffs)
     end if
 
     ! Get the error coefficients
-    error_coeffs = scheme%high_order_coeffs - scheme%lower_order_coeffs
+    allocate(error_coeffs, source = scheme%high_order_coeffs - scheme%lower_order_coeffs)
 
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
@@ -787,7 +787,7 @@ contains
   subroutine advance_nonlinear_term_picard(phinew, &
        aparnew, bparnew, dt, fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g, gexp_1
+    use dist_fn_arrays, only: gnew, gexp_1
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
