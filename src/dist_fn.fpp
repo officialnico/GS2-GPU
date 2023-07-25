@@ -5666,50 +5666,72 @@ contains
 
   end subroutine invert_rhs
 
-  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
-  subroutine ensure_single_val_fields_pass(arr)
-    !Added by <DD>
+  !> Ensure that linked boundary values of passed complex field are
+  !> single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !> equal to kperp2(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !>
+  !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
+  !> routine will also copy one periodic boundary value into the other one.
+  subroutine ensure_single_val_fields_pass(arr, force_all)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
     use kt_grids, only: naky, ntheta0
-    use mp, only: broadcast
     implicit none
-    integer :: it,ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     complex, dimension (-ntgrid:,:,:), intent (in out) :: arr
-    if (boundary_option_switch.ne.boundary_option_linked) return
-    do ik=1,naky
-       do it=1,ntheta0
-          link_it=itright(it, ik)
-          if (link_it.lt.0) cycle
-          arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
-       enddo
-    enddo
-    !This broadcast was used originally but doesn't appear to be required during recent testing
-    !This could depend on the mpi library in use
-    !    call broadcast(arr)
+    logical, intent(in), optional :: force_all
+    logical :: force
+    if (boundary_option_switch /= boundary_option_linked) return
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
+          link_it = itright(it, ik)
+          if (link_it < 0) cycle
+          arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
+       end do
+    end do
   end subroutine ensure_single_val_fields_pass
 
-  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
-  subroutine ensure_single_val_fields_pass_r(arr)
-    !Added by <DD>
+  !> Ensure that linked boundary values of passed real field are
+  !> single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !> equal to kperp2(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !>
+  !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
+  !> routine will also copy one periodic boundary value into the other one.
+  subroutine ensure_single_val_fields_pass_r(arr, force_all)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
     use kt_grids, only: naky, ntheta0
-    use mp, only: broadcast
     implicit none
-    integer :: it,ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     real, dimension (-ntgrid:,:,:), intent (in out) :: arr
-    if (boundary_option_switch.ne.boundary_option_linked) return
-    do ik=1,naky
-       do it=1,ntheta0
-          link_it=itright(it, ik)
-          if (link_it.lt.0) cycle
-          arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
-       enddo
-    enddo
-    !This broadcast was used originally but doesn't appear to be required during recent testing
-    !This could depend on the mpi library in use
-    !    call broadcast(arr)
+    logical, intent(in), optional :: force_all
+    logical :: force
+    if (boundary_option_switch /= boundary_option_linked) return
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
+          link_it = itright(it, ik)
+          if (link_it < 0) cycle
+          arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
+       end do
+    end do
   end subroutine ensure_single_val_fields_pass_r
 
   !> Compute velocity space integrals over \(h_s\):
@@ -7128,6 +7150,7 @@ contains
             !$OMP END PARALLEL DO
           endif
           call integrate_species (g_work, wgt, antot, nogath=.true.)
+          if(esv) call ensure_single_val_fields_pass(antot)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7204,7 +7227,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antota)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7285,7 +7308,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antotp)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
