@@ -1607,7 +1607,7 @@ contains
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
-    use le_grids, only: energy, al, negrid, nlambda
+    use le_grids, only: energy, al, negrid, nlambda, forbid
     use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
@@ -1650,13 +1650,14 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, e1, ik, is) &
+    !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
     !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, &
-    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar) &
+    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        e1 = energy(ie_idx(g_lo,iglo), is)
 
        vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
@@ -1679,8 +1680,7 @@ contains
 !    (i) should some be weighted by bakdif?
 !CMR 
 
-       where (1.0 - al1*0.5*(bmag(-ntgrid:ntgrid-1)+bmag(-ntgrid+1:ntgrid)) &
-              < 0.0)
+       where (forbid(:ntgrid-1, il) .or. forbid(-ntgrid+1:, il))
           vpac(-ntgrid:ntgrid-1,1,iglo) = 0.0
           vpac(-ntgrid:ntgrid-1,2,iglo) = 0.0
        elsewhere
