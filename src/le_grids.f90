@@ -247,6 +247,7 @@ module le_grids
   logical :: trapped_particles = .true.
   logical :: new_trap_int = .false.
   logical :: radau_gauss_grid =.true. ! default lambda grid changed
+  logical :: split_passing_region = .false.
   ! The default lambda grid is now gauss-radau, for passing particles up to 
   ! and including the passing-trapped boundary (wfb). The grid gives finite weight to
   ! the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
@@ -342,6 +343,11 @@ module le_grids
      !> code doesn't seem to change radau_gauss_grid when
      !> trapped_particles is false, should it?
      logical :: radau_gauss_grid = .true.
+     !> If true then we split the passing region into two separate
+     !> regions for the purpose of choosing the integration weights.
+     !> The split point is determined automatically by an attempt
+     !> to minimise the passing weights error.
+     logical :: split_passing_region = .false.
      !> If `true` then just does a few tests and writes pitch angle
      !> and energy grids to screen before aborting the simulation.
      logical :: test = .false.
@@ -560,6 +566,7 @@ contains
     nmax = le_grids_config%nmax
     nterp = le_grids_config%nterp
     radau_gauss_grid = le_grids_config%radau_gauss_grid
+    split_passing_region = le_grids_config%split_passing_region
     test = le_grids_config%test
     trapped_particles = le_grids_config%trapped_particles
     vcut = le_grids_config%vcut
@@ -5022,10 +5029,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
-    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    logical :: genquad, new_trap_int, radau_gauss_grid, split_passing_region, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5042,6 +5049,7 @@ contains
     nmax = self%nmax
     nterp = self%nterp
     radau_gauss_grid = self%radau_gauss_grid
+    split_passing_region = self%split_passing_region
     test = self%test
     trapped_particles = self%trapped_particles
     vcut = self%vcut
@@ -5064,6 +5072,7 @@ contains
     self%nmax = nmax
     self%nterp = nterp
     self%radau_gauss_grid = radau_gauss_grid
+    self%split_passing_region = split_passing_region
     self%test = test
     self%trapped_particles = trapped_particles
     self%vcut = vcut
@@ -5097,6 +5106,7 @@ contains
     call self%write_key_val("nmax", self%nmax, unit_internal)
     call self%write_key_val("nterp", self%nterp, unit_internal)
     call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
+    call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
     call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
     call self%write_key_val("vcut", self%vcut, unit_internal)
@@ -5132,6 +5142,7 @@ contains
     call broadcast(self%nmax)
     call broadcast(self%nterp)
     call broadcast(self%radau_gauss_grid)
+    call broadcast(self%split_passing_region)
     call broadcast(self%test)
     call broadcast(self%trapped_particles)
     call broadcast(self%vcut)
