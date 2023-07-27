@@ -208,6 +208,14 @@ module dist_fn
   !> itleft, itright etc.
   integer, dimension(:, :), allocatable :: supercell_labels
 
+  !> Records the number of unique supercells for each ky,
+  integer, dimension(:), allocatable :: n_supercells
+
+  !> Records the number of cells which are members of the supercell
+  !> which owns the particular {it, ik} point. One would expect this
+  !> to be equivalent to l_links + r_links + 1.
+  integer, dimension(:, :), allocatable :: n_cells
+
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
 
@@ -1102,6 +1110,8 @@ contains
     if (allocated(M_class)) deallocate (M_class, N_class)
     if (allocated(itleft)) deallocate (itleft, itright)
     if (allocated(supercell_labels)) deallocate (supercell_labels)
+    if (allocated(n_supercells)) deallocate (n_supercells)
+    if (allocated(n_cells)) deallocate (n_cells)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -2123,7 +2133,9 @@ contains
     end select
 
     allocate(supercell_labels(ntheta0, naky))
-    call calculate_supercell_labels(supercell_labels)
+    allocate(n_supercells(naky))
+    allocate(n_cells(ntheta0, naky))
+    call calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2311,14 +2323,17 @@ contains
 
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
-  subroutine calculate_supercell_labels(supercell_labels)
+  subroutine calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
     use kt_grids, only: naky, ntheta0
     implicit none
-    integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:, :), intent(out) :: supercell_labels, n_cells
+    integer, dimension(:), intent(out) :: n_supercells
     integer, dimension(:), allocatable :: temporary_it_leftmost
-    integer :: it, ik, isc
+    integer :: it, ik, isc, ncell
 
     supercell_labels = -1
+    n_supercells = 0
+    n_cells = 0
     isc = -1
 
     allocate(temporary_it_leftmost(ntheta0))
@@ -2331,14 +2346,25 @@ contains
 
        do it = 1, ntheta0
           if (temporary_it_leftmost(it) >= 0) then
+             ! Note ncell isn't currently used but records the number
+             ! of cells for the current supercell. We struggle to
+             ! store it efficiently at this point as we don't yet know
+             ! how many supercells there are. We currently store it in
+             ! an array of shape [ntheta0, naky] so that we can look
+             ! up the number of cells given {it, ik} rather than
+             ! {isc}, so there is some duplication.
+             ncell = count(temporary_it_leftmost == temporary_it_leftmost(it))
              isc = isc + 1
              where (temporary_it_leftmost == temporary_it_leftmost(it))
                 temporary_it_leftmost = -1
                 supercell_labels(:, ik) = isc
+                n_cells(:, ik) = ncell
              end where
+             n_supercells(ik) = n_supercells(ik) + 1
           end if
        end do
     end do
+
   end subroutine calculate_supercell_labels
 
   !> Compute the spacing in kx indices between connected kx domains
@@ -3236,7 +3262,16 @@ contains
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
          links_p, links_h, no_connections)
 
-    ! If no connections then don't need to do any more work here
+    ! If no connections then don't need to do any more work here. One
+    ! might expect us to be able to set no_connections = n_links_max == 0
+    ! rather than having to call setup_connected_bc_redistribute to
+    ! determine this. This would allow a little bit of work to be skipped.
+    ! Note that no_connections is a global quantity (i.e. agreed value
+    ! on all processors). We may wish to introduce a local version as well.
+    ! At scale each processor may only be responsible for one pitch angle,
+    ! for example. If this is a trapped pitch angle then it will not have
+    ! any work to do associated with the boundaries yet it will still go
+    ! through the allocations etc. associated with setting up linked boundaries
     if (no_connections) then
        if (proc0) write(error_unit(), &
             '("No connections found when setting up linked boundaries.")')
@@ -3250,6 +3285,13 @@ contains
     end if
 
     ! n_links_max is typically 2 * number of cells in largest supercell
+    ! Note this is potentially quite wasteful in terms of storage. In flux
+    ! tube setup there is likely only one supercell with the maximal number
+    ! of links and many more with fewer (or zero) links yet we allocate the
+    ! full length for _all_ iglo points. For the longest supercell we expect
+    ! n_links ~ 2 * ntheta0/jtwist - 1 and hence n_links_max is ~ 2*( 1 + ntheta/jtwist)
+    ! For simulations with high nx and/or low jtwist n_links_max could be >> ntheta
+    ! and therefore g_adj may dominate memory consumption in some cases.
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
 
@@ -3540,43 +3582,37 @@ contains
   end subroutine get_right_connection
 
   !> Helper function for finding the leftmost it of supercell
-  function get_leftmost_it(it,ik)
+  elemental integer function get_leftmost_it(it,ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_leftmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itleft(it_cur, ik).ge.0.and.itleft(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itleft(it_cur, ik) >= 0 .and. itleft(it_cur, ik) /= it_cur)
           !Keep updating it_cur with left connected it until there are no
           !connections to left
-          it_cur=itleft(it_cur, ik)
-       enddo
+          it_cur = itleft(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_leftmost_it=it_cur
+       it_cur = it
+    end if
   end function get_leftmost_it
 
   !> Helper function for finding the rightmost it of supercell
-  function get_rightmost_it(it,ik)
+  elemental integer function get_rightmost_it(it, ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_rightmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itright(it_cur, ik).ge.0.and.itright(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itright(it_cur, ik) >= 0 .and. itright(it_cur, ik) /= it_cur)
           !Keep updating it_cur with right connected it until there are no
           !connections to right
-          it_cur=itright(it_cur, ik)
-       enddo
+          it_cur = itright(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_rightmost_it=it_cur
+       it_cur = it
+    end if
   end function get_rightmost_it
   
   !> FIXME : Add documentation
