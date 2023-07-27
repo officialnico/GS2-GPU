@@ -246,6 +246,7 @@ module le_grids
   logical :: test = .false.
   logical :: trapped_particles = .true.
   logical :: new_trap_int = .false.
+  logical :: new_trap_int_split = .false.
   logical :: radau_gauss_grid =.true. ! default lambda grid changed
   ! The default lambda grid is now gauss-radau, for passing particles up to 
   ! and including the passing-trapped boundary (wfb). The grid gives finite weight to
@@ -315,6 +316,10 @@ module le_grids
      !> default uses a simple, but potentially less accurate, finite
      !> difference method.
      logical :: new_trap_int = .false.
+     !> If `true` then split the trapped region into two symmetric
+     !> regions when calculating the integration weights associated
+     !> with the new_trap_int approach.
+     logical :: new_trap_int_split = .false.
      !> The number of untrapped pitch-angles moving in one direction
      !> along field line.
      integer :: npassing = -1
@@ -555,6 +560,7 @@ contains
     nesub = le_grids_config%nesub
     nesuper = le_grids_config%nesuper
     new_trap_int = le_grids_config%new_trap_int
+    new_trap_int_split = le_grids_config%new_trap_int_split
     npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
@@ -2789,7 +2795,7 @@ contains
     real, dimension (:), allocatable :: ytmp, yb, wb
     real, dimension (:,:), allocatable :: wberr
     integer :: npts, ntrap
-    real :: llim, ulim
+    real :: llim, ulim, wgt_tmp
     logical :: eflag
     integer :: ig, il, ndiv, divmax
 
@@ -2871,12 +2877,36 @@ contains
           ! than the weights. We should probably check this to at least warn the
           ! user if something looks badly behaved.
           if (ulim > 0.0) then
-             ! For 8.1 we stick with the original single call to get_weights
-             ! for the full domain at once.
-             call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+             if (new_trap_int_split) then
+                ! We split the weights calculation into two symmetric domains from
+                ! -v||_wfb to 0 and from 0 to v||_wfb. This has been shown to have
+                ! favourable properties when compared to treating the full -v||_wfb
+                ! to v||_wfb domain in a single call. In particular significantly more
+                ! accurate results when integrating certain functions (see mod vpa test
+                ! in the le_grids_integrate unit tests).
+                call get_weights (nmax, llim, 0., yb(:npts), wb(:npts), ndiv, divmax, eflag)
 
-             if (eflag .and. proc0) then
-                write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
+                ! Store the v|| = 0 weight for the lower domain as this will be
+                ! clobbered by the subsequent get_weights call so we need to add
+                ! this on afterwards
+                wgt_tmp = wb(npts)
+                call get_weights (nmax, 0., ulim, yb(npts:), wb(npts:), ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by second call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
+                wb(npts) = wb(npts) + wgt_tmp
+             else
+                call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                end if
              end if
           end if
 
@@ -4951,7 +4981,8 @@ contains
 
     accel_x = .false. ; accel_v = .false.
     test = .false. ; trapped_particles = .true.
-    new_trap_int = .false. 
+    new_trap_int = .false.
+    new_trap_int_split = .false.
 
     intinit = .false. ; slintinit = .false. ; lintinit = .false. ; eintinit = .false.
 
@@ -5022,10 +5053,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
-    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5037,6 +5068,7 @@ contains
     nesub = self%nesub
     nesuper = self%nesuper
     new_trap_int = self%new_trap_int
+    new_trap_int_split = self%new_trap_int_split
     npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
@@ -5059,6 +5091,7 @@ contains
     self%nesub = nesub
     self%nesuper = nesuper
     self%new_trap_int = new_trap_int
+    self%new_trap_int_split = new_trap_int_split
     self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
@@ -5092,6 +5125,7 @@ contains
     call self%write_key_val("nesub", self%nesub, unit_internal)
     call self%write_key_val("nesuper", self%nesuper, unit_internal)
     call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("new_trap_int_split", self%new_trap_int_split, unit_internal)
     call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
@@ -5127,6 +5161,7 @@ contains
     call broadcast(self%nesub)
     call broadcast(self%nesuper)
     call broadcast(self%new_trap_int)
+    call broadcast(self%new_trap_int_split)
     call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
