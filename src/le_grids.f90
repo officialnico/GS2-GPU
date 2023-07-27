@@ -2662,7 +2662,8 @@ contains
     !> for the same reason as `lambda_grid`.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: wx, xx_radau
-    integer :: ig, il
+    integer :: ig, il, passing_split_index
+    real :: passing_split_value
 
     ! Note this is a module level quantity that we keep around for possible
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
@@ -2681,7 +2682,16 @@ contains
        xx = xx_radau(:ng2)
     else
        allocate (wx(ng2))
-       call get_legendre_grids_from_cheb (1., 0., xx, wx)
+       if (split_passing_region) then
+          call try_to_optimise_passing_grid(passing_split_value, passing_split_index)
+          call get_legendre_grids_from_cheb (1., passing_split_value, &
+               xx(:passing_split_index), wx(:passing_split_index))
+          call get_legendre_grids_from_cheb (passing_split_value, 0.0, &
+               xx(1 + passing_split_index:), wx(1 + passing_split_index:))
+       else
+          call get_legendre_grids_from_cheb (1., 0., xx, wx)
+       end if
+
     end if
 
     ! Store the location of the passing lambda grid points
@@ -2713,6 +2723,109 @@ contains
     if(allocated(wx)) deallocate(wx)
     if(allocated(xx_radau)) deallocate(xx_radau)
   end subroutine setup_passing_lambda_grids
+
+  !> Try to find the optimal way to split the passing lambda grid into
+  !> two regions in order to minimise the error on the integration
+  !> weights. The approach taken is trial and error -- we try a number
+  !> of predetermined splits, spline the error over the trials and then
+  !> evaluate the spline on a high resolution grid to determine an
+  !> approximate minmium.
+  subroutine try_to_optimise_passing_grid(optimal_split, optimal_points, &
+       use_max_error, noptimal_points)
+    use gauss_quad, only: get_legendre_grids_from_cheb
+    use theta_grid, only: ntgrid, bmag, bmax
+    use splines, only: new_spline, spline, splint
+    use optionals, only: get_option_with_default
+    implicit none
+    real, intent(out) :: optimal_split
+    integer, intent(out) :: optimal_points
+    logical, intent(in), optional :: use_max_error
+    integer, intent(in), optional :: noptimal_points
+    real, dimension(:), allocatable :: lambda
+    real, dimension(:, :), allocatable :: weights
+    real, dimension (:), allocatable :: wx_tmp, xx_tmp
+    real, dimension(:), allocatable :: analytic_sum, b_ratio
+    real, dimension(:), allocatable :: error
+    real, dimension(:), allocatable :: error_history
+    real, dimension(*), parameter :: trial_splits = &
+         [0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1, 0.5]
+    integer, parameter :: ntrial = size(trial_splits)
+    real, parameter :: min_split = trial_splits(1), max_split = trial_splits(ntrial)
+    integer :: high_ntrial, itrial, il
+    type(spline) :: the_spline
+    integer :: minimum_location
+    logical :: use_max_error_local
+    logical, parameter :: debug = .false.
+    integer, parameter :: high_res_factor = 100
+
+    use_max_error_local = get_option_with_default(use_max_error, .false.)
+
+    allocate (analytic_sum(-ntgrid:ntgrid))
+    allocate (b_ratio(-ntgrid:ntgrid))
+    allocate (error(-ntgrid:ntgrid))
+
+    b_ratio = bmax / bmag
+    analytic_sum = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+
+    ! Determine how many points to use in the uppper region.
+    ! Here we set it to about half if not passed in.
+    ! For now this is a user choice/hard-coded value. We could
+    ! imagine also optimising this value.
+    optimal_points = get_option_with_default(noptimal_points, ng2 - (1 + ng2/2))
+    if (optimal_points <= 0) optimal_points = ng2/2
+
+    allocate(error_history(ntrial))
+    allocate(xx_tmp(ng2), wx_tmp(ng2), lambda(ng2))
+    allocate(weights(-ntgrid:ntgrid, ng2))
+
+    ! Run with a few splits
+    do itrial = 1, ntrial
+       call get_legendre_grids_from_cheb (1., trial_splits(itrial), xx_tmp(:optimal_points), wx_tmp(:optimal_points))
+       call get_legendre_grids_from_cheb (trial_splits(itrial), 0.0, xx_tmp(1+optimal_points:), wx_tmp(1+optimal_points:))
+
+       lambda = (1.0 - xx_tmp**2)/bmax
+
+       ! Transform the Legendre weights to the lambda grid
+       do il = 1, ng2
+          weights(:,il) = wx_tmp(il)*2.0*sqrt((bmag/bmax) &
+               *((1.0/bmax-lambda(il))/(1.0/bmag-lambda(il))))
+       end do
+
+       error = analytic_sum - sum(weights, dim=2)
+
+       ! Choose error metric we will later minimise
+       if (use_max_error_local) then
+          ! Maximum error
+          error_history(itrial) = maxval(abs(error))
+       else
+          ! Average error
+          error_history(itrial) = sum(abs(error))/size(error)
+       end if
+    end do
+
+    deallocate(error)
+    deallocate(xx_tmp)
+
+    if (debug) print*,"History",error_history
+
+    ! Spline the error metric vs splits
+    call new_spline(ntrial, trial_splits, error_history, the_spline)
+
+    high_ntrial = ntrial * high_res_factor
+    allocate(error(high_ntrial))
+    allocate(xx_tmp(high_ntrial))
+
+    ! Evaluate the spline on a high resolution grid
+    do itrial = 1, high_ntrial
+       xx_tmp(itrial) = min_split + (itrial-1)*(max_split-min_split)/(high_ntrial-1)
+       error(itrial) = splint(xx_tmp(itrial), the_spline)
+    end do
+
+    ! Choose the location of the minimum error metric as the optimal split point
+    minimum_location = minloc(abs(error))
+    optimal_split = xx_tmp(minimum_location)
+    if (debug) print*,"Optimal split : ",optimal_split," with error ",error(minimum_location)
+  end subroutine try_to_optimise_passing_grid
 
   !> Determines the lambda grid point integration weights in the
   !> trapped domain using either new or old (default) methods,
