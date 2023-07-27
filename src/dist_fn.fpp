@@ -117,6 +117,7 @@ module dist_fn
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
+  logical :: start_from_previous_solution
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
 
   integer :: adiabatic_option_switch
@@ -406,6 +407,10 @@ module dist_fn
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
+     !> Determines if we set gnew = 0 (if flag is false) or gnew = g
+     !> in [[invert_rhs_1]] or not. This is currently considered
+     !> experimental, but the intention is to change the default to true.
+     logical :: start_from_previous_solution = .false.
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
@@ -1280,6 +1285,7 @@ contains
     omprimfac = dist_fn_config%omprimfac
     opt_source = dist_fn_config%opt_source
     poisfac = dist_fn_config%poisfac
+    start_from_previous_solution = dist_fn_config%start_from_previous_solution
     tpdriftknob = dist_fn_config%tpdriftknob
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
@@ -3543,8 +3549,10 @@ contains
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
     ! the linked location.
+    if (start_from_previous_solution) then
+       call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
+    end if
 
-    call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
     ! n_links_max is typically 2 * number of cells in largest supercell
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
@@ -5362,7 +5370,6 @@ contains
     use kt_grids, only: kwork_filter
     use species, only: spec, nonmaxw_corr
     use mp, only: mp_abort
-    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -5376,22 +5383,12 @@ contains
     logical :: is_wfb, is_passing, is_trapped
     logical :: is_self_periodic
 
-    ! Initialise gnew to g. Note we probably only need to do this when
-    ! istep == istep_last (i.e. on the second half of a timestep). We
-    ! may also be able to get a slight improvement by copying over the
-    ! non-adiabatic part of g and then forming gnew using the new fields.
-    ! For example we could do
-    ! call g_adjust(gnew, phi, bpar, from_g_gs2)
-    ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
-    ! after copying g into gnew.
-    call copy(g, gnew)
-
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
@@ -5496,6 +5493,19 @@ contains
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
+       if (start_from_previous_solution) then
+          ! Initialise gnew to g. Note we probably only need to do this when
+          ! istep == istep_last (i.e. on the second half of a timestep). We
+          ! may also be able to get a slight improvement by copying over the
+          ! non-adiabatic part of g and then forming gnew using the new fields.
+          ! For example we could do the equivalent of
+          ! call g_adjust(gnew, phi, bpar, from_g_gs2)
+          ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
+          ! after copying g into gnew.
+          gnew(:, :, iglo) = g(:, :, iglo)
+       else
+          gnew(:, :, iglo) = 0.0
+       end if
 
        !/////////////////////////
        !// Boundaries
@@ -5754,37 +5764,43 @@ contains
     ! No more work to do if no connections so return
     if (no_connections) return
 
-    ! Pass the incoming boundary values to the previous connected cell, storing
-    ! at its connected boundary. This requires two redistribute calls _and_ a full
-    ! dist_fn sized array even though there should be at most two non-zero values
-    ! per iglo point. Future work should be able to make this much more efficient
-    call zero_array(g_work)
+    ! Some extra work to do if we allow non-zero incoming boundary conditions
+    if (start_from_previous_solution) then
+       ! Pass the incoming boundary values to the previous connected cell, storing
+       ! at its connected boundary. This requires two redistribute calls _and_ a full
+       ! dist_fn sized array even though there should be at most two non-zero values
+       ! per iglo point. Future work should be able to make this much more efficient
+       call zero_array(g_work)
+       call fill(incoming_links, g_in, g_work)
 
-    call fill(incoming_links, g_in, g_work)
-    ! Construct g_work = g_in - g_work where g_work initially contains
-    ! the incoming boundary values from the upstream connected
-    ! cell. This adapts the linked boundary conditions to allow for
-    ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
-    ! (i.e. connected cells)
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo) &
-    !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
-       g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
-    end do
-    !$OMP END PARALLEL DO
+       ! Construct g_work = g_in - g_work where g_work initially contains
+       ! the incoming boundary values from the upstream connected
+       ! cell. This adapts the linked boundary conditions to allow for
+       ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
+       ! (i.e. connected cells)
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
+          g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
+       end do
+       !$OMP END PARALLEL DO
 
-    !<DD>Note these fill routines are often equivalent to an all-to-all type
-    !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
-    !By only communicating with our direct neighbours we would significantly
-    !reduce the amount of data to communicate and we should improve the communication
-    !scaling. However, if we do this then we lose the ability to perform the linked
-    !update (i.e. what we do below) in a parallel manner, so the below code would
-    !become partially serial.
-    call fill (links_p, g_work, g_adj)
-    if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
+       !<DD>Note these fill routines are often equivalent to an all-to-all type
+       !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
+       !By only communicating with our direct neighbours we would significantly
+       !reduce the amount of data to communicate and we should improve the communication
+       !scaling. However, if we do this then we lose the ability to perform the linked
+       !update (i.e. what we do below) in a parallel manner, so the below code would
+       !become partially serial.
+       call fill (links_p, g_work, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
+    else
+       call fill (links_p, g_in, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
+    end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, &
@@ -10621,12 +10637,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
     real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         tpdriftknob, vparknob, wfb, zero_forbid
+         start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10657,6 +10673,7 @@ contains
     omprimfac = self%omprimfac
     opt_source = self%opt_source
     poisfac = self%poisfac
+    start_from_previous_solution = self%start_from_previous_solution
     tpdriftknob = self%tpdriftknob
     vparknob = self%vparknob
     wfb = self%wfb
@@ -10692,6 +10709,7 @@ contains
     self%omprimfac = omprimfac
     self%opt_source = opt_source
     self%poisfac = poisfac
+    self%start_from_previous_solution = start_from_previous_solution
     self%tpdriftknob = tpdriftknob
     self%vparknob = vparknob
     self%wfb = wfb
@@ -10738,6 +10756,7 @@ contains
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
+    call self%write_key_val("start_from_previous_solution", self%start_from_previous_solution, unit_internal)
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
@@ -10786,6 +10805,7 @@ contains
     call broadcast(self%omprimfac)
     call broadcast(self%opt_source)
     call broadcast(self%poisfac)
+    call broadcast(self%start_from_previous_solution)
     call broadcast(self%tpdriftknob)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)

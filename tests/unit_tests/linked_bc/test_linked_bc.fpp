@@ -5,7 +5,7 @@ program test_linked_bc
   use unit_tests
   use gs2_main, only: gs2_program_state_type
   use gs2_main, only: initialize_gs2, finalize_gs2, initialize_wall_clock_timer
-  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0
+  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0, broadcast
   use gs2_init, only: init, init_level_list
   use dist_fn_arrays, only: gnew
   use dist_fn, only: enforce_linked_boundary_conditions
@@ -17,6 +17,7 @@ program test_linked_bc
   use gs2_diagnostics, only: save_restart_dist_fn
   use dist_fn, only: init_pass_ends
   use redistribute, only: redist_type
+  use file_utils, only: input_unit_exist
   implicit none
   real :: maxerr, maxerr2
   logical, parameter :: debug = .false.
@@ -26,6 +27,10 @@ program test_linked_bc
   integer :: iglo, it, ik, il
   complex, dimension(:, :, :), allocatable :: target_function
   logical :: passes
+  logical :: zero_offset
+  logical :: exist
+  integer :: in_file
+  namelist/linked_bc_test/zero_offset
 
   call init_mp
   state%mp_comm = mp_comm
@@ -38,6 +43,12 @@ program test_linked_bc
   call init_pass_ends(pass_left, 'l', 2, 'c', 1)
   phinew = 0. ; bparnew = 0.
   gnew = 0.
+  zero_offset = .false.
+  if (proc0) then
+     in_file = input_unit_exist("linked_bc_test", exist)
+     if (exist) read(in_file, nml = linked_bc_test)
+  end if
+  call broadcast(zero_offset)
 
   ! Set the continuous function that we expect to recover
   ! For now just (theta-theta0)**3, but we should probably
@@ -59,6 +70,10 @@ program test_linked_bc
      ! Set to target function but offset so the function is not continuous
      gnew(:, 1, iglo) = target_function(:, it, ik) + it * 1000
      gnew(:, 2, iglo) = -target_function(:, it, ik)  + it * 1000
+     if (zero_offset) then
+        if (l_links(it, ik) > 0) gnew(:, 1, iglo) = gnew(:, 1, iglo) - gnew(-ntgrid, 1, iglo)
+        if (r_links(it, ik) > 0) gnew(:, 2, iglo) = gnew(:, 2, iglo) - gnew(ntgrid, 2, iglo)
+     end if
   end do
 
   maxerr = check_error(gnew)
