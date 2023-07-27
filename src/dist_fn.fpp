@@ -1574,31 +1574,29 @@ contains
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: vperp2
-    use le_grids, only: energy, al
+    use le_grids, only: energy, al, forbid
     use array_utils, only: zero_array
     implicit none
     real :: al1, e1
-    integer :: iglo, is
+    integer :: iglo, is, il
     if (.not.allocated(vperp2)) then
        allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
     endif
     call zero_array(vperp2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, is, e1) &
-    !$OMP SHARED(g_lo, al, bmag, energy, vperp2) &
+    !$OMP PRIVATE(iglo, al1, is, e1, il) &
+    !$OMP SHARED(g_lo, al, bmag, energy, vperp2, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        is = is_idx(g_lo,iglo)
        e1 = energy(ie_idx(g_lo,iglo),is)
 
-       ! Note that this sets vperp2 even in the forbid region.
-       ! Whilst this doesn't directly cause issues, we might
-       ! want to consider setting to a special value (0, -1, ...)
-       ! in the forbidden region. This might help highlight/avoid
-       ! issues with using values from the forbidden region.
-       vperp2(:,iglo) = bmag*al1*e1
+       where (.not. forbid(:, il))
+          vperp2(:,iglo) = bmag*al1*e1
+       end where
     end do
     !$OMP END PARALLEL DO
   end subroutine init_vperp2
@@ -1609,7 +1607,7 @@ contains
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
-    use le_grids, only: energy, al, negrid, nlambda
+    use le_grids, only: energy, al, negrid, nlambda, forbid
     use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
@@ -1652,19 +1650,20 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, e1, ik, is) &
+    !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
     !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, &
-    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar) &
+    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        e1 = energy(ie_idx(g_lo,iglo), is)
 
        vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
 
-       where (1.0 - al1*bmag < 100.0*epsilon(0.0))
+       where (forbid(:, il))
           vpa(:,1,iglo) = 0.0
           vpa(:,2,iglo) = 0.0
        end where
@@ -1678,15 +1677,12 @@ contains
 !  ie  vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT
 ! 
 !   comments on vpac, vpar
-!     (i) surely vpac=0 at or beyond bounce points, so WHY was it set to +-1?
-!                                seems unphysical!
-!    (ii) should some be weighted by bakdif?
+!    (i) should some be weighted by bakdif?
 !CMR 
 
-       where (1.0 - al1*0.5*(bmag(-ntgrid:ntgrid-1)+bmag(-ntgrid+1:ntgrid)) &
-              < 0.0)
-          vpac(-ntgrid:ntgrid-1,1,iglo) = 1.0
-          vpac(-ntgrid:ntgrid-1,2,iglo) = -1.0
+       where (forbid(:ntgrid-1, il) .or. forbid(-ntgrid+1:, il))
+          vpac(-ntgrid:ntgrid-1,1,iglo) = 0.0
+          vpac(-ntgrid:ntgrid-1,2,iglo) = 0.0
        elsewhere
           vpac(-ntgrid:ntgrid-1,1,iglo) = &
               0.5*(vpa(-ntgrid:ntgrid-1,1,iglo) + vpa(-ntgrid+1:ntgrid,1,iglo))
@@ -8090,6 +8086,9 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
              g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
                   *Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2) &
                   -zi*aky(ik)*gnew(ig,isgn,iglo)*aj1(ig,iglo) &
@@ -8202,6 +8201,9 @@ contains
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
              g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do
