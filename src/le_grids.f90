@@ -2684,10 +2684,14 @@ contains
        allocate (wx(ng2))
        if (split_passing_region) then
           call try_to_optimise_passing_grid(passing_split_value, passing_split_index)
-          call get_legendre_grids_from_cheb (1., passing_split_value, &
-               xx(:passing_split_index), wx(:passing_split_index))
-          call get_legendre_grids_from_cheb (passing_split_value, 0.0, &
-               xx(1 + passing_split_index:), wx(1 + passing_split_index:))
+          if (passing_split_index > 0) then
+             call get_legendre_grids_from_cheb (1., passing_split_value, &
+                  xx(:passing_split_index), wx(:passing_split_index))
+             call get_legendre_grids_from_cheb (passing_split_value, 0.0, &
+                  xx(1 + passing_split_index:), wx(1 + passing_split_index:))
+          else
+             call get_legendre_grids_from_cheb (1., 0., xx, wx)
+          end if
        else
           call get_legendre_grids_from_cheb (1., 0., xx, wx)
        end if
@@ -2757,7 +2761,7 @@ contains
     logical :: use_max_error_local
     logical, parameter :: debug = .false.
     integer, parameter :: high_res_factor = 100
-
+    real :: error_from_no_split
     use_max_error_local = get_option_with_default(use_max_error, .false.)
 
     allocate (analytic_sum(-ntgrid:ntgrid))
@@ -2777,6 +2781,26 @@ contains
     allocate(error_history(ntrial))
     allocate(xx_tmp(ng2), wx_tmp(ng2), lambda(ng2))
     allocate(weights(-ntgrid:ntgrid, ng2))
+
+    ! Determine the initial error metric if we don't split
+    call get_legendre_grids_from_cheb (1., 0., xx_tmp, wx_tmp)
+    lambda = (1.0 - xx_tmp**2)/bmax
+    ! Transform the Legendre weights to the lambda grid
+    do il = 1, ng2
+       weights(:,il) = wx_tmp(il)*2.0*sqrt((bmag/bmax) &
+            *((1.0/bmax-lambda(il))/(1.0/bmag-lambda(il))))
+    end do
+
+    error = analytic_sum - sum(weights, dim=2)
+
+    ! Choose error metric we will later minimise
+    if (use_max_error_local) then
+       ! Maximum error
+       error_from_no_split = maxval(abs(error))
+    else
+       ! Average error
+       error_from_no_split = sum(abs(error))/size(error)
+    end if
 
     ! Run with a few splits
     do itrial = 1, ntrial
@@ -2823,8 +2847,19 @@ contains
 
     ! Choose the location of the minimum error metric as the optimal split point
     minimum_location = minloc(abs(error), dim = 1)
+
+    ! We should probably calculate the actual error with this split
+    ! choice in case our spline is not a good representation of the
+    ! data. If the real error is larger than any of the real measurements
+    ! we could just opt to use that instead?
     optimal_split = xx_tmp(minimum_location)
+
     if (debug) print*,"Optimal split : ",optimal_split," with error ",error(minimum_location)
+    if (minval(abs(error)) > error_from_no_split) then
+       optimal_split = -1
+       optimal_points = -1
+       if (debug) print*,'Minimum error from split larger than no split'
+    end if
   end subroutine try_to_optimise_passing_grid
 
   !> Determines the lambda grid point integration weights in the
