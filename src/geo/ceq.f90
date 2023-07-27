@@ -1088,7 +1088,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine Hahm_Burrell(irho, a) 
-    use file_utils, only: open_output_file, close_output_file, get_unused_unit
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
     implicit none
     real, intent(in) :: a
     integer, intent(in) :: irho
@@ -1096,7 +1097,7 @@ contains
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
     real, dimension(nr) :: gamma, pbar, dp, d2p, pres
     integer :: fort24_unit
-
+    if (.not. proc0) return
     gamma = 0.
 
     pbar = (eqpsi-eqpsi(1))/(eqpsi(nr)-eqpsi(1))
@@ -1128,7 +1129,6 @@ contains
             *(-pres(i)/(dp(i)/drhodpsiq))            
     enddo
     
-    call get_unused_unit(fort24_unit)
     call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then

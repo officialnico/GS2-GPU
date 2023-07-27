@@ -1,0 +1,10 @@
+&init_g_knobs
+ chop_side = .false.
+ phiinit = 0.001
+ ginit_option = "many"
+ constant_random_flag = .true.
+ restart_file = "start_half_run_old_diagnostics_iproc_1.nc"
+ proc_to_save_fields = 1
+/
+
+!include end_half_run_old_diagnostics.in

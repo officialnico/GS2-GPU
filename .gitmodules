@@ -7,3 +7,6 @@
 [submodule "externals/pFUnit"]
 	path = externals/pFUnit
 	url = https://github.com/Goddard-Fortran-Ecosystem/pFUnit.git
+[submodule "externals/neasyf"]
+	path = externals/neasyf
+	url = https://github.com/PlasmaFAIR/neasy-f

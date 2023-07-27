@@ -61,28 +61,24 @@ USE_SHMEM ?=
 USE_FFT ?= fftw3
 # uses netcdf library (bin)
 USE_NETCDF ?= on
-# Default to compressed netcdf files?
-USE_NETCDF_COMPRESSION ?=
 # uses parallel netcdf library
 USE_PARALLEL_NETCDF ?= 
-# uses hdf5 library (bin)
-USE_HDF5 ?=  
 # uses lapack or compatible library (bin)
 USE_LAPACK ?=
 # Use local random number generator (mt,undefined)
 # see also README
 USE_LOCAL_RAN ?=
-# Use posix for command_line (bin)
-USE_POSIX ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
+# Does this compiler support f2008 compiler_version and compiler_options
+GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?= 
-# Make GS2 into a library which can be called by external programs
-MAKE_LIB ?=
+USE_NAGLIB ?=
+# Use openmp (very limited use currently)
+USE_OPENMP ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
@@ -97,6 +93,8 @@ HAS_GCOV=$(USE_GCOV)
 GS2_PYTHON_NAME ?= python3
 # Name of pytest executable
 GS2_PYTEST_NAME ?= pytest
+# A user-settable name for this particular build of GS2
+GS2_BUILD_TAG ?= None
 
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
@@ -112,7 +110,7 @@ USE_FPIC ?=
 # or when executing make. Make sure you rebuild constants.fpp if you want to change this.
 # e.g. 
 #       $ touch utils/constants.fpp
-#       $ ./build_gs2 -c 'RUN_NAME_SIZE=<newsize>'
+#       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
 # If defined, fpp files will be preprocessed and compiled in one step, as
 # is normal for modern FORTRAN compilers (bin)
@@ -188,7 +186,6 @@ AWK 		= awk
 PERL		= perl
 FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
-
 MPI_INC	?=
 MPI_LIB ?=
 FFT_INC ?=
@@ -201,8 +198,6 @@ NETCDF_INC ?=
 NETCDF_LIB ?=
 LAPACK_INC ?=
 LAPACK_LIB ?=
-HDF5_INC ?=
-HDF5_LIB ?=
 NAG_LIB ?=
 NAG_PREC ?= dble
 MACRO_DEFS ?=
@@ -236,10 +231,7 @@ SRCDIR:= $(GK_HEAD_DIR)/src
 PROGDIR:= $(SRCDIR)/programs
 
 #Extra subdirectories which include code that might be needed
-SUBDIRS= geo
-ifdef USE_NEW_DIAG
-SUBDIRS += diagnostics diagnostics/simpledataio/src
-endif
+SUBDIRS= geo diagnostics
 SUBDIRS:= $(addprefix $(SRCDIR)/, $(SUBDIRS))
 
 #External subdirectories which include code that might be needed
@@ -251,6 +243,7 @@ SUBDIRS += $(EXTERNALSRCDIRS)
 
 GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
+NEASYF := $(EXTERNALDIR)/neasyf/src
 
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
@@ -259,18 +252,6 @@ COVERAGE_DIR:= $(GK_HEAD_DIR)/coverage
 
 #Patch file
 PATCHFILE:= .patch.make
-
-################################################### SET COMPILE MODE SWITCHES
-
-# It makes no sense to set USE_PARALLEL_NETCDF without
-# setting USE_HDF5... so we set USE_HDF5 here. 
-# If you want to use parallel-netcdf instead of netcdf/hdf5 you can 
-# override this behaviour in the system makefile
-ifdef USE_PARALLEL_NETCDF
-ifndef USE_HDF5
-	USE_HDF5=on
-endif
-endif
 
 ######################################################### PLATFORM DEPENDENCE
 
@@ -297,11 +278,12 @@ include Makefile.$(GK_SYSTEM)
 # actually been initialised
 MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
 UTILS_SENTINEL := $(UTILS)/mp.fpp
+NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
 
-.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL)
+.PRECIOUS: $(MAKEFILES_SENTINEL) $(UTILS_SENTINEL) $(NEASYF_SENTINEL)
 
 # Make sure the submodules exist; they all currently share the same recipe
-$(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
+$(NEASYF_SENTINEL) $(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
 
@@ -411,13 +393,6 @@ MACRO_DEFS+=-DRELEASE='"$(RELEASE)"'
 # at runtime
 MACRO_DEFS+=-DGK_SYSTEM='"$(GK_SYSTEM)"'
 
-ifdef USE_HDF5
-	ifndef USE_MPI
-$(error Currently, USE_HDF5 only works with USE_MPI)
-	endif
-endif
-
-
 ifndef USE_NETCDF
 ifdef USE_NEW_DIAG
 $(error 'USE_NETCDF is off/undefined. The new diagnostics module requires netcdf. Please build without the new diagnostics module (i.e. set USE_NEW_DIAG=) ')
@@ -456,14 +431,9 @@ ifdef USE_SHMEM
 	MACRO_DEFS += -DSHMEM
 endif
 
-ifeq ($(USE_FFT),fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
-	FFT_LIB ?= -lfftw -lrfftw
-endif
-
 ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	MACRO_DEFS += -DFFT=_FFTW3_
-	FFT_LIB ?= -lfftw -lrfftw
+	FFT_LIB ?= -lfftw3
 endif
 
 ifdef GENQUAD
@@ -471,38 +441,48 @@ ifdef GENQUAD
 	MACRO_DEFS += -DGENQUAD
 endif
 
-ifeq ($(USE_FFT),mkl_fftw)
-	MACRO_DEFS += -DFFT=_FFTW_
-endif
-
 ifdef USE_NETCDF
 	NETCDF_LIB ?= -lnetcdf
 	MACRO_DEFS += -DNETCDF
+endif
+
+# Default to compressed netcdf files. Note we choose to default to no
+# compression for builds with parallel netcdf due to an issue reported
+# on Macs and JFRS-1 in which compression and parallel netcdf leads to
+# hanging code. Hopefully future investigation can give a solution
+# which allows both features to be used together and we can remove
+# this complication.
+ifdef USE_PARALLEL_NETCDF
+	USE_NETCDF_COMPRESSION ?=
+else
+	USE_NETCDF_COMPRESSION ?= on
 endif
 
 ifdef USE_NETCDF_COMPRESSION
 	MACRO_DEFS += -DGK_NETCDF_DEFAULT_COMPRESSION_ON
 endif
 
-ifdef USE_HDF5
-	FC = $(H5FC_par)
-	CC = $(H5CC_par)
-	ifdef USE_PARALLEL_NETCDF
-		MACRO_DEFS += -DNETCDF_PARALLEL
-	endif
-	MACRO_DEFS += -DHDF
+ifdef USE_PARALLEL_NETCDF
+	MACRO_DEFS += -DNETCDF_PARALLEL
 endif
 
 ifeq ($(USE_LOCAL_RAN),mt)
 	MACRO_DEFS += -DRANDOM=_RANMT_
 endif
 
-ifdef USE_POSIX
-	MACRO_DEFS += -DPOSIX
-endif
-
 ifdef USE_LAPACK
 	MACRO_DEFS += -DLAPACK
+endif
+
+ifdef USE_OPENMP
+	MACRO_DEFS += -DOPENMP
+ifeq ($(USE_FFT),fftw3)
+ifdef DBLE
+	FFT_LIB += -lfftw3_omp
+else
+	FFT_LIB += -lfftw3f_omp
+endif
+endif
 endif
 
 ifdef USE_F200X_INTRINSICS
@@ -515,6 +495,10 @@ else
 			MACRO_DEFS += -DSPFUNC=_SPNAG_
 		endif
 	endif
+endif
+
+ifdef GK_HAS_COMPILER_OPTIONS_2008
+	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifdef USE_NAGLIB
@@ -539,10 +523,6 @@ endif
 ifdef QUAD
 	DBLE = on
 	MACRO_DEFS += -DQUAD_PRECISION
-endif
-
-ifdef MAKE_LIB
-	MACRO_DEFS += -DMAKE_LIB
 endif
 
 ifdef LOWFLOW
@@ -586,11 +566,15 @@ else
 diagnostics:
 endif
 
+# NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
+# ensure that it gets quoted correctly on the command line
+MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
+
 ############################################################################# Done dealing with user flags
 
-LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(HDF5_LIB) $(FFT_LIB) \
+LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
-INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)\
+INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
@@ -603,10 +587,10 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-
 
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(HDF5_INC) $(FFT_INC)
+	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
 CPPFLAGS += $(MACRO_DEFS)
-FPPFLAGS += $(MACRO_DEFS)
+FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
 DATE:=$(shell date +%y%m%d)
 TARDIR=$(GK_PROJECT)_$(DATE)
@@ -621,13 +605,13 @@ ifneq ($(TOPDIR),$(CURDIR))
 	SUBDIR=true
 endif
 
-VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR)
+VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO)
+DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO) $(GK_HEAD_DIR)/$(NEASYF)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -638,11 +622,11 @@ DEFAULT_LIB:=$(foreach tmplib,$(DEFAULT_LIB_LIST),$(shell [ -d $(tmplib) ] && ec
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
 
-$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
+$(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc: $(SRCDIR)/generate_gs2_init.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$@) ($(call processName,$^)))
 	$(QUIETSYM)$(PYTHON_EXE) $< $@
 
-$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_down.inc $(SRCDIR)/gs2_init_up.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
+$(GENERATED_SRC_DIR)/gs2_init.f90: $(SRCDIR)/gs2_init.fpp $(SRCDIR)/gs2_init_level_array.inc $(SRCDIR)/gs2_init_subroutines.inc $(SRCDIR)/gs2_init_level_list.inc
 
 $(SRCDIR)/overrides.f90: $(SRCDIR)/generate_overrides.py
 	$(call messageOp,"Generating from python","\\t:",$(call processName,$<))
@@ -659,7 +643,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
-.PHONY: depend tar tar_exec test_make diagnostics simpledataio
+.PHONY: depend tar tar_exec test_make diagnostics
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
@@ -761,13 +745,13 @@ ifdef ONE_STEP_PP
 KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
-depend: $(F90FROMFPP) $(UTILS_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
-		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH):$(UTILS) \
+		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH) \
 		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
@@ -963,12 +947,12 @@ test_make:
 	$(call messageInfo,"Functionality:")
 	$(call messageKeyVal, "USE_MPI", $(USE_MPI))
 	$(call messageKeyVal, "USE_SHMEM", $(USE_SHMEM))
+	$(call messageKeyVal, "USE_OPENMP", $(USE_OPENMP))
 	$(call messageKeyVal, "USE_FFT", $(USE_FFT))
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
+	$(call messageKeyVal, "USE_PARALLEL_NETCDF", $(USE_PARALLEL_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
-	$(call messageKeyVal, "USE_HDF5", $(USE_HDF5))
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
-	$(call messageKeyVal, "USE_POSIX", $(USE_POSIX))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
@@ -1039,14 +1023,6 @@ else
 	$(call messageInfo,"Netcdf: DISABLED")
 endif
 	@echo
-ifdef USE_HDF5
-	$(call messageInfo,"HDF5:")
-	$(call messageKeyVal, "HDF5_LIB", $(HDF5_LIB))
-	$(call messageKeyVal, "HDF5_INC", $(HDF5_INC))
-else
-	$(call messageInfo,"HDF5: DISABLED")
-endif
-	@echo
 ifdef USE_FFT
 	$(call messageInfo,"FFT:")
 	$(call messageKeyVal, "FFT_LIB", $(FFT_LIB))
@@ -1054,13 +1030,6 @@ ifdef USE_FFT
 	$(call messageKeyVal, "FFT_DIR", $(FFT_DIR))
 else
 	$(call messageInfo,"FFT: DISABLED")
-endif
-	@echo
-ifdef USE_NEW_DIAG
-	$(call messageInfo,"SIMPLEDATAIO:")
-	$(call messageKeyVal, "SIMPLEDATAIO_LIB", $(SIMPLEDATAIO_LIB))
-else
-	$(call messageInfo,"SIMPLEDATAIO: DISABLED")
 endif
 	@echo
 ifdef WITH_EIG

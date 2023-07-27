@@ -1,11 +1,11 @@
 
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_le_grids_integrate
-
 clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 
 ifdef TESTNORUN
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -15,7 +15,7 @@ ifeq "$(VAL)" "0"
 all:
 	@echo "==> Skipping test in ${PWD}/$(TEST_FOLD) (Test_level ${TEST_LEVEL}, This test ${MY_TEST_LEVEL})."
 else
-all: ${TEST_BASE_NAME}
+all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_default.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_default_nesuper.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_default_slab.in)

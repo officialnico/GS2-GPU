@@ -38,6 +38,7 @@ module config_collection
   use dist_fn, only: source_config_type
   use species, only: species_config_type
   use species, only: species_element_config_type
+  use split_nonlinear_terms, only: split_nonlinear_terms_config_type
   use theta_grid, only: theta_grid_config_type
   use theta_grid_eik, only: theta_grid_eik_config_type
   use theta_grid_file, only: theta_grid_file_config_type
@@ -86,6 +87,7 @@ module config_collection
      type(source_config_type) :: source_config
      type(species_config_type) :: species_config
      type(species_element_config_type), dimension(:), allocatable :: species_element_config
+     type(split_nonlinear_terms_config_type) :: split_nonlinear_terms_config
      type(stir_config_type), dimension(:), allocatable :: stir_config
      type(theta_grid_config_type) :: theta_grid_config
      type(theta_grid_eik_config_type) :: theta_grid_eik_config
@@ -198,6 +200,8 @@ contains
     end do
     if (.not.allocated_flag) deallocate(self%species_element_config)
 
+    call self%split_nonlinear_terms_config%write(local_output_unit)
+
     allocated_flag = allocated(self%stir_config)
     if (.not.allocated_flag) then
        allocate(self%stir_config(self%driver_config%nk_stir))
@@ -254,6 +258,7 @@ contains
     use parameter_scan, only: get_parameter_scan_config
     use gs2_reinit, only: get_gs2_reinit_config
     use species, only: get_species_config, get_species_element_config
+    use split_nonlinear_terms, only: get_split_nonlinear_terms_config
     use theta_grid, only: get_theta_grid_config
     use theta_grid_eik, only: get_theta_grid_eik_config
     use theta_grid_file, only: get_theta_grid_file_config
@@ -300,6 +305,7 @@ contains
     self%source_config = get_source_config()
     self%species_config = get_species_config()
     self%species_element_config = get_species_element_config()
+    self%split_nonlinear_terms_config = get_split_nonlinear_terms_config()
     self%theta_grid_config = get_theta_grid_config()
     self%theta_grid_eik_config = get_theta_grid_eik_config()
     self%theta_grid_file_config = get_theta_grid_file_config()

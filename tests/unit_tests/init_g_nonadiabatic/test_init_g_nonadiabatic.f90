@@ -9,7 +9,6 @@ program test_init_g_nonadiabatic
   use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
   use fields, only: set_init_fields
   use init_g, only: ginit
-  use init_g, only: ginitopt_restart_many
   use run_parameters, only: fphi, fbpar
   implicit none
   type(gs2_program_state_type) :: state
@@ -18,11 +17,9 @@ program test_init_g_nonadiabatic
   
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   call announce_module_test('test_init_g_nonadiabatic')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
 
@@ -139,11 +136,16 @@ contains
   !> Note we don't test bpar here as this should be non-zero here.
   logical function test_zero_charge_density() result(agrees)
     use gs2_layouts, only: g_lo, is_idx
-    use species, only: spec
+    use species, only: spec, nspec
     implicit none
     character(len=*), parameter :: case_name = 'zero_charge_density'
     logical, dimension(2) :: checks
     integer :: iglo, is
+
+    if (nspec == 1) then
+       agrees = .true.
+       return
+    end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo, iglo)

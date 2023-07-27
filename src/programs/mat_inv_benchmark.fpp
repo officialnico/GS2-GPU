@@ -3,7 +3,7 @@
 program mat_inv_benchmark
   use mp, only: init_mp, finish_mp, barrier, proc0, iproc
   use mat_inv, only: invert_serial, matrix_inversion_method_type
-  use mat_inv, only: mat_inv_serial_lapack
+  use mat_inv, only: mat_inv_serial_lapack, mat_inv_omp_gauss_jordan
   use mat_inv, only: mat_inv_serial_gauss_jordan, mat_inv_serial_block
   use ran, only: ranf
   use job_manage, only: timer_local
@@ -79,8 +79,9 @@ program mat_inv_benchmark
 
      write(output,'()')
      write(output,'("---------------------------------------------------")')
+     write(output,'("Method : ",A)') trim(adjustl(the_method%get_name()))
      write(output,'()')
-     write(output,'("Size : Average, max, min")')
+     write(output,'("Size : Average,          max,          min")')
 
      do icase = 1, ncases
         write(output,'(I0," : ",3(F12.5,"s "))') sizes(icase), average_times(icase), max_times(icase), min_times(icase)

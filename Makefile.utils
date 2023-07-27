@@ -28,6 +28,7 @@ endif
 ifdef QUIET
 # Main line for turning off command output
 QUIETSYM:=@
+endif
 # Helper methods for colourising and displaying various message types
 SEPARATOR_ITEM:=":"
 whitebold  = "$(C_WHI_BOLD)$(1)$(C_END)"
@@ -44,7 +45,6 @@ messageItem = @echo -e $(call blue,$(1))
 messageKeyVal = @echo -e "\t"$(call operation,$(1))"\t$(SEPARATOR_ITEM) "$(call blue,$(2))
 errEndAndFail = || (echo -en "$(C_END)" ; exit 1)
 errHighlightStart = (echo -en "$(C_RED)");
-endif
 #############################################################################
 
 ############################################################################# METHODS

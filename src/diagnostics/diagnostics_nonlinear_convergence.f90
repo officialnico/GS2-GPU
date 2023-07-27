@@ -25,19 +25,16 @@ contains
   end subroutine  init_nonlinear_convergence
 
   !> FIXME : Add documentation  
-  subroutine finish_nonlinear_convergence(gnostics)
+  subroutine finish_nonlinear_convergence()
     use diagnostics_config, only: diagnostics_type
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
     deallocate(conv_heat)
   end subroutine  finish_nonlinear_convergence
 
   !> FIXME : Add documentation  
-  subroutine reset_averages_and_counters(gnostics)
-    use diagnostics_config, only: diagnostics_type
+  subroutine reset_averages_and_counters()
     use mp, only: proc0
     implicit none
-    type(diagnostics_type), intent(in) :: gnostics
     if (proc0) then
        conv_isteps_converged = 0
        heat_sum_av = 0.0

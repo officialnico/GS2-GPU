@@ -21,29 +21,20 @@ program test_indexing
   use benchmarks, only: benchmark_identifier
   use file_utils, only: append_output_file, close_output_file
   use gs2_init, only: init, init_level_list
-  use gs2_layouts, only: g_lo, xxf_lo, yxf_lo, le_lo, lz_lo, e_lo, layout
+  use gs2_layouts, only: g_lo, xxf_lo, yxf_lo, le_lo, lz_lo, e_lo
   use gs2_layouts, only: is_idx, it_idx, ik_idx, il_idx, ie_idx, ig_idx, isign_idx, idx
   use gs2_main, only: gs2_program_state_type, initialize_gs2, finalize_gs2
   use job_manage, only: time_message
-  use mp, only: init_mp, finish_mp, proc0, nproc, mp_comm
-  use run_parameters, only: nstep
+  use mp, only: init_mp, finish_mp, mp_comm
 
   implicit none
   type(gs2_program_state_type) :: state
-  real :: time_taken(2) = 0.0
-  real :: time_init(2) = 0.0
-  integer :: timing_unit
-
-  ! General config
-  ! (none)
 
   ! Set up depenencies
   call init_mp
+  state%mp_comm = mp_comm
 
   call announce_module_test('indexing')
-
-  state%mp_comm_external = .true.
-  state%mp_comm = mp_comm
 
   call initialize_gs2(state)
 
@@ -52,7 +43,7 @@ program test_indexing
 
   ! Begin test
   call announce_test('test index')
-  call process_test(test_index(.true.), 'test index')
+  call process_test(test_index(), 'test index')
 
   call close_module_test('indexing')
 
@@ -65,17 +56,13 @@ program test_indexing
   call finish_mp
 
   contains
-    function test_index(dummy)
+    function test_index()
 
       use unit_tests, only: announce_check, process_check, agrees_with
       use collisions, only: use_le_layout
-      use mp, only: proc0
-      logical, intent(in) :: dummy
       logical :: test_index
       logical :: test_result   !! Overall test result, true if all pass
       logical :: check_result  !! Result of individual tests
-      logical :: accelerated_x, accelerated_v
-      character(2) :: istr
 
       test_result = .true.
 
@@ -112,7 +99,7 @@ program test_indexing
     subroutine check_glo(check_result)
       implicit none
       logical, intent(out) :: check_result
-      integer :: i, j, k, l, it, ik, il, ie, is, iglo
+      integer :: i, it, ik, il, ie, is, iglo
 
       check_result = .true.
 
@@ -201,7 +188,7 @@ program test_indexing
     subroutine check_lz(check_result)
       implicit none
       logical, intent(out) :: check_result
-      integer :: i, it, ik, ie, is, ig, isgn, ilz
+      integer :: i, it, ik, ie, is, ig, ilz
 
       check_result = .true.
 

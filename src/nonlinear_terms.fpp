@@ -13,11 +13,11 @@ module nonlinear_terms
 
   public :: init_nonlinear_terms, finish_nonlinear_terms
   public :: read_parameters, wnml_nonlinear_terms, check_nonlinear_terms
-  public :: add_explicit_terms, nonlinear_mode_switch
+  public :: add_explicit_terms, nonlinear_mode_switch, split_nonlinear
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
-  public :: nonlinear_mode_none, nonlinear_mode_on
-  public :: gryfx_zonal
+  public :: time_add_explicit_terms_field, nonlinear_mode_none, nonlinear_mode_on
+  public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -82,7 +82,11 @@ module nonlinear_terms
 ! for gryfx
   real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
 
+  logical :: split_nonlinear
+  logical :: include_apar, include_bpar, include_phi
+
   real :: time_add_explicit_terms(2) = 0., time_add_explicit_terms_mpi = 0.
+  real :: time_add_explicit_terms_field(2) = 0.
 
   logical :: nonlin = .false.
   logical :: initialized = .false.
@@ -109,6 +113,12 @@ module nonlinear_terms
      !> Set the error threshold used to determine when the timestep should change if
      !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
      real :: error_target = 0.1
+     !> Flag for testing. If false do not include apar contribution to nonlinear term.
+     logical :: include_apar = .true.
+     !> Flag for testing. If false do not include bpar contribution to nonlinear term.
+     logical :: include_bpar = .true.
+     !> Flag for testing. If false do not include phi contribution to nonlinear term.
+     logical :: include_phi = .true.
      !> Set the first timestep for which the order based error checks are made if
      !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
      integer :: istep_error_start = 30
@@ -129,6 +139,9 @@ module nonlinear_terms
      real :: qparfac = 1./sqrt(8.)
      !> GRYFX only. No documentation available
      real :: qprpfac = 1./sqrt(8.)
+     !> Do we evolve the nonlinear term separately from the linear terms (true) or
+     !> include the nonlinear term as a source in the standard algorithm (false).
+     logical :: split_nonlinear = .false.
      !> GRYFX only. No documentation available
      real :: tparfac = 1./2.
      !> GRYFX only. No documentation available
@@ -161,9 +174,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_nonlinear_terms(report_unit,delt_adj)
-    use gs2_time, only: code_dt_min
+    use gs2_time, only: code_dt_min, code_dt_max
     use kt_grids, only: box
-    use run_parameters, only: code_delt_max, nstep, wstar_units
+    use run_parameters, only: nstep, wstar_units
     use theta_grid, only: nperiod
     implicit none
     integer, intent(in) :: report_unit
@@ -188,6 +201,43 @@ contains
           write (report_unit, fmt="('THIS IS AN ERROR.')") 
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, *) 
+       end if
+
+       if (split_nonlinear) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The nonlinear term will be evolved separately from')")
+          write (report_unit, fmt="('the linear terms in a crude IMEX style.')")
+          write (report_unit, fmt="('This is an experimental feature.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (.not. include_apar) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The A|| potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (.not. include_bpar) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The B|| potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
+       end if
+
+       if (.not. include_phi) then
+          write (report_unit, *)
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, fmt="('The electrostatic potential contributions to the nonlinear term are disabled.')")
+          write (report_unit, fmt="('This is probably an error.')")
+          write (report_unit, fmt="('################# WARNING #######################')")
+          write (report_unit, *)
        end if
 
        if (nperiod > 1) then
@@ -230,7 +280,7 @@ contains
        end if
 
        write (report_unit, fmt="('The minimum delt ( code_dt_min ) = ',e11.4)") code_dt_min
-       write (report_unit, fmt="('The maximum delt (code_delt_max) = ',e11.4)") code_delt_max
+       write (report_unit, fmt="('The maximum delt (code_dt_max) = ',e11.4)") code_dt_max
        write (report_unit, fmt="('When the time step needs to be changed, it is adjusted by a factor of ',f10.4)") delt_adj
        write (report_unit, fmt="('The number of time steps nstep = ',i7)") nstep
     endif
@@ -261,8 +311,8 @@ contains
     use gs2_layouts, only: init_dist_fn_layouts, yxf_lo, accelx_lo
     use gs2_layouts, only: init_gs2_layouts
     use gs2_transforms, only: init_transforms
+    use mp, only: nproc, iproc
 #ifdef SHMEM
-    use mp, only : iproc
     use shm_mpi3, only : shm_alloc
 #endif
     implicit none
@@ -284,7 +334,7 @@ contains
     if (debug) write(6,*) "init_nonlinear_terms: init_species"
     call init_species
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
-    call init_dist_fn_layouts (naky, ntheta0, nlambda, negrid, nspec)
+    call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     
     call read_parameters(nonlinear_terms_config_in)
 
@@ -333,11 +383,11 @@ contains
     implicit none
     type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
     type (text_option), dimension (4), parameter :: nonlinearopts = &
-         (/ text_option('default', nonlinear_mode_none), &
+         [ text_option('default', nonlinear_mode_none), &
             text_option('none', nonlinear_mode_none), &
             text_option('off', nonlinear_mode_none), &
-            text_option('on', nonlinear_mode_on) /)
-    character(20) :: nonlinear_mode
+            text_option('on', nonlinear_mode_on) ]
+    character(len = 20) :: nonlinear_mode
     integer :: ierr
 
     if (present(nonlinear_terms_config_in)) nonlinear_terms_config = nonlinear_terms_config_in
@@ -348,11 +398,15 @@ contains
     cfl = nonlinear_terms_config%cfl
     densfac = nonlinear_terms_config%densfac
     error_target = nonlinear_terms_config%error_target
+    include_apar = nonlinear_terms_config%include_apar
+    include_bpar = nonlinear_terms_config%include_bpar
+    include_phi = nonlinear_terms_config%include_phi
     istep_error_start = nonlinear_terms_config%istep_error_start
     nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
     qparfac = nonlinear_terms_config%qparfac
     qprpfac = nonlinear_terms_config%qprpfac
+    split_nonlinear = nonlinear_terms_config%split_nonlinear
     tparfac = nonlinear_terms_config%tparfac
     tprpfac = nonlinear_terms_config%tprpfac
     uparfac = nonlinear_terms_config%uparfac
@@ -419,6 +473,7 @@ contains
     use run_parameters, only: reset, immediate_reset
     use unit_tests, only: debug_message
     use mp, only: nb_max_allreduce, max_allreduce
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1, g2, g3
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
@@ -426,7 +481,6 @@ contains
     real, intent (in) :: bd
     logical, intent (in), optional :: nl
     integer, parameter :: verb = 4
-    real, parameter :: zero = epsilon(0.0)
     integer :: iglo, ik
     real :: dt_cfl
 
@@ -475,8 +529,8 @@ contains
        ! It's possible we might have other explicit sources, in which case we
        ! probably always need to do this shuffling, however in that case this
        ! subroutine probably best belongs in a different module.
-       g3 = g2
-       g2 = g1
+       call copy(g2, g3)
+       call copy(g1, g2)
 
        call debug_message(verb, 'nonlinear_terms::add_explicit copied old terms')
 
@@ -487,7 +541,7 @@ contains
           if(gryfx_zonal%on) then
              call add_nl_gryfx (g1)
           else
-             call add_nl (g1, phi, apar, bpar)
+             call add_nl (g, g1, phi, apar, bpar)
           endif
           ! takes g1 at grid points and returns 2*g1 at cell centers
 
@@ -559,7 +613,7 @@ contains
           endif
 
        else
-          g1 = 0.
+          call zero_array(g1)
        end if
 
 #ifdef LOWFLOW
@@ -590,17 +644,17 @@ contains
   !> and g(t-dt2) = g3 using 2nd and 3rd order methods and comparing
   !> the difference to estimate the error.
   real function estimate_error(g1, g2, g3) result(error)
-    use gs2_time, only: get_adams_bashforth_coefficients
+    use gs2_time, only: get_adams_bashforth_coefficients, time_history_available
     use mp, only: max_allreduce
+    use array_utils, only: gs2_max_abs
     implicit none
     complex, dimension(:, :, :), intent(in) :: g1, g2, g3
     complex, dimension(:, :, :), allocatable :: source_order_3, source_order_2
     real, dimension(2) :: intermediate_error
     real, dimension(:), allocatable :: coeff_3rd, coeff_2nd
 
-    ! Calculate the coefficients required for variable time step schemes
-    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
-    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+    allocate(coeff_3rd(min(time_history_available(), 3)))
+    allocate(coeff_2nd(min(time_history_available(), 2)))
 
     ! Check that we actually have 3rd and 2nd order coefficients.
     ! This could fail on the first two time steps of a simulation, for
@@ -613,18 +667,24 @@ contains
        return
     end if
 
+    ! Calculate the coefficients required for variable time step schemes
+    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
+    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+
     ! Calculate the source terms using 3rd and 2nd order methods
+    allocate(source_order_3, mold = g1)
+    allocate(source_order_2, mold = g1)
     source_order_3 = coeff_3rd(1) * g1 + coeff_3rd(2) * g2 + coeff_3rd(3) * g3
     source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
 
     ! Here we find the maximum absolute error
-    intermediate_error(1) = maxval(abs(source_order_3 - source_order_2))
+    intermediate_error(1) = gs2_max_abs(source_order_3 - source_order_2)
 
     ! Now we find the maximum of source_order_2 to scale the absolute
     ! error with.  Note we use this rather than source_order_3 as the
     ! higher order method has a smaller region of stability so is
     ! perhaps more likely to blow up.
-    intermediate_error(2) = maxval(abs(source_order_2))
+    intermediate_error(2) = gs2_max_abs(source_order_2)
 
     ! Reduce over all processors
     call max_allreduce(intermediate_error)
@@ -651,10 +711,9 @@ contains
     !     BUT source for other trapped particles should NOT enter forbidden region.
     !     if ig or ig+1 forbidden (i.e. ig+1 or ig is bounce point) now return gtmp(ig,:,iglo)=0
     !
-    use dist_fn_arrays, only: ittp
     use gs2_layouts, only: g_lo, il_idx
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, ng2, jend
+    use le_grids, only: forbid, grid_has_trapped_particles, jend, is_ttp
     use mp, only: mp_abort
 
     implicit none
@@ -663,11 +722,13 @@ contains
     integer :: iglo, il, ig
     logical :: trapped
 
-    trapped = .false.
-
-    if (minval(jend) .gt. ng2) trapped=.true.
+    trapped = grid_has_trapped_particles()
 
     ! factor of one-half appears elsewhere
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ig) &
+    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, is_ttp, jend, trapped, bd) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
 
@@ -694,7 +755,15 @@ contains
           ! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
           !           except for ttp where upwinding makes no sense!
           !
-          if (il >= ittp(ig)) cycle
+          ! Note this cycle doesn't skip when ig is in the forbidden region
+          ! even if the pitch angle is greater than the totally trapped one
+          ! at this location. This ensures that whilst we leave the (allowed)
+          ! totally trapped source alone we still zero the NL source for forbidden
+          ! points. Previously we cycled simply if the pitch angle index was larger
+          ! than the totally trapped one. When there are multiple totally trapped
+          ! pitch angles this may not be equivalent.
+          if (is_ttp(ig, il)) cycle
+          ! The below might be better off using forbid instead of checking jend
           if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
              !
              !CMR, 7/10/2014: 
@@ -713,28 +782,58 @@ contains
           endif
        end do
     end do
+    !$OMP END PARALLEL DO
   end subroutine nl_center
 
-  !> Calculate the nonlinear term and corresponding CFL condition
-  subroutine add_nl (g1, phi, apar, bpar)
+  !> Calculates the current nonlinear source term by calling add_nl
+  !> and the associated cfl limit.
+  subroutine calculate_current_nl_source_and_cfl_limit(g_in, g1, phi, apar, bpar, &
+       max_vel_local, need_to_adjust, calculate_cfl_limit)
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension (:,:,:), intent (in) :: g_in
+    complex, dimension (:,:,:), intent (out) :: g1
+    complex, dimension (:,:,:), intent (in) :: phi, apar, bpar
+    real, intent(out) :: max_vel_local
+    logical, intent(in) :: need_to_adjust
+    logical, intent(in), optional :: calculate_cfl_limit
+
+    use_cfl_limit = get_option_with_default(calculate_cfl_limit, .true.)
+    call add_nl(g_in, g1, phi, apar, bpar, need_to_adjust)
+
+    if (use_cfl_limit) then
+       ! This code may need changing if the handling of the cfl limit changes
+       max_vel_local = max_vel
+    else
+       max_vel_local = 1.0e-8
+    end if
+
+  end subroutine calculate_current_nl_source_and_cfl_limit
+
+  !> Calculate the nonlinear term and part of the corresponding CFL condition
+  subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
-    use dist_fn_arrays, only: g, g_adjust
+    use dist_fn_arrays, only: g_adjust, from_g_gs2
     use gs2_transforms, only: transform2, inverse2
-    use run_parameters, only: fbpar, fphi
     use kt_grids, only: aky, akx
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use constants, only: zi
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
+    use array_utils, only: copy
     implicit none
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
-    real :: dt_cfl
+    logical, intent(in), optional :: adjust
+    logical :: should_adjust
     integer, parameter :: verb = 4
 
     integer :: iglo, ik, it, ia
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
+    should_adjust = get_option_with_default(adjust, .true.)
 
     !Form g1=i*kx*chi
     call load_kx_phi(g1, phi)    
@@ -752,14 +851,20 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dphi/dx')
     
     !Form g1=i*ky*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    call copy(g_in, g1)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik) &
+    !$OMP SHARED(g_lo, g1, aky) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*aky(ik)
     enddo
+    !$OMP END PARALLEL DO
 
-    !Transform to real space    
+    !Transform to real space
     if (accelerated) then
        call transform2 (g1, agb, ia)
     else
@@ -768,8 +873,10 @@ contains
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dy')
 
-    max_vel = 0.
-    call get_max_vel(cfly)
+    if (use_cfl_limit) then
+       max_vel = 0.
+       call get_max_vel(cfly)
+    end if
 
     call calculate_bracket(.true.)
     
@@ -790,12 +897,18 @@ contains
     end if
 
     !Form g1=i*kx*g_wesson
-    g1=g
-    call g_adjust(g1,phi,bpar,fphi,fbpar)
+    call copy(g_in, g1)
+    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it) &
+    !$OMP SHARED(g_lo, g1, akx) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
     enddo
+    !$OMP END PARALLEL DO
     
     !Transform to real space
     if (accelerated) then
@@ -805,8 +918,10 @@ contains
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
-    
-    call get_max_vel(cflx)
+
+    if (use_cfl_limit) then
+       call get_max_vel(cflx)
+    end if
 
     call calculate_bracket(.false.)
     
@@ -830,16 +945,21 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: akx
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0)) then
+    if (has_phi .and. include_phi) then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, akx, aj0, phi, fphi) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -847,8 +967,9 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
   end subroutine load_kx_phi
 
@@ -857,16 +978,21 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: aj0
-    use run_parameters, only: fphi
+    use run_parameters, only: has_phi, fphi
     use kt_grids, only: aky
     use constants, only: zi
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g1
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi      
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer :: iglo, it, ik
 
-    if (fphi > epsilon(0.0)) then      
+    if (has_phi .and. include_phi) then
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, it, ik, fac) &
+       !$OMP SHARED(g_lo, g1, aky, aj0, phi, fphi) &
+       !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -874,8 +1000,9 @@ contains
           g1(:,1,iglo) = fac
           g1(:,2,iglo) = fac
        end do
+       !$OMP END PARALLEL DO
     else
-       g1 = 0.
+       call zero_array(g1)
     endif
 
   end subroutine load_ky_phi
@@ -888,7 +1015,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -897,8 +1024,12 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0)) return
+    if(.not. (include_apar .and. has_apar) ) return
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, akx, aj0, spec, apar, fapar) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -908,7 +1039,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_apar
 
   !> FIXME : Add documentation    
@@ -917,7 +1048,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vpa, aj0
     use species, only: spec
-    use run_parameters, only: fapar
+    use run_parameters, only: has_apar, fapar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -926,8 +1057,12 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if(fapar <= epsilon(0.0)) return
+    if(.not. (include_apar .and. has_apar)) return
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, vpa, aky, aj0, spec, apar, fapar) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -937,7 +1072,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) - fac*vpa(:,1,iglo)
        g1(:,2,iglo) = g1(:,2,iglo) - fac*vpa(:,2,iglo)
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_apar
 
   !> FIXME : Add documentation    
@@ -946,7 +1081,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: akx
     use constants, only: zi
     implicit none
@@ -955,10 +1090,14 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac    
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0)) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, akx, aj1, vperp2, spec, bpar, fbpar) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -968,7 +1107,7 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_kx_bpar
 
   !> FIXME : Add documentation    
@@ -977,7 +1116,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use dist_fn_arrays, only: vperp2, aj1
     use species, only: spec
-    use run_parameters, only: fbpar
+    use run_parameters, only: has_bpar, fbpar
     use kt_grids, only: aky
     use constants, only: zi
     implicit none
@@ -986,10 +1125,14 @@ contains
     complex, dimension(-ntgrid:ntgrid) :: fac
     integer iglo, it, ik, is
 
-    if (fbpar <= epsilon(0.0)) return
+    if (.not. (include_bpar .and. has_bpar)) return
 
     ! Is this factor of two from the old normalization?
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, fac) &
+    !$OMP SHARED(g_lo, g1, aky, aj1, vperp2, spec, bpar, fbpar) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -999,19 +1142,20 @@ contains
        g1(:,1,iglo) = g1(:,1,iglo) + fac
        g1(:,2,iglo) = g1(:,2,iglo) + fac
     end do
-
+    !$OMP END PARALLEL DO
   end subroutine load_ky_bpar
 
   !> Calculates an estimate of the current maximum velocity due to the
   !! perturbed potentials. This is currenly a processor local estimate.
   subroutine get_max_vel(scaling)
+    use array_utils, only: gs2_max_abs
     implicit none
     real, intent(in) :: scaling
     real :: local_max_vel
     if (accelerated) then
-       local_max_vel = maxval(abs(aba))
+       local_max_vel = gs2_max_abs(aba)
     else
-       local_max_vel = maxval(abs(ba))
+       local_max_vel = gs2_max_abs(ba)
     end if
     
     local_max_vel = local_max_vel * scaling
@@ -1023,20 +1167,49 @@ contains
   !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
   subroutine calculate_bracket(is_first_term)
     use theta_grid, only: kxfac
+    use gs2_layouts, only: accelx_lo, yxf_lo
     implicit none
     logical :: is_first_term
-
+    integer :: iyxf
     if (is_first_term) then
        if (accelerated) then
-          abracket = aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     else
        if (accelerated) then
-          abracket = abracket - aba*agb*kxfac
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SCHEDULE(static)
+          do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
+             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        else
-          bracket = bracket - ba*gb*kxfac
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iyxf) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SCHEDULE(static)
+          do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
+             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
+          end do
+          !$OMP END PARALLEL DO
        endif
     endif
   end subroutine calculate_bracket
@@ -1060,7 +1233,7 @@ contains
     use mp, only: max_allreduce
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use dist_fn_arrays, only: g_adjust, vpa, vperp2
+    use dist_fn_arrays, only: vpa, vperp2
     use gs2_transforms, only: transform2, inverse2
     use gs2_time, only: save_dt_cfl, check_time_step_too_large
     use mp, only: broadcast
@@ -1242,10 +1415,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: nonlinear_mode
     integer :: istep_error_start
-    logical :: nl_forbid_force_zero, use_cfl_limit, use_order_based_error, zip
+    logical :: include_apar, include_bpar, include_phi, nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
     real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, tparfac, tprpfac, uparfac, use_cfl_limit, use_order_based_error, zip
+    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, &
+         use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1254,11 +1428,15 @@ contains
     cfl = self%cfl
     densfac = self%densfac
     error_target = self%error_target
+    include_apar = self%include_apar
+    include_bpar = self%include_bpar
+    include_phi = self%include_phi
     istep_error_start = self%istep_error_start
     nl_forbid_force_zero = self%nl_forbid_force_zero
     nonlinear_mode = self%nonlinear_mode
     qparfac = self%qparfac
     qprpfac = self%qprpfac
+    split_nonlinear = self%split_nonlinear
     tparfac = self%tparfac
     tprpfac = self%tprpfac
     uparfac = self%uparfac
@@ -1274,11 +1452,15 @@ contains
     self%cfl = cfl
     self%densfac = densfac
     self%error_target = error_target
+    self%include_apar = include_apar
+    self%include_bpar = include_bpar
+    self%include_phi = include_phi
     self%istep_error_start = istep_error_start
     self%nl_forbid_force_zero = nl_forbid_force_zero
     self%nonlinear_mode = nonlinear_mode
     self%qparfac = qparfac
     self%qprpfac = qprpfac
+    self%split_nonlinear = split_nonlinear
     self%tparfac = tparfac
     self%tprpfac = tprpfac
     self%uparfac = uparfac
@@ -1305,11 +1487,15 @@ contains
     call self%write_key_val("cfl", self%cfl, unit_internal)
     call self%write_key_val("densfac", self%densfac, unit_internal)
     call self%write_key_val("error_target", self%error_target, unit_internal)
+    call self%write_key_val("include_apar", self%include_apar, unit_internal)
+    call self%write_key_val("include_bpar", self%include_bpar, unit_internal)
+    call self%write_key_val("include_phi", self%include_phi, unit_internal)
     call self%write_key_val("istep_error_start", self%istep_error_start, unit_internal)
     call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
     call self%write_key_val("qparfac", self%qparfac, unit_internal)
     call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
+    call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
     call self%write_key_val("tparfac", self%tparfac, unit_internal)
     call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
     call self%write_key_val("uparfac", self%uparfac, unit_internal)
@@ -1338,11 +1524,15 @@ contains
     call broadcast(self%cfl)
     call broadcast(self%densfac)
     call broadcast(self%error_target)
+    call broadcast(self%include_apar)
+    call broadcast(self%include_bpar)
+    call broadcast(self%include_phi)
     call broadcast(self%istep_error_start)
     call broadcast(self%nl_forbid_force_zero)
     call broadcast(self%nonlinear_mode)
     call broadcast(self%qparfac)
     call broadcast(self%qprpfac)
+    call broadcast(self%split_nonlinear)
     call broadcast(self%tparfac)
     call broadcast(self%tprpfac)
     call broadcast(self%uparfac)

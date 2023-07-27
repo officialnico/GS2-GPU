@@ -131,7 +131,7 @@
  append_old = .true.
  write_ascii = F
  print_flux_line = .F.
- write_nl_flux = .true.
+ write_fluxes = .true.
  print_line = .false.
  write_verr = .true.
  write_line = .false.
