@@ -2822,7 +2822,7 @@ contains
     end do
 
     ! Choose the location of the minimum error metric as the optimal split point
-    minimum_location = minloc(abs(error))
+    minimum_location = minloc(abs(error), dim = 1)
     optimal_split = xx_tmp(minimum_location)
     if (debug) print*,"Optimal split : ",optimal_split," with error ",error(minimum_location)
   end subroutine try_to_optimise_passing_grid
