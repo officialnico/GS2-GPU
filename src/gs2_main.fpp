@@ -877,15 +877,19 @@ contains
          !If something has triggered a reset then reset here
          if(state%dont_change_timestep) reset = .false.
          if (reset) then
-           call prepare_initial_values_overrides(state)
-           call set_initval_overrides_to_current_vals(state%init%initval_ov)
-           state%init%initval_ov%override = .true.
-           ! if called within trinity, do not dump info to screen
-           if (state%is_external_job) then
-             call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-           else
-             call reset_time_step (state%init, istep, state%exit)
-           end if
+            call prepare_initial_values_overrides(state)
+            call set_initval_overrides_to_current_vals(state%init%initval_ov)
+            state%init%initval_ov%override = .true.
+            ! if called within trinity, do not dump info to screen
+            if (state%is_external_job) then
+               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+            else
+               call reset_time_step (state%init, istep, state%exit)
+            end if
+
+            ! Switch off the reset flag now, otherwise it can still be active
+            ! on the next iteration.
+            reset = .false.
          end if
 
          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
