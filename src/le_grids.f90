@@ -2793,14 +2793,7 @@ contains
 
     error = analytic_sum - sum(weights, dim=2)
 
-    ! Choose error metric we will later minimise
-    if (use_max_error_local) then
-       ! Maximum error
-       error_from_no_split = maxval(abs(error))
-    else
-       ! Average error
-       error_from_no_split = sum(abs(error))/size(error)
-    end if
+    error_from_no_split = get_error_metric(error)
 
     ! Run with a few splits
     do itrial = 1, ntrial
@@ -2817,14 +2810,7 @@ contains
 
        error = analytic_sum - sum(weights, dim=2)
 
-       ! Choose error metric we will later minimise
-       if (use_max_error_local) then
-          ! Maximum error
-          error_history(itrial) = maxval(abs(error))
-       else
-          ! Average error
-          error_history(itrial) = sum(abs(error))/size(error)
-       end if
+       error_history(itrial) = get_error_metric(error)
     end do
 
     deallocate(error)
@@ -2860,6 +2846,20 @@ contains
        optimal_points = -1
        if (debug) print*,'Minimum error from split larger than no split'
     end if
+  contains
+    pure real function get_error_metric(errors) result(metric)
+      implicit none
+      real, dimension(:), intent(in) :: errors
+       ! Choose error metric we will later minimise
+       if (use_max_error_local) then
+          ! Maximum error
+          metric = maxval(abs(errors))
+       else
+          ! Average error
+          metric = sum(abs(errors))/size(errors)
+       end if
+    end function get_error_metric
+
   end subroutine try_to_optimise_passing_grid
 
   !> Determines the lambda grid point integration weights in the
