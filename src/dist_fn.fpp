@@ -5406,7 +5406,7 @@ contains
     !$OMP adjright, adjleft, ig, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
+    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, boundary_off_grid, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -5566,6 +5566,23 @@ contains
        ! time advance vpar < 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+       ! We can approximate the derivative at ntgrid - 1/2 as
+       !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
+       ! We can then extrapolate to ig = ntgrid + 1/2 as
+       !   g_{ig+1} = g_boundary + (dtheta/2) * dg/dtheta
+       ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
+       !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
+       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb))) then
+          ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
+          ig = ntgrid - 1
+          gnew(ig, 2, iglo) = -gnew(ig + 1, 2, iglo) * r(ig, 2, iglo) + &
+               ainv(ig, 2, iglo) * source(ig, 2, iglo)
+          ! Now form the derivative and extrapolate
+          gnew(ig+1, 2, iglo) = (gnew(ig, 2, iglo) - gnew(ig + 1, 2, iglo)) * 0.5
+       end if
+
        ! inhomogeneous part: gnew
        ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
        ! region and at upper bounce point
@@ -5605,6 +5622,15 @@ contains
           ig = -ntgrid
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
+
+       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb))) then
+          ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
+          ig = -ntgrid
+          gnew(ig + 1, 1, iglo) = -gnew(ig, 1, iglo) * r(ig, 1, iglo) + &
+               ainv(ig, 1, iglo) * source(ig, 1, iglo)
+          ! Now form the derivative and extrapolate
+          gnew(ig, 1, iglo) = (gnew(ig + 1, 1, iglo) - gnew(ig, 1, iglo)) * 0.5
+       end if
 
        ! time advance vpar > 0 inhomogeneous part
        do ig = -ntgrid, ntgrid - 1
