@@ -2956,21 +2956,11 @@ contains
        end do
     end do
 
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
 
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low (1) = 1
-    to_low (2) = 1
-    to_low (3) = g_lo%llim_proc
-
-    to_high(1) = n_links_max
-    to_high(2) = 2
-    to_high(3) = g_lo%ulim_alloc
+    to_low = [1, 1, g_lo%llim_proc]
+    to_high = [n_links_max, 2, g_lo%ulim_alloc]
 
     call init_fill (links_p, 'c', to_low, to_high, to_p, &
          from_low, from_high, from_p)
@@ -3171,21 +3161,11 @@ contains
        end do
     end do
 
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
 
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low (1) = 1
-    to_low (2) = 1
-    to_low (3) = g_lo%llim_proc
-
-    to_high(1) = n_links_max
-    to_high(2) = 2
-    to_high(3) = g_lo%ulim_alloc
+    to_low = [1, 1, g_lo%llim_proc]
+    to_high = [n_links_max, 2, g_lo%ulim_alloc]
 
     call init_fill (wfb_p, 'c', to_low, to_high, to_p, from_low, from_high, from)
     call init_fill (wfb_h, 'c', to_low, to_high, to_h, from_low, from_high, from)
@@ -3465,13 +3445,8 @@ contains
        end if
     end do
 
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
-
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
 
     to_low = from_low
     to_high = from_high
