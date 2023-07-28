@@ -119,7 +119,7 @@ module dist_fn
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
-  logical :: start_from_previous_solution
+  logical :: start_from_previous_solution, boundary_off_grid
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
 
   integer :: adiabatic_option_switch
@@ -306,6 +306,11 @@ module dist_fn
      !>
      !> @todo Improve documentation
      real :: apfac = 1.0
+     !> If true then attempt to enforce gnew == 0 at a half grid point
+     !> past the end of the grid rather than on the last grid point. This
+     !> is an experimental feature which has been seen to help suppress
+     !> grid scale oscillations near the boundary.
+     logical :: boundary_off_grid = .false.
      !> Sets the boundary condition along the field line (i.e. the
      !> boundary conditions at \(\theta = \pm \pi\) in flux-tube
      !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
@@ -1275,6 +1280,7 @@ contains
     adiabatic_option = dist_fn_config%adiabatic_option
     afilter = dist_fn_config%afilter
     apfac = dist_fn_config%apfac
+    boundary_off_grid = dist_fn_config%boundary_off_grid
     boundary_option = dist_fn_config%boundary_option
     btor_slab = dist_fn_config%btor_slab
     def_parity = dist_fn_config%def_parity
@@ -10675,12 +10681,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
+    logical :: boundary_off_grid, def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
     real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_off_grid, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, &
+         g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, &
+         opt_source, poisfac, start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10689,6 +10695,7 @@ contains
     adiabatic_option = self%adiabatic_option
     afilter = self%afilter
     apfac = self%apfac
+    boundary_off_grid = self%boundary_off_grid
     boundary_option = self%boundary_option
     btor_slab = self%btor_slab
     def_parity = self%def_parity
@@ -10725,6 +10732,7 @@ contains
     self%adiabatic_option = adiabatic_option
     self%afilter = afilter
     self%apfac = apfac
+    self%boundary_off_grid = boundary_off_grid
     self%boundary_option = boundary_option
     self%btor_slab = btor_slab
     self%def_parity = def_parity
@@ -10772,6 +10780,7 @@ contains
     call self%write_key_val("adiabatic_option", self%adiabatic_option, unit_internal)
     call self%write_key_val("afilter", self%afilter, unit_internal)
     call self%write_key_val("apfac", self%apfac, unit_internal)
+    call self%write_key_val("boundary_off_grid", self%boundary_off_grid, unit_internal)
     call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
     call self%write_key_val("def_parity", self%def_parity, unit_internal)
@@ -10821,6 +10830,7 @@ contains
     call broadcast(self%adiabatic_option)
     call broadcast(self%afilter)
     call broadcast(self%apfac)
+    call broadcast(self%boundary_off_grid)
     call broadcast(self%boundary_option)
     call broadcast(self%btor_slab)
     call broadcast(self%def_parity)
