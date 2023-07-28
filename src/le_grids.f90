@@ -246,7 +246,9 @@ module le_grids
   logical :: test = .false.
   logical :: trapped_particles = .true.
   logical :: new_trap_int = .false.
+  logical :: new_trap_int_split = .false.
   logical :: radau_gauss_grid =.true. ! default lambda grid changed
+  logical :: split_passing_region = .false.
   ! The default lambda grid is now gauss-radau, for passing particles up to 
   ! and including the passing-trapped boundary (wfb). The grid gives finite weight to
   ! the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
@@ -315,6 +317,10 @@ module le_grids
      !> default uses a simple, but potentially less accurate, finite
      !> difference method.
      logical :: new_trap_int = .false.
+     !> If `true` then split the trapped region into two symmetric
+     !> regions when calculating the integration weights associated
+     !> with the new_trap_int approach.
+     logical :: new_trap_int_split = .false.
      !> The number of untrapped pitch-angles moving in one direction
      !> along field line.
      integer :: npassing = -1
@@ -342,6 +348,11 @@ module le_grids
      !> code doesn't seem to change radau_gauss_grid when
      !> trapped_particles is false, should it?
      logical :: radau_gauss_grid = .true.
+     !> If true then we split the passing region into two separate
+     !> regions for the purpose of choosing the integration weights.
+     !> The split point is determined automatically by an attempt
+     !> to minimise the passing weights error.
+     logical :: split_passing_region = .false.
      !> If `true` then just does a few tests and writes pitch angle
      !> and energy grids to screen before aborting the simulation.
      logical :: test = .false.
@@ -555,11 +566,13 @@ contains
     nesub = le_grids_config%nesub
     nesuper = le_grids_config%nesuper
     new_trap_int = le_grids_config%new_trap_int
+    new_trap_int_split = le_grids_config%new_trap_int_split
     npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
     nterp = le_grids_config%nterp
     radau_gauss_grid = le_grids_config%radau_gauss_grid
+    split_passing_region = le_grids_config%split_passing_region
     test = le_grids_config%test
     trapped_particles = le_grids_config%trapped_particles
     vcut = le_grids_config%vcut
@@ -2655,7 +2668,8 @@ contains
     !> for the same reason as `lambda_grid`.
     real, dimension(-ntgrid:, :), intent(in out) :: weights
     real, dimension (:), allocatable :: wx, xx_radau
-    integer :: ig, il
+    integer :: ig, il, passing_split_index
+    real :: passing_split_value
 
     ! Note this is a module level quantity that we keep around for possible
     ! future use. For iproc /= 0 this allocation is actually done in [[broadcast_results]]
@@ -2674,7 +2688,20 @@ contains
        xx = xx_radau(:ng2)
     else
        allocate (wx(ng2))
-       call get_legendre_grids_from_cheb (1., 0., xx, wx)
+       if (split_passing_region) then
+          call try_to_optimise_passing_grid(passing_split_value, passing_split_index)
+          if (passing_split_index > 0) then
+             call get_legendre_grids_from_cheb (1., passing_split_value, &
+                  xx(:passing_split_index), wx(:passing_split_index))
+             call get_legendre_grids_from_cheb (passing_split_value, 0.0, &
+                  xx(1 + passing_split_index:), wx(1 + passing_split_index:))
+          else
+             call get_legendre_grids_from_cheb (1., 0., xx, wx)
+          end if
+       else
+          call get_legendre_grids_from_cheb (1., 0., xx, wx)
+       end if
+
     end if
 
     ! Store the location of the passing lambda grid points
@@ -2706,6 +2733,140 @@ contains
     if(allocated(wx)) deallocate(wx)
     if(allocated(xx_radau)) deallocate(xx_radau)
   end subroutine setup_passing_lambda_grids
+
+  !> Try to find the optimal way to split the passing lambda grid into
+  !> two regions in order to minimise the error on the integration
+  !> weights. The approach taken is trial and error -- we try a number
+  !> of predetermined splits, spline the error over the trials and then
+  !> evaluate the spline on a high resolution grid to determine an
+  !> approximate minmium.
+  subroutine try_to_optimise_passing_grid(optimal_split, optimal_points, &
+       use_max_error, noptimal_points)
+    use gauss_quad, only: get_legendre_grids_from_cheb
+    use theta_grid, only: ntgrid, bmag, bmax
+    use splines, only: new_spline, spline, splint
+    use optionals, only: get_option_with_default
+    implicit none
+    real, intent(out) :: optimal_split
+    integer, intent(out) :: optimal_points
+    logical, intent(in), optional :: use_max_error
+    integer, intent(in), optional :: noptimal_points
+    real, dimension(:), allocatable :: lambda
+    real, dimension(:, :), allocatable :: weights
+    real, dimension (:), allocatable :: wx_tmp, xx_tmp
+    real, dimension(:), allocatable :: analytic_sum, b_ratio
+    real, dimension(:), allocatable :: error
+    real, dimension(:), allocatable :: error_history
+    real, dimension(*), parameter :: trial_splits = &
+         [0.001, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.1, 0.5]
+    integer, parameter :: ntrial = size(trial_splits)
+    real, parameter :: min_split = trial_splits(1), max_split = trial_splits(ntrial)
+    integer :: high_ntrial, itrial, il
+    type(spline) :: the_spline
+    integer :: minimum_location
+    logical :: use_max_error_local
+    logical, parameter :: debug = .false.
+    integer, parameter :: high_res_factor = 100
+    real :: error_from_no_split
+    use_max_error_local = get_option_with_default(use_max_error, .false.)
+
+    allocate (analytic_sum(-ntgrid:ntgrid))
+    allocate (b_ratio(-ntgrid:ntgrid))
+    allocate (error(-ntgrid:ntgrid))
+
+    b_ratio = bmax / bmag
+    analytic_sum = 2.0 * (1 - sqrt(b_ratio - 1)/sqrt(b_ratio))
+
+    ! Determine how many points to use in the uppper region.
+    ! Here we set it to about half if not passed in.
+    ! For now this is a user choice/hard-coded value. We could
+    ! imagine also optimising this value.
+    optimal_points = get_option_with_default(noptimal_points, ng2 - (1 + ng2/2))
+    if (optimal_points <= 0) optimal_points = ng2/2
+
+    allocate(error_history(ntrial))
+    allocate(xx_tmp(ng2), wx_tmp(ng2), lambda(ng2))
+    allocate(weights(-ntgrid:ntgrid, ng2))
+
+    ! Determine the initial error metric if we don't split
+    call get_legendre_grids_from_cheb (1., 0., xx_tmp, wx_tmp)
+    lambda = (1.0 - xx_tmp**2)/bmax
+    ! Transform the Legendre weights to the lambda grid
+    do il = 1, ng2
+       weights(:,il) = wx_tmp(il)*2.0*sqrt((bmag/bmax) &
+            *((1.0/bmax-lambda(il))/(1.0/bmag-lambda(il))))
+    end do
+
+    error = analytic_sum - sum(weights, dim=2)
+
+    error_from_no_split = get_error_metric(error)
+
+    ! Run with a few splits
+    do itrial = 1, ntrial
+       call get_legendre_grids_from_cheb (1., trial_splits(itrial), xx_tmp(:optimal_points), wx_tmp(:optimal_points))
+       call get_legendre_grids_from_cheb (trial_splits(itrial), 0.0, xx_tmp(1+optimal_points:), wx_tmp(1+optimal_points:))
+
+       lambda = (1.0 - xx_tmp**2)/bmax
+
+       ! Transform the Legendre weights to the lambda grid
+       do il = 1, ng2
+          weights(:,il) = wx_tmp(il)*2.0*sqrt((bmag/bmax) &
+               *((1.0/bmax-lambda(il))/(1.0/bmag-lambda(il))))
+       end do
+
+       error = analytic_sum - sum(weights, dim=2)
+
+       error_history(itrial) = get_error_metric(error)
+    end do
+
+    deallocate(error)
+    deallocate(xx_tmp)
+
+    if (debug) print*,"History",error_history
+
+    ! Spline the error metric vs splits
+    call new_spline(ntrial, trial_splits, error_history, the_spline)
+
+    high_ntrial = ntrial * high_res_factor
+    allocate(error(high_ntrial))
+    allocate(xx_tmp(high_ntrial))
+
+    ! Evaluate the spline on a high resolution grid
+    do itrial = 1, high_ntrial
+       xx_tmp(itrial) = min_split + (itrial-1)*(max_split-min_split)/(high_ntrial-1)
+       error(itrial) = splint(xx_tmp(itrial), the_spline)
+    end do
+
+    ! Choose the location of the minimum error metric as the optimal split point
+    minimum_location = minloc(abs(error), dim = 1)
+
+    ! We should probably calculate the actual error with this split
+    ! choice in case our spline is not a good representation of the
+    ! data. If the real error is larger than any of the real measurements
+    ! we could just opt to use that instead?
+    optimal_split = xx_tmp(minimum_location)
+
+    if (debug) print*,"Optimal split : ",optimal_split," with error ",error(minimum_location)
+    if (minval(abs(error)) > error_from_no_split) then
+       optimal_split = -1
+       optimal_points = -1
+       if (debug) print*,'Minimum error from split larger than no split'
+    end if
+  contains
+    pure real function get_error_metric(errors) result(metric)
+      implicit none
+      real, dimension(:), intent(in) :: errors
+       ! Choose error metric we will later minimise
+       if (use_max_error_local) then
+          ! Maximum error
+          metric = maxval(abs(errors))
+       else
+          ! Average error
+          metric = sum(abs(errors))/size(errors)
+       end if
+    end function get_error_metric
+
+  end subroutine try_to_optimise_passing_grid
 
   !> Determines the lambda grid point integration weights in the
   !> trapped domain using either new or old (default) methods,
@@ -2789,7 +2950,7 @@ contains
     real, dimension (:), allocatable :: ytmp, yb, wb
     real, dimension (:,:), allocatable :: wberr
     integer :: npts, ntrap
-    real :: llim, ulim
+    real :: llim, ulim, wgt_tmp
     logical :: eflag
     integer :: ig, il, ndiv, divmax
 
@@ -2871,12 +3032,36 @@ contains
           ! than the weights. We should probably check this to at least warn the
           ! user if something looks badly behaved.
           if (ulim > 0.0) then
-             ! For 8.1 we stick with the original single call to get_weights
-             ! for the full domain at once.
-             call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+             if (new_trap_int_split) then
+                ! We split the weights calculation into two symmetric domains from
+                ! -v||_wfb to 0 and from 0 to v||_wfb. This has been shown to have
+                ! favourable properties when compared to treating the full -v||_wfb
+                ! to v||_wfb domain in a single call. In particular significantly more
+                ! accurate results when integrating certain functions (see mod vpa test
+                ! in the le_grids_integrate unit tests).
+                call get_weights (nmax, llim, 0., yb(:npts), wb(:npts), ndiv, divmax, eflag)
 
-             if (eflag .and. proc0) then
-                write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
+                ! Store the v|| = 0 weight for the lower domain as this will be
+                ! clobbered by the subsequent get_weights call so we need to add
+                ! this on afterwards
+                wgt_tmp = wb(npts)
+                call get_weights (nmax, 0., ulim, yb(npts:), wb(npts:), ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by second call to get_weights in setup_trapped_lambda_grids")')
+                end if
+
+                wb(npts) = wb(npts) + wgt_tmp
+             else
+                call get_weights (nmax, llim, ulim, yb, wb, ndiv, divmax, eflag)
+
+                if (eflag .and. proc0) then
+                   write(error_unit(), '("Error flag set by first call to get_weights in setup_trapped_lambda_grids")')
+                end if
              end if
           end if
 
@@ -4951,7 +5136,8 @@ contains
 
     accel_x = .false. ; accel_v = .false.
     test = .false. ; trapped_particles = .true.
-    new_trap_int = .false. 
+    new_trap_int = .false.
+    new_trap_int_split = .false.
 
     intinit = .false. ; slintinit = .false. ; lintinit = .false. ; eintinit = .false.
 
@@ -5022,10 +5208,10 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
     integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
-    logical :: genquad, new_trap_int, radau_gauss_grid, test, trapped_particles
+    logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, split_passing_region, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, npassing, ngauss, nmax, nterp, radau_gauss_grid, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, nterp, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5037,11 +5223,13 @@ contains
     nesub = self%nesub
     nesuper = self%nesuper
     new_trap_int = self%new_trap_int
+    new_trap_int_split = self%new_trap_int_split
     npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
     nterp = self%nterp
     radau_gauss_grid = self%radau_gauss_grid
+    split_passing_region = self%split_passing_region
     test = self%test
     trapped_particles = self%trapped_particles
     vcut = self%vcut
@@ -5059,11 +5247,13 @@ contains
     self%nesub = nesub
     self%nesuper = nesuper
     self%new_trap_int = new_trap_int
+    self%new_trap_int_split = new_trap_int_split
     self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
     self%nterp = nterp
     self%radau_gauss_grid = radau_gauss_grid
+    self%split_passing_region = split_passing_region
     self%test = test
     self%trapped_particles = trapped_particles
     self%vcut = vcut
@@ -5092,11 +5282,13 @@ contains
     call self%write_key_val("nesub", self%nesub, unit_internal)
     call self%write_key_val("nesuper", self%nesuper, unit_internal)
     call self%write_key_val("new_trap_int", self%new_trap_int, unit_internal)
+    call self%write_key_val("new_trap_int_split", self%new_trap_int_split, unit_internal)
     call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
     call self%write_key_val("nterp", self%nterp, unit_internal)
     call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
+    call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
     call self%write_key_val("trapped_particles", self%trapped_particles, unit_internal)
     call self%write_key_val("vcut", self%vcut, unit_internal)
@@ -5127,11 +5319,13 @@ contains
     call broadcast(self%nesub)
     call broadcast(self%nesuper)
     call broadcast(self%new_trap_int)
+    call broadcast(self%new_trap_int_split)
     call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
     call broadcast(self%nterp)
     call broadcast(self%radau_gauss_grid)
+    call broadcast(self%split_passing_region)
     call broadcast(self%test)
     call broadcast(self%trapped_particles)
     call broadcast(self%vcut)

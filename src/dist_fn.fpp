@@ -94,6 +94,8 @@ module dist_fn
   public :: calculate_flux_surface_average
 
   public :: calculate_potentials_from_nonadiabatic_dfn
+  public :: flux_tube_field_like_to_ballooning_space
+  public :: check_linked_boundaries_are_satisfied
 
   public :: dist_fn_config_type
   public :: dist_fn_species_config_type
@@ -205,6 +207,14 @@ module dist_fn
   !> really belongs in kt_grids, but placing here alongside related
   !> itleft, itright etc.
   integer, dimension(:, :), allocatable :: supercell_labels
+
+  !> Records the number of unique supercells for each ky,
+  integer, dimension(:), allocatable :: n_supercells
+
+  !> Records the number of cells which are members of the supercell
+  !> which owns the particular {it, ik} point. One would expect this
+  !> to be equivalent to l_links + r_links + 1.
+  integer, dimension(:, :), allocatable :: n_cells
 
   ! For use in get_fields_direct_from_dfn
   real, dimension(:, :, :), allocatable :: inv_phi_denominator_g, inv_bpar_denominator_g
@@ -1100,6 +1110,8 @@ contains
     if (allocated(M_class)) deallocate (M_class, N_class)
     if (allocated(itleft)) deallocate (itleft, itright)
     if (allocated(supercell_labels)) deallocate (supercell_labels)
+    if (allocated(n_supercells)) deallocate (n_supercells)
+    if (allocated(n_cells)) deallocate (n_cells)
     if (allocated(connections)) deallocate (connections)
     if (allocated(g_adj)) deallocate (g_adj)
     if (allocated(jump)) deallocate (jump)
@@ -1572,31 +1584,29 @@ contains
     use theta_grid, only: ntgrid, bmag
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use dist_fn_arrays, only: vperp2
-    use le_grids, only: energy, al
+    use le_grids, only: energy, al, forbid
     use array_utils, only: zero_array
     implicit none
     real :: al1, e1
-    integer :: iglo, is
+    integer :: iglo, is, il
     if (.not.allocated(vperp2)) then
        allocate (vperp2 (-ntgrid:ntgrid,  g_lo%llim_proc:g_lo%ulim_alloc))
     endif
     call zero_array(vperp2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, is, e1) &
-    !$OMP SHARED(g_lo, al, bmag, energy, vperp2) &
+    !$OMP PRIVATE(iglo, al1, is, e1, il) &
+    !$OMP SHARED(g_lo, al, bmag, energy, vperp2, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        is = is_idx(g_lo,iglo)
        e1 = energy(ie_idx(g_lo,iglo),is)
 
-       ! Note that this sets vperp2 even in the forbid region.
-       ! Whilst this doesn't directly cause issues, we might
-       ! want to consider setting to a special value (0, -1, ...)
-       ! in the forbidden region. This might help highlight/avoid
-       ! issues with using values from the forbidden region.
-       vperp2(:,iglo) = bmag*al1*e1
+       where (.not. forbid(:, il))
+          vperp2(:,iglo) = bmag*al1*e1
+       end where
     end do
     !$OMP END PARALLEL DO
   end subroutine init_vperp2
@@ -1607,7 +1617,7 @@ contains
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, delthet, bmag, gradpar
-    use le_grids, only: energy, al, negrid, nlambda
+    use le_grids, only: energy, al, negrid, nlambda, forbid
     use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
@@ -1650,19 +1660,20 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, e1, ik, is) &
+    !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
     !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, &
-    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar) &
+    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
-       al1 = al(il_idx(g_lo,iglo))
+       il = il_idx(g_lo, iglo)
+       al1 = al(il)
        e1 = energy(ie_idx(g_lo,iglo), is)
 
        vpa(:,1,iglo) = sqrt(e1*max(0.0, 1.0 - al1*bmag)) * vparknob
        vpa(:,2,iglo) = - vpa(:,1,iglo)
 
-       where (1.0 - al1*bmag < 100.0*epsilon(0.0))
+       where (forbid(:, il))
           vpa(:,1,iglo) = 0.0
           vpa(:,2,iglo) = 0.0
        end where
@@ -1676,15 +1687,12 @@ contains
 !  ie  vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT
 ! 
 !   comments on vpac, vpar
-!     (i) surely vpac=0 at or beyond bounce points, so WHY was it set to +-1?
-!                                seems unphysical!
-!    (ii) should some be weighted by bakdif?
+!    (i) should some be weighted by bakdif?
 !CMR 
 
-       where (1.0 - al1*0.5*(bmag(-ntgrid:ntgrid-1)+bmag(-ntgrid+1:ntgrid)) &
-              < 0.0)
-          vpac(-ntgrid:ntgrid-1,1,iglo) = 1.0
-          vpac(-ntgrid:ntgrid-1,2,iglo) = -1.0
+       where (forbid(:ntgrid-1, il) .or. forbid(-ntgrid+1:, il))
+          vpac(-ntgrid:ntgrid-1,1,iglo) = 0.0
+          vpac(-ntgrid:ntgrid-1,2,iglo) = 0.0
        elsewhere
           vpac(-ntgrid:ntgrid-1,1,iglo) = &
               0.5*(vpa(-ntgrid:ntgrid-1,1,iglo) + vpa(-ntgrid+1:ntgrid,1,iglo))
@@ -2125,7 +2133,9 @@ contains
     end select
 
     allocate(supercell_labels(ntheta0, naky))
-    call calculate_supercell_labels(supercell_labels)
+    allocate(n_supercells(naky))
+    allocate(n_cells(ntheta0, naky))
+    call calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
   end subroutine init_bc
 
   !> FIXME : Add documentation  
@@ -2254,6 +2264,7 @@ contains
     ! Get the supercell label related to the point of interest and
     ! form a logical mask selecting members of this supercell
     isc = supercell_labels(it, ik)
+    allocate(supercell_mask(ntheta0))
     supercell_mask = supercell_labels(:, ik) == isc
 
     ! Count how many cells there are.
@@ -2272,6 +2283,7 @@ contains
 
     ! Convert theta0_indices_real to integer to allow use for indexing
     ! arrays later.
+    allocate(theta0_indices(size(theta0_indices_real)))
     theta0_indices = int(theta0_indices_real)
     theta0_indices = theta0_indices(ncell:1:-1)
 
@@ -2311,14 +2323,17 @@ contains
 
   !> Assigns a label to each {it, ik} point denoting which unique
   !> supercell the point belongs to.
-  subroutine calculate_supercell_labels(supercell_labels)
+  subroutine calculate_supercell_labels(supercell_labels, n_supercells, n_cells)
     use kt_grids, only: naky, ntheta0
     implicit none
-    integer, dimension(:, :), intent(out) :: supercell_labels
+    integer, dimension(:, :), intent(out) :: supercell_labels, n_cells
+    integer, dimension(:), intent(out) :: n_supercells
     integer, dimension(:), allocatable :: temporary_it_leftmost
-    integer :: it, ik, isc
+    integer :: it, ik, isc, ncell
 
     supercell_labels = -1
+    n_supercells = 0
+    n_cells = 0
     isc = -1
 
     allocate(temporary_it_leftmost(ntheta0))
@@ -2331,14 +2346,25 @@ contains
 
        do it = 1, ntheta0
           if (temporary_it_leftmost(it) >= 0) then
+             ! Note ncell isn't currently used but records the number
+             ! of cells for the current supercell. We struggle to
+             ! store it efficiently at this point as we don't yet know
+             ! how many supercells there are. We currently store it in
+             ! an array of shape [ntheta0, naky] so that we can look
+             ! up the number of cells given {it, ik} rather than
+             ! {isc}, so there is some duplication.
+             ncell = count(temporary_it_leftmost == temporary_it_leftmost(it))
              isc = isc + 1
              where (temporary_it_leftmost == temporary_it_leftmost(it))
                 temporary_it_leftmost = -1
                 supercell_labels(:, ik) = isc
+                n_cells(:, ik) = ncell
              end where
+             n_supercells(ik) = n_supercells(ik) + 1
           end if
        end do
     end do
+
   end subroutine calculate_supercell_labels
 
   !> Compute the spacing in kx indices between connected kx domains
@@ -2713,7 +2739,7 @@ contains
     integer, intent(in) :: n_links_max
     type(redist_type), intent(out) :: links_p, links_h
     logical, intent(out) :: no_connections
-    type (index_list_type), dimension(0:nproc-1) :: from, from_p, from_h, to_p, to_h
+    type (index_list_type), dimension(0:nproc-1) :: from_p, from_h, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to, nn_from_h, nn_to_h
     integer, dimension (3) :: to_low, from_low, to_high, from_high
     integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
@@ -2994,7 +3020,7 @@ contains
     type(index_list_type), dimension(0:nproc-1) :: from, to_p, to_h
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo, n_h, nn_max
+    integer :: il, ik, it, ncell, ip, iglo_star, j, n, iglo
     integer :: iglo_right, ipright, iglo_left, ipleft, ie, is
 
     nn_to = 0
@@ -3236,7 +3262,16 @@ contains
     call setup_connected_bc_redistribute(l_links, r_links, n_links_max, &
          links_p, links_h, no_connections)
 
-    ! If no connections then don't need to do any more work here
+    ! If no connections then don't need to do any more work here. One
+    ! might expect us to be able to set no_connections = n_links_max == 0
+    ! rather than having to call setup_connected_bc_redistribute to
+    ! determine this. This would allow a little bit of work to be skipped.
+    ! Note that no_connections is a global quantity (i.e. agreed value
+    ! on all processors). We may wish to introduce a local version as well.
+    ! At scale each processor may only be responsible for one pitch angle,
+    ! for example. If this is a trapped pitch angle then it will not have
+    ! any work to do associated with the boundaries yet it will still go
+    ! through the allocations etc. associated with setting up linked boundaries
     if (no_connections) then
        if (proc0) write(error_unit(), &
             '("No connections found when setting up linked boundaries.")')
@@ -3256,6 +3291,13 @@ contains
     call init_pass_ends(pass_left, 'l', 1, 'c', 1)
 
     ! n_links_max is typically 2 * number of cells in largest supercell
+    ! Note this is potentially quite wasteful in terms of storage. In flux
+    ! tube setup there is likely only one supercell with the maximal number
+    ! of links and many more with fewer (or zero) links yet we allocate the
+    ! full length for _all_ iglo points. For the longest supercell we expect
+    ! n_links ~ 2 * ntheta0/jtwist - 1 and hence n_links_max is ~ 2*( 1 + ntheta/jtwist)
+    ! For simulations with high nx and/or low jtwist n_links_max could be >> ntheta
+    ! and therefore g_adj may dominate memory consumption in some cases.
     allocate (g_adj (n_links_max, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call zero_array(g_adj)
 
@@ -3546,43 +3588,37 @@ contains
   end subroutine get_right_connection
 
   !> Helper function for finding the leftmost it of supercell
-  function get_leftmost_it(it,ik)
+  elemental integer function get_leftmost_it(it,ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_leftmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itleft(it_cur, ik).ge.0.and.itleft(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itleft(it_cur, ik) >= 0 .and. itleft(it_cur, ik) /= it_cur)
           !Keep updating it_cur with left connected it until there are no
           !connections to left
-          it_cur=itleft(it_cur, ik)
-       enddo
+          it_cur = itleft(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_leftmost_it=it_cur
+       it_cur = it
+    end if
   end function get_leftmost_it
 
   !> Helper function for finding the rightmost it of supercell
-  function get_rightmost_it(it,ik)
+  elemental integer function get_rightmost_it(it, ik) result(it_cur)
     implicit none
-    integer, intent(in) :: ik, it
-    integer :: get_rightmost_it
-    integer :: it_cur
+    integer, intent(in) :: it, ik
     !If not linked then no connections so only one cell in supercell
-    if (boundary_option_switch.eq.boundary_option_linked) then
-       it_cur=it
-       do while(itright(it_cur, ik).ge.0.and.itright(it_cur, ik).ne.it_cur)
+    if (boundary_option_switch == boundary_option_linked) then
+       it_cur = it
+       do while (itright(it_cur, ik) >= 0 .and. itright(it_cur, ik) /= it_cur)
           !Keep updating it_cur with right connected it until there are no
           !connections to right
-          it_cur=itright(it_cur, ik)
-       enddo
+          it_cur = itright(it_cur, ik)
+       end do
     else
-       it_cur=it
-    endif
-    get_rightmost_it=it_cur
+       it_cur = it
+    end if
   end function get_rightmost_it
   
   !> FIXME : Add documentation
@@ -5007,7 +5043,8 @@ contains
     include_explicit = include_explicit .and. nonlin .and. (.not. split_nonlinear)
 #endif
 
-    if (include_explicit) ab_coefficients = get_adams_bashforth_coefficients()
+    if (include_explicit) allocate(ab_coefficients, &
+         source = get_adams_bashforth_coefficients())
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, isgn) &
@@ -5058,8 +5095,7 @@ contains
   !>     - Solve for homogeneous and inhomogeneous solution
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
-  subroutine invert_rhs_1 &
-       (phi, apar, bpar, phinew, aparnew, bparnew, source)
+  subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
@@ -5074,8 +5110,7 @@ contains
     use mp, only: mp_abort
     use array_utils, only: copy
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi,    apar,    bpar
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
     integer :: iglo
     integer :: ig, ik, it, il, ie, is
@@ -5693,8 +5728,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call invert_rhs_1 (phi, apar, bpar, phinew, aparnew, bparnew, &
-         source = g_work)
+    call invert_rhs_1 (phinew, bparnew, source = g_work)
 
     select case (boundary_option_switch)
     case (boundary_option_linked)
@@ -5705,50 +5739,72 @@ contains
 
   end subroutine invert_rhs
 
-  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
-  subroutine ensure_single_val_fields_pass(arr)
-    !Added by <DD>
+  !> Ensure that linked boundary values of passed complex field are
+  !> single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !> equal to kperp2(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !>
+  !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
+  !> routine will also copy one periodic boundary value into the other one.
+  subroutine ensure_single_val_fields_pass(arr, force_all)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
     use kt_grids, only: naky, ntheta0
-    use mp, only: broadcast
     implicit none
-    integer :: it,ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     complex, dimension (-ntgrid:,:,:), intent (in out) :: arr
-    if (boundary_option_switch.ne.boundary_option_linked) return
-    do ik=1,naky
-       do it=1,ntheta0
-          link_it=itright(it, ik)
-          if (link_it.lt.0) cycle
-          arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
-       enddo
-    enddo
-    !This broadcast was used originally but doesn't appear to be required during recent testing
-    !This could depend on the mpi library in use
-    !    call broadcast(arr)
+    logical, intent(in), optional :: force_all
+    logical :: force
+    if (boundary_option_switch /= boundary_option_linked) return
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
+          link_it = itright(it, ik)
+          if (link_it < 0) cycle
+          arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
+       end do
+    end do
   end subroutine ensure_single_val_fields_pass
 
-  !> Ensure that linked boundary values of passed complex field are single valued (e.g. kperp2(ntgrid,ikx,iky) is
-  !! equal to gnew(-ntgrid,ikx_link,iky) as these correspond to the same location).
-  subroutine ensure_single_val_fields_pass_r(arr)
-    !Added by <DD>
+  !> Ensure that linked boundary values of passed real field are
+  !> single valued (e.g. kperp2(ntgrid,ikx,iky) is
+  !> equal to kperp2(-ntgrid,ikx_link,iky) as these correspond to the same location).
+  !>
+  !> @note itright(it, ik) == it for ky == 0 modes in the flux tube setup so this
+  !> routine will also copy one periodic boundary value into the other one.
+  subroutine ensure_single_val_fields_pass_r(arr, force_all)
     use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use optionals, only: get_option_with_default
     use kt_grids, only: naky, ntheta0
-    use mp, only: broadcast
     implicit none
-    integer :: it,ik, link_it
+    integer :: it, ik, link_it, ik_min, ik_max, it_min, it_max
     real, dimension (-ntgrid:,:,:), intent (in out) :: arr
-    if (boundary_option_switch.ne.boundary_option_linked) return
-    do ik=1,naky
-       do it=1,ntheta0
-          link_it=itright(it, ik)
-          if (link_it.lt.0) cycle
-          arr(-ntgrid,link_it,ik)=arr(ntgrid,it,ik)
-       enddo
-    enddo
-    !This broadcast was used originally but doesn't appear to be required during recent testing
-    !This could depend on the mpi library in use
-    !    call broadcast(arr)
+    logical, intent(in), optional :: force_all
+    logical :: force
+    if (boundary_option_switch /= boundary_option_linked) return
+    force = get_option_with_default(force_all, .false.)
+    if (force) then
+       ik_min = 1; ik_max = naky ; it_min = 1 ; it_max = ntheta0
+    else
+       ik_min = g_lo%ik_min; ik_max = g_lo%ik_max
+       it_min = g_lo%it_min; it_max = g_lo%it_max
+    end if
+
+    do ik = ik_min, ik_max
+       do it = it_min, it_max
+          link_it = itright(it, ik)
+          if (link_it < 0) cycle
+          arr(-ntgrid, link_it, ik) = arr(ntgrid, it, ik)
+       end do
+    end do
   end subroutine ensure_single_val_fields_pass_r
 
   !> Compute velocity space integrals over \(h_s\):
@@ -7167,6 +7223,7 @@ contains
             !$OMP END PARALLEL DO
           endif
           call integrate_species (g_work, wgt, antot, nogath=.true.)
+          if(esv) call ensure_single_val_fields_pass(antot)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7243,7 +7300,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antota, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antota)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -7324,7 +7381,7 @@ contains
              !$OMP END PARALLEL DO
           end if
           call integrate_species (g_work, wgt, antotp, nogath=.true.)
-
+          if(esv) call ensure_single_val_fields_pass(antotp)
        else
           !AJ The code below undertakes the functionality of integrate_species (or specifically integrate_species_gf_nogather from le_grids).
           !AJ It is possible to call that routine instead of the code below, but the code was brought into here to enable the combinations of the
@@ -8104,6 +8161,9 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
              g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
                   *Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2) &
                   -zi*aky(ik)*gnew(ig,isgn,iglo)*aj1(ig,iglo) &
@@ -8216,6 +8276,9 @@ contains
 
        do isgn = 1, 2
           do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
              g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
           end do
        end do

@@ -1818,6 +1818,7 @@ contains
     !AJ The problem does not occur on small core counts (we see it between 2000 and 3000 cores)
     call barrier()
     
+    pts_set_here=0
     !Loop over all ik
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ik, is, ic, iex_init, iex, ig, it) &
@@ -4426,7 +4427,7 @@ contains
     matrix_shape = shape(matrix)
     do j = 1, matrix_shape(2)
        do i = 1, matrix_shape(1)
-          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+          l2norm = l2norm + real(matrix(i,j) * conjg(matrix(i,j)))
        end do
     end do
     l2norm = sqrt(l2norm)

@@ -490,7 +490,7 @@ contains
        j_ext_hist = 0
     end if
 
-    call init_gs2_io (append_old, make_movie, write_verr, &
+    call init_gs2_io (append_old, make_movie, &
          write_correlation_extend, &
          write_phi_over_time, write_apar_over_time, write_bpar_over_time, &
          nout, ob_midplane=ob_midplane, header=local_header)
