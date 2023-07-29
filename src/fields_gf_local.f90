@@ -4196,13 +4196,13 @@ contains
   !> Calculate the update to the fields
   subroutine getfield_gf_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
     use theta_grid, only: ntgrid
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_update_in
     logical :: do_update
 
-    do_update=.false.
-    if(present(do_update_in)) do_update=do_update_in
+    do_update = get_option_with_default(do_update_in, .false.)
 
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here

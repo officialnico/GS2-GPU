@@ -2570,6 +2570,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, intspec_sub
     use array_utils, only: zero_array, copy
+    use optionals, only: get_option_with_default
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: ph,ap,bp
@@ -2585,12 +2586,10 @@ contains
     logical :: x_is_not_split
 
     !Set the to_all flag
-    to_all=.false.
-    if(present(to_all_in)) to_all=to_all_in
+    to_all = get_option_with_default(to_all_in, .false.)
 
     !Set the do_allreduce flag
-    do_allreduce=.false.
-    if(present(do_allreduce_in)) do_allreduce=do_allreduce_in
+    do_allreduce = get_option_with_default(do_allreduce_in, .false.)
     
     !Shouldn't do to_all if do_allreduce
     if(do_allreduce) to_all=.false.
@@ -3952,6 +3951,7 @@ contains
   subroutine init_fields_matrixlocal(tuning_in)
     use mp, only: proc0, mp_abort, land_allreduce
     use file_utils, only: error_unit
+    use optionals, only: get_option_with_default
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
@@ -3961,10 +3961,7 @@ contains
     !Exit if we've already initialised
     if(initialised) return
 
-    tuning = .false.
-    if(present(tuning_in)) then
-       tuning = tuning_in
-    end if
+    tuning = get_option_with_default(tuning_in, .false.)
 
     if(.not.reinit)then
        !Use the fieldmat init routine to create fieldmat
@@ -4167,6 +4164,7 @@ contains
   !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_gather_in, do_update_in
@@ -4175,10 +4173,8 @@ contains
 
     !Set gather flag, this currently always needs to be true for
     !correct operation.
-    do_gather=.false.
-    if(present(do_gather_in)) do_gather=do_gather_in
-    do_update=.false.
-    if(present(do_update_in)) do_update=do_update_in
+    do_gather = get_option_with_default(do_gather_in, .false.)
+    do_update = get_option_with_default(do_update_in, .false.)
 
     call debug_message(verb, &
         'fields_local::getfield_local calling get_field_update')
