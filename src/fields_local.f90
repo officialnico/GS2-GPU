@@ -1839,7 +1839,7 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: get_leftmost_it, n_supercells, n_cells
+    use dist_fn, only: get_leftmost_it, n_supercells
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     implicit none
