@@ -5112,12 +5112,12 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     logical :: is_wfb, is_passing, is_trapped
-    logical :: is_self_periodic
+    logical :: is_self_periodic, is_passing_like
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
-    !$OMP adjright, adjleft, ig, beta1) &
+    !$OMP adjright, adjleft, ig, beta1, is_passing_like) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
@@ -5185,6 +5185,9 @@ contains
        ! Is this particle passing. Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        is_passing = il_is_passing(il)
+
+       ! Should this particle be treated as a passing particle
+       is_passing_like = is_passing .or. (is_wfb .and. passing_wfb)
 
        ! Is this particle trapped? Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
