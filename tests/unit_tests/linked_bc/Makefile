@@ -15,6 +15,9 @@ all:
 else
 all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_zero_pass.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_nonzero_pass.in)
+	$(call RUNCOMMAND_EXPECT_FAIL,${TEST_BASE_NAME},${TEST_BASE_NAME}_zero.in)
 endif
 endif
 

@@ -146,7 +146,7 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (append_old, make_movie, write_verr, write_correlation_extend, &
+  subroutine init_gs2_io (append_old, make_movie, write_correlation_extend, &
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, ob_midplane, header)
     use mp, only: proc0
     use standard_header, only : standard_header_type
@@ -167,7 +167,7 @@ contains
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: append_old
     logical, intent(inout) :: write_correlation_extend
-    logical, intent(in) :: write_verr, make_movie
+    logical, intent(in) :: make_movie
     logical, intent(in) :: write_phi_over_time, write_apar_over_time, write_bpar_over_time
     !> If true, write out moments at the outboard midplane only,
     !> otherwise write them out along the entire flux surface
@@ -236,7 +236,7 @@ contains
     if (proc0) then
         !Setup main file by creating netCDF file
         call define_dims (ncid, io_write_corr_extend)
-        call define_vars (write_verr, write_correlation_extend, ob_midplane=ob_midplane)
+        call define_vars (write_correlation_extend, ob_midplane=ob_midplane)
 
         if (appending) then
             nout = get_dim_length(ncid, "t")
@@ -461,7 +461,7 @@ contains
 
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
-  subroutine define_vars (write_verr, write_correlation_extend, ob_midplane)
+  subroutine define_vars (write_correlation_extend, ob_midplane)
 # ifdef NETCDF
     use file_utils, only: error_unit
     use netcdf, only : NF90_CHAR, nf90_inq_libvers
@@ -469,7 +469,6 @@ contains
     use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
 # endif
     implicit none
-    logical, intent(in) :: write_verr
     logical, intent(inout) :: write_correlation_extend
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
@@ -1229,7 +1228,6 @@ contains
   !> Writes the QL flux metric by mode number and summed over mode number to netcdf file
   subroutine nc_write_ql_metric(file_id, nout, ql_metric)
 #ifdef NETCDF
-    use kt_grids, only: ntheta0, naky
     use neasyf, only: neasyf_write
 #endif
     !> NetCDF ID of the file

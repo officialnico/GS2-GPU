@@ -31,13 +31,13 @@ program test_timestep_change
   istep = 5
   
   ! Make a copy of the current state
-  g_bak = gnew
-  gexp_1_bak = gexp_1
-  gexp_2_bak = gexp_2
-  gexp_3_bak = gexp_3  
-  phi_bak = phinew
-  apar_bak = aparnew
-  bpar_bak = bparnew
+  allocate(g_bak, source = gnew)
+  allocate(gexp_1_bak, source = gexp_1)
+  allocate(gexp_2_bak, source = gexp_2)
+  allocate(gexp_3_bak, source = gexp_3)
+  allocate(phi_bak, source = phinew)
+  allocate(apar_bak, source = aparnew)
+  allocate(bpar_bak, source = bparnew)
   code_dt_bak = code_dt
   
   ! Change the timestep

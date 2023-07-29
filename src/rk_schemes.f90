@@ -125,7 +125,8 @@ contains
     case(rk_dopri%id)
        scheme%number_of_stages = 7
        scheme%order = 5
-       scheme%lower_order_coeffs = [5179/57600.0, 0.0,7571/16695.0, 393/640.0, -92097/339200.0, 187/2100.0, 1/40.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [5179/57600.0, 0.0,7571/16695.0, 393/640.0, -92097/339200.0, 187/2100.0, 1/40.0])
        scheme%high_order_coeffs = [35/384.0, 0.0, 500/1113.0, 125/192.0, -2187/6784.0, 11/84.0, 0.0]
        scheme%time_points = [0.0, 1/5.0, 3/10.0, 4/5.0, 8/9.0, 1.0, 1.0]
        scheme%follow_high_order = .true.
@@ -141,7 +142,8 @@ contains
     case(rk_f45%id)
        scheme%number_of_stages = 6
        scheme%order = 5
-       scheme%lower_order_coeffs = [25/216.0, 0.0, 1408/2565.0, 2197/4104.0, -1/5.0, 0.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [25/216.0, 0.0, 1408/2565.0, 2197/4104.0, -1/5.0, 0.0])
        scheme%high_order_coeffs = [16/135.0, 0.0, 6656/12825.0, 28561/56430.0, -9/50.0, 2/55.0]
        scheme%time_points = [0.0, 1/4.0, 3/8.0, 12/13.0, 1.0, 1/2.0]
        scheme%follow_high_order = .true.
@@ -156,7 +158,8 @@ contains
     case(rk_cashkarp%id)
        scheme%number_of_stages = 6
        scheme%order = 5
-       scheme%lower_order_coeffs = [2825/27648.0, 0.0, 18575/48384.0, 13525/55296.0, 277/14336.0, 1/4.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [2825/27648.0, 0.0, 18575/48384.0, 13525/55296.0, 277/14336.0, 1/4.0])
        scheme%high_order_coeffs = [37/378.0, 0.0, 250/621.0, 125/594.0, 0.0, 512/1771.0]
        scheme%time_points = [0.0, 1/5.0, 3/10.0, 3/5.0, 1.0, 7/8.0]
        scheme%follow_high_order = .true.
@@ -171,7 +174,8 @@ contains
     case(rk_heun%id)
        scheme%number_of_stages = 2
        scheme%order = 2
-       scheme%lower_order_coeffs = [1.0, 0.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [1.0, 0.0])
        scheme%high_order_coeffs = [1/2.0, 1/2.0]
        scheme%time_points = [0.0, 1.0]
        scheme%follow_high_order = .true.
@@ -182,7 +186,8 @@ contains
     case(rk_ralston%id)
        scheme%number_of_stages = 2
        scheme%order = 2
-       scheme%lower_order_coeffs = [1.0, 0.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [1.0, 0.0])
        scheme%high_order_coeffs = [1/4.0, 3/4.0]
        scheme%time_points = [0.0, 2/3.0]
        scheme%follow_high_order = .true.
@@ -193,7 +198,8 @@ contains
     case(rk_midpoint%id)
        scheme%number_of_stages = 2
        scheme%order = 2
-       scheme%lower_order_coeffs = [1.0, 0.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [1.0, 0.0])
        scheme%high_order_coeffs = [0.0, 1.0]
        scheme%time_points = [0.0, 1/2.0]
        scheme%follow_high_order = .true.
@@ -204,7 +210,8 @@ contains
     case(rk_bs23%id)
        scheme%number_of_stages = 4
        scheme%order = 3
-       scheme%lower_order_coeffs = [7/24.0, 1/4.0, 1/3.0, 1/8.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [7/24.0, 1/4.0, 1/3.0, 1/8.0])
        scheme%high_order_coeffs = [2/9.0, 1/3.0, 4/9.0, 0.0]
        scheme%time_points = [0.0, 1/2.0, 3/4.0, 1.0]
        scheme%follow_high_order = .true.
@@ -217,8 +224,9 @@ contains
     case(rk_bs45%id)
        scheme%number_of_stages = 8
        scheme%order = 5
-       scheme%lower_order_coeffs = [6059/80640.0, 0.0, 8559189/30983680.0, 26411/124800.0, &
-            -927/89600.0, 443/1197.0, 7267/94080.0, 0.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [6059/80640.0, 0.0, 8559189/30983680.0, 26411/124800.0, &
+            -927/89600.0, 443/1197.0, 7267/94080.0, 0.0])
        scheme%high_order_coeffs = [587/8064.0, 0.0, 4440339/15491840.0, 24353/124800.0, &
             387/44800.0, 2152/5985.0, 7267/94080.0, 0.0]
        scheme%time_points = [0.0, 1/6.0, 2/9.0, 3/7.0, 2/3.0, 3/4.0, 1.0, 1.0]
@@ -239,7 +247,8 @@ contains
     case(rk_euler%id)
        scheme%number_of_stages = 1
        scheme%order = 1
-       scheme%lower_order_coeffs = [1.0]
+       allocate(scheme%lower_order_coeffs, source = &
+            [1.0])
        scheme%high_order_coeffs = [1.0]
        scheme%time_points = [0.0]
        scheme%follow_high_order = .true.
