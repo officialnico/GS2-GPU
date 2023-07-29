@@ -5574,7 +5574,8 @@ contains
        !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
        ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
        !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
-       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb))) then
+       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb)) &
+            .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
           ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
           ig = ntgrid - 1
           gnew(ig, 2, iglo) = -gnew(ig + 1, 2, iglo) * r(ig, 2, iglo) + &
@@ -5623,7 +5624,8 @@ contains
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
 
-       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb))) then
+       if (boundary_off_grid .and. (is_passing .or. (is_wfb .and. passing_wfb)) &
+            .and. (.not. is_self_periodic) .and. (l_links(it, ik) == 0) ) then
           ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
           ig = -ntgrid
           gnew(ig + 1, 1, iglo) = -gnew(ig, 1, iglo) * r(ig, 1, iglo) + &
