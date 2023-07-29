@@ -5243,27 +5243,25 @@ contains
        !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( nonad_zero ) then
-          if (is_passing .or. (is_wfb .and. passing_wfb) ) then
-             !Only apply the new boundary condition to the leftmost
-             !cell for sign going from left to right
-             if (l_links(it, ik) .eq. 0) then
-                adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-                     *bparnew(-ntgrid,it,ik)*fbpar &
-                     + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                     *fphi*nonmaxw_corr(ie,is)
-                gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
-             end if
-             !Only apply the new boundary condition to the rightmost
-             !cell for sign going from right to left
-             if (r_links(it, ik) .eq. 0) then
-                adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-                     *bparnew(ntgrid,it,ik)*fbpar &
-                     + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                     *fphi*nonmaxw_corr(ie,is)
-                gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
-             end if
-          endif
+       if ( nonad_zero .and. is_passing_like ) then
+          !Only apply the new boundary condition to the leftmost
+          !cell for sign going from left to right
+          if (l_links(it, ik) .eq. 0) then
+             adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+                  *bparnew(-ntgrid,it,ik)*fbpar &
+                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
+             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+          end if
+          !Only apply the new boundary condition to the rightmost
+          !cell for sign going from right to left
+          if (r_links(it, ik) .eq. 0) then
+             adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+                  *bparnew(ntgrid,it,ik)*fbpar &
+                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
+             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+          end if
        endif
 
        !/////////////////////////
