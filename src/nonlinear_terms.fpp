@@ -1325,7 +1325,16 @@ contains
     real :: dt_cfl
 
     ! Estimate the global cfl limit based on max_vel.
-    dt_cfl = 1./max_vel
+    if (max_vel <= 0.0) then
+       ! We should only end up here in unusual cases (likely
+       ! tests) as we initialise max_vel > 0 so the only way
+       ! we get here is if the estimated NL velocity limit is
+       ! exactly 0.
+       dt_cfl = dt_cfl_default_large
+    else
+       dt_cfl = 1./max_vel
+    end if
+
     call save_dt_cfl (dt_cfl)
 
     ! Now check to see if we've violated the cfl condition.
