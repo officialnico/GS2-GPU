@@ -3565,8 +3565,8 @@ contains
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
     ! the linked location. Note we need this communication pattern whenever we may
-    ! allow gnew/=0 on the incoming boundary.
-    if (start_from_previous_solution .or. boundary_off_grid) then
+    ! allow gnew/=0 on the real incoming boundary (i.e. at the end of the supercell).
+    if (start_from_previous_solution) then
        call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
     end if
 
@@ -5810,7 +5810,7 @@ contains
     if (no_connections) return
 
     ! Some extra work to do if we allow non-zero incoming boundary conditions
-    if (start_from_previous_solution .or. boundary_off_grid) then
+    if (start_from_previous_solution) then
        ! Pass the incoming boundary values to the previous connected cell, storing
        ! at its connected boundary. This requires two redistribute calls _and_ a full
        ! dist_fn sized array even though there should be at most two non-zero values
