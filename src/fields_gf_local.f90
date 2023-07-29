@@ -1647,13 +1647,12 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: get_leftmost_it
+    use dist_fn, only: get_leftmost_it, n_supercells
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: it, cur_id, it_start, is_count, ik
-    integer, dimension(:), allocatable :: nsuper
     integer, dimension(:), allocatable :: tmp_supercell_ids
     integer, dimension(:,:), allocatable :: supercell_ids
     integer, dimension(:,:), allocatable :: is_to_itmin
@@ -1662,7 +1661,6 @@ contains
     nfield = count([has_phi, has_apar, has_bpar])
 
     !Allocate temp arrays
-    allocate(nsuper(naky))
     allocate(supercell_ids(ntheta0, naky))
     ! Here the first dimension is allocated as ntheta0
     ! but for each ky we only use the first nsupercell(ik)
@@ -1670,7 +1668,6 @@ contains
     allocate(is_to_itmin(ntheta0, naky))
 
     !Initialise arrays
-    nsuper = 0
     is_to_itmin = 0
     supercell_ids = -1
 
@@ -1704,7 +1701,6 @@ contains
           if (cur_id == -1) cycle
 
           !Increase supercell counter
-          nsuper(ik) = nsuper(ik) + 1
           is_count = is_count + 1
 
           !Store the leftmost it value
@@ -1733,11 +1729,11 @@ contains
 
     !/Make the kyb objects
     do ik = 1, naky
-       call self%kyb(ik)%init(ik, is_to_itmin(:, ik), nsuper(ik), nfield, self%nbound)
+       call self%kyb(ik)%init(ik, is_to_itmin(:, ik), n_supercells(ik), nfield, self%nbound)
     end do
 
     !Free memory
-    deallocate(nsuper, supercell_ids, is_to_itmin)
+    deallocate(supercell_ids, is_to_itmin)
   end subroutine fm_init
 
   !> Find the response of g to delta-fn field perturbations 
