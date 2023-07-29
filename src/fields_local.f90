@@ -628,7 +628,7 @@ contains
   subroutine sc_init(self, is, itmin, ik, nfield, nbound)
     use theta_grid, only: ntgrid
     use mp, only: mp_request_null
-    use dist_fn, only: itright, supercell_labels, r_links, l_links
+    use dist_fn, only: itright, supercell_labels, n_cells
     implicit none
     class(supercell_type), intent(in out) :: self
     integer, intent(in) :: is, ik, itmin, nfield
@@ -638,8 +638,7 @@ contains
 
     self%is_ind = is
     self%it_leftmost = itmin
-    ! Work out the number of cells from the number of links
-    self%ncell = r_links(itmin, ik) + l_links(itmin, ik) + 1
+    self%ncell = n_cells(itmin, ik)
     self%ik_ind = ik
     self%is_label = supercell_labels(itmin, ik)
 
