@@ -862,6 +862,7 @@ contains
   !> Debug routine to dump the current supercell
   subroutine sc_dump(self,prefix)
     use mp, only: proc0
+    use optionals, only: get_option_with_default
     implicit none
     class(supercell_type), intent(inout) :: self
     character(len=*), optional, intent(in) :: prefix
@@ -870,8 +871,8 @@ contains
     complex, dimension(:,:), allocatable :: tmp
 
     !Make filename
-    write(fname,'("sc_is_",I0,"_ik_",I0,".dat")') self%is_ind, self%ik_ind
-    if(present(prefix)) fname=trim(prefix)//trim(fname)
+    write(fname,'(A,"sc_is_",I0,"_ik_",I0,".dat")') &
+         trim(get_option_with_default(prefix, '')), self%is_ind, self%ik_ind
     
     !Allocate array and fetch data
     allocate(tmp(self%ncol,self%nrow))
