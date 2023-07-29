@@ -98,6 +98,10 @@ module nonlinear_terms
 
   logical :: exist = .false.
 
+  !> The "large" cfl time step limit to use when we don't
+  !> have a valid cfl limit from the NL term.
+  real, parameter :: dt_cfl_default_large = 1.e8
+
   !> Used to represent the input configuration of nonlinear_terms
   type, extends(abstract_config_type) :: nonlinear_terms_config_type
      ! namelist : nonlinear_terms_knobs
@@ -448,7 +452,7 @@ contains
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
 !!! NEED TO DO SOMETHING HERE...  BD GGH
-       dt_cfl = 1.e8
+       dt_cfl = dt_cfl_default_large
        call save_dt_cfl (dt_cfl)
 #ifdef LOWFLOW
        if (istep /=0) &
@@ -491,7 +495,7 @@ contains
 
     if (initializing) then
        if (present(nl)) then
-          dt_cfl = 1.e8
+          dt_cfl = dt_cfl_default_large
           call save_dt_cfl (dt_cfl)
 
           ! Ensure the module level max_vel is consistent with
