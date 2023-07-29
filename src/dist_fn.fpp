@@ -5220,8 +5220,7 @@ contains
                .or. (is_wfb .and. .not. connections(iglo)%neighbor & ! Isolated (i.e. ky/=0 cell with no connections) wfb
                .and. mixed_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
        else
-          is_self_periodic = (use_pass_homog .and. & ! ky=0 or with self-periodic boundaries
-               (is_passing .or. (is_wfb .and. .not. trapped_wfb))) & ! and non-trapped particle 
+          is_self_periodic = (use_pass_homog .and. is_passing_like) & ! ky=0 or with self-periodic boundaries and passing like particles
                .or. (is_wfb .and. mixed_wfb) ! Mixed wfb is always self periodic when not linked
        end if
 
