@@ -581,9 +581,11 @@ contains
     use gs2_diagnostics_new, only: diagnostics_init_options_type
     use gs2_diagnostics_new, only: init_gs2_diagnostics_new
     use gs2_diagnostics_new, only: run_diagnostics
+#else
+    use mp, only: proc0
 #endif
     use job_manage, only: time_message
-    use mp, only: proc0, mp_abort, broadcast
+    use mp, only: mp_abort
     use parameter_scan, only: allocate_target_arrays
     use run_parameters, only: nstep, use_old_diagnostics
     use unit_tests, only: debug_message
@@ -875,15 +877,19 @@ contains
          !If something has triggered a reset then reset here
          if(state%dont_change_timestep) reset = .false.
          if (reset) then
-           call prepare_initial_values_overrides(state)
-           call set_initval_overrides_to_current_vals(state%init%initval_ov)
-           state%init%initval_ov%override = .true.
-           ! if called within trinity, do not dump info to screen
-           if (state%is_external_job) then
-             call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-           else
-             call reset_time_step (state%init, istep, state%exit)
-           end if
+            call prepare_initial_values_overrides(state)
+            call set_initval_overrides_to_current_vals(state%init%initval_ov)
+            state%init%initval_ov%override = .true.
+            ! if called within trinity, do not dump info to screen
+            if (state%is_external_job) then
+               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
+            else
+               call reset_time_step (state%init, istep, state%exit)
+            end if
+
+            ! Switch off the reset flag now, otherwise it can still be active
+            ! on the next iteration.
+            reset = .false.
          end if
 
          if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
@@ -1483,7 +1489,7 @@ contains
     call get_mp_times(mp_total, mp_over, mp_coll, mp_ptp, mp_sync)
     call get_redist_times(redist_total, redist_mpi, redist_copy)
 
-    timer_dat = [ &
+    allocate( timer_dat, source = [ &
          timer_data(timers%init(1), "Initialization"), &
          timer_data(time_field_invert(1), "field matrix invert"), &
          timer_data(time_field_invert_mpi, "field matrix invert mpi"), &
@@ -1511,7 +1517,7 @@ contains
          timer_data(mp_ptp, "PTP"), &
          timer_data(mp_sync, "Sync"), &
          timer_data(timers%total(1), "Total") &
-         ]
+         ])
 
     call write_parallel_statistics_header()
     do i = 1, size(timer_dat)

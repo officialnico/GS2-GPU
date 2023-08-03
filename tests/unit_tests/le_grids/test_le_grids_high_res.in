@@ -1,0 +1,21 @@
+&le_grids_knobs
+  nesuper = 12
+  nesub = 22
+  npassing = 60
+  radau_gauss_grid = .false.
+  new_trap_int = T
+  split_passing_region = T
+  nmax = 5
+/
+
+
+&theta_grid_parameters
+  nperiod = 1
+  ntheta = 128
+/
+
+&test_le_grids_parameters
+  tolerance = 1.0e-13
+/
+
+!include test_le_grids_base.in

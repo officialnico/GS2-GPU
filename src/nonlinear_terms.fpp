@@ -644,7 +644,7 @@ contains
   !> and g(t-dt2) = g3 using 2nd and 3rd order methods and comparing
   !> the difference to estimate the error.
   real function estimate_error(g1, g2, g3) result(error)
-    use gs2_time, only: get_adams_bashforth_coefficients
+    use gs2_time, only: get_adams_bashforth_coefficients, time_history_available
     use mp, only: max_allreduce
     use array_utils, only: gs2_max_abs
     implicit none
@@ -653,9 +653,8 @@ contains
     real, dimension(2) :: intermediate_error
     real, dimension(:), allocatable :: coeff_3rd, coeff_2nd
 
-    ! Calculate the coefficients required for variable time step schemes
-    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
-    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+    allocate(coeff_3rd(min(time_history_available(), 3)))
+    allocate(coeff_2nd(min(time_history_available(), 2)))
 
     ! Check that we actually have 3rd and 2nd order coefficients.
     ! This could fail on the first two time steps of a simulation, for
@@ -668,7 +667,13 @@ contains
        return
     end if
 
+    ! Calculate the coefficients required for variable time step schemes
+    coeff_3rd = get_adams_bashforth_coefficients(maximum_order = 3)
+    coeff_2nd = get_adams_bashforth_coefficients(maximum_order = 2)
+
     ! Calculate the source terms using 3rd and 2nd order methods
+    allocate(source_order_3, mold = g1)
+    allocate(source_order_2, mold = g1)
     source_order_3 = coeff_3rd(1) * g1 + coeff_3rd(2) * g2 + coeff_3rd(3) * g3
     source_order_2 = coeff_2nd(1) * g1 + coeff_2nd(2) * g2
 
@@ -708,7 +713,7 @@ contains
     !
     use gs2_layouts, only: g_lo, il_idx
     use theta_grid, only: ntgrid
-    use le_grids, only: forbid, grid_has_trapped_particles, jend, ittp
+    use le_grids, only: forbid, grid_has_trapped_particles, jend, is_ttp
     use mp, only: mp_abort
 
     implicit none
@@ -722,7 +727,7 @@ contains
     ! factor of one-half appears elsewhere
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ig) &
-    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, ittp, jend, trapped, bd) &
+    !$OMP SHARED(g_lo, nl_forbid_force_zero, forbid, gtmp, ntgrid, is_ttp, jend, trapped, bd) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        il = il_idx(g_lo, iglo)
@@ -750,7 +755,14 @@ contains
           ! loop sets gtmp to value at upwinded cell center RIGHT of theta(ig)
           !           except for ttp where upwinding makes no sense!
           !
-          if (il >= ittp(ig)) cycle
+          ! Note this cycle doesn't skip when ig is in the forbidden region
+          ! even if the pitch angle is greater than the totally trapped one
+          ! at this location. This ensures that whilst we leave the (allowed)
+          ! totally trapped source alone we still zero the NL source for forbidden
+          ! points. Previously we cycled simply if the pitch angle index was larger
+          ! than the totally trapped one. When there are multiple totally trapped
+          ! pitch angles this may not be equivalent.
+          if (is_ttp(ig, il)) cycle
           ! The below might be better off using forbid instead of checking jend
           if ( trapped .and. ( il > jend(ig) .or. il > jend(ig+1)) ) then
              !

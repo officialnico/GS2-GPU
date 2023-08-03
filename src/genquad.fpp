@@ -19,6 +19,8 @@ module genquad
   logical:: inf_flag1, inf_flag2
   real:: epsfac = 1.0 
   integer:: poly_type, poly_order
+#else
+#include "unused_dummy.inc"
 #endif
 
 contains
@@ -205,6 +207,9 @@ contains
     end function poly_sq_func
 
 #else
+    UNUSED_DUMMY(N_out); UNUSED_DUMMY(v0); UNUSED_DUMMY(vf);
+    UNUSED_DUMMY(inf_flag1_in); UNUSED_DUMMY(inf_flag2_in)
+    UNUSED_DUMMY(out_abscissae); UNUSED_DUMMY(out_wgts)
     if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
     call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
 #endif

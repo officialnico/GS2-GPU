@@ -100,11 +100,12 @@ contains
     implicit none
     character(len = *), intent(in) :: case_name
     logical, dimension(:), allocatable :: checks
-    checks = [&
+    allocate(checks, source = &
+         [&
          check_values(phi_init, phi_recalc, case_name, 'phi'), &
          check_values(apar_init, apar_recalc, case_name, 'apar'), &
          check_values(bpar_init, bpar_recalc, case_name, 'bpar')  &
-         ]
+         ])
     agrees = all(checks)
   end function test_fields
 

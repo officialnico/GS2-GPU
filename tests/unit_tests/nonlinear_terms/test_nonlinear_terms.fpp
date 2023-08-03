@@ -10,7 +10,7 @@
 
 program test_nonlinear_terms
   use unit_tests
-  use mp, only: init_mp, finish_mp, proc0, broadcast
+  use mp, only: init_mp, finish_mp, proc0, broadcast, sum_reduce
   use file_utils, only: init_file_utils, run_name
   use species, only: init_species
   use dist_fn, only: init_dist_fn, finish_dist_fn
@@ -23,7 +23,6 @@ program test_nonlinear_terms
   use constants, only: run_name_size
   
 #ifdef MPI
-  use mpi
 #ifdef SHMEM
   use shm_mpi3
 #endif
@@ -126,9 +125,6 @@ function ffttest (jx,jy,debug)
   use le_grids, only: negrid, nlambda
   use le_grids, only: integrate_moment
   use mp, only: nproc, proc0, barrier
-#ifdef MPI
-  use mpi
-#endif
   implicit none
   integer, intent(in):: jx,jy
   logical, optional, intent(in):: debug
@@ -136,9 +132,6 @@ function ffttest (jx,jy,debug)
 !  ik,is,ie,il,it are indices for ky, species, energy, lambda and kx respectively
   integer:: ik,is,ie,il,it,ia
   integer:: isgn, ig, iglo, index
-#ifdef MPI
-  integer :: mpierr
-#endif
   logical:: printlots, fail, anyfail
   logical, save :: accelerated
   logical,save:: first=.true. 
@@ -300,12 +293,9 @@ if (printlots) call barrier
          endif
       enddo
    enddo
-#ifdef MPI
-   call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-   if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
-#else
+   call sum_reduce(fail, 0)
+   call broadcast(fail)
    anyfail = fail
-#endif
    if (proc0 .and. printlots) then
       if (anyfail) then
          write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -325,12 +315,9 @@ if (printlots) call barrier
          endif
       enddo
    enddo
-#ifdef MPI
-   call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-   if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
-#else
+   call sum_reduce(fail, 0)
+   call broadcast(fail)
    anyfail = fail
-#endif
    if (proc0 .and. printlots) then
       if (anyfail) then
          write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","r2c",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -368,12 +355,9 @@ if (printlots) call barrier
          endif
       enddo
    enddo
-#ifdef MPI
-   call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-   if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
-#else
+   call sum_reduce(fail, 0)
+   call broadcast(fail)
    anyfail = fail
-#endif
    if (proc0 .and. printlots) then
       if (anyfail) then
          write(6,fmt='(2a8,5i8,a8,l8,a12)') "4-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -434,12 +418,9 @@ if (printlots) call barrier
          enddo
       enddo
    end if
-#ifdef MPI
-   call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-   if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
-#else
+   call sum_reduce(fail, 0)
+   call broadcast(fail)
    anyfail = fail
-#endif
 
    if (proc0 .and. printlots) then
       if (anyfail) then
@@ -480,12 +461,9 @@ if (printlots) call barrier
          endif
       enddo
    enddo
-#ifdef MPI
-   call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-   if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
-#else
+   call sum_reduce(fail, 0)
+   call broadcast(fail)
    anyfail = fail
-#endif
 
     if (anyfail) then
       if(proc0 .and. printlots) write(6,fmt='(2a8,5i8,a8,l8,a12)') "5-D","r2c",jx,jy, nx, ny, nproc, layout, accelerated, "!!FAIL!!"
