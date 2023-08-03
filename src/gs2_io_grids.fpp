@@ -23,7 +23,9 @@ module gs2_io_grids
   public :: nc_get_lambda_grid, nc_write_lambda_grid
   public :: nc_grid_file_open, nc_grid_file_close
 
+# ifdef NETCDF
   integer (kind_nf) :: ncid
+# endif
 
 contains
 
