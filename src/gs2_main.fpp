@@ -1457,6 +1457,7 @@ contains
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use fields_arrays, only: time_dump_response, time_read_response
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1493,6 +1494,8 @@ contains
          timer_data(timers%init(1), "Initialization"), &
          timer_data(time_field_invert(1), "field matrix invert"), &
          timer_data(time_field_invert_mpi, "field matrix invert mpi"), &
+         timer_data(time_dump_response, "field matrix dump"), &
+         timer_data(time_read_response, "field matrix read"), &
          timer_data(timers%advance(1), "Advance steps"), &
 #ifdef WITH_EIG
          timer_data(timers%eigval(1), "Eigensolver"), &
@@ -1570,6 +1573,7 @@ contains
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use fields_arrays, only: time_dump_response, time_read_response
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1598,6 +1602,8 @@ contains
       write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
       write(*, '("(", a, ")")') formatted_time("field matrix invert", time_field_invert(1))
       write(*, '("(", a, ")")') formatted_time("field matrix invert mpi", time_field_invert_mpi)
+      write(*, '("(", a, ")")') formatted_time("field matrix dump", time_dump_response)
+      write(*, '("(", a, ")")') formatted_time("field matrix read", time_read_response)
       write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
       write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
