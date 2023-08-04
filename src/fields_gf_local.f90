@@ -4300,12 +4300,14 @@ contains
   !! by the head of the supercell.
   subroutine dump_response_to_file_gf_local(suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
+    use job_manage, only: time_message
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4333,6 +4335,7 @@ contains
           deallocate(tmp_arr)
        enddo
     enddo
+    call time_message(.false.,time_dump_response,' Field Dump')
 
   end subroutine dump_response_to_file_gf_local
 
@@ -4343,9 +4346,10 @@ contains
   subroutine read_response_from_file_gf_local(could_read, suffix)
     use gs2_save, only: gs2_restore_response
     use mp, only: sum_allreduce_sub, proc0
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
@@ -4379,6 +4383,8 @@ contains
              return
           end if
 
+          call time_message(.false.,time_read_response,' Field Read')
+
           !Now allocate array
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
           tmp_arr=0.
@@ -4400,6 +4406,7 @@ contains
 
           !Deallocate
           deallocate(tmp_arr)
+          call time_message(.false.,time_read_response,' Field Read')
        enddo
     enddo
 
