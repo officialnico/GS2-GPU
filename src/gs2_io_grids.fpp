@@ -199,7 +199,7 @@ contains
     call read_and_pad(ncid, gds21, "gds21", no_end_point)
     call read_and_pad(ncid, gds22, "gds22", no_end_point)
     call read_and_pad(ncid, theta, "theta", no_end_point)
-    call read_and_pad(ncid, grho, "gho", no_end_point)
+    call read_and_pad(ncid, grho, "grho", no_end_point)
 
     call read_and_pad(ncid, cdrift, "cdrift", no_end_point)
     call read_and_pad(ncid, cdrift0, "cdrift0", no_end_point)
@@ -207,11 +207,11 @@ contains
     call read_and_pad(ncid, jacob, "jacob", no_end_point)
 
     call read_and_pad(ncid, Rplot, "Rplot", no_end_point)
-    call read_and_pad(ncid, Rprime, "Rpime", no_end_point)
+    call read_and_pad(ncid, Rprime, "Rprime", no_end_point)
     call read_and_pad(ncid, Zplot, "Zplot", no_end_point)
-    call read_and_pad(ncid, Zprime, "Zpime", no_end_point)
+    call read_and_pad(ncid, Zprime, "Zprime", no_end_point)
     call read_and_pad(ncid, aplot, "aplot", no_end_point)
-    call read_and_pad(ncid, aprime, "apime", no_end_point)
+    call read_and_pad(ncid, aprime, "aprime", no_end_point)
 # else
     call mp_abort("nc_get_grids does not work without NetCDF")
 # endif
