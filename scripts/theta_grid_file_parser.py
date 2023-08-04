@@ -1,4 +1,5 @@
 import numpy as np
+import netCDF4 as nc
 
 def _from_float(number, ndigits=17):
     return f"{number:.{ndigits}f}"
@@ -194,6 +195,72 @@ def write_theta_grid_data(filename, data):
 
         file.write("aplot aprime tgrid" + "\n")
         write_floats(file, data["aplot"], data["aprime"], data["theta_grid"])
+
+def write_theta_grid_data_nc(filename, data):
+	ds = nc.Dataset(filename, 'w')
+
+	nlambda_nc = ds.createDimension('nlambda', data["nlambda"])
+	lambda_nc = ds.createVariable('lambda', 'f8', ('nlambda',))
+	lambda_nc[:] = data["lambda_grid"]
+
+	ntgrid_nc = ds.createVariable('ntgrid', 'i4')
+	ntgrid_nc[:] = data["ntgrid"]
+	nperiod_nc = ds.createVariable('nperiod', 'i4')
+	nperiod_nc[:] = data["nperiod"]
+	ntheta_nc = ds.createVariable('ntheta', 'i4')
+	ntheta_nc[:] = data["ntheta"]
+
+	nt = (2*data["ntgrid"]+1)
+	nt_nc = ds.createDimension('nt', nt)
+
+	theta_nc = ds.createVariable('theta', 'f8', ('nt',))
+	theta_nc[:] = data["theta_grid"]
+	bmag_nc = ds.createVariable('bmag', 'f8', ('nt',))
+	bmag_nc[:] = data["bmag"]
+	gradpar_nc = ds.createVariable('gradpar', 'f8', ('nt',))
+	gradpar_nc[:] = data["gradpar"]
+	grho_nc = ds.createVariable('grho', 'f8', ('nt',))
+	grho_nc[:] = data["grho"]
+	gds2_nc = ds.createVariable('gds2', 'f8', ('nt',))
+	gds2_nc[:] = data["gds2"]
+	gds21_nc = ds.createVariable('gds21', 'f8', ('nt',))
+	gds21_nc[:] = data["gds21"]
+	gds22_nc = ds.createVariable('gds22', 'f8', ('nt',))
+	gds22_nc[:] = data["gds22"]
+	gbdrift_nc = ds.createVariable('gbdrift', 'f8', ('nt',))
+	gbdrift_nc[:] = data["gbdrift"]
+	gbdrift0_nc = ds.createVariable('gbdrift0', 'f8', ('nt',))
+	gbdrift0_nc[:] = data["gbdrift0"]
+	cvdrift_nc = ds.createVariable('cvdrift', 'f8', ('nt',))
+	cvdrift_nc[:] = data["cvdrift"]
+	cvdrift0_nc = ds.createVariable('cvdrift0', 'f8', ('nt',))
+	cvdrift0_nc[:] = data["cvdrift0"]
+
+	Rplot_nc = ds.createVariable('Rplot', 'f8', ('nt',))
+	Rplot_nc[:] = data["rplot"]
+	Zplot_nc = ds.createVariable('Zplot', 'f8', ('nt',))
+	Zplot_nc[:] = data["zplot"]
+	aplot_nc = ds.createVariable('aplot', 'f8', ('nt',))
+	aplot_nc[:] = data["aplot"]
+	Rprime_nc = ds.createVariable('Rprime', 'f8', ('nt',))
+	Rprime_nc[:] = data["rprime"]
+	Zprime_nc = ds.createVariable('Zprime', 'f8', ('nt',))
+	Zprime_nc[:] = data["zprime"]
+	aprime_nc = ds.createVariable('aprime', 'f8', ('nt',))
+	aprime_nc[:] = data["aprime"]
+
+	drhodpsi_nc = ds.createVariable('drhodpsi', 'f8', )
+	drhodpsi_nc[:] = data["drhodpsi"]
+	rmaj_nc = ds.createVariable('rmaj', 'f8', )
+	rmaj_nc[:] = data["rmaj"]
+	kxfac_nc = ds.createVariable('kxfac', 'f8', )
+	kxfac_nc[:] = data["kxfac"]
+	q_nc = ds.createVariable('q', 'f8', )
+	q_nc[:] = data["q"]
+	shat_nc = ds.createVariable('shat', 'f8', )
+	shat_nc[:] = data["shat"]
+
+	ds.close()
 
 def consistency_check_theta_grid_data(data, fix = False,
                                       min_bounce_tolerance = 1.0e-12, min_bounce_tolerance_large = 1.0e-8):
