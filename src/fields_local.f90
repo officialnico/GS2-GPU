@@ -830,8 +830,9 @@ contains
   !> expected file. As such we have to be careful how we deal with this matrix.
   subroutine sc_dump_to_file(self, suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
+    use job_manage, only: time_message
     implicit none
     !> The instance of the supercell class
     class(supercell_type), intent(in out) :: self
@@ -841,6 +842,7 @@ contains
 
     ! Exit early if we're not involved in this supercell
     if(.not.self%is_local) return
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !Allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
@@ -855,16 +857,17 @@ contains
     endif
 
     deallocate(tmp_arr)
-
+    call time_message(.false.,time_dump_response,' Field Dump')
   end subroutine sc_dump_to_file
 
   !> Routine to read the response matrix for this supercell from netcdf file.
   subroutine sc_read_from_file(self, could_read, suffix)
     use gs2_save, only: gs2_restore_response
     use mp, only: broadcast_sub, proc0
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     !> The instance of the supercell class
     class(supercell_type), intent(in out) :: self
@@ -898,6 +901,9 @@ contains
        return
     end if
 
+    ! We start timing after an initial early exit
+    call time_message(.false.,time_read_response,' Field Read')
+
     !Now allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
 
@@ -921,7 +927,7 @@ contains
     call self%push_arr_to_rows(tmp_arr)
 
     deallocate(tmp_arr)
-
+    call time_message(.false.,time_read_response,' Field Read')
   end subroutine sc_read_from_file
 
   !> Store the field equations at row level
