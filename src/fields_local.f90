@@ -723,11 +723,12 @@ contains
   subroutine sc_reduce_tmpsum(self)
     use mp, only: sum_allreduce_sub, sum_reduce_sub, nb_sum_reduce_sub
     implicit none
-    class(supercell_type), intent(inout) :: self
+    class(supercell_type), intent(in out) :: self
     integer :: ic
+    complex, dimension(self%nrow) :: local_tmp_sum
 
-    ! Zero out the supercell tmp_sum
-    self%tmp_sum = 0.0
+    ! Zero out the local tmp_sum
+    local_tmp_sum = 0.0
 
     !NOTE: Here we rely on the cells having not reduced/
     !gathered their data yet so there are no repeated rows.
@@ -738,8 +739,9 @@ contains
     !First do local sums
     do ic=1,self%ncell
        if(self%cells(ic)%is_empty) cycle
-       self%tmp_sum=self%tmp_sum+self%cells(ic)%tmp_sum
     enddo
+       local_tmp_sum = local_tmp_sum + self%cells(ic)%tmp_sum
+    self%tmp_sum = local_tmp_sum
 
     !<DD>TAGGED: As we currently have to do fm_gather_fields on every time step we only need
     !to reduce to the head of the supercell, which may be an all_local proc in which case we don't 
