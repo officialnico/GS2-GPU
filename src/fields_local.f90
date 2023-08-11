@@ -2292,11 +2292,10 @@ contains
        call self%getfieldeq_nogath(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     endif
 
-    !Now get the field update for each ik
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik) &
-    !$OMP SHARED(self, fieldeq, fieldeqa, fieldeqp) &
-    !$OMP SCHEDULE(static)
+    ! Now get the field update for each ik. Note that we don't OpenMP
+    ! here as at scale the majority of kyb will not be local so it is
+    ! expected to be better to OpenMP at the supercell level when
+    ! iterating over cells.
     do ik=1,self%naky
        !Skip non-local ky
        if(.not.self%kyb(ik)%is_local) cycle
