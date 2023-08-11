@@ -735,17 +735,30 @@ contains
     ! Clearly cells%tmp_sum must be the same size as self%tmp_sum
     ! at this point. If cells only updated a subset of their tmp_sum
     ! entries we could perhaps save some work here by only summing over
-    ! the set regions.
+    ! the set regions. Currently the work involved here does not scale
+    ! at all with increasing processor count _beyond_ changes to cell
+    ! locality (i.e. when is_empty triggers).
     !First do local sums
-    do ic=1,self%ncell
-       if(self%cells(ic)%is_empty) cycle
-    enddo
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic) &
+    !$OMP SHARED(self) &
+    !$OMP REDUCTION(+: local_tmp_sum) &
+    !$OMP SCHEDULE(static)
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
        local_tmp_sum = local_tmp_sum + self%cells(ic)%tmp_sum
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Copy local tmp_sum into super cell variant. Note this is an added cost
+    ! due to OpenMP requiring us to use a non-member variable in reduction
+    ! clauses. If this file was preprocessed then we could imagine offering
+    ! an alternative code-path here for non-OpenMP builds.
     self%tmp_sum = local_tmp_sum
 
     !<DD>TAGGED: As we currently have to do fm_gather_fields on every time step we only need
-    !to reduce to the head of the supercell, which may be an all_local proc in which case we don't 
-    !want to do any reduction. If it's a pd proc then really we should just do reduce_sub rather 
+    !to reduce to the head of the supercell, which may be an all_local proc in which case we don't
+    !want to do any reduction. If it's a pd proc then really we should just do reduce_sub rather
     !than allreduce_sub as we're going to broadcast the result later anyway.
     !if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(self%tmp_sum,self%sc_sub_pd%id)
     if(.not.(self%is_empty.or.self%is_all_local)) then
@@ -759,7 +772,7 @@ contains
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
     !all other procs have partial/no data
   end subroutine sc_reduce_tmpsum
-    
+
   !> Convert the extended domain index to ig, it and ifl
   !!
   !! @note The iex_to routines all need testing!
