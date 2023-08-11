@@ -726,8 +726,15 @@ contains
     class(supercell_type), intent(inout) :: self
     integer :: ic
 
+    ! Zero out the supercell tmp_sum
+    self%tmp_sum = 0.0
+
     !NOTE: Here we rely on the cells having not reduced/
     !gathered their data yet so there are no repeated rows.
+    ! Clearly cells%tmp_sum must be the same size as self%tmp_sum
+    ! at this point. If cells only updated a subset of their tmp_sum
+    ! entries we could perhaps save some work here by only summing over
+    ! the set regions.
     !First do local sums
     do ic=1,self%ncell
        if(self%cells(ic)%is_empty) cycle
@@ -2270,19 +2277,6 @@ contains
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
     integer :: ik, is
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik, is) &
-    !$OMP SHARED(self) &
-    !$OMP SCHEDULE(static)
-    do ik=1,self%naky
-       if(.not.self%kyb(ik)%is_local) cycle
-       do is=1,self%kyb(ik)%nsupercell
-          if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-          self%kyb(ik)%supercells(is)%tmp_sum=0.0
-       enddo
-    enddo
-    !$OMP END PARALLEL DO
 
     !First get the field eq
     if(pc%has_to_gather)then
