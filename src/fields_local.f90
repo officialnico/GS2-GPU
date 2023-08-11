@@ -688,15 +688,25 @@ contains
     if(.not.self%is_local) return
 
     if(.not.self%is_empty)then
-       !Now loop over cells and trigger field update
+       ! Now loop over cells and trigger field update. We add OpenMP here
+       ! to help distribute the work. Note that cells%get_field_update ends
+       ! up calling matmul, so in the situation where matmul is replaced
+       ! with a call to equivalent BLAS routines _and_ an OpenMP enabled
+       ! BLAS is linked this _could_ lead to an attempt to use nested
+       ! parallelism, which might be slow.
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ic, it_ind, ulim) &
+       !$OMP SHARED(self, fq, fqa, fqp) &
+       !$OMP SCHEDULE(static)
        do ic=1,self%ncell
           !Get cell properties
           it_ind=self%cells(ic)%it_ind
           ulim=self%cells(ic)%ncol
           !Do update
           call self%cells(ic)%get_field_update(fq(:ulim,it_ind),fqa(:ulim,it_ind),fqp(:ulim,it_ind))
-       enddo
-    endif
+       end do
+       !$OMP END PARALLEL DO
+    end if
 
     !<DD>TAGGED
     !/If we're going to reduce why not reduce once on the top level object --> If we do
