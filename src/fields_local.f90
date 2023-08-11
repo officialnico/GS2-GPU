@@ -761,12 +761,12 @@ contains
     !want to do any reduction. If it's a pd proc then really we should just do reduce_sub rather
     !than allreduce_sub as we're going to broadcast the result later anyway.
     !if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(self%tmp_sum,self%sc_sub_pd%id)
-    if(.not.(self%is_empty.or.self%is_all_local)) then
+    if (.not.(self%is_empty .or. self%is_all_local)) then
        !AJ If non-blocking collectives are enabled and available on the system then call them here
-       if(field_local_nonblocking_collectives) then
-          call nb_sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd,self%collective_request)
+       if (field_local_nonblocking_collectives) then
+          call nb_sum_reduce_sub(self%tmp_sum, 0, self%sc_sub_pd, self%collective_request)
        else
-          call sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd)
+          call sum_reduce_sub(self%tmp_sum, 0, self%sc_sub_pd)
        end if
     end if
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
@@ -1081,12 +1081,13 @@ contains
   end subroutine sc_read_from_file
 
   !> Store the field equations at row level
-  subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
+  subroutine sc_store_fq(self, fq, fqa, fqp, ifl_in, it_in, ig_in)
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
+    use mp, only: mp_abort, iproc
     implicit none
     class(supercell_type), intent(inout) :: self
-    complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
+    complex, dimension(:, :), intent(in) :: fq, fqa, fqp
     integer, intent(in) :: ifl_in, it_in, ig_in
     integer :: ic, ic_in, irow, ifq, ulim, ir
 
@@ -1105,7 +1106,7 @@ contains
     !Work out the row we want to put data in
     irow=(ig_in+ntgrid+1)+(ic_in-1)*(2*ntgrid)+(ifl_in-1)*self%nextend
 
-    !Loop over cells
+    ! Loop over cells
     do ic=1,self%ncell
        !If we don't have this cell cycle
        if(self%cells(ic)%is_empty) then
@@ -1129,8 +1130,8 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fq(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
+          self%cells(ic)%rb(ifq)%data(:,ir) = fq(:ulim, self%cells(ic)%it_ind)
+       end if
 
        if(has_apar)then
           !Increment counter
@@ -1140,8 +1141,8 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fqa(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
+          self%cells(ic)%rb(ifq)%data(:,ir) = fqa(:ulim, self%cells(ic)%it_ind)
+       end if
 
        if(has_bpar)then
           !Increment counter
@@ -1151,9 +1152,9 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fqp(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
-    enddo
+          self%cells(ic)%rb(ifq)%data(:,ir) = fqp(:ulim, self%cells(ic)%it_ind)
+       end if
+    end do
 
   end subroutine sc_store_fq
 
@@ -1606,19 +1607,19 @@ contains
   !> Store the field equation at row level
   subroutine ky_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     implicit none
-    class(ky_type), intent(inout) :: self
-    complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
+    class(ky_type), intent(in out) :: self
+    complex, dimension(:, :), intent(in) :: fq, fqa, fqp
     integer, intent(in) :: ifl_in, it_in, ig_in
     integer :: is
 
     !If we don't have anything in this supercell then exit
-    if(self%is_empty) return
+    if (self%is_empty) return
 
     !Delegate work to supercell
-    do is=1,self%nsupercell
-       if(.not.self%supercells(is)%has_it(it_in)) cycle
-       call self%supercells(is)%store_fq(fq,fqa,fqp,ifl_in,it_in,ig_in)
-    enddo
+    do is = 1,self%nsupercell
+       if (.not.self%supercells(is)%has_it(it_in)) cycle
+       call self%supercells(is)%store_fq(fq, fqa, fqp, ifl_in, it_in, ig_in)
+    end do
   end subroutine ky_store_fq
 
   !> Given it say what the supercell id is
@@ -2253,7 +2254,8 @@ contains
           end if
 
           !Now store data
-          call self%kyb(ik)%store_fq(fieldeq, fieldeqa, fieldeqp, ifl, it_cur, ig_cur)
+          call self%kyb(ik)%store_fq(fieldeq(:, :, ik), fieldeqa(:, :, ik), &
+               fieldeqp(:, :, ik), ifl, it_cur, ig_cur)
        end do !Ends loop over points
     end do !Ends loop over ky
     !$OMP END PARALLEL DO
