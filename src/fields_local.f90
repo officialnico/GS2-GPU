@@ -1313,6 +1313,10 @@ contains
     if (.not.self%is_local) return
 
     !Place local piece in arr
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic, irb, rl, ru, cl, cu) &
+    !$OMP SHARED(self, arr) &
+    !$OMP SCHEDULE(static)
     do ic = 1, self%ncell
        if (self%cells(ic)%is_empty) cycle
        do irb = 1, self%cells(ic)%nrb
@@ -1323,6 +1327,7 @@ contains
           arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
        end do
     end do
+    !$OMP END PARALLEL DO
 
     !If we're now all local then also need comms
     if (.not. self%is_all_local) then
@@ -1349,20 +1354,25 @@ contains
     if(self%is_empty) return
 
     !Store all local sections
-    do ic=1,self%ncell
-       if(self%cells(ic)%is_empty) cycle
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic, ir, rl, ru, cl, cu) &
+    !$OMP SHARED(self, arr) &
+    !$OMP SCHEDULE(static)
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
 
-       do ir=1,self%cells(ic)%nrb
+       do ir = 1, self%cells(ic)%nrb
           !Get row/col limits
-          rl=self%cells(ic)%rb(ir)%row_llim
-          ru=self%cells(ic)%rb(ir)%row_ulim
-          cl=self%cells(ic)%rb(ir)%col_llim
-          cu=self%cells(ic)%rb(ir)%col_ulim
+          rl = self%cells(ic)%rb(ir)%row_llim
+          ru = self%cells(ic)%rb(ir)%row_ulim
+          cl = self%cells(ic)%rb(ir)%col_llim
+          cu = self%cells(ic)%rb(ir)%col_ulim
           
           !Store data
-          self%cells(ic)%rb(ir)%data=arr(cl:cu,rl:ru)
-       enddo
-    enddo
+          self%cells(ic)%rb(ir)%data = arr(cl:cu, rl:ru)
+       end do
+    end do
+    !$OMP END PARALLEL DO
   end subroutine sc_push_arr_to_rows
 
   !> Create primary (top level) sub communicators
