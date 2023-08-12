@@ -1309,41 +1309,31 @@ contains
     call zero_array(arr)
 
     !Now see if we want to exit
-    if(self%is_empty) return
-    if(.not.self%is_local) return
+    if (self%is_empty) return
+    if (.not.self%is_local) return
 
-    !If we're all local then just do things simply as we don't need comms
-    if(self%is_all_local) then
-       do ic=1,self%ncell
-          do irb=1,self%cells(ic)%nrb
-             rl=self%cells(ic)%rb(irb)%row_llim
-             ru=self%cells(ic)%rb(irb)%row_ulim
-             cl=self%cells(ic)%rb(irb)%col_llim
-             cu=self%cells(ic)%rb(irb)%col_ulim
-             arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
-          enddo
-       enddo
-    else
-       !Place local piece in arr
-       do ic=1,self%ncell
-          if(self%cells(ic)%is_empty) cycle
-          do irb=1,self%cells(ic)%nrb
-             rl=self%cells(ic)%rb(irb)%row_llim
-             ru=self%cells(ic)%rb(irb)%row_ulim
-             cl=self%cells(ic)%rb(irb)%col_llim
-             cu=self%cells(ic)%rb(irb)%col_ulim
-             arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
-          enddo
-       enddo
+    !Place local piece in arr
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
+       do irb = 1, self%cells(ic)%nrb
+          rl=self%cells(ic)%rb(irb)%row_llim
+          ru=self%cells(ic)%rb(irb)%row_ulim
+          cl=self%cells(ic)%rb(irb)%col_llim
+          cu=self%cells(ic)%rb(irb)%col_ulim
+          arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
+       end do
+    end do
 
+    !If we're now all local then also need comms
+    if (.not. self%is_all_local) then
        !Now use MPI to get the rest of the data from other procs
        !<DD>FOR NOW USE ALL_REDUCE AS EASIER, BUT SHOULD BE ABLE
        !TO DO THIS WITH ALL_GATHERV WHICH SHOULD BE FASTER
        ! We only actually need the result on the head of the supercell
        ! as this is the only process which operates on the result.
        ! We could therefore replace allreduce with reduce.
-       if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(arr,self%sc_sub_pd%id)
-    endif
+       if (self%sc_sub_pd%nproc > 0) call sum_allreduce_sub(arr, self%sc_sub_pd%id)
+    end if
 
   end subroutine sc_pull_rows_to_arr
 
