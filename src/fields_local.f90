@@ -2280,7 +2280,8 @@ contains
     !has the potential to be quite slow. However, as the cost per inversion
     !can be quite variable (due to very variable length supercell domains)
     !it may make more sense to OpenMP at the next level down (i.e. the kyb)
-    !so we're more likely to be sharing work a bit more fairly.
+    !so we're more likely to be sharing work a bit more fairly. Also, at scale
+    !one might expect most of the ky to be "empty" on a given processor.
     do ik=1,self%naky
        call self%kyb(ik)%prepare(self%prepare_type)
     enddo
@@ -2766,15 +2767,15 @@ contains
        ifl=0
        if(has_phi) then
           ifl=ifl+1
-          ph=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), ph)
        endif
        if(has_apar) then
           ifl=ifl+1
-          ap=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), ap)
        endif
        if(has_bpar) then
           ifl=ifl+1
-          bp=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), bp)
        endif
     endif
 
