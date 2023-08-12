@@ -1292,6 +1292,7 @@ contains
   !! Gather the row blocks up for this cell to fill an array
   subroutine sc_pull_rows_to_arr(self,arr)
     use mp, only: sum_allreduce_sub
+    use array_utils, only: zero_array
     implicit none
     class(supercell_type), intent(in) :: self
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
@@ -1305,7 +1306,7 @@ contains
     ! initialise this array in some cases (e.g. when dumping to file). We could
     ! attempt to only do this zeroing in this special case to save some time, but
     ! we don't expect to be calling this routine much so opt for simpler approach.
-    arr=0
+    call zero_array(arr)
 
     !Now see if we want to exit
     if(self%is_empty) return
