@@ -4247,6 +4247,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: get_mp_times
     use job_manage, only: time_message
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4272,13 +4273,13 @@ contains
     if(abs(g_exb*g_exbfac).gt.epsilon(0.)) call exb_shear(gnew,phinew,aparnew,bparnew,istep,field_local_allreduce_sub)
 
     !Update g and fields
-    g=gnew
+    call copy(gnew,g)
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
-       if (has_phi) phi = phinew
-       if (has_apar) apar = aparnew
-       if (has_bpar) bpar = bparnew
+       if (has_phi) call copy(phinew, phi)
+       if (has_apar) call copy(aparnew, apar)
+       if (has_bpar) call copy(bparnew, bpar)
     endif
 
     call debug_message(verb, &
