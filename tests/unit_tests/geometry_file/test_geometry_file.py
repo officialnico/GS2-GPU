@@ -2,6 +2,7 @@
 import sys
 sys.path.append('../../../scripts/')
 from theta_grid_file_parser import write_theta_grid_data, read_gs2_netcdf_into_dictionary
+from theta_grid_file_parser import write_theta_grid_data_nc
 from netCDF4 import Dataset
 import numpy as np
 import os
@@ -33,17 +34,21 @@ eik_data = read_gs2_netcdf_into_dictionary('eik_grid.out.nc')
 
 #Write out to a grid file
 write_theta_grid_data('grid.file', eik_data)
+write_theta_grid_data_nc('grid.file.nc', eik_data)
 
 #Run GS2 on grid_file.in
 run_gs2(get_gs2_path(), 'grid_file.in')
+run_gs2(get_gs2_path(), 'grid_file_nc.in')
 
 #Read in data
 grid_data = read_gs2_netcdf_into_dictionary('grid_file.out.nc')
+grid_data_nc = read_gs2_netcdf_into_dictionary('grid_file_nc.out.nc')
 
 #Check everything is close
 passing = True
 for k in grid_data.keys():
     passing = passing and np.allclose(grid_data[k], eik_data[k])
+    passing = passing and np.allclose(grid_data_nc[k], eik_data[k])
 
 if not passing:
     print("Failed")

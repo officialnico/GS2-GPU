@@ -303,7 +303,6 @@ contains
 
   !> Calculates and write the QL flux metric to netcdf
   subroutine write_ql_metric(gnostics)
-    use diagnostics_omega, only: omegahist
     use gs2_diagnostics, only: calculate_simple_quasilinear_flux_metric_by_k
     use gs2_diagnostics, only: calculate_instantaneous_omega
     use kt_grids, only: ntheta0, naky
@@ -420,11 +419,10 @@ contains
 
        if (gnostics%writing) then
          call neasyf_write(gnostics%file_id, time_dim, user_time, dim_names=[time_dim], start=[gnostics%nout])
-       end if
-
-       if (wstar_units) then
-         call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=[ky_dim, time_dim], &
-              start=[1, gnostics%nout], long_name="Time (wstar)", units="L/vt")
+         if (wstar_units) then
+            call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=[ky_dim, time_dim], &
+                 start=[1, gnostics%nout], long_name="Time (wstar)", units="L/vt")
+         end if
        end if
 
        gnostics%user_time = user_time
