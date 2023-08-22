@@ -3988,7 +3988,7 @@ contains
     use le_derivatives, only: vspace_derivatives
     use dist_fn_arrays, only: gnew, g, g_work
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
-    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn
+    use split_nonlinear_terms, only: advance_nonlinear_term, advance_nonadiabatic_dfn, strang_split
     use nonlinear_terms, only: add_explicit_terms, split_nonlinear, calculate_current_nl_source_and_cfl_limit, nonlin
     use hyper, only: hyper_diff
     use run_parameters, only: reset, immediate_reset
@@ -4005,16 +4005,14 @@ contains
     integer, parameter :: verb = 3
     logical :: is_first_half_step, is_second_half_step
     real :: nl_dt
-    ! Hard-code this for now, but can make a user input.
-    logical, parameter :: nl_split_strang = .true.
     modep = 0
     if (present(mode)) modep = mode
 
     is_first_half_step = istep /= istep_last
     is_second_half_step = istep == istep_last
 
-    if (nl_split_strang) then
-       nl_dt = code_dt / 2
+    if (strang_split) then
+       nl_dt = code_dt * 0.5
     else
        nl_dt = code_dt
     end if
@@ -4068,7 +4066,7 @@ contains
     if (def_parity) call enforce_parity(parity_redist)
 
     !Calculate the explicit nonlinear terms
-    if (split_nonlinear .and. nonlin .and. nl_split_strang) then
+    if (split_nonlinear .and. nonlin .and. strang_split) then
        ! If we're finishing a full step then advance just the nonlinear term
        ! by nl_dt.
        if (is_second_half_step .and. istep > 0) then
