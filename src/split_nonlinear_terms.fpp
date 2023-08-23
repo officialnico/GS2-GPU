@@ -393,7 +393,7 @@ contains
   subroutine advance_nonlinear_term_beuler(phinew, aparnew, bparnew, dt, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, g, g_work
+    use dist_fn_arrays, only: gnew, g, g_work
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
     use run_parameters, only: immediate_reset
@@ -401,6 +401,7 @@ contains
     use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gnl_1, gnl_2
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel
     integer :: counter, iglo
@@ -421,6 +422,8 @@ contains
     time_step = time_step_last
 
     allocate(error_array(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     ! Keep on advancing until we have advanced by dt
     do while (internal_time < dt)
@@ -436,7 +439,7 @@ contains
 
        ! Calculate the current NL source term, for use in error
        ! estimates later.
-       call source_func(gnew, gexp_2, phinew, aparnew, bparnew, &
+       call source_func(gnew, gnl_2, phinew, aparnew, bparnew, &
             max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
             calculate_cfl_limit = .false.)
        nrhs_calls = nrhs_calls + 1
@@ -447,7 +450,7 @@ contains
 
           ! Get the current nonlinear source term and cfl limit -- note we don't use the
           ! cfl limit here
-          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+          call source_func(gnew, gnl_1, phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = .false.)
           nrhs_calls = nrhs_calls + 1
@@ -455,10 +458,10 @@ contains
           ! Calculate the estimate of the new g
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, g_work, g, half_time, gexp_1) &
+          !$OMP SHARED(g_lo, g_work, g, half_time, gnl_1) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             g_work(:, :, iglo) = g(:, :, iglo) + half_time * gexp_1(:, :, iglo)
+             g_work(:, :, iglo) = g(:, :, iglo) + half_time * gnl_1(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
 
@@ -511,17 +514,17 @@ contains
           ! the step size.
           ! To estimate the error we compare the backward Euler update with an approximate
           ! Crank-Nicolson update.
-          ! g_new_beuler = g + 0.5 * actual_dt * gexp_1(g_new_beuler)
-          ! g_new_cn = g + 0.5 * actual_dt * (gexp_1(g_new_beuler) + gexp_1(g))/2
+          ! g_new_beuler = g + 0.5 * actual_dt * gnl_1(g_new_beuler)
+          ! g_new_cn = g + 0.5 * actual_dt * (gnl_1(g_new_beuler) + gnl_1(g))/2
           ! abs_error  = |g_new_beuler - g_new_cn|
-          !      = 0.5 * actual_dt * 0.5 * (gexp_1(g_new_beuler) - gexp_1(g)
-          ! Where gexp_1(h) is the source func evaluated with gnew=h.
+          !      = 0.5 * actual_dt * 0.5 * (gnl_1(g_new_beuler) - gnl_1(g)
+          ! Where gnl_1(h) is the source func evaluated with gnew=h.
 
-          ! Here we calculate gexp_1(g_new_beuler) exactly. We could probably
-          ! rely on using the existing value of gexp_1(g_work) as, whilst this is
+          ! Here we calculate gnl_1(g_new_beuler) exactly. We could probably
+          ! rely on using the existing value of gnl_1(g_work) as, whilst this is
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
-          call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+          call source_func(gnew, gnl_1, phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = .true.)
           nrhs_calls = nrhs_calls + 1
@@ -531,10 +534,10 @@ contains
           ! need to explicitly store the full array)
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, error_array, gexp_1, gexp_2) &
+          !$OMP SHARED(g_lo, error_array, gnl_1, gnl_2) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             error_array(:, :, iglo) = gexp_1(:, :, iglo) - gexp_2(:, :, iglo)
+             error_array(:, :, iglo) = gnl_1(:, :, iglo) - gnl_2(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
           errors(1) = gs2_max_abs(error_array) * (0.5 * 0.5 * actual_dt)
