@@ -4246,7 +4246,7 @@ contains
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
-    if (heating) then
+    if (heating .and. present(diagnostics)) then
        allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
        call zero_array(glzc)
     end if
@@ -4394,7 +4394,7 @@ contains
     call scatter (lambda_map, glz, g)
 
     deallocate (glz)
-    if (heating) deallocate (glzc)
+    if (allocated(glzc)) deallocate (glzc)
 
   end subroutine solfp_lorentz_standard_layout
 
