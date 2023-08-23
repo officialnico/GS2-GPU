@@ -5112,12 +5112,12 @@ contains
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
     logical :: is_wfb, is_passing, is_trapped
-    logical :: is_self_periodic
+    logical :: is_self_periodic, is_passing_like
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
-    !$OMP adjright, adjleft, ig, beta1) &
+    !$OMP adjright, adjleft, ig, beta1, is_passing_like) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
@@ -5186,6 +5186,9 @@ contains
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        is_passing = il_is_passing(il)
 
+       ! Should this particle be treated as a passing particle
+       is_passing_like = is_passing .or. (is_wfb .and. passing_wfb)
+
        ! Is this particle trapped? Note we exclude the wfb here as we can choose
        ! how we treat this as given by passing_wfb, trapped_wfb etc.
        is_trapped = il_is_trapped(il)
@@ -5217,8 +5220,7 @@ contains
                .or. (is_wfb .and. .not. connections(iglo)%neighbor & ! Isolated (i.e. ky/=0 cell with no connections) wfb
                .and. mixed_wfb )     ! treated as neither passing or trapped particle (i.e. unique)
        else
-          is_self_periodic = (use_pass_homog .and. & ! ky=0 or with self-periodic boundaries
-               (is_passing .or. (is_wfb .and. .not. trapped_wfb))) & ! and non-trapped particle 
+          is_self_periodic = (use_pass_homog .and. is_passing_like) & ! ky=0 or with self-periodic boundaries and passing like particles
                .or. (is_wfb .and. mixed_wfb) ! Mixed wfb is always self periodic when not linked
        end if
 
@@ -5240,27 +5242,25 @@ contains
        !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( nonad_zero ) then
-          if (is_passing .or. (is_wfb .and. passing_wfb) ) then
-             !Only apply the new boundary condition to the leftmost
-             !cell for sign going from left to right
-             if (l_links(it, ik) .eq. 0) then
-                adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-                     *bparnew(-ntgrid,it,ik)*fbpar &
-                     + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                     *fphi*nonmaxw_corr(ie,is)
-                gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
-             end if
-             !Only apply the new boundary condition to the rightmost
-             !cell for sign going from right to left
-             if (r_links(it, ik) .eq. 0) then
-                adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-                     *bparnew(ntgrid,it,ik)*fbpar &
-                     + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                     *fphi*nonmaxw_corr(ie,is)
-                gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
-             end if
-          endif
+       if ( nonad_zero .and. is_passing_like ) then
+          !Only apply the new boundary condition to the leftmost
+          !cell for sign going from left to right
+          if (l_links(it, ik) .eq. 0) then
+             adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
+                  *bparnew(-ntgrid,it,ik)*fbpar &
+                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
+             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+          end if
+          !Only apply the new boundary condition to the rightmost
+          !cell for sign going from right to left
+          if (r_links(it, ik) .eq. 0) then
+             adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
+                  *bparnew(ntgrid,it,ik)*fbpar &
+                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
+                  *fphi*nonmaxw_corr(ie,is)
+             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+          end if
        endif
 
        !/////////////////////////
