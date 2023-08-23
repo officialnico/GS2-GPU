@@ -997,6 +997,7 @@ contains
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
 #ifdef LOWFLOW
+    use dist_fn_arrays, only: vpar, vpac
     use lowflow, only: init_lowflow
 #endif
     implicit none
@@ -1027,7 +1028,7 @@ contains
     ! needs to be before init_invert_rhs but after
     ! init_collisions as use_le_layouts is set in
     ! collisions
-    call init_lowflow(wdrift, wdriftttp, wstar, &
+    call init_lowflow(wdrift, wdriftttp, wstar, vpar, vpac, &
          lf_default, lf_decompose, driftknob, tpdriftknob)
 #endif
 
