@@ -4160,7 +4160,7 @@ contains
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
        g = 0.
     end if
-    write (*,*) "Initialised g"
+    if (proc0) write (*,*) "Initialised g"
     
     ! Set all non-zonal components of phi to 0
     do it = 1, ntheta0
@@ -4181,7 +4181,7 @@ contains
     
     !Set non-zonal components of g to zero using phi
     
-    write(*,*) "Zeroing g"
+    if (proc0) write(*,*) "Zeroing g"
     
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
