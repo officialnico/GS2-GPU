@@ -279,13 +279,14 @@ contains
        fields_func, source_func)
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
-    use dist_fn_arrays, only: gnew, gexp_1, gexp_2, gexp_3
+    use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
     use gs2_layouts, only: g_lo
     use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gnl_1, gnl_2, gnl_3
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel, half_time
     real, dimension(:), allocatable :: ab_coeffs
@@ -297,6 +298,10 @@ contains
     internal_time = 0.0
     counter = 1
 
+    allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(gnl_3(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+
     ! Reset time step sizes to reflect fact we're restarting the explicit scheme
     code_dt_prev1 = dt_not_set
     code_dt_prev2 = dt_not_set
@@ -304,7 +309,7 @@ contains
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        ! Get the current nonlinear source term and cfl limit
-       call source_func(gnew, gexp_1, phinew, aparnew, bparnew, &
+       call source_func(gnew, gnl_1, phinew, aparnew, bparnew, &
             max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
             calculate_cfl_limit = .true.)
        nrhs_calls = nrhs_calls + 1
@@ -331,36 +336,36 @@ contains
        case(1)
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gnl_1) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
-                  ab_coeffs(1) * gexp_1(:, :, iglo)       &
+                  ab_coeffs(1) * gnl_1(:, :, iglo)       &
                   )
           end do
           !$OMP END PARALLEL DO
        case(2)
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1, gexp_2) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gnl_1, gnl_2) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
-                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
-                  ab_coeffs(2) * gexp_2(:, :, iglo)       &
+                  ab_coeffs(1) * gnl_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gnl_2(:, :, iglo)       &
                   )
           end do
           !$OMP END PARALLEL DO
        case default
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gexp_1, gexp_2, gexp_3) &
+          !$OMP SHARED(g_lo, gnew, half_time, ab_coeffs, gnl_1, gnl_2, gnl_3) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
              gnew(:, :, iglo) = gnew(:, :, iglo) + half_time *( &
-                  ab_coeffs(1) * gexp_1(:, :, iglo) +     &
-                  ab_coeffs(2) * gexp_2(:, :, iglo) +     &
-                  ab_coeffs(3) * gexp_3(:, :, iglo)       &
+                  ab_coeffs(1) * gnl_1(:, :, iglo) +     &
+                  ab_coeffs(2) * gnl_2(:, :, iglo) +     &
+                  ab_coeffs(3) * gnl_3(:, :, iglo)       &
                   )
           end do
           !$OMP END PARALLEL DO
@@ -377,8 +382,8 @@ contains
        ! Shift time history along one point
        code_dt_prev2 = code_dt_prev1
        code_dt_prev1 = time_step
-       call copy(gexp_2, gexp_3)
-       call copy(gexp_1, gexp_2)
+       call copy(gnl_2, gnl_3)
+       call copy(gnl_1, gnl_2)
     end do
 
   end subroutine advance_nonlinear_term_ab3
