@@ -735,6 +735,7 @@ contains
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
     use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
     use dist_fn, only: i_class, M_class, N_class
+    use array_utils, only: zero_array
     implicit none
     integer, intent (in) :: ic
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
@@ -757,7 +758,7 @@ contains
 
     !Create storage space
     allocate (a_inv(j,f_lo(ic)%llim_proc:f_lo(ic)%ulim_alloc))
-    a_inv = 0.0
+    call zero_array(a_inv)
     
     if (.not. skip_initialisation) then
       !Set (ifield*ig,ilo) "diagonal" to 1?
