@@ -8216,6 +8216,7 @@ contains
   !> potential.
   subroutine get_field_inconsistency(g_in, phi_in, apar_in, bpar_in, phi_err, apar_err, bpar_err)
     use run_parameters, only: has_phi, has_apar, has_bpar
+    use array_utils, only: zero_array
     implicit none
     complex, dimension(:,:,:), intent(in) :: g_in, phi_in, apar_in, bpar_in
     real, intent(out) :: phi_err, apar_err, bpar_err
@@ -8223,9 +8224,9 @@ contains
     real, dimension(:,:,:), allocatable :: err
 
     allocate(err, mold = real(phi_in))
-    allocate(phi_new, mold = phi_in); phi_new = 0.0
-    allocate(apar_new, mold = phi_in); apar_new = 0.0
-    allocate(bpar_new, mold = phi_in); bpar_new = 0.0
+    allocate(phi_new, mold = phi_in); call zero_array(phi_new)
+    allocate(apar_new, mold = phi_in); call zero_array(apar_new)
+    allocate(bpar_new, mold = phi_in); call zero_array(bpar_new)
 
     phi_err = 0. ; apar_err = 0. ; bpar_err = 0.
 
@@ -8529,13 +8530,14 @@ contains
     use constants, only: zi
     use geometry, only: rhoc
     use theta_grid, only: Rplot, Bpol
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
     integer :: it, ik, is, isgn, ig
     integer :: iglo
 
-    pflux_dist = 0.0; vflux_par_dist = 0.0; vflux_perp_dist = 0.0; qflux_dist= 0.0;
+    call zero_array(pflux_dist) ; call zero_array(vflux_par_dist) ; call zero_array(vflux_perp_dist) ; call zero_array(qflux_dist)
 
     if (has_phi) then
        do isgn = 1, 2
@@ -8568,12 +8570,6 @@ contains
           end do
        end do
        call get_flux_dist (g_work, phi, vflux_perp_dist)
-
-    else
-       pflux_dist = 0.
-       vflux_par_dist = 0.
-       vflux_perp_dist = 0.
-       qflux_dist = 0.
     end if
 
  end subroutine flux_dist
@@ -9302,7 +9298,7 @@ contains
     use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve
     use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve
     use collisions, only: vnmult, vary_vnew
-
+    use array_utils, only: zero_array
     implicit none
 
     integer :: ig, it, ik, iglo, isgn, ntrap
@@ -9390,7 +9386,7 @@ contains
        if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(phi_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
-          phi_t = 0.0
+          call zero_array(phi_t)
           call trap_error (g_work, wgt, phi_t)
        end if
 
@@ -9414,7 +9410,7 @@ contains
        if (grid_has_trapped_particles() .and. new_trap_int) then
           ntrap = nlambda - ng2
           allocate(apar_t(-ntgrid:ntgrid,ntheta0,naky,ntrap))       
-          apar_t = 0.0
+          call zero_array(apar_t)
           call trap_error (g_work, wgt, apar_t)
        end if
        
@@ -9608,7 +9604,7 @@ contains
     use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: g_lo
     use mp, only: proc0, broadcast
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
@@ -9635,12 +9631,12 @@ contains
     allocate(getran(0:nesub-1,-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate(gltran(0:ng2-1,-ntgrid:ntgrid,ntheta0,naky,nspec))
  
-    getran = 0.0; gltran = 0.0
+    call zero_array(getran); call zero_array(gltran)
 
     if (grid_has_trapped_particles()) then
        allocate(gnt2(0:2*(nlambda-ng2-1)))
        allocate(gttran(0:2*(nlambda-ng2-1),-ntgrid:ntgrid,ntheta0,naky,nspec))      
-       gtnorm = 0.0 ; gnt2 = 0.0 ; gtmax = 0.0 ; gttran = 0.0
+       gtnorm = 0.0 ; gnt2 = 0.0 ; gtmax = 0.0 ; call zero_array(gttran)
     end if
 
 ! transform from g to h
@@ -9875,6 +9871,7 @@ contains
     use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use nonlinear_terms, only: accelerated
     use gs2_transforms, only: transform2, init_transforms
+    use array_utils, only: zero_array, copy
 #ifdef SHMEM
     use shm_mpi3, only: shm_alloc, shm_free
 #endif
@@ -9908,14 +9905,14 @@ contains
             accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
 #endif
        allocate (agp0(2), agp0zf(2))
-       agrs = 0.0; agzf = 0.0; agp0 = 0.0; agp0zf = 0.0
+       call zero_array(agrs); call zero_array(agzf); agp0 = 0.0; agp0zf = 0.0
     else
 #ifdef SHMEM
        g0_ptr => g_work
 #endif
        allocate (grs(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
        allocate (gzf(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       grs = 0.0; gzf = 0.0; gp0 = 0.0; gp0zf = 0.0
+       call zero_array(grs); call zero_array(gzf); gp0 = 0.0; gp0zf = 0.0
     end if
 
     if (.not. fyxinit) then
@@ -9932,7 +9929,7 @@ contains
     call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
 
 #ifndef SHMEM
-    g_work = gnew
+    call copy(gnew, g_work)
 #else
     g0_ptr = gnew
 #endif
@@ -9944,7 +9941,7 @@ contains
        call transform2 (g_work, grs)
     end if
 
-    g_work = 0.0
+    call zero_array(g_work)
     do iglo=g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
@@ -10080,6 +10077,7 @@ contains
     use redistribute, only: gather, scatter
     use file_utils, only: open_output_file, close_output_file
     use gs2_time, only: user_time
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
@@ -10100,7 +10098,8 @@ contains
     allocate (fdcoll(2*nlambda,lz_lo%llim_proc:lz_lo%ulim_alloc))
     allocate (glze(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
 
-    lcoll = 0.0; fdcoll = 0.0; glze = 0.0; ltmp = 0.0; ftmp = 0.0
+    call zero_array(lcoll); call zero_array(fdcoll); call zero_array(glze)
+    ltmp = 0.0; ftmp = 0.0
     etmp = 0.0; emax = 0.0; etot = 0.0; eavg = 0.0; edenom = 1.0; ltmax = 1.0
 
 !    if (first .and. proc0) then
