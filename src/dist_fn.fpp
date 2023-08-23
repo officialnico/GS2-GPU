@@ -69,7 +69,8 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, itleft, boundary, supercell_labels
+  public :: l_links, r_links, itright, itleft, boundary
+  public :: supercell_labels, n_supercells, n_cells
   public :: enforce_linked_boundary_conditions
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
