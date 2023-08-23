@@ -1252,6 +1252,7 @@ contains
     use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
+    use array_utils, only: copy
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
     integer :: istatus
@@ -1263,11 +1264,11 @@ contains
       & prepare_initial_values_overrides ? ", .true.)
 
     if(initval_ov%in_memory)then
-      initval_ov%g=gnew
+      call copy(gnew, initval_ov%g)
       initval_ov%vnmult = vnmult
-      if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
-      if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
-      if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
+      if (allocated(initval_ov%gexp_1)) call copy(gexp_1, initval_ov%gexp_1)
+      if (allocated(initval_ov%gexp_2)) call copy(gexp_2, initval_ov%gexp_2)
+      if (allocated(initval_ov%gexp_3)) call copy(gexp_3, initval_ov%gexp_3)
 
       ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
       ! follows:
@@ -1280,9 +1281,9 @@ contains
       ! Therefore, the force_maxwell_reinit component has been completely removed from the initial_values_overrides_type derived
       ! type to avoid confusion in the future.
       if (.not. force_maxwell_reinit) then
-         if(has_phi) initval_ov%phi=phinew
-         if(has_apar) initval_ov%apar=aparnew
-         if(has_bpar) initval_ov%bpar=bparnew
+         if(has_phi) call copy(phinew, initval_ov%phi)
+         if(has_apar) call copy(aparnew, initval_ov%apar)
+         if(has_bpar) call copy(bparnew, initval_ov%bpar)
       end if
     else ! if(.not.in_memory)then
       !Should really do this with in_memory=.true. as well but
