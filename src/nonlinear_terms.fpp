@@ -98,6 +98,10 @@ module nonlinear_terms
 
   logical :: exist = .false.
 
+  !> The "large" cfl time step limit to use when we don't
+  !> have a valid cfl limit from the NL term.
+  real, parameter :: dt_cfl_default_large = 1.e8
+
   !> Used to represent the input configuration of nonlinear_terms
   type, extends(abstract_config_type) :: nonlinear_terms_config_type
      ! namelist : nonlinear_terms_knobs
@@ -448,7 +452,7 @@ contains
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
 !!! NEED TO DO SOMETHING HERE...  BD GGH
-       dt_cfl = 1.e8
+       dt_cfl = dt_cfl_default_large
        call save_dt_cfl (dt_cfl)
 #ifdef LOWFLOW
        if (istep /=0) &
@@ -491,7 +495,7 @@ contains
 
     if (initializing) then
        if (present(nl)) then
-          dt_cfl = 1.e8
+          dt_cfl = dt_cfl_default_large
           call save_dt_cfl (dt_cfl)
 
           ! Ensure the module level max_vel is consistent with
@@ -1321,7 +1325,16 @@ contains
     real :: dt_cfl
 
     ! Estimate the global cfl limit based on max_vel.
-    dt_cfl = 1./max_vel
+    if (max_vel <= 0.0) then
+       ! We should only end up here in unusual cases (likely
+       ! tests) as we initialise max_vel > 0 so the only way
+       ! we get here is if the estimated NL velocity limit is
+       ! exactly 0.
+       dt_cfl = dt_cfl_default_large
+    else
+       dt_cfl = 1./max_vel
+    end if
+
     call save_dt_cfl (dt_cfl)
 
     ! Now check to see if we've violated the cfl condition.
