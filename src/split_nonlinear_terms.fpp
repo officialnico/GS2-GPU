@@ -798,13 +798,14 @@ contains
   subroutine advance_nonlinear_term_picard(phinew, &
        aparnew, bparnew, dt, fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, gexp_1
+    use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
     use array_utils, only: copy, gs2_max_abs
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gnl_1
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel, cfl_limit
     integer :: counter, ipic, iglo
@@ -837,14 +838,14 @@ contains
        call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
        ! Get the current nonlinear source term
-       call source_func(gnew, gexp_1, &
+       call source_func(gnew, gnl_1, &
             phinew, aparnew, bparnew, &
             max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
             calculate_cfl_limit = check_cfl)
        nrhs_calls = nrhs_calls + 1
 
        errors(1) = 0.0
-       errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
+       errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
        errors(3) = gs2_max_abs(g_start)
        errors(4) = max_vel
        call max_allreduce(errors)
@@ -864,10 +865,10 @@ contains
 
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
-       !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+       !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+          gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
        end do
        !$OMP END PARALLEL DO
 
@@ -880,14 +881,14 @@ contains
           call calculate_fields(fields_func, gnew, phinew, aparnew, bparnew)
 
           ! Get the current nonlinear source term
-          call source_func(gnew, gexp_1, &
+          call source_func(gnew, gnl_1, &
                phinew, aparnew, bparnew, &
                max_vel, need_to_adjust = .not. advance_nonadiabatic_dfn, &
                calculate_cfl_limit = check_cfl)
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = errors(2)
-          errors(2) = gs2_max_abs(gexp_1) * (0.5 * time_step)
+          errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
           errors(4) = max_vel
           call max_allreduce(errors)
           cfl_limit = 1.0 / errors(4)
@@ -900,10 +901,10 @@ contains
 
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(gnew, g_start, gexp_1, time_step, g_lo)&
+          !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             gnew(:, :, iglo) = g_start(:, :, iglo) + gexp_1(:, :, iglo) * (0.5 * time_step)
+             gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
           end do
           !$OMP END PARALLEL DO
        end do
