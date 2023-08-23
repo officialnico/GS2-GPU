@@ -1177,7 +1177,7 @@ contains
 
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1185,6 +1185,7 @@ contains
     use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_save_response
+    use job_manage, only: time_message
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
@@ -1194,6 +1195,7 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !Make a lookup array to convert itmin (the leftmost it in a connected domain)
     !to the supercell index "is" used in the local fields. This will be used to 
@@ -1405,13 +1407,13 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
-
+    call time_message(.false.,time_dump_response,' Field Dump')
   end subroutine dump_response_to_file_imp
 
   !> A routine to read the response matrix from file and populate the implicit
   !> response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(could_read, suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1420,6 +1422,7 @@ contains
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
@@ -1435,6 +1438,7 @@ contains
     logical :: file_found
     real :: file_time_step
 
+    call time_message(.false.,time_read_response,' Field Read')
     could_read = .true.
 
     !First allocate the matrix storage
@@ -1712,6 +1716,7 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
+    call time_message(.false.,time_read_response,' Field Read')
   end subroutine read_response_from_file_imp
 
   !> A subroutine to allocate the response matrix storage objects
