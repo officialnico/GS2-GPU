@@ -3105,11 +3105,7 @@ contains
     xxf_lo%nsign = nsign
     xxf_lo%naky = naky
     xxf_lo%ntheta0 = ntheta0
-    if (nx > ntheta0) then
-       xxf_lo%nx = nx
-    else
-       xxf_lo%nx = (3*ntheta0+1)/2
-    end if
+    xxf_lo%nx = nx
     xxf_lo%nadd = xxf_lo%nx - ntheta0
     xxf_lo%nlambda = nlambda
     xxf_lo%negrid = negrid
@@ -4002,19 +3998,8 @@ contains
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
     integer, intent (in) :: nx, ny, nproc, iproc
-    integer :: nnx, nny, ngroup, nprocset, nblock, ntgridtotal, nsign
+    integer :: ngroup, nprocset, nblock, ntgridtotal, nsign
     real :: unbalanced_amount
-
-    if (nx > ntheta0) then
-       nnx = nx
-    else
-       nnx = (3*ntheta0+1)/2
-    end if
-    if (ny > naky) then
-       nny = ny
-    else
-       nny = 3*naky
-    end if
 
     yxf_lo%iproc = iproc
     yxf_lo%nproc = nproc
@@ -4024,14 +4009,14 @@ contains
     nsign=2
     yxf_lo%nsign = nsign
     yxf_lo%naky = naky
-    yxf_lo%ny = nny
+    yxf_lo%ny = ny
     yxf_lo%ntheta0 = ntheta0
-    yxf_lo%nx = nnx
+    yxf_lo%nx = nx
     yxf_lo%nlambda = nlambda
     yxf_lo%negrid = negrid
     yxf_lo%nspec = nspec
     yxf_lo%llim_world = 0
-    yxf_lo%ulim_world = nnx*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
+    yxf_lo%ulim_world = nx*(2*ntgrid+1)*2*nlambda*negrid*nspec - 1
 
     ! Calculate compound index divisors
     select case (layout)
@@ -4086,8 +4071,8 @@ contains
        yxf_lo%igroup = mod (iproc/nprocset, ngroup)
 
        yxf_lo%llim_group = 0
-       yxf_lo%ulim_group = nnx*(2*ntgrid+1)*2*nlambda - 1
-       yxf_lo%gsize      = nnx*(2*ntgrid+1)*2*nlambda*yxf_lo%groupblocksize
+       yxf_lo%ulim_group = nx*(2*ntgrid+1)*2*nlambda - 1
+       yxf_lo%gsize      = nx*(2*ntgrid+1)*2*nlambda*yxf_lo%groupblocksize
 
        yxf_lo%nset = yxf_lo%ulim_group/yxf_lo%nprocset + 1
 
@@ -4585,36 +4570,24 @@ contains
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
-    integer :: nnx, nny
 #ifdef SHMEM
     integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
 #endif
-
-    if (nx > ntheta0) then
-       nnx = nx
-    else
-       nnx = (3*ntheta0+1)/2
-    end if
-    if (ny > naky) then
-       nny = ny
-    else
-       nny = 3*naky
-    end if
 
     accelx_lo%iproc = iproc
     accelx_lo%nproc = nproc
     accelx_lo%ntgrid = ntgrid
     accelx_lo%nsign = 2
     accelx_lo%naky = naky
-    accelx_lo%ny = nny
+    accelx_lo%ny = ny
     accelx_lo%ntheta0 = ntheta0
-    accelx_lo%nx = nnx
-    accelx_lo%nxny = nnx*nny
+    accelx_lo%nx = nx
+    accelx_lo%nxny = nx*ny
     accelx_lo%nlambda = nlambda
     accelx_lo%negrid = negrid
     accelx_lo%nspec = nspec
     accelx_lo%llim_world = 0
-    accelx_lo%ulim_world = nnx*nny*nlambda*negrid*nspec - 1
+    accelx_lo%ulim_world = nx*ny*nlambda*negrid*nspec - 1
 #ifndef SHMEM
     accelx_lo%blocksize = accelx_lo%ulim_world/nproc + 1
     accelx_lo%llim_proc = accelx_lo%blocksize*iproc
@@ -4622,7 +4595,7 @@ contains
          = min(accelx_lo%ulim_world, accelx_lo%llim_proc + accelx_lo%blocksize - 1)
     accelx_lo%ulim_alloc = max(accelx_lo%llim_proc, accelx_lo%ulim_proc)
 #else
-    nxy=nnx*nny
+    nxy=nx*ny
     les = nlambda*negrid*nspec
 
     accelx_lo%ppn = shm_info%size
@@ -4672,38 +4645,26 @@ contains
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
-    integer :: nnx, nny
 #ifdef SHMEM
     integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
 #endif
-
-    if (nx > ntheta0) then
-       nnx = nx
-    else
-       nnx = (3*ntheta0+1)/2
-    end if
-    if (ny > naky) then
-       nny = ny
-    else
-       nny = 3*naky
-    end if
 
     accel_lo%iproc = iproc
     accel_lo%nproc = nproc
     accel_lo%ntgrid = ntgrid
     accel_lo%nsign = 2
     accel_lo%naky = naky
-    accel_lo%ndky = nny/2+1  ! Note: this is for dealiased k space quantities
-    accel_lo%ny = nny
+    accel_lo%ndky = ny/2+1  ! Note: this is for dealiased k space quantities
+    accel_lo%ny = ny
     accel_lo%ntheta0 = ntheta0
-    accel_lo%nx = nnx
-    accel_lo%nxny = nnx*nny
-    accel_lo%nxnky = nnx*(nny/2+1)
+    accel_lo%nx = nx
+    accel_lo%nxny = nx*ny
+    accel_lo%nxnky = nx*(ny/2+1)
     accel_lo%nlambda = nlambda
     accel_lo%negrid = negrid
     accel_lo%nspec = nspec
     accel_lo%llim_world = 0
-    accel_lo%ulim_world = nnx*(nny/2+1)*nlambda*negrid*nspec - 1
+    accel_lo%ulim_world = nx*(ny/2+1)*nlambda*negrid*nspec - 1
 
 #ifndef SHMEM
     accel_lo%nia = negrid*nlambda*nspec/nproc
@@ -4714,7 +4675,7 @@ contains
     accel_lo%ulim_alloc = max(accel_lo%llim_proc, accel_lo%ulim_proc)
 
 #else
-    nxy = nnx*(nny/2+1)
+    nxy = nx*(ny/2+1)
     les = nlambda*negrid*nspec
 
     accel_lo%ppn = shm_info%size
