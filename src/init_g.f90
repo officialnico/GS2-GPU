@@ -1613,7 +1613,7 @@ contains
     use constant_random, only: init_constant_random
     use constant_random, only: finish_constant_random
     use constant_random, only: constant_ranf=>ranf
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
@@ -1621,7 +1621,7 @@ contains
 
 
     !CMR: need to document tracer phit parameter   ;-)
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
@@ -1778,14 +1778,14 @@ contains
     use mp, only: mp_abort
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo
     integer :: ig, ik, it, il, is, nn
 
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
@@ -1869,14 +1869,14 @@ contains
     use le_grids, only: forbid
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo
     integer :: ig, ik, it, il, is, nn, ikpar
 
-    phit = 0.
+    call zero_array(phit)
     do it=2,ntheta0/2+1
        nn = it-1
 ! extra factor of 4 to reduce the high k wiggles for now
@@ -1956,13 +1956,13 @@ contains
     use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
+    call zero_array(phi)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2016,13 +2016,13 @@ contains
     use le_grids, only: forbid, il_is_wfb
     use dist_fn_arrays, only: g, gnew, vpa
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
+    call zero_array(phi)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2093,15 +2093,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2195,15 +2194,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2339,7 +2337,7 @@ contains
        end do
     end do
     
-    phi = 0.
+    call zero_array(phi)
 
 ! Dealiasing here:
     do j = 1, ntheta0/2-1
@@ -2430,8 +2428,7 @@ contains
     apar(:,:,2:naky) = 0.
     bpar(:,:,2:naky) = 0.
 
-    phiz = 0.
-    odd = 0.
+    call zero_array(phiz) ; call zero_array(odd)
     do j = 1, 2
        ik = ikk(j)
        it = itt(j)
@@ -2761,15 +2758,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
     integer :: iglo
     integer :: ig, ik, it, il, is, j
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do it=1,ntheta0
        do ik=1,naky
           phi(:,it,ik) = cmplx(refac,imfac)*dphiinit
@@ -2846,7 +2842,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn, only: get_init_field
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, ik, it, is, i
     real :: fac
@@ -2854,7 +2850,7 @@ contains
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
     !! phi, jpar are local !!
-    phi = 0.0 ; jpar = 0.0
+    call zero_array(phi) ; call zero_array(jpar)
 !!$    phi(:,1,2) = phiinit * cmplx(2.0, 0.0)  ! 2 cos(y)
 !!$    phi(:,2,1) = phiinit * cmplx(1.0, 0.0)  ! 2 cos(x)
 !!$    jpar(:,1,2) = apar0 * cmplx(2.0, 0.0) ! 2 cos(y)
@@ -2942,15 +2938,14 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, vperp2
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: zi
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac
     integer :: iglo
     integer :: ig, ik, it, il, is
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     if (width0 > 0.) then
        do ig = -ntgrid, ntgrid
           phi(ig,:,:) = exp(-((theta(ig)-theta0(:,:))/width0)**2)*cmplx(refac, imfac)
@@ -3015,15 +3010,14 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use constants, only: pi, zi
     use ran, only: ranf
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, odd
     integer :: iglo
     integer :: ik, it, il, is
     real :: phase
     
-    phi = 0.
-    odd = 0.
+    call zero_array(phi) ; call zero_array(odd)
     do ik=1,naky
        do it=1,ntheta0
           phase = 2.*pi*ranf()
@@ -3251,6 +3245,7 @@ contains
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file
     use ran, only: ranf
+    use array_utils, only: copy
     implicit none
     real, dimension(:, :, :, :), allocatable :: mom_coeff
     real, dimension(:, :, :), allocatable :: mom_coeff_npara, mom_coeff_nperp
@@ -3765,7 +3760,7 @@ contains
     deallocate(g_eq)
 
     ! now store the actual g in gnew
-    gnew(:,:,:) = g(:,:,:)
+    call copy(g, gnew)
     call get_init_field(phi,apar,bpar)
 
 !!! check
@@ -4379,7 +4374,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx
     use constant_random, only: init_constant_random, finish_constant_random
     use mp, only: proc0, broadcast
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     real, dimension(-ntgrid:ntgrid) :: sin_theta_mode
@@ -4387,7 +4382,7 @@ contains
     real, parameter :: sqrt_two = sqrt(2.0)
     integer :: iglo, ik, it, il, imode, the_max_mode
 
-    phi = 0.0
+    call zero_array(phi)
 
     ! Make sure the max mode is at least 1, but no bigger than the smaller
     ! of the input max_mode and ntheta/8
