@@ -69,7 +69,8 @@ module dist_fn
   public :: omega0, gamma0
   public :: write_f, write_poly
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, itleft, boundary, supercell_labels
+  public :: l_links, r_links, itright, itleft, boundary
+  public :: supercell_labels, n_supercells, n_cells
   public :: enforce_linked_boundary_conditions
   public :: get_verr, get_gtran, write_fyx, collision_error
   public :: get_init_field, getan_nogath
@@ -119,6 +120,7 @@ module dist_fn
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
+  logical :: start_from_previous_solution
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
 
   integer :: adiabatic_option_switch
@@ -238,6 +240,7 @@ module dist_fn
   type (redist_type), save :: wfb_p, wfb_h
   type (redist_type), save :: pass_right
   type (redist_type), save :: pass_left
+  type (redist_type), save :: incoming_links
   type (redist_type), save :: parity_redist
 
   integer, dimension (:,:), allocatable :: l_links, r_links
@@ -415,6 +418,10 @@ module dist_fn
      !> If non-zero, quasineutrality is not enforced,
      !> `poisfac`=  \((\lambda_\textrm{Debye}/\rho)^2\)
      real :: poisfac = 0.0
+     !> Determines if we set gnew = 0 (if flag is false) or gnew = g
+     !> in [[invert_rhs_1]] or not. This is currently considered
+     !> experimental, but the intention is to change the default to true.
+     logical :: start_from_previous_solution = .false.
      !> For debugging only. Multiplies the trapped particle drifts
      !> (also see [[dist_fn_knobs:driftknob]]).
      real :: tpdriftknob = -9.9e9
@@ -1129,6 +1136,7 @@ contains
     call delete_redist(wfb_h)
     call delete_redist(pass_right)
     call delete_redist(pass_left)
+    call delete_redist(incoming_links)
     call delete_redist(parity_redist)
 
 #ifdef LOWFLOW
@@ -1290,6 +1298,7 @@ contains
     omprimfac = dist_fn_config%omprimfac
     opt_source = dist_fn_config%opt_source
     poisfac = dist_fn_config%poisfac
+    start_from_previous_solution = dist_fn_config%start_from_previous_solution
     tpdriftknob = dist_fn_config%tpdriftknob
     vparknob = dist_fn_config%vparknob
     wfb = dist_fn_config%wfb
@@ -2974,21 +2983,11 @@ contains
        end do
     end do
 
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
 
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low (1) = 1
-    to_low (2) = 1
-    to_low (3) = g_lo%llim_proc
-
-    to_high(1) = n_links_max
-    to_high(2) = 2
-    to_high(3) = g_lo%ulim_alloc
+    to_low = [1, 1, g_lo%llim_proc]
+    to_high = [n_links_max, 2, g_lo%ulim_alloc]
 
     call init_fill (links_p, 'c', to_low, to_high, to_p, &
          from_low, from_high, from_p)
@@ -3189,21 +3188,11 @@ contains
        end do
     end do
 
-    from_low (1) = -ntgrid
-    from_low (2) = 1
-    from_low (3) = g_lo%llim_proc
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
 
-    from_high(1) = ntgrid
-    from_high(2) = 2
-    from_high(3) = g_lo%ulim_alloc
-
-    to_low (1) = 1
-    to_low (2) = 1
-    to_low (3) = g_lo%llim_proc
-
-    to_high(1) = n_links_max
-    to_high(2) = 2
-    to_high(3) = g_lo%ulim_alloc
+    to_low = [1, 1, g_lo%llim_proc]
+    to_high = [n_links_max, 2, g_lo%ulim_alloc]
 
     call init_fill (wfb_p, 'c', to_low, to_high, to_p, from_low, from_high, from)
     call init_fill (wfb_h, 'c', to_low, to_high, to_h, from_low, from_high, from)
@@ -3212,6 +3201,290 @@ contains
     call delete_list (to_p)
     call delete_list (to_h)
   end subroutine setup_connected_bc_redistribute_mixed_wfb
+
+  !> Setup the redistribute associated with passing the incoming
+  !> boundary values to the previous connected cell, storing at its
+  !> connected boundary. This is required in order to allow for non-zero
+  !> incoming boundary conditions on internal cells.
+  subroutine setup_pass_incoming_boundary_to_connections(l_links, r_links, &
+       incoming_links)
+    use gs2_layouts, only: g_lo, il_idx, ik_idx, it_idx, proc_id, ie_idx, is_idx, idx
+    use le_grids, only: il_is_wfb, trapped_wfb, il_is_trapped, mixed_wfb
+    use redistribute, only: index_list_type, init_fill, delete_list, redist_type
+    use theta_grid, only: ntgrid
+    use mp, only: nproc, iproc
+    implicit none
+    integer, dimension(:, :), intent(in) :: l_links, r_links
+    type(redist_type), intent(out) :: incoming_links
+    type (index_list_type), dimension(0:nproc-1) :: from, to
+    integer, dimension (0:nproc-1) :: nn_from, nn_to
+    integer, dimension (3) :: to_low, from_low, to_high, from_high
+    integer :: ncell, iglo_star, j, n, n_h, nn_max
+    integer :: iglo_right, ipright, iglo_left, ipleft
+    integer :: iglo, il, ik, it, ie, is, ip, it_leftmost, it_rightmost
+
+    nn_to = 0
+    nn_from = 0
+
+    ! Whilst we loop over the entire domain here, we should not have any work
+    ! to do for ik, ie, is and il indices which do not belong to this processor's
+    ! local g_lo range. We may be better off writing this as an explicit loop over
+    ! the xyles dimensions with yles range being set my the min/max that this
+    ! processor sees. For now we can just get the indices and cycle.
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ik, ie, is, it, ip, ncell, iglo_star, iglo_right, &
+    !$OMP ipright, iglo_left, ipleft, j, it_leftmost, it_rightmost) &
+    !$OMP SHARED(g_lo, iproc, r_links, l_links, trapped_wfb, mixed_wfb) &
+    !$OMP REDUCTION(+: nn_to, nn_from) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_world, g_lo%ulim_world
+       ! Communicate pattern sends incoming boundary for passing particles (and mixed_wfb)
+       ! to upwind linked cells
+       !      (-ntgrid,1,iglo)  => left connected cell (ntgrid,1,iglo_left)
+       !      (ntgrid,2,iglo)  => right connected cell (-ntgrid,2,iglo_right)
+       ! As we only need one value per {sigma, iglo} we might want to make
+       ! the size of the destination array [1, 2, {glo_local}].
+
+       il = il_idx(g_lo,iglo)
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
+
+       ! Exclude trapped particles (inc wfb if it is not passing/mixed)
+       if (il_is_trapped(il) .or. (il_is_wfb(il) .and. trapped_wfb)) cycle
+
+       ik = ik_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
+
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
+       ncell = r_links(it, ik) + l_links(it, ik) + 1
+
+       ! Skip if only one cell -- WFB and ky==0 periodicity handled
+       ! as self-periodic rather than linked in this case.
+       if (ncell == 1) cycle
+
+       ip = proc_id(g_lo,iglo)
+
+       iglo_star = iglo
+
+       ! Get first connection to the right.
+       if (r_links(it, ik) > 0) then
+          call get_right_connection (iglo_star, iglo_right, ipright)
+          ! sender
+          if (ip == iproc) nn_from(ipright) = nn_from(ipright) + 1
+          ! receiver
+          if (ipright == iproc) nn_to(ip) = nn_to(ip) + 1
+
+          iglo_star = iglo
+       end if
+
+       ! Get first connection to the left.
+       if (l_links(it, ik) > 0) then
+          call get_left_connection (iglo_star, iglo_left, ipleft)
+          ! sender
+          if (ip == iproc) nn_from(ipleft) = nn_from(ipleft) + 1
+          ! receiver
+          if (ipleft == iproc) nn_to(ip) = nn_to(ip) + 1
+       end if
+
+       ! Special handling for periodicity of mixed wfb
+       if (il_is_wfb(il) .and. mixed_wfb) then
+          it_leftmost = get_leftmost_it(it, ik)
+          it_rightmost = get_rightmost_it(it, ik)
+
+          ! If we're at the right end we need to pass to the leftmost
+          if (it == it_rightmost) then
+             iglo_left = idx(g_lo, ik, it_leftmost, il, ie, is)
+             ipleft = proc_id(g_lo, iglo_left)
+             if (ip == iproc) nn_from(ipleft) = nn_from(ipleft) + 1
+             if (ipleft == iproc) nn_to(ip) = nn_to(ip) + 1
+          end if
+
+          ! If we're at the left end we need to pass to the rightmost
+          if (it == it_leftmost) then
+             iglo_right = idx(g_lo, ik, it_rightmost, il, ie, is)
+             ipright = proc_id(g_lo, iglo_right)
+             if (ip == iproc) nn_from(ipright) = nn_from(ipright) + 1
+             if (ipright == iproc) nn_to(ip) = nn_to(ip) + 1
+          end if
+
+       end if
+
+    end do
+    !$OMP END PARALLEL DO
+
+
+    do ip = 0, nproc-1
+       if (nn_from(ip) > 0) then
+          allocate (from(ip)%first(nn_from(ip)))
+          allocate (from(ip)%second(nn_from(ip)))
+          allocate (from(ip)%third(nn_from(ip)))
+       endif
+       if (nn_to(ip) > 0) then
+          allocate (to(ip)%first(nn_to(ip)))
+          allocate (to(ip)%second(nn_to(ip)))
+          allocate (to(ip)%third(nn_to(ip)))
+       endif
+    end do
+
+    nn_from = 0
+    nn_to = 0
+    do iglo = g_lo%llim_world, g_lo%ulim_world
+       ! Communicate pattern sends incoming boundary for passing particles (and mixed_wfb)
+       ! to upwind linked cells
+       !      (-ntgrid,1,iglo)  => left connected cell (ntgrid,1,iglo_left)
+       !      (ntgrid,2,iglo)  => right connected cell (-ntgrid,2,iglo_right)
+       ! As we only need one value per {sigma, iglo} we might want to make
+       ! the size of the destination array [1, 2, {glo_local}].
+
+       il = il_idx(g_lo,iglo)
+       if (il > g_lo%il_max .or. il < g_lo%il_min) cycle
+
+       ! Exclude trapped particles (inc wfb if it is not passing/mixed)
+       if (il_is_trapped(il) .or. (il_is_wfb(il) .and. trapped_wfb)) cycle
+
+       ik = ik_idx(g_lo,iglo)
+       if (ik > g_lo%ik_max .or. ik < g_lo%ik_min) cycle
+
+       ie = ie_idx(g_lo, iglo)
+       if (ie > g_lo%ie_max .or. ie < g_lo%ie_min) cycle
+
+       is = is_idx(g_lo, iglo)
+       if (is > g_lo%is_max .or. is < g_lo%is_min) cycle
+
+       it = it_idx(g_lo,iglo)
+       ncell = r_links(it, ik) + l_links(it, ik) + 1
+
+       ! Skip if only one cell -- WFB and ky==0 periodicity handled
+       ! as self-periodic rather than linked in this case.
+       if (ncell == 1) cycle
+
+       ip = proc_id(g_lo,iglo)
+
+       iglo_star = iglo
+
+       ! Get first connection to the right.
+       if (r_links(it, ik) > 0) then
+          call get_right_connection (iglo_star, iglo_right, ipright)
+          ! sender
+          if (ip == iproc) then
+             n = nn_from(ipright) + 1
+             nn_from(ipright) = n
+
+             from(ipright)%first(n) = ntgrid
+             from(ipright)%second(n) = 2
+             from(ipright)%third(n) = iglo
+          end if
+
+          ! receiver
+          if (ipright == iproc) then
+             n = nn_to(ip) + 1
+             nn_to(ip) = n
+
+             to(ip)%first(n) = -ntgrid
+             to(ip)%second(n) = 2
+             to(ip)%third(n) = iglo_right
+          end if
+       end if
+
+       iglo_star = iglo
+
+       ! Get first connection to the left.
+       if (l_links(it, ik) > 0) then
+          call get_left_connection (iglo_star, iglo_left, ipleft)
+          ! sender
+          if (ip == iproc) then
+             n = nn_from(ipleft) + 1
+             nn_from(ipleft) = n
+
+             from(ipleft)%first(n) = -ntgrid
+             from(ipleft)%second(n) = 1
+             from(ipleft)%third(n) = iglo
+          end if
+
+          ! receiver
+          if (ipleft == iproc) then
+             n = nn_to(ip) + 1
+             nn_to(ip) = n
+
+             to(ip)%first(n) = ntgrid
+             to(ip)%second(n) = 1
+             to(ip)%third(n) = iglo_left
+          end if
+       end if
+
+       ! Special handling for periodicity of mixed wfb
+       if (il_is_wfb(il) .and. mixed_wfb) then
+          it_leftmost = get_leftmost_it(it, ik)
+          it_rightmost = get_rightmost_it(it, ik)
+
+          ! If we're at the right end we need to pass to the leftmost
+          if (it == it_rightmost) then
+             iglo_left = idx(g_lo, ik, it_leftmost, il, ie, is)
+             ipleft = proc_id(g_lo, iglo_left)
+             if (ip == iproc) then
+                n = nn_from(ipleft) + 1
+                nn_from(ipleft) = n
+
+                from(ipleft)%first(n) = ntgrid
+                from(ipleft)%second(n) = 2
+                from(ipleft)%third(n) = iglo
+             end if
+
+             if (ipleft == iproc) then
+                n = nn_to(ip) + 1
+                nn_to(ip) = n
+
+                to(ip)%first(n) = -ntgrid
+                to(ip)%second(n) = 2
+                to(ip)%third(n) = iglo_left
+             end if
+          end if
+
+          ! If we're at the left end we need to pass to the rightmost
+          if (it == it_leftmost) then
+             iglo_right = idx(g_lo, ik, it_rightmost, il, ie, is)
+             ipright = proc_id(g_lo, iglo_right)
+
+             if (ip == iproc) then
+                n = nn_from(ipright) + 1
+                nn_from(ipright) = n
+
+                from(ipright)%first(n) = -ntgrid
+                from(ipright)%second(n) = 1
+                from(ipright)%third(n) = iglo
+             end if
+
+             ! receiver
+             if (ipright == iproc) then
+                n = nn_to(ip) + 1
+                nn_to(ip) = n
+
+                to(ip)%first(n) = ntgrid
+                to(ip)%second(n) = 1
+                to(ip)%third(n) = iglo_right
+             end if
+          end if
+       end if
+    end do
+
+    from_low = [-ntgrid, 1, g_lo%llim_proc]
+    from_high = [ntgrid, 2, g_lo%ulim_alloc]
+
+    to_low = from_low
+    to_high = from_high
+
+    call init_fill (incoming_links, 'c', to_low, to_high, to, &
+         from_low, from_high, from)
+
+    call delete_list(from)
+    call delete_list(to)
+
+  end subroutine setup_pass_incoming_boundary_to_connections
 
   !> Coordinates the calculation of all data required for later application
   !> of linked boundary conditions. Deals with identifying the communication
@@ -3282,6 +3555,13 @@ contains
     if (mixed_wfb) then
        call setup_connected_bc_redistribute_mixed_wfb(l_links, r_links, n_links_max, &
             wfb_p, wfb_h)
+    end if
+
+    ! Setup redistributes for passing the incoming boundary to the previous linked
+    ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
+    ! the linked location.
+    if (start_from_previous_solution) then
+       call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
     end if
 
     ! n_links_max is typically 2 * number of cells in largest supercell
@@ -3721,12 +4001,8 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer :: modep
     integer,save :: istep_last=-1
     integer, parameter :: verb = 3
-
-    modep = 0
-    if (present(mode)) modep = mode
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
@@ -3767,7 +4043,7 @@ contains
 
     !Add collisions
     if( .not. split_collisions) then
-      call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
+      call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, mode)
       call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
     end if
@@ -3802,16 +4078,12 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
     integer, optional, intent (in) :: mode
-    integer :: modep
     integer, parameter :: verb = 3
 
     if(.not. split_collisions) return
 
-    modep = 0
-    if (present(mode)) modep = mode
-
     !Add collisions
-    call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
+    call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, mode)
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
@@ -5090,7 +5362,7 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 (phinew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -5118,8 +5390,8 @@ contains
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1, is_passing_like) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
@@ -5227,9 +5499,19 @@ contains
        !/////////////////////////
        !// Initialisation
        !/////////////////////////
-
-       ! gnew is the inhomogeneous solution
-       gnew(:,:,iglo) = 0.0
+       if (start_from_previous_solution) then
+          ! Initialise gnew to g. Note we probably only need to do this when
+          ! istep == istep_last (i.e. on the second half of a timestep). We
+          ! may also be able to get a slight improvement by copying over the
+          ! non-adiabatic part of g and then forming gnew using the new fields.
+          ! For example we could do the equivalent of
+          ! call g_adjust(gnew, phi, bpar, from_g_gs2)
+          ! call g_adjust(gnew, phinew, bparnew, to_g_gs2)
+          ! after copying g into gnew.
+          gnew(:, :, iglo) = g(:, :, iglo)
+       else
+          gnew(:, :, iglo) = 0.0
+       end if
 
        !/////////////////////////
        !// Boundaries
@@ -5250,7 +5532,7 @@ contains
                   *bparnew(-ntgrid,it,ik)*fbpar &
                   + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
                   *fphi*nonmaxw_corr(ie,is)
-             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+             gnew(-ntgrid,1,iglo) = -adjleft
           end if
           !Only apply the new boundary condition to the rightmost
           !cell for sign going from right to left
@@ -5259,9 +5541,9 @@ contains
                   *bparnew(ntgrid,it,ik)*fbpar &
                   + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
                   *fphi*nonmaxw_corr(ie,is)
-             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+             gnew(ntgrid,2,iglo) = -adjright
           end if
-       endif
+       end if
 
        !/////////////////////////
        !// Time advance
@@ -5456,12 +5738,14 @@ contains
 
   !> Applies linked (twist-shift) boundary conditions to passed distribution function
   subroutine apply_linked_boundary_conditions (g_in, g_h, g_adj, phinew, bparnew)
+    use dist_fn_arrays, only: g_work
     use theta_grid, only: ntgrid, bmag
     use le_grids, only: is_passing_hybrid_electron, il_is_wfb, mixed_wfb, energy, al
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, idx
     use redistribute, only: fill
     use run_parameters, only: fbpar, fphi
     use species, only: spec, nonmaxw_corr
+    use array_utils, only: zero_array
     use kt_grids, only: kwork_filter, kperp2
     use spfunc, only: j0, j1
     implicit none
@@ -5484,15 +5768,43 @@ contains
     ! No more work to do if no connections so return
     if (no_connections) return
 
-    !<DD>Note these fill routines are often equivalent to an all-to-all type
-    !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
-    !By only communicating with our direct neighbours we would significantly
-    !reduce the amount of data to communicate and we should improve the communication
-    !scaling. However, if we do this then we lose the ability to perform the linked
-    !update (i.e. what we do below) in a parallel manner, so the below code would
-    !become partially serial.
-    call fill (links_p, g_in, g_adj)
-    if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
+    ! Some extra work to do if we allow non-zero incoming boundary conditions
+    if (start_from_previous_solution) then
+       ! Pass the incoming boundary values to the previous connected cell, storing
+       ! at its connected boundary. This requires two redistribute calls _and_ a full
+       ! dist_fn sized array even though there should be at most two non-zero values
+       ! per iglo point. Future work should be able to make this much more efficient
+       call zero_array(g_work)
+       call fill(incoming_links, g_in, g_work)
+
+       ! Construct g_work = g_in - g_work where g_work initially contains
+       ! the incoming boundary values from the upstream connected
+       ! cell. This adapts the linked boundary conditions to allow for
+       ! non-zero incoming boundary conditions (gnew /= 0 ) for internal
+       ! (i.e. connected cells)
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo) &
+       !$OMP SHARED(g_lo, g_work, g_in, ntgrid) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          g_work(ntgrid, 1, iglo) = g_in(ntgrid, 1, iglo) - g_work(ntgrid, 1, iglo)
+          g_work(-ntgrid, 2, iglo) = g_in(-ntgrid, 2, iglo) - g_work(-ntgrid, 2, iglo)
+       end do
+       !$OMP END PARALLEL DO
+
+       !<DD>Note these fill routines are often equivalent to an all-to-all type
+       !communication, i.e. when nproc --> 2 nproc, t_fill --> 4 t_fill
+       !By only communicating with our direct neighbours we would significantly
+       !reduce the amount of data to communicate and we should improve the communication
+       !scaling. However, if we do this then we lose the ability to perform the linked
+       !update (i.e. what we do below) in a parallel manner, so the below code would
+       !become partially serial.
+       call fill (links_p, g_work, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_work, g_adj)
+    else
+       call fill (links_p, g_in, g_adj)
+       if( mixed_wfb ) call fill (wfb_p, g_in, g_adj)
+    end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ncell, il, is, ie, itl, itr, &
@@ -10357,12 +10669,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, zero_forbid
+    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
     real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
     namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
          gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         tpdriftknob, vparknob, wfb, zero_forbid
+         start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10393,6 +10705,7 @@ contains
     omprimfac = self%omprimfac
     opt_source = self%opt_source
     poisfac = self%poisfac
+    start_from_previous_solution = self%start_from_previous_solution
     tpdriftknob = self%tpdriftknob
     vparknob = self%vparknob
     wfb = self%wfb
@@ -10428,6 +10741,7 @@ contains
     self%omprimfac = omprimfac
     self%opt_source = opt_source
     self%poisfac = poisfac
+    self%start_from_previous_solution = start_from_previous_solution
     self%tpdriftknob = tpdriftknob
     self%vparknob = vparknob
     self%wfb = wfb
@@ -10474,6 +10788,7 @@ contains
     call self%write_key_val("omprimfac", self%omprimfac, unit_internal)
     call self%write_key_val("opt_source", self%opt_source, unit_internal)
     call self%write_key_val("poisfac", self%poisfac, unit_internal)
+    call self%write_key_val("start_from_previous_solution", self%start_from_previous_solution, unit_internal)
     call self%write_key_val("tpdriftknob", self%tpdriftknob, unit_internal)
     call self%write_key_val("vparknob", self%vparknob, unit_internal)
     call self%write_key_val("wfb", self%wfb, unit_internal)
@@ -10522,6 +10837,7 @@ contains
     call broadcast(self%omprimfac)
     call broadcast(self%opt_source)
     call broadcast(self%poisfac)
+    call broadcast(self%start_from_previous_solution)
     call broadcast(self%tpdriftknob)
     call broadcast(self%vparknob)
     call broadcast(self%wfb)

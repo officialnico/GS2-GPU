@@ -1,0 +1,10 @@
+&dist_fn_knobs
+  boundary_option = 'linked'
+  nonad_zero = T
+  start_from_previous_solution = F
+/
+
+&linked_bc_test
+  zero_offset = T
+/
+!include test_linked_bc.in
