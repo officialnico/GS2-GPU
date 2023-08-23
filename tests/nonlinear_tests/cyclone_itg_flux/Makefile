@@ -17,6 +17,9 @@ else
 all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_unsplit.in)
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_rk.in)
+ifeq "$(shell expr ${TEST_LEVEL} \>= 3)" "1"
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_split_rk_strang.in)
+endif
 endif
 endif
 
