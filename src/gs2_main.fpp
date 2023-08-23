@@ -1772,23 +1772,24 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew,  bparnew
     use run_parameters, only: has_phi, has_apar, has_bpar
     use init_g, only: ginit
+    use array_utils, only: zero_array
     implicit none
     logical :: dummy
     
     if (has_phi) then
-       phi = 0.0
-       phinew = 0.0
+       call zero_array(phi)
+       call zero_array(phinew)
     end if
 
     if (has_apar) then
-       apar = 0.0
-       aparnew = 0.0
+       call zero_array(apar)
+       call zero_array(aparnew)
     end if
     if (has_bpar) then
-       bpar = 0.0
-       bparnew = 0.0
+       call zero_array(bpar)
+       call zero_array(bparnew)
     end if
-    g = 0.0; gnew = 0.0
+    call zero_array(g) ; call zero_array(gnew)
 
     call ginit(dummy)
     call set_init_fields
