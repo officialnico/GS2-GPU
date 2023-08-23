@@ -3470,22 +3470,23 @@ contains
     use kt_grids, only: kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, gf_lo
     use mp, only: proc0
+    use array_utils, only: copy
     implicit none
     integer :: ik,it,ikit,igf
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
        if(has_phi) then
-          phi=phinew
-          gf_phi=gf_phinew
+          call copy(phinew, phi)
+          call copy(gf_phinew, gf_phi)
        end if
        if(has_apar) then
-          apar=aparnew
-          gf_apar=gf_aparnew
+          call copy(aparnew, apar)
+          call copy(gf_aparnew, gf_apar)
        end if
        if(has_bpar) then
-          bpar=bparnew
-          gf_bpar=gf_bparnew
+          call copy(bparnew, bpar)
+          call copy(gf_bparnew, gf_bpar)
        end if
        return
     end if
