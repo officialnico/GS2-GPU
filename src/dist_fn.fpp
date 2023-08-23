@@ -172,6 +172,8 @@ module dist_fn
   real, dimension (:,:,:), allocatable :: gridfac1
   ! (-ntgrid:ntgrid,ntheta0,naky)
 
+  real, dimension(:, :, :), allocatable :: vpar
+
 #ifndef SHMEM
   complex, dimension (:,:,:), allocatable :: g_h
 #else
@@ -997,7 +999,7 @@ contains
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
 #ifdef LOWFLOW
-    use dist_fn_arrays, only: vpar, vpac
+    use dist_fn_arrays, only: vpac
     use lowflow, only: init_lowflow
 #endif
     implicit none
@@ -1172,7 +1174,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
-    use dist_fn_arrays, only: vpar
     if (.not. initialized_dist_fn_level_3) return
     initialized_dist_fn_level_3 = .false.
 
@@ -1714,7 +1715,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpar
-    use dist_fn_arrays, only: vpar, vpac
+    use dist_fn_arrays, only: vpac
     use species, only: spec
     use theta_grid, only: ntgrid, delthet, gradpar
     use gs2_time, only: code_dt, tunits
@@ -1851,7 +1852,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_invert_rhs
-    use dist_fn_arrays, only: vpar
     use species, only: spec
     use theta_grid, only: ntgrid
     use le_grids, only: forbid, grid_has_trapped_particles, is_lower_bounce_point, is_ttp
@@ -2185,7 +2185,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_source_term
-    use dist_fn_arrays, only: vpar, vpac, aj0
+    use dist_fn_arrays, only: vpac, aj0
     use run_parameters, only: has_apar
     use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
@@ -4829,7 +4829,7 @@ contains
 #ifdef LOWFLOW
     use lowflow, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpar, vpac, g
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpac, g
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
