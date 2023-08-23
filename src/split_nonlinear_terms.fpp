@@ -608,7 +608,7 @@ contains
   subroutine advance_nonlinear_term_rk_implementation(phinew, &
        aparnew, bparnew, dt, fields_func, source_func, scheme)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g, gexp_1
+    use dist_fn_arrays, only: gnew, g
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
@@ -617,6 +617,7 @@ contains
     use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    complex, dimension(:, :, :), allocatable :: gnl_1
     real, intent(in) :: dt
     type(rk_scheme_type), intent(in) :: scheme
     complex, dimension (:, :, :, :), allocatable :: stages
@@ -652,6 +653,8 @@ contains
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
 
+    allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
@@ -684,7 +687,7 @@ contains
 
        ! One can directly form the error by simply forming error =
        ! time_step * 0.5 * sum(stages_i * (high_order_coeffs_i -
-       ! low_order_coeffs_i)). Here we store this in gexp_1
+       ! low_order_coeffs_i)). Here we store this in gnl_1
        ! without the time_step * 0.5 factor (to avoid extra
        ! array operations). We multiply the final error by
        ! time_step/2 to ensure full consistency.
@@ -692,27 +695,27 @@ contains
        ! other loop directly below to avoid some overhead?
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
-       !$OMP SHARED(g_lo, gexp_1, error_coeffs, stages) &
+       !$OMP SHARED(g_lo, gnl_1, error_coeffs, stages) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          gexp_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
+          gnl_1(:, :, iglo) = error_coeffs(1) * stages(:, :, iglo, 1)
        end do
        !$OMP END PARALLEL DO
 
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, istage) &
-       !$OMP SHARED(g_lo, gexp_1, error_coeffs, nstages, stages) &
+       !$OMP SHARED(g_lo, gnl_1, error_coeffs, nstages, stages) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do istage = 2, nstages
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             gexp_1(:, :, iglo) = gexp_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
+             gnl_1(:, :, iglo) = gnl_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
           end do
        end do
        !$OMP END PARALLEL DO
 
        ! Store the absolute error
-       errors(1) = gs2_max_abs(gexp_1) * (time_step * 0.5)
+       errors(1) = gs2_max_abs(gnl_1) * (time_step * 0.5)
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = gs2_max_abs(g)
