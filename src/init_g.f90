@@ -2298,11 +2298,10 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use constants, only: zi, pi
     use run_parameters, only: k0
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (ntheta0,naky) :: phi
     integer :: iglo
-!    integer :: ig, ik, it, il, is, j, j1
     integer :: ik, it, il, is, j, j1
     real, dimension(nx) :: lx_pr, a_pr
     complex,dimension(nx) :: ff_pr
@@ -2366,7 +2365,7 @@ contains
        enddo
     end if
     
-    g = 0.
+    call zero_array(g)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo) 
@@ -2402,7 +2401,7 @@ contains
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz, odd
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac, tparfac, tperpfac, ct, st, c2t, s2t
@@ -2413,7 +2412,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2520,7 +2519,7 @@ contains
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
@@ -2530,7 +2529,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2622,7 +2621,7 @@ contains
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phiz
     integer :: iglo, istatus
@@ -2632,7 +2631,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2711,7 +2710,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, istatus
     integer :: ik, it, ierr
@@ -2720,10 +2719,10 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
 
-    gnew = 0.
+    call zero_array(gnew)
 
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -3171,9 +3170,10 @@ contains
   !> FIXME : Add documentation
   subroutine ginit_zero
     use dist_fn_arrays, only: g, gnew
+    use array_utils, only: zero_array
     implicit none
-    g = 0.0
-    gnew = 0.0
+    call zero_array(g)
+    call zero_array(gnew)
   end subroutine ginit_zero
 
   !> FIXME : Add documentation  
@@ -3965,7 +3965,7 @@ contains
     use mp, only: proc0
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
@@ -3973,7 +3973,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     call copy(g, gnew)
     call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
@@ -3988,7 +3988,7 @@ contains
     use mp, only: proc0
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
@@ -3997,7 +3997,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     call copy(g, gnew)
     call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
@@ -4012,7 +4012,7 @@ contains
     use mp, only: proc0
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
     character(len=20) :: restart_unique_string
@@ -4023,7 +4023,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     call copy(g, gnew)
     call copy(phinew, phi) ; call copy(aparnew, apar) ; call copy(bparnew, bpar)
@@ -4055,7 +4055,7 @@ contains
     use mp, only: proc0
     use file_utils, only: error_unit
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
 
@@ -4065,7 +4065,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     g = g + gnew
     call copy(g, gnew)
@@ -4085,7 +4085,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use run_parameters, only: has_phi, has_apar, has_bpar
     use ran, only: ranf
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi
     integer :: istatus, ierr
@@ -4126,7 +4126,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     g = g + gnew
     call copy(g, gnew)
@@ -4148,7 +4148,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, is_idx
     use fields_arrays, only: phinew
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     integer :: istatus, ierr
     integer :: iglo
@@ -4159,7 +4159,7 @@ contains
     if (istatus /= 0) then
        ierr = error_unit()
        if (proc0) write(ierr,*) "Error reading file: ", trim(restart_file)
-       g = 0.
+       call zero_array(g)
     end if
     if (proc0) write (*,*) "Initialised g"
     
