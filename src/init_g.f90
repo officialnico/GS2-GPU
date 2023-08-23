@@ -1250,6 +1250,7 @@ contains
     use le_grids, only: is_passing_hybrid_electron
     use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
+    use array_utils, only: copy
     implicit none
     integer :: iglo, ik, il, is
 
@@ -1270,10 +1271,10 @@ contains
     call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! Ensure both timesteps are set correctly
-    g = gnew
-    phinew = phi
-    aparnew = apar
-    bparnew = bpar
+    call copy(gnew, g)
+    call copy(phi, phinew)
+    call copy(apar, aparnew)
+    call copy(bpar, bparnew)
   end subroutine set_gnew_from_nonadiabatic_dfn
 
   !> FIXME : Add documentation
