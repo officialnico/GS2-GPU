@@ -109,7 +109,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
-
+    use array_utils, only: copy
     implicit none
 
     logical, optional :: gf_lo
@@ -127,13 +127,14 @@ contains
        !AJ Note, we do not initialise phi, apar, and bpar here 
        !AJ as this is now done in fields_gf_local along with a 
        !AJ fields redistribute.
-       g = gnew
+       call copy(gnew, g)
     else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
+       call copy(gnew, g)
     else
        call getfield (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew 
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     end if
     ! <MAB
 
@@ -326,6 +327,7 @@ contains
     use unit_tests, only: debug_message
     use job_manage, only: time_message
     use mp, only: get_mp_times
+    use array_utils, only: copy
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -337,10 +339,8 @@ contains
        
     if (allocated(kx_shift) .or. allocated(theta0_shift)) call exb_shear (gnew, phinew, aparnew, bparnew, istep) 
     
-    g = gnew
-    phi = phinew
-    apar = aparnew 
-    bpar = bparnew       
+    call copy(gnew, g)
+    call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv 1')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
@@ -472,6 +472,7 @@ contains
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use file_utils, only: error_unit
+    use array_utils, only: zero_array
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
@@ -554,15 +555,11 @@ contains
 
 
           !Do we need to zero all 8 arrays on every loop? This can be more expensive than might think.
-          am = 0.0
-          g = 0.0
-
-          phi = 0.0
-          apar = 0.0
-          bpar = 0.0
-          phinew = 0.0
-          aparnew = 0.0
-          bparnew = 0.0
+          call zero_array(am)
+          call zero_array(g)
+          call zero_array(phi) ; call zero_array(phinew)
+          call zero_array(apar) ; call zero_array(aparnew)
+          call zero_array(bpar) ; call zero_array(bparnew)
 
           !Loop over individual 2pi domains / cells
           do n = 1, N_class(i)
@@ -595,7 +592,7 @@ contains
                       phinew(ig,it,ik) = 1.0
                    end do
                    if (.not. skip_initialisation) call init_response_row (ig, ifield, am, i, n)
-                   phinew = 0.0
+                   call zero_array(phinew)
                 end if
 
                 !Find response to apar
@@ -616,7 +613,7 @@ contains
                       aparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   aparnew = 0.0
+                   call zero_array(aparnew)
                 end if
 
                 !Find response to bpar
@@ -637,7 +634,7 @@ contains
                       bparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   bparnew = 0.0
+                   call zero_array(bparnew)
                 end if
              end do
           end do
