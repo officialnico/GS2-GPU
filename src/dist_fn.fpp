@@ -3995,6 +3995,7 @@ contains
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
     use gs2_time, only: code_dt
+    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
@@ -4070,7 +4071,7 @@ contains
        ! If we're finishing a full step then advance just the nonlinear term
        ! by nl_dt.
        if (is_second_half_step .and. istep > 0) then
-          g = gnew
+          call copy(gnew, g)
           if (advance_nonadiabatic_dfn) then
              call advance_nonlinear_term(istep, phinew, aparnew, bparnew, nl_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
