@@ -146,7 +146,6 @@ module collisions
   real, dimension (:, :), allocatable :: pitch_weights
 
   logical :: drag = .false.
-  logical :: heating_flag = .false.
   logical :: colls = .true.
   logical :: split_collisions
 
@@ -3276,8 +3275,6 @@ contains
 !    integer :: t0, t1, t2, t3, t4, t5, tr
 !    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
 
-    heating_flag = heating .and. present(diagnostics)
-
     select case (collision_model_switch)
     case (collision_model_full)
 
@@ -3332,11 +3329,7 @@ contains
 !          t3tot = t3tot + real(t3-t2)/tr
 !       end if
 
-       if (heating_flag) then
-          call solfp_lorentz (g, gc1, gc2, diagnostics)
-       else
-          call solfp_lorentz (g, gc1, gc2)
-       end if
+       call solfp_lorentz (g, gc1, gc2, diagnostics)
 
        ! TMP FOR TESTING -- MAB
 !       if (proc0) then
@@ -3381,11 +3374,7 @@ contains
           !$OMP END PARALLEL DO
        end if
        
-       if (heating_flag) then
-          call solfp_lorentz (g, gc1, gc2, diagnostics)
-       else
-          call solfp_lorentz (g, gc1, gc2)
-       end if
+       call solfp_lorentz (g, gc1, gc2, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (g, g1)
 
@@ -3423,8 +3412,6 @@ contains
         nxi_lim = nxi
     endif
     
-    heating_flag = heating .and. present(diagnostics)
-
     select case (collision_model_switch)
     case (collision_model_full)
 
@@ -3464,11 +3451,7 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       if (heating_flag) then
-          call solfp_lorentz (gle, diagnostics)
-       else
-          call solfp_lorentz (gle)
-       end if
+       call solfp_lorentz (gle, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (gle)
 
@@ -3504,11 +3487,7 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       if (heating_flag) then
-          call solfp_lorentz (gle, diagnostics)
-       else
-          call solfp_lorentz (gle)
-       end if
+       call solfp_lorentz (gle, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (gle)
 
@@ -4267,7 +4246,7 @@ contains
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
-    if (heating) then
+    if (heating .and. present(diagnostics)) then
        allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
        call zero_array(glzc)
     end if
@@ -4415,7 +4394,7 @@ contains
     call scatter (lambda_map, glz, g)
 
     deallocate (glz)
-    if (heating) deallocate (glzc)
+    if (allocated(glzc)) deallocate (glzc)
 
   end subroutine solfp_lorentz_standard_layout
 

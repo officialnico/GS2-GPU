@@ -4000,12 +4000,8 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer :: modep
     integer,save :: istep_last=-1
     integer, parameter :: verb = 3
-
-    modep = 0
-    if (present(mode)) modep = mode
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
@@ -4046,7 +4042,7 @@ contains
 
     !Add collisions
     if( .not. split_collisions) then
-      call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
+      call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, mode)
       call debug_message(verb, &
           'dist_fn::timeadv calculated collisions etc')
     end if
@@ -4081,16 +4077,12 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     complex, dimension (-ntgrid:,:,:), intent (inout) :: phinew, aparnew, bparnew
     integer, optional, intent (in) :: mode
-    integer :: modep
     integer, parameter :: verb = 3
 
     if(.not. split_collisions) return
 
-    modep = 0
-    if (present(mode)) modep = mode
-
     !Add collisions
-    call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, modep)
+    call vspace_derivatives (gnew, g, g_work, phi, bpar, phinew, bparnew, mode)
     call debug_message(verb, &
       'dist_fn::collisions_advance calculated collisions etc')
 
