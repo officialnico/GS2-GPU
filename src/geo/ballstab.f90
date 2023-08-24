@@ -339,23 +339,22 @@ contains
     end select
   end subroutine set_beta_prime
 
-  !> Runs the stability check scan
+  !> Runs the stability check scan for the module level shat/beta array values
   subroutine run_stability_check
     use file_utils, only: open_output_file, close_output_file
     implicit none
-    integer :: stab
     integer :: is, ib
 
     !Exit if not initialised
     if(.not.initialised) return
 
     !Check stability over range
-    do ib=1,n_beta
-       do is=1,n_shat
-          call check_stability(shat_arr(is),beta_arr(ib),ib,stab)
-          stability(is,ib)=stab
-       enddo
-    enddo
+    do ib = 1, n_beta
+       do is = 1, n_shat
+          call check_stability(shat_arr(is), beta_arr(ib), &
+               dbdrho_arr(ib), stability(is, ib))
+       end do
+    end do
   end subroutine run_stability_check
 
   !> Routine to write out stability data to 1D ascii file
@@ -413,14 +412,16 @@ contains
   end subroutine write_stability_ascii_2d
 
   !> Test if given shat/beta is unstable
-  subroutine check_stability(shat_in, beta_prime_in, ib, iunstable, restore)
+  subroutine check_stability(shat_in, beta_prime_in, dbetadrho_out, &
+       iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
     use geometry, only: dbetadrho, eikcoefs
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
-    integer, intent(in) :: ib
+    real, intent(out) :: dbetadrho_out
     integer, intent(out) :: iunstable
+    real, intent(in), optional :: theta0
     logical, intent(in), optional :: restore
     real :: shat_bak, beta_prime_bak
     
@@ -436,11 +437,11 @@ contains
     call set_shat(shat_in)
     call eikcoefs(ntheta) !Recalculate geometry terms
 
-    !Here we store the value of dbetadrho, this should be bishop value independent
-    dbdrho_arr(ib)=dbetadrho
+    !Here we pass out the value of dbetadrho, this should be bishop value independent
+    dbetadrho_out = dbetadrho
 
     !Test stability
-    iunstable=is_unstable()
+    iunstable = is_unstable(theta0)
 
     !Restore geometry if requested
     if(present(restore))then
