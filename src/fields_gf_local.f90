@@ -1744,6 +1744,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
@@ -1751,13 +1752,10 @@ contains
     !First initialise everything to 0
     !AJ This is also done in fields.f90 when arrays are created so we should be 
     !AJ able to remove from here.
-    g=0
-    phi=0.0
-    phinew=0.0
-    apar=0.0
-    aparnew=0.0
-    bpar=0.0
-    bparnew=0.0
+    call zero_array(g)
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
 
     !Initialise field counter
     ifl=0
@@ -3472,22 +3470,23 @@ contains
     use kt_grids, only: kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, gf_lo
     use mp, only: proc0
+    use array_utils, only: copy
     implicit none
     integer :: ik,it,ikit,igf
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
        if(has_phi) then
-          phi=phinew
-          gf_phi=gf_phinew
+          call copy(phinew, phi)
+          call copy(gf_phinew, gf_phi)
        end if
        if(has_apar) then
-          apar=aparnew
-          gf_apar=gf_aparnew
+          call copy(aparnew, apar)
+          call copy(gf_aparnew, gf_apar)
        end if
        if(has_bpar) then
-          bpar=bparnew
-          gf_bpar=gf_bparnew
+          call copy(bparnew, bpar)
+          call copy(gf_bparnew, gf_bpar)
        end if
        return
     end if
@@ -4252,6 +4251,7 @@ contains
     use mp, only: get_mp_times
     use job_manage, only: time_message
     use antenna, only: antenna_amplitudes, no_driver
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4277,21 +4277,21 @@ contains
 
     !Update g and fields
     !AJ IS THIS FULL COPY NECESSARY?
-    g=gnew
+    call copy(gnew, g)
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
        if(has_phi) then
-          phi=phinew
-          gf_phi=gf_phinew
+          call copy(phinew, phi)
+          call copy(gf_phinew, gf_phi)
        end if
        if(has_apar) then
-          apar=aparnew
-          gf_apar=gf_aparnew
+          call copy(aparnew, apar)
+          call copy(gf_aparnew, gf_apar)
        end if
        if(has_bpar) then
-          bpar=bparnew
-          gf_bpar=gf_bparnew
+          call copy(bparnew, bpar)
+          call copy(gf_bparnew, gf_bpar)
        end if
     endif
 

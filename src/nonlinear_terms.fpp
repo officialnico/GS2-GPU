@@ -316,6 +316,7 @@ contains
     use gs2_layouts, only: init_gs2_layouts
     use gs2_transforms, only: init_transforms
     use mp, only: nproc, iproc
+    use array_utils, only: zero_array
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
 #endif
@@ -358,7 +359,7 @@ contains
              call shm_alloc(agb, (/ 1, 2*ntgrid+1, 1, 2, accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
              call shm_alloc(abracket, (/ 1, 2*ntgrid+1, 1, 2, accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
 #endif
-             aba = 0. ; agb = 0. ; abracket = 0.
+             call zero_array(aba) ; call zero_array(agb) ; call zero_array(abracket)
           else
 #ifndef SHMEM
              allocate (     ba(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc))
@@ -369,7 +370,7 @@ contains
              call shm_alloc(gb, (/ 1,yxf_lo%ny,yxf_lo%llim_proc,yxf_lo%ulim_alloc /))
              call shm_alloc(bracket, (/ 1,yxf_lo%ny,yxf_lo%llim_proc,yxf_lo%ulim_alloc /))
 #endif
-             ba = 0. ; gb = 0. ; bracket = 0.
+             call zero_array(ba) ; call zero_array(gb) ; call zero_array(bracket)
           end if
           alloc = .false.
        end if
