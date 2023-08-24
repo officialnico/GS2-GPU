@@ -452,19 +452,25 @@ contains
     endif
   end subroutine check_stability
 
-  !> Test stability of current system -- return integer
-  integer function is_unstable()
-    !Note iunstable>0 means unstable - Could use a logical but size may be interesting
+  !> Test stability of current system for passed theta0 -- return integer
+  !>
+  !> Note is_unstable>0 means unstable - Could use a logical but size
+  !> may be interesting
+  integer function is_unstable(theta0_in)
     !Assumes a call has been made to eikcoefs so that geometry terms are setup correctly
-!<DD> NEED TO IMPROVE VARIABLE NAMES
+    !<DD> NEED TO IMPROVE VARIABLE NAMES
     use geometry, only: gds2, gradpar, bmag, cvdrift, dbetadrho, theta
+    use geometry, only: gds21, gds22, cvdrift0
+    use optionals, only: get_option_with_default
     implicit none
+    real, intent(in), optional :: theta0_in
     real, dimension(:), allocatable :: g, c, psi, c1, c2, ch, g1, g2, gh, delthet
     integer :: ig, ntgrid
-    real :: cflmax, cflmin, one_m_diff, psi_prime
+    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
     logical, parameter :: debug = .false.
 
     !Initialise
+    theta0 = get_option_with_default(theta0_in, 0.0)
     is_unstable=0
     one_m_diff=1.-diff
 
@@ -477,12 +483,12 @@ contains
     ntgrid=ubound(theta,1)
  
     !Calculate geometry arrays
-    allocate(delthet(-ntgrid:ntgrid))
-    delthet(:ntgrid-1) = theta(-ntgrid+1:) - theta(:ntgrid-1)
+    allocate(delthet(-ntgrid:ntgrid-1))
+    delthet = theta(-ntgrid+1:) - theta(:ntgrid-1)
 
     allocate(g(-ntgrid:ntgrid),c(-ntgrid:ntgrid))
-    g = gds2*gradpar/bmag
-    c = -0.5*dbetadrho*cvdrift/(bmag*gradpar)
+    g = (gds2 + 2 * theta0 * gds21 + theta0**2 * gds22) * gradpar / bmag
+    c = -0.5 * dbetadrho * (cvdrift + theta0 * cvdrift0) / (bmag * gradpar)
 
     allocate(g1(-ntgrid:ntgrid), c1(-ntgrid:ntgrid))
     allocate(g2(-ntgrid:ntgrid), c2(-ntgrid:ntgrid))
