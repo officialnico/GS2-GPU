@@ -286,6 +286,7 @@ contains
     use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
+    !> Arrays to hold the nonlinear source history similar to gexp_1/2/3
     complex, dimension(:, :, :), allocatable :: gnl_1, gnl_2, gnl_3
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel, half_time
