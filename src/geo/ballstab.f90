@@ -21,7 +21,7 @@ module ballstab
   
   logical :: make_salpha
   integer :: n_shat, n_beta
-  real :: shat_min, shat_max
+  real :: shat_min, shat_max, theta0
   real :: beta_mul, beta_div
   real, dimension(:), allocatable :: shat_arr, beta_arr, dbdrho_arr
   integer, dimension(:,:), allocatable :: stability
@@ -62,6 +62,10 @@ module ballstab
      !>
      !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
      real :: shat_min = 0.0
+     !> The theta0 value to use in solving the ideal ballooning problem. We don't
+     !> currently provide a means to study multiple theta0 in a single run. This
+     !> may change in the future.
+     real :: theta0 = 0.0
    contains
      procedure, public :: read => read_ballstab_config
      procedure, public :: write => write_ballstab_config
@@ -147,6 +151,7 @@ contains
     n_shat = ballstab_config%n_shat
     shat_max = ballstab_config%shat_max
     shat_min = ballstab_config%shat_min
+    theta0 = ballstab_config%theta0
 
     exist = ballstab_config%exist
   end subroutine read_parameters
@@ -352,7 +357,7 @@ contains
     do ib = 1, n_beta
        do is = 1, n_shat
           call check_stability(shat_arr(is), beta_arr(ib), &
-               dbdrho_arr(ib), stability(is, ib))
+               dbdrho_arr(ib), stability(is, ib), theta0)
        end do
     end do
   end subroutine run_stability_check
@@ -590,9 +595,9 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     integer :: n_beta, n_shat
     logical :: make_salpha
-    real :: beta_div, beta_mul, diff, shat_max, shat_min
+    real :: beta_div, beta_mul, diff, shat_max, shat_min, theta0
 
-    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min
+    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min, theta0
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -606,6 +611,7 @@ contains
     n_shat = self%n_shat
     shat_max = self%shat_max
     shat_min = self%shat_min
+    theta0 = self%theta0
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -620,6 +626,7 @@ contains
     self%n_shat = n_shat
     self%shat_max = shat_max
     self%shat_min = shat_min
+    self%theta0 = theta0
 
     self%exist = exist
   end subroutine read_ballstab_config
@@ -645,6 +652,7 @@ contains
     call self%write_key_val("n_shat", self%n_shat, unit_internal)
     call self%write_key_val("shat_max", self%shat_max, unit_internal)
     call self%write_key_val("shat_min", self%shat_min, unit_internal)
+    call self%write_key_val("theta0", self%theta0, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_ballstab_config
 
@@ -672,6 +680,7 @@ contains
     call broadcast(self%n_shat)
     call broadcast(self%shat_max)
     call broadcast(self%shat_min)
+    call broadcast(self%theta0)
 
     call broadcast(self%exist)
   end subroutine broadcast_ballstab_config
