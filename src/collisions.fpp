@@ -586,6 +586,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
+    use array_utils, only: zero_array
     implicit none
 
     real, dimension (negrid) :: hee
@@ -605,7 +606,7 @@ contains
     !write_heating (gs2_diagnostics) is true.
     if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
-       c_rate = 0.
+       call zero_array(c_rate)
     end if
 
     !<DD>Should probably put this first
@@ -2924,6 +2925,7 @@ contains
     use le_grids, only: jend, al, ng2, nlambda, &
          il_is_wfb, il_is_passing, il_is_trapped
     use theta_grid, only: ntgrid, bmag
+    use array_utils, only: zero_array
     implicit none
     
     integer :: je, ig, il, ip, ij, im
@@ -2940,8 +2942,8 @@ contains
     allocate (dtot(-ntgrid:ntgrid,nlambda,5))
     allocate (fdf(-ntgrid:ntgrid,nlambda), fdb(-ntgrid:ntgrid,nlambda))
 
-    dlcoef = 1.0; d2lcoef = 0.0; dtot = 0.0
-    fdf = 0.0; fdb = 0.0; slb = 0.0
+    dlcoef = 1.0; call zero_array(d2lcoef); call zero_array(dtot)
+    call zero_array(fdf); call zero_array(fdb); slb = 0.0
 
     do ig=-ntgrid,ntgrid
        je = jend(ig)
@@ -4406,6 +4408,7 @@ contains
     use gs2_layouts, only: le_lo
     use dist_fn_arrays, only: c_rate
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -4418,7 +4421,7 @@ contains
     integer :: ig, ik, il, is, je, it, ie
     integer :: nxi_scatt
 
-    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
+    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
 
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(none) &
@@ -4714,7 +4717,7 @@ contains
   subroutine init_vpdiff
     use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
     use theta_grid, only: ntgrid, bmag
-
+    use array_utils, only: zero_array
     implicit none
 
     integer :: il, ig, je, te
@@ -4722,9 +4725,7 @@ contains
 
     if (.not. allocated(vpdiff) .and. conservative) then
 
-       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda))
-       
-       vpdiff = 0.0
+       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda)) ; call zero_array(vpdiff)
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)
