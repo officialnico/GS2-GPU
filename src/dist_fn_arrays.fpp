@@ -12,7 +12,7 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, vpar, aj0, aj1
+  public :: vperp2, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2
@@ -43,7 +43,7 @@ module dist_fn_arrays
   real, dimension(:), allocatable :: kx_shift, theta0_shift
   ! (naky)
 
-  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar
+  real, dimension (:,:,:), allocatable :: vpa, vpac
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: vpa_gf
   real, dimension (:,:,:,:), allocatable :: vperp2_gf
