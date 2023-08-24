@@ -504,7 +504,8 @@ contains
     real, dimension(-ntgrid:ntgrid), intent(in) :: gds2, gds21, gds22, cvdrift, cvdrift0
     real, intent(in), optional :: theta0_in
     !<DD> NEED TO IMPROVE VARIABLE NAMES
-    real, dimension(:), allocatable :: g, c, psi, c1, c2, ch, g1, g2, gh, delthet
+    real, dimension(-ntgrid:ntgrid) :: g, c, psi, c1, c2, ch, g1, g2, gh
+    real, dimension(-ntgrid:ntgrid-1) :: delthet
     integer :: ig
     real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
     logical, parameter :: debug = .false.
@@ -515,17 +516,10 @@ contains
     one_m_diff = 1 - diff
 
     !Calculate geometry arrays
-    allocate(delthet(-ntgrid:ntgrid-1))
     delthet = theta(-ntgrid+1:) - theta(:ntgrid-1)
 
-    allocate(g(-ntgrid:ntgrid),c(-ntgrid:ntgrid))
     g = (gds2 + 2 * theta0 * gds21 + theta0**2 * gds22) * gradpar / bmag
     c = -0.5 * dbetadrho * (cvdrift + theta0 * cvdrift0) / (bmag * gradpar)
-
-    allocate(g1(-ntgrid:ntgrid), c1(-ntgrid:ntgrid))
-    allocate(g2(-ntgrid:ntgrid), c2(-ntgrid:ntgrid))
-    allocate(gh(-ntgrid:ntgrid), ch(-ntgrid:ntgrid))
-    allocate(psi(-ntgrid:ntgrid))
 
     do ig=-ntgrid+1, ntgrid
        ch(ig)=0.5*(c(ig)+c(ig-1))
@@ -580,9 +574,6 @@ contains
     enddo
 
     !Probably want to think about writing out psi if debug
-
-    !Clean up
-    deallocate(g,c,g1,c1,g2,c2,gh,ch)
   end function is_unstable_use_passed
 
   !> Set the module level config type
