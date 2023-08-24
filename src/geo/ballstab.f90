@@ -521,6 +521,7 @@ contains
     g = (gds2 + 2 * theta0 * gds21 + theta0**2 * gds22) * gradpar / bmag
     c = -0.5 * dbetadrho * (cvdrift + theta0 * cvdrift0) / (bmag * gradpar)
 
+    ! Get grid centre values -- note we don't set the value at -ntgrid
     do ig=-ntgrid+1, ntgrid
        ch(ig)=0.5*(c(ig)+c(ig-1))
        gh(ig)=0.5*(g(ig)+g(ig-1))
@@ -541,15 +542,15 @@ contains
        write(6,'("These should be much less than 1")') !Could actually do a quantitative check
     endif
 
-    !Calculate coefficients
+    !Calculate coefficients -- note we don't set the value at -ntgrid or ntgrid
     do ig=-ntgrid+1,ntgrid-1
-       c1(ig) = -delthet(ig)*(one_m_diff*c(ig)+0.5*diff*ch(ig+1))&
-            -delthet(ig-1)*(one_m_diff*c(ig)+0.5*diff*ch(ig))&
+       c1(ig) = -delthet(ig)*(one_m_diff*c(ig)+0.5*diff*ch(ig+1)) &
+            -delthet(ig-1)*(one_m_diff*c(ig)+0.5*diff*ch(ig)) &
             -delthet(ig-1)*0.5*diff*ch(ig)
        c1(ig)=0.5*c1(ig)
     enddo
 
-    !Calculate coefficients
+    !Calculate coefficients -- note we don't set the value at -ntgrid
     do ig=-ntgrid+1,ntgrid
        c2(ig) = -0.25*diff*ch(ig)*delthet(ig-1)
        g1(ig) = gh(ig)/delthet(ig-1)
@@ -569,6 +570,8 @@ contains
 
     !Find how many times psi crosses axis || Actually how many times it hits zero
     !If we really do just want to count crossings then need to replace le with lt
+    ! Could we replace this with
+    ! is_unstable_out = count(psi(-ntgrid+1:ntgrid-1) * psi(-ntgrid+2:) <= 0)
     do ig=-ntgrid+1,ntgrid-1
        if(psi(ig)*psi(ig+1) .le. 0 ) is_unstable_out = is_unstable_out + 1
     enddo
