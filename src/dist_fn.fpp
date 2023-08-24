@@ -965,6 +965,7 @@ contains
 
     call init_dist_fn_arrays
     call init_vperp2
+    call init_vpa_vpac
     call init_bc
   end subroutine init_dist_fn_level_1
 
@@ -1059,7 +1060,7 @@ contains
   end subroutine finish_dist_fn_parameters
 
   subroutine finish_dist_fn_arrays
-    use dist_fn_arrays, only: g, gnew, g_work, kx_shift, theta0_shift, vperp2
+    use dist_fn_arrays, only: g, gnew, g_work, kx_shift, theta0_shift
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use dist_fn_arrays, only: antot, antota, antotp
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
@@ -1085,7 +1086,6 @@ contains
     if (allocated(save_h)) deallocate (save_h)
     if (allocated(kx_shift)) deallocate (kx_shift)
     if (allocated(theta0_shift)) deallocate (theta0_shift)
-    if (allocated(vperp2)) deallocate (vperp2)
     if (allocated(antot)) deallocate(antot)
     if (allocated(antota)) deallocate(antota)
     if (allocated(antotp)) deallocate(antotp)
@@ -1097,6 +1097,7 @@ contains
 
   subroutine finish_dist_fn_level_1
     use redistribute, only: delete_redist
+    use dist_fn_arrays, only: vperp2, vpa, vpac, vpa_gf, vperp2_gf
 #ifdef LOWFLOW
     use lowflow, only: finish_lowflow_terms
 #endif
@@ -1112,6 +1113,10 @@ contains
     exb_first = .true.
 
     call finish_dist_fn_level_2
+
+    if (allocated(vperp2)) deallocate (vperp2)
+    if (allocated(vpa)) deallocate (vpa, vpac)
+    if (allocated(vpa_gf)) deallocate (vpa_gf, vperp2_gf)
 
     if (allocated(l_links)) deallocate (l_links, r_links, n_links)
     if (allocated(M_class)) deallocate (M_class, N_class)
@@ -1167,18 +1172,15 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
-    use dist_fn_arrays, only: vpa, vpac, vpar
-    use dist_fn_arrays, only: vpa_gf, vperp2_gf
-
+    use dist_fn_arrays, only: vpar
     if (.not. initialized_dist_fn_level_3) return
     initialized_dist_fn_level_3 = .false.
 
     initialized = .false.
 
-    if (allocated(vpa)) deallocate (vpa, vpac, vpar)
+    if (allocated(vpar)) deallocate (vpar)
     if (allocated(wdrift)) deallocate (wdrift, wdriftttp)
     if (allocated(wstar)) deallocate (wstar)
-    if (allocated(vpa_gf)) deallocate(vpa_gf, vperp2_gf)
 
     call dist_fn_config%reset()
     call source_config%reset()
@@ -1620,14 +1622,13 @@ contains
     !$OMP END PARALLEL DO
   end subroutine init_vperp2
 
-  !> FIXME : Add documentation
-  subroutine init_vpar
-    use dist_fn_arrays, only: vpa, vpar, vpac
+  !> Initialised the on grid v|| (vpa) and grid-centred v|| (vpac) arrays
+  subroutine init_vpa_vpac
+    use dist_fn_arrays, only: vpa, vpac
     use dist_fn_arrays, only: vpa_gf, vperp2_gf
-    use species, only: spec, nspec
-    use theta_grid, only: ntgrid, delthet, bmag, gradpar
+    use species, only: nspec
+    use theta_grid, only: ntgrid, bmag
     use le_grids, only: energy, al, negrid, nlambda, forbid
-    use gs2_time, only: code_dt, tunits
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
     implicit none
@@ -1639,15 +1640,14 @@ contains
     if (.not.allocated(vpa)) then
        allocate (vpa    (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
        allocate (vpac   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
-       allocate (vpar   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     endif
-    call zero_array(vpa) ; call zero_array(vpac) ; call zero_array(vpar)
+    call zero_array(vpa) ; call zero_array(vpac)
 
     !AJ if we are doing gf_lo integrate then pre-calcuate some of the
     !data used in the integrate.
     if(gf_lo_integrate) then
-       allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda,nspec))
-       allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda,nspec))
+       allocate(vpa_gf    (-ntgrid:ntgrid, 2, negrid, nlambda, nspec))
+       allocate(vperp2_gf (-ntgrid:ntgrid, negrid, nlambda, nspec))
        
        do il = 1,nlambda
           do ie = 1,negrid
@@ -1670,8 +1670,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
-    !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, &
-    !$OMP vpar, spec, tunits, code_dt, delthet, gradpar, forbid) &
+    !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        is = is_idx(g_lo,iglo)
@@ -1709,6 +1708,43 @@ contains
               0.5*(vpa(-ntgrid:ntgrid-1,2,iglo) + vpa(-ntgrid+1:ntgrid,2,iglo))
        end where
        vpac(ntgrid,:,iglo) = 0.0
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine init_vpa_vpac
+
+  !> FIXME : Add documentation
+  subroutine init_vpar
+    use dist_fn_arrays, only: vpar, vpac
+    use species, only: spec
+    use theta_grid, only: ntgrid, delthet, gradpar
+    use gs2_time, only: code_dt, tunits
+    use gs2_layouts, only: g_lo, ik_idx, il_idx, is_idx
+    use array_utils, only: zero_array
+    implicit none
+    integer :: iglo, ik, is, il
+
+    if (.not.allocated(vpar)) then
+       allocate (vpar   (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    endif
+    call zero_array(vpar)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, il, ik, is) &
+    !$OMP SHARED(g_lo, ntgrid, vpac, vpar, spec, tunits, code_dt, delthet, gradpar) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo,iglo)
+       il = il_idx(g_lo, iglo)
+
+!CMR, 4/8/2011:
+!CMR : vpac is grid centered parallel velocity
+!CMR : vpar = q_s/sqrt{T_s m_s}*DELT/DTHETA * vpac |\gradpar(theta)|
+!                                     where gradpar(theta) is centered
+!  ie  vpar = q_s/sqrt{T_s m_s} (v_||^GS2). \gradpar(theta)/DTHETA . DELT
+!
+!   comments on vpac, vpar
+!    (i) should some be weighted by bakdif?
+!CMR
 
        ik = ik_idx(g_lo,iglo)
        vpar(-ntgrid:ntgrid-1,1,iglo) = &
