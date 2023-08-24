@@ -30,6 +30,11 @@ module ballstab
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
 
+  interface is_unstable
+     module procedure is_unstable_use_geo
+     module procedure is_unstable_use_passed
+  end interface is_unstable
+
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
      ! namelist : ballstab_knobs
@@ -461,24 +466,17 @@ contains
   !> Test stability of current system for passed theta0 -- return integer
   !>
   !> Note is_unstable>0 means unstable - Could use a logical but size
-  !> may be interesting
-  integer function is_unstable(theta0_in)
-    !Assumes a call has been made to eikcoefs so that geometry terms are setup correctly
-    !<DD> NEED TO IMPROVE VARIABLE NAMES
+  !> may be interesting.
+  !>
+  !> Assumes a call has been made to eikcoefs so that geometry terms
+  !> are setup correctly and passes these to generic is_unstable
+  !> implementation
+  integer function is_unstable_use_geo(theta0_in) result(is_unstable_out)
     use geometry, only: gds2, gradpar, bmag, cvdrift, dbetadrho, theta
     use geometry, only: gds21, gds22, cvdrift0
-    use optionals, only: get_option_with_default
     implicit none
     real, intent(in), optional :: theta0_in
-    real, dimension(:), allocatable :: g, c, psi, c1, c2, ch, g1, g2, gh, delthet
-    integer :: ig, ntgrid
-    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
-    logical, parameter :: debug = .false.
-
-    !Initialise
-    theta0 = get_option_with_default(theta0_in, 0.0)
-    is_unstable=0
-    one_m_diff=1.-diff
+    integer :: ntgrid
 
     !Note we don't use theta_grid:ntgrid as in the case that
     !gridgen resizes the theta grid used by GS2 we don't end up
@@ -487,7 +485,35 @@ contains
     !need some way to force theta_grid to update it's internal arrays when we
     !change parameters
     ntgrid=ubound(theta,1)
- 
+
+    is_unstable_out = is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
+         gds2, gds21, gds22, cvdrift, cvdrift0, theta0)
+  end function is_unstable_use_geo
+
+  !> Test stability of current system for passed theta0 and geometry -- return integer
+  !>
+  !> Note is_unstable>0 means unstable - Could use a logical but size
+  !> may be interesting.
+  integer function is_unstable_use_passed(ntgrid, theta, bmag, dbetadrho, gradpar, &
+       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) result(is_unstable_out)
+    use optionals, only: get_option_with_default
+    implicit none
+    integer, intent(in) :: ntgrid
+    real, dimension(-ntgrid:ntgrid), intent(in) :: theta, bmag, gradpar
+    real, intent(in) :: dbetadrho
+    real, dimension(-ntgrid:ntgrid), intent(in) :: gds2, gds21, gds22, cvdrift, cvdrift0
+    real, intent(in), optional :: theta0_in
+    !<DD> NEED TO IMPROVE VARIABLE NAMES
+    real, dimension(:), allocatable :: g, c, psi, c1, c2, ch, g1, g2, gh, delthet
+    integer :: ig
+    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
+    logical, parameter :: debug = .false.
+
+    !Initialise
+    theta0 = get_option_with_default(theta0_in, 0.0)
+    is_unstable_out = 0
+    one_m_diff = 1 - diff
+
     !Calculate geometry arrays
     allocate(delthet(-ntgrid:ntgrid-1))
     delthet = theta(-ntgrid+1:) - theta(:ntgrid-1)
@@ -506,6 +532,8 @@ contains
        gh(ig)=0.5*(g(ig)+g(ig-1))
     enddo
 
+    ! Note this section (with writes) prevents us from marking this function
+    ! as pure.
     if(debug) then
        cflmax = delthet(-ntgrid)**2
        cflmax = cflmax*(c(-ntgrid+1)+c(-ntgrid))/(g(-ntgrid+1)+g(-ntgrid))
@@ -548,14 +576,14 @@ contains
     !Find how many times psi crosses axis || Actually how many times it hits zero
     !If we really do just want to count crossings then need to replace le with lt
     do ig=-ntgrid+1,ntgrid-1
-       if(psi(ig)*psi(ig+1) .le. 0 ) is_unstable=is_unstable+1
+       if(psi(ig)*psi(ig+1) .le. 0 ) is_unstable_out = is_unstable_out + 1
     enddo
 
     !Probably want to think about writing out psi if debug
 
     !Clean up
     deallocate(g,c,g1,c1,g2,c2,gh,ch)
-  end function is_unstable
+  end function is_unstable_use_passed
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
