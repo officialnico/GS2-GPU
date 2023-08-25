@@ -10,12 +10,3 @@
 &theta_grid_knobs
  equilibrium_option = 'eik'
 /
-
-&ballstab_knobs
- n_beta = 1
- n_shat = 1
-/
-
-&ideal_ball_test
- expect_unstable = .false.
-/
