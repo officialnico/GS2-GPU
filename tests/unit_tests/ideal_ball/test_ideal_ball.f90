@@ -3,15 +3,16 @@
 !> the expected stability status.
 program test_ideal_ball
   use unit_tests
-  use ballstab, only: is_unstable, init_ballstab, finish_ballstab
+  use ballstab, only: run_stability_check, init_ballstab, finish_ballstab, stability
   use mp, only: init_mp, finish_mp, proc0, broadcast
   use file_utils, only: init_file_utils, run_name, input_unit_exist
   use theta_grid, only: finish_theta_grid
   use constants, only: run_name_size
   implicit none
-  logical :: list, exist, expect_unstable, passes, is_actually_unstable
-  integer :: in_file
+  logical :: list, exist, passes
+  integer :: in_file, n_shat, n_betaprime
   character(len=run_name_size), target :: cbuff
+  logical, dimension(:, :), allocatable :: expect_unstable
   namelist/ideal_ball_test/expect_unstable
 
   call init_mp
@@ -24,6 +25,15 @@ program test_ideal_ball
   call announce_module_test('ideal_ball')
   passes = .false.
 
+  call init_ballstab
+
+  ! Work out how many shear and betaprime values are in use
+  n_shat = size(stability, dim = 1)
+  n_betaprime = size(stability, dim = 2)
+  call broadcast(n_shat)
+  call broadcast(n_betaprime)
+  allocate(expect_unstable(n_shat, n_betaprime))
+
   ! Read in expected result
   expect_unstable = .false.
   if (proc0) then
@@ -32,15 +42,9 @@ program test_ideal_ball
   end if
   call broadcast(expect_unstable)
 
-  call init_ballstab
-
   if (proc0) then
-     is_actually_unstable = is_unstable() > 0
-     passes = (expect_unstable .eqv. is_actually_unstable)
-     if (.not. passes) then
-        print*,'Fail: Expected ',expect_unstable,'but found',is_actually_unstable
-     end if
-
+     call run_stability_check
+     passes = all(expect_unstable .eqv. (stability > 0))
   end if
 
   call broadcast(passes)
