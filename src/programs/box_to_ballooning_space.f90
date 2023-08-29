@@ -4,7 +4,7 @@ program box_to_ballooning_space
   use gs2_main, only: initialize_gs2, finalize_gs2
   use gs2_init, only: init, init_level_list
   use kt_grids, only: box, naky, ntheta0, aky, akx, theta0
-  use dist_fn, only: get_leftmost_it
+  use dist_fn, only: get_leftmost_it, n_supercells, n_cells, supercell_labels
   use theta_grid, only: nperiod
   use sorting, only: quicksort
   use config_collection, only: gs2_config_type
@@ -22,9 +22,7 @@ program box_to_ballooning_space
   type(gs2_config_type) :: the_config
   type(supercell_properties), dimension(:), allocatable :: supercells
   integer :: ik, it, is, ic, supercell_index, nsupercells, ncell, unit, supercell_length
-  integer, dimension(:, :), allocatable :: supercell_counter
-  integer, dimension(:), allocatable :: temporary_values, nsupercells_per_ky
-  integer, dimension(:), allocatable :: it_values, it_range
+  integer, dimension(:), allocatable :: temporary_values, it_values, it_range
   real, dimension(:), allocatable :: kxs, theta0s
   character(len=64) :: extension
   logical :: shift_cells
@@ -45,42 +43,24 @@ program box_to_ballooning_space
      call mp_abort('Cannot run box_to_ballooning_space on a non-box input.', .true.)
   end if
 
-  allocate(supercell_counter(ntheta0, naky))
-  allocate(temporary_values(ntheta0))
-  allocate(nsupercells_per_ky(naky))
   allocate(it_range(ntheta0))
-
-  nsupercells = 0
-  nsupercells_per_ky = 0
-  supercell_counter = -1
   it_range = [(it, it = 1, ntheta0)]
-  do ik = 1, naky
-     do it = 1, ntheta0
-        supercell_counter(it, ik) = get_leftmost_it(it, ik)
-     end do
-     temporary_values = supercell_counter(:, ik)
-     do it = 1, ntheta0
-        if (temporary_values(it) >= 0) then
-           nsupercells_per_ky(ik) = nsupercells_per_ky(ik) + 1
-           where (temporary_values == temporary_values(it))
-              temporary_values = -1
-           end where
-        end if
-     end do
-  end do
 
-  nsupercells = sum(nsupercells_per_ky)
+  nsupercells = sum(n_supercells)
+
   allocate(supercells(nsupercells))
+  allocate(temporary_values(ntheta0))
 
   supercell_index = 0
   do ik = 1, naky
-     temporary_values = supercell_counter(:, ik)
+     temporary_values = supercell_labels(:, ik)
      do it = 1, ntheta0
         if (temporary_values(it) >= 0) then
-           supercell_index = supercell_index + 1
-           ncell = count(temporary_values == temporary_values(it))
+           supercell_index = supercell_labels(it, ik)
 
            supercells(supercell_index)%ky = aky(ik)
+
+           ncell = n_cells(it, ik)
            supercells(supercell_index)%ncell = ncell
 
            supercell_length =  (2 * nperiod - 1 ) * ncell
