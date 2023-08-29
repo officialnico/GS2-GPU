@@ -27,22 +27,21 @@ program test_ideal_ball
 
   call init_ballstab
 
-  ! Work out how many shear and betaprime values are in use
-  n_shat = size(stability, dim = 1)
-  n_betaprime = size(stability, dim = 2)
-  call broadcast(n_shat)
-  call broadcast(n_betaprime)
-  allocate(expect_unstable(n_shat, n_betaprime))
-
-  ! Read in expected result
-  expect_unstable = .false.
+  ! Ballooning stability currently only done on proc0
+  ! so we can only run the test on proc0
   if (proc0) then
+     ! Work out how many shear and betaprime values are in use
+     n_shat = size(stability, dim = 1)
+     n_betaprime = size(stability, dim = 2)
+
+     allocate(expect_unstable(n_shat, n_betaprime))
+
+     ! Read in expected result
+     expect_unstable = .false.
      in_file = input_unit_exist("ideal_ball_test", exist)
      if (exist) read(in_file, nml = ideal_ball_test)
-  end if
-  call broadcast(expect_unstable)
 
-  if (proc0) then
+     ! Calculate stability
      call run_stability_check
      passes = all(expect_unstable .eqv. (stability > 0))
   end if
