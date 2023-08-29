@@ -15,6 +15,9 @@ all:
 else
 all: build_test_exe
 	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_1.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_2.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_3.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_4.in)
 endif
 endif
 
