@@ -15,8 +15,9 @@ contains
   subroutine setup(this)
     use mp, only : init_mp
     class (MpiTestMethod), intent(inout) :: this
-
-    call init_mp(this%getMpiCommunicator())
+    integer :: mp_comm
+    mp_comm = this%getMpiCommunicator()
+    call init_mp(mp_comm)
   end subroutine setup
 
   @after

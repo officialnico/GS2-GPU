@@ -15,8 +15,9 @@ contains
     class (MpiTestMethod), intent(inout) :: this
     type(theta_grid_config_type) :: theta_grid_config
     type(theta_grid_eik_config_type) :: theta_grid_eik_config
-
-    call init_mp(this%getMpiCommunicator())
+    integer :: mp_comm
+    mp_comm = this%getMpiCommunicator()
+    call init_mp(mp_comm)
 
     theta_grid_config = theta_grid_config_type(equilibrium_option = "eik")
     call theta_grid_config%setup("theta_grid", requires_index=.false.)

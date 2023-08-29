@@ -43,7 +43,7 @@
 
 &gs2_diagnostics_knobs
     print_flux_line = .false.
-    write_nl_flux = .false.
+    write_fluxes = .false.
     print_line = .false.
     write_line = .false.
     write_omega = .true.

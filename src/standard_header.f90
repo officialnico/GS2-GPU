@@ -86,6 +86,8 @@ contains
   function standard_header_to_string(this, comment_character, file_description) result(header)
     use runtime_tests, only: runtime_info
     use git_version_mod, only: get_git_version
+    use build_config, only: gs2_build_tag
+
     character(:), allocatable :: header
 
     class(standard_header_type), intent(in) :: this
@@ -123,6 +125,7 @@ contains
          // comment_char // "Run UUID: " // this%run_uuid // newline &
          // comment_char // "GK_SYSTEM: " // trim(runtime_info%get_gk_system()) // newline &
          // comment_char // "Compiler: " // trim(runtime_info%get_compiler_name()) // newline &
+         // comment_char // "Build tag: " // gs2_build_tag // newline &
          // description_line
 
   end function standard_header_to_string

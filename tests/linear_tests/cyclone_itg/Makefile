@@ -1,10 +1,11 @@
 
 sinclude ../Makefile.tests_common
 
-clean_individual_test: LOCAL_TEST_FILES:=cyclone_itg_low_res
-
+TEST_BASE_NAME:=cyclone_itg_low_res
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
-all: cyclone_itg_low_res
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -14,24 +15,24 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: cyclone_itg_low_res
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_implicit_single_mode.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode_nonadiabatic_init.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode_npassing_even.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_single_mode_npassing_odd.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_range.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_local_box.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_implicit_single_mode.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_single_mode.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_single_mode_nonadiabatic_init.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_single_mode_npassing_even.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_single_mode_npassing_odd.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_range.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_local_box.in)
 ifeq ($(shell expr ${NTESTPROCS} \< 6; echo $?),1)
 	$(call SKIPCOMMAND,current NTESTPROCS=${NTESTPROCS}; set NTESTPROCS>=6 to run this test)
 else
-	$(call RUNCOMMAND,cyclone_itg_low_res,fields_gf_local_single_mode.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},fields_gf_local_single_mode.in)
 endif
 endif
 endif
 
-cyclone_itg_low_res.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-cyclone_itg_low_res: cyclone_itg_low_res.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)

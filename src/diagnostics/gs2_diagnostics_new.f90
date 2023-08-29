@@ -300,6 +300,23 @@ contains
     if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
     if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.false.,gnostics%istep)
   end subroutine run_diagnostics_to_be_updated
+
+  !> Calculates and write the QL flux metric to netcdf
+  subroutine write_ql_metric(gnostics)
+    use gs2_diagnostics, only: calculate_simple_quasilinear_flux_metric_by_k
+    use gs2_diagnostics, only: calculate_instantaneous_omega
+    use kt_grids, only: ntheta0, naky
+    use gs2_io, only: nc_write_ql_metric
+    implicit none
+    type(diagnostics_type), intent(inout) :: gnostics
+    real, dimension(ntheta0, naky) :: growth_rates
+    if (.not. gnostics%writing) return
+
+    growth_rates = imag(calculate_instantaneous_omega(&
+         ig = gnostics%igomega, tolerance = gnostics%omegatol))
+    call nc_write_ql_metric(gnostics%file_id, gnostics%nout, &
+         ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates))
+  end subroutine write_ql_metric
   
   !> Create or write all variables according to the value of istep:
   !! istep=-1 --> Create all netcdf variables
@@ -402,11 +419,10 @@ contains
 
        if (gnostics%writing) then
          call neasyf_write(gnostics%file_id, time_dim, user_time, dim_names=[time_dim], start=[gnostics%nout])
-       end if
-
-       if (wstar_units) then
-         call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=[ky_dim, time_dim], &
-              start=[1, gnostics%nout], long_name="Time (wstar)", units="L/vt")
+         if (wstar_units) then
+            call neasyf_write(gnostics%file_id, "t_wstar", user_time * tunits, dim_names=[ky_dim, time_dim], &
+                 start=[1, gnostics%nout], long_name="Time (wstar)", units="L/vt")
+         end if
        end if
 
        gnostics%user_time = user_time
@@ -417,6 +433,7 @@ contains
        if (gnostics%write_fields) call write_fields(gnostics)
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics written fields')
        if (gnostics%dump_fields_periodically) call do_dump_fields_periodically(gnostics%user_time)
+       if (gnostics%write_ql_metric)  call write_ql_metric(gnostics)
        if (gnostics%calculate_fluxes) call calculate_fluxes(gnostics) ! NB  also writes fluxes if on
        call debug_message(verb, 'gs2_diagnostics_new::run_diagnostics calculated fluxes')
        if (gnostics%write_symmetry) then

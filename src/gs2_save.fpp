@@ -876,6 +876,7 @@ contains
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
     use file_utils, only: error_unit
+    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
     logical :: this_proc_reads_fields, need_to_broadcast_fields
@@ -1085,7 +1086,7 @@ contains
     if (.not. allocated(tmpi)) &
          allocate (tmpi(2*ntgrid+1,2,g_lo%llim_proc:g_lo%ulim_alloc))
 
-    tmpr = 0.; tmpi = 0.
+    call zero_array(tmpr); call zero_array(tmpi)
 
     if (is_one_file_per_processor) then
        istatus = nf90_get_var (ncid, gr_id, tmpr)
@@ -1254,9 +1255,9 @@ contains
        if (has_bpar) call broadcast(bparnew, proc_to_save_fields)
     end if
 
-    if (has_phi) phi = 0.
-    if (has_apar) apar = 0.
-    if (has_bpar) bpar = 0.
+    if (has_phi) call zero_array(phi)
+    if (has_apar) call zero_array(apar)
+    if (has_bpar) call zero_array(bpar)
 
     if (scale > 0.) then
        g = g*scale

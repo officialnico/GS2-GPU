@@ -45,6 +45,7 @@ module fields_gf_local
      private
      procedure :: deallocate => rb_deallocate
      procedure :: allocate => rb_allocate
+     procedure :: init => rb_init
      procedure :: debug_print => rb_debug_print
      procedure :: mv_mult_fun => rb_mv_mult_fun
      procedure :: mv_mult => rb_mv_mult
@@ -78,6 +79,7 @@ module fields_gf_local
      private
      procedure :: deallocate => c_deallocate
      procedure :: allocate => c_allocate
+     procedure :: init => c_init
      procedure :: debug_print => c_debug_print
      procedure :: mv_mult_rb => c_mv_mult_rb
      procedure :: get_field_update => c_get_field_update
@@ -93,7 +95,7 @@ module fields_gf_local
      integer :: ncell
      integer :: nextend !< Length of the extended domain
      integer :: nrow, ncol !< The number of rows and columns. Equal to nextend*nfield
-     integer :: it_left !< It index of leftmost cell
+     integer :: it_leftmost !< It index of leftmost cell
      integer :: head_iproc_world !< The proc id (in comm world) of the head proc
      integer :: head_iproc !< The proc id (in sc_sub_all) of the head proc
      integer :: head_iproc_pd !< The proc id (in sc_sub_pd) of the head proc
@@ -110,11 +112,19 @@ module fields_gf_local
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
      logical :: is_head=.false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
-     integer :: is_ind, ik_ind !< Parent properties
+     integer :: ik_ind !< Parent properties
+     !Cell and parent properties. Mostly for debug printing.
+     !> The is_ind value is the index of the supercell in the parent ky_type's
+     !> supercell array.
+     integer :: is_ind
+     !> The is_label is the supercell_label of this supercell as determined
+     !> by calculate_supercell_labels from elsewhere.
+     integer :: is_label
    contains
      private
      procedure :: deallocate => sc_deallocate
      procedure :: allocate => sc_allocate
+     procedure :: init => sc_init
      procedure :: debug_print => sc_debug_print
      procedure :: get_field_update => sc_get_field_update
      procedure :: reduce_tmpsum => sc_reduce_tmpsum
@@ -156,6 +166,7 @@ module fields_gf_local
      private
      procedure :: deallocate => ky_deallocate
      procedure :: allocate => ky_allocate
+     procedure :: init => ky_init
      procedure :: debug_print => ky_debug_print
      procedure :: get_field_update => ky_get_field_update
      procedure :: reset => ky_reset
@@ -289,6 +300,33 @@ contains
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
   end subroutine rb_deallocate
 
+  !> Initialise the members of the rowblock instance
+  subroutine rb_init(self, ifq, ic, it, is, ik, ncol, nextend)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(rowblock_type), intent(in out) :: self
+    integer, intent(in) :: ifq, ic, it, is, ik, ncol
+    !> The length of the parent supercell's real space
+    !> domain. Represents the spacing between the start of different
+    !> field/field equations as we store data as the full real space
+    !> domain for each field, e.g. [fieldeq(:), fieldeqa(:),
+    !> fieldeqp(:)], rather than say interleaved, e.g. [[fieldeq(1),
+    !> fieldeqa(1), fieldeqp(1)], [fieldeq(2), fieldeqa(2),
+    !> fieldeqp(2)],...]
+    integer, intent(in) :: nextend
+    ! Store rowblock index, essentially which fieldeq we represent
+    self%ir_ind = ifq
+    ! Store indices of parent types
+    self%ic_ind = ic
+    self%it_ind = it
+    self%is_ind = is
+    self%ik_ind = ik
+    ! Store data limits
+    self%ncol = ncol
+    self%col_llim = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * nextend
+    self%col_ulim = self%col_llim + ncol - 1
+  end subroutine rb_init
+
   !> Debug printing
   subroutine rb_debug_print(self)
     implicit none
@@ -305,11 +343,10 @@ contains
     class(rowblock_type), intent(in) :: self
     complex,dimension(self%ncol), intent(in) :: vect
     complex,dimension(self%nrow) :: rb_mv_mult_fun
-!    integer :: ir
     !As a 1d vector in fortran is a "row vector" (as the
     !first index represents columns) matmul is a bit annoying
     !when trying to do a matrix-vector product
-    rb_mv_mult_fun=-matmul(transpose(self%data),vect)
+    rb_mv_mult_fun=matmul(vect,self%data)
   end function rb_mv_mult_fun
 
   !> Matrix vector multiplication stored in tmp_sum
@@ -378,6 +415,47 @@ contains
     if(allocated(self%rb)) deallocate(self%rb)
   end subroutine c_deallocate
 
+  !> Initialise the members of the cell instance
+  subroutine c_init(self, ic, it, is, ik, nfield, nrow, nextend, ignore_boundary)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(cell_type), intent(in out) :: self
+    integer, intent(in) :: ic, it, is, ik, nfield, nrow, nextend
+    logical, intent(in) :: ignore_boundary
+    integer :: ifq
+
+    ! Store basic cell properties
+    self%nrb = nfield
+    self%ic_ind = ic
+    self%it_ind = it
+    self%ignore_boundary = ignore_boundary
+    ! Store parent properties
+    self%is_ind = is
+    self%ik_ind = ik
+
+    ! Store related/derived properties
+    self%row_llim = 1
+    self%row_ulim = nrow
+    self%nrow = nrow
+
+    self%ncol = 2 * ntgrid
+    if (.not. ignore_boundary) self%ncol = self%ncol + 1
+
+    allocate (self%col_llim(nfield), self%col_ulim(nfield))
+    do ifq = 1, nfield
+       self%col_llim(ifq) = 1 + (ic - 1) + (2 * ntgrid) + (ifq - 1) * nrow
+       self%col_ulim(ifq) = self%col_llim(ifq) + self%ncol - 1
+    end do
+    self%ncol_tot = self%ncol * nfield
+
+    allocate (self%rb(self%nrb))
+
+    !Now make row block objects
+    do ifq = 1, nfield
+       call self%rb(ifq)%init(ifq, ic, it, is, ik, self%ncol, nextend)
+    end do
+  end subroutine c_init
+
   !> Debug printing
   subroutine c_debug_print(self)
     implicit none
@@ -428,7 +506,7 @@ contains
     do ifq=1,nfq
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
-            +self%rb(ifq)%tmp_sum
+            -self%rb(ifq)%tmp_sum
     enddo
 
   end subroutine c_get_field_update
@@ -510,6 +588,50 @@ contains
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
     if(allocated(self%cells)) deallocate(self%cells)
   end subroutine sc_deallocate
+
+  !> Initialise the supercell instance by setting and calculating
+  !> some basic properties. Does not deal with allocating all
+  !> storage etc.
+  subroutine sc_init(self, is, itmin, ik, nfield, nbound)
+    use theta_grid, only: ntgrid
+    use dist_fn, only: itright, supercell_labels, n_cells
+    implicit none
+    class(supercell_type), intent(in out) :: self
+    integer, intent(in) :: is, ik, itmin, nfield
+    integer, intent(in out) :: nbound
+    integer :: it, ic
+    logical :: ignore_boundary
+
+    self%is_ind = is
+    self%it_leftmost = itmin
+    self%ncell = n_cells(itmin, ik)
+    self%ik_ind = ik
+    self%is_label = supercell_labels(itmin, ik)
+
+    self%nextend = 1 + 2 * ntgrid * self%ncell
+    self%nrow = self%nextend * nfield
+    self%ncol = self%nrow
+
+    allocate (self%initialised(self%nextend))
+    self%initialised = .false.
+
+    ! Now setup cells
+    allocate (self%cells(self%ncell))
+
+    it = itmin
+    do ic = 1, self%ncell
+       !We ignore the boundary for all cells except the rightmost
+       ignore_boundary = ic < self%ncell
+       if (ignore_boundary) nbound = nbound + 1
+
+       call self%cells(ic)%init( ic, it, is, ik, nfield, &
+            self%nrow, self%nextend, ignore_boundary)
+
+       !Update it
+       if (ic < self%ncell) it = itright(it, ik)
+    end do
+
+  end subroutine sc_init
 
   !> Debug printing
   subroutine sc_debug_print(self)
@@ -740,6 +862,7 @@ contains
   !> Debug routine to dump the current supercell
   subroutine sc_dump(self,prefix)
     use mp, only: proc0
+    use optionals, only: get_option_with_default
     implicit none
     class(supercell_type), intent(inout) :: self
     character(len=*), optional, intent(in) :: prefix
@@ -748,8 +871,8 @@ contains
     complex, dimension(:,:), allocatable :: tmp
 
     !Make filename
-    write(fname,'("sc_is_",I0,"_ik_",I0,".dat")') self%is_ind, self%ik_ind
-    if(present(prefix)) fname=trim(prefix)//trim(fname)
+    write(fname,'(A,"sc_is_",I0,"_ik_",I0,".dat")') &
+         trim(get_option_with_default(prefix, '')), self%is_ind, self%ik_ind
     
     !Allocate array and fetch data
     allocate(tmp(self%ncol,self%nrow))
@@ -871,11 +994,17 @@ contains
 
   !> A routine to invert the field matrix
   subroutine sc_invert(self)
+    use job_manage, only: time_message
+    use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use mp, only: get_mp_times
     implicit none
     class(supercell_type), intent(inout) :: self
+    real :: mp_total, mp_total_after
 
     if(self%is_empty) return
     if(.not.self%is_local) return
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total)
     
     !If we have all of the supercell local then use an explictly local
     !matrix inversion
@@ -885,7 +1014,9 @@ contains
     else
        call self%invert_mpi
     endif
-
+    call time_message(.false.,time_field_invert,' Field Matrix Invert')
+    call get_mp_times(total_time = mp_total_after)
+    time_field_invert_mpi = time_field_invert_mpi + (mp_total_after - mp_total)
   end subroutine sc_invert
 
   !> A routine to invert the field matrix locally
@@ -1270,6 +1401,26 @@ contains
     if(allocated(self%supercells)) deallocate(self%supercells)
   end subroutine ky_deallocate
 
+  !> Setup properties of ky_type instance
+  subroutine ky_init(self, ik, itmins, nsupercell, nfield, nbound)
+    implicit none
+    class(ky_type), intent(in out) :: self
+    integer, intent(in) :: ik, nsupercell, nfield
+    integer, dimension(:), intent(in) :: itmins
+    integer, intent(in out) :: nbound
+    integer :: is
+
+    self%ik_ind = ik
+    self%nsupercell = nsupercell
+
+    allocate (self%supercells(nsupercell))
+
+    do is = 1, nsupercell
+       call self%supercells(is)%init(is, itmins(is), ik, nfield, nbound)
+    end do
+
+  end subroutine ky_init
+
   !> Debug printing
   subroutine ky_debug_print(self)
     implicit none
@@ -1497,184 +1648,93 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: itright, get_leftmost_it
+    use dist_fn, only: get_leftmost_it, n_supercells
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
     implicit none
     class(fieldmat_type), intent(inout) :: self
-    integer :: it, cur_id, ifq
-    integer :: it_start, is_count
-    integer :: ik, is, ic
-    integer, dimension(:), allocatable :: nsuper
+    integer :: it, cur_id, it_start, is_count, ik
     integer, dimension(:), allocatable :: tmp_supercell_ids
     integer, dimension(:,:), allocatable :: supercell_ids
-    integer, dimension(:,:), allocatable :: ncells
     integer, dimension(:,:), allocatable :: is_to_itmin
 
     !Count the fields
-    nfield=0
-    if(has_phi) nfield=nfield+1
-    if(has_apar) nfield=nfield+1
-    if(has_bpar) nfield=nfield+1
-    nfq=nfield
+    nfield = count([has_phi, has_apar, has_bpar])
 
     !Allocate temp arrays
-    allocate(nsuper(naky))
-    allocate(tmp_supercell_ids(ntheta0))
-    allocate(supercell_ids(ntheta0,naky))
-    allocate(ncells(ntheta0,naky))
-    allocate(is_to_itmin(ntheta0,naky))
+    allocate(supercell_ids(ntheta0, naky))
+    ! Here the first dimension is allocated as ntheta0
+    ! but for each ky we only use the first nsupercell(ik)
+    ! entries.
+    allocate(is_to_itmin(ntheta0, naky))
 
     !Initialise arrays
-    nsuper=0
-    ncells=0
-    is_to_itmin=0
-    supercell_ids=-1
+    is_to_itmin = 0
+    supercell_ids = -1
 
-    !Find the leftmost it for each supercell
-    do ik=1,naky
-       do it=1,ntheta0
-          supercell_ids(it,ik)=get_leftmost_it(it,ik)
-       enddo
-    enddo
+    !Find the leftmost it for each supercell and use this to label the
+    !supercell.  Note that this is different from the supercell_label
+    !from dist_fn.
+    do ik = 1, naky
+       do it = 1, ntheta0
+          supercell_ids(it, ik) = get_leftmost_it(it, ik)
+       end do
+    end do
 
     !Now work out how many supercells there are for each
     !ik and what their properties are.
-    do ik=1,naky
+    do ik = 1, naky
        !Store the leftmost it values for current ik
-       tmp_supercell_ids=supercell_ids(:,ik)
+       tmp_supercell_ids = supercell_ids(:, ik)
        
        !Now loop over all it values and count how many
        !have which it as the leftmost one.
-       it_start=0
-       is_count=0
-       do while(sum(tmp_supercell_ids).ne.-1*ntheta0)
+       it_start = 0
+       is_count = 0
+       do while (any(tmp_supercell_ids >= 0))
           !Increase the it value
-          it_start=it_start+1
+          it_start = it_start + 1
 
           !Get the leftmost it for supercell with it_start in it
-          cur_id=tmp_supercell_ids(it_start)
+          cur_id = tmp_supercell_ids(it_start)
 
           !If we've seen this supercell then cycle
-          if(cur_id.eq.-1) cycle
+          if (cur_id == -1) cycle
 
           !Increase supercell counter
-          nsuper(ik)=nsuper(ik)+1
-          is_count=is_count+1
+          is_count = is_count + 1
 
           !Store the leftmost it value
-          is_to_itmin(is_count,ik)=cur_id
+          is_to_itmin(is_count, ik) = cur_id
 
           !Set all matching entries to -1 so we know to skip
           !this supercell again
-          do it=it_start,ntheta0
-             if(tmp_supercell_ids(it).eq.cur_id) then
-                tmp_supercell_ids(it)=-1
-
-                !Increase cell counter
-                ncells(cur_id,ik)=ncells(cur_id,ik)+1
-             endif
-          enddo
-       enddo
-    enddo
+          do it = it_start, ntheta0
+             if (tmp_supercell_ids(it) == cur_id) then
+                tmp_supercell_ids(it) = -1
+             end if
+          end do
+       end do
+    end do
     
     !Free memory
     deallocate(tmp_supercell_ids)
 
     !Now we want to allocate the basic field structure
     !Store the basic properties
-    self%naky=naky
-    self%ntheta0=ntheta0
-    self%npts=naky*ntheta0*(2*ntgrid+1)
-    self%nbound=0 !Calculated whilst we create objects
+    self%naky = naky
+    self%ntheta0 = ntheta0
+    self%npts = naky * ntheta0 * (2 * ntgrid + 1)
+    self%nbound = 0 !Calculated whilst we create objects
     allocate(self%kyb(naky))
+
     !/Make the kyb objects
-    do ik=1,naky
-       !Store the basic properties
-       self%kyb(ik)%ik_ind=ik
-       self%kyb(ik)%nsupercell=nsuper(ik)
-
-       !Allocate the supercell list
-       allocate(self%kyb(ik)%supercells(nsuper(ik)))
-
-       !/Now make the supercell objects
-       do is=1,nsuper(ik)
-
-          !Store the basic properties
-          self%kyb(ik)%supercells(is)%is_ind=is
-          self%kyb(ik)%supercells(is)%ik_ind=ik
-          self%kyb(ik)%supercells(is)%it_left=is_to_itmin(is,ik)
-          self%kyb(ik)%supercells(is)%ncell=ncells(is_to_itmin(is,ik),ik)
-          self%kyb(ik)%supercells(is)%nextend=1+2*ntgrid*self%kyb(ik)%supercells(is)%ncell
-          self%kyb(ik)%supercells(is)%nrow=self%kyb(ik)%supercells(is)%nextend*nfield
-          self%kyb(ik)%supercells(is)%ncol=self%kyb(ik)%supercells(is)%nrow
-
-          !Now allocate the cell list
-          allocate(self%kyb(ik)%supercells(is)%cells(self%kyb(ik)%supercells(is)%ncell))
-          allocate(self%kyb(ik)%supercells(is)%initialised(self%kyb(ik)%supercells(is)%nextend))
-          self%kyb(ik)%supercells(is)%initialised=.false.
-
-          !Get the first it
-          it=supercell_ids(is_to_itmin(is,ik),ik)
-
-          !/Now make the cell objects
-          do ic=1,ncells(is_to_itmin(is,ik),ik)
-             
-             !Store the basic properties
-             self%kyb(ik)%supercells(is)%cells(ic)%nrb=nfq
-             self%kyb(ik)%supercells(is)%cells(ic)%ic_ind=ic
-             self%kyb(ik)%supercells(is)%cells(ic)%it_ind=it
-             self%kyb(ik)%supercells(is)%cells(ic)%ik_ind=ik
-             self%kyb(ik)%supercells(is)%cells(ic)%is_ind=is
-             self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary=(ic.lt.ncells(is_to_itmin(is,ik),ik)) !We ignore the boundary for all cells except the rightmost
-             self%kyb(ik)%supercells(is)%cells(ic)%row_llim=1
-             self%kyb(ik)%supercells(is)%cells(ic)%row_ulim=self%kyb(ik)%supercells(is)%nrow
-             self%kyb(ik)%supercells(is)%cells(ic)%nrow=self%kyb(ik)%supercells(is)%nrow
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfq))
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfq))
-             if(.not.self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary)then
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid+1
-             else
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid
-                self%nbound=self%nbound+1
-             endif
-             do ifq=1,nfq
-                self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)=1+(ic-1)*(2*ntgrid)+(ifq-1)*self%kyb(ik)%supercells(is)%nrow
-                self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq)=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%ncol-1
-             enddo
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot=self%kyb(ik)%supercells(is)%cells(ic)%ncol*nfq
-
-             !Now allocate row blocks
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
-
-             !/Now make row block objects
-             do ifq=1,nfq
-                !Store basic properties
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind=ifq
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind=is
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ik_ind=ik
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ic_ind=ic
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%it_ind=it
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol=self%kyb(ik)%supercells(is)%cells(ic)%ncol
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim=1+&
-                     (ic-1)*(2*ntgrid)+&
-                     (ifq-1)*self%kyb(ik)%supercells(is)%nextend
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_ulim=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol-1
-             enddo
-
-             !Update it
-             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(ik,it)
-
-          enddo
-       enddo
-    enddo
+    do ik = 1, naky
+       call self%kyb(ik)%init(ik, is_to_itmin(:, ik), n_supercells(ik), nfield, self%nbound)
+    end do
 
     !Free memory
-    deallocate(nsuper,supercell_ids,ncells,is_to_itmin)
+    deallocate(supercell_ids, is_to_itmin)
   end subroutine fm_init
 
   !> Find the response of g to delta-fn field perturbations 
@@ -1684,6 +1744,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: g
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     integer :: ifl, pts_remain, ik, is
@@ -1691,13 +1752,10 @@ contains
     !First initialise everything to 0
     !AJ This is also done in fields.f90 when arrays are created so we should be 
     !AJ able to remove from here.
-    g=0
-    phi=0.0
-    phinew=0.0
-    apar=0.0
-    aparnew=0.0
-    bpar=0.0
-    bparnew=0.0
+    call zero_array(g)
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
 
     !Initialise field counter
     ifl=0
@@ -1789,10 +1847,11 @@ contains
   subroutine fm_init_next_field_points(self,field,pts_remain,kwork_filter,ifl)
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
-    use dist_fn, only: getfieldeq, getfieldeq_nogath, timeadv
+    use dist_fn, only: timeadv
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use mp, only: barrier
+    use array_utils, only: zero_array
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(-ntgrid:ntgrid,ntheta0,naky), intent(inout) :: field
@@ -1800,7 +1859,9 @@ contains
     integer, intent(in) :: ifl
     logical, dimension(ntheta0, naky), intent(inout) :: kwork_filter
     integer :: ik, is, iex, ic, iex_init, ig, it
-    integer :: it_cur, ig_cur, found_it, found_ig
+    integer :: it_cur, ig_cur
+    integer :: pts_set_here
+    logical :: found_ig, found_it
 
     !AJ This is a nasty barrier, but it is in here as on ARCHER we have a problem
     !AJ that we get deadlock on large core counts without it.  This has been investigated 
@@ -1808,75 +1869,88 @@ contains
     !AJ The problem does not occur on small core counts (we see it between 2000 and 3000 cores)
     call barrier()
     
+    pts_set_here=0
     !Loop over all ik
-    do ik=1,self%naky
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, is, ic, iex_init, iex, ig, it) &
+    !$OMP SHARED(self, kwork_filter, field, ntgrid) &
+    !$OMP REDUCTION(+:pts_set_here) &
+    !$OMP SCHEDULE(static)
+    do ik = 1, self%naky
        !Technically should be able to skip ik values which are not local (though could be empty)
        !/would have to remember to decrease pts_remain
 
        !If we've finished this ky set the 
        !filter and move on to next ik
-       if(self%kyb(ik)%initdone)then
-          kwork_filter(:,ik)=.true.
+       if (self%kyb(ik)%initdone) then
+          kwork_filter(:, ik) = .true.
           cycle
-       endif
+       end if
 
        !Now look at all supercells with this ik
-       do is=1,self%kyb(ik)%nsupercell
+       do is = 1, self%kyb(ik)%nsupercell
           !If we've finished with this supercell
           !then set the filter and move on to next
-          if(self%kyb(ik)%supercells(is)%initdone)then
+          if (self%kyb(ik)%supercells(is)%initdone) then
              !Set filter for all it on supercell
-             do ic=1,self%kyb(ik)%supercells(is)%ncell
-                kwork_filter(self%kyb(ik)%supercells(is)%cells(ic)%it_ind,ik)=.true.
-             enddo
+             do ic = 1, self%kyb(ik)%supercells(is)%ncell
+                kwork_filter(self%kyb(ik)%supercells(is)%cells(ic)%it_ind, ik) = .true.
+             end do
              cycle
-          endif
+          end if
 
           !//If we get to this point then we know that we have at least
           !one grid point on supercell for which we've not made a delta-fn
 
           !Now look for the first point that we've not initialised
-          iex_init=0
-          do iex=1,self%kyb(ik)%supercells(is)%nextend
+          iex_init = 0
+          do iex = 1, self%kyb(ik)%supercells(is)%nextend
              !If we've already done this point then cycle
-             if(self%kyb(ik)%supercells(is)%initialised(iex)) cycle
+             if (self%kyb(ik)%supercells(is)%initialised(iex)) cycle
              !Else this is the first point so store it and exit
-             iex_init=iex
+             iex_init = iex
              exit
-          enddo
+          end do
 
           !If this is the last point then mark supercell as done
           !but don't set filter yet, this will be automatically
           !applied on next loop
-          if(iex_init.eq.self%kyb(ik)%supercells(is)%nextend) then
-             self%kyb(ik)%supercells(is)%initdone=.true.
+          if (iex_init == self%kyb(ik)%supercells(is)%nextend) then
+             self%kyb(ik)%supercells(is)%initdone = .true.
           endif
 
           !Mark this point as initialised
-          self%kyb(ik)%supercells(is)%initialised(iex_init)=.true.
+          self%kyb(ik)%supercells(is)%initialised(iex_init) = .true.
 
-          !Decrease the points remaining count
-          pts_remain=pts_remain-1
+          !Increment the number of points handled in this call
+          pts_set_here = pts_set_here + 1
 
           !Get the ig and it indices corresponding to this point
           call self%kyb(ik)%supercells(is)%iex_to_ig(iex_init,ig)
           call self%kyb(ik)%supercells(is)%iex_to_it(iex_init,it)
 
           !Initialise field
-          field(ig,it,ik)=1.0
+          field(ig, it, ik) = 1.0
 
-          !Set the duplicate boundary point
-          if((ig.eq.-ntgrid).and.(it.ne.self%kyb(ik)%supercells(is)%it_left)) then
+          !Set the duplicate boundary point if we're at the left
+          !boundary of this call and we are not the leftmost cell in
+          !the chain.
+          if ((ig == -ntgrid) .and. &
+               (it /= self%kyb(ik)%supercells(is)%it_leftmost)) then
              !Get the left connection
-             it=self%kyb(ik)%supercells(is)%get_left_it(it)
-             field(ntgrid,it,ik)=1.0
-          endif
-       enddo !Ends loop over supercells
+             it = self%kyb(ik)%supercells(is)%get_left_it(it)
+             field(ntgrid, it, ik) = 1.0
+          end if
+       end do !Ends loop over supercells
 
        !Decide if we've done this kyb
-       self%kyb(ik)%initdone=all(self%kyb(ik)%supercells%initdone)
+       self%kyb(ik)%initdone = all(self%kyb(ik)%supercells%initdone)
 
-    enddo !Ends loop over ik
+    end do !Ends loop over ik
+    !$OMP END PARALLEL DO
+
+    ! Update the number of points remaining
+    pts_remain = pts_remain - pts_set_here
 
     !Now do the time advance
     call timeadv(phi,apar,bpar,phinew,aparnew,bparnew,0)
@@ -1884,61 +1958,79 @@ contains
     call self%getfieldeq_nogath(phinew,aparnew,bparnew,fieldeq,fieldeqa,fieldeqp)
 
     !Now we need to store the field equations in the appropriate places
-    do ik=1,self%naky
-       !If no data then skip ik
-       if(self%kyb(ik)%is_empty) cycle
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ik, ig_cur, it_cur, found_ig, found_it, it, is) &
+    !$OMP SHARED(self, field, ntgrid, ntheta0, ifl, fieldeq, fieldeqa, fieldeqp) &
+    !$OMP SCHEDULE(static)
+    do ik = 1, self%naky
+       !If no data then skip ik -- because we don't skip setting
+       !the field in the first loop of this routine but we do skip
+       !zeroing it out here on processors which don't have any interest
+       !in this ky, we need to zero the field after this loop to
+       !ensure it has been fully reset to 0 on all procs. We might
+       !consider skipping the setting of the field in the first loop
+       !instead, although this could mean the field is different on
+       !different processors (which should be fine) and might complicate
+       !how we track the number of points we need to visit etc.
+       if (self%kyb(ik)%is_empty) cycle
 
        !Loop until we've done all supercells
-       do while(sum(field(:,:,ik)).ne.0)
+       ! Note we dont use gs2_max_abs here as we are already inside
+       ! an OpenMP region.
+       do while (maxval(abs(field(: , : ,ik))) > 0)
           !Reset variables
-          ig_cur=-ntgrid-1
-          it_cur=0
-          found_ig=0
-          found_it=0
+          ig_cur = -ntgrid-1
+          it_cur = 0
+          found_ig = .false.
+          found_it = .false.
           
           !Look for first entry which was set to a delta-fn
-          do it=1,ntheta0
-             do ig=-ntgrid,ntgrid
-                !If this point wasn't touched ignore
-                if(field(ig,it,ik).eq.0) cycle
-                ig_cur=ig
-                found_ig=1
-                exit
-             enddo
-             if(found_ig.ne.0) then
-                it_cur=it
-                found_it=1
-                exit
-             endif
-          enddo
+          theta0: do it = 1, ntheta0
+             ! Find the first theta grid point equal to 1.0
+             ig_cur = findloc(field(:, it, ik), cmplx(1.0, 0.0), dim = 1)
+             found_ig = ig_cur > 0
+             ! If we didn't find a theta grid value move on to
+             ! next it
+             if (.not. found_ig) cycle
+             ! Adjust ig_cur to correct index range (findloc
+             ! assumes arrays are 1 indexed)
+             ig_cur = ig_cur - (ntgrid + 1)
+             if (found_ig) then
+                it_cur = it
+                found_it = .true.
+                exit theta0
+             end if
+          end do theta0
 
           !Now check we've found a point, else cycle
           !NOTE: If this triggers we're probably in trouble
           !as nothing will be different on the next iteration
           !and hence we will be stuck in an infinite loop.
           !As such this should really trigger an abort.
-          if(found_it.eq.0) cycle
+          if (.not. found_it) cycle
 
           !Zero out the field at this point so we ignore
           !it on future iterations
-          field(ig_cur,it_cur,ik)=0.0
+          field(ig_cur, it_cur, ik)=0.0
 
           !Find the appropriate supercell
-          is=self%kyb(ik)%is_from_it(it_cur)
+          is = self%kyb(ik)%is_from_it(it_cur)
 
           !Also zero out the boundary point if needed
-          if((ig_cur.eq.-ntgrid).and.(it_cur.ne.self%kyb(ik)%supercells(is)%it_left))then
-             it=self%kyb(ik)%supercells(is)%get_left_it(it_cur)
-             field(ntgrid,it,ik)=0.0
-          endif
+          if((ig_cur == -ntgrid) .and. &
+               (it_cur /= self%kyb(ik)%supercells(is)%it_leftmost)) then
+             it = self%kyb(ik)%supercells(is)%get_left_it(it_cur)
+             field(ntgrid, it, ik) = 0.0
+          end if
 
           !Now store data
-          call self%kyb(ik)%store_fq(fieldeq,fieldeqa,fieldeqp,ifl,it_cur,ig_cur)
-       enddo !Ends loop over points
-    enddo !Ends loop over ky
+          call self%kyb(ik)%store_fq(fieldeq, fieldeqa, fieldeqp, ifl, it_cur, ig_cur)
+       end do !Ends loop over points
+    end do !Ends loop over ky
+    !$OMP END PARALLEL DO
 
-    !Make sure field has been reset
-    field=0
+    ! See comment in above loop for why this is needed
+    call zero_array(field)
 
   end subroutine fm_init_next_field_points
 
@@ -3378,22 +3470,23 @@ contains
     use kt_grids, only: kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, gf_lo
     use mp, only: proc0
+    use array_utils, only: copy
     implicit none
     integer :: ik,it,ikit,igf
 
     !If we're proc0 then we need to do full array (for diagnostics)
     if(proc0) then
        if(has_phi) then
-          phi=phinew
-          gf_phi=gf_phinew
+          call copy(phinew, phi)
+          call copy(gf_phinew, gf_phi)
        end if
        if(has_apar) then
-          apar=aparnew
-          gf_apar=gf_aparnew
+          call copy(aparnew, apar)
+          call copy(gf_aparnew, gf_apar)
        end if
        if(has_bpar) then
-          bpar=bparnew
-          gf_bpar=gf_bparnew
+          call copy(bparnew, bpar)
+          call copy(gf_bparnew, gf_bpar)
        end if
        return
     end if
@@ -4102,13 +4195,13 @@ contains
   !> Calculate the update to the fields
   subroutine getfield_gf_local(phi,apar,bpar,gf_phi,gf_apar,gf_bpar,do_update_in)
     use theta_grid, only: ntgrid
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(-ntgrid:,:,:), intent(out) :: phi,apar,bpar,gf_phi,gf_apar,gf_bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_update_in
     logical :: do_update
 
-    do_update=.false.
-    if(present(do_update_in)) do_update=do_update_in
+    do_update = get_option_with_default(do_update_in, .false.)
 
     !Use fieldmat routine to calculate the field update
     !AJ phi(new),apar(new),bpar(new) are in gf_lo here
@@ -4158,6 +4251,7 @@ contains
     use mp, only: get_mp_times
     use job_manage, only: time_message
     use antenna, only: antenna_amplitudes, no_driver
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4183,21 +4277,21 @@ contains
 
     !Update g and fields
     !AJ IS THIS FULL COPY NECESSARY?
-    g=gnew
+    call copy(gnew, g)
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
        if(has_phi) then
-          phi=phinew
-          gf_phi=gf_phinew
+          call copy(phinew, phi)
+          call copy(gf_phinew, gf_phi)
        end if
        if(has_apar) then
-          apar=aparnew
-          gf_apar=gf_aparnew
+          call copy(aparnew, apar)
+          call copy(gf_aparnew, gf_apar)
        end if
        if(has_bpar) then
-          bpar=bparnew
-          gf_bpar=gf_bparnew
+          call copy(bparnew, bpar)
+          call copy(gf_bparnew, gf_bpar)
        end if
     endif
 
@@ -4261,12 +4355,14 @@ contains
   !! by the head of the supercell.
   subroutine dump_response_to_file_gf_local(suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
+    use job_manage, only: time_message
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr
     integer :: ik, is
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !First we have to pull data so that head of each supercell has full data
     !Currently we are lazy and just ensure all procs in supercell has full data
@@ -4294,6 +4390,7 @@ contains
           deallocate(tmp_arr)
        enddo
     enddo
+    call time_message(.false.,time_dump_response,' Field Dump')
 
   end subroutine dump_response_to_file_gf_local
 
@@ -4304,9 +4401,10 @@ contains
   subroutine read_response_from_file_gf_local(could_read, suffix)
     use gs2_save, only: gs2_restore_response
     use mp, only: sum_allreduce_sub, proc0
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
@@ -4340,6 +4438,8 @@ contains
              return
           end if
 
+          call time_message(.false.,time_read_response,' Field Read')
+
           !Now allocate array
           allocate(tmp_arr(fieldmat%kyb(ik)%supercells(is)%nrow,fieldmat%kyb(ik)%supercells(is)%ncol))
           tmp_arr=0.
@@ -4361,6 +4461,7 @@ contains
 
           !Deallocate
           deallocate(tmp_arr)
+          call time_message(.false.,time_read_response,' Field Read')
        enddo
     enddo
 
@@ -4388,7 +4489,7 @@ contains
     matrix_shape = shape(matrix)
     do j = 1, matrix_shape(2)
        do i = 1, matrix_shape(1)
-          l2norm = l2norm + matrix(i,j)*matrix(i,j)
+          l2norm = l2norm + real(matrix(i,j) * conjg(matrix(i,j)))
        end do
     end do
     l2norm = sqrt(l2norm)

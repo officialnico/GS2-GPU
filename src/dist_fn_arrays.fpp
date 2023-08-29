@@ -12,13 +12,16 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, vpar, aj0, aj1
+  public :: vperp2, aj0, aj1
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2
   public :: g_adjust, check_g_bouncepoints, set_h_zero
-
   public :: antot, antota, antotp, fieldeq, fieldeqa, fieldeqp
+
+  public :: check_is_zero_in_forbidden_region
+  public :: check_are_bouncepoint_values_consistent
+  public :: file_and_line_id
 
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
@@ -40,7 +43,7 @@ module dist_fn_arrays
   real, dimension(:), allocatable :: kx_shift, theta0_shift
   ! (naky)
 
-  real, dimension (:,:,:), allocatable :: vpa, vpac, vpar
+  real, dimension (:,:,:), allocatable :: vpa, vpac
 !AJ
   real, dimension (:,:,:,:,:), allocatable :: vpa_gf
   real, dimension (:,:,:,:), allocatable :: vperp2_gf
@@ -273,5 +276,122 @@ contains
     end do
 
   end subroutine set_h_zero
+
+  !> Check if the passed distribution function shaped array is non-zero
+  !> in the forbidden region. If it is then trigger an abort.
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_is_zero_in_forbidden_region(g_array, identifier)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx
+    use le_grids, only: forbid, il_is_passing, grid_has_trapped_particles
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    character(len=*), intent(in), optional :: identifier
+    character(len=:), allocatable :: id_message
+    integer :: iglo, il, ig
+    real :: violation_flag
+    logical :: violated
+    ! If no trapped particles then we can return immediately
+    if (.not. grid_has_trapped_particles()) return
+
+    id_message = get_option_with_default(identifier, '')
+    violated = .false.
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for passing particles
+       if (il_is_passing(il)) cycle
+
+       do ig = -ntgrid, ntgrid
+          if (.not. forbid(ig, il)) cycle
+          violated = violated .or. &
+               any(abs(g_array(ig, :, iglo)) > 0.0)
+       end do
+       ! If we've found a violation don't bother checking any other points
+       if (violated) exit
+    end do
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = 0.0
+    if (violated) violation_flag = 1.0
+    call max_allreduce(violation_flag)
+    if (violation_flag > 0.0) then
+       call mp_abort(&
+            'The passed array is non-zero in the forbidden region. '//id_message, .true.)
+    end if
+  end subroutine check_is_zero_in_forbidden_region
+
+  !> Check if the passed distribution function shaped array has the same
+  !> value at bounce points for both signs of v||. This provides similar
+  !> functionality to check_g_bouncepoints but is intended to offer a
+  !> quieter approach which could be used more routinely (i.e. throughout
+  !> a run).
+  !>
+  !> This is primarily intended as a utility to aid debugging.
+  subroutine check_are_bouncepoint_values_consistent(g_array, identifier, tolerance)
+    use mp, only: mp_abort, max_allreduce
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo, il_idx
+    use le_grids, only: il_is_passing, is_bounce_point, grid_has_trapped_particles
+    use optionals, only: get_option_with_default
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_array
+    character(len=*), intent(in), optional :: identifier
+    real, intent(in), optional :: tolerance
+    character(len=:), allocatable :: id_message
+    integer :: iglo, il, ig
+    real :: violation_flag, local_tolerance
+    logical :: violated
+    ! If no trapped particles then we can return immediately
+    if (.not. grid_has_trapped_particles()) return
+    local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
+    id_message = get_option_with_default(identifier, '')
+
+    violated = .false.
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       ! Don't check for passing particles
+       if (il_is_passing(il)) cycle
+
+       do ig = -ntgrid, ntgrid
+          if (.not. is_bounce_point(ig, il)) cycle
+          violated = violated .or. &
+               (abs(g_array(ig, 1, iglo) - g_array(ig, 2, iglo)) > local_tolerance * abs(g_array(ig, 1, iglo)))
+       end do
+       ! If we've found a violation don't bother checking any other points
+       if (violated) exit
+    end do
+
+    ! Use a real to represent the outcome so we can use existing mp routines
+    violation_flag = 0.0
+    if (violated) violation_flag = 1.0
+    call max_allreduce(violation_flag)
+    if (violation_flag > 0.0) then
+       call mp_abort('The passed array has inconsistent bounce points. '//id_message, .true.)
+    end if
+  end subroutine check_are_bouncepoint_values_consistent
+
+  !> A small helper function which constructs and returns the string
+  !> '<filename> : <line_no>'. Intended for use in producing the
+  !> identifier string passed to the check routines of this module.
+  !> Might be worth finding a better location for this generic
+  !> utility.
+  !>
+  !> In preprocessed files can use `file_and_line_id(__FILE__, __LINE__)`
+  !> to automate the arguments.
+  pure function file_and_line_id(filename, line_no)
+    implicit none
+    character(len=*), intent(in) :: filename
+    integer, intent(in) :: line_no
+    character(len=:), allocatable :: file_and_line_id
+    character(len=64) :: line_no_string
+    write(line_no_string, '(I0)') line_no
+    allocate(character(len=len_trim(filename)+len_trim(line_no_string)+3) :: file_and_line_id)
+    write(file_and_line_id,'(A," : ",A)') trim(filename), trim(line_no_string)
+  end function file_and_line_id
 
 end module dist_fn_arrays

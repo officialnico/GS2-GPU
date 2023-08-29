@@ -1,0 +1,13 @@
+&le_grids_knobs
+  nesuper = 8
+  nesub = 12
+  npassing = 20
+  radau_gauss_grid = .false.
+  new_trap_int = T
+/
+
+&test_le_grids_parameters
+  tolerance = 1.0e-9
+/
+
+!include test_le_grids_base.in

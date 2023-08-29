@@ -16,7 +16,7 @@ module gs2_io
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
-  public :: nc_write_omega, nc_write_field, nc_write_heating, starts
+  public :: nc_write_omega, nc_write_field, nc_write_heating, starts, nc_write_ql_metric
   public :: netcdf_write_complex
   public :: flux_dims, fluxk_dims, final_field_dims, sym_dims, omega_dims, mode_dims, mom_dims, mom_t_dims
   public :: species_dim, x_dim, kx_dim, y_dim, ky_dim, theta_dim, theta_extended_dim, time_dim
@@ -146,7 +146,7 @@ contains
   !>
   !> Create the main and movie (real-space fields) netCDF files,
   !> creating the dimensions and main variables
-  subroutine init_gs2_io (append_old, make_movie, write_verr, write_correlation_extend, &
+  subroutine init_gs2_io (append_old, make_movie, write_correlation_extend, &
       write_phi_over_time, write_apar_over_time, write_bpar_over_time, nout, ob_midplane, header)
     use mp, only: proc0
     use standard_header, only : standard_header_type
@@ -167,7 +167,7 @@ contains
     !> See [[gs2_diagnostics_knobs]] for details of these inputs
     logical, intent(in) :: append_old
     logical, intent(inout) :: write_correlation_extend
-    logical, intent(in) :: write_verr, make_movie
+    logical, intent(in) :: make_movie
     logical, intent(in) :: write_phi_over_time, write_apar_over_time, write_bpar_over_time
     !> If true, write out moments at the outboard midplane only,
     !> otherwise write them out along the entire flux surface
@@ -236,7 +236,7 @@ contains
     if (proc0) then
         !Setup main file by creating netCDF file
         call define_dims (ncid, io_write_corr_extend)
-        call define_vars (write_verr, write_correlation_extend, ob_midplane=ob_midplane)
+        call define_vars (write_correlation_extend, ob_midplane=ob_midplane)
 
         if (appending) then
             nout = get_dim_length(ncid, "t")
@@ -461,7 +461,7 @@ contains
 
   !> Create (but don't fill) the various diagnostics variables in the
   !> output netCDF file
-  subroutine define_vars (write_verr, write_correlation_extend, ob_midplane)
+  subroutine define_vars (write_correlation_extend, ob_midplane)
 # ifdef NETCDF
     use file_utils, only: error_unit
     use netcdf, only : NF90_CHAR, nf90_inq_libvers
@@ -469,7 +469,6 @@ contains
     use netcdf_utils, only: ensure_netcdf_att_exists, ensure_netcdf_var_exists
 # endif
     implicit none
-    logical, intent(in) :: write_verr
     logical, intent(inout) :: write_correlation_extend
     logical, optional, intent(in) :: ob_midplane
 # ifdef NETCDF
@@ -1115,7 +1114,8 @@ contains
   !> Write various fields, heating, and frequency diagnostics to netCDF
   subroutine nc_loop (file_id, nout, time, &
        phi2, apar2, bpar2, igomega, &
-       h, hk, omega, omegaavg, woutunits, tunits, phitot, write_omega, write_heating)
+       h, hk, omega, omegaavg, woutunits, tunits, phitot, ql_metric, &
+       write_omega, write_heating, write_ql_metric)
     use gs2_heating, only: heating_diagnostics
 # ifdef NETCDF
     use run_parameters, only: has_phi, has_apar, has_bpar, wstar_units
@@ -1141,12 +1141,12 @@ contains
     !> Fields, frequency and time-averaged frequency
     complex, dimension(:,:), intent (in) :: omega, omegaavg
     !> FIXME: add documentation
-    real, dimension(:,:), intent (in) :: phitot
+    real, dimension(:,:), intent (in) :: phitot, ql_metric
     !> Heating diagnostics
     type(heating_diagnostics), intent (in) :: h
     !> Heating per-mode
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
-    logical, intent(in) :: write_omega, write_heating
+    logical, intent(in) :: write_omega, write_heating, write_ql_metric
 # ifdef NETCDF
 
     call neasyf_write(file_id, time_dim, time, dim_names=[time_dim], start=[nout])
@@ -1174,6 +1174,8 @@ contains
     if (write_heating) call nc_write_heating(file_id, nout, h, hk)
 
     if (write_omega) call nc_write_omega(file_id, nout, omega, omegaavg, woutunits)
+
+    if (write_ql_metric) call nc_write_ql_metric(file_id, nout, ql_metric)
 
     if (write_scan_parameter) then
        call neasyf_write(file_id, &
@@ -1222,6 +1224,25 @@ contains
          long_name="Complex frequency averaged over navg timesteps", units="aref/vtref")
 #endif
   end subroutine nc_write_omega
+
+  !> Writes the QL flux metric by mode number and summed over mode number to netcdf file
+  subroutine nc_write_ql_metric(file_id, nout, ql_metric)
+#ifdef NETCDF
+    use neasyf, only: neasyf_write
+#endif
+    !> NetCDF ID of the file
+    integer, intent(in) :: file_id
+    !> Current output timestep
+    integer, intent (in) :: nout
+    !> The QL flux metric as a function of kx and ky
+    real, dimension(:,:), intent (in) :: ql_metric
+#ifdef NETCDF
+    character(*), dimension(*), parameter :: ql_dims = [kx_dim, ky_dim, time_dim]
+
+    call neasyf_write(file_id, "ql_metric_by_mode", ql_metric, dim_names=ql_dims, &
+         start=starts(3, nout), long_name="QL flux metric by mode number")
+#endif
+  end subroutine nc_write_ql_metric
 
   !> Write a field ((/E, A_\Vert, B_\vert/)) to netCDF
   subroutine nc_write_field(file_id, nout, field, field_name, long_name, igomega, write_field_over_time, field2)
@@ -1535,6 +1556,7 @@ contains
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
     use kt_grids, only: kperp2
+    use dist_fn, only: supercell_labels
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1586,8 +1608,12 @@ contains
          long_name="d/dx of the height above the midplane at the centre of the flux tube", units="a/rho_r")
     call neasyf_write(file_id, "aprime", aprime, dim_names=["theta"], &
          long_name="d/dx of the toroidal angle at the centre of the flux tube", units="rad/rho_r")
+
+    ! Wavenumber related quantities -- not strictly geometrical information.
     call neasyf_write(file_id, "kperp2", kperp2, dim_names=[theta_dim, kx_dim, ky_dim], &
          long_name="The perpendicular wavenumber squared", units="1/rho_r^2")
+    call neasyf_write(file_id, "supercell_labels", supercell_labels, dim_names=[kx_dim, ky_dim], &
+         long_name="Labels which unique supercell each wavenumber pair belongs to", units="N/A")
 
     ! FIXME: check if we need surfarea?
 #endif

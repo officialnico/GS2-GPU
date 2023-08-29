@@ -78,7 +78,6 @@ contains
     use gs2_layouts, only: g_lo, it_idx, ik_idx, is_idx
     use gs2_time, only: code_dt
     use hyper, only: hyper_diff, hypervisc_filter
-    use le_derivatives, only: vspace_derivatives
     use fields_arrays, only: phi, bpar
     use collisions, only: heating
 

@@ -1,10 +1,12 @@
 
 sinclude ../Makefile.tests_common
 
-clean_individual_test: LOCAL_TEST_FILES:=cyclone_itg_low_res
+TEST_BASE_NAME:=cyclone_itg_low_res
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME}
+build_test_exe: ${TEST_BASE_NAME}
 
 ifdef TESTNORUN
-all: cyclone_itg_low_res
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -18,16 +20,16 @@ ifndef USE_FFT
 all:
 	$(call SKIPCOMMAND,compiled without FFT library; compile with USE_FFT=on to run this test)
 else
-all: cyclone_itg_low_res 
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res.in)
-	$(call RUNCOMMAND,cyclone_itg_low_res,cyclone_itg_low_res_pad.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_pad.in)
 endif
 endif
 endif
 
-cyclone_itg_low_res.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-cyclone_itg_low_res: cyclone_itg_low_res.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 
