@@ -1,0 +1,12 @@
+&theta_grid_parameters
+ akappa = 1.5
+ akappri = 0.15
+ tri = 0.3
+ tripri = -0.2
+ nperiod = 4
+ ntheta = 128
+/
+
+&theta_grid_knobs
+ equilibrium_option = 'eik'
+/
