@@ -6,7 +6,7 @@ program test_field_solve_nonadiabatic
   use iso_fortran_env, only: output_unit
   use dist_fn, only: calculate_potentials_from_nonadiabatic_dfn, get_init_field
   use dist_fn_arrays, only: g, gnew, g_adjust
-  use fields_arrays, only: phinew, aparnew, bparnew, phi, apar, bpar
+  use fields_arrays, only: phinew, aparnew, bparnew
   use run_parameters, only: fphi, fbpar
   use init_g, only: ginit
 
@@ -100,11 +100,12 @@ contains
     implicit none
     character(len = *), intent(in) :: case_name
     logical, dimension(:), allocatable :: checks
-    checks = [&
+    allocate(checks, source = &
+         [&
          check_values(phi_init, phi_recalc, case_name, 'phi'), &
          check_values(apar_init, apar_recalc, case_name, 'apar'), &
          check_values(bpar_init, bpar_recalc, case_name, 'bpar')  &
-         ]
+         ])
     agrees = all(checks)
   end function test_fields
 

@@ -53,10 +53,9 @@ contains
   !! @note This routine must be called after init_collisions as it relies on the
   !! variable use_le_layout which is set in init_collisions based on input
   !! from the user provided input file.
-  subroutine init_lowflow(wdrift, wdriftttp, wstar, lf_default, lf_decompose, &
+  subroutine init_lowflow(wdrift, wdriftttp, wstar, vpar, vpac, lf_default, lf_decompose, &
        driftknob, tpdriftknob)
     use constants, only: zi
-    use dist_fn_arrays, only: vpac, vpar
     use species, only: spec, nspec
     use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: theta, ntgrid, delthet, gradpar, bmag
@@ -74,7 +73,7 @@ contains
 
     implicit none
     complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: wdrift
-    real, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: wdriftttp
+    real, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: wdriftttp, vpar, vpac
     real, dimension(:, :, :), intent(in) :: wstar
     logical, intent(in) :: lf_default, lf_decompose
     real, intent(in) :: driftknob, tpdriftknob

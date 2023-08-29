@@ -10,11 +10,6 @@ endif
 $(COVERAGE_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
-ifdef SIMPLEDATAIO_LIB
-      SDATIO_LINK:=-L$(SIMPLEDATAIO_LIB)
-      SDATIO_LIB:=-lsimpledataio
-endif
-
 # To save time you can set test deps yourself on the command line:
 # otherwise it builds everything just to be sure, because recursive
 # make can't resolve dependencies
@@ -124,6 +119,18 @@ $(TEST_RESULT_DIR):
 	@$(MKDIR) $(TEST_RESULT_DIR)
 
 make_results_dir: | $(TEST_RESULT_DIR)
+
+build_unit_tests: TEST_TARGET_TYPE:=build_test_exe
+build_unit_tests: unit_tests
+
+build_linear_tests: TEST_TARGET_TYPE:=build_test_exe
+build_linear_tests: linear_tests
+
+build_nonlinear_tests: TEST_TARGET_TYPE:=build_test_exe
+build_nonlinear_tests: nonlinear_tests
+
+build_tests: TEST_TARGET_TYPE:=build_test_exe
+build_tests: tests
 
 tests: |$(TEST_RESULT_DIR)
 tests: unit_tests_no_message linear_tests_no_message nonlinear_tests_no_message

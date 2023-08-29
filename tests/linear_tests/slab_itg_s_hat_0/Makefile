@@ -1,12 +1,13 @@
 
 sinclude ../Makefile.tests_common
 
-clean_individual_test: LOCAL_TEST_FILES:=slab_itg_s_hat_0_low_res gs2_slab_itg
-
+TEST_BASE_NAME:=slab_itg_s_hat_0_low_res
+clean_individual_test: LOCAL_TEST_FILES:=${TEST_BASE_NAME} gs2_slab_itg
+build_test_exe: ${TEST_BASE_NAME}
 COPY:=cp ../../../bin/gs2 gs2_slab_itg
 
 ifdef TESTNORUN
-all: slab_itg_s_hat_0_low_res 
+all: build_test_exe
 	$(call SKIPCOMMAND,variable TESTNORUN is defined; unset TESTNORUN to run this test)
 else
 #Define this tests level
@@ -16,17 +17,17 @@ ifeq "$(VAL)" "0"
 all:
 	$(call SKIPCOMMAND,current TEST_LEVEL=${TEST_LEVEL}; set TEST_LEVEL>=${MY_TEST_LEVEL} to run this test)
 else
-all: slab_itg_s_hat_0_low_res 
-	$(call RUNCOMMAND,slab_itg_s_hat_0_low_res,slab_itg_s_hat_0_low_res.in)
-	$(call RUNCOMMAND,slab_itg_s_hat_0_low_res,slab_itg_s_hat_0_low_res_hybrid.in)
+all: build_test_exe
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}.in)
+	$(call RUNCOMMAND,${TEST_BASE_NAME},${TEST_BASE_NAME}_hybrid.in)
 	$(call COPY)
-	$(call RUNCOMMAND,gs2_slab_itg,slab_itg_s_hat_0_low_res.in)
+	$(call RUNCOMMAND,gs2_slab_itg,${TEST_BASE_NAME}.in)
 endif
 endif
 
-slab_itg_s_hat_0_low_res.o:  ${TEST_MODS} 
+${TEST_BASE_NAME}.o:  ${TEST_MODS} 
 
-slab_itg_s_hat_0_low_res: slab_itg_s_hat_0_low_res.o $(TEST_MODS)
+${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
 

@@ -1,14 +1,17 @@
 !> FIXME : Add documentation
 program eiktest
-  use constants, only: pi
+  use mp, only: init_mp, finish_mp, proc0
+  use constants, only: pi, run_name_size
   use geometry
   use file_utils, only: init_file_utils, run_name
+  use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
+  use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
-  integer :: i, nth, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta
   real :: broot
   real :: q, qq, qplus, qmnus
-  real :: bb, bm, bp, profile_fac
+  real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
@@ -19,9 +22,12 @@ program eiktest
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   integer :: nbeta, funit
 
-  real :: airat, wgt, wdavg, jac
+  logical :: no_end_point
+
   logical :: fast, dipole, list
   character(len=:), allocatable :: in_stem, out_stem
+
+  character(len=run_name_size) :: ncout
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -32,8 +38,10 @@ program eiktest
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
-       eqnormfile
-     
+       eqnormfile, no_end_point
+
+  call init_mp
+
 ! set defaults
 
   gen_eq = .false.
@@ -80,6 +88,8 @@ program eiktest
   delrho = 0.01
 
   eqinit = 1       ! Mike K. codes do not have this variable.
+
+  no_end_point = .false.
 
   if (command_argument_count() == 0) then
      allocate(character(len=3)::in_stem)
@@ -195,9 +205,6 @@ program eiktest
   call Hahm_Burrell(irho, profile_fac)
 
   broot=-1.
-!      write(*,*) 'rho ',rhoc
-!      write(*,*) 'rp ',rpofrho(rhoc)
-!      write(*,*) 'r ',rfun(rpofrho(rhoc),0.,broot)
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
@@ -260,19 +267,6 @@ program eiktest
      write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
      write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
-
-!      write(*,*) 'mag(Bp) at rho= ',rhoc
-!      do i=-nth,nth
-!         r=rfun(rpofrho(rhoc),theta(i))
-!         write(*,*) r,theta(i),bpmagfun(r,theta(i))
-!      enddo
-
-!      write(*,*) '    theta        gbdrift          gradpar        grho'
-!      do i= -5,5
-!      do i= -ntgrid,ntgrid
-!         write(*,1000) theta(i),gbdrift(i), gradpar(i),grho(i)
-!      enddo
-
      
   close(11)
   close(21)
@@ -308,7 +302,20 @@ program eiktest
           Rprime(i),Zprime(i),aprime(i),Bpol(i)
   enddo
   close (unit=21)
-1000  format(20(1x,1pg18.11))
+1000 format(20(1x,1pg18.11))
+
+  if (proc0) then
+     ncout = trim(out_stem)//"out.nc"
+     call nc_grid_file_open(ncout, "w")
+     call nc_write_grid_sizes(ntheta, ntgrid, nperiod)
+     call nc_write_grid_scalars(shat, drhodpsin, kxfac, qsf, rmaj)
+     call nc_write_grids(ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+          gds2, gds21, gds22, grho, theta, &
+          Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
+          Bpol=Bpol, no_end_point_in=no_end_point)
+     call nc_grid_file_close()
+  end if
+
+  call finish_mp
+
 end program eiktest
-
-

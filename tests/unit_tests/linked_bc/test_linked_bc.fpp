@@ -1,0 +1,219 @@
+!> A test program to check that applying the linked boundary condition results
+!> in consistent boundaries (i.e. values are in agreement at the duplicate theta
+!> grid points).
+program test_linked_bc
+  use unit_tests
+  use gs2_main, only: gs2_program_state_type
+  use gs2_main, only: initialize_gs2, finalize_gs2, initialize_wall_clock_timer
+  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0, broadcast
+  use gs2_init, only: init, init_level_list
+  use dist_fn_arrays, only: gnew
+  use dist_fn, only: enforce_linked_boundary_conditions
+  use dist_fn, only: l_links, r_links
+  use fields_arrays, only: phinew, bparnew
+  use gs2_layouts, only: g_lo, it_idx, ik_idx, il_idx
+  use kt_grids, only: naky, ntheta0, theta0
+  use theta_grid, only: ntgrid, theta
+  use gs2_diagnostics, only: save_restart_dist_fn
+  use dist_fn, only: init_pass_ends
+  use redistribute, only: redist_type
+  use file_utils, only: input_unit_exist
+  implicit none
+  real :: maxerr, maxerr2
+  logical, parameter :: debug = .false.
+  real, parameter :: tolerance = epsilon(maxerr) * 4000.0
+  type(gs2_program_state_type) :: state
+  type(redist_type) :: pass_right, pass_left
+  integer :: iglo, it, ik, il
+  complex, dimension(:, :, :), allocatable :: target_function
+  logical :: passes
+  logical :: zero_offset
+  logical :: exist
+  integer :: in_file
+  namelist/linked_bc_test/zero_offset
+
+  call init_mp
+  state%mp_comm = mp_comm
+  call initialize_wall_clock_timer
+  call initialize_gs2(state)
+  call init(state%init, init_level_list%dist_fn_level_3)
+  call announce_module_test('linked_boundary_conditions')
+
+  call init_pass_ends(pass_right, 'r', 1, 'c', 1)
+  call init_pass_ends(pass_left, 'l', 2, 'c', 1)
+  phinew = 0. ; bparnew = 0.
+  gnew = 0.
+  zero_offset = .false.
+  if (proc0) then
+     in_file = input_unit_exist("linked_bc_test", exist)
+     if (exist) read(in_file, nml = linked_bc_test)
+  end if
+  call broadcast(zero_offset)
+
+  ! Set the continuous function that we expect to recover
+  ! For now just (theta-theta0)**3, but we should probably
+  ! set different functions in the real and imaginary parts
+  ! and we may want to test different functions for different
+  ! sigma. For now we just flip the sign for isig = 2
+  allocate(target_function, mold = phinew)
+  do ik = 1, naky
+     do it = 1, ntheta0
+        target_function(:, it, ik) = (theta - theta0(it, ik))**3
+     end do
+  end do
+
+  ! Initialise the distribution function
+  do iglo = g_lo%llim_proc, g_lo%ulim_proc
+     it = it_idx(g_lo, iglo)
+     ik = ik_idx(g_lo, iglo)
+     il = il_idx(g_lo, iglo)
+     ! Set to target function but offset so the function is not continuous
+     gnew(:, 1, iglo) = target_function(:, it, ik) + it * 1000
+     gnew(:, 2, iglo) = -target_function(:, it, ik)  + it * 1000
+     if (zero_offset) then
+        if (l_links(it, ik) > 0) gnew(:, 1, iglo) = gnew(:, 1, iglo) - gnew(-ntgrid, 1, iglo)
+        if (r_links(it, ik) > 0) gnew(:, 2, iglo) = gnew(:, 2, iglo) - gnew(ntgrid, 2, iglo)
+     end if
+  end do
+
+  maxerr = check_error(gnew)
+  maxerr2 = check_error2(gnew)
+
+  if (debug .and. (maxerr2 /= maxerr)) then
+     if(proc0) print*,'ERRORS 1 ',maxerr,maxerr2
+     call mp_abort("Methods (1) give different answers",.true.)
+  end if
+
+  if(proc0 .and. debug) print*,'Initial error : ',maxerr,maxval(abs(gnew)),maxval(abs(target_function)),ntheta0
+  if (maxerr < epsilon(0.0)) call mp_abort(&
+       "Function error pre boundary conditions already very small.", .true.)
+  if (debug) call dump('.pre')
+  call enforce_linked_boundary_conditions
+  if (debug) call dump('.post')
+
+  maxerr = check_error(gnew)
+  maxerr2 = check_error2(gnew)
+
+  passes = maxerr < tolerance
+
+  if (debug .and. (maxerr2 /= maxerr)) then
+     if(proc0) print*,'ERRORS 2 ',maxerr,maxerr2
+     call mp_abort("Methods (2) give different answers",.true.)
+  end if
+
+  if (.not. passes) then
+     if (proc0) print*,'Test fails with error : ',maxerr,'against a tolerance of',tolerance
+  end if
+
+  call process_test(passes, 'linked_boundary_conditions')
+  call close_module_test('linked_boundary_conditions')
+  call init(state%init, init_level_list%basic)
+  call finalize_gs2(state)
+  call finish_mp
+
+contains
+  real function check_error(g_in) result(err)
+    use mp, only: max_allreduce, sum_allreduce
+    use dist_fn, only: itright, itleft
+    use gs2_layouts, only: ie_idx, is_idx, idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
+    complex, dimension(:, :), allocatable :: right_boundaries, left_boundaries
+    integer :: iglo, it, ik, il, iglo_right, iglo_left, ie, is
+    err = 0.0
+    ! This approach of gathering and checking all boundary values is
+    ! not appropriate for inclusion in the main code as it could be
+    ! prohibitively expensive. As this is a test case we expect the
+    ! problem size to be small so this approach should be acceptable.
+    ! In the main code we could use pass_right and pass_left to
+    ! communicate just with the relevant processors.
+    allocate(right_boundaries(g_lo%llim_world:g_lo%ulim_world, 2))
+    allocate(left_boundaries(g_lo%llim_world:g_lo%ulim_world, 2))
+    right_boundaries = 0
+    left_boundaries = 0
+    right_boundaries(g_lo%llim_proc:g_lo%ulim_proc, 1) = g_in(ntgrid, 1, :)
+    right_boundaries(g_lo%llim_proc:g_lo%ulim_proc, 2) = g_in(ntgrid, 2, :)
+    left_boundaries(g_lo%llim_proc:g_lo%ulim_proc, 1) = g_in(-ntgrid, 1, :)
+    left_boundaries(g_lo%llim_proc:g_lo%ulim_proc, 2) = g_in(-ntgrid, 2, :)
+    call sum_allreduce(right_boundaries)
+    call sum_allreduce(left_boundaries)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       is = is_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          iglo_right = idx(g_lo, ik, itright(it, ik), il, ie, is)
+          err = max(err, &
+               abs(right_boundaries(iglo, 1) - left_boundaries(iglo_right, 1)))
+       end if
+
+       if (l_links(it, ik) > 0) then
+          iglo_left = idx(g_lo, ik, itleft(it, ik), il, ie, is)
+          err = max(err, &
+               abs(left_boundaries(iglo, 2) - right_boundaries(iglo_left, 2)))
+       end if
+
+    end do
+    call max_allreduce(err)
+  end function check_error
+
+  real function check_error2(g_in) result(err)
+    use mp, only: max_allreduce, sum_allreduce
+    use gs2_layouts, only: ie_idx, is_idx, idx
+    use le_grids, only: il_is_trapped, il_is_wfb, trapped_wfb
+    use redistribute, only: fill
+    implicit none
+    complex, dimension(-ntgrid:, :, g_lo%llim_proc:), intent(in) :: g_in
+    complex, dimension(:, :, :), allocatable :: g_pass
+    integer :: iglo, it, ik, il
+    allocate(g_pass, mold = g_in)
+    err = 0.0
+
+    g_pass = 0.0
+    call fill(pass_right, g_in, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       if (il_is_trapped(il)) cycle
+       if (il_is_wfb(il) .and. trapped_wfb) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (l_links(it, ik) > 0) then
+          err = max(err, abs(g_in(-ntgrid, 1, iglo) - g_pass(-ntgrid, 1, iglo)))
+       end if
+    end do
+
+    g_pass = 0.0
+    call fill(pass_left, g_in, g_pass)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       il = il_idx(g_lo, iglo)
+       if (il_is_trapped(il)) cycle
+
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+
+       if (r_links(it, ik) > 0) then
+          err = max(err, abs(g_in(ntgrid, 2, iglo) - g_pass(ntgrid, 2, iglo)))
+       end if
+    end do
+
+    call max_allreduce(err)
+  end function check_error2
+
+  subroutine dump(ext)
+    implicit none
+    character(len=*), intent(in) :: ext
+    call save_restart_dist_fn(.true., .false., .false., .false., 0.0, fileopt_base = ext)
+  end subroutine dump
+
+end program test_linked_bc

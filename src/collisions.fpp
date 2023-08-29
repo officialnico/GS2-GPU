@@ -146,7 +146,6 @@ module collisions
   real, dimension (:, :), allocatable :: pitch_weights
 
   logical :: drag = .false.
-  logical :: heating_flag = .false.
   logical :: colls = .true.
   logical :: split_collisions
 
@@ -587,6 +586,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
+    use array_utils, only: zero_array
     implicit none
 
     real, dimension (negrid) :: hee
@@ -606,7 +606,7 @@ contains
     !write_heating (gs2_diagnostics) is true.
     if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
-       c_rate = 0.
+       call zero_array(c_rate)
     end if
 
     !<DD>Should probably put this first
@@ -2925,6 +2925,7 @@ contains
     use le_grids, only: jend, al, ng2, nlambda, &
          il_is_wfb, il_is_passing, il_is_trapped
     use theta_grid, only: ntgrid, bmag
+    use array_utils, only: zero_array
     implicit none
     
     integer :: je, ig, il, ip, ij, im
@@ -2941,8 +2942,8 @@ contains
     allocate (dtot(-ntgrid:ntgrid,nlambda,5))
     allocate (fdf(-ntgrid:ntgrid,nlambda), fdb(-ntgrid:ntgrid,nlambda))
 
-    dlcoef = 1.0; d2lcoef = 0.0; dtot = 0.0
-    fdf = 0.0; fdb = 0.0; slb = 0.0
+    dlcoef = 1.0; call zero_array(d2lcoef); call zero_array(dtot)
+    call zero_array(fdf); call zero_array(fdb); slb = 0.0
 
     do ig=-ntgrid,ntgrid
        je = jend(ig)
@@ -3276,8 +3277,6 @@ contains
 !    integer :: t0, t1, t2, t3, t4, t5, tr
 !    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
 
-    heating_flag = heating .and. present(diagnostics)
-
     select case (collision_model_switch)
     case (collision_model_full)
 
@@ -3332,11 +3331,7 @@ contains
 !          t3tot = t3tot + real(t3-t2)/tr
 !       end if
 
-       if (heating_flag) then
-          call solfp_lorentz (g, gc1, gc2, diagnostics)
-       else
-          call solfp_lorentz (g, gc1, gc2)
-       end if
+       call solfp_lorentz (g, gc1, gc2, diagnostics)
 
        ! TMP FOR TESTING -- MAB
 !       if (proc0) then
@@ -3381,11 +3376,7 @@ contains
           !$OMP END PARALLEL DO
        end if
        
-       if (heating_flag) then
-          call solfp_lorentz (g, gc1, gc2, diagnostics)
-       else
-          call solfp_lorentz (g, gc1, gc2)
-       end if
+       call solfp_lorentz (g, gc1, gc2, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (g, g1)
 
@@ -3401,16 +3392,12 @@ contains
   !> FIXME : Add documentation  
   subroutine solfp1_le_layout (gle, diagnostics)
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
-    use theta_grid, only: bmag
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, sgn, al, ng2
+    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, ng2
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3427,33 +3414,12 @@ contains
         nxi_lim = nxi
     endif
     
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
-    heating_flag = heating .and. present(diagnostics)
-
     select case (collision_model_switch)
     case (collision_model_full)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
        call solfp_ediffuse_le_layout (gle)
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
@@ -3487,32 +3453,9 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
-       if (heating_flag) then
-          call solfp_lorentz (gle, diagnostics)
-       else
-          call solfp_lorentz (gle)
-       end if
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
+       call solfp_lorentz (gle, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (gle)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
 
     case (collision_model_lorentz,collision_model_lorentz_test)
 
@@ -3546,11 +3489,7 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       if (heating_flag) then
-          call solfp_lorentz (gle, diagnostics)
-       else
-          call solfp_lorentz (gle)
-       end if
+       call solfp_lorentz (gle, diagnostics)
 
        if (conserve_moments) call conserve_lorentz (gle)
 
@@ -3738,13 +3677,11 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al
+    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
     use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
-    use le_grids, only: sgn, nxi, ng2
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -3754,7 +3691,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
 
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa, vpa_nud
+    real :: vpa_nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -4117,13 +4054,10 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
-    use le_grids, only: ixi_to_il, ixi_to_isgn
-    use le_grids, only: sgn, speed => speed_maxw, nxi, ng2
+    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
-    use theta_grid, only: bmag
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     use gs2_time, only: tunits
@@ -4132,8 +4066,8 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
 
-    real :: vpa, delnu
-    integer :: ig, isgn, ik, ie, il, is, it
+    real :: delnu
+    integer :: ig, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
@@ -4293,7 +4227,6 @@ contains
     use le_grids, only: nlambda, jend, ng2, lambda_map, nxi, il_is_wfb
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -4312,12 +4245,10 @@ contains
     integer :: ig, ik, il, is, it, je, ie
     integer :: nxi_scatt
 
-    call prof_entering ("solfp_lorentz", "collisions")
-
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
-    if (heating) then
+    if (heating .and. present(diagnostics)) then
        allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
        call zero_array(glzc)
     end if
@@ -4465,9 +4396,7 @@ contains
     call scatter (lambda_map, glz, g)
 
     deallocate (glz)
-    if (heating) deallocate (glzc)
-
-    call prof_leaving ("solfp_lorentz", "collisions")
+    if (allocated(glzc)) deallocate (glzc)
 
   end subroutine solfp_lorentz_standard_layout
 
@@ -4475,11 +4404,11 @@ contains
   subroutine solfp_lorentz_le_layout (gle, diagnostics)
     use le_grids, only: jend, ng2, negrid, nxi, integrate_moment, il_is_wfb
     use gs2_layouts, only: ig_idx, ik_idx, is_idx, it_idx
-    use prof, only: prof_entering, prof_leaving
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo
     use dist_fn_arrays, only: c_rate
     use kt_grids, only: kwork_filter
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -4492,9 +4421,7 @@ contains
     integer :: ig, ik, il, is, je, it, ie
     integer :: nxi_scatt
 
-    call prof_entering ("solfp_lorentz", "collisions")
-
-    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; tmp = 0.0
+    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
 
     if (heating .and. present(diagnostics)) then
        !$OMP PARALLEL DO DEFAULT(none) &
@@ -4663,8 +4590,6 @@ contains
     !$OMP END PARALLEL DO
     deallocate (tmp)
     
-    call prof_leaving ("solfp_lorentz", "collisions")
-
   end subroutine solfp_lorentz_le_layout
 
   !> Energy diffusion subroutine used with energy layout (not le_layout)
@@ -4676,7 +4601,6 @@ contains
     use le_grids, only: negrid, forbid
     use le_grids, only: energy_map
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, il_idx, is_idx, e_lo, g_lo
-    use prof, only: prof_entering, prof_leaving
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
@@ -4793,7 +4717,7 @@ contains
   subroutine init_vpdiff
     use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
     use theta_grid, only: ntgrid, bmag
-
+    use array_utils, only: zero_array
     implicit none
 
     integer :: il, ig, je, te
@@ -4801,9 +4725,7 @@ contains
 
     if (.not. allocated(vpdiff) .and. conservative) then
 
-       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda))
-       
-       vpdiff = 0.0
+       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda)) ; call zero_array(vpdiff)
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)

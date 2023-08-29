@@ -2,8 +2,7 @@
 !! at low resolution and check the growth rate
 
 module checks_mod
-  use functional_tests
-  public checks
+  implicit none
   contains
     function checks()
       use gs2_time, only: code_dt_cfl
@@ -28,7 +27,6 @@ program cyclone_itg_low_res
   ! so we will need to change this if we change [[fields_knobs:field_option]]
   ! in the future.
   character(len=8), parameter :: field_type = 'implicit'
-  integer :: length, ierr
 
   ! If you want to see the minimal linear test look at slab_itg_low_res
   call test_gs2('Linear CBC ITG in single mode with field algorithm '//trim(field_type), checks)

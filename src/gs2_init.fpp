@@ -112,7 +112,7 @@ module gs2_init
      !> Used to set the verbosity level at which this
      !> level reports debug messages.
      integer :: debug_message_level = 1
-     procedure(change_level_specific_interface), pointer, private :: change_level_specific => null()
+     procedure(change_level_specific_interface), pointer, nopass, private :: change_level_specific => null()
      real, dimension(2) :: time_init = 0.
    contains
      procedure :: generate_debug_message => init_level_generate_debug_message
@@ -121,9 +121,8 @@ module gs2_init
   end type init_level_type
 
   interface
-     subroutine change_level_specific_interface(self, current, going_up)
-       import
-       class(init_level_type), intent(in) :: self
+     subroutine change_level_specific_interface(current, going_up)
+       import init_type
        type(init_type), intent(in) :: current
        logical, intent(in) :: going_up
      end subroutine change_level_specific_interface
@@ -248,9 +247,8 @@ contains
   end subroutine report_init_times
 
   !> Reset the time spent in each initialisation level
-  subroutine reset_init_times(unit)
+  subroutine reset_init_times()
     implicit none
-    integer, intent(in), optional :: unit
     init_levels%time_init(1) = 0.
     init_levels%time_init(2) = 0.
   end subroutine reset_init_times
@@ -345,6 +343,7 @@ contains
     use init_g, only: ginitopt_restart_many, initial_condition_is_nonadiabatic_dfn
     use run_parameters, only: has_phi, has_apar, has_bpar
     use collisions, only: vnmult
+    use array_utils, only: copy, zero_array
     implicit none
     type (init_type), intent(in) :: current
     logical :: restarted
@@ -364,8 +363,8 @@ contains
        return
     else
        if (current%initval_ov%in_memory) then
-          g = current%initval_ov%g
-          gnew = g
+          call copy(current%initval_ov%g, g)
+          call copy(g, gnew)
           vnmult = current%initval_ov%vnmult
        else
           call ginit(restarted, ginitopt_restart_many)
@@ -374,9 +373,9 @@ contains
     end if
 
     if (current%initval_ov%in_memory) then
-       if (allocated(current%initval_ov%gexp_1)) gexp_1 = current%initval_ov%gexp_1
-       if (allocated(current%initval_ov%gexp_1)) gexp_2 = current%initval_ov%gexp_2
-       if (allocated(current%initval_ov%gexp_1)) gexp_3 = current%initval_ov%gexp_3
+       if (allocated(current%initval_ov%gexp_1)) call copy(current%initval_ov%gexp_1, gexp_1)
+       if (allocated(current%initval_ov%gexp_1)) call copy(current%initval_ov%gexp_2, gexp_2)
+       if (allocated(current%initval_ov%gexp_1)) call copy(current%initval_ov%gexp_3, gexp_3)
     end if
 
     ! Do not use the value from state%init%initval_ov%force_maxwell_reinit = current%initval_ov%force_maxwell_reinit as follows:
@@ -394,23 +393,23 @@ contains
 
        if(current%initval_ov%override .and. current%initval_ov%in_memory) then
           if(has_phi) then
-             phinew=current%initval_ov%phi
+             call copy(current%initval_ov%phi, phinew)
           else
-             phinew = 0.
+             call zero_array(phinew)
           endif
           if(has_apar) then
-             aparnew=current%initval_ov%apar
+             call copy(current%initval_ov%apar, aparnew)
           else
-             aparnew = 0.
+             call zero_array(aparnew)
           endif
           if(has_bpar) then
-             bparnew=current%initval_ov%bpar
+             call copy(current%initval_ov%bpar, bparnew)
           else
-             bparnew = 0.
+             call zero_array(bparnew)
           endif
-          phi = phinew
-          apar = aparnew
-          bpar = bparnew
+          call copy(phinew, phi)
+          call copy(aparnew, apar)
+          call copy(bparnew, bpar)
        else
           ! No need to do anything: fields read from file in
           ! [[gs2_save:gs2_restore_many]]

@@ -182,23 +182,12 @@ contains
   end subroutine init_parameter_scan
 
   !> FIXME : Add documentation
-  subroutine allocate_target_arrays(nwrite,write_nl_flux)
-!    use gs2_diagnostics, only: nwrite, write_nl_flux
-!    use gs2_diagnostics, only: write_flux_line
+  subroutine allocate_target_arrays(nwrite, write_fluxes)
     use run_parameters, only: nstep
     use mp, only : mp_abort
     implicit none
     integer, intent(in) :: nwrite
-    logical, intent(in) :: write_nl_flux
-    !if (.not. write_flux_line) &
-     !call mp_abort("write_flux_line must be set to true for target mode")
-
-    !select case (scan_type_switch) 
-    !case (scan_type_none)
-      !return
-    !case (scan_type_range)
-      !return
-    !end select
+    logical, intent(in) :: write_fluxes
 
      allocate(hflux_tot(nstep/nwrite+1))
      allocate(momflux_tot(nstep/nwrite+1))
@@ -207,13 +196,12 @@ contains
 
     select case (target_parameter_switch)
     case (target_parameter_hflux_tot)
-      if (.not. write_nl_flux) &
-       call mp_abort("write_nl_flux must be set to true for hflux target mode")
+      if (.not. write_fluxes) &
+       call mp_abort("write_fluxes must be set to true for hflux target mode")
      case (target_parameter_momflux_tot)
-      if (.not. write_nl_flux) &
-       call mp_abort("write_nl_flux must be set to true for momflux target mode")
+      if (.not. write_fluxes) &
+       call mp_abort("write_fluxes must be set to true for momflux target mode")
      end select 
-     !write (*,*) "allocating target arrays ", nwrite, ",", nstep 
   end subroutine allocate_target_arrays
 
   !> FIXME : Add documentation  

@@ -540,6 +540,7 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew, apar_ext
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verb=3
 
@@ -567,17 +568,17 @@ contains
        end if
     endif
     !AJ This shouldn't be necessary as it is done in the fields code....
-    phi = 0.; phinew = 0.
-    apar = 0.; aparnew = 0.
-    bpar = 0.; bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.; gf_phinew = 0.
-       gf_apar = 0.; gf_aparnew = 0.
-       gf_bpar = 0.; gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     if(.not.allocated(apar_ext).and.(.not.no_driver))then
        allocate (apar_ext (-ntgrid:ntgrid,ntheta0,naky))
-       apar_ext = 0.
+       call zero_array(apar_ext)
     endif
   end subroutine allocate_arrays
 
@@ -611,21 +612,16 @@ contains
     use fields_gf_local, only: flgf_reset => reset_fields_gf_local
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use fields_arrays, only: gf_phi, gf_apar, gf_bpar, gf_phinew, gf_aparnew, gf_bparnew
+    use array_utils, only: zero_array
     implicit none
     initialized  = .false.
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     if(fieldopt_switch .eq. fieldopt_gf_local) then
-       gf_phi = 0.
-       gf_apar = 0.
-       gf_bpar = 0.
-       gf_phinew = 0.
-       gf_aparnew = 0.
-       gf_bparnew = 0.
+       call zero_array(gf_phi) ; call zero_array(gf_phinew)
+       call zero_array(gf_apar) ; call zero_array(gf_aparnew)
+       call zero_array(gf_bpar) ; call zero_array(gf_bparnew)
     end if
     !What about apar_ext?
     select case (fieldopt_switch)
@@ -642,7 +638,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_fields
-
     use fields_implicit, only: implicit_reset => reset_init
     use fields_test, only: test_reset => reset_init
     use fields_local, only: finish_fields_local
@@ -651,19 +646,15 @@ contains
     use fields_arrays, only: apar_ext, gf_phi, gf_apar, gf_bpar
     use fields_arrays, only: apar_ext, gf_phinew, gf_aparnew, gf_bparnew
     use unit_tests, only: debug_message
-
+    use array_utils, only: zero_array
     implicit none
     integer, parameter :: verbosity = 3
 
-
     initialized  = .false.
 !AJ Does these need zero'd if they are to be deallocated below?
-    phi = 0.
-    phinew = 0.
-    apar = 0.
-    aparnew = 0.
-    bpar = .0
-    bparnew = 0.
+    call zero_array(phi) ; call zero_array(phinew)
+    call zero_array(apar) ; call zero_array(aparnew)
+    call zero_array(bpar) ; call zero_array(bparnew)
     call debug_message(verbosity, &
       'fields::finish_fields zeroed fields')
     

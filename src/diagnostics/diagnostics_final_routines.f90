@@ -162,7 +162,6 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use kt_grids, only: naky, ntheta0, theta0, aky, akx
     use theta_grid, only: theta, ntgrid
-    use dist_fn, only: get_epar
     use fields_arrays, only: phi, apar, phinew, aparnew
     use gs2_io, only: nc_final_epar
     implicit none
@@ -203,6 +202,42 @@ contains
 
     deallocate (epar)
   end subroutine do_write_final_epar
+
+  !> Calculate \(E_\parallel\)
+  !>
+  !> @note This subroutine only returns epar correctly for linear runs.
+  !>
+  !> FIXME: Add equation
+  subroutine get_epar (phi, apar, phinew, aparnew, epar)
+
+    use theta_grid, only: ntgrid, delthet, gradpar
+    use run_parameters, only: fphi, fapar
+    use gs2_time, only: code_dt, tunits
+    use kt_grids, only: naky, ntheta0
+    implicit none
+    complex, dimension(-ntgrid:,:,:), intent(in) :: phi, apar, phinew, aparnew
+    complex, dimension(-ntgrid:,:,:), intent(out) :: epar
+    complex :: phi_m, apar_m
+
+    integer :: ig, ik, it
+
+    do ik = 1, naky
+       do it = 1, ntheta0
+          do ig = -ntgrid, ntgrid-1
+             ! ignoring decentering in time and space for now
+             phi_m = 0.5*(phi(ig+1,it,ik)-phi(ig,it,ik) + &
+                  phinew(ig+1,it,ik)-phinew(ig,it,ik))*fphi
+             apar_m = 0.5*(aparnew(ig+1,it,ik)+aparnew(ig,it,ik) &
+                  -apar(ig+1,it,ik)-apar(ig,it,ik))*fapar
+
+             epar(ig,it,ik) = -phi_m/delthet(ig)* &
+                  0.5*(abs(gradpar(ig)) + abs(gradpar(ig+1))) &
+                  -apar_m/tunits(ik)/code_dt
+          end do
+       end do
+    end do
+
+  end subroutine get_epar
 
   !> Calculate and write \(\delta B\), overwriting existing values
   !>

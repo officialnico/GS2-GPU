@@ -27,8 +27,8 @@
     integer :: dist_fn_level_1 = 27
     integer :: dist_fn_level_2 = 28
     integer :: override_timestep = 29
-    integer :: dist_fn_level_3 = 30
-    integer :: collisions = 31
+    integer :: collisions = 30
+    integer :: dist_fn_level_3 = 31
     integer :: fields_level_2 = 32
     integer :: override_initial_values = 33
     integer :: set_initial_values = 34

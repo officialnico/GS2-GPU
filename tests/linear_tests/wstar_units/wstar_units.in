@@ -199,7 +199,7 @@
 !==============================
 &gs2_diagnostics_knobs
   ! print_flux_line not specified --- Instantaneous fluxes output to screen
-  ! write_nl_flux not specified --- Write nonlinear fluxes as a function of time.
+  ! write_fluxes not specified --- Write nonlinear fluxes as a function of time.
  print_line = T ! Estimated frequencies and growth rates to the screen/stdout
   ! write_verr not specified --- Write velocity space diagnostics to '.lpc' and '.verr' files
   ! write_g not specified --- Write the distribution function to the '.dist' (NetCDF?)

@@ -28,6 +28,14 @@ module functional_tests
   public :: test_gs2
 
   public :: check_growth_rates_equal_in_list
+
+  public :: test_function_interface
+
+  interface
+    !> Interface for functions passed to [[test_gs2]]
+    logical function test_function_interface()
+    end function test_function_interface
+  end interface
 contains
 
   !> FIXME : Add documentation
@@ -193,14 +201,14 @@ contains
 
   end function check_growth_rates_equal_in_list
 
-  !> FIXME : Add documentation  
+  !> Run GS2 and check that `test_function` returns true
   subroutine test_gs2(test_name, test_function)
     use gs2_main, only: run_gs2, gs2_program_state_type, finish_gs2
     use unit_tests, only: functional_test_flag
     use mp, only: init_mp, proc0, test_driver_flag, finish_mp, mp_comm
     implicit none
     character(*), intent(in) :: test_name
-    logical, external :: test_function
+    procedure(test_function_interface) :: test_function
     type(gs2_program_state_type) :: state
 
     call init_mp
