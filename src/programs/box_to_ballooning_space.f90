@@ -1,6 +1,6 @@
 program box_to_ballooning_space
   use gs2_main, only: gs2_program_state_type, initialize_wall_clock_timer
-  use mp, only: init_mp, finish_mp, mp_comm, mp_abort, proc0
+  use mp, only: init_mp, finish_mp, mp_abort, proc0
   use gs2_main, only: initialize_gs2, finalize_gs2
   use gs2_init, only: init, init_level_list
   use kt_grids, only: box, naky, ntheta0, aky, akx, theta0
@@ -30,8 +30,7 @@ program box_to_ballooning_space
   logical, parameter :: write_full_file = .true.
 
   call initialize_wall_clock_timer
-  call init_mp
-  state%mp_comm = mp_comm
+  call init_mp(state%mp_comm)
   call initialize_gs2(state)
 
   ! Need to init to dist_fn_level_1 to ensure boundary
