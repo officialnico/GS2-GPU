@@ -109,7 +109,7 @@ contains
     use dist_fn_arrays, only: g, gnew
     use dist_fn, only: get_init_field
     use init_g, only: new_field_init
-
+    use array_utils, only: copy
     implicit none
 
     logical, optional :: gf_lo
@@ -127,13 +127,14 @@ contains
        !AJ Note, we do not initialise phi, apar, and bpar here 
        !AJ as this is now done in fields_gf_local along with a 
        !AJ fields redistribute.
-       g = gnew
+       call copy(gnew, g)
     else if (new_field_init) then
        call get_init_field (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew; g = gnew
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
+       call copy(gnew, g)
     else
        call getfield (phinew, aparnew, bparnew)
-       phi = phinew; apar = aparnew; bpar = bparnew 
+       call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     end if
     ! <MAB
 
@@ -326,6 +327,7 @@ contains
     use unit_tests, only: debug_message
     use job_manage, only: time_message
     use mp, only: get_mp_times
+    use array_utils, only: copy
     implicit none
     integer :: diagnostics = 1
     real :: mp_total, mp_total_after
@@ -337,10 +339,8 @@ contains
        
     if (allocated(kx_shift) .or. allocated(theta0_shift)) call exb_shear (gnew, phinew, aparnew, bparnew, istep) 
     
-    g = gnew
-    phi = phinew
-    apar = aparnew 
-    bpar = bparnew       
+    call copy(gnew, g)
+    call copy(phinew, phi); call copy(aparnew, apar); call copy(bparnew, bpar)
     
     call debug_message(4, 'fields_implicit::advance_implicit calling timeadv 1')
     call timeadv (phi, apar, bpar, phinew, aparnew, bparnew, istep)
@@ -472,6 +472,7 @@ contains
     use gs2_layouts, only: init_fields_layouts, f_lo
     use gs2_layouts, only: init_jfields_layouts
     use file_utils, only: error_unit
+    use array_utils, only: zero_array
     implicit none
     integer :: ig, ifield, it, ik, i, m, n
     complex, dimension(:,:), allocatable :: am
@@ -554,15 +555,11 @@ contains
 
 
           !Do we need to zero all 8 arrays on every loop? This can be more expensive than might think.
-          am = 0.0
-          g = 0.0
-
-          phi = 0.0
-          apar = 0.0
-          bpar = 0.0
-          phinew = 0.0
-          aparnew = 0.0
-          bparnew = 0.0
+          call zero_array(am)
+          call zero_array(g)
+          call zero_array(phi) ; call zero_array(phinew)
+          call zero_array(apar) ; call zero_array(aparnew)
+          call zero_array(bpar) ; call zero_array(bparnew)
 
           !Loop over individual 2pi domains / cells
           do n = 1, N_class(i)
@@ -595,7 +592,7 @@ contains
                       phinew(ig,it,ik) = 1.0
                    end do
                    if (.not. skip_initialisation) call init_response_row (ig, ifield, am, i, n)
-                   phinew = 0.0
+                   call zero_array(phinew)
                 end if
 
                 !Find response to apar
@@ -616,7 +613,7 @@ contains
                       aparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   aparnew = 0.0
+                   call zero_array(aparnew)
                 end if
 
                 !Find response to bpar
@@ -637,7 +634,7 @@ contains
                       bparnew(ig,it,ik) = 1.0
                    end do
                    call init_response_row (ig, ifield, am, i, n)
-                   bparnew = 0.0
+                   call zero_array(bparnew)
                 end if
              end do
           end do
@@ -738,6 +735,7 @@ contains
     use gs2_layouts, only: if_idx, im_idx, in_idx, local_field_solve
     use gs2_layouts, only: ig_idx, ifield_idx, ij_idx
     use dist_fn, only: i_class, M_class, N_class
+    use array_utils, only: zero_array
     implicit none
     integer, intent (in) :: ic
     complex, dimension(:,f_lo(ic)%llim_proc:), intent (in out) :: am
@@ -760,7 +758,7 @@ contains
 
     !Create storage space
     allocate (a_inv(j,f_lo(ic)%llim_proc:f_lo(ic)%ulim_alloc))
-    a_inv = 0.0
+    call zero_array(a_inv)
     
     if (.not. skip_initialisation) then
       !Set (ifield*ig,ilo) "diagonal" to 1?
@@ -1177,7 +1175,7 @@ contains
 
   !> A routine to dump the current response matrix to file
   subroutine dump_response_to_file_imp(suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1185,6 +1183,7 @@ contains
     use gs2_layouts, only: f_lo, jf_lo, ij_idx, idx_local, idx, proc_id,idx_local
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_save_response
+    use job_manage, only: time_message
     implicit none
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
     complex, dimension(:,:), allocatable :: tmp_arr, tmp_arr_full
@@ -1194,6 +1193,7 @@ contains
     integer, dimension(:,:), allocatable :: it_to_is, leftmost_it
     integer, dimension(:), allocatable :: tmp_ints
     logical :: is_local
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !Make a lookup array to convert itmin (the leftmost it in a connected domain)
     !to the supercell index "is" used in the local fields. This will be used to 
@@ -1405,13 +1405,13 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
-
+    call time_message(.false.,time_dump_response,' Field Dump')
   end subroutine dump_response_to_file_imp
 
   !> A routine to read the response matrix from file and populate the implicit
   !> response storage, note we also allocate the response storage objects
   subroutine read_response_from_file_imp(could_read, suffix)
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
@@ -1420,6 +1420,7 @@ contains
     use mp, only: proc0, send, receive
     use gs2_save, only: gs2_restore_response
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     logical, intent(out) :: could_read
     character(len=*), optional, intent(in) :: suffix !If passed then use as part of file suffix
@@ -1435,6 +1436,7 @@ contains
     logical :: file_found
     real :: file_time_step
 
+    call time_message(.false.,time_read_response,' Field Read')
     could_read = .true.
 
     !First allocate the matrix storage
@@ -1712,6 +1714,7 @@ contains
 
     !Tidy
     deallocate(tmp_vec,tmp_arr,leftmost_it,it_to_is)
+    call time_message(.false.,time_read_response,' Field Read')
   end subroutine read_response_from_file_imp
 
   !> A subroutine to allocate the response matrix storage objects

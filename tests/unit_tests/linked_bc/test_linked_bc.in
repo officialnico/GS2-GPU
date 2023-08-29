@@ -11,6 +11,7 @@
   &dist_fn_knobs
   boundary_option = 'linked'
   nonad_zero = T
+  start_from_previous_solution = T
   /
 
   &theta_grid_parameters
@@ -23,7 +24,7 @@
   nspec = 1
   /
   &dist_fn_species_knobs_1
-  bakdif = 0.5
+  bakdif = 0.05
   /
   &species_parameters_1
   /

@@ -2194,6 +2194,8 @@ module theta_grid_file
   public :: init_theta_grid_file, finish_theta_grid_file
   public :: check_theta_grid_file, wnml_theta_grid_file
   public :: file_get_sizes, file_get_grids
+  public :: check_theta_grid_file_nc
+  public :: file_nc_get_sizes, file_nc_get_grids
   public :: ntheta, nperiod, ntgrid, nbset
 
   public :: theta_grid_file_config_type
@@ -2290,6 +2292,48 @@ contains
 100 continue
   end subroutine check_theta_grid_file
 
+  !> FIXME : Add documentation
+  subroutine check_theta_grid_file_nc(report_unit)
+    use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
+    use gs2_io_grids, only: nc_get_lambda_grid_size
+    implicit none
+    integer, intent(in) :: report_unit
+    real :: drhodpsi, kxfac, rmaj, shat, qval
+
+    write (report_unit, *)
+    write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
+    write (report_unit, fmt="(a)") trim(gridout_file)
+
+    call nc_grid_file_open(gridout_file, "r")
+    call nc_get_grid_sizes(ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(nbset)
+    call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+    call nc_grid_file_close()
+
+    write (report_unit, *)
+    write (report_unit, fmt="('Limited information available:')")
+    write (report_unit, *)
+    write (report_unit, fmt="('nbset =     ',i5)") nbset
+    write (report_unit, fmt="('ntgrid =    ',i5)") ntgrid
+    write (report_unit, fmt="('ntheta =    ',i5)") ntheta
+    write (report_unit, fmt="('nperiod =   ',i2)") nperiod
+    write (report_unit, fmt="('drhodpsi =  ',f8.4)") drhodpsi
+    write (report_unit, fmt="('R =         ',f8.4)") Rmaj
+    write (report_unit, fmt="('s_hat =     ',f8.4)") shat
+    write (report_unit, fmt="('kxfac =     ',f8.4)") kxfac
+    write (report_unit, fmt="('qval =     ',f8.4)") qval
+
+    write (report_unit, *)
+    write (report_unit, *) 'NOTE: Regardless of the values of ntheta and nperiod'
+    write (report_unit, *) '      found in the theta_grid_parameters namelist,'
+    write (report_unit, *) '      this calculation will use the values listed here:'
+    write (report_unit, fmt="('ntgrid =    ',i5)") ntgrid
+    write (report_unit, fmt="('ntheta =    ',i5)") ntheta
+    write (report_unit, *) '      These were obtained from the gridgen output file.'
+    write (report_unit, *)
+  end subroutine check_theta_grid_file_nc
+
   !> FIXME : Add documentation  
   subroutine init_theta_grid_file(theta_grid_file_config_in)
     use theta_grid_params, only: init_theta_grid_params, rhoc
@@ -2359,7 +2403,17 @@ contains
     close (unit=unit)
   end subroutine file_get_sizes
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
+  subroutine file_nc_get_sizes
+    use gs2_io_grids, only: nc_grid_file_open
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_lambda_grid_size
+    implicit none
+    call nc_grid_file_open(gridout_file, "r")
+    call nc_get_grid_sizes(ntheta=ntheta, ntgrid=ntgrid, nperiod=nperiod)
+    call nc_get_lambda_grid_size(nbset)
+  end subroutine file_nc_get_sizes
+
+  !> FIXME : Add documentation
   subroutine file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
@@ -2487,6 +2541,72 @@ contains
     close (unit=unit)
 
   end subroutine file_get_grids
+
+  !> FIXME : Add documentation
+  subroutine file_nc_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+       gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+       Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+       shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
+    use constants, only: pi
+    use integration, only: trapezoidal_integration
+    use gs2_io_grids, only: nc_grid_file_close
+    use gs2_io_grids, only: nc_get_grids, nc_get_grid_scalars
+    use gs2_io_grids, only: nc_get_lambda_grid
+    implicit none
+    integer, intent (in) :: nperiod
+    integer, intent (in out) :: ntheta, ntgrid, nbset
+    real, dimension (-ntgrid:ntgrid), intent (out) :: theta
+    real, dimension (nbset), intent (out) :: bset
+    real, dimension (-ntgrid:ntgrid), intent (out) :: &
+         bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
+    real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon
+    real :: rmaj
+    logical, intent (in) :: gb_to_cv
+
+    Rplot = 1.; Rprime = 0.
+    Zplot = 1.; Zprime = 0.
+    aplot = 1.; aprime = 0.
+
+    call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+
+    call nc_get_grids(ntgrid, &
+       bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+       gds2, gds21, gds22, grho, theta, &
+       cdrift=cdrift, cdrift0=cdrift0, &
+       Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &
+       Bpol=Bpol)
+
+    call nc_get_lambda_grid(nbset, bset)
+
+    call nc_grid_file_close()
+
+    ! switch alambda to bset
+    bset = 1.0/bset
+
+    ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
+    gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
+    gbdrift_th = 0. ; cvdrift_th = 0.
+
+    ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
+    ! set coriolis drift to zero
+    cdrift = 0. ; cdrift0 = 0.
+
+    if (gb_to_cv) then
+       gbdrift = cvdrift
+       gbdrift0 = cvdrift0
+       gbdrift_th = cvdrift_th
+    end if
+
+    ! Possibly crude approximations for file
+    ! Note jacob is usually defined as jacob = 1.0/(drhodpsi*gradpar*bmag)
+    ! but isn't yet stored here.
+    surfarea = 2 * pi * trapezoidal_integration(theta, grho / (drhodpsi*gradpar*bmag))
+    dvdrhon = 2 * pi * trapezoidal_integration(theta, 1.0 / (drhodpsi*gradpar*bmag))
+
+  end subroutine file_nc_get_grids
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
@@ -2649,7 +2769,7 @@ module theta_grid
 
   ! internal variables
   integer :: eqopt_switch
-  integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3
+  integer, parameter :: eqopt_eik = 1, eqopt_salpha = 2, eqopt_file = 3, eqopt_file_nc = 4
   character (8) :: shape
   logical :: exist, initialized = .false.
   real :: field_line_average_weight
@@ -2709,6 +2829,7 @@ contains
     use theta_grid_salpha, only: check_theta_grid_salpha
     use theta_grid_eik, only: check_theta_grid_eik
     use theta_grid_file, only: check_theta_grid_file
+    use theta_grid_file, only: check_theta_grid_file_nc
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: alne, dbetadrho
@@ -2719,6 +2840,8 @@ contains
        call check_theta_grid_eik(report_unit,dbetadrho)
     case (eqopt_file)
        call check_theta_grid_file(report_unit)
+    case (eqopt_file_nc)
+       call check_theta_grid_file_nc(report_unit)
     end select
     if (gb_to_cv) then
        write (report_unit, *) 'The grad B drift coefficients have been set equal to the'
@@ -2754,6 +2877,8 @@ contains
        write (unit, fmt="(a)") ' equilibrium_option = "s-alpha"'
     case (eqopt_file)
        write (unit, fmt="(a)") ' equilibrium_option = "file"'
+    case (eqopt_file_nc)
+       write (unit, fmt="(a)") ' equilibrium_option = "ncfile"'
     end select
     write (unit, fmt="(' gb_to_cv = ',L1)") gb_to_cv
     write (unit, fmt="(' /')")
@@ -2763,6 +2888,8 @@ contains
     case (eqopt_eik)
        call wnml_theta_grid_eik(unit)
     case (eqopt_file)
+       call wnml_theta_grid_file(unit)
+    case (eqopt_file_nc)
        call wnml_theta_grid_file(unit)
     end select
     call wnml_theta_grid_gridgen(unit)
@@ -2900,12 +3027,13 @@ contains
     use text_options, only: text_option, get_option_value
     implicit none
     type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in    
-    type (text_option), dimension (5), parameter :: eqopts = &
+    type (text_option), dimension (6), parameter :: eqopts = &
          (/ text_option('default', eqopt_eik), &
             text_option('eik', eqopt_eik), &
             text_option('s-alpha', eqopt_salpha), &
             text_option('grid.out', eqopt_file), &
-            text_option('file', eqopt_file) /)
+            text_option('file', eqopt_file), &
+            text_option('ncfile', eqopt_file_nc) /)
     character(20) :: equilibrium_option
     ! 'default' 'eik': call eikcoefs for parameterized equilibrium
     ! 's-alpha': s-alpha
@@ -3137,7 +3265,7 @@ contains
   subroutine get_sizes(theta_grid_gridgen_config_in, theta_grid_salpha_config_in, theta_grid_file_config_in, theta_grid_eik_config_in)
     use theta_grid_eik, only: eik_get_sizes, init_theta_grid_eik, theta_grid_eik_config_type
     use theta_grid_salpha, only: salpha_get_sizes, init_theta_grid_salpha, theta_grid_salpha_config_type
-    use theta_grid_file, only: file_get_sizes, init_theta_grid_file, theta_grid_file_config_type
+    use theta_grid_file, only: file_get_sizes, file_nc_get_sizes, init_theta_grid_file, theta_grid_file_config_type
     use theta_grid_file, only: ntheta_file=>ntheta, nperiod_file=>nperiod
     use theta_grid_file, only: nbset_file=>nbset
     use theta_grid_gridgen, only: theta_grid_gridgen_init, theta_grid_gridgen_config_type
@@ -3168,6 +3296,14 @@ if (debug) write(6,*) 'get_sizes: call file_get_sizes'
        ntheta=ntheta_file
        nperiod=nperiod_file
        nbset=nbset_file
+    case (eqopt_file_nc)
+if (debug) write(6,*) 'get_sizes: call init_theta_grid_file'
+       call init_theta_grid_file(theta_grid_file_config_in)
+if (debug) write(6,*) 'get_sizes: call file_nc_get_sizes'
+       call file_nc_get_sizes
+       ntheta=ntheta_file
+       nperiod=nperiod_file
+       nbset=nbset_file
     end select
     ntgrid = ntheta/2 + (nperiod-1)*ntheta
 
@@ -3182,6 +3318,7 @@ if (debug) write(6,*) 'get_sizes: done'
     use theta_grid_eik, only: eik_get_grids
     use theta_grid_salpha, only: salpha_get_grids
     use theta_grid_file, only: file_get_grids
+    use theta_grid_file, only: file_nc_get_grids
     use theta_grid_params, only: eps, btor_slab
     use geometry, only: rhoc
     implicit none
@@ -3207,6 +3344,14 @@ if (debug) write(6,*) 'get_grids: call salpha_get_grids'
     case (eqopt_file)
 if (debug) write(6,*) 'get_grids: call file_get_grids'
        call file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
+            gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
+            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+            shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon)
+       shape = 'torus   '
+    case (eqopt_file_nc)
+if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
+       call file_nc_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
             gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
@@ -3331,7 +3476,6 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
     if (exist) read(in_file, nml = theta_grid_knobs)
-
     ! Now copy from local variables into type members
     self%cvdriftknob = cvdriftknob
     self%equilibrium_option = equilibrium_option

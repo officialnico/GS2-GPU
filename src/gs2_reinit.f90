@@ -147,6 +147,7 @@ contains
     use file_utils, only: error_unit
     use job_manage, only: time_message
     use nonlinear_terms, only: gryfx_zonal
+    use array_utils, only: zero_array
     implicit none
     integer, intent(in) :: istep 
     logical, intent(inout) :: my_exit
@@ -193,7 +194,8 @@ contains
 
     !call save_fields_and_dist_fn
 
-    gnew = 0.
+    ! Not clear that we really need to do this?
+    call zero_array(gnew)
 
     ! Move to the correct init level
     call init(current_init, init_level_list%override_timestep)
