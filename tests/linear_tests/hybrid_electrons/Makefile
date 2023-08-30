@@ -28,3 +28,7 @@ ${TEST_BASE_NAME}.o:  ${TEST_MODS}
 ${TEST_BASE_NAME}: ${TEST_BASE_NAME}.o $(TEST_MODS)
 	$(call messageOp,"Linking ","\\t:",$(call processName, $^),"\\n\\t\-\-\-\-\-\-\>",$(call processName, $@))
 	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+update_golden_answers: ${TEST_BASE_NAME}
+	$(call messageOp,"Updating golden answers for","\\t:",${TEST_BASE_NAME},"","")
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/update_golden_answers.sh ${TEST_BASE_NAME}

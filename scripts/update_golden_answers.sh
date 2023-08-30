@@ -3,7 +3,7 @@
 # A small script to automatically update the golden answers with whatever
 # result is currently being produced.
 
-EXE=hybrid_electrons
+EXE=${1}
 
 # If the exectuable doesn't exist try running make
 if [[ ! -x ${EXE} ]]
