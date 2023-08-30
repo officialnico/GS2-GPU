@@ -18,7 +18,8 @@ program rungridgen
   real :: cv_fraction, delth_max
   integer :: max_autoiter
   logical :: list = .false.
-
+  logical :: no_end_point
+  character(2000) :: ncsource
 
   ! work variables
   integer :: ntheta, nlambda, ntgrid
@@ -62,7 +63,8 @@ contains
          npadd,alknob,epsknob,bpknob,extrknob,smoothknob, nfinegrid, &
          thetamax, deltaw, widthw, tension, gingrid, screenout, &
          auto_width, cv_fraction, delth_max, max_autoiter, three_dim, &
-         iperiod
+         iperiod, &
+         no_end_point, ncsource
     gsource = "eik6.out"
     source = "eik.out"
     nthetaout = 32
@@ -87,23 +89,35 @@ contains
     gingrid = "gingrid"
     three_dim = .false.
     iperiod = 1
+    no_end_point = .false.
+    ncsource = ""
     read (unit=input_unit("testgridgen"), nml=testgridgen)
     nthetaout = nthetaout + 1
   end subroutine read_parameters
 
   !> FIXME : Add documentation  
   subroutine allocate_arrays
+    use gs2_io_grids, only:nc_grid_file_open
+    use gs2_io_grids, only: nc_get_grid_sizes, nc_get_grid_scalars
     implicit none
     integer :: unit
     character(200) :: line
+    logical :: ncsource_exist
 
-    call get_unused_unit(unit)
-    open (unit=unit, file=trim(source), status="old")
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt=*,err=10) ntgridin, nperiodin, nthetain, drhodpsi, rmaj, shat, kxfac, qval
-10  continue
-    close (unit=unit)
-    
+    inquire(file=ncsource, exist=ncsource_exist)
+    if (ncsource_exist) then
+       call nc_grid_file_open(ncsource, "r")
+       call nc_get_grid_sizes(nthetain, ntgridin, nperiodin)
+       call nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+    else
+       call get_unused_unit(unit)
+       open (unit=unit, file=trim(source), status="old")
+       read (unit=unit, fmt="(a)") line
+       read (unit=unit, fmt=*,err=10) ntgridin, nperiodin, nthetain, drhodpsi, rmaj, shat, kxfac, qval
+10     continue
+       close (unit=unit)
+    end if
+
     allocate (thetain(nthetain+1),bmagin(nthetain+1),bmagsm(nthetain+1))
     allocate (thetaout(nthetaout),bmagout(nthetaout),alambdaout(nlambdaout))
     allocate (thetagrid(-ntgridin:ntgridin))
@@ -177,47 +191,59 @@ contains
   !> FIXME : Add documentation  
   subroutine get_initial_grids
     use file_utils, only: get_unused_unit
+    use gs2_io_grids, only: nc_get_grids
+    use gs2_io_grids, only: nc_grid_file_close
     implicit none
     integer :: unit
     integer :: i
 !    real :: discard
     character(200) :: line
+    logical :: ncsource_exist
 
-    call get_unused_unit(unit)
-    open (unit=unit, file=trim(source), status="old")
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt="(a)") line
+    inquire(file=ncsource, exist=ncsource_exist)
+    if (ncsource_exist) then
+       call nc_get_grids(ntgridin, &
+            bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
+            gds2, gds21, gds22, grho, thetagrid, &
+            Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime)
+       call nc_grid_file_close()
+    else
+       call get_unused_unit(unit)
+       open (unit=unit, file=trim(source), status="old")
+       read (unit=unit, fmt="(a)") line
+       read (unit=unit, fmt="(a)") line
 
-    ! gbdrift gradpar grho theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) gbdrift(i),gradpar(i),grho(i),thetagrid(i)
-    end do
+       ! gbdrift gradpar grho theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) gbdrift(i),gradpar(i),grho(i),thetagrid(i)
+       end do
 
-    ! cvdrift gds2 bmag theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) cvdrift(i),gds2(i),bmag(i),thetagrid(i)
-    end do
+       ! cvdrift gds2 bmag theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) cvdrift(i),gds2(i),bmag(i),thetagrid(i)
+       end do
 
-    ! gds21 gds22 theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) gds21(i),gds22(i),thetagrid(i)
-    end do
+       ! gds21 gds22 theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) gds21(i),gds22(i),thetagrid(i)
+       end do
 
-    ! cvdrift0 gbdrift0 theta
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgridin,ntgridin
-       read (unit=unit, fmt=*) cvdrift0(i),gbdrift0(i),thetagrid(i)
-    end do
+       ! cvdrift0 gbdrift0 theta
+       read (unit=unit, fmt="(a)") line
+       do i = -ntgridin,ntgridin
+          read (unit=unit, fmt=*) cvdrift0(i),gbdrift0(i),thetagrid(i)
+       end do
 
-    close (unit=unit)
+       close (unit=unit)
+
+       call get_plotdata
+    end if
 
     thetain = thetagrid(-nthetain/2:nthetain/2)
     bmagin = bmag(-nthetain/2:nthetain/2)
-
-    call get_plotdata
 
   end subroutine get_initial_grids
 
@@ -431,6 +457,11 @@ contains
   !> FIXME : Add documentation    
   subroutine write_output
     use splines, only: fitp_curvp2
+    use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
+    use gs2_io_grids, only: nc_write_lambda_grid
+    use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
+    use constants, only: run_name_size
+    use mp, only: proc0
     implicit none
     integer :: unit
     integer :: i
@@ -448,6 +479,7 @@ contains
     real :: bmin
 !    integer :: ierr
     integer, dimension (1) :: minloca
+    character(len=run_name_size) :: ncout
 
     call open_output_file (unit, ".input.out")
     write (unit=unit, fmt="('#',i5)") nthetain+1
@@ -622,6 +654,19 @@ contains
          thetain(minloca(1)), bmagin(minloca(1))
 
     if (bmin < bmagin(minloca(1))) print *, "WARNING: interpolated new minimum"
+
+    if (proc0) then
+       ncout = trim(run_name)//".out.nc"
+       call nc_grid_file_open(ncout, "w")
+       call nc_write_grid_sizes(ntheta, ntgrid, nperiodout)
+       call nc_write_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
+       call nc_write_grids(ntgrid, bmaggridout, gradparout, gbdriftout, gbdrift0out, &
+            cvdriftout, cvdrift0out, gds2out, gds21out, gds22out, grhoout, thetagridout, &
+            Rplot=Rplotout, Rprime=Rprimeout, Zplot=Zplotout, Zprime=Zprimeout, &
+            aplot=aplotout, aprime=aprimeout, no_end_point_in=no_end_point)
+       call nc_write_lambda_grid(nlambda, alambdaout(:nlambda))
+       call nc_grid_file_close()
+    end if
 
   end subroutine write_output
 

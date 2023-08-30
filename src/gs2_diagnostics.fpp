@@ -2830,11 +2830,11 @@ contains
 
     ! Decide on the normalising field
     if (has_phi) then
-       normalising_field = maxval(abs(phinew)**2, dim = 1)
+       normalising_field = maxval(abs(phinew), dim = 1)
     else if (has_apar) then
-       normalising_field = maxval(abs(aparnew)**2, dim = 1)
+       normalising_field = maxval(abs(aparnew), dim = 1)
     else if (has_bpar) then
-       normalising_field = maxval(abs(bparnew)**2, dim = 1)
+       normalising_field = maxval(abs(bparnew), dim = 1)
     else
        ! If we get here then no fields are active so the QL flux
        ! is zero and we can exit
@@ -2848,7 +2848,7 @@ contains
     if (has_phi) then
        average = get_field_weighted_average_kperp2(phinew)
        where(average > 0.0)
-          ql_metric = maxval(abs(phinew)**2, dim = 1) * normalising_field / average
+          ql_metric = maxval(abs(phinew), dim = 1) * normalising_field / average
        end where
     end if
 
@@ -2856,7 +2856,7 @@ contains
        average = get_field_weighted_average_kperp2(aparnew)
        where(average > 0.0)
           ql_metric = ql_metric + &
-               maxval(abs(aparnew)**2, dim = 1) * normalising_field / average
+               maxval(abs(aparnew), dim = 1) * normalising_field / average
        end where
     end if
 
@@ -2864,7 +2864,7 @@ contains
        average = get_field_weighted_average_kperp2(bparnew)
        where(average > 0.0)
           ql_metric = ql_metric + &
-               maxval(abs(bparnew)**2, dim = 1) * normalising_field / average
+               maxval(abs(bparnew), dim = 1) * normalising_field / average
        end where
     end if
 

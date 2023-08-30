@@ -98,6 +98,10 @@ module nonlinear_terms
 
   logical :: exist = .false.
 
+  !> The "large" cfl time step limit to use when we don't
+  !> have a valid cfl limit from the NL term.
+  real, parameter :: dt_cfl_default_large = 1.e8
+
   !> Used to represent the input configuration of nonlinear_terms
   type, extends(abstract_config_type) :: nonlinear_terms_config_type
      ! namelist : nonlinear_terms_knobs
@@ -312,6 +316,7 @@ contains
     use gs2_layouts, only: init_gs2_layouts
     use gs2_transforms, only: init_transforms
     use mp, only: nproc, iproc
+    use array_utils, only: zero_array
 #ifdef SHMEM
     use shm_mpi3, only : shm_alloc
 #endif
@@ -354,7 +359,7 @@ contains
              call shm_alloc(agb, (/ 1, 2*ntgrid+1, 1, 2, accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
              call shm_alloc(abracket, (/ 1, 2*ntgrid+1, 1, 2, accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
 #endif
-             aba = 0. ; agb = 0. ; abracket = 0.
+             call zero_array(aba) ; call zero_array(agb) ; call zero_array(abracket)
           else
 #ifndef SHMEM
              allocate (     ba(yxf_lo%ny,yxf_lo%llim_proc:yxf_lo%ulim_alloc))
@@ -365,7 +370,7 @@ contains
              call shm_alloc(gb, (/ 1,yxf_lo%ny,yxf_lo%llim_proc,yxf_lo%ulim_alloc /))
              call shm_alloc(bracket, (/ 1,yxf_lo%ny,yxf_lo%llim_proc,yxf_lo%ulim_alloc /))
 #endif
-             ba = 0. ; gb = 0. ; bracket = 0.
+             call zero_array(ba) ; call zero_array(gb) ; call zero_array(bracket)
           end if
           alloc = .false.
        end if
@@ -448,7 +453,7 @@ contains
     select case (nonlinear_mode_switch)
     case (nonlinear_mode_none)
 !!! NEED TO DO SOMETHING HERE...  BD GGH
-       dt_cfl = 1.e8
+       dt_cfl = dt_cfl_default_large
        call save_dt_cfl (dt_cfl)
 #ifdef LOWFLOW
        if (istep /=0) &
@@ -491,7 +496,7 @@ contains
 
     if (initializing) then
        if (present(nl)) then
-          dt_cfl = 1.e8
+          dt_cfl = dt_cfl_default_large
           call save_dt_cfl (dt_cfl)
 
           ! Ensure the module level max_vel is consistent with
@@ -1321,7 +1326,16 @@ contains
     real :: dt_cfl
 
     ! Estimate the global cfl limit based on max_vel.
-    dt_cfl = 1./max_vel
+    if (max_vel <= 0.0) then
+       ! We should only end up here in unusual cases (likely
+       ! tests) as we initialise max_vel > 0 so the only way
+       ! we get here is if the estimated NL velocity limit is
+       ! exactly 0.
+       dt_cfl = dt_cfl_default_large
+    else
+       dt_cfl = 1./max_vel
+    end if
+
     call save_dt_cfl (dt_cfl)
 
     ! Now check to see if we've violated the cfl condition.

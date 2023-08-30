@@ -1252,6 +1252,7 @@ contains
     use gs2_time, only: user_time, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use overrides, only: initial_values_overrides_type
     use antenna, only: dump_ant_amp
+    use array_utils, only: copy
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
     integer :: istatus
@@ -1263,11 +1264,11 @@ contains
       & prepare_initial_values_overrides ? ", .true.)
 
     if(initval_ov%in_memory)then
-      initval_ov%g=gnew
+      call copy(gnew, initval_ov%g)
       initval_ov%vnmult = vnmult
-      if (allocated(initval_ov%gexp_1)) initval_ov%gexp_1 = gexp_1
-      if (allocated(initval_ov%gexp_2)) initval_ov%gexp_2 = gexp_2
-      if (allocated(initval_ov%gexp_3)) initval_ov%gexp_3 = gexp_3
+      if (allocated(initval_ov%gexp_1)) call copy(gexp_1, initval_ov%gexp_1)
+      if (allocated(initval_ov%gexp_2)) call copy(gexp_2, initval_ov%gexp_2)
+      if (allocated(initval_ov%gexp_3)) call copy(gexp_3, initval_ov%gexp_3)
 
       ! Do not use the value from [old_iface_]state%init%initval_ov%force_maxwell_reinit = initval_ov%force_maxwell_reinit as
       ! follows:
@@ -1280,9 +1281,9 @@ contains
       ! Therefore, the force_maxwell_reinit component has been completely removed from the initial_values_overrides_type derived
       ! type to avoid confusion in the future.
       if (.not. force_maxwell_reinit) then
-         if(has_phi) initval_ov%phi=phinew
-         if(has_apar) initval_ov%apar=aparnew
-         if(has_bpar) initval_ov%bpar=bparnew
+         if(has_phi) call copy(phinew, initval_ov%phi)
+         if(has_apar) call copy(aparnew, initval_ov%apar)
+         if(has_bpar) call copy(bparnew, initval_ov%bpar)
       end if
     else ! if(.not.in_memory)then
       !Should really do this with in_memory=.true. as well but
@@ -1457,6 +1458,7 @@ contains
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use fields_arrays, only: time_dump_response, time_read_response
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1493,6 +1495,8 @@ contains
          timer_data(timers%init(1), "Initialization"), &
          timer_data(time_field_invert(1), "field matrix invert"), &
          timer_data(time_field_invert_mpi, "field matrix invert mpi"), &
+         timer_data(time_dump_response(1), "field matrix dump"), &
+         timer_data(time_read_response(1), "field matrix read"), &
          timer_data(timers%advance(1), "Advance steps"), &
 #ifdef WITH_EIG
          timer_data(timers%eigval(1), "Eigensolver"), &
@@ -1570,6 +1574,7 @@ contains
     use fft_work, only: time_fft
     use fields_arrays, only: time_field, time_field_mpi
     use fields_arrays, only: time_field_invert, time_field_invert_mpi
+    use fields_arrays, only: time_dump_response, time_read_response
     use gs2_reinit, only: time_reinit
     use le_derivatives, only: time_vspace_derivatives, time_vspace_derivatives_mpi
     use nonlinear_terms, only: time_add_explicit_terms, time_add_explicit_terms_mpi
@@ -1598,6 +1603,8 @@ contains
       write(*, '(" ", a)') formatted_time("Initialization", timers%init(1))
       write(*, '("(", a, ")")') formatted_time("field matrix invert", time_field_invert(1))
       write(*, '("(", a, ")")') formatted_time("field matrix invert mpi", time_field_invert_mpi)
+      write(*, '("(", a, ")")') formatted_time("field matrix dump", time_dump_response(1))
+      write(*, '("(", a, ")")') formatted_time("field matrix read", time_read_response(1))
       write(*, '(" ", a)') formatted_time("Advance steps", timers%advance(1))
 #ifdef WITH_EIG
       write(*, '(" ", a)') formatted_time("Eigensolver", timers%eigval(1))
@@ -1765,23 +1772,24 @@ contains
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew,  bparnew
     use run_parameters, only: has_phi, has_apar, has_bpar
     use init_g, only: ginit
+    use array_utils, only: zero_array
     implicit none
     logical :: dummy
     
     if (has_phi) then
-       phi = 0.0
-       phinew = 0.0
+       call zero_array(phi)
+       call zero_array(phinew)
     end if
 
     if (has_apar) then
-       apar = 0.0
-       aparnew = 0.0
+       call zero_array(apar)
+       call zero_array(aparnew)
     end if
     if (has_bpar) then
-       bpar = 0.0
-       bparnew = 0.0
+       call zero_array(bpar)
+       call zero_array(bparnew)
     end if
-    g = 0.0; gnew = 0.0
+    call zero_array(g) ; call zero_array(gnew)
 
     call ginit(dummy)
     call set_init_fields

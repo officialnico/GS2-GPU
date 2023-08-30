@@ -85,7 +85,7 @@ if __name__ == "__main__":
         module_with_dependencies(
             "dist_fn_level_3",
             module_name="dist_fn",
-            dependencies=["dist_fn_level_2", "hyper", "override_timestep"],
+            dependencies=["dist_fn_level_2", "hyper", "override_timestep", "collisions"],
         ),
         module_with_dependencies(
             "dist_fn_level_1", module_name="dist_fn", dependencies=["dist_fn_arrays"]
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                 "le_grids",
                 "dist_fn_layouts",
                 "run_parameters",
-                "dist_fn_level_3",
+                "override_timestep", # Collision arrays depend on code_dt
             ],
         ),
         module_with_dependencies(

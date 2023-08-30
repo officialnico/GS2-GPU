@@ -28,8 +28,8 @@ init_levels = [ &
         init_level_type(name = 'dist_fn_level_1', level = 27, change_level_specific = dist_fn_level_1_subroutine), &
         init_level_type(name = 'dist_fn_level_2', level = 28, change_level_specific = dist_fn_level_2_subroutine), &
         init_level_type(name = 'override_timestep', level = 29, change_level_specific = override_timestep_subroutine), &
-        init_level_type(name = 'dist_fn_level_3', level = 30, change_level_specific = dist_fn_level_3_subroutine), &
-        init_level_type(name = 'collisions', level = 31, change_level_specific = collisions_subroutine), &
+        init_level_type(name = 'collisions', level = 30, change_level_specific = collisions_subroutine), &
+        init_level_type(name = 'dist_fn_level_3', level = 31, change_level_specific = dist_fn_level_3_subroutine), &
         init_level_type(name = 'fields_level_2', level = 32, change_level_specific = fields_level_2_subroutine), &
         init_level_type(name = 'override_initial_values', level = 33, change_level_specific = override_initial_values_subroutine), &
         init_level_type(name = 'set_initial_values', level = 34, change_level_specific = set_initial_values_subroutine), &

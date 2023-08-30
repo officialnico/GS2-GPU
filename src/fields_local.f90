@@ -48,6 +48,7 @@ module fields_local
      private
      procedure :: deallocate => rb_deallocate
      procedure :: allocate => rb_allocate
+     procedure :: init => rb_init
      procedure :: debug_print => rb_debug_print
      procedure :: mv_mult_fun => rb_mv_mult_fun
      procedure :: mv_mult => rb_mv_mult
@@ -81,6 +82,7 @@ module fields_local
      private
      procedure :: deallocate => c_deallocate
      procedure :: allocate => c_allocate
+     procedure :: init => c_init
      procedure :: debug_print => c_debug_print
      procedure :: mv_mult_rb => c_mv_mult_rb
      procedure :: get_field_update => c_get_field_update
@@ -96,7 +98,7 @@ module fields_local
      integer :: ncell
      integer :: nextend !< Length of the extended domain
      integer :: nrow, ncol !< The number of rows and columns. Equal to nextend*nfield
-     integer :: it_left !< It index of leftmost cell
+     integer :: it_leftmost !< It index of leftmost cell
      integer :: head_iproc !< The proc id (in sc_sub_all) of the head proc
      integer :: head_iproc_pd !< The proc id (in sc_sub_pd) of the head proc
      logical :: is_local !< Does this supercell have any data on this proc?
@@ -111,7 +113,12 @@ module fields_local
      logical, dimension(:), allocatable :: initialised !< Have we initialised each point?
      logical :: is_head = .false. !< Are we the head of this supercell?
      !Cell and parent properties. Mostly for debug printing.
+     !> The is_ind value is the index of the supercell in the parent ky_type's
+     !> supercell array.
      integer :: is_ind
+     !> The is_label is the supercell_label of this supercell as determined
+     !> by calculate_supercell_labels from elsewhere.
+     integer :: is_label
      integer :: ik_ind !< Parent properties
      integer :: collective_request
      real :: condition_number = -1 !< Condition number of the associated response matrix. Only valid on the head.
@@ -119,6 +126,7 @@ module fields_local
      private
      procedure :: deallocate => sc_deallocate
      procedure :: allocate => sc_allocate
+     procedure :: init => sc_init
      procedure :: debug_print => sc_debug_print
      procedure :: get_field_update => sc_get_field_update
      procedure :: reduce_tmpsum => sc_reduce_tmpsum
@@ -162,6 +170,7 @@ module fields_local
      private
      procedure :: deallocate => ky_deallocate
      procedure :: allocate => ky_allocate
+     procedure :: init => ky_init
      procedure :: debug_print => ky_debug_print
      procedure :: get_field_update => ky_get_field_update
      procedure :: wait_for_nonblocking_collectives => ky_wait_for_nonblocking_collectives
@@ -287,7 +296,6 @@ module fields_local
   logical :: field_local_tuneminnrow = .false. !< Are auto-tuning minnrow
   logical :: field_local_nonblocking_collectives = .false.
   integer :: nfield !< How many fields
-  integer :: nfq !< How many field equations (always equal to nfield)
   integer :: minNRow = 16 !< Tuning this can influence both init and advance times
   type(pc_type),save :: pc !< This is the parallel control object
   type(fieldmat_type),save :: fieldmat !< This is the top level field matrix object
@@ -320,6 +328,33 @@ contains
     if(allocated(self%data)) deallocate(self%data)
     if(allocated(self%tmp_sum)) deallocate(self%tmp_sum)
   end subroutine rb_deallocate
+
+  !> Initialise the members of the rowblock instance
+  subroutine rb_init(self, ifq, ic, it, is, ik, ncol, nextend)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(rowblock_type), intent(in out) :: self
+    integer, intent(in) :: ifq, ic, it, is, ik, ncol
+    !> The length of the parent supercell's real space
+    !> domain. Represents the spacing between the start of different
+    !> field/field equations as we store data as the full real space
+    !> domain for each field, e.g. [fieldeq(:), fieldeqa(:),
+    !> fieldeqp(:)], rather than say interleaved, e.g. [[fieldeq(1),
+    !> fieldeqa(1), fieldeqp(1)], [fieldeq(2), fieldeqa(2),
+    !> fieldeqp(2)],...]
+    integer, intent(in) :: nextend
+    ! Store rowblock index, essentially which fieldeq we represent
+    self%ir_ind = ifq
+    ! Store indices of parent types
+    self%ic_ind = ic
+    self%it_ind = it
+    self%is_ind = is
+    self%ik_ind = ik
+    ! Store data limits
+    self%ncol = ncol
+    self%col_llim = 1 + (ic - 1) * (2 * ntgrid) + (ifq - 1) * nextend
+    self%col_ulim = self%col_llim + ncol - 1
+  end subroutine rb_init
 
   !> Debug printing
   subroutine rb_debug_print(self)
@@ -413,6 +448,47 @@ contains
     if(allocated(self%rb)) deallocate(self%rb)
   end subroutine c_deallocate
 
+  !> Initialise the members of the cell instance
+  subroutine c_init(self, ic, it, is, ik, nfield, nrow, nextend, ignore_boundary)
+    use theta_grid, only: ntgrid
+    implicit none
+    class(cell_type), intent(in out) :: self
+    integer, intent(in) :: ic, it, is, ik, nfield, nrow, nextend
+    logical, intent(in) :: ignore_boundary
+    integer :: ifq
+
+    ! Store basic cell properties
+    self%nrb = nfield
+    self%ic_ind = ic
+    self%it_ind = it
+    self%ignore_boundary = ignore_boundary
+    ! Store parent properties
+    self%is_ind = is
+    self%ik_ind = ik
+
+    ! Store related/derived properties
+    self%row_llim = 1
+    self%row_ulim = nrow
+    self%nrow = nrow
+
+    self%ncol = 2 * ntgrid
+    if (.not. ignore_boundary) self%ncol = self%ncol + 1
+
+    allocate (self%col_llim(nfield), self%col_ulim(nfield))
+    do ifq = 1, nfield
+       self%col_llim(ifq) = 1 + (ic - 1) + (2 * ntgrid) + (ifq - 1) * nrow
+       self%col_ulim(ifq) = self%col_llim(ifq) + self%ncol - 1
+    end do
+    self%ncol_tot = self%ncol * nfield
+
+    allocate (self%rb(self%nrb))
+
+    !Now make row block objects
+    do ifq = 1, nfield
+       call self%rb(ifq)%init(ifq, ic, it, is, ik, self%ncol, nextend)
+    end do
+  end subroutine c_init
+
   !> Debug printing
   subroutine c_debug_print(self)
     implicit none
@@ -460,7 +536,7 @@ contains
 
     !Now store at cell level
     self%tmp_sum=0
-    do ifq=1,nfq
+    do ifq=1,nfield
        self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)=&
             self%tmp_sum(self%rb(ifq)%row_llim:self%rb(ifq)%row_ulim)&
             -self%rb(ifq)%tmp_sum
@@ -546,6 +622,53 @@ contains
     if(allocated(self%cells)) deallocate(self%cells)
   end subroutine sc_deallocate
 
+  !> Initialise the supercell instance by setting and calculating
+  !> some basic properties. Does not deal with allocating all
+  !> storage etc.
+  subroutine sc_init(self, is, itmin, ik, nfield, nbound)
+    use theta_grid, only: ntgrid
+    use mp, only: mp_request_null
+    use dist_fn, only: itright, supercell_labels, n_cells
+    implicit none
+    class(supercell_type), intent(in out) :: self
+    integer, intent(in) :: is, ik, itmin, nfield
+    integer, intent(in out) :: nbound
+    integer :: it, ic
+    logical :: ignore_boundary
+
+    self%is_ind = is
+    self%it_leftmost = itmin
+    self%ncell = n_cells(itmin, ik)
+    self%ik_ind = ik
+    self%is_label = supercell_labels(itmin, ik)
+
+    self%nextend = 1 + 2 * ntgrid * self%ncell
+    self%nrow = self%nextend * nfield
+    self%ncol = self%nrow
+
+    self%collective_request = mp_request_null
+
+    allocate (self%initialised(self%nextend))
+    self%initialised = .false.
+
+    ! Now setup cells
+    allocate (self%cells(self%ncell))
+
+    it = itmin
+    do ic = 1, self%ncell
+       !We ignore the boundary for all cells except the rightmost
+       ignore_boundary = ic < self%ncell
+       if (ignore_boundary) nbound = nbound + 1
+
+       call self%cells(ic)%init( ic, it, is, ik, nfield, &
+            self%nrow, self%nextend, ignore_boundary)
+
+       !Update it
+       if (ic < self%ncell) it = itright(it, ik)
+    end do
+
+  end subroutine sc_init
+
   !> Debug printing
   subroutine sc_debug_print(self)
     implicit none
@@ -565,15 +688,25 @@ contains
     if(.not.self%is_local) return
 
     if(.not.self%is_empty)then
-       !Now loop over cells and trigger field update
+       ! Now loop over cells and trigger field update. We add OpenMP here
+       ! to help distribute the work. Note that cells%get_field_update ends
+       ! up calling matmul, so in the situation where matmul is replaced
+       ! with a call to equivalent BLAS routines _and_ an OpenMP enabled
+       ! BLAS is linked this _could_ lead to an attempt to use nested
+       ! parallelism, which might be slow.
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(ic, it_ind, ulim) &
+       !$OMP SHARED(self, fq, fqa, fqp) &
+       !$OMP SCHEDULE(static)
        do ic=1,self%ncell
           !Get cell properties
           it_ind=self%cells(ic)%it_ind
           ulim=self%cells(ic)%ncol
           !Do update
           call self%cells(ic)%get_field_update(fq(:ulim,it_ind),fqa(:ulim,it_ind),fqp(:ulim,it_ind))
-       enddo
-    endif
+       end do
+       !$OMP END PARALLEL DO
+    end if
 
     !<DD>TAGGED
     !/If we're going to reduce why not reduce once on the top level object --> If we do
@@ -590,34 +723,56 @@ contains
   subroutine sc_reduce_tmpsum(self)
     use mp, only: sum_allreduce_sub, sum_reduce_sub, nb_sum_reduce_sub
     implicit none
-    class(supercell_type), intent(inout) :: self
+    class(supercell_type), intent(in out) :: self
     integer :: ic
+    complex, dimension(self%nrow) :: local_tmp_sum
+
+    ! Zero out the local tmp_sum
+    local_tmp_sum = 0.0
 
     !NOTE: Here we rely on the cells having not reduced/
     !gathered their data yet so there are no repeated rows.
+    ! Clearly cells%tmp_sum must be the same size as self%tmp_sum
+    ! at this point. If cells only updated a subset of their tmp_sum
+    ! entries we could perhaps save some work here by only summing over
+    ! the set regions. Currently the work involved here does not scale
+    ! at all with increasing processor count _beyond_ changes to cell
+    ! locality (i.e. when is_empty triggers).
     !First do local sums
-    do ic=1,self%ncell
-       if(self%cells(ic)%is_empty) cycle
-       self%tmp_sum=self%tmp_sum+self%cells(ic)%tmp_sum
-    enddo
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic) &
+    !$OMP SHARED(self) &
+    !$OMP REDUCTION(+: local_tmp_sum) &
+    !$OMP SCHEDULE(static)
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
+       local_tmp_sum = local_tmp_sum + self%cells(ic)%tmp_sum
+    end do
+    !$OMP END PARALLEL DO
+
+    ! Copy local tmp_sum into super cell variant. Note this is an added cost
+    ! due to OpenMP requiring us to use a non-member variable in reduction
+    ! clauses. If this file was preprocessed then we could imagine offering
+    ! an alternative code-path here for non-OpenMP builds.
+    self%tmp_sum = local_tmp_sum
 
     !<DD>TAGGED: As we currently have to do fm_gather_fields on every time step we only need
-    !to reduce to the head of the supercell, which may be an all_local proc in which case we don't 
-    !want to do any reduction. If it's a pd proc then really we should just do reduce_sub rather 
+    !to reduce to the head of the supercell, which may be an all_local proc in which case we don't
+    !want to do any reduction. If it's a pd proc then really we should just do reduce_sub rather
     !than allreduce_sub as we're going to broadcast the result later anyway.
     !if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(self%tmp_sum,self%sc_sub_pd%id)
-    if(.not.(self%is_empty.or.self%is_all_local)) then
+    if (.not.(self%is_empty .or. self%is_all_local)) then
        !AJ If non-blocking collectives are enabled and available on the system then call them here
-       if(field_local_nonblocking_collectives) then
-          call nb_sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd,self%collective_request)
+       if (field_local_nonblocking_collectives) then
+          call nb_sum_reduce_sub(self%tmp_sum, 0, self%sc_sub_pd, self%collective_request)
        else
-          call sum_reduce_sub(self%tmp_sum,0,self%sc_sub_pd)
+          call sum_reduce_sub(self%tmp_sum, 0, self%sc_sub_pd)
        end if
     end if
     !<DD> At this point the head of the supercell has the field update stored in self%tmp_sum
     !all other procs have partial/no data
   end subroutine sc_reduce_tmpsum
-    
+
   !> Convert the extended domain index to ig, it and ifl
   !!
   !! @note The iex_to routines all need testing!
@@ -789,6 +944,7 @@ contains
   !> Debug routine to dump the current supercell
   subroutine sc_dump(self,prefix)
     use mp, only: proc0
+    use optionals, only: get_option_with_default
     implicit none
     class(supercell_type), intent(inout) :: self
     character(len=*), optional, intent(in) :: prefix
@@ -797,8 +953,8 @@ contains
     complex, dimension(:,:), allocatable :: tmp
 
     !Make filename
-    write(fname,'("sc_is_",I0,"_ik_",I0,".dat")') self%is_ind, self%ik_ind
-    if(present(prefix)) fname=trim(prefix)//trim(fname)
+    write(fname,'(A,"sc_is_",I0,"_ik_",I0,".dat")') &
+         trim(get_option_with_default(prefix, '')), self%is_ind, self%ik_ind
     
     !Allocate array and fetch data
     allocate(tmp(self%ncol,self%nrow))
@@ -830,8 +986,9 @@ contains
   !> expected file. As such we have to be careful how we deal with this matrix.
   subroutine sc_dump_to_file(self, suffix)
     use gs2_save, only: gs2_save_response
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_dump_response
     use gs2_time, only: code_dt
+    use job_manage, only: time_message
     implicit none
     !> The instance of the supercell class
     class(supercell_type), intent(in out) :: self
@@ -841,6 +998,7 @@ contains
 
     ! Exit early if we're not involved in this supercell
     if(.not.self%is_local) return
+    call time_message(.false.,time_dump_response,' Field Dump')
 
     !Allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
@@ -855,16 +1013,17 @@ contains
     endif
 
     deallocate(tmp_arr)
-
+    call time_message(.false.,time_dump_response,' Field Dump')
   end subroutine sc_dump_to_file
 
   !> Routine to read the response matrix for this supercell from netcdf file.
   subroutine sc_read_from_file(self, could_read, suffix)
     use gs2_save, only: gs2_restore_response
     use mp, only: broadcast_sub, proc0
-    use fields_arrays, only: get_specific_response_file_name
+    use fields_arrays, only: get_specific_response_file_name, time_read_response
     use gs2_time, only: code_dt
     use file_utils, only: error_unit
+    use job_manage, only: time_message
     implicit none
     !> The instance of the supercell class
     class(supercell_type), intent(in out) :: self
@@ -898,6 +1057,9 @@ contains
        return
     end if
 
+    ! We start timing after an initial early exit
+    call time_message(.false.,time_read_response,' Field Read')
+
     !Now allocate array -- for big problems this might be an issue
     allocate(tmp_arr(self%nrow,self%ncol))
 
@@ -921,16 +1083,17 @@ contains
     call self%push_arr_to_rows(tmp_arr)
 
     deallocate(tmp_arr)
-
+    call time_message(.false.,time_read_response,' Field Read')
   end subroutine sc_read_from_file
 
   !> Store the field equations at row level
-  subroutine sc_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
+  subroutine sc_store_fq(self, fq, fqa, fqp, ifl_in, it_in, ig_in)
     use theta_grid, only: ntgrid
     use run_parameters, only: has_phi, has_apar, has_bpar
+    use mp, only: mp_abort, iproc
     implicit none
     class(supercell_type), intent(inout) :: self
-    complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
+    complex, dimension(:, :), intent(in) :: fq, fqa, fqp
     integer, intent(in) :: ifl_in, it_in, ig_in
     integer :: ic, ic_in, irow, ifq, ulim, ir
 
@@ -949,7 +1112,7 @@ contains
     !Work out the row we want to put data in
     irow=(ig_in+ntgrid+1)+(ic_in-1)*(2*ntgrid)+(ifl_in-1)*self%nextend
 
-    !Loop over cells
+    ! Loop over cells
     do ic=1,self%ncell
        !If we don't have this cell cycle
        if(self%cells(ic)%is_empty) then
@@ -973,8 +1136,8 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fq(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
+          self%cells(ic)%rb(ifq)%data(:,ir) = fq(:ulim, self%cells(ic)%it_ind)
+       end if
 
        if(has_apar)then
           !Increment counter
@@ -984,8 +1147,8 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fqa(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
+          self%cells(ic)%rb(ifq)%data(:,ir) = fqa(:ulim, self%cells(ic)%it_ind)
+       end if
 
        if(has_bpar)then
           !Increment counter
@@ -995,9 +1158,9 @@ contains
           ir=self%cells(ic)%rb(ifq)%irex_to_ir(irow)
 
           !Store data
-          self%cells(ic)%rb(ifq)%data(:,ir)=fqp(:ulim,self%cells(ic)%it_ind,self%cells(ic)%ik_ind)
-       endif
-    enddo
+          self%cells(ic)%rb(ifq)%data(:,ir) = fqp(:ulim, self%cells(ic)%it_ind)
+       end if
+    end do
 
   end subroutine sc_store_fq
 
@@ -1135,6 +1298,7 @@ contains
   !! Gather the row blocks up for this cell to fill an array
   subroutine sc_pull_rows_to_arr(self,arr)
     use mp, only: sum_allreduce_sub
+    use array_utils, only: zero_array
     implicit none
     class(supercell_type), intent(in) :: self
     complex, dimension(:,:), intent(out) :: arr !Note: Dimensions should be self%ncol, self%nrow
@@ -1148,44 +1312,39 @@ contains
     ! initialise this array in some cases (e.g. when dumping to file). We could
     ! attempt to only do this zeroing in this special case to save some time, but
     ! we don't expect to be calling this routine much so opt for simpler approach.
-    arr=0
+    call zero_array(arr)
 
     !Now see if we want to exit
-    if(self%is_empty) return
-    if(.not.self%is_local) return
+    if (self%is_empty) return
+    if (.not.self%is_local) return
 
-    !If we're all local then just do things simply as we don't need comms
-    if(self%is_all_local) then
-       do ic=1,self%ncell
-          do irb=1,self%cells(ic)%nrb
-             rl=self%cells(ic)%rb(irb)%row_llim
-             ru=self%cells(ic)%rb(irb)%row_ulim
-             cl=self%cells(ic)%rb(irb)%col_llim
-             cu=self%cells(ic)%rb(irb)%col_ulim
-             arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
-          enddo
-       enddo
-    else
-       !Place local piece in arr
-       do ic=1,self%ncell
-          if(self%cells(ic)%is_empty) cycle
-          do irb=1,self%cells(ic)%nrb
-             rl=self%cells(ic)%rb(irb)%row_llim
-             ru=self%cells(ic)%rb(irb)%row_ulim
-             cl=self%cells(ic)%rb(irb)%col_llim
-             cu=self%cells(ic)%rb(irb)%col_ulim
-             arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
-          enddo
-       enddo
+    !Place local piece in arr
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic, irb, rl, ru, cl, cu) &
+    !$OMP SHARED(self, arr) &
+    !$OMP SCHEDULE(static)
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
+       do irb = 1, self%cells(ic)%nrb
+          rl=self%cells(ic)%rb(irb)%row_llim
+          ru=self%cells(ic)%rb(irb)%row_ulim
+          cl=self%cells(ic)%rb(irb)%col_llim
+          cu=self%cells(ic)%rb(irb)%col_ulim
+          arr(cl:cu,rl:ru)=self%cells(ic)%rb(irb)%data
+       end do
+    end do
+    !$OMP END PARALLEL DO
 
+    !If we're now all local then also need comms
+    if (.not. self%is_all_local) then
        !Now use MPI to get the rest of the data from other procs
        !<DD>FOR NOW USE ALL_REDUCE AS EASIER, BUT SHOULD BE ABLE
        !TO DO THIS WITH ALL_GATHERV WHICH SHOULD BE FASTER
        ! We only actually need the result on the head of the supercell
        ! as this is the only process which operates on the result.
        ! We could therefore replace allreduce with reduce.
-       if(self%sc_sub_pd%nproc.gt.0) call sum_allreduce_sub(arr,self%sc_sub_pd%id)
-    endif
+       if (self%sc_sub_pd%nproc > 0) call sum_allreduce_sub(arr, self%sc_sub_pd%id)
+    end if
 
   end subroutine sc_pull_rows_to_arr
 
@@ -1201,20 +1360,25 @@ contains
     if(self%is_empty) return
 
     !Store all local sections
-    do ic=1,self%ncell
-       if(self%cells(ic)%is_empty) cycle
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ic, ir, rl, ru, cl, cu) &
+    !$OMP SHARED(self, arr) &
+    !$OMP SCHEDULE(static)
+    do ic = 1, self%ncell
+       if (self%cells(ic)%is_empty) cycle
 
-       do ir=1,self%cells(ic)%nrb
+       do ir = 1, self%cells(ic)%nrb
           !Get row/col limits
-          rl=self%cells(ic)%rb(ir)%row_llim
-          ru=self%cells(ic)%rb(ir)%row_ulim
-          cl=self%cells(ic)%rb(ir)%col_llim
-          cu=self%cells(ic)%rb(ir)%col_ulim
+          rl = self%cells(ic)%rb(ir)%row_llim
+          ru = self%cells(ic)%rb(ir)%row_ulim
+          cl = self%cells(ic)%rb(ir)%col_llim
+          cu = self%cells(ic)%rb(ir)%col_ulim
           
           !Store data
-          self%cells(ic)%rb(ir)%data=arr(cl:cu,rl:ru)
-       enddo
-    enddo
+          self%cells(ic)%rb(ir)%data = arr(cl:cu, rl:ru)
+       end do
+    end do
+    !$OMP END PARALLEL DO
   end subroutine sc_push_arr_to_rows
 
   !> Create primary (top level) sub communicators
@@ -1262,47 +1426,45 @@ contains
 
   !> Create the secondary (intraobject) subcommunicators
   subroutine sc_make_subcom_2(self)
-    use mp, only: comm_type, split, free_comm, sum_allreduce_sub, proc0, mp_undefined
+    use mp, only: comm_type, split, sum_allreduce_sub, proc0
+    use mp, only: mp_undefined, min_allreduce_sub, nproc
     implicit none
     class(supercell_type), intent(inout) :: self
     integer :: colour, cc
+    integer, dimension(3) :: colours
     type(comm_type) :: tmp
-    logical :: some_empty, some_pd, some_all, head_notfull
+    logical :: some_empty, some_pd, some_all, is_partial_data
     !Exit if we don't have this supercell
-    if(.not.self%is_local)return
+    if (.not. self%is_local) return
+
+    ! Set local flags
+    colours = 0
+    is_partial_data = .not. (self%is_empty .or. self%is_all_local)
+    if (self%is_empty) colours(1) = 1
+    if (is_partial_data) colours(2) = 1
+    if (self%is_all_local) colours(3) = 1
+
+    ! Get global flags
+    call sum_allreduce_sub(colours, self%sc_sub_all%id)
 
     !/Work out if we have any empty procs
-    some_empty=.false.
-    colour=0
-    if(self%is_empty)colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_empty=.true.
-
+    some_empty = colours(1) /= 0
     !/Work out if we have any partial data procs
-    some_pd=.false.
-    colour=0
-    if(.not.(self%is_empty.or.self%is_all_local))colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_pd=.true.
-
+    some_pd = colours(2) /= 0
     !/Work out if we have any all local procs
-    some_all=.false.
-    colour=0
-    if(self%is_all_local)colour=1
-    call sum_allreduce_sub(colour,self%sc_sub_all%id)
-    if(colour.ne.0) some_all=.true.
+    some_all = colours(3) /= 0
 
     !/Now make a subcommunicator involving all procs
     !which have part of the supercell data range (but not all of it)
-    if(some_pd)then
+    if (some_pd) then
        colour = mp_undefined
-       if((.not.(self%is_empty.or.self%is_all_local))) colour=1
-       call split(colour,tmp,self%sc_sub_all%id)
-       if(colour /= mp_undefined) then
+       if (is_partial_data) colour = 1
+       call split(colour, tmp, self%sc_sub_all%id)
+       if (colour /= mp_undefined) then
           !/Store communicator
-          self%sc_sub_pd=tmp
-       endif
-    endif
+          self%sc_sub_pd = tmp
+       end if
+    end if
 
     !Decide if we're the head proc
     !Note: We also decide which proc is in charge of filling the empty
@@ -1310,66 +1472,62 @@ contains
     !we have a better chance of being able to overlap comms and computations
     !Note: We try to make proc0 the head proc if it is a member of the supercell
     !which has data as it means we don't need to send this supercell to anyone.
-    if(some_all)then
-       !Here we make a temporary communicator for the all_local procs
-       cc = mp_undefined
-       if(self%is_all_local) cc=1
-       !/Note we don't destroy this until later
-       call split(cc,tmp,self%sc_sub_all%id)
-
-       !Now find out if we have proc0 in our new comm
-       if(self%is_all_local)then
-          cc=0
-          if(proc0) cc=1
-          call sum_allreduce_sub(cc,tmp%id)
-
-          !Decide if we're the head, prefer proc0 to be head
-          !if it's a member of our group
-          if(cc.ne.0)then
-             self%is_head=proc0
-          else
-             self%is_head=tmp%proc0
-          endif
-
-          !Here we decide which proc should be in charge of
-          !informing the empty procs of the result
-          head_notfull=(min(1,tmp%nproc-1).eq.tmp%iproc)
-
-          !Free the communicator
-          call free_comm(tmp)
-
+    if (some_all) then
+       ! Here we try to determine which processor will be the head.
+       ! If proc0 is included and has is_all_local we prefer that. If not we can
+       ! identify the head as the first proc in sc_sub_all which has is_all_local.
+       ! 1. We can determine if proc0 is present and has is_all_local
+       !    by simply setting cc = (proc0 .and. self%is_all_local) ? 1 : 0
+       !    and then reducing that on sc_sub_all.
+       ! 2. If proc0 is not present then the head will just be the proc with
+       !    the lowest rank in sc_sub_all with is_all_local true. Therefore we
+       !    instead take min_allreduce of cc = is_all_local ? sc_sub_all%iproc : nproc + 1
+       !    and then set self%is_head = sc_sub_all%iproc == cc
+       ! Work out if proc0 is a member of sc_sub_all _and_ has is_all_local
+       cc = 0
+       if (proc0 .and. self%is_all_local) cc = 1
+       call sum_allreduce_sub(cc, self%sc_sub_all%id)
+       if (cc == 1) then
+          ! If we have proc0 then that is head
+          self%is_head = proc0
        else
-          head_notfull=.false.
-       endif
-
+          if (self%is_all_local) then
+             cc = self%sc_sub_all%iproc
+          else
+             cc = nproc + 1
+          end if
+          ! We don't currently have an implementation for this.
+          call min_allreduce_sub(cc, self%sc_sub_all%id)
+          ! If we don't have proc0 then the head is the processor
+          ! with the lowest rank in sc_sub_all which has is_all_local
+          self%is_head = cc == self%sc_sub_all%iproc
+       end if
     else
-       if(self%sc_sub_pd%nproc.gt.0)then
-          cc=0
-          if(proc0) cc=1
-          call sum_allreduce_sub(cc,self%sc_sub_pd%id)
+       if (self%sc_sub_pd%nproc > 0)then
+          cc = 0
+          if (proc0) cc = 1
+          call sum_allreduce_sub(cc, self%sc_sub_pd%id)
 
           !Decide if we're the head, prefer proc0 to be head
           !if it's a member of our group
-          if(cc.ne.0)then
-             self%is_head=proc0
+          if (cc /= 0) then
+             self%is_head = proc0
           else
-             self%is_head=self%sc_sub_pd%proc0
-          endif
-       endif
+             self%is_head = self%sc_sub_pd%proc0
+          end if
+       end if
+    end if
 
-       !Here we decide which proc should be in charge of
-       !informing the empty procs of the result
-       head_notfull=(min(1,self%sc_sub_pd%nproc-1).eq.self%sc_sub_pd%iproc)
-    endif
+    !Store the head_iproc values
+    colours = 0
+    if (self%is_head) then
+       colours(1) = self%sc_sub_all%iproc
+       colours(2) = self%sc_sub_pd%iproc
+    end if
 
-    !Store the head_iproc
-    self%head_iproc=0
-    if(self%is_head) self%head_iproc=self%sc_sub_all%iproc
-    call sum_allreduce_sub(self%head_iproc,self%sc_sub_all%id)
-
-    self%head_iproc_pd=0
-    if(self%is_head) self%head_iproc_pd=self%sc_sub_pd%iproc
-    call sum_allreduce_sub(self%head_iproc_pd,self%sc_sub_all%id)
+    call sum_allreduce_sub(colours, self%sc_sub_all%id)
+    self%head_iproc = colours(1)
+    self%head_iproc_pd = colours(2)
   end subroutine sc_make_subcom_2
 
 !------------------------------------------------------------------------
@@ -1394,6 +1552,26 @@ contains
     class(ky_type), intent(inout) :: self
     if(allocated(self%supercells)) deallocate(self%supercells)
   end subroutine ky_deallocate
+
+  !> Setup properties of ky_type instance
+  subroutine ky_init(self, ik, itmins, nsupercell, nfield, nbound)
+    implicit none
+    class(ky_type), intent(in out) :: self
+    integer, intent(in) :: ik, nsupercell, nfield
+    integer, dimension(:), intent(in) :: itmins
+    integer, intent(in out) :: nbound
+    integer :: is
+
+    self%ik_ind = ik
+    self%nsupercell = nsupercell
+
+    allocate (self%supercells(nsupercell))
+
+    do is = 1, nsupercell
+       call self%supercells(is)%init(is, itmins(is), ik, nfield, nbound)
+    end do
+
+  end subroutine ky_init
 
   !> Debug printing
   subroutine ky_debug_print(self)
@@ -1436,19 +1614,19 @@ contains
   !> Store the field equation at row level
   subroutine ky_store_fq(self,fq,fqa,fqp,ifl_in,it_in,ig_in)
     implicit none
-    class(ky_type), intent(inout) :: self
-    complex, dimension(:,:,:), intent(in) :: fq, fqa, fqp
+    class(ky_type), intent(in out) :: self
+    complex, dimension(:, :), intent(in) :: fq, fqa, fqp
     integer, intent(in) :: ifl_in, it_in, ig_in
     integer :: is
 
     !If we don't have anything in this supercell then exit
-    if(self%is_empty) return
+    if (self%is_empty) return
 
     !Delegate work to supercell
-    do is=1,self%nsupercell
-       if(.not.self%supercells(is)%has_it(it_in)) cycle
-       call self%supercells(is)%store_fq(fq,fqa,fqp,ifl_in,it_in,ig_in)
-    enddo
+    do is = 1,self%nsupercell
+       if (.not.self%supercells(is)%has_it(it_in)) cycle
+       call self%supercells(is)%store_fq(fq, fqa, fqp, ifl_in, it_in, ig_in)
+    end do
   end subroutine ky_store_fq
 
   !> Given it say what the supercell id is
@@ -1701,189 +1879,93 @@ contains
   !> Initialise the field objects
   subroutine fm_init(self)
     use kt_grids, only: naky, ntheta0
-    use dist_fn, only: itright, get_leftmost_it
+    use dist_fn, only: get_leftmost_it, n_supercells
     use run_parameters, only: has_phi, has_apar, has_bpar
     use theta_grid, only: ntgrid
-    use mp, only: mp_request_null
     implicit none
     class(fieldmat_type), intent(inout) :: self
-    integer :: it, cur_id, ifq
-    integer :: it_start, is_count
-    integer :: ik, is, ic
-    integer, dimension(:), allocatable :: nsuper
+    integer :: it, cur_id, it_start, is_count, ik
     integer, dimension(:), allocatable :: tmp_supercell_ids
     integer, dimension(:,:), allocatable :: supercell_ids
-    integer, dimension(:,:), allocatable :: ncells
     integer, dimension(:,:), allocatable :: is_to_itmin
 
     !Count the fields
-    nfield=0
-    if(has_phi) nfield=nfield+1
-    if(has_apar) nfield=nfield+1
-    if(has_bpar) nfield=nfield+1
-    nfq=nfield
+    nfield = count([has_phi, has_apar, has_bpar])
 
     !Allocate temp arrays
-    allocate(nsuper(naky))
-    allocate(tmp_supercell_ids(ntheta0))
-    allocate(supercell_ids(ntheta0,naky))
-    allocate(ncells(ntheta0,naky))
-    allocate(is_to_itmin(ntheta0,naky))
+    allocate(supercell_ids(ntheta0, naky))
+    ! Here the first dimension is allocated as ntheta0
+    ! but for each ky we only use the first nsupercell(ik)
+    ! entries.
+    allocate(is_to_itmin(ntheta0, naky))
 
     !Initialise arrays
-    nsuper=0
-    ncells=0
-    is_to_itmin=0
-    supercell_ids=-1
+    is_to_itmin = 0
+    supercell_ids = -1
 
-    !Find the leftmost it for each supercell
-    do ik=1,naky
-       do it=1,ntheta0
-          supercell_ids(it,ik)=get_leftmost_it(it,ik)
-       enddo
-    enddo
+    !Find the leftmost it for each supercell and use this to label the
+    !supercell.  Note that this is different from the supercell_label
+    !from dist_fn.
+    do ik = 1, naky
+       do it = 1, ntheta0
+          supercell_ids(it, ik) = get_leftmost_it(it, ik)
+       end do
+    end do
 
     !Now work out how many supercells there are for each
     !ik and what their properties are.
-    do ik=1,naky
+    do ik = 1, naky
        !Store the leftmost it values for current ik
-       tmp_supercell_ids=supercell_ids(:,ik)
+       tmp_supercell_ids = supercell_ids(:, ik)
        
        !Now loop over all it values and count how many
        !have which it as the leftmost one.
-       it_start=0
-       is_count=0
-       do while(sum(tmp_supercell_ids).ne.-1*ntheta0)
+       it_start = 0
+       is_count = 0
+       do while (any(tmp_supercell_ids >= 0))
           !Increase the it value
-          it_start=it_start+1
+          it_start = it_start + 1
 
           !Get the leftmost it for supercell with it_start in it
-          cur_id=tmp_supercell_ids(it_start)
+          cur_id = tmp_supercell_ids(it_start)
 
           !If we've seen this supercell then cycle
-          if(cur_id.eq.-1) cycle
+          if (cur_id == -1) cycle
 
           !Increase supercell counter
-          nsuper(ik)=nsuper(ik)+1
-          is_count=is_count+1
+          is_count = is_count + 1
 
           !Store the leftmost it value
-          is_to_itmin(is_count,ik)=cur_id
+          is_to_itmin(is_count, ik) = cur_id
 
           !Set all matching entries to -1 so we know to skip
           !this supercell again
-          do it=it_start,ntheta0
-             if(tmp_supercell_ids(it).eq.cur_id) then
-                tmp_supercell_ids(it)=-1
-
-                !Increase cell counter
-                ncells(cur_id,ik)=ncells(cur_id,ik)+1
-             endif
-          enddo
-       enddo
-    enddo
+          do it = it_start, ntheta0
+             if (tmp_supercell_ids(it) == cur_id) then
+                tmp_supercell_ids(it) = -1
+             end if
+          end do
+       end do
+    end do
     
     !Free memory
     deallocate(tmp_supercell_ids)
 
     !Now we want to allocate the basic field structure
     !Store the basic properties
-    self%naky=naky
-    self%ntheta0=ntheta0
-    self%npts=naky*ntheta0*(2*ntgrid+1)
-    self%nbound=0 !Calculated whilst we create objects
+    self%naky = naky
+    self%ntheta0 = ntheta0
+    self%npts = naky * ntheta0 * (2 * ntgrid + 1)
+    self%nbound = 0 !Calculated whilst we create objects
     allocate(self%kyb(naky))
+    
     !/Make the kyb objects
-    do ik=1,naky
-       !Store the basic properties
-       self%kyb(ik)%ik_ind=ik
-       self%kyb(ik)%nsupercell=nsuper(ik)
-
-       !Allocate the supercell list
-       allocate(self%kyb(ik)%supercells(nsuper(ik)))
-
-       !/Now make the supercell objects
-       do is=1,nsuper(ik)
-
-          !Store the basic properties
-          self%kyb(ik)%supercells(is)%is_ind=is
-          self%kyb(ik)%supercells(is)%ik_ind=ik
-          self%kyb(ik)%supercells(is)%it_left=is_to_itmin(is,ik)
-          self%kyb(ik)%supercells(is)%ncell=ncells(is_to_itmin(is,ik),ik)
-          self%kyb(ik)%supercells(is)%nextend=1+2*ntgrid*self%kyb(ik)%supercells(is)%ncell
-          self%kyb(ik)%supercells(is)%nrow=self%kyb(ik)%supercells(is)%nextend*nfield
-          self%kyb(ik)%supercells(is)%ncol=self%kyb(ik)%supercells(is)%nrow
-
-          if(field_local_nonblocking_collectives) then
-            self%kyb(ik)%supercells(is)%collective_request = mp_request_null
-          end if
-
-          !Now allocate the cell list
-          allocate(self%kyb(ik)%supercells(is)%cells(self%kyb(ik)%supercells(is)%ncell))
-          allocate(self%kyb(ik)%supercells(is)%initialised(self%kyb(ik)%supercells(is)%nextend))
-          self%kyb(ik)%supercells(is)%initialised=.false.
-
-          !Get the first it
-          it=supercell_ids(is_to_itmin(is,ik),ik)
-
-          !/Now make the cell objects
-          do ic=1,ncells(is_to_itmin(is,ik),ik)
-             
-             !Store the basic properties
-             self%kyb(ik)%supercells(is)%cells(ic)%nrb=nfq
-             self%kyb(ik)%supercells(is)%cells(ic)%ic_ind=ic
-             self%kyb(ik)%supercells(is)%cells(ic)%it_ind=it
-             self%kyb(ik)%supercells(is)%cells(ic)%ik_ind=ik
-             self%kyb(ik)%supercells(is)%cells(ic)%is_ind=is
-             self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary=(ic.lt.ncells(is_to_itmin(is,ik),ik)) !We ignore the boundary for all cells except the rightmost
-             self%kyb(ik)%supercells(is)%cells(ic)%row_llim=1
-             self%kyb(ik)%supercells(is)%cells(ic)%row_ulim=self%kyb(ik)%supercells(is)%nrow
-             self%kyb(ik)%supercells(is)%cells(ic)%nrow=self%kyb(ik)%supercells(is)%nrow
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_llim(nfq))
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(nfq))
-             if(.not.self%kyb(ik)%supercells(is)%cells(ic)%ignore_boundary)then
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid+1
-             else
-                self%kyb(ik)%supercells(is)%cells(ic)%ncol=2*ntgrid
-                self%nbound=self%nbound+1
-             endif
-             do ifq=1,nfq
-                self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)=1+(ic-1)*(2*ntgrid)+(ifq-1)*self%kyb(ik)%supercells(is)%nrow
-                self%kyb(ik)%supercells(is)%cells(ic)%col_ulim(ifq)=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%col_llim(ifq)+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%ncol-1
-             enddo
-             self%kyb(ik)%supercells(is)%cells(ic)%ncol_tot=self%kyb(ik)%supercells(is)%cells(ic)%ncol*nfq
-
-             !Now allocate row blocks
-             allocate(self%kyb(ik)%supercells(is)%cells(ic)%rb(self%kyb(ik)%supercells(is)%cells(ic)%nrb))
-
-             !/Now make row block objects
-             do ifq=1,nfq
-                !Store basic properties
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ir_ind=ifq
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%is_ind=is
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ik_ind=ik
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ic_ind=ic
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%it_ind=it
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol=self%kyb(ik)%supercells(is)%cells(ic)%ncol
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim=1+&
-                     (ic-1)*(2*ntgrid)+&
-                     (ifq-1)*self%kyb(ik)%supercells(is)%nextend
-                self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_ulim=&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%col_llim+&
-                     self%kyb(ik)%supercells(is)%cells(ic)%rb(ifq)%ncol-1
-             enddo
-
-             !Update it
-             if(ic.lt.ncells(is_to_itmin(is,ik),ik)) it=itright(it, ik)
-
-          enddo
-       enddo
-    enddo
+    do ik = 1, naky
+       call self%kyb(ik)%init(ik, is_to_itmin(:, ik), n_supercells(ik), nfield, self%nbound)
+    end do
 
     !Free memory
-    deallocate(nsuper,supercell_ids,ncells,is_to_itmin)
+    deallocate(supercell_ids, is_to_itmin)
   end subroutine fm_init
 
   !> Find the response of g to delta-fn field perturbations 
@@ -2081,7 +2163,8 @@ contains
           !Set the duplicate boundary point if we're at the left
           !boundary of this call and we are not the leftmost cell in
           !the chain.
-          if ((ig == -ntgrid) .and. (it /= self%kyb(ik)%supercells(is)%it_left)) then
+          if ((ig == -ntgrid) .and. &
+               (it /= self%kyb(ik)%supercells(is)%it_leftmost)) then
              !Get the left connection
              it = self%kyb(ik)%supercells(is)%get_left_it(it)
              field(ntgrid, it, ik) = 1.0
@@ -2171,13 +2254,15 @@ contains
           is = self%kyb(ik)%is_from_it(it_cur)
 
           !Also zero out the boundary point if needed
-          if((ig_cur == -ntgrid) .and. (it_cur /= self%kyb(ik)%supercells(is)%it_left)) then
+          if((ig_cur == -ntgrid) .and. &
+               (it_cur /= self%kyb(ik)%supercells(is)%it_leftmost)) then
              it = self%kyb(ik)%supercells(is)%get_left_it(it_cur)
              field(ntgrid, it, ik) = 0.0
           end if
 
           !Now store data
-          call self%kyb(ik)%store_fq(fieldeq, fieldeqa, fieldeqp, ifl, it_cur, ig_cur)
+          call self%kyb(ik)%store_fq(fieldeq(:, :, ik), fieldeqa(:, :, ik), &
+               fieldeqp(:, :, ik), ifl, it_cur, ig_cur)
        end do !Ends loop over points
     end do !Ends loop over ky
     !$OMP END PARALLEL DO
@@ -2202,7 +2287,8 @@ contains
     !has the potential to be quite slow. However, as the cost per inversion
     !can be quite variable (due to very variable length supercell domains)
     !it may make more sense to OpenMP at the next level down (i.e. the kyb)
-    !so we're more likely to be sharing work a bit more fairly.
+    !so we're more likely to be sharing work a bit more fairly. Also, at scale
+    !one might expect most of the ky to be "empty" on a given processor.
     do ik=1,self%naky
        call self%kyb(ik)%prepare(self%prepare_type)
     enddo
@@ -2217,19 +2303,6 @@ contains
     complex, dimension(:,:,:), intent(inout) :: phi,apar,bpar
     integer :: ik, is
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik, is) &
-    !$OMP SHARED(self) &
-    !$OMP SCHEDULE(static)
-    do ik=1,self%naky
-       if(.not.self%kyb(ik)%is_local) cycle
-       do is=1,self%kyb(ik)%nsupercell
-          if(.not.self%kyb(ik)%supercells(is)%is_local) cycle
-          self%kyb(ik)%supercells(is)%tmp_sum=0.0
-       enddo
-    enddo
-    !$OMP END PARALLEL DO
-
     !First get the field eq
     if(pc%has_to_gather)then
        call getfieldeq(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
@@ -2238,11 +2311,10 @@ contains
        call self%getfieldeq_nogath(phi,apar,bpar,fieldeq,fieldeqa,fieldeqp)
     endif
 
-    !Now get the field update for each ik
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ik) &
-    !$OMP SHARED(self, fieldeq, fieldeqa, fieldeqp) &
-    !$OMP SCHEDULE(static)
+    ! Now get the field update for each ik. Note that we don't OpenMP
+    ! here as at scale the majority of kyb will not be local so it is
+    ! expected to be better to OpenMP at the supercell level when
+    ! iterating over cells.
     do ik=1,self%naky
        !Skip non-local ky
        if(.not.self%kyb(ik)%is_local) cycle
@@ -2526,6 +2598,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, intspec_sub
     use array_utils, only: zero_array, copy
+    use optionals, only: get_option_with_default
     implicit none
     class(fieldmat_type), intent(inout) :: self
     complex, dimension(:,:,:), intent(inout) :: ph,ap,bp
@@ -2541,12 +2614,10 @@ contains
     logical :: x_is_not_split
 
     !Set the to_all flag
-    to_all=.false.
-    if(present(to_all_in)) to_all=to_all_in
+    to_all = get_option_with_default(to_all_in, .false.)
 
     !Set the do_allreduce flag
-    do_allreduce=.false.
-    if(present(do_allreduce_in)) do_allreduce=do_allreduce_in
+    do_allreduce = get_option_with_default(do_allreduce_in, .false.)
     
     !Shouldn't do to_all if do_allreduce
     if(do_allreduce) to_all=.false.
@@ -2703,15 +2774,15 @@ contains
        ifl=0
        if(has_phi) then
           ifl=ifl+1
-          ph=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), ph)
        endif
        if(has_apar) then
           ifl=ifl+1
-          ap=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), ap)
        endif
        if(has_bpar) then
           ifl=ifl+1
-          bp=tmp(:,:,:,ifl)
+          call copy(tmp(:,:,:,ifl), bp)
        endif
     endif
 
@@ -3908,6 +3979,7 @@ contains
   subroutine init_fields_matrixlocal(tuning_in)
     use mp, only: proc0, mp_abort, land_allreduce
     use file_utils, only: error_unit
+    use optionals, only: get_option_with_default
     implicit none
     logical, optional :: tuning_in
     logical :: tuning
@@ -3917,10 +3989,7 @@ contains
     !Exit if we've already initialised
     if(initialised) return
 
-    tuning = .false.
-    if(present(tuning_in)) then
-       tuning = tuning_in
-    end if
+    tuning = get_option_with_default(tuning_in, .false.)
 
     if(.not.reinit)then
        !Use the fieldmat init routine to create fieldmat
@@ -4123,6 +4192,7 @@ contains
   !> Calculate the update to the fields
   subroutine getfield_local(phi,apar,bpar,do_gather_in,do_update_in)
     use unit_tests, only: debug_message
+    use optionals, only: get_option_with_default
     implicit none
     complex, dimension(:,:,:), intent(out) :: phi,apar,bpar !Note, these are actually phinew,... in typical usage
     logical, optional, intent(in) :: do_gather_in, do_update_in
@@ -4131,10 +4201,8 @@ contains
 
     !Set gather flag, this currently always needs to be true for
     !correct operation.
-    do_gather=.false.
-    if(present(do_gather_in)) do_gather=do_gather_in
-    do_update=.false.
-    if(present(do_update_in)) do_update=do_update_in
+    do_gather = get_option_with_default(do_gather_in, .false.)
+    do_update = get_option_with_default(do_update_in, .false.)
 
     call debug_message(verb, &
         'fields_local::getfield_local calling get_field_update')
@@ -4186,6 +4254,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: get_mp_times
     use job_manage, only: time_message
+    use array_utils, only: copy
     implicit none
     integer, intent(in) :: istep
     logical, intent(in) :: remove_zonal_flows_switch
@@ -4211,13 +4280,13 @@ contains
     if(abs(g_exb*g_exbfac).gt.epsilon(0.)) call exb_shear(gnew,phinew,aparnew,bparnew,istep,field_local_allreduce_sub)
 
     !Update g and fields
-    g=gnew
+    call copy(gnew,g)
     if(do_update)then !Here we tie the "smart" update to do_update
        call fieldmat%update_fields_newstep
     else
-       if (has_phi) phi = phinew
-       if (has_apar) apar = aparnew
-       if (has_bpar) bpar = bparnew
+       if (has_phi) call copy(phinew, phi)
+       if (has_apar) call copy(aparnew, apar)
+       if (has_bpar) call copy(bparnew, bpar)
     endif
 
     call debug_message(verb, &
