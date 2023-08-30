@@ -830,6 +830,9 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
+    !> Local array used to store the adjusted input dfn if needed. Saves
+    !> calling g_adjust twice.
+    complex, dimension (-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc) :: g2
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     logical, intent(in), optional :: adjust
     logical :: should_adjust
@@ -857,7 +860,8 @@ contains
     
     !Form g1=i*ky*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+    if (should_adjust) call g_adjust(g1, phi, bpar, direction = from_g_gs2)
+    call copy(g1, g2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
@@ -901,32 +905,28 @@ contains
        call transform2 (g1, ba)
     end if
 
-    !Form g1=i*kx*g_wesson
-    call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+    !Form g1=i*kx*g_wesson noting that g2 holds our starting g_wesson
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it) &
-    !$OMP SHARED(g_lo, g1, akx) &
+    !$OMP SHARED(g_lo, g2, akx) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
-       g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
+       g2(:,:,iglo) = g2(:,:,iglo) * zi * akx(it)
     enddo
     !$OMP END PARALLEL DO
-    
+
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, agb, ia)
+       call transform2 (g2, agb, ia)
     else
-       call transform2 (g1, gb)
+       call transform2 (g2, gb)
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
 
-    if (use_cfl_limit) then
-       call get_max_vel(cflx)
-    end if
+    if (use_cfl_limit) call get_max_vel(cflx)
 
     call calculate_bracket(.false.)
     
