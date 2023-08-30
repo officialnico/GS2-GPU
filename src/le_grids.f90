@@ -964,12 +964,13 @@ contains
 
     !Ensure array is zero to begin
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -978,7 +979,6 @@ contains
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
@@ -990,13 +990,12 @@ contains
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
@@ -1039,12 +1038,13 @@ contains
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
     call zero_array(total_small)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1053,7 +1053,6 @@ contains
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
@@ -1065,13 +1064,12 @@ contains
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
@@ -1127,6 +1125,7 @@ contains
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1139,7 +1138,6 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type == tracer_species) cycle
                    total(:,it,ik) = total(:,it,ik) + &
                         (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
@@ -1153,7 +1151,6 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type == tracer_species) cycle
                    total(:,it,ik) = total(:,it,ik) + &
                         (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
@@ -1188,7 +1185,7 @@ contains
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
        do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -1199,7 +1196,6 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type == tracer_species) cycle
                    total(:,it,ik) = total(:,it,ik) + &
                         (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
@@ -1214,7 +1210,6 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type == tracer_species) cycle
                    total(:,it,ik) = total(:,it,ik) + &
                         (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
@@ -1290,18 +1285,17 @@ contains
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
     call zero_array(total_flat)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, ntheta0) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, ntheta0) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
@@ -1319,13 +1313,12 @@ contains
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, naky) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, naky) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
           is = is_idx(g_lo,iglo)
-          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
@@ -1389,15 +1382,14 @@ contains
     integer :: is, il, ie, ik, it, ig, ielo
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
-    !$OMP SHARED(lo, negrid, spec, weights, w, wl, g) &
+    !$OMP SHARED(lo, negrid, weights, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
        is = is_idx(lo,ielo)
-       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
        it = it_idx(lo,ielo)
@@ -1431,14 +1423,14 @@ contains
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
        is = is_idx(lo,ilzlo)
-       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
        it = it_idx(lo,ilzlo)
@@ -1486,14 +1478,14 @@ contains
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, negrid, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, negrid, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
        is = is_idx(lo,ile)
-       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
