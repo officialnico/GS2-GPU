@@ -958,18 +958,19 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, iglo
 
     !Ensure array is zero to begin
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -977,34 +978,32 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1025,7 +1024,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     complex, dimension(:,:,:),allocatable :: total_small
     integer :: is, il, ie, ik, it, iglo
@@ -1039,12 +1038,13 @@ contains
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
     call zero_array(total_small)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1052,34 +1052,32 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1122,11 +1120,12 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:, :, :, :, :, :), allocatable :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1139,9 +1138,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1153,9 +1151,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1183,12 +1180,12 @@ contains
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
        do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -1199,9 +1196,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1214,7 +1210,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1236,7 +1233,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (0:,:,:), intent (out) :: total
     logical, intent(in), optional :: nogath
     logical, intent(in), optional :: gf_lo
@@ -1288,20 +1285,20 @@ contains
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
     call zero_array(total_flat)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, ntheta0) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, ntheta0) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1309,23 +1306,22 @@ contains
           nr=nl+(2*ntgrid)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, naky) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, naky) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1333,9 +1329,8 @@ contains
           nr=nl+(2*ntgrid)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1382,31 +1377,29 @@ contains
 
     type (e_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
-    !$OMP SHARED(lo, negrid, spec, weights, w, wl, g) &
+    !$OMP SHARED(lo, negrid, weights, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ielo)
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
        it = it_idx(lo,ielo)
-       is = is_idx(lo,ielo)
 !CMR: in e_lo il is lambda index, and isign is separate.
        il = il_idx(lo,ielo)
        !Perform local sum
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
-              total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(ie,ielo)
-          end do
-       end if
+       do ie=1, negrid
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(ie,ielo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1425,22 +1418,23 @@ contains
 
     type (lz_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ilzlo)
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
        it = it_idx(lo,ilzlo)
        ie = ie_idx(lo,ilzlo)
-       is = is_idx(lo,ilzlo)
        !Perform local sum
 !CMR: in lz_lo il muxt be obtained from local index ixi, which includes isign.
 !CMR, 2/10/2013:
@@ -1450,13 +1444,11 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       if (spec(is)%type .NE. tracer_species) then
-          do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
-             total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(il,ilzlo)
-          end do
-       end if
+       do ixi=1, nxi+1
+          il = ixi_to_il(ig,ixi)
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1481,24 +1473,24 @@ contains
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, negrid, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, negrid, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ile)
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
-       is = is_idx (lo,ile)
 
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
+       do ie=1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1506,12 +1498,12 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
-             do ixi=1, nxi+1
-                il = ixi_to_il(ig,ixi)
-                total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
-             end do
+          do ixi=1, nxi+1
+             il = ixi_to_il(ig,ixi)
+             total(ig,it,ik) = total(ig,it,ik) + &
+                  (weights(is)*w(ie,is)) * wl(ig,il) * g(ixi,ie,ile)
           end do
-       end if
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species

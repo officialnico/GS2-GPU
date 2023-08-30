@@ -105,7 +105,7 @@ program test_le_grids
       use gs2_layouts, only: g_lo
 
       complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (inout) :: g
-      real, dimension (:), intent (in) :: weights
+      real, dimension (:), intent (in out) :: weights
       integer, dimension (:), intent (in) :: sizes
       complex, dimension (:,:,:), allocatable :: total
       complex, dimension (-ntgrid:,:,:), intent(in) :: result
