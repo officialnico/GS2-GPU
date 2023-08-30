@@ -6144,17 +6144,8 @@ contains
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, ig
     logical :: local_local_only
-    integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
     local_local_only = get_option_with_default(local_only, .false.)
-
-    if (local_local_only) then
-       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
-       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
-    else
-       it_llim = 1 ; it_ulim = ntheta0
-       ik_llim = 1 ; ik_ulim = naky
-    end if
 
     !Don't do this as integrate_species will fill in all values
     !    antot=0. ; antota=0. ; antotp=0.
