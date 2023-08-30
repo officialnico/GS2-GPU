@@ -1786,20 +1786,21 @@ contains
     end do
   end subroutine init_wstar
 
-  !> FIXME : Add documentation  
+  !> Compute and store the Bessel functions required for future usage,
+  !> aj0 and aj1.
+  !>
+  !> @note j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)),
   subroutine init_bessel
     use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
     use kt_grids, only: kperp2
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy,  al,negrid, nlambda
+    use le_grids, only: energy,  al,negrid, nlambda, forbid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, gf_lo
     use spfunc, only: j0, j1
     implicit none
-
-    integer :: ig, ik, it, il, ie, is
-    integer :: iglo, igf
-    real :: arg
+    integer :: ik, it, il, ie, is, iglo, igf
+    real, dimension(-ntgrid:ntgrid) :: arg
 
     if (bessinit) return
     bessinit = .true.
@@ -1809,7 +1810,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, arg) &
-    !$OMP SHARED(g_lo, ntgrid, spec, energy, al, bmag, kperp2, aj0, aj1) &
+    !$OMP SHARED(g_lo, spec, energy, al, bmag, kperp2, aj0, aj1, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1817,12 +1818,15 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do ig = -ntgrid, ntgrid
-          arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ig)*kperp2(ig,it,ik))
-          aj0(ig,iglo) = j0(arg)
-! CMR 17/1/06: BEWARE, j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)), 
-          aj1(ig,iglo) = j1(arg)
-       end do
+       arg = spec(is)%bess_fac * spec(is)%smz * &
+            sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
+       where (forbid(:, il))
+          aj0(:, iglo) = 0.0
+          aj1(:, iglo) = 0.0
+       elsewhere
+          aj0(:, iglo) = j0(arg)
+          aj1(:, iglo) = j1(arg)
+       end where
     end do
     !$OMP END PARALLEL DO
 
@@ -1832,18 +1836,22 @@ contains
     if(gf_lo_integrate) then
        allocate (aj0_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        allocate (aj1_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
-       
+
        do igf = gf_lo%llim_proc, gf_lo%ulim_proc
           ik = ik_idx(gf_lo,igf)
           it = it_idx(gf_lo,igf)
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   do ig = -ntgrid, ntgrid
-                      arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ig)*kperp2(ig,it,ik))
-                      aj0_gf(ig,is,ie,il,igf) = j0(arg)
-                      aj1_gf(ig,is,ie,il,igf) = j1(arg)
-                   end do
+                   arg = spec(is)%bess_fac * spec(is)%smz * &
+                        sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
+                   where (forbid(:, il))
+                      aj0_gf(:, is, ie, il, igf) = 0.0
+                      aj1_gf(:, is, ie, il, igf) = 0.0
+                   else where
+                      aj0_gf(:, is, ie, il, igf) = j0(arg)
+                      aj1_gf(:, is, ie, il, igf) = j1(arg)
+                   end where
                 end do
              end do
           end do
