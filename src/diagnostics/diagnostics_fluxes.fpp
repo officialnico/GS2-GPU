@@ -922,6 +922,11 @@ contains
        exchange2(1, 1, :) = 0.0
     end if
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, is, il, ie, isgn, ig, dgdt_hypervisc) &
+    !$OMP SHARED(g_lo, nonlin, g_work, ntgrid, forbid, aj0, code_dt, &
+    !$OMP gnew, spec, hypervisc_filter, vpac, gradpar, delthet) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
        ik = ik_idx(g_lo,iglo)
@@ -964,9 +969,15 @@ contains
 
        end do
     end do
+    !$OMP END PARALLEL DO
 
     call integrate_moment (g_work, total)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(is, ik, it) &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange1, total, phinew) &
+    !$OMP COLLAPSE(3) &
+    !$OMP SCHEDULE(static)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
@@ -976,23 +987,40 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, g_work, aj0, gnew, g) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)+g(:,isgn,iglo))
        end do
     end do
+    !$OMP END PARALLEL DO
     call integrate_moment (g_work, total)
 
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, isgn) &
+    !$OMP SHARED(g_lo, g_work, aj0, gnew, g) &
+    !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           g_work(:,isgn,iglo) = aj0(:,iglo)*0.25*(gnew(:,isgn,iglo)-g(:,isgn,iglo))
        end do
     end do
+    !$OMP END PARALLEL DO
     call integrate_moment (g_work, total2)
 
     ! exchange2 is a symmetrized form of energy exchange,
     ! which guarantees species-summed energy exchange is zero
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(is, ik, it) &
+    !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange2, total, &
+    !$OMP phinew, total2, phi, code_dt) &
+    !$OMP COLLAPSE(3) &
+    !$OMP SCHEDULE(static)
     do is = 1, nspec
        do ik = 1, naky
           do it = 1, ntheta0
@@ -1005,6 +1033,7 @@ contains
           end do
        end do
     end do
+    !$OMP END PARALLEL DO
 
     deallocate (total, total2)
 
