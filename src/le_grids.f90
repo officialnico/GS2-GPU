@@ -977,14 +977,14 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
@@ -995,16 +995,16 @@ contains
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1052,14 +1052,14 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
@@ -1070,16 +1070,16 @@ contains
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1139,9 +1139,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   if (spec(is)%type == tracer_species) cycle
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1153,9 +1153,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   if (spec(is)%type == tracer_species) cycle
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1199,9 +1199,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   if (spec(is)%type == tracer_species) cycle
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1214,7 +1214,9 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   if (spec(is)%type == tracer_species) cycle
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1298,10 +1300,11 @@ contains
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1309,9 +1312,8 @@ contains
           nr=nl+(2*ntgrid)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
@@ -1322,10 +1324,11 @@ contains
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
+          if (spec(is)%type == tracer_species) cycle
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1333,9 +1336,8 @@ contains
           nr=nl+(2*ntgrid)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1394,19 +1396,18 @@ contains
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ielo)
+       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
        it = it_idx(lo,ielo)
-       is = is_idx(lo,ielo)
 !CMR: in e_lo il is lambda index, and isign is separate.
        il = il_idx(lo,ielo)
        !Perform local sum
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
-              total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(ie,ielo)
-          end do
-       end if
+       do ie=1, negrid
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(ie,ielo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1436,11 +1437,12 @@ contains
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ilzlo)
+       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
        it = it_idx(lo,ilzlo)
        ie = ie_idx(lo,ilzlo)
-       is = is_idx(lo,ilzlo)
        !Perform local sum
 !CMR: in lz_lo il muxt be obtained from local index ixi, which includes isign.
 !CMR, 2/10/2013:
@@ -1450,13 +1452,11 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       if (spec(is)%type .NE. tracer_species) then
-          do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
-             total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(il,ilzlo)
-          end do
-       end if
+       do ixi=1, nxi+1
+          il = ixi_to_il(ig,ixi)
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1492,13 +1492,13 @@ contains
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ile)
+       if (spec(is)%type == tracer_species) cycle
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
-       is = is_idx (lo,ile)
 
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
+       do ie=1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1506,12 +1506,12 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
-             do ixi=1, nxi+1
-                il = ixi_to_il(ig,ixi)
-                total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
-             end do
+          do ixi=1, nxi+1
+             il = ixi_to_il(ig,ixi)
+             total(ig,it,ik) = total(ig,it,ik) + &
+                  (weights(is)*w(ie,is)) * wl(ig,il) * g(ixi,ie,ile)
           end do
-       end if
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
