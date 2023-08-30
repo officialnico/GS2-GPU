@@ -1786,7 +1786,10 @@ contains
     end do
   end subroutine init_wstar
 
-  !> FIXME : Add documentation  
+  !> Compute and store the Bessel functions required for future usage,
+  !> aj0 and aj1.
+  !>
+  !> @note j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)),
   subroutine init_bessel
     use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
     use kt_grids, only: kperp2
@@ -1822,7 +1825,6 @@ contains
           aj1(:, iglo) = 0.0
        elsewhere
           aj0(:, iglo) = j0(arg)
-          ! CMR 17/1/06: BEWARE, j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)),
           aj1(:, iglo) = j1(arg)
        end where
     end do
