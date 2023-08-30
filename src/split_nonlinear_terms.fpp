@@ -541,7 +541,7 @@ contains
              error_array(:, :, iglo) = gnl_1(:, :, iglo) - gnl_2(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
-          errors(1) = gs2_max_abs(error_array) * (0.5 * 0.5 * actual_dt)
+          errors(1) = gs2_max_abs(error_array) * (0.5 * half_time)
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
