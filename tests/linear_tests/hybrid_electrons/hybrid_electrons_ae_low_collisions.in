@@ -1,6 +1,10 @@
 !include basic_settings.in
 
-!include ae_low_coll.in
+&test_settings
+  tolerance = 1.0e-5
+  gamma_expected = 0.901177E-001
+  omega_expected = 0.17350282571035150
+/
 
 &species_knobs
     nspec = 1
