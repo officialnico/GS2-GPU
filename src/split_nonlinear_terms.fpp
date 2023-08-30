@@ -823,6 +823,7 @@ contains
     real, parameter :: time_step_factor = 2.0
     logical, parameter :: check_cfl = .true.
     logical :: converged
+    real :: half_time
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
@@ -836,6 +837,7 @@ contains
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        call copy(gnew, g_start)
+       half_time = 0.5 * time_step
 
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        ipic = 1
@@ -850,7 +852,7 @@ contains
        nrhs_calls = nrhs_calls + 1
 
        errors(1) = 0.0
-       errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
+       errors(2) = gs2_max_abs(gnl_1) * half_time
        errors(3) = gs2_max_abs(g_start)
        errors(4) = max_vel
        call max_allreduce(errors)
@@ -864,16 +866,17 @@ contains
           if(proc0.and.debug) print*,'Dropping time step due to cfl from',time_step,'to',cfl_limit
           errors(2) = errors(2) * cfl_limit / time_step
           time_step = cfl_limit
+          half_time = time_step * 0.5
        end if
 
        converged = picard_converged(errors)
 
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
-       !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
+       !$OMP SHARED(gnew, g_start, gnl_1, half_time, g_lo)&
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
+          gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * half_time
        end do
        !$OMP END PARALLEL DO
 
@@ -893,7 +896,7 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = errors(2)
-          errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
+          errors(2) = gs2_max_abs(gnl_1) * half_time
           errors(4) = max_vel
           call max_allreduce(errors)
           cfl_limit = 1.0 / errors(4)
@@ -906,10 +909,10 @@ contains
 
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
+          !$OMP SHARED(gnew, g_start, gnl_1, half_time, g_lo)&
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
+             gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * half_time
           end do
           !$OMP END PARALLEL DO
        end do
