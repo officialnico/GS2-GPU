@@ -958,7 +958,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, iglo
 
@@ -1024,7 +1024,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     complex, dimension(:,:,:),allocatable :: total_small
     integer :: is, il, ie, ik, it, iglo
@@ -1120,7 +1120,7 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:, :, :, :, :, :), allocatable :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
@@ -1180,7 +1180,7 @@ contains
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
@@ -1233,7 +1233,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (0:,:,:), intent (out) :: total
     logical, intent(in), optional :: nogath
     logical, intent(in), optional :: gf_lo
@@ -1377,7 +1377,7 @@ contains
 
     type (e_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
@@ -1418,7 +1418,7 @@ contains
 
     type (lz_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
@@ -1473,7 +1473,7 @@ contains
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
