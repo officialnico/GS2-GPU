@@ -668,8 +668,8 @@ contains
           stage_coeffs = half_time * scheme%coeffs(:, istage)
 
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(istage_sub, iglo, stage_coeffs) &
-          !$OMP SHARED(g_lo, gnew, half_time, scheme, stages, istage) &
+          !$OMP PRIVATE(istage_sub, iglo) &
+          !$OMP SHARED(g_lo, gnew, half_time, scheme, stages, istage, stage_coeffs) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage_sub = 1, istage-1
@@ -764,8 +764,8 @@ contains
           !$OMP END PARALLEL DO
 
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(istage, iglo, stage_coeffs) &
-          !$OMP SHARED(g_lo, g, solution_coeffs, nstages, half_time, stages) &
+          !$OMP PRIVATE(istage, iglo) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, nstages, half_time, stages, stage_coeffs) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage = 2, nstages
