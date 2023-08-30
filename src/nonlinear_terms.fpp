@@ -832,7 +832,7 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
     !> Local array used to store the adjusted input dfn if needed. Saves
     !> calling g_adjust twice.
-    complex, dimension (-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc) :: g2
+    complex, dimension (-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc) :: g2
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     logical, intent(in), optional :: adjust
     logical :: should_adjust
@@ -860,10 +860,8 @@ contains
     
     !Form g1=i*ky*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) then
-       call g_adjust(g1,phi,bpar, direction = from_g_gs2)
-       call copy(g1, g2)
-    end if
+    if (should_adjust) call g_adjust(g1, phi, bpar, direction = from_g_gs2)
+    call copy(g1, g2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
