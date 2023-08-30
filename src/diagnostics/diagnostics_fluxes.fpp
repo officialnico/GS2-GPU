@@ -901,7 +901,7 @@ contains
     use species, only: spec, nspec
     use nonlinear_terms, only: nonlin
     use hyper, only: hypervisc_filter
-
+    use array_utils, only: zero_array
     implicit none
 
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, phi
@@ -910,8 +910,11 @@ contains
     complex :: dgdt_hypervisc
     complex, dimension (:,:,:,:), allocatable :: total, total2
 
-    allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total = 0.0
-    allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec)) ; total2 = 0.0
+    allocate (total(-ntgrid:ntgrid, ntheta0, naky, nspec))
+    allocate (total2(-ntgrid:ntgrid, ntheta0, naky, nspec))
+    ! Currently zero_array only distributes over the last dimension (nspec here)
+    ! so there's limited parallelisation available here.
+    call zero_array(total) ; call zero_array(total2)
 
     ! Zero elements not set in main loops
     if (nonlin) then
