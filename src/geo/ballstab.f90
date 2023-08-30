@@ -21,7 +21,7 @@ module ballstab
   
   logical :: make_salpha
   integer :: n_shat, n_beta
-  real :: shat_min, shat_max
+  real :: shat_min, shat_max, theta0
   real :: beta_mul, beta_div
   real, dimension(:), allocatable :: shat_arr, beta_arr, dbdrho_arr
   integer, dimension(:,:), allocatable :: stability
@@ -29,6 +29,11 @@ module ballstab
 
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
+
+  interface is_unstable
+     module procedure is_unstable_use_geo
+     module procedure is_unstable_use_passed
+  end interface is_unstable
 
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
@@ -62,6 +67,10 @@ module ballstab
      !>
      !> @note This gets a smart default of the equilibrium value of \(\hat{s}\)
      real :: shat_min = 0.0
+     !> The theta0 value to use in solving the ideal ballooning problem. We don't
+     !> currently provide a means to study multiple theta0 in a single run. This
+     !> may change in the future.
+     real :: theta0 = 0.0
    contains
      procedure, public :: read => read_ballstab_config
      procedure, public :: write => write_ballstab_config
@@ -147,6 +156,7 @@ contains
     n_shat = ballstab_config%n_shat
     shat_max = ballstab_config%shat_max
     shat_min = ballstab_config%shat_min
+    theta0 = ballstab_config%theta0
 
     exist = ballstab_config%exist
   end subroutine read_parameters
@@ -339,23 +349,22 @@ contains
     end select
   end subroutine set_beta_prime
 
-  !> Runs the stability check scan
+  !> Runs the stability check scan for the module level shat/beta array values
   subroutine run_stability_check
     use file_utils, only: open_output_file, close_output_file
     implicit none
-    integer :: stab
     integer :: is, ib
 
     !Exit if not initialised
     if(.not.initialised) return
 
     !Check stability over range
-    do ib=1,n_beta
-       do is=1,n_shat
-          call check_stability(shat_arr(is),beta_arr(ib),ib,stab)
-          stability(is,ib)=stab
-       enddo
-    enddo
+    do ib = 1, n_beta
+       do is = 1, n_shat
+          call check_stability(shat_arr(is), beta_arr(ib), &
+               dbdrho_arr(ib), stability(is, ib), theta0)
+       end do
+    end do
   end subroutine run_stability_check
 
   !> Routine to write out stability data to 1D ascii file
@@ -413,14 +422,16 @@ contains
   end subroutine write_stability_ascii_2d
 
   !> Test if given shat/beta is unstable
-  subroutine check_stability(shat_in, beta_prime_in, ib, iunstable, restore)
+  subroutine check_stability(shat_in, beta_prime_in, dbetadrho_out, &
+       iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
     use geometry, only: dbetadrho, eikcoefs
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
-    integer, intent(in) :: ib
+    real, intent(out) :: dbetadrho_out
     integer, intent(out) :: iunstable
+    real, intent(in), optional :: theta0
     logical, intent(in), optional :: restore
     real :: shat_bak, beta_prime_bak
     
@@ -436,11 +447,11 @@ contains
     call set_shat(shat_in)
     call eikcoefs(ntheta) !Recalculate geometry terms
 
-    !Here we store the value of dbetadrho, this should be bishop value independent
-    dbdrho_arr(ib)=dbetadrho
+    !Here we pass out the value of dbetadrho, this should be bishop value independent
+    dbetadrho_out = dbetadrho
 
     !Test stability
-    iunstable=is_unstable()
+    iunstable = is_unstable(theta0)
 
     !Restore geometry if requested
     if(present(restore))then
@@ -452,21 +463,20 @@ contains
     endif
   end subroutine check_stability
 
-  !> Test stability of current system -- return integer
-  integer function is_unstable()
-    !Note iunstable>0 means unstable - Could use a logical but size may be interesting
-    !Assumes a call has been made to eikcoefs so that geometry terms are setup correctly
-!<DD> NEED TO IMPROVE VARIABLE NAMES
+  !> Test stability of current system for passed theta0 -- return integer
+  !>
+  !> Note is_unstable>0 means unstable - Could use a logical but size
+  !> may be interesting.
+  !>
+  !> Assumes a call has been made to eikcoefs so that geometry terms
+  !> are setup correctly and passes these to generic is_unstable
+  !> implementation
+  integer function is_unstable_use_geo(theta0_in) result(is_unstable_out)
     use geometry, only: gds2, gradpar, bmag, cvdrift, dbetadrho, theta
+    use geometry, only: gds21, gds22, cvdrift0
     implicit none
-    real, dimension(:), allocatable :: g, c, psi, c1, c2, ch, g1, g2, gh, delthet
-    integer :: ig, ntgrid
-    real :: cflmax, cflmin, one_m_diff, psi_prime
-    logical, parameter :: debug = .false.
-
-    !Initialise
-    is_unstable=0
-    one_m_diff=1.-diff
+    real, intent(in), optional :: theta0_in
+    integer :: ntgrid
 
     !Note we don't use theta_grid:ntgrid as in the case that
     !gridgen resizes the theta grid used by GS2 we don't end up
@@ -475,25 +485,50 @@ contains
     !need some way to force theta_grid to update it's internal arrays when we
     !change parameters
     ntgrid=ubound(theta,1)
- 
+
+    is_unstable_out = is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
+         gds2, gds21, gds22, cvdrift, cvdrift0, theta0)
+  end function is_unstable_use_geo
+
+  !> Test stability of current system for passed theta0 and geometry -- return integer
+  !>
+  !> Note is_unstable>0 means unstable - Could use a logical but size
+  !> may be interesting.
+  integer function is_unstable_use_passed(ntgrid, theta, bmag, dbetadrho, gradpar, &
+       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) result(is_unstable_out)
+    use optionals, only: get_option_with_default
+    implicit none
+    integer, intent(in) :: ntgrid
+    real, dimension(-ntgrid:ntgrid), intent(in) :: theta, bmag, gradpar
+    real, intent(in) :: dbetadrho
+    real, dimension(-ntgrid:ntgrid), intent(in) :: gds2, gds21, gds22, cvdrift, cvdrift0
+    real, intent(in), optional :: theta0_in
+    !<DD> NEED TO IMPROVE VARIABLE NAMES
+    real, dimension(-ntgrid:ntgrid) :: g, c, psi, c1, c2, ch, g1, g2, gh
+    real, dimension(-ntgrid:ntgrid-1) :: delthet
+    integer :: ig
+    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
+    logical, parameter :: debug = .false.
+
+    !Initialise
+    theta0 = get_option_with_default(theta0_in, 0.0)
+    is_unstable_out = 0
+    one_m_diff = 1 - diff
+
     !Calculate geometry arrays
-    allocate(delthet(-ntgrid:ntgrid))
-    delthet(:ntgrid-1) = theta(-ntgrid+1:) - theta(:ntgrid-1)
+    delthet = theta(-ntgrid+1:) - theta(:ntgrid-1)
 
-    allocate(g(-ntgrid:ntgrid),c(-ntgrid:ntgrid))
-    g = gds2*gradpar/bmag
-    c = -0.5*dbetadrho*cvdrift/(bmag*gradpar)
+    g = (gds2 + 2 * theta0 * gds21 + theta0**2 * gds22) * gradpar / bmag
+    c = -0.5 * dbetadrho * (cvdrift + theta0 * cvdrift0) / (bmag * gradpar)
 
-    allocate(g1(-ntgrid:ntgrid), c1(-ntgrid:ntgrid))
-    allocate(g2(-ntgrid:ntgrid), c2(-ntgrid:ntgrid))
-    allocate(gh(-ntgrid:ntgrid), ch(-ntgrid:ntgrid))
-    allocate(psi(-ntgrid:ntgrid))
-
+    ! Get grid centre values -- note we don't set the value at -ntgrid
     do ig=-ntgrid+1, ntgrid
        ch(ig)=0.5*(c(ig)+c(ig-1))
        gh(ig)=0.5*(g(ig)+g(ig-1))
     enddo
 
+    ! Note this section (with writes) prevents us from marking this function
+    ! as pure.
     if(debug) then
        cflmax = delthet(-ntgrid)**2
        cflmax = cflmax*(c(-ntgrid+1)+c(-ntgrid))/(g(-ntgrid+1)+g(-ntgrid))
@@ -507,15 +542,15 @@ contains
        write(6,'("These should be much less than 1")') !Could actually do a quantitative check
     endif
 
-    !Calculate coefficients
+    !Calculate coefficients -- note we don't set the value at -ntgrid or ntgrid
     do ig=-ntgrid+1,ntgrid-1
-       c1(ig) = -delthet(ig)*(one_m_diff*c(ig)+0.5*diff*ch(ig+1))&
-            -delthet(ig-1)*(one_m_diff*c(ig)+0.5*diff*ch(ig))&
+       c1(ig) = -delthet(ig)*(one_m_diff*c(ig)+0.5*diff*ch(ig+1)) &
+            -delthet(ig-1)*(one_m_diff*c(ig)+0.5*diff*ch(ig)) &
             -delthet(ig-1)*0.5*diff*ch(ig)
        c1(ig)=0.5*c1(ig)
     enddo
 
-    !Calculate coefficients
+    !Calculate coefficients -- note we don't set the value at -ntgrid
     do ig=-ntgrid+1,ntgrid
        c2(ig) = -0.25*diff*ch(ig)*delthet(ig-1)
        g1(ig) = gh(ig)/delthet(ig-1)
@@ -535,15 +570,14 @@ contains
 
     !Find how many times psi crosses axis || Actually how many times it hits zero
     !If we really do just want to count crossings then need to replace le with lt
+    ! Could we replace this with
+    ! is_unstable_out = count(psi(-ntgrid+1:ntgrid-1) * psi(-ntgrid+2:) <= 0)
     do ig=-ntgrid+1,ntgrid-1
-       if(psi(ig)*psi(ig+1) .le. 0 ) is_unstable=is_unstable+1
+       if(psi(ig)*psi(ig+1) .le. 0 ) is_unstable_out = is_unstable_out + 1
     enddo
 
     !Probably want to think about writing out psi if debug
-
-    !Clean up
-    deallocate(g,c,g1,c1,g2,c2,gh,ch)
-  end function is_unstable
+  end function is_unstable_use_passed
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
@@ -583,9 +617,9 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     integer :: n_beta, n_shat
     logical :: make_salpha
-    real :: beta_div, beta_mul, diff, shat_max, shat_min
+    real :: beta_div, beta_mul, diff, shat_max, shat_min, theta0
 
-    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min
+    namelist /ballstab_knobs/ beta_div, beta_mul, diff, make_salpha, n_beta, n_shat, shat_max, shat_min, theta0
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -599,6 +633,7 @@ contains
     n_shat = self%n_shat
     shat_max = self%shat_max
     shat_min = self%shat_min
+    theta0 = self%theta0
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -613,6 +648,7 @@ contains
     self%n_shat = n_shat
     self%shat_max = shat_max
     self%shat_min = shat_min
+    self%theta0 = theta0
 
     self%exist = exist
   end subroutine read_ballstab_config
@@ -638,6 +674,7 @@ contains
     call self%write_key_val("n_shat", self%n_shat, unit_internal)
     call self%write_key_val("shat_max", self%shat_max, unit_internal)
     call self%write_key_val("shat_min", self%shat_min, unit_internal)
+    call self%write_key_val("theta0", self%theta0, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_ballstab_config
 
@@ -665,6 +702,7 @@ contains
     call broadcast(self%n_shat)
     call broadcast(self%shat_max)
     call broadcast(self%shat_min)
+    call broadcast(self%theta0)
 
     call broadcast(self%exist)
   end subroutine broadcast_ballstab_config
