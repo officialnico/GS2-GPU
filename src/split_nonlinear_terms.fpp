@@ -633,7 +633,8 @@ contains
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
     logical :: cfl_limited
-    real :: half_time, stage_coeff
+    real :: half_time
+    real, dimension(:), allocatable :: stage_coeffs
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
@@ -664,16 +665,16 @@ contains
 
        do istage = 1, nstages
           call copy(g, gnew)
+          stage_coeffs = half_time * scheme%coeffs(:, istage)
 
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(istage_sub, iglo, stage_coeff) &
+          !$OMP PRIVATE(istage_sub, iglo, stage_coeffs) &
           !$OMP SHARED(g_lo, gnew, half_time, scheme, stages, istage) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage_sub = 1, istage-1
-             stage_coeff = half_time * scheme%coeffs(istage_sub, istage)
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
-                gnew(:, :, iglo) = gnew(:, :, iglo) + stage_coeff * stages(:, :, iglo, istage_sub)
+                gnew(:, :, iglo) = gnew(:, :, iglo) + stage_coeffs(istage_sub) * stages(:, :, iglo, istage_sub)
              end do
           end do
           !$OMP END PARALLEL DO
@@ -708,14 +709,13 @@ contains
        !$OMP END PARALLEL DO
 
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, istage, stage_coeff) &
+       !$OMP PRIVATE(iglo, istage) &
        !$OMP SHARED(g_lo, gnl_1, error_coeffs, nstages, stages) &
        !$OMP COLLAPSE(2) &
        !$OMP SCHEDULE(static)
        do istage = 2, nstages
-          stage_coeff = error_coeffs(istage)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             gnl_1(:, :, iglo) = gnl_1(:, :, iglo) + stage_coeff * stages(:, :, iglo, istage)
+             gnl_1(:, :, iglo) = gnl_1(:, :, iglo) + error_coeffs(istage) * stages(:, :, iglo, istage)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -750,28 +750,27 @@ contains
                'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
-          stage_coeff = solution_coeffs(1) * half_time
+          stage_coeffs = solution_coeffs * half_time
           !Update the solution. Note we could probably merge the two
           !OpenMP loops into a single OpenMP parallel region and then
           !just add OMP DO to each loop. This would save a bit of overhead.
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, g, solution_coeffs, stage_coeff, stages) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, stage_coeffs, stages) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             g(:, :, iglo) = g(:, :, iglo) + stage_coeff * stages(:, :, iglo, 1)
+             g(:, :, iglo) = g(:, :, iglo) + stage_coeffs(1) * stages(:, :, iglo, 1)
           end do
           !$OMP END PARALLEL DO
 
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(istage, iglo, stage_coeff) &
+          !$OMP PRIVATE(istage, iglo, stage_coeffs) &
           !$OMP SHARED(g_lo, g, solution_coeffs, nstages, half_time, stages) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage = 2, nstages
-             stage_coeff = solution_coeffs(istage) * half_time
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
-                g(:, :, iglo) = g(:, :, iglo) + stage_coeff * stages(:, :, iglo, istage)
+                g(:, :, iglo) = g(:, :, iglo) + stage_coeffs(istage) * stages(:, :, iglo, istage)
              end do
           end do
           !$OMP END PARALLEL DO
