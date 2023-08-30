@@ -1816,7 +1816,7 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        arg = spec(is)%bess_fac * spec(is)%smz * &
-            sqrt(energy(ie,is) * al(il) / bmag(:) * kperp2(:,it,ik))
+            sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
        where (forbid(:, il))
           aj0(:, iglo) = 0.0
           aj1(:, iglo) = 0.0
@@ -1842,7 +1842,7 @@ contains
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
                    arg = spec(is)%bess_fac * spec(is)%smz * &
-                        sqrt(energy(ie,is) * al(il) / bmag(:) * kperp2(:,it,ik))
+                        sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
                    where (forbid(:, il))
                       aj0_gf(:, is, ie, il, igf) = 0.0
                       aj1_gf(:, is, ie, il, igf) = 0.0
