@@ -866,10 +866,8 @@ contains
   !> Save g slices
   subroutine gs2_save_slice(g_in, it, ik, il, ie, is, time,istatus, nout, fileopt, header)
 # ifdef NETCDF
-    use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists, netcdf_real
+    use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
     use gs2_metadata, only: create_metadata
-    use netcdf, only: NF90_CLOBBER, nf90_create, nf90_open, NF90_WRITE, NF90_NETCDF4, nf90_put_var
-    use file_utils, only: error_unit
     use unit_tests, only: debug_message
     use mp, only: iproc, proc0
     use optionals, only: get_option_with_default
@@ -877,9 +875,11 @@ contains
     use kt_grids, only: aky, akx, naky, ntheta0
     use le_grids, only: energy, al, negrid, nlambda
     use species, only: nspec
+    use theta_grid, only: theta
+    use gs2_layouts, only: proc_id, idx
 # endif
-    use theta_grid, only: ntgrid, theta
-    use gs2_layouts, only: g_lo, proc_id, idx
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
     use standard_header, only : standard_header_type
     implicit none
     !> The distribution function \(g\)
@@ -898,23 +898,15 @@ contains
     type(standard_header_type), optional, intent(in) :: header
 # ifdef NETCDF
     character (run_name_size) :: file_proc
-    integer :: ierr, the_iglo, the_proc, r_handle, s_handle
+    integer :: the_iglo, the_proc
     integer, parameter :: verb = 3
-    ! Netcdf ids for variables only handled in this routine
-    integer (kind_nf) :: theta_id, time_id, gslice_id
-    integer (kind_nf) :: it_id, ik_id, il_id, ie_id, is_id, the_iglo_id, the_proc_id
-    integer (kind_nf) :: kx_id, ky_id, lambda_id, energy_id
-    integer (kind_nf) :: ri_dim, sign_dim, theta_dim, time_dim
-    !> Open new netCDF files with netCDF-4 model, and overwrite existing files
-    integer :: create_file_mode
-    integer, dimension(4) :: gslice_dims
     type(standard_header_type) :: local_header
     character (len=*), parameter :: file_opt_base = '.slice'
     logical :: appending, previous_file_exists
     real, dimension(:, :, :), allocatable :: ri_gslice
     integer, save :: nout_local = 1
     logical :: error_exit
-    istatus = 0
+
     call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
 
     ! Sanity check the inputs
@@ -941,10 +933,6 @@ contains
       local_header = standard_header_type()
     end if
 
-    call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
-
-    ierr = error_unit()
-
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(.false., file_opt_base // fileopt)
 
@@ -961,159 +949,43 @@ contains
     inquire(file=trim(file_proc), exist=previous_file_exists)
     appending = (previous_file_exists .and. nout_local > 1)
 
-    if (.not. appending) then
-       create_file_mode = ior(NF90_NETCDF4, NF90_CLOBBER)
-       istatus = nf90_create (file_proc, create_file_mode, ncid)
+    if (appending) then
+       ncid = neasyf_open(trim(file_proc), 'rw')
     else
-       create_file_mode = NF90_WRITE
-       istatus = nf90_open (file_proc, create_file_mode, ncid)
+       ncid = neasyf_open(trim(file_proc), 'w')
+       call create_metadata(ncid, "GS2 slice file", local_header)
+
+       call debug_message(verb, 'gs2_save::gs2_save_slice defining dimensions')
+       call neasyf_dim(ncid, "ri", dim_size = 2, long_name = "real/imaginary components")
+       call neasyf_dim(ncid, "theta", values = theta, long_name="Poloidal angle", units="rad")
+       call neasyf_dim(ncid, "sign",  dim_size = 2, long_name = "sign of v||")
+       call neasyf_dim(ncid, "t", unlimited = .true., long_name = "Time", units = "L/vt")
+
+       call debug_message(verb, 'gs2_save::gs2_save_slice defining constant variables')
+       call neasyf_write(ncid, "it", it)
+       call neasyf_write(ncid, "ik", ik)
+       call neasyf_write(ncid, "il", il)
+       call neasyf_write(ncid, "ie", ie)
+       call neasyf_write(ncid, "is", is)
+
+       call neasyf_write(ncid, "iglo", the_iglo)
+       call neasyf_write(ncid, "iproc", the_proc)
+
+       call neasyf_write(ncid, "kx", akx(it))
+       call neasyf_write(ncid, "ky", aky(ik))
+       call neasyf_write(ncid, "lambda", al(il))
+       call neasyf_write(ncid, "energy", energy(ie, is))
     end if
 
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_create/open error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    call create_metadata(ncid, "GS2 slice file", local_header)
-
-    call debug_message(verb, 'gs2_save::gs2_save_slice defining dimensions')
-
-    call ensure_netcdf_dim_exists(ncid, 'ri', 2, ri_dim)
-    call ensure_netcdf_dim_exists(ncid, "theta", 2*ntgrid+1, theta_dim)
-    call ensure_netcdf_dim_exists(ncid, "sign", 2, sign_dim)
-    call ensure_netcdf_dim_exists(ncid, 't', NF90_UNLIMITED, time_dim)
-
-    gslice_dims = [ri_dim, theta_dim, sign_dim, time_dim]
-
-    call ensure_netcdf_var_exists(ncid, "t", netcdf_real, [time_dim], time_id)
-    call ensure_netcdf_var_exists(ncid, "g_slice", netcdf_real, gslice_dims, gslice_id)
-    call ensure_netcdf_var_exists(ncid, "theta", netcdf_real, [theta_dim], theta_id)
-
-    call ensure_netcdf_var_exists(ncid, 'it', netcdf_int, it_id)
-    call ensure_netcdf_var_exists(ncid, 'ik', netcdf_int, ik_id)
-    call ensure_netcdf_var_exists(ncid, 'il', netcdf_int, il_id)
-    call ensure_netcdf_var_exists(ncid, 'ie', netcdf_int, ie_id)
-    call ensure_netcdf_var_exists(ncid, 'is', netcdf_int, is_id)
-
-    call ensure_netcdf_var_exists(ncid, 'iglo', netcdf_int, the_iglo_id)
-    call ensure_netcdf_var_exists(ncid, 'iproc', netcdf_int, the_proc_id)
-
-    call ensure_netcdf_var_exists(ncid, 'kx', netcdf_real, kx_id)
-    call ensure_netcdf_var_exists(ncid, 'ky', netcdf_real, ky_id)
-    call ensure_netcdf_var_exists(ncid, 'lambda', netcdf_real, lambda_id)
-    call ensure_netcdf_var_exists(ncid, 'energy', netcdf_real, energy_id)
-
-    call debug_message(verb, 'gs2_save::gs2_save_slice writing variables')
-
-    ! Write constant data
-    if (nout_local == 1) then
-       istatus = nf90_put_var (ncid, theta_id, theta)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var theta error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, it_id, it)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var it error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, ik_id, ik)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var ik error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, il_id, il)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var il error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, ie_id, ie)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var ie error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, is_id, is)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var is error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, the_iglo_id, the_iglo)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var iglo error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, the_proc_id, the_proc)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var iproc error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, kx_id, akx(it))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var kx error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, ky_id, aky(ik))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var ky error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, lambda_id, al(il))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var lambda error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, energy_id, energy(ie, is))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var energy error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-    end if
-
-    istatus = nf90_put_var (ncid, time_id, time, start = [nout_local])
-    if (istatus /= NF90_NOERR) then
-       write (ierr,*) "nf90_put_var time error: ", nf90_strerror(istatus)
-       goto 1
-    end if
+    call neasyf_write(ncid, "t", time, start = [nout_local])
 
     ! Convert from complex to real
     allocate(ri_gslice(2, size(theta), 2))
     call c2r(g_in(:, :, the_iglo), ri_gslice)
-    istatus = nf90_put_var (ncid, gslice_id, ri_gslice, &
-         start = [1, 1, 1, nout_local], &
-         count = [2, size(theta), 2, 1] &
-         )
-    if (istatus /= NF90_NOERR) then
-       write (ierr,*) "nf90_put_var gslice error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
-    ! Here is the label which we head to if we detect an error at any point before here.
-    ! Note this appears mid-way through our variable put phase, which seems a little odd.
-    ! We therefore don't exit early if we encounter an error in later put statements.
-1   continue
-
-    if (istatus /= NF90_NOERR) then
-       call debug_message(verb, 'gs2_save::gs2_save_slice closing file at the continue point')
-       istatus = nf90_close (ncid)
-       return
-    end if
+    call neasyf_write(ncid, "g_slice", ri_gslice, start = [1, 1, 1, nout_local])
 
     ! Close the file
-    istatus = nf90_close (ncid)
-    if (istatus /= NF90_NOERR) &
-         call netcdf_error (istatus, message='nf90_close error')
+    call neasyf_close(ncid)
 
     nout_local = nout_local + 1
 # endif
