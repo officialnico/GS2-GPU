@@ -817,7 +817,7 @@ contains
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
   subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g_adjust, from_g_gs2
     use gs2_transforms, only: transform2, inverse2
@@ -939,6 +939,16 @@ contains
     else
        call inverse2 (bracket, g1)
     end if
+
+    ! Scale by kxfac
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo) &
+    !$OMP SHARED(g_lo, g1, kxfac) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       g1(:, :, iglo) = g1(:, :, iglo) * kxfac
+    end do
+    !$OMP END PARALLEL DO
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
@@ -1169,9 +1179,11 @@ contains
   end subroutine get_max_vel
 
   !> Calculate (d Chi /dx).(d g_wesson/dy) and store in bracket if is_first_term = .true.
-  !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  !> else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  !>
+  !> @note The final bracket value must be scaled by kxfac to produce
+  !> the correct value to be used.
   subroutine calculate_bracket(is_first_term)
-    use theta_grid, only: kxfac
     use gs2_layouts, only: accelx_lo, yxf_lo
     implicit none
     logical :: is_first_term
@@ -1180,19 +1192,19 @@ contains
        if (accelerated) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SHARED(accelx_lo, agb, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
-             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)
           end do
           !$OMP END PARALLEL DO
        else
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
-             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
+             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)
           end do
           !$OMP END PARALLEL DO
        endif
@@ -1200,19 +1212,19 @@ contains
        if (accelerated) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SHARED(accelx_lo, agb, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
-             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)
           end do
           !$OMP END PARALLEL DO
        else
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
-             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
+             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)
           end do
           !$OMP END PARALLEL DO
        endif

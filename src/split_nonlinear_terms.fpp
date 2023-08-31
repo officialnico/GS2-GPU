@@ -541,7 +541,7 @@ contains
              error_array(:, :, iglo) = gnl_1(:, :, iglo) - gnl_2(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
-          errors(1) = gs2_max_abs(error_array) * (0.5 * 0.5 * actual_dt)
+          errors(1) = gs2_max_abs(error_array) * (0.5 * half_time)
           errors(3) = max_vel
           call max_allreduce(errors)
           inverse_error = get_inverse_error(errors)
@@ -633,6 +633,8 @@ contains
     procedure(invert_field_func) :: fields_func
     procedure(source_term_func) :: source_func
     logical :: cfl_limited
+    real :: half_time
+    real, dimension(:), allocatable :: stage_coeffs
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
@@ -659,17 +661,20 @@ contains
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
+       half_time = 0.5 * time_step
+
        do istage = 1, nstages
           call copy(g, gnew)
+          stage_coeffs = half_time * scheme%coeffs(:, istage)
 
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(istage_sub, iglo) &
-          !$OMP SHARED(g_lo, gnew, time_step, scheme, stages, istage) &
+          !$OMP SHARED(g_lo, gnew, half_time, scheme, stages, istage, stage_coeffs) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage_sub = 1, istage-1
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
-                gnew(:, :, iglo) = gnew(:, :, iglo) + (0.5 * time_step * scheme%coeffs(istage_sub, istage)) * stages(:, :, iglo, istage_sub)
+                gnew(:, :, iglo) = gnew(:, :, iglo) + stage_coeffs(istage_sub) * stages(:, :, iglo, istage_sub)
              end do
           end do
           !$OMP END PARALLEL DO
@@ -716,7 +721,7 @@ contains
        !$OMP END PARALLEL DO
 
        ! Store the absolute error
-       errors(1) = gs2_max_abs(gnl_1) * (time_step * 0.5)
+       errors(1) = gs2_max_abs(gnl_1) * half_time
        ! Estimate the absolution size of the solution using
        ! the old solution
        errors(2) = gs2_max_abs(g)
@@ -745,26 +750,27 @@ contains
                'retrying with step',new_time_step
           nfailed_steps = nfailed_steps + 1
        else
+          stage_coeffs = solution_coeffs * half_time
           !Update the solution. Note we could probably merge the two
           !OpenMP loops into a single OpenMP parallel region and then
           !just add OMP DO to each loop. This would save a bit of overhead.
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, g, solution_coeffs, time_step, stages) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, stage_coeffs, stages) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(1) * time_step * 0.5) * stages(:, :, iglo, 1)
+             g(:, :, iglo) = g(:, :, iglo) + stage_coeffs(1) * stages(:, :, iglo, 1)
           end do
           !$OMP END PARALLEL DO
 
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(istage, iglo) &
-          !$OMP SHARED(g_lo, g, solution_coeffs, nstages, time_step, stages) &
+          !$OMP SHARED(g_lo, g, solution_coeffs, nstages, half_time, stages, stage_coeffs) &
           !$OMP COLLAPSE(2) &
           !$OMP SCHEDULE(static)
           do istage = 2, nstages
              do iglo = g_lo%llim_proc, g_lo%ulim_proc
-                g(:, :, iglo) = g(:, :, iglo) + (solution_coeffs(istage) * time_step * 0.5) * stages(:, :, iglo, istage)
+                g(:, :, iglo) = g(:, :, iglo) + stage_coeffs(istage) * stages(:, :, iglo, istage)
              end do
           end do
           !$OMP END PARALLEL DO
@@ -820,6 +826,7 @@ contains
     real, parameter :: time_step_factor = 2.0
     logical, parameter :: check_cfl = .true.
     logical :: converged
+    real :: half_time
 
     ! Initialise internal variables
     if (time_step_last < 0) time_step_last = dt
@@ -833,6 +840,7 @@ contains
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        call copy(gnew, g_start)
+       half_time = 0.5 * time_step
 
        if(proc0.and.debug) print*,'Taking step with size',time_step,'at time',internal_time
        ipic = 1
@@ -847,7 +855,7 @@ contains
        nrhs_calls = nrhs_calls + 1
 
        errors(1) = 0.0
-       errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
+       errors(2) = gs2_max_abs(gnl_1) * half_time
        errors(3) = gs2_max_abs(g_start)
        errors(4) = max_vel
        call max_allreduce(errors)
@@ -861,16 +869,17 @@ contains
           if(proc0.and.debug) print*,'Dropping time step due to cfl from',time_step,'to',cfl_limit
           errors(2) = errors(2) * cfl_limit / time_step
           time_step = cfl_limit
+          half_time = time_step * 0.5
        end if
 
        converged = picard_converged(errors)
 
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo) &
-       !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
+       !$OMP SHARED(gnew, g_start, gnl_1, half_time, g_lo)&
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
+          gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * half_time
        end do
        !$OMP END PARALLEL DO
 
@@ -890,7 +899,7 @@ contains
           nrhs_calls = nrhs_calls + 1
 
           errors(1) = errors(2)
-          errors(2) = gs2_max_abs(gnl_1) * (0.5 * time_step)
+          errors(2) = gs2_max_abs(gnl_1) * half_time
           errors(4) = max_vel
           call max_allreduce(errors)
           cfl_limit = 1.0 / errors(4)
@@ -903,10 +912,10 @@ contains
 
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(gnew, g_start, gnl_1, time_step, g_lo)&
+          !$OMP SHARED(gnew, g_start, gnl_1, half_time, g_lo)&
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * (0.5 * time_step)
+             gnew(:, :, iglo) = g_start(:, :, iglo) + gnl_1(:, :, iglo) * half_time
           end do
           !$OMP END PARALLEL DO
        end do
