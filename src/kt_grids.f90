@@ -1664,7 +1664,7 @@ contains
   end subroutine box_set_overrides
 
   !> Calculate the grid of wavenumbers for box mode
-  subroutine box_get_grids (aky, theta0, akx, ikx, iky)
+  subroutine box_get_grids (aky, theta0, akx, ikx)
     use theta_grid, only: is_effectively_zero_shear, nperiod, shat
     use constants, only: pi
     use theta_grid, only: nperiod 
@@ -1675,10 +1675,8 @@ contains
     real, dimension (:), intent (out) :: aky
     !> The \(\theta_0(k_x, k_y)\) grid
     real, dimension (:,:), intent (out) :: theta0
-    !> Discrete wavenumber grids
-    !>
-    !> @todo: Remove these as unused
-    integer, dimension (:), intent (out) :: ikx, iky
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx
 
     real :: dkx, dky, ratio
     integer :: i, naky, ntheta0
@@ -1719,7 +1717,6 @@ contains
     endif
 
     do i = 1, naky
-       iky(i) = i-1
        aky(i) = real(i-1)*dky
     end do
 
@@ -2014,7 +2011,7 @@ module kt_grids
   public :: aky, theta0, akx
   public :: naky, ntheta0, nx, ny, reality
   public :: nkpolar 
-  public :: ikx, iky, jtwist_out
+  public :: ikx, jtwist_out
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
   public :: kwork_filter, kperp2, inv_kperp2
@@ -2032,10 +2029,8 @@ module kt_grids
   real, dimension (:), allocatable :: akx
   !> The \(k_y \rho\) grid
   real, dimension (:), allocatable :: aky
-  !> Discrete wavenumber grids
-  !>
-  !> @todo: Remove these as unused
-  integer, dimension(:), allocatable :: ikx, iky
+  !> Discrete kx grid index
+  integer, dimension(:), allocatable :: ikx
   !> Number of \(k_y \rho\) points
   integer :: naky
   !> Number of \(\theta_0\) points
@@ -2285,7 +2280,6 @@ contains
     allocate (aky(naky))
     allocate (theta0(ntheta0,naky))
     allocate (ikx(ntheta0))
-    allocate (iky(naky))
   end subroutine allocate_arrays
 
   !> FIXME : Add documentation  
@@ -2328,7 +2322,7 @@ contains
     case (gridopt_specified)
        call specified_get_grids (aky, theta0, akx)
     case (gridopt_box)
-       call box_get_grids (aky, theta0, akx, ikx, iky)
+       call box_get_grids (aky, theta0, akx, ikx)
     end select
   end subroutine get_grids
 
@@ -2376,7 +2370,7 @@ contains
 
     implicit none
 
-    if (allocated(aky)) deallocate (akx, aky, theta0, ikx, iky)
+    if (allocated(aky)) deallocate (akx, aky, theta0, ikx)
     if (allocated(kwork_filter)) deallocate(kwork_filter)
     if (allocated(kperp2)) deallocate(kperp2)
     if (allocated(inv_kperp2)) deallocate(inv_kperp2)
