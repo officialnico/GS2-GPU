@@ -125,7 +125,6 @@ contains
     real, dimension(ny) :: aky
     real, dimension(nx, ny) :: theta0
     integer, dimension(nx) :: ikx
-    integer, dimension(ny) :: iky
 
     integer :: i, j
 
@@ -156,10 +155,9 @@ contains
 
     call kt_grids_box_config%setup()
     call init_kt_grids_box(kt_grids_box_config)
-    call box_get_grids(aky, theta0, akx, ikx, iky)
+    call box_get_grids(aky, theta0, akx, ikx)
 
     @assertEqual(ikx_expected, ikx, message="ikx")
-    @assertEqual(iky_expected, iky, message="iky")
     @assertEqual(akx_expected, akx, message="akx", tolerance=tolerance)
     @assertEqual(aky_expected, aky, message="aky", tolerance=tolerance)
     @assertEqual(theta0_expected, theta0, message="theta0", tolerance=tolerance)
