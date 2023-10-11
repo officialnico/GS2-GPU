@@ -158,7 +158,7 @@ module le_grids
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
-  public :: xx, nterp, new_trap_int, vcut, genquad
+  public :: xx, new_trap_int, vcut, genquad
   public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
@@ -272,7 +272,6 @@ module le_grids
        wfbbc_option_trapped = 3
 
   integer :: nmax = 500
-  integer :: nterp = 100
 
   real :: wgt_fac = 10.0
 
@@ -332,10 +331,6 @@ module le_grids
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
      integer :: nmax = 500
-     !> The number of nodes used in calculating lagrange coefficients
-     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
-     !> input should not influence anything significant.
-     integer :: nterp = 100
      !> The default lambda grid is now gauss-radau, for passing
      !> particles up to and including the passing-trapped boundary
      !> (wfb). The grid gives finite weight to the class of particles
@@ -476,9 +471,6 @@ contains
     use theta_grid, only: ntgrid
 
     implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
 
     call broadcast (lmax)
     call broadcast (ng2)
@@ -564,7 +556,6 @@ contains
     npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
-    nterp = le_grids_config%nterp
     radau_gauss_grid = le_grids_config%radau_gauss_grid
     split_passing_region = le_grids_config%split_passing_region
     test = le_grids_config%test
@@ -2282,7 +2273,7 @@ contains
     use mp, only: proc0
     implicit none
 
-    integer :: tsize,is
+    integer :: is
     logical :: has_maxwellian_species
     integer :: unit
 
@@ -2312,8 +2303,6 @@ contains
     if (.not. has_maxwellian_species) write(*,*) &
         'Warning; no maxwellian species; collisions will fail'
     !call setvgrid (vcut, negrid, energy, w, nesub)
-    
-    tsize = 2*nterp-1
 
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
@@ -5094,11 +5083,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
-    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    integer :: negrid, nesub, nesuper, ngauss, nmax
     logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, split_passing_region, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, nterp, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5114,7 +5103,6 @@ contains
     npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
-    nterp = self%nterp
     radau_gauss_grid = self%radau_gauss_grid
     split_passing_region = self%split_passing_region
     test = self%test
@@ -5138,7 +5126,6 @@ contains
     self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
-    self%nterp = nterp
     self%radau_gauss_grid = radau_gauss_grid
     self%split_passing_region = split_passing_region
     self%test = test
@@ -5173,7 +5160,6 @@ contains
     call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
-    call self%write_key_val("nterp", self%nterp, unit_internal)
     call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
     call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
@@ -5210,7 +5196,6 @@ contains
     call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
-    call broadcast(self%nterp)
     call broadcast(self%radau_gauss_grid)
     call broadcast(self%split_passing_region)
     call broadcast(self%test)
