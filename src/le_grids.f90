@@ -157,9 +157,9 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
+  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, nterp, new_trap_int, vcut, genquad
-  public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
+  public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
   public :: integrate_kysum, integrate_volume
@@ -207,10 +207,9 @@ module le_grids
   end interface
 
   real, dimension (:), allocatable :: xx ! (ng2)
-  real, dimension (:,:), allocatable :: wlerr, xloc ! mbmark
+  real, dimension (:,:), allocatable :: wlerr ! mbmark
   real, dimension (:,:,:), allocatable :: werr
   real, dimension (:,:,:), allocatable :: wlterr
-  real, dimension (:,:,:,:), allocatable :: lgrnge
   real, dimension (:,:,:), allocatable :: wlmod
   real, dimension (:,:,:), allocatable :: wtmod
   real, dimension (:,:,:), allocatable :: wmod
@@ -501,8 +500,6 @@ contains
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
-       allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-       allocate (xloc(-ntgrid:ntgrid,tsize))
        allocate (xi(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_il(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_isgn(-ntgrid:ntgrid, 2*nlambda))
@@ -529,9 +526,6 @@ contains
     call broadcast(is_ttp)
     call broadcast(is_bounce_point)
     call broadcast(can_be_ttp)
-
-    call broadcast(xloc)
-    call broadcast(lgrnge)
 
     call broadcast(xi)
     call broadcast(ixi_to_il)
@@ -1688,60 +1682,6 @@ contains
   end subroutine legendre_polynomials
 
   !> FIXME : Add documentation
-  subroutine lagrange_interp (g, poly, istep, all)
-    !<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
-    use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: g_lo, idx, idx_local
-    use mp, only: sum_reduce, sum_allreduce, nproc
-
-    implicit none
-
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:,:), intent (out) :: poly
-    integer, optional, intent(in) :: all
-    integer, intent(in) :: istep
-    real :: ypt
-    integer :: il, ie, ik, it, iglo, ig
-
-    !Initialise to zero
-    poly = 0.
-    do ie = 1, negrid
-       do il = ng2+1, nlambda
-          do it = 1, ntheta0
-             do ik = 1, naky
-                iglo = idx (g_lo, ik, it, il, ie, 1)
-                if (idx_local (g_lo, iglo)) then
-                   do ig = -ntgrid, ntgrid
-                      !Do we need this if?
-                      if (.not. forbid(ig,il)) then
-                         ypt=sqrt(max(1.0 - bmag(ig)*al(il),0.0))                      
-                      else
-                         ypt=0.0
-                      end if
-                      poly(ig, it, ik, ie, :) = poly(ig, it, ik, ie, :) + &
-                           lgrnge(ig,il,:,1)*cos(0.1*istep*ypt+1.0) + &
-                           lgrnge(ig,il,:,2)*cos(-0.1*istep*ypt+1.0)
-                   end do
-                end if
-             end do
-          end do
-       end do
-    end do
-
-    !Do we really need this if?
-    if (nproc > 1) then
-       !Reduce integral across procs
-       if (present(all)) then
-          call sum_allreduce (poly)
-       else
-          call sum_reduce (poly, 0)
-       end if
-    end if
-
-  end subroutine lagrange_interp
-
-  !> FIXME : Add documentation
   !!
   !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
   !! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
@@ -2394,8 +2334,6 @@ contains
     allocate (is_ttp(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (can_be_ttp(nlambda))
-    allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-    allocate (xloc(-ntgrid:ntgrid,tsize))
     if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
@@ -3509,49 +3447,6 @@ contains
     end do
 
   end subroutine xigridset
-
-  !> FIXME : Add documentation  
-  subroutine lagrange_coefs (ig, nodes, lfac, xloc)
-    use theta_grid, only: bmag, bmax
-    implicit none
-
-    integer, intent (in) :: ig
-    real, dimension (:), intent (in) :: nodes
-    real, dimension (:,:,:), intent (out) :: lfac
-    real, dimension (:), intent (out) :: xloc
-
-    integer :: ix, il, j, icnt, tsize
-
-    xloc(1) = -sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    xloc(2*nterp-1) = sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    do ix=2,2*nterp-1
-       xloc(ix) = xloc(1) + (ix-1)*(xloc(2*nterp-1)-xloc(1))/(2*nterp-2)
-    end do
-
-    lfac = 0.
-    icnt = 0
-
-    tsize = size(nodes)
-
-    do il=ng2+1,nlambda
-       if (.not. forbid(ig,il)) then
-          lfac(il,:,:) = 1.0
-          icnt = icnt + 1
-          if (icnt .eq. tsize-icnt+1) then
-             lfac(il,:,1) = 0.
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-             end do
-          else
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-                if (j /= tsize-icnt+1) lfac(il,:,1) = lfac(il,:,1)*(xloc - nodes(j))/(nodes(tsize-icnt+1)-nodes(j))
-             end do
-          end if
-       end if
-    end do
-
-  end subroutine lagrange_coefs
 
   !> FIXME : Add documentation
   !!
@@ -5094,7 +4989,7 @@ contains
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
     if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
-         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+         jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
     if (allocated(can_be_ttp)) deallocate(can_be_ttp)
