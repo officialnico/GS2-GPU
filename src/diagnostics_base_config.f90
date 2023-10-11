@@ -430,11 +430,6 @@ module diagnostics_base_config
     !>
     !> @warning New diagnostics only writes to netCDF
     logical :: write_lorentzian = .false.
-    !> Write Lagrange interpolating function value at interpolating
-    !> points specified by `xloc` to text file with suffix `.interp`
-    !>
-    !> FIXME: Define `xloc`
-    logical :: write_lpoly = .false.
     !> Write the estimated maximum error from velocity space
     !> integrals for various quantities
     !>
@@ -651,7 +646,7 @@ contains
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
     logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
-    logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
+    logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
@@ -665,7 +660,7 @@ contains
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
          write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
-         write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
+         write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
@@ -738,7 +733,6 @@ contains
     write_kpar = self%write_kpar
     write_line = self%write_line
     write_lorentzian = self%write_lorentzian
-    write_lpoly = self%write_lpoly
     write_max_verr = self%write_max_verr
     write_moments = self%write_moments
     write_nl_flux = self%write_nl_flux
@@ -842,7 +836,6 @@ contains
     self%write_kpar = write_kpar
     self%write_line = write_line
     self%write_lorentzian = write_lorentzian
-    self%write_lpoly = write_lpoly
     self%write_max_verr = write_max_verr
     self%write_moments = write_moments
     self%write_nl_flux = write_nl_flux
@@ -941,7 +934,6 @@ contains
     call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
     call self%write_key_val("write_line", self%write_line, unit_internal)
     call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
-    call self%write_key_val("write_lpoly", self%write_lpoly, unit_internal)
     call self%write_key_val("write_max_verr", self%write_max_verr, unit_internal)
     call self%write_key_val("write_moments", self%write_moments, unit_internal)
     call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
@@ -1042,7 +1034,6 @@ contains
     call broadcast(self%write_kpar)
     call broadcast(self%write_line)
     call broadcast(self%write_lorentzian)
-    call broadcast(self%write_lpoly)
     call broadcast(self%write_max_verr)
     call broadcast(self%write_moments)
     call broadcast(self%write_nl_flux)

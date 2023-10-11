@@ -240,7 +240,7 @@ contains
     use collisional_heating, only: finish_collisional
     use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom
     use nonlinear_terms, only: nonlin
-    use dist_fn, only: write_fyx, write_f, write_poly, collision_error
+    use dist_fn, only: write_fyx, write_f, collision_error
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use unit_tests, only: debug_message
@@ -280,7 +280,6 @@ contains
     ! Random stuff that needs to be put in properly or removed
     if (gnostics%write_gyx) call write_fyx (phinew,bparnew,.true.)
     if (gnostics%write_g) call write_f (.true.)
-    if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.true.,gnostics%istep)
     if (gnostics%write_ascii) call do_write_geom()
     
     call finish_diagnostics_config(gnostics)
@@ -289,7 +288,7 @@ contains
   !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_fyx, write_f, write_poly, collision_error
+    use dist_fn, only: write_fyx, write_f, collision_error
     implicit none
     integer :: nwrite_large
 
@@ -298,7 +297,6 @@ contains
     if (gnostics%write_gyx .and. &
       mod(gnostics%istep,nwrite_large) == 0) call write_fyx (phinew,bparnew,.false.)
     if (gnostics%write_g   .and. mod(gnostics%istep,nwrite_large) == 0) call write_f (.false.)
-    if (gnostics%write_lpoly) call write_poly (phinew,bparnew,.false.,gnostics%istep)
   end subroutine run_diagnostics_to_be_updated
 
   !> Calculates and write the QL flux metric to netcdf
