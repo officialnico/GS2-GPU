@@ -138,14 +138,17 @@ contains
   end subroutine single_get_sizes
 
   !> FIXME : Add documentation  
-  subroutine single_get_grids (aky_out, theta0_out, akx_out)
+  subroutine single_get_grids (aky_out, theta0_out, akx_out, ikx_out)
     implicit none
     real, dimension (:), intent (out) :: aky_out, akx_out
     real, dimension (:,:), intent (out) :: theta0_out
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx_out
 
     aky_out = aky
     theta0_out = theta0
     akx_out = akx
+    ikx_out = 0
   end subroutine single_get_grids
 
   !> FIXME : Add documentation  
@@ -573,13 +576,15 @@ contains
   end subroutine range_get_sizes
 
   !> FIXME : Add documentation  
-  subroutine range_get_grids (aky, theta0, akx)
+  subroutine range_get_grids (aky, theta0, akx, ikx)
     ! BD: Could add some logic here to set theta0 if akx is given?  When do we need what?
     use theta_grid, only: shat
     use mp, only: mp_abort
     implicit none
     real, dimension (:), intent (out) :: akx, aky
     real, dimension (:,:), intent (out) :: theta0
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx
 
     real :: dkx, dky, dtheta0
     integer :: i, j
@@ -643,6 +648,9 @@ contains
        akx = (/ (akx_min + dkx*real(i), i = 0,ntheta0-1) /)
     endif
 
+    do j = 1, ntheta0
+       ikx(j) = j - 1
+    end do
   end subroutine range_get_grids
 
   !> FIXME : Add documentation    
@@ -655,6 +663,7 @@ contains
     integer :: i, j
     real, dimension(:), allocatable:: aky, akx
     real, dimension(:,:), allocatable:: theta0
+    integer, dimension(:), allocatable :: ikx
 
     write (report_unit, *) 
     write (report_unit, fmt="('A range of k_perps will be evolved.')")
@@ -664,8 +673,8 @@ contains
     write (report_unit, *) 
 
     !<DD>Calculate the kt grids
-    allocate(aky(naky),theta0(ntheta0,naky),akx(ntheta0))
-    call range_get_grids(aky, theta0, akx)
+    allocate(aky(naky),theta0(ntheta0,naky),akx(ntheta0), ikx(ntheta0))
+    call range_get_grids(aky, theta0, akx, ikx)
 
     !Report grid values
     do j = 1, naky
@@ -992,11 +1001,13 @@ contains
  !> FIXME : Add documentation
  !>
  !> @todo : Consider moving the content of this routine to init_kt_grids_specified
- subroutine specified_get_grids (aky, theta0, akx, kt_grids_specified_element_config_in)
+ subroutine specified_get_grids (aky, theta0, akx, ikx, kt_grids_specified_element_config_in)
    use mp, only: proc0
    implicit none
    real, dimension (:), intent (out) :: akx, aky
    real, dimension (:,:), intent (out) :: theta0
+   !> Discrete kx wavenumber grid indices
+   integer, dimension (:), intent (out) :: ikx
    type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: kt_grids_specified_element_config_in    
    real :: aky_dummy, theta0_dummy, akx_dummy
    integer :: i, naky, ntheta0, nmodes
@@ -1016,6 +1027,7 @@ contains
       if (i <= naky) aky(i) = aky_dummy
       if (i <= ntheta0) theta0(i,:) = theta0_dummy
       if (i <= ntheta0) akx(i) = akx_dummy
+      if (i <= ntheta0) ikx(i) = i - 1
     end do
     
   end subroutine specified_get_grids
@@ -2316,11 +2328,11 @@ contains
     implicit none
     select case (gridopt_switch)
     case (gridopt_single)
-       call single_get_grids (aky, theta0, akx)
+       call single_get_grids (aky, theta0, akx, ikx)
     case (gridopt_range)
-       call range_get_grids (aky, theta0, akx)
+       call range_get_grids (aky, theta0, akx, ikx)
     case (gridopt_specified)
-       call specified_get_grids (aky, theta0, akx)
+       call specified_get_grids (aky, theta0, akx, ikx)
     case (gridopt_box)
        call box_get_grids (aky, theta0, akx, ikx)
     end select
