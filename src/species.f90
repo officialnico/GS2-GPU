@@ -37,7 +37,7 @@ module species
      real :: tprim
      real :: fprim
      real :: uprim, uprim2
-     real :: vnewk, nustar
+     real :: vnewk
      real :: nu_h ! nu_h controls a hyperviscous term embedded in the collision operator
      real :: stm, zstm, tz, smz, zt
      real :: bess_fac !Artificial factor multiplying the Bessel function argument
@@ -135,10 +135,6 @@ module species
      !> angle scattering collision operator if
      !> [[collision_knobs::hypermult]] is `true`.
      real :: nu_h = 0.0
-     !> Not used.
-     !>
-     !> @todo remove
-     real :: nustar = -1.0
      !> Set the normalised species temperature
      real :: temp = 1.0
      !> Parameter used for a few specific initial condition types.
@@ -408,7 +404,7 @@ contains
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
-    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu_h
+    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
@@ -471,7 +467,6 @@ contains
        fprim = species_element_config(is)%fprim
        mass = species_element_config(is)%mass
        nu_h = species_element_config(is)%nu_h
-       nustar = species_element_config(is)%nustar
        temp = species_element_config(is)%temp
        tpar0 = species_element_config(is)%tpar0
        tperp0 = species_element_config(is)%tperp0
@@ -498,7 +493,6 @@ contains
        spec(is)%uprim = uprim
        spec(is)%uprim2 = uprim2
        spec(is)%vnewk = vnewk
-       spec(is)%nustar = nustar
        spec(is)%nu_h = nu_h
 
        spec(is)%stm = sqrt(temp/mass)
@@ -533,7 +527,6 @@ contains
     tmp_bcast=spec%uprim2 ; call broadcast(tmp_bcast) ; spec%uprim2=tmp_bcast
     tmp_bcast=spec%vnewk ; call broadcast(tmp_bcast) ; spec%vnewk=tmp_bcast
     tmp_bcast=spec%nu_h ; call broadcast(tmp_bcast) ; spec%nu_h=tmp_bcast
-    tmp_bcast=spec%nustar ; call broadcast(tmp_bcast) ; spec%nustar=tmp_bcast
     tmp_bcast=spec%stm ; call broadcast(tmp_bcast) ; spec%stm=tmp_bcast
     tmp_bcast=spec%zstm ; call broadcast(tmp_bcast) ; spec%zstm=tmp_bcast
     tmp_bcast=spec%tz ; call broadcast(tmp_bcast) ; spec%tz=tmp_bcast
@@ -1315,9 +1308,9 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 20) :: f0type, type
-    real :: bess_fac, dens, dens0, fprim, mass, nu_h, nustar, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+    real :: bess_fac, dens, dens0, fprim, mass, nu_h, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
 
-    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu_h, nustar, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu_h, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1330,7 +1323,6 @@ contains
     fprim = self%fprim
     mass = self%mass
     nu_h = self%nu_h
-    nustar = self%nustar
     temp = self%temp
     tpar0 = self%tpar0
     tperp0 = self%tperp0
@@ -1357,7 +1349,6 @@ contains
     self%fprim = fprim
     self%mass = mass
     self%nu_h = nu_h
-    self%nustar = nustar
     self%temp = temp
     self%tpar0 = tpar0
     self%tperp0 = tperp0
@@ -1394,7 +1385,6 @@ contains
     call self%write_key_val("fprim", self%fprim, unit_internal)
     call self%write_key_val("mass", self%mass, unit_internal)
     call self%write_key_val("nu_h", self%nu_h, unit_internal)
-    call self%write_key_val("nustar", self%nustar, unit_internal)
     call self%write_key_val("temp", self%temp, unit_internal)
     call self%write_key_val("tpar0", self%tpar0, unit_internal)
     call self%write_key_val("tperp0", self%tperp0, unit_internal)
@@ -1433,7 +1423,6 @@ contains
     call broadcast(self%fprim)
     call broadcast(self%mass)
     call broadcast(self%nu_h)
-    call broadcast(self%nustar)
     call broadcast(self%temp)
     call broadcast(self%tpar0)
     call broadcast(self%tperp0)
