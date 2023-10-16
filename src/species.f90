@@ -38,9 +38,7 @@ module species
      real :: fprim
      real :: uprim, uprim2
      real :: vnewk, nustar
-     real :: nu, nu_h  ! nu will be the preferred collisionality parameter moving forward
-                       ! as it will have a consistent v_t scaling
-                       ! nu_h controls a hyperviscous term embedded in the collision operator
+     real :: nu_h ! nu_h controls a hyperviscous term embedded in the collision operator
      real :: stm, zstm, tz, smz, zt
      real :: bess_fac !Artificial factor multiplying the Bessel function argument
      real :: vcrit
@@ -133,10 +131,6 @@ module species
      real :: fprim = 2.2
      !> Normalised mass of this species
      real :: mass = 1.0
-     !> Not used.
-     !>
-     !> @todo remove
-     real :: nu = -1.0
      !> Set the species hyper collision frequency used in the pitch
      !> angle scattering collision operator if
      !> [[collision_knobs::hypermult]] is `true`.
@@ -414,7 +408,7 @@ contains
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
-    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu, nu_h
+    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nustar, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
@@ -476,7 +470,6 @@ contains
        f0type = species_element_config(is)%f0type
        fprim = species_element_config(is)%fprim
        mass = species_element_config(is)%mass
-       nu = species_element_config(is)%nu
        nu_h = species_element_config(is)%nu_h
        nustar = species_element_config(is)%nustar
        temp = species_element_config(is)%temp
@@ -506,7 +499,6 @@ contains
        spec(is)%uprim2 = uprim2
        spec(is)%vnewk = vnewk
        spec(is)%nustar = nustar
-       spec(is)%nu = nu
        spec(is)%nu_h = nu_h
 
        spec(is)%stm = sqrt(temp/mass)
@@ -540,7 +532,6 @@ contains
     tmp_bcast=spec%uprim ; call broadcast(tmp_bcast) ; spec%uprim=tmp_bcast
     tmp_bcast=spec%uprim2 ; call broadcast(tmp_bcast) ; spec%uprim2=tmp_bcast
     tmp_bcast=spec%vnewk ; call broadcast(tmp_bcast) ; spec%vnewk=tmp_bcast
-    tmp_bcast=spec%nu ; call broadcast(tmp_bcast) ; spec%nu=tmp_bcast
     tmp_bcast=spec%nu_h ; call broadcast(tmp_bcast) ; spec%nu_h=tmp_bcast
     tmp_bcast=spec%nustar ; call broadcast(tmp_bcast) ; spec%nustar=tmp_bcast
     tmp_bcast=spec%stm ; call broadcast(tmp_bcast) ; spec%stm=tmp_bcast
@@ -1324,9 +1315,9 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 20) :: f0type, type
-    real :: bess_fac, dens, dens0, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+    real :: bess_fac, dens, dens0, fprim, mass, nu_h, nustar, temp, tpar0, tperp0, tprim, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
 
-    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu, nu_h, nustar, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
+    namelist /species_parameters/ bess_fac, dens, dens0, f0type, fprim, mass, nu_h, nustar, temp, tpar0, tperp0, tprim, type, u0, uprim, uprim2, vcprim, vcrit, vnewk, z
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1338,7 +1329,6 @@ contains
     f0type = self%f0type
     fprim = self%fprim
     mass = self%mass
-    nu = self%nu
     nu_h = self%nu_h
     nustar = self%nustar
     temp = self%temp
@@ -1366,7 +1356,6 @@ contains
     self%f0type = f0type
     self%fprim = fprim
     self%mass = mass
-    self%nu = nu
     self%nu_h = nu_h
     self%nustar = nustar
     self%temp = temp
@@ -1404,7 +1393,6 @@ contains
     call self%write_key_val("f0type", self%f0type, unit_internal)
     call self%write_key_val("fprim", self%fprim, unit_internal)
     call self%write_key_val("mass", self%mass, unit_internal)
-    call self%write_key_val("nu", self%nu, unit_internal)
     call self%write_key_val("nu_h", self%nu_h, unit_internal)
     call self%write_key_val("nustar", self%nustar, unit_internal)
     call self%write_key_val("temp", self%temp, unit_internal)
@@ -1444,7 +1432,6 @@ contains
     call broadcast(self%f0type)
     call broadcast(self%fprim)
     call broadcast(self%mass)
-    call broadcast(self%nu)
     call broadcast(self%nu_h)
     call broadcast(self%nustar)
     call broadcast(self%temp)
