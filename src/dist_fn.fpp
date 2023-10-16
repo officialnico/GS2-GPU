@@ -67,7 +67,7 @@ module dist_fn
   public :: flux_dist
   public :: get_heat
   public :: omega0, gamma0
-  public :: write_f, write_poly
+  public :: write_f
   public :: M_class, N_class, i_class
   public :: l_links, r_links, itright, itleft, boundary
   public :: supercell_labels, n_supercells, n_cells
@@ -9757,71 +9757,6 @@ contains
     deallocate(getran, gltran)
 
   end subroutine get_gtran
-
-  !> Write Lagrange interpolating function value at interpolating
-  !> points specified by `xloc` to text file with suffix `.interp`
-  subroutine write_poly (phi, bpar, last, istep)
-    use file_utils, only: open_output_file, close_output_file
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
-    use gs2_layouts, only: g_lo
-    use mp, only: proc0
-    use le_grids, only: nterp, negrid, lagrange_interp, xloc
-    use theta_grid, only: ntgrid
-    use kt_grids, only: ntheta0, naky
-
-    implicit none
-
-    !> Electrostatic potential and parallel magnetic field
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
-    !> If true, also close the file
-    logical, intent (in) :: last
-    !> Simulation timestep
-    integer, intent (in) :: istep
-
-    complex, dimension (:,:,:,:,:), allocatable :: lpoly
-    integer :: iglo, isgn, ix, ig, tsize
-    integer, save :: interp_unit
-
-    allocate(lpoly(-ntgrid:ntgrid,ntheta0,naky,negrid,2*nterp-1))
-
-    if (proc0) then
-       if (.not. lpolinit) then
-          call open_output_file (interp_unit, ".interp")
-          lpolinit = .true.
-       end if
-    end if
-
-    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
-
-! take gyro-average of h at fixed total position (not g.c. position)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          do ig=-ntgrid, ntgrid
-             g_work(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
-          end do
-       end do
-    end do
-
-! computes and returns lagrange interpolating polynomial for g_work
-!<DD>WARNING: THIS ROUTINE DOESN'T USE g_work FOR ANYTHING IS THIS CORRECT?
-    call lagrange_interp (g_work, lpoly, istep)
-
-    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
-
-    tsize = 2*nterp-1
-
-! write to file lagrange interpolating function value at interpolating pts specified by xloc
-    if (proc0) then
-       do ix = 1, tsize
-          write(interp_unit,*) xloc(0,ix), real(lpoly(0,1,1,1,ix)), cos(0.1*istep*xloc(0,ix)+1.0), ix
-       end do
-       write(interp_unit,*)
-       if (last) call close_output_file (interp_unit)
-    end if
-
-    deallocate(lpoly)
-
-  end subroutine write_poly
 
   !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine write_f (last)

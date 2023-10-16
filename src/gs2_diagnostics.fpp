@@ -55,7 +55,7 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly, write_ql_metric
+  logical, public :: write_gs, write_ql_metric
   logical, public :: write_g, write_gg, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
@@ -776,7 +776,6 @@ contains
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
-    write_lpoly = gs2_diagnostics_config%write_lpoly
     write_max_verr = gs2_diagnostics_config%write_max_verr
     write_moments = gs2_diagnostics_config%write_moments
     write_fluxes = gs2_diagnostics_config%write_fluxes
@@ -840,7 +839,7 @@ contains
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
+    use dist_fn, only: write_f, write_fyx, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
@@ -863,7 +862,6 @@ contains
 
     if (write_gyx) call write_fyx (phinew,bparnew,last)
     if (write_g) call write_f (last)
-    if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
     if (write_cerr) call collision_error (phinew, bparnew, last)
     if (write_verr .and. proc0) call finish_weights
 
@@ -1032,7 +1030,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_poly, collision_error, write_f, write_fyx
+    use dist_fn, only: collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use gs2_time, only: user_time
@@ -1116,8 +1114,6 @@ contains
     istep_last = istep
 
     if (write_g) call write_f (last)
-
-    if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
 
     ! Note this also returns phi2, apar2, bpar2 and phitot for other diagnostics
     if (proc0) call do_write_ncloop(t, istep, phi2, apar2, bpar2, phitot)

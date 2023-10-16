@@ -129,7 +129,6 @@ module diagnostics_config
      logical :: write_ascii
      logical :: write_gyx
      logical :: write_g
-     logical :: write_lpoly
      integer :: conv_nstep_av
      real :: conv_test_multiplier
      integer :: conv_min_step
@@ -361,7 +360,6 @@ contains
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
-    gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
     gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
     gnostics%write_moments = new_gs2_diagnostics_config%write_moments
     gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist

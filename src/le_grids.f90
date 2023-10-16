@@ -157,9 +157,9 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
-  public :: xx, nterp, new_trap_int, vcut, genquad
-  public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
+  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
+  public :: xx, new_trap_int, vcut, genquad
+  public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
   public :: integrate_kysum, integrate_volume
@@ -207,10 +207,9 @@ module le_grids
   end interface
 
   real, dimension (:), allocatable :: xx ! (ng2)
-  real, dimension (:,:), allocatable :: wlerr, xloc ! mbmark
+  real, dimension (:,:), allocatable :: wlerr ! mbmark
   real, dimension (:,:,:), allocatable :: werr
   real, dimension (:,:,:), allocatable :: wlterr
-  real, dimension (:,:,:,:), allocatable :: lgrnge
   real, dimension (:,:,:), allocatable :: wlmod
   real, dimension (:,:,:), allocatable :: wtmod
   real, dimension (:,:,:), allocatable :: wmod
@@ -273,7 +272,6 @@ module le_grids
        wfbbc_option_trapped = 3
 
   integer :: nmax = 500
-  integer :: nterp = 100
 
   real :: wgt_fac = 10.0
 
@@ -333,10 +331,6 @@ module le_grids
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
      integer :: nmax = 500
-     !> The number of nodes used in calculating lagrange coefficients
-     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
-     !> input should not influence anything significant.
-     integer :: nterp = 100
      !> The default lambda grid is now gauss-radau, for passing
      !> particles up to and including the passing-trapped boundary
      !> (wfb). The grid gives finite weight to the class of particles
@@ -477,9 +471,6 @@ contains
     use theta_grid, only: ntgrid
 
     implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
 
     call broadcast (lmax)
     call broadcast (ng2)
@@ -501,8 +492,6 @@ contains
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
-       allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-       allocate (xloc(-ntgrid:ntgrid,tsize))
        allocate (xi(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_il(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_isgn(-ntgrid:ntgrid, 2*nlambda))
@@ -529,9 +518,6 @@ contains
     call broadcast(is_ttp)
     call broadcast(is_bounce_point)
     call broadcast(can_be_ttp)
-
-    call broadcast(xloc)
-    call broadcast(lgrnge)
 
     call broadcast(xi)
     call broadcast(ixi_to_il)
@@ -570,7 +556,6 @@ contains
     npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
-    nterp = le_grids_config%nterp
     radau_gauss_grid = le_grids_config%radau_gauss_grid
     split_passing_region = le_grids_config%split_passing_region
     test = le_grids_config%test
@@ -1688,60 +1673,6 @@ contains
   end subroutine legendre_polynomials
 
   !> FIXME : Add documentation
-  subroutine lagrange_interp (g, poly, istep, all)
-    !<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
-    use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: g_lo, idx, idx_local
-    use mp, only: sum_reduce, sum_allreduce, nproc
-
-    implicit none
-
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:,:), intent (out) :: poly
-    integer, optional, intent(in) :: all
-    integer, intent(in) :: istep
-    real :: ypt
-    integer :: il, ie, ik, it, iglo, ig
-
-    !Initialise to zero
-    poly = 0.
-    do ie = 1, negrid
-       do il = ng2+1, nlambda
-          do it = 1, ntheta0
-             do ik = 1, naky
-                iglo = idx (g_lo, ik, it, il, ie, 1)
-                if (idx_local (g_lo, iglo)) then
-                   do ig = -ntgrid, ntgrid
-                      !Do we need this if?
-                      if (.not. forbid(ig,il)) then
-                         ypt=sqrt(max(1.0 - bmag(ig)*al(il),0.0))                      
-                      else
-                         ypt=0.0
-                      end if
-                      poly(ig, it, ik, ie, :) = poly(ig, it, ik, ie, :) + &
-                           lgrnge(ig,il,:,1)*cos(0.1*istep*ypt+1.0) + &
-                           lgrnge(ig,il,:,2)*cos(-0.1*istep*ypt+1.0)
-                   end do
-                end if
-             end do
-          end do
-       end do
-    end do
-
-    !Do we really need this if?
-    if (nproc > 1) then
-       !Reduce integral across procs
-       if (present(all)) then
-          call sum_allreduce (poly)
-       else
-          call sum_reduce (poly, 0)
-       end if
-    end if
-
-  end subroutine lagrange_interp
-
-  !> FIXME : Add documentation
   !!
   !! returns results to PE 0 [or to all processors if 'all' is present in input arg list]
   !! NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
@@ -2342,7 +2273,7 @@ contains
     use mp, only: proc0
     implicit none
 
-    integer :: tsize,is
+    integer :: is
     logical :: has_maxwellian_species
     integer :: unit
 
@@ -2372,8 +2303,6 @@ contains
     if (.not. has_maxwellian_species) write(*,*) &
         'Warning; no maxwellian species; collisions will fail'
     !call setvgrid (vcut, negrid, energy, w, nesub)
-    
-    tsize = 2*nterp-1
 
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
@@ -2394,8 +2323,6 @@ contains
     allocate (is_ttp(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (can_be_ttp(nlambda))
-    allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-    allocate (xloc(-ntgrid:ntgrid,tsize))
     if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
@@ -3509,49 +3436,6 @@ contains
     end do
 
   end subroutine xigridset
-
-  !> FIXME : Add documentation  
-  subroutine lagrange_coefs (ig, nodes, lfac, xloc)
-    use theta_grid, only: bmag, bmax
-    implicit none
-
-    integer, intent (in) :: ig
-    real, dimension (:), intent (in) :: nodes
-    real, dimension (:,:,:), intent (out) :: lfac
-    real, dimension (:), intent (out) :: xloc
-
-    integer :: ix, il, j, icnt, tsize
-
-    xloc(1) = -sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    xloc(2*nterp-1) = sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    do ix=2,2*nterp-1
-       xloc(ix) = xloc(1) + (ix-1)*(xloc(2*nterp-1)-xloc(1))/(2*nterp-2)
-    end do
-
-    lfac = 0.
-    icnt = 0
-
-    tsize = size(nodes)
-
-    do il=ng2+1,nlambda
-       if (.not. forbid(ig,il)) then
-          lfac(il,:,:) = 1.0
-          icnt = icnt + 1
-          if (icnt .eq. tsize-icnt+1) then
-             lfac(il,:,1) = 0.
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-             end do
-          else
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-                if (j /= tsize-icnt+1) lfac(il,:,1) = lfac(il,:,1)*(xloc - nodes(j))/(nodes(tsize-icnt+1)-nodes(j))
-             end do
-          end if
-       end if
-    end do
-
-  end subroutine lagrange_coefs
 
   !> FIXME : Add documentation
   !!
@@ -5094,7 +4978,7 @@ contains
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
     if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
-         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+         jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
     if (allocated(can_be_ttp)) deallocate(can_be_ttp)
@@ -5199,11 +5083,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
-    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    integer :: negrid, nesub, nesuper, ngauss, nmax
     logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, split_passing_region, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, nterp, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5219,7 +5103,6 @@ contains
     npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
-    nterp = self%nterp
     radau_gauss_grid = self%radau_gauss_grid
     split_passing_region = self%split_passing_region
     test = self%test
@@ -5243,7 +5126,6 @@ contains
     self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
-    self%nterp = nterp
     self%radau_gauss_grid = radau_gauss_grid
     self%split_passing_region = split_passing_region
     self%test = test
@@ -5278,7 +5160,6 @@ contains
     call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
-    call self%write_key_val("nterp", self%nterp, unit_internal)
     call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
     call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
@@ -5315,7 +5196,6 @@ contains
     call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
-    call broadcast(self%nterp)
     call broadcast(self%radau_gauss_grid)
     call broadcast(self%split_passing_region)
     call broadcast(self%test)

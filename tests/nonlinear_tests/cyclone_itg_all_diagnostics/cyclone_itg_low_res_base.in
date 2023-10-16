@@ -210,7 +210,6 @@
  write_kpar = .true. !
  write_line = .true. ! If (write_ascii = T) write estimated frequencies and growth rates to the output file
  write_lorentzian = .true. ! Frequency Sweep Data
- write_lpoly = .true. !
  write_max_verr = .true. !
  write_moments = .true. !
  write_fluxes = .true. ! Write nonlinear fluxes as a function of time.
