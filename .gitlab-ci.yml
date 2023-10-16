@@ -67,6 +67,7 @@ variables: &default_variables
   BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
   BUILD_PFUNIT_JOBS: "1"
   PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
+  PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 
 default:
   timeout: 20m
@@ -109,7 +110,6 @@ standard_tests:
   image: fedora:37
   variables:
     CASENAME: "standard"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
 
 openmp_tests:
@@ -119,7 +119,6 @@ openmp_tests:
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
     OMP_NUM_THREADS: 2
   script: *default_script
 
@@ -131,7 +130,6 @@ gfortran13_mpich:
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 # MPICH performs very poorly when oversubscribed so we limit our integrated tests to
 # one process only.
     EXTRA_TEST_FLAGS: "NTESTPROCS=1"
@@ -191,7 +189,6 @@ coverage_standard_tests:
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
-    PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
   script: *default_script
   after_script:
     - *push_status
