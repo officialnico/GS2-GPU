@@ -445,11 +445,6 @@ module diagnostics_base_config
     !> @warning Default value differs between old (`.false.`) and new
     !> (`.true.`) diagnostics
     logical :: write_moments = .true.
-    !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
-    !> timesteps
-    !>
-    !> @deprecated Use [[gs2_diagnostics_knobs:write_fluxes]]
-    logical :: write_nl_flux = .false.
     !> Write the poloidal distributions of the fluxes of particles,
     !> parallel momentum, perpendicular momentum, and energy every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
@@ -639,7 +634,7 @@ contains
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
     logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar
-    logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
+    logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
@@ -653,7 +648,7 @@ contains
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
          write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar, &
-         write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
+         write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
@@ -726,7 +721,6 @@ contains
     write_lorentzian = self%write_lorentzian
     write_max_verr = self%write_max_verr
     write_moments = self%write_moments
-    write_nl_flux = self%write_nl_flux
     write_nl_flux_dist = self%write_nl_flux_dist
     write_ntot_over_time = self%write_ntot_over_time
     write_omavg = self%write_omavg
@@ -812,7 +806,6 @@ contains
     self%write_lorentzian = write_lorentzian
     self%write_max_verr = write_max_verr
     self%write_moments = write_moments
-    self%write_nl_flux = write_nl_flux
     self%write_nl_flux_dist = write_nl_flux_dist
     self%write_ntot_over_time = write_ntot_over_time
     self%write_omavg = write_omavg
@@ -909,7 +902,6 @@ contains
     call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
     call self%write_key_val("write_max_verr", self%write_max_verr, unit_internal)
     call self%write_key_val("write_moments", self%write_moments, unit_internal)
-    call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
     call self%write_key_val("write_nl_flux_dist", self%write_nl_flux_dist, unit_internal)
     call self%write_key_val("write_ntot_over_time", self%write_ntot_over_time, unit_internal)
     call self%write_key_val("write_omavg", self%write_omavg, unit_internal)
@@ -1008,7 +1000,6 @@ contains
     call broadcast(self%write_lorentzian)
     call broadcast(self%write_max_verr)
     call broadcast(self%write_moments)
-    call broadcast(self%write_nl_flux)
     call broadcast(self%write_nl_flux_dist)
     call broadcast(self%write_ntot_over_time)
     call broadcast(self%write_omavg)

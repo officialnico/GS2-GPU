@@ -1311,7 +1311,7 @@ contains
   !> FIXME : Add documentation
   subroutine calculate_outputs(state)
     use gs2_diagnostics, only: start_time
-    use gs2_diagnostics, only: pflux_avg, qflux_avg, heat_avg, vflux_avg !, start_time, nwrite, write_nl_flux
+    use gs2_diagnostics, only: pflux_avg, qflux_avg, heat_avg, vflux_avg
     use gs2_diagnostics, only: diffusivity
     use gs2_diagnostics, only: ensemble_average
 #ifdef NEW_DIAG
