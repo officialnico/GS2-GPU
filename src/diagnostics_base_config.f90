@@ -207,7 +207,7 @@ module diagnostics_base_config
     logical :: write_any = .true.
 
     !> Write the entire \(A_\parallel\) field every
-    !> [gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
     !> @warning New diagnostics requires
     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
@@ -513,7 +513,7 @@ module diagnostics_base_config
     !>
     !> @warning Non-functional in new diagnostics
     logical :: write_pflux_tormom = .false.
-    !> Write the entire \(\phi\) field every [gs2_diagnostics_knobs:nwrite]]
+    !> Write the entire \(\phi\) field every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
     !> @warning New diagnostics requires
