@@ -91,6 +91,9 @@ contains
     
     gnostics%parallel = .false.
     if (gnostics%enable_parallel) then
+       !> We should replace parallel_io_capable below with
+       !> [[build_config:gs2_has_netcdf_parallel]] once we actually
+       !> want to allow parallel diagnostics.
        if (parallel_io_capable) then
           gnostics%parallel = .true.
        else
