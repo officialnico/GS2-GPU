@@ -86,7 +86,7 @@ module init_g
   integer :: eq_mode_n=0, eq_mode_u=1
   ! mode number in x for sinusoidal equilibrium
   logical :: input_check_recon=.false.
-  complex :: nkxy_pt(3), ukxy_pt(3)
+  complex :: ukxy_pt(3)
   ! <RN
 
   !> Whether to use the constant_random number
@@ -255,10 +255,6 @@ module init_g
      !>
      !> FIXME: Add documentation
      logical :: new_field_init = .true.
-     !> Unused
-     !>
-     !> FIXME: Remove
-     complex, dimension(3) :: nkxy_pt = cmplx(0.,0.)
      !> "Nullify fields". Used by [[init_g_knobs:ginit_option]] `"recon3"`
      !>
      !> FIXME: Add documentation
@@ -1057,7 +1053,6 @@ contains
     call broadcast (eq_mode_n)
     call broadcast (eq_mode_u)
     call broadcast (input_check_recon)
-    call broadcast (nkxy_pt)
     call broadcast (ukxy_pt)
     
     call broadcast (ikpar_init)
@@ -1373,7 +1368,6 @@ contains
     left = init_g_config%left
     max_mode = init_g_config%max_mode
     new_field_init = init_g_config%new_field_init
-    nkxy_pt = init_g_config%nkxy_pt
     null_apar = init_g_config%null_apar
     null_bpar = init_g_config%null_bpar
     null_phi = init_g_config%null_phi
@@ -4591,7 +4585,7 @@ contains
     character(len = 150) :: restart_dir
     character(len = 20) :: eq_type, ginit_option
     character(len = 2000) :: restart_file
-    complex, dimension(3) :: nkxy_pt, ukxy_pt
+    complex, dimension(3) :: ukxy_pt
     complex, dimension(6) :: aparamp, phiamp
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
@@ -4601,7 +4595,7 @@ contains
     real :: upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, nkxy_pt, null_apar, null_bpar, null_phi, phiamp, &
+         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, null_apar, null_bpar, null_phi, phiamp, &
          phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
          upar1, upar2, width0, zf_init
 
@@ -4640,7 +4634,6 @@ contains
     left = self%left
     max_mode = self%max_mode
     new_field_init = self%new_field_init
-    nkxy_pt = self%nkxy_pt
     null_apar = self%null_apar
     null_bpar = self%null_bpar
     null_phi = self%null_phi
@@ -4707,7 +4700,6 @@ contains
     self%left = left
     self%max_mode = max_mode
     self%new_field_init = new_field_init
-    self%nkxy_pt = nkxy_pt
     self%null_apar = null_apar
     self%null_bpar = null_bpar
     self%null_phi = null_phi
@@ -4785,7 +4777,6 @@ contains
     call self%write_key_val("left", self%left, unit_internal)
     call self%write_key_val("max_mode", self%max_mode, unit_internal)
     call self%write_key_val("new_field_init", self%new_field_init, unit_internal)
-    call self%write_key_val("nkxy_pt", self%nkxy_pt, unit_internal)
     call self%write_key_val("null_apar", self%null_apar, unit_internal)
     call self%write_key_val("null_bpar", self%null_bpar, unit_internal)
     call self%write_key_val("null_phi", self%null_phi, unit_internal)
@@ -4865,7 +4856,6 @@ contains
     call broadcast(self%left)
     call broadcast(self%max_mode)
     call broadcast(self%new_field_init)
-    call broadcast(self%nkxy_pt)
     call broadcast(self%null_apar)
     call broadcast(self%null_bpar)
     call broadcast(self%null_phi)

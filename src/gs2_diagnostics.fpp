@@ -56,7 +56,7 @@ module gs2_diagnostics
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
   logical, public :: write_gs, write_ql_metric
-  logical, public :: write_g, write_gg, write_gyx
+  logical, public :: write_g, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
   logical, public :: write_moments, ob_midplane, write_final_db
@@ -769,7 +769,6 @@ contains
     write_flux_line = gs2_diagnostics_config%write_flux_line
     write_full_moments_notgc = gs2_diagnostics_config%write_full_moments_notgc
     write_g = gs2_diagnostics_config%write_g
-    write_gg = gs2_diagnostics_config%write_gg
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
     write_heating = gs2_diagnostics_config%write_heating

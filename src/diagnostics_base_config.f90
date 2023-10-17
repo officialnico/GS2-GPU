@@ -207,7 +207,7 @@ module diagnostics_base_config
     logical :: write_any = .true.
 
     !> Write the entire \(A_\parallel\) field every
-    !> [gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
     !> @warning New diagnostics requires
     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
@@ -386,10 +386,6 @@ module diagnostics_base_config
     !>
     !> @warning Only to text files
     logical :: write_g = .false.
-    !> @warning Unused
-    !>
-    !> FIXME: Delete
-    logical :: write_gg = .false.
     !> FIXME: Add documentation
     !>
     !> @warning Only outputs to text files
@@ -517,7 +513,7 @@ module diagnostics_base_config
     !>
     !> @warning Non-functional in new diagnostics
     logical :: write_pflux_tormom = .false.
-    !> Write the entire \(\phi\) field every [gs2_diagnostics_knobs:nwrite]]
+    !> Write the entire \(\phi\) field every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
     !> @warning New diagnostics requires
@@ -645,7 +641,7 @@ contains
     logical :: write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
-    logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
+    logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
     logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
@@ -659,7 +655,7 @@ contains
          write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, &
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
-         write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
+         write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
          write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
@@ -724,7 +720,6 @@ contains
     write_fluxes_by_mode = self%write_fluxes_by_mode
     write_full_moments_notgc = self%write_full_moments_notgc
     write_g = self%write_g
-    write_gg = self%write_gg
     write_gs = self%write_gs
     write_gyx = self%write_gyx
     write_heating = self%write_heating
@@ -827,7 +822,6 @@ contains
     self%write_fluxes_by_mode = write_fluxes_by_mode
     self%write_full_moments_notgc = write_full_moments_notgc
     self%write_g = write_g
-    self%write_gg = write_gg
     self%write_gs = write_gs
     self%write_gyx = write_gyx
     self%write_heating = write_heating
@@ -926,7 +920,6 @@ contains
     call self%write_key_val("write_fluxes_by_mode", self%write_fluxes_by_mode, unit_internal)
     call self%write_key_val("write_full_moments_notgc", self%write_full_moments_notgc, unit_internal)
     call self%write_key_val("write_g", self%write_g, unit_internal)
-    call self%write_key_val("write_gg", self%write_gg, unit_internal)
     call self%write_key_val("write_gs", self%write_gs, unit_internal)
     call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
     call self%write_key_val("write_heating", self%write_heating, unit_internal)
@@ -1026,7 +1019,6 @@ contains
     call broadcast(self%write_fluxes_by_mode)
     call broadcast(self%write_full_moments_notgc)
     call broadcast(self%write_g)
-    call broadcast(self%write_gg)
     call broadcast(self%write_gs)
     call broadcast(self%write_gyx)
     call broadcast(self%write_heating)
