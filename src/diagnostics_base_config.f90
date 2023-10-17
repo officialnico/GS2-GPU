@@ -49,16 +49,12 @@ module diagnostics_base_config
     !>
     !> @warning You probably don't want this?  Expensive.
     logical :: dump_fields_periodically = .false.
-
-    !> If built with parallel IO capability enable parallel IO. Currently
-    !> disabled by default because of problems on Helios: parallel IO seems to
-    !> work on 1 node but not on >1. This problem does not affect parallel IO
-    !> for the single restart file because it only affects output with infinite
-    !> dimensions
+    !> Enable parallel IO in the .out.nc file. Currently disabled by default
+    !> and doesn't activate feature when set to true as we hard code that parallel
+    !> IO isn't supported for the .out.nc file.
     !>
     !> @warning Only in new diagnostics
     logical :: enable_parallel = .false.
-
     !> Exit when the run has reached convergence
     logical :: exit_when_converged = .true.
     !> Verify that the restart file(s) can be written before starting the run
