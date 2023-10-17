@@ -230,7 +230,6 @@
   ! write_ascii not specified --- 
   ! write_kpar not specified --- 
   ! write_gs not specified --- 
-  ! write_gg not specified --- 
   ! write_lpoly not specified --- 
   ! write_fields not specified --- 
   ! write_final_antot not specified --- 

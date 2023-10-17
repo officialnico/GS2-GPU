@@ -202,7 +202,6 @@
  write_flux_line = .true. !
  write_full_moments_notgc = .true. !
  write_g = .true. ! Write the distribution function to the '.dist' (NetCDF?)
- write_gg = .true. !
  write_gs = .true. !
  write_gyx = .true. ! Write dist fn at a given physical spacial point to a file
  write_heating = .true. ! Write heating rate, collisonal entropy generation etc to '.heat'
