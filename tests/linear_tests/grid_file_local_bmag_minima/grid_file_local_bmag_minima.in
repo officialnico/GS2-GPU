@@ -105,7 +105,7 @@
 /
 
 &gs2_diagnostics_knobs
-    write_hrate = .false.
+    write_heating = .false.
     print_flux_line = .false.
     write_nl_flux = .false.
     write_fluxes = .false.
