@@ -1,8 +1,8 @@
 !> A module for calculating and writing gs2 outputs. It can write
-!! these outputs both to a netcdf file <run_name>.cdf or to ascii text
-!! files. It is controlled via the namelist diagnostics_config. 
-!! This module is intended to replace the old gs2_diagnostics module with a 
-!! simpler and more structured interface. 
+!> these outputs both to a netcdf file <run_name>.cdf or to ascii text
+!> files. It is controlled via the namelist diagnostics_config.
+!> This module is intended to replace the old gs2_diagnostics module with a
+!> simpler and more structured interface.
 module gs2_diagnostics_new
   use diagnostics_config, only: diagnostics_type
   implicit none
@@ -14,17 +14,10 @@ module gs2_diagnostics_new
   public :: reset_averages_and_counters
   public :: run_diagnostics
   public :: gnostics
-  
-  !> Options passed to init_gs2_diagnostics_new 
-  public :: diagnostics_init_options_type
 
-  !> FIXME : Add documentation  
-  type diagnostics_init_options_type
-     logical :: parallel_io_capable
-     logical :: default_double
-     logical :: initialized
-     logical :: is_trinity_run
-  end type diagnostics_init_options_type
+  !> Do we have parallel IO capability in the build. This is always disabled
+  !> for now whilst we actually implement this feature
+  logical, parameter :: parallel_io_capable = .false.
 
   type(diagnostics_type) :: gnostics 
 
@@ -33,8 +26,8 @@ module gs2_diagnostics_new
 contains
 
   !> Read namelist diagnostics_config, initialise submodules,
-  !! open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(init_options, header)
+  !> open output file 'run_name.cdf' and create dimensions.
+  subroutine init_gs2_diagnostics_new(is_trinity_run, header)
     use kt_grids, only: nx, ny, naky, ntheta0
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -64,7 +57,7 @@ contains
     use neasyf, only: neasyf_open
     use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length, nc_grids_mymovie
     implicit none
-    type(diagnostics_init_options_type), intent(in) :: init_options
+    logical, intent(in) :: is_trinity_run
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
     logical :: ex, accelerated
@@ -94,11 +87,11 @@ contains
 
     ! Set whether this is a Trinity run.. enforces certain 
     ! calculations
-    gnostics%is_trinity_run = init_options%is_trinity_run
+    gnostics%is_trinity_run = is_trinity_run
     
     gnostics%parallel = .false.
     if (gnostics%enable_parallel) then
-       if (init_options%parallel_io_capable) then 
+       if (parallel_io_capable) then
           gnostics%parallel = .true.
        else
           if (proc0) write (*,*) "WARNING: you have selected &
