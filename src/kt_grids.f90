@@ -1317,9 +1317,9 @@ module kt_grids_box
   
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
-  integer :: nkpolar_private, n0
+  integer :: n0
   integer :: jtwist
-  integer :: naky, ntheta0, nx, ny, nkpolar
+  integer :: naky, ntheta0, nx, ny
   !> Are we being called from gryfx?
   logical :: gryfx
   logical :: parameters_read = .false.
@@ -1363,13 +1363,6 @@ module kt_grids_box
      !> allow values to be selected which are performant for the FFTs
      !> and provide a good range of sweetspots.
      integer :: naky = 0
-     !> FIXME: Add documentation
-     !>
-     !> Not used anywhere so should be removed.
-     !> If set to 0 (the default) then will be set to `int(real(naky-1.)*sqrt(2.))`
-     !>
-     !> @todo Consider for removal.
-     integer :: nkpolar = 0
      !> The actual number of theta0 modes. For nonlinear runs it is
      !> generally recommended to use `nx` instead. If set to 0 (the
      !> default) this will be automatically set to `1 + 2*(nx-1)/3`.
@@ -1465,7 +1458,6 @@ contains
     ly = kt_grids_box_config%ly
     n0 = kt_grids_box_config%n0
     naky = kt_grids_box_config%naky
-    nkpolar = kt_grids_box_config%nkpolar
     ntheta0 = kt_grids_box_config%ntheta0
     nx = kt_grids_box_config%nx
     ny = kt_grids_box_config%ny
@@ -1534,7 +1526,6 @@ contains
     if (naky == 0) naky = (ny-1)/3 + 1
     if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
     if (rtwist == 0.) rtwist = real(jtwist)
-    if (nkpolar == 0) nkpolar = int(real(naky-1.)*sqrt(2.))
 
     if (mod(ntheta0, 2) /= 1) then
        call mp_abort("ERROR: ntheta0 must be an odd number in box mode", .true.)
@@ -1603,7 +1594,6 @@ contains
        end if
     end if
 
-    nkpolar_private = nkpolar
     naky_private = naky
     ntheta0_private = ntheta0
     nx_private = nx
@@ -1631,7 +1621,7 @@ contains
   end subroutine wnml_kt_grids_box
 
   !> Get the various grid sizes
-  subroutine box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
+  subroutine box_get_sizes (naky, ntheta0, nx, ny)
     implicit none
     !> Number of \(k_y \rho\) modes. See [[kt_grids_box_parameters::naky]]
     integer, intent (out) :: naky
@@ -1641,13 +1631,10 @@ contains
     integer, intent (out) :: nx
     !> Number of y points in real space. See [[kt_grids_box_parameters::ny]]
     integer, intent (out) :: ny
-    !> See [[kt_grids_box_parameters::nkpolar]]
-    integer, intent (out) :: nkpolar
     naky = naky_private
     ntheta0 = ntheta0_private
     nx = nx_private
     ny = ny_private
-    nkpolar = nkpolar_private
   end subroutine box_get_sizes
 
   !> FIXME : Add documentation  
@@ -1876,11 +1863,11 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: jtwist, n0, naky, nkpolar, ntheta0, nx, ny
+    integer :: jtwist, n0, naky, ntheta0, nx, ny
     logical :: gryfx
     real :: ly, rhostar_box, rtwist, x0, y0
 
-    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, nkpolar, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
+    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1891,7 +1878,6 @@ contains
     ly = self%ly
     n0 = self%n0
     naky = self%naky
-    nkpolar = self%nkpolar
     ntheta0 = self%ntheta0
     nx = self%nx
     ny = self%ny
@@ -1910,7 +1896,6 @@ contains
     self%ly = ly
     self%n0 = n0
     self%naky = naky
-    self%nkpolar = nkpolar
     self%ntheta0 = ntheta0
     self%nx = nx
     self%ny = ny
@@ -1940,7 +1925,6 @@ contains
     call self%write_key_val("ly", self%ly, unit_internal)
     call self%write_key_val("n0", self%n0, unit_internal)
     call self%write_key_val("naky", self%naky, unit_internal)
-    call self%write_key_val("nkpolar", self%nkpolar, unit_internal)
     call self%write_key_val("ntheta0", self%ntheta0, unit_internal)
     call self%write_key_val("nx", self%nx, unit_internal)
     call self%write_key_val("ny", self%ny, unit_internal)
@@ -1972,7 +1956,6 @@ contains
     call broadcast(self%ly)
     call broadcast(self%n0)
     call broadcast(self%naky)
-    call broadcast(self%nkpolar)
     call broadcast(self%ntheta0)
     call broadcast(self%nx)
     call broadcast(self%ny)
@@ -2013,7 +1996,6 @@ module kt_grids
   public :: set_overrides
   public :: aky, theta0, akx
   public :: naky, ntheta0, nx, ny, reality
-  public :: nkpolar 
   public :: ikx, iky, jtwist_out
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
@@ -2044,8 +2026,6 @@ module kt_grids
   integer :: nx
   !> Number of (real space) \(y\) points
   integer :: ny
-  !> @todo remove as unused
-  integer :: nkpolar
   !> Related to the box size in x. See
   !> [[kt_grids_box_parameters:jtwist]]
   integer :: jtwist_out
@@ -2111,8 +2091,6 @@ contains
     parameters_read = .true.
     
     call init_theta_grid
-    nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
-    
     call read_parameters_internal(kt_grids_config_in)
 
     ! Read all namelists in case grid_option is overriden
@@ -2194,7 +2172,6 @@ contains
     call broadcast (reality)
     call broadcast (box)
     call broadcast (naky)
-    call broadcast (nkpolar)
     call broadcast (ntheta0)
     call broadcast (ny)
     call broadcast (nx)
@@ -2307,7 +2284,7 @@ contains
        call specified_get_sizes (naky, ntheta0, nx, ny)
     case (gridopt_box)
        call init_kt_grids_box
-       call box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
+       call box_get_sizes (naky, ntheta0, nx, ny)
        reality = .true.
        box = .true.
     end select
