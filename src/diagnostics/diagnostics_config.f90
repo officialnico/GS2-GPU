@@ -158,7 +158,6 @@ module diagnostics_config
      logical :: write_zonal_transfer
      logical :: write_collisional
      logical :: write_omavg
-     logical :: write_gg
      logical :: ob_midplane
      logical :: write_avg_moments
      logical :: dump_check1
@@ -352,7 +351,6 @@ contains
     gnostics%write_fluxes_by_mode = new_gs2_diagnostics_config%write_fluxes_by_mode
     gnostics%write_full_moments_notgc = new_gs2_diagnostics_config%write_full_moments_notgc
     gnostics%write_g = new_gs2_diagnostics_config%write_g
-    gnostics%write_gg = new_gs2_diagnostics_config%write_gg
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
