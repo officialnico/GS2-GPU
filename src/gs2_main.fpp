@@ -319,23 +319,21 @@ contains
     end do
   end subroutine parse_command_line
 
-  !> Starts the global wall clock timer
-  !! used by check time. This is useful
-  !! if you have multiple copies of gs2 
-  !! running but you don't want to start 
-  !! them all at the same time, but you
-  !! want them all to respect avail_cpu_time
+  !> Starts the global wall clock timer used by check time. This is
+  !> useful if you have multiple copies of gs2 running but you don't
+  !> want to start them all at the same time, but you want them all to
+  !> respect avail_cpu_time
   subroutine initialize_wall_clock_timer
     use job_manage, only: init_checktime
     call init_checktime
   end subroutine initialize_wall_clock_timer
 
-  !> Initialise message passing, open the input file, split the 
-  !! communicator if running in list mode or if nensembles > 1,
-  !! initialize the timers. After calling this function, gs2
-  !! reaches init\%level = basic. If it is desired to provide
-  !! an external commuicator or set the input file name externally,
-  !! these should be set before calling this function. 
+  !> Initialise message passing, open the input file, split the
+  !> communicator if running in list mode or if nensembles > 1,
+  !> initialize the timers. After calling this function, gs2 reaches
+  !> init\%level = basic. If it is desired to provide an external
+  !> commuicator or set the input file name externally, these should
+  !> be set before calling this function.
   subroutine initialize_gs2(state, header_in, header_out, quiet)
     use file_utils, only: init_file_utils
     use file_utils, only: run_name, run_name_target
@@ -479,7 +477,6 @@ contains
 
     call time_message(.false.,state%timers%total,' Total')
 
-
     ! Pass run name to other procs
     if (proc0) then
        run_name_target = trim(run_name)
@@ -502,9 +499,8 @@ contains
 
   end subroutine initialize_gs2
 
-  !> Initialize all the modules which are used to evolve the 
-  !! equations. After calling this function, gs2 reaches 
-  !! init\%level = full. 
+  !> Initialize all the modules which are used to evolve the
+  !> equations. After calling this function, gs2 reaches `init%level = full`.
   subroutine initialize_equations(state)
     use theta_grid, only: surfarea, dvdrhon
     use gs2_time, only: init_tstart
@@ -574,10 +570,10 @@ contains
   end subroutine initialize_equations
 
   !> Initialize the diagostics modules. This function can only be
-  !! called when the init level is 'full', i.e., after calling 
-  !! initialize_equations.  However, gs2 can be partially
-  !! uninitialized without finalizing the diagnostics, for example to
-  !! change parameters such as the timestep.
+  !> called when the init level is 'full', i.e., after calling
+  !> initialize_equations.  However, gs2 can be partially
+  !> uninitialized without finalizing the diagnostics, for example to
+  !> change parameters such as the timestep.
   subroutine initialize_diagnostics(state, header)
     use gs2_diagnostics, only: init_gs2_diagnostics
     use gs2_diagnostics, only: nwrite, write_fluxes
@@ -662,41 +658,39 @@ contains
 
   end subroutine initialize_diagnostics
 
-
-
   !> Run the initial value solver. nstep_run must
-  !! be less than or equal to state\%nstep, which is 
-  !! set from the input file. The cumulative number of
-  !! steps that can be run cannot exceed state\%nstep, 
-  !! without a call to reset_equations.
-  !! Examples:
-  !!
-  !!      call evolve_equations(state, state%nstep) ! Basic run
-  !!
-  !! Note that these two calls: 
-  !!  
-  !!      call evolve_equations(state, state%nstep/2) 
-  !!      call evolve_equations(state, state%nstep/2)
-  !!
-  !! will in general have the identical effect to the single call above.
-  !! There are circumstances when this is not true,
-  !! for example, if the first of the two calls to evolve_equations  
-  !! exits without running nstep/2 steps (perhaps because the
-  !! growth rate has converged). 
-  !!
-  !! This example will cause an error because the total number
-  !! of steps exceeds state\%nstep:
-  !!
-  !!      call evolve_equations(state, state%nstep/2) 
-  !!      call evolve_equations(state, state%nstep/2)
-  !!      call evolve_equations(state, state%nstep/2)
-  !!
-  !! This is OK:
-  !!
-  !!      call evolve_equations(state, state%nstep/2) 
-  !!      call evolve_equations(state, state%nstep/2)
-  !!      call reset_equations(state)
-  !!      call evolve_equations(state, state%nstep/2)
+  !> be less than or equal to `state%nstep`, which is
+  !> set from the input file. The cumulative number of
+  !> steps that can be run cannot exceed `state%nstep`,
+  !> without a call to reset_equations.
+  !> Examples:
+  !>
+  !>      call evolve_equations(state, state%nstep) ! Basic run
+  !>
+  !> Note that these two calls:
+  !>
+  !>      call evolve_equations(state, state%nstep/2)
+  !>      call evolve_equations(state, state%nstep/2)
+  !>
+  !> will in general have the identical effect to the single call above.
+  !> There are circumstances when this is not true,
+  !> for example, if the first of the two calls to evolve_equations
+  !> exits without running nstep/2 steps (perhaps because the
+  !> growth rate has converged).
+  !>
+  !> This example will cause an error because the total number
+  !> of steps exceeds `state%nstep`:
+  !>
+  !>      call evolve_equations(state, state%nstep/2)
+  !>      call evolve_equations(state, state%nstep/2)
+  !>      call evolve_equations(state, state%nstep/2)
+  !>
+  !> This is OK:
+  !>
+  !>      call evolve_equations(state, state%nstep/2)
+  !>      call evolve_equations(state, state%nstep/2)
+  !>      call reset_equations(state)
+  !>      call evolve_equations(state, state%nstep/2)
   subroutine evolve_equations(state, nstep_run, header)
     use collisions, only: vnmult
     use dist_fn_arrays, only: gnew
@@ -924,33 +918,31 @@ contains
        end if
     end if
 
-  ! NRM: When running inside GryfX, evolve_equations is called every timestep to
-  ! advance a single timestep.
-  ! So anything that is supposed to happen after GS2 completes the main nstep
-  ! loop should not be done while running inside GryfX.
-  if(.not. gryfx_zonal%on) then
-    call time_message(.false.,state%timers%main_loop,' Main Loop')
+    ! NRM: When running inside GryfX, evolve_equations is called every timestep to
+    ! advance a single timestep.
+    ! So anything that is supposed to happen after GS2 completes the main nstep
+    ! loop should not be done while running inside GryfX.
+    if(.not. gryfx_zonal%on) then
+       call time_message(.false.,state%timers%main_loop,' Main Loop')
 
-    if (proc0 .and. .not. state%is_external_job) call write_dt
-    
-    call time_message(.false.,state%timers%total,' Total')
+       if (proc0 .and. .not. state%is_external_job) call write_dt
 
-    if (state%print_times) call print_times(state, state%timers)
+       call time_message(.false.,state%timers%total,' Total')
 
-    ilast_step = state%istep_end
+       if (state%print_times) call print_times(state, state%timers)
 
-    ! We also restore the value of the override
-    ! switch to what it was when this function was
-    ! called.
-    state%init%initval_ov%override = temp_initval_override_store
+       ilast_step = state%istep_end
 
-    call debug_message(state%verb,'gs2_main::evolve_equations finished')
-  end if
+       ! We also restore the value of the override
+       ! switch to what it was when this function was
+       ! called.
+       state%init%initval_ov%override = temp_initval_override_store
 
-
+       call debug_message(state%verb,'gs2_main::evolve_equations finished')
+    end if
   end subroutine evolve_equations
 
-  !> FIXME : Add documentation
+  !> Employ the eigenvalue solver to seek eigenmodes using SLEPc
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
     use eigval, only: init_eigval, finish_eigval
@@ -985,7 +977,10 @@ contains
 
   end subroutine run_eigensolver
 
-  !> FIXME : Add documentation
+  !> Effectively resets the state of the diagnostics and time index
+  !> back to the start of the simulation. Primarily useful to allow
+  !> one to reuse existing files etc. without having to start a new
+  !> process. Mostly used in trinity workflows.
   subroutine reset_equations (state)
     use gs2_diagnostics, only: gd_reset => reset_init
 #ifdef NEW_DIAG
@@ -997,13 +992,10 @@ contains
     use mp, only: scope, subprocs, allprocs
     use mp, only: mp_abort
     use unit_tests, only: debug_message
-
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
 
     if (.not. state%included) return
-
-
     if (state%nensembles > 1) call scope (subprocs)
 
     call debug_message(state%verb, 'gs2_main::reset_equations starting')
@@ -1028,7 +1020,6 @@ contains
     call debug_message(state%verb, 'gs2_main::reset_equations finished')
 
     if (state%nensembles > 1) call scope (allprocs)
-
   end subroutine reset_equations
 
   !> FIXME : Add documentation  
@@ -1322,7 +1313,6 @@ contains
 
     if (state%nensembles > 1) &
       call ensemble_average (state%nensembles, time_interval)
-
       
    ! Use simple gamma / k^2 estimates for transport in the 
    ! linear case. This is for testing Trinity
@@ -1335,7 +1325,7 @@ contains
        diff = gnostics%current_results%diffusivity
 #endif 
      endif
-     !write(*,*) 'difff is', diff
+
      do is = 1,nspec
        ! Q = n chi grad T = n (gamma / k^2) dT / dr
        ! = dens  n_r (gamma_N v_thr / k_N**2 rho_r a) dT / drho drho/dr
@@ -1350,8 +1340,7 @@ contains
        ht = 0.0
        vf = 0.0
      end do
-       !time_interval = user_time-start_time
-     time_interval = 1.0
+     time_interval = 1.0 ! Used to be time_interval = user_time-start_time?
    else 
      if (use_old_diagnostics) then
        time_interval = user_time-start_time
@@ -1391,12 +1380,11 @@ contains
    end if
   end subroutine calculate_outputs
 
-
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !! Private subroutines
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation
+  !> Reset timers data to 0
   subroutine reset_timers(timers)
     type(gs2_timers_type), intent(inout) :: timers
     timers%init = 0.
