@@ -578,7 +578,6 @@ contains
     use gs2_diagnostics, only: nwrite, write_fluxes
     use gs2_diagnostics, only: loop_diagnostics
 #ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: diagnostics_init_options_type
     use gs2_diagnostics_new, only: init_gs2_diagnostics_new
     use gs2_diagnostics_new, only: run_diagnostics
 #else
@@ -597,11 +596,6 @@ contains
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
-#ifdef NEW_DIAG
-    ! Configuration for the new diagnostics module
-    type(diagnostics_init_options_type) :: diagnostics_init_options
-    real :: precision_test
-#endif
     if (.not. state%included) return
 
     if (present(header)) then
@@ -633,20 +627,9 @@ contains
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics_new')
 
-#ifdef NETCDF_PARALLEL
-      diagnostics_init_options%parallel_io_capable = .true.
-      diagnostics_init_options%parallel_io_capable = .false.
-#else
-      diagnostics_init_options%parallel_io_capable = .false.
-#endif
-
-      ! Here we check if reals have been promoted to doubles
-      diagnostics_init_options%default_double =  (precision(precision_test).gt.10)
-      ! Check whether this is a Trinity run... enforces calculation of the
-      ! fluxes
-      diagnostics_init_options%is_trinity_run = state%is_trinity_job
-
-      call init_gs2_diagnostics_new(diagnostics_init_options, local_header)
+      ! Initialise the new diagnostics. Note we check whether this is
+      ! a Trinity run... enforces calculation of the fluxes
+      call init_gs2_diagnostics_new(state%is_trinity_job, local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
