@@ -436,7 +436,7 @@ module dist_fn
      real :: vparknob = 1.0
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
-     !> Deprecated option, moved to [le_grids]. Setting
+     !> Deprecated option, moved to [[le_grids]]. Setting
      !> will lead to an error message and abort. To be removed
      !> entirely in future release
      character(len = 20) :: wfbbc_option = 'unset'

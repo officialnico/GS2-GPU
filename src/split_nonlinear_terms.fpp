@@ -72,7 +72,7 @@ module split_nonlinear_terms
      !>  - 'default' -- Same as heun
      !>  - 'heun' -- Heun scheme of order 1(2)
      !>
-     !> See [rk_schemes] for other options.
+     !> See [[rk_schemes]] for other options.
      character(len = 20) :: rk_method = 'default'
      !> If true then reports the number of right hand side (NL term) calculations,
      !> the number of failed internal steps and the number of successful steps at the

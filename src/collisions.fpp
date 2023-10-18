@@ -283,8 +283,8 @@ module collisions
      !> @todo : Verify this does not influence the evolution.
      logical :: heating = .false.
      !> If true (not the default) then multiply the hyper collision
-     !> frequency by the species' collision frequency 
-     !> [[species_parameters::nu_h]]. This only impacts the pitch 
+     !> frequency by the species' collision frequency
+     !> [[species_parameters:nu_h]]. This only impacts the pitch
      !> angle scattering operator.
      !>
      !> @note The hyper collision frequency is only non-zero if any

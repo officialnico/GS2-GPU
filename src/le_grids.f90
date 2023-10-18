@@ -323,7 +323,7 @@ module le_grids
      !> along field line.
      integer :: npassing = -1
      !> The number of untrapped pitch-angles moving in one direction
-     !> along field line is `2*ngauss` if [[le_grids_knobs::npassing]] is
+     !> along field line is `2*ngauss` if [[le_grids_knobs:npassing]] is
      !> not set. Note that the number of trapped pitch angles is
      !> directly related to the number of theta grid points (per
      !> \(2\pi\)) and is `ntheta/2 + 1`.
