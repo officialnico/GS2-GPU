@@ -115,7 +115,7 @@ module nonlinear_terms
      !> GRYFX only. No documentation available
      real :: densfac = 1.
      !> Set the error threshold used to determine when the timestep should change if
-     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      real :: error_target = 0.1
      !> Flag for testing. If false do not include apar contribution to nonlinear term.
      logical :: include_apar = .true.
@@ -124,7 +124,7 @@ module nonlinear_terms
      !> Flag for testing. If false do not include phi contribution to nonlinear term.
      logical :: include_phi = .true.
      !> Set the first timestep for which the order based error checks are made if
-     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      integer :: istep_error_start = 30
      !> If `true` (default) then forces the nonlinear source term to
      !> zero in the forbidden region.
