@@ -1,57 +1,57 @@
 !> This module provides the external interface to gs2. It contains functions
-!! to initialize gs2, functions to run gs2, functions to finalize gs2 and 
-!! functions to override/tweak gs2 parameters. 
-!!
-!! The main entry point is [[run_gs2]], which takes care of initialising all the
-!! subsystems, solving the equations (either the time advance or eigensolver),
-!! and then finalising all the subsystems. This looks something like:
-!!
-!!
-!!     ! An object holding the state of the simulationg
-!!     type(gs2_program_state_type) :: state
-!!     ! Initialisation of subsystems
-!!     call initialize_gs2(state)
-!!     call initialize_equations(state)
-!!     call initialize_diagnostics(state)
-!!     ! Solve the equations
-!!     if (state%do_eigsolve) then 
-!!       call run_eigensolver(state)
-!!     else
-!!       call evolve_equations(state, state%nstep)
-!!     end if
-!!     ! Clean up
-!!     call finalize_diagnostics(state)
-!!     call finalize_equations(state)
-!!     call finalize_gs2(state)
-!!
-!! You can manipulate the [[gs2_program_state]] before running gs2.
-!! 
-!! You can also override parameters: typically this is done either before
-!! calling initialize_equations, or between two calls to evolve equations;
-!! here we manipulate the temperature gradient of the first species:
-!!
-!!     call prepare_profiles_overrides(state)
-!!     state%init%prof_ov%override_tprim(1) = .true.
-!!     state%init%prof_ov%tprim(1) = 5.5
-!!     call initialize_equations(state)
-!!     call initialize_diagnostics(state)
-!!     call evolve_equations(state, state%nstep/2)
-!!     call prepare_profiles_overrides(state)
-!!     state%init%prof_ov%tprim(1) = 6.0
-!!     call initialize_equations(state)
-!!     call evolve_equations(state, state%nstep/2)
-!!     ...
-!!   
-!! It is very important to note that just because this interface is presented
-!! in an object-oriented way, it does not, unfortunately, mean that the entire
-!! program state, i.e. data arrays etc, is encapsulated in the gs2_program_state 
-!! object. In fact most data is stored globally as module public variables. 
-!! The gs2_program_state object is provided for convenience, as a way of
-!! monitoring the execution state of gs2, and because it is hoped that in the 
-!! future gs2 will, in fact, be thread safe and have proper data encapsulation.
-!! A particular consequence of this is that only one instance of the
-!! gs2_program_state object should exist on each process, i.e. in a given 
-!! memory space.
+!> to initialize gs2, functions to run gs2, functions to finalize gs2 and
+!> functions to override/tweak gs2 parameters.
+!>
+!> The main entry point is [[run_gs2]], which takes care of initialising all the
+!> subsystems, solving the equations (either the time advance or eigensolver),
+!> and then finalising all the subsystems. This looks something like:
+!>
+!>
+!>     ! An object holding the state of the simulationg
+!>     type(gs2_program_state_type) :: state
+!>     ! Initialisation of subsystems
+!>     call initialize_gs2(state)
+!>     call initialize_equations(state)
+!>     call initialize_diagnostics(state)
+!>     ! Solve the equations
+!>     if (state%do_eigsolve) then
+!>       call run_eigensolver(state)
+!>     else
+!>       call evolve_equations(state, state%nstep)
+!>     end if
+!>     ! Clean up
+!>     call finalize_diagnostics(state)
+!>     call finalize_equations(state)
+!>     call finalize_gs2(state)
+!>
+!> You can manipulate the [[gs2_program_state]] before running gs2.
+!>
+!> You can also override parameters: typically this is done either before
+!> calling initialize_equations, or between two calls to evolve equations;
+!> here we manipulate the temperature gradient of the first species:
+!>
+!>     call prepare_profiles_overrides(state)
+!>     state%init%prof_ov%override_tprim(1) = .true.
+!>     state%init%prof_ov%tprim(1) = 5.5
+!>     call initialize_equations(state)
+!>     call initialize_diagnostics(state)
+!>     call evolve_equations(state, state%nstep/2)
+!>     call prepare_profiles_overrides(state)
+!>     state%init%prof_ov%tprim(1) = 6.0
+!>     call initialize_equations(state)
+!>     call evolve_equations(state, state%nstep/2)
+!>     ...
+!>
+!> It is very important to note that just because this interface is presented
+!> in an object-oriented way, it does not, unfortunately, mean that the entire
+!> program state, i.e. data arrays etc, is encapsulated in the gs2_program_state
+!> object. In fact most data is stored globally as module public variables.
+!> The gs2_program_state object is provided for convenience, as a way of
+!> monitoring the execution state of gs2, and because it is hoped that in the
+!> future gs2 will, in fact, be thread safe and have proper data encapsulation.
+!> A particular consequence of this is that only one instance of the
+!> gs2_program_state object should exist on each process, i.e. in a given
+!> memory space.
 module gs2_main
   use gs2_init, only: init_type, init_level_list
   use optimisation_config, only: optimisation_type
