@@ -85,17 +85,16 @@ module gs2_main
   public :: initialize_wall_clock_timer
 
 
-  !> FIXME : Add documentation
+  !> Holds data pertaining to some of the main algorithm timers.
   type gs2_timers_type
-    real :: init(2) 
+    real :: init(2) = 0.
     real :: advance(2) = 0.
     real :: timestep(2) = 0.
     real :: finish(2) = 0.
-    real :: total(2) = 0. 
+    real :: total(2) = 0.
     real :: diagnostics(2)=0.
     real :: eigval(2)=0.
-    !real :: interval
-    real :: main_loop(2)
+    real :: main_loop(2) = 0.
   end type gs2_timers_type
 
   !> A type for storing outputs of gs2
