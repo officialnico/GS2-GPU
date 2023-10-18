@@ -120,138 +120,125 @@ module gs2_main
   !> The object which specifies and records the gs2 program state.
   !> Some attributes of the object, like mp_comm_external, are
   !> designed to directly manipulated by the user, and some are
-  !> designed to store program state information and be
-  !> manipulated internally, like `init%level`.
+  !> designed to store program state information and be manipulated
+  !> internally, like `init%level`.
   type gs2_program_state_type
 
-     !> A type for keeping track of the current
-     !> initialization level of gs2, as well
-     !> as storing all the overrides. See
+     !> A type for keeping track of the current initialization level
+     !> of gs2, as well as storing all the overrides. See
      !> gs2_init::init_type for more information.
      type(init_type) :: init
 
+     !> Do not set manually. If fewer than the available number of
+     !> processors are being used, this is true for the processors that
+     !> are active and false for those that lie idle.
+     logical :: included = .true.
 
-    !> Do not set manually. If fewer than the
-    !> available number of processors are being
-    !> used, this is true for the processors
-    !> that are active and false for those that
-    !> lie idle.
-    logical :: included = .true.
+     !> Derived type [[gs2_timers_type]] holding some of the
+     !> timer data for this run.
+     type(gs2_timers_type) :: timers
 
-    !> Derived type [[gs2_timers_type]] holding some of the
-    !> timer data for this run.
-    type(gs2_timers_type) :: timers
+     !> The exit flag is set to true by any part of the main timestep
+     !> loop that wants to cause the loop to exit
+     logical :: exit = .false.
 
-    !> The exit flag is set to true by any
-    !> part of the main timestep loop that
-    !> wants to cause the loop to exit
-    logical :: exit = .false.
+     !> Whether the run has converged to a stationary state
+     logical :: converged = .false.
 
-    !> Whether the run has converged to a
-    !> stationary state
-    logical :: converged = .false.
+     !> Whether to run the eigenvalue solver or not. Set equal to the
+     !> input value in intialize_equations. Typically only important
+     !> for the standalone gs2 program
+     logical :: do_eigsolve = .false.
 
-    !> Whether to run the eigenvalue solver
-    !> or not. Set equal to the input value
-    !> in intialize_equations. Typically
-    !> only important for the standalone
-    !> gs2 program
-    logical :: do_eigsolve = .false.
+     !> This parameter is set equal to run_parameters::nstep in
+     !> initialize_equations and is the maximum number of timesteps
+     !> that can be run without reinitalising the diagnostics.  Do not
+     !> modify. We should make this private but it is used in testing
+     !> currently so we don't.
+     integer :: nstep
 
-    !> This parameter is set equal to run_parameters::nstep in
-    !> initialize_equations and is the maximum
-    !> number of timesteps that can be run
-    !> without reinitalising the diagnostics.
-    !> Do not modify!
-    integer, private :: nstep
+     !> Gets set to the final value of istep in evolve equations. Any
+     !> future calls to evolve_equations will increment this
+     !> further. A call to finalize_diagnostics will set it back to
+     !> 1. Note that setting this manually is NOT advised.
+     integer :: istep_end = 0
 
-    !> Gets set to the final value of istep
-    !> in evolve equations. Any future calls
-    !> to evolve_equations will increment this
-    !> further. A call to finalize_diagnostics
-    !> will set it back to 1. Note that setting
-    !> this manually is NOT advised.
-    integer :: istep_end = 0
+     !> Verbosity at which we print out debug messages
+     integer :: verb = 3
 
-    !> Verbosity at which we print out debug messages
-    integer :: verb = 3
+     !> Parameters pertaining to cases when gs2 is being used as
+     !> library. external_job_id is not to confused with the parameter
+     !> job in mp, which identifies the subjob if running in list mode
+     !> or with nensembles > 1
+     integer :: external_job_id = -1
 
-    !> Parameters pertaining to cases when gs2
-    !> is being used as library.
-    !> external_job_id is not to confused with the parameter
-    !> job in mp, which identifies the subjob if
-    !> running in list mode or with nensembles > 1
-    integer :: external_job_id = -1
+     !> is_external_job should be set to true when GS2 is being used
+     !> as a library
+     logical :: is_external_job = .false.
 
-    !> is_external_job should be set to true when GS2
-    !> is being used as a library
-    logical :: is_external_job = .false.
+     !> Set true if using trinity. This does several things:
+     !>  * it forces the calculation of the fluxes
+     !>  * it causes the species and theta_grid name lists to use parameters
+     !>     provided by trinity
+     !> Setting this flag true automatically sets is_external_job
+     !> to true
+     logical :: is_trinity_job = .false.
 
-    !> Set true if using trinity. This does several things:
-    !>  * it forces the calculation of the fluxes
-    !>  * it causes the species and theta_grid name lists to use parameters
-    !>     provided by trinity
-    !> Setting this flag true automatically sets is_external_job
-    !> to true
-    logical :: is_trinity_job = .false.
+     !> Used to hold the current trinity timestep if being called via
+     !> trinity. Set in [[gs2_gryfx_zonal]].
+     integer :: trinity_timestep = -1
+     !> Used to hold the current trinity iteration if being called via
+     !> trinity. Set in [[gs2_gryfx_zonal]].
+     integer :: trinity_iteration = -1
 
-    !> Used to hold the current trinity timestep if being called via
-    !> trinity. Set in [[gs2_gryfx_zonal]].
-    integer :: trinity_timestep = -1
-    !> Used to hold the current trinity iteration if being called via
-    !> trinity. Set in [[gs2_gryfx_zonal]].
-    integer :: trinity_iteration = -1
+     !> If true, print full timing breakdown.
+     logical :: print_full_timers = .true.
 
-    !> If true, print full timing breakdown.
-    logical :: print_full_timers = .true.
+     !> If true, print run time or full timing breakdown, depending on
+     !> the value of print_full_timers
+     logical :: print_times = .true.
 
-    !> If true, print run time or
-    !> full timing breakdown, depending
-    !> on the value of print_full_timers
-    logical :: print_times = .true.
+     !> MPI communicator. This MUST be set.
+     integer :: mp_comm = mp_comm_null
 
-    !> MPI communicator. This MUST be set
-    integer :: mp_comm = mp_comm_null
+     !> This is set in initialize_gs2 to the number of procs actually
+     !> used
+     integer :: nproc_actual = -1
 
-    !> This is set in initialize_gs2 to the number
-    !> of procs actually used
-    integer :: nproc_actual = -1
+     !> If true then we end up passing [[gs2_program_state_type:run_name]]
+     !> as the base file name. This is only set to .true. in [[init_gs2_gryfx]]
+     !> which is not called in GS2 but may be from original trinity etc.
+     logical :: run_name_external = .false.
+     !> The run name to pass to [[init_file_utils]] if `run_name_external` is
+     !> set to true. GS2 then uses this in place of any input file name passed
+     !> at the command line.
+     character(run_name_size) :: run_name = 'unset'
 
-    !> If true then we end up passing [[gs2_program_state_type:run_name]]
-    !> as the base file name. This is only set to .true. in [[init_gs2_gryfx]]
-    !> which is not called in GS2 but may be from original trinity etc.
-    logical :: run_name_external = .false.
-    !> The run name to pass to [[init_file_utils]] if `run_name_external` is
-    !> set to true. GS2 then uses this in place of any input file name passed
-    !> at the command line.
-    character(run_name_size) :: run_name = 'unset'
+     !> If true then skip the call to diagnostics calculations in
+     !> evolve_equations (main loop and after main loop)
+     logical :: skip_diagnostics = .false.
+     !> If true then ignore any requests to change the time step in
+     !> evolve_equations as a part of the time advance algorithm
+     logical :: dont_change_timestep = .false.
 
-    !> If true then skip the call to diagnostics calculations in
-    !> evolve_equations (main loop and after main loop)
-    logical :: skip_diagnostics = .false.
-    !> If true then ignore any requests to change the time step in
-    !> evolve_equations as a part of the time advance algorithm
-    logical :: dont_change_timestep = .false.
+     !> Whether this is a list mode run
+     logical :: list = .false.
+     !> The number of identical runs happening simultaneously (used
+     !> for ensemble averaging).  Cannot be used in conjunction with
+     !> list mode
+     integer :: nensembles = 1
 
-    !> Whether this is a list mode run
-    logical :: list = .false.
-    !> The number of identical runs happening
-    !> simultaneously (used for ensemble averaging).
-    !> Cannot be used in conjunction with list mode
-    integer :: nensembles = 1
+     !> Holds some outputs of interest (e.g. for Trinity)
+     type(gs2_outputs_type) :: outputs
 
-    !> Holds some outputs of interest (e.g. for Trinity)
-    type(gs2_outputs_type) :: outputs
+     !> If true, calculate and set [[outputs]]
+     logical :: set_outputs = .false.
 
-    !> If true, calculate and set [[outputs]]
-    logical :: set_outputs = .false.
+     !> Optimisation configuration
+     type(optimisation_type) :: optim
 
-    ! Optimisation configuration
-    type(optimisation_type) :: optim
-
-    !> Reason for end of simulation
-    type(exit_code) :: exit_reason = EXIT_NOT_REQUESTED
-
+     !> Reason for end of simulation
+     type(exit_code) :: exit_reason = EXIT_NOT_REQUESTED
   end type gs2_program_state_type
 
   private
