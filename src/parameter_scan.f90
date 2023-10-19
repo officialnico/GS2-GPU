@@ -325,9 +325,7 @@ contains
        reset = .true.
     case (scan_parameter_g_exb)
        g_exb = current_scan_parameter_value
-       if (proc0) write (*,*) &
-            "Set scan parameter g_exb to ", g_exb
-       reset = .false.
+       if (proc0) write (*,*) "Set scan parameter g_exb to ", g_exb
     end select
   end subroutine set_scan_parameter
 
