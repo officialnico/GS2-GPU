@@ -21,8 +21,6 @@ program test_gs2_diagnostics
   call init_mp()
   state%mp_comm = mp_comm
 
-  functional_test_flag = .true.
-
   call announce_module_test("gs2_diagnostics")
   call run_gs2(finalize=.false., state=state)
   call announce_test('diffusivity')

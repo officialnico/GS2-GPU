@@ -204,7 +204,6 @@ contains
   !> Run GS2 and check that `test_function` returns true
   subroutine test_gs2(test_name, test_function)
     use gs2_main, only: run_gs2, gs2_program_state_type, finish_gs2
-    use unit_tests, only: functional_test_flag
     use mp, only: init_mp, proc0, finish_mp, mp_comm
     implicit none
     character(*), intent(in) :: test_name
@@ -213,8 +212,6 @@ contains
 
     call init_mp
     state%mp_comm = mp_comm
-
-    functional_test_flag = .true.
 
     if (proc0) call announce_functional_test(test_name)
 

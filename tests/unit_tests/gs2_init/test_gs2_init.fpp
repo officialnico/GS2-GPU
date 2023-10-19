@@ -74,8 +74,6 @@ program test_gs2_reinit
     call init_mp
     state%mp_comm = mp_comm
 
-    functional_test_flag = .true.
-
    call announce_module_test("gs2_reinit")
 
    call announce_test('That initialization always results in the same initial condition') 

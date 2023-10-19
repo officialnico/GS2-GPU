@@ -1,6 +1,6 @@
 program test_write_diagnostics_at_end
   use gs2_main, only: run_gs2, gs2_program_state_type
-  use unit_tests, only: functional_test_flag, announce_test, process_test
+  use unit_tests, only: announce_test, process_test
   use mp, only: init_mp, mp_comm, finish_mp
   implicit none
   integer, parameter :: nout_expected = 2
@@ -9,7 +9,6 @@ program test_write_diagnostics_at_end
 
   call init_mp()
   state%mp_comm = mp_comm
-  functional_test_flag = .true.
   call run_gs2(state)
 
   call announce_test(test_name)

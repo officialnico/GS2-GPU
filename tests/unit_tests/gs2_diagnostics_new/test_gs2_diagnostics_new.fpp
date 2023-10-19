@@ -142,7 +142,6 @@ program test_gs2_diagnostics_new
   call broadcast(override_screen_printout_options)
 #endif
 
-  functional_test_flag = .true.
   state%mp_comm = mp_comm
 
   call announce_module_test("gs2_diagnostics_new")
