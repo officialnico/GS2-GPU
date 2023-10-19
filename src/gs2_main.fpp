@@ -769,7 +769,7 @@ contains
 #endif
        end if
        if (should_save_restart) call gs2_save_for_restart (gnew, user_time, vnmult, &
-            istatus, has_phi, has_apar, has_bpar, code_dt, code_dt_prev1,
+            istatus, has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, &
             code_dt_prev2, code_dt_max, header=local_header)
 
        call update_time
