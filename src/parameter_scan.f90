@@ -16,7 +16,7 @@ module parameter_scan
   !These should really be moved to specific routines where required
   use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter
   use parameter_scan_arrays, only: scan_parameter_switch, scan_parameter_tprim, scan_parameter_g_exb
-  use parameter_scan_arrays, only: scan_spec, hflux_tot, momflux_tot, phi2_tot, nout
+  use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot, nout
 
   implicit none
 
@@ -46,7 +46,7 @@ module parameter_scan
        increment_condition_saturated = 3
 
   real :: par_start, par_end, par_inc
-  integer :: nstep_init, nstep_inc
+  integer :: nstep_init, nstep_inc, scan_spec
   real :: delta_t_init, delta_t_inc, target_val
   integer :: scan_output_file
   real :: current_target_value = 0.0
