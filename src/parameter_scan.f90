@@ -292,12 +292,10 @@ contains
        return
     end if
 
-    if ((last_value .lt. target_val .and. &
-         current_target_value .gt. target_val) .or. &
-         (last_value .gt. target_val .and. &
-         current_target_value .lt. target_val)) &
+    ! Check if last and current values bracket the target
+    if ((last_value < target_val .and. current_target_value > target_val) .or. &
+         (last_value > target_val .and. current_target_value < target_val)) &
          target_reached = .true.
-
   end subroutine check_target_reached
 
   !> FIXME : Add documentation
