@@ -335,6 +335,7 @@ contains
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
     use standard_header, only: standard_header_type
+    use optionals, only: get_option_with_default
 #ifdef OPENMP
     use omp_lib, only: omp_get_num_threads
 #endif
@@ -372,15 +373,14 @@ contains
 
     if (present(header_out)) header_out = local_header
 
-    if (present(quiet)) then
-      quiet_value = quiet
-    else
-      quiet_value = .false.
-    end if
+    quiet_value = get_option_with_default(quiet, .false.)
 
     call initialize_wall_clock_timer
 
-    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
+    ! If optimisations say to use a subset of available processors
+    ! create the communicator for this here.
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc &
+         .and. state%init%opt_ov%nproc /= nproc) then
       state%init%opt_ov%old_comm = mp_comm
       call use_nproc(state%init%opt_ov%nproc)
     end if
