@@ -679,7 +679,7 @@ contains
     type(standard_header_type), optional, intent(in) :: header
     integer :: istep, istatus
     integer, intent(in) :: nstep_run
-    logical :: temp_initval_override_store
+    logical :: temp_initval_override_store, should_save_restart
     integer :: istep_loop_max, istep_offset
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
@@ -760,19 +760,18 @@ contains
        call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
 
+       should_save_restart = .false.
        if (use_old_diagnostics) then
-         if (nsave > 0 .and. mod(istep, nsave) == 0) &
-              call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-              has_phi, has_apar, has_bpar, &
-              code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
+          should_save_restart = (nsave > 0 .and. mod(istep, nsave) == 0)
        else
 #ifdef NEW_DIAG
-         if (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0) &
-              call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
-              has_phi, has_apar, has_bpar, &
-              code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, header=local_header)
+          should_save_restart = (gnostics%nsave > 0 .and. mod(istep, gnostics%nsave) == 0)
 #endif
        end if
+       if (should_save_restart) call gs2_save_for_restart (gnew, user_time, vnmult, &
+            istatus, has_phi, has_apar, has_bpar, code_dt, code_dt_prev1,
+            code_dt_prev2, code_dt_max, header=local_header)
+
        call update_time
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
