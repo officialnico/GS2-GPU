@@ -22,29 +22,19 @@ module parameter_scan
 
   private
 
-  public :: init_parameter_scan
-  public :: finish_parameter_scan
-  public :: update_scan_parameter_value
-  public :: allocate_target_arrays
-  public :: deallocate_target_arrays
+  public :: init_parameter_scan, finish_parameter_scan, update_scan_parameter_value
+  public :: allocate_target_arrays, deallocate_target_arrays, target_parameter_momflux_tot
   public :: target_parameter_switch, scan_type_switch, scan_type_none
-  public :: target_parameter_hflux_tot, target_parameter_momflux_tot, target_parameter_phi2_tot
-  public :: scan_restarted
-
-  public :: parameter_scan_config_type
-  public :: set_parameter_scan_config
-  public :: get_parameter_scan_config
+  public :: target_parameter_hflux_tot, target_parameter_phi2_tot
+  public :: scan_restarted, scanning
+  public :: parameter_scan_config_type, set_parameter_scan_config, get_parameter_scan_config
 
   logical :: scan_restarted
 
-  integer :: target_parameter_switch, &
-       scan_type_switch, &
-       increment_condition_switch
-
+  integer :: target_parameter_switch, scan_type_switch, increment_condition_switch
 
   integer, parameter :: scan_type_none = 1, &
-       scan_type_range = 2, &
-       scan_type_target =3, &
+       scan_type_range = 2, scan_type_target =3, &
        scan_type_root_finding = 4
 
   integer, parameter :: target_parameter_hflux_tot = 1, &
@@ -57,8 +47,7 @@ module parameter_scan
 
   real :: par_start, par_end, par_inc
   integer :: nstep_init, nstep_inc
-  real :: delta_t_init, delta_t_inc
-  real :: target_val
+  real :: delta_t_init, delta_t_inc, target_val
   integer :: scan_output_file
   real :: current_target_value = 0.0
   logical :: scanning = .false.
