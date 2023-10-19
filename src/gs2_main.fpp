@@ -1459,7 +1459,6 @@ contains
            iproc_min, iproc_max
       end if
     end subroutine write_parallel_statistics
-
   end subroutine write_time_parallel_statistics
 
   !> Print timing information to standard output.
@@ -1626,7 +1625,6 @@ contains
     !> then you MUST pass in `state` and call [[finish_gs2]] with that
     !> state object to ensure GS2 is finalised correctly.
     logical, optional, intent(in) :: finalize
-
     logical :: local_finalize
     type(standard_header_type) :: local_header
 
@@ -1677,17 +1675,15 @@ contains
     logical :: dummy
     
     if (has_phi) then
-       call zero_array(phi)
-       call zero_array(phinew)
+       call zero_array(phi); call zero_array(phinew)
     end if
 
     if (has_apar) then
-       call zero_array(apar)
-       call zero_array(aparnew)
+       call zero_array(apar) ; call zero_array(aparnew)
     end if
+
     if (has_bpar) then
-       call zero_array(bpar)
-       call zero_array(bparnew)
+       call zero_array(bpar) ; call zero_array(bparnew)
     end if
     call zero_array(g) ; call zero_array(gnew)
 
@@ -1697,30 +1693,29 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_trinity_parameters(state)
-      use file_utils, only: open_output_file, close_output_file
-      use theta_grid_params, only: write_theta_grid => write_trinity_parameters
-      use species, only: write_species => write_trinity_parameters
-      use run_parameters, only: write_run_parameters => write_trinity_parameters
-      use mp, only: proc0
-      implicit none
-      type(gs2_program_state_type), intent(in) :: state
-      integer :: trinpars_unit
-      character(len=1000) :: ext
+    use file_utils, only: open_output_file, close_output_file
+    use theta_grid_params, only: write_theta_grid => write_trinity_parameters
+    use species, only: write_species => write_trinity_parameters
+    use run_parameters, only: write_run_parameters => write_trinity_parameters
+    use mp, only: proc0
+    implicit none
+    type(gs2_program_state_type), intent(in) :: state
+    integer :: trinpars_unit
+    character(len=1000) :: ext
+    if (.not. proc0) return
 
-      if (state%trinity_timestep .gt. 0) then
-        write(ext,'(".",I0,".",I0,".trinpars")') state%trinity_timestep, &
-          state%trinity_iteration
-      else
-        ext = '.trinpars'
-      end if
-      
-      if (proc0) then
-        call open_output_file(trinpars_unit, trim(ext))
-        call write_theta_grid(trinpars_unit)
-        call write_species(trinpars_unit)
-        call write_run_parameters(trinpars_unit)
-        call close_output_file(trinpars_unit)
-      end if
+    if (state%trinity_timestep .gt. 0) then
+       write(ext,'(".",I0,".",I0,".trinpars")') state%trinity_timestep, &
+            state%trinity_iteration
+    else
+       ext = '.trinpars'
+    end if
+
+    call open_output_file(trinpars_unit, trim(ext))
+    call write_theta_grid(trinpars_unit)
+    call write_species(trinpars_unit)
+    call write_run_parameters(trinpars_unit)
+    call close_output_file(trinpars_unit)
   end subroutine write_trinity_parameters
 
   !> Write an input file containing the current state of all input
@@ -1730,10 +1725,8 @@ contains
     use file_utils, only: open_output_file, close_output_file, run_name
     use standard_header, only: standard_header_type
     use config_collection, only : gs2_config_type
-
     !> Header for files with build and run information
     type(standard_header_type), intent(in), optional :: header
-
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
     ! File unit to write to
@@ -1759,7 +1752,6 @@ contains
 
     call input_config%write_to_unit(used_inputs_unit)
     call close_output_file(used_inputs_unit)
-
   end subroutine write_used_inputs_file
 
 end module gs2_main
