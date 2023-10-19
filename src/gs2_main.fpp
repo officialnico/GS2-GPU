@@ -346,8 +346,6 @@ contains
     type(standard_header_type), intent(out), optional :: header_out
     !> If true, don't print start-up messages/header
     logical, intent(in), optional :: quiet
-
-    integer :: oldrank
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
     ! Internal value for optional `quiet` input
@@ -382,7 +380,6 @@ contains
 
     call initialize_wall_clock_timer
 
-    oldrank = iproc
     if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) then
       state%init%opt_ov%old_comm = mp_comm
       call use_nproc(state%init%opt_ov%nproc)
