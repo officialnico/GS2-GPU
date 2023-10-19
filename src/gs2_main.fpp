@@ -222,7 +222,7 @@ module gs2_main
     integer :: nproc_actual
 
     logical :: run_name_external = .false.
-    character(run_name_size) :: run_name
+    character(run_name_size) :: run_name = 'gs'
 
     logical :: skip_diagnostics = .false.
     logical :: dont_change_timestep = .false.
@@ -448,12 +448,8 @@ contains
       ! Until the logic of init_file_utils is fixed we set trin_run
       ! when an external file name has been provided... this prevents
       ! it overriding the name from the command line.
-      if (state%run_name_external) then
-        call init_file_utils (state%list, trin_run=state%run_name_external, &
-             name=state%run_name, n_ensembles=state%nensembles)
-      else
-        call init_file_utils (state%list, name="gs")
-      end if
+      call init_file_utils (state%list, trin_run=state%run_name_external, &
+           name=state%run_name, n_ensembles=state%nensembles)
       call debug_message(state%verb, &
            'gs2_main::initialize_gs2 initialized file_utils')
     end if
