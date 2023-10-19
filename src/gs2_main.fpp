@@ -399,28 +399,22 @@ contains
       ! Report number of processors being used
       if (.not. quiet_value) then
          write(*, '(a)') local_header%to_string(comment_character=" ")
-
          if (state%external_job_id >= 0) then
             write(*, '(a, i0, a)', advance="no") "External job ", state%external_job_id, " "
          end if
          write(*, '(a, i0, a)', advance="no") "Running on ", nproc, " processor"
-         if (nproc > 1) then
-            ! Pluralise processor
-            write(*, '(a)', advance="no") "s"
-         end if
+         ! Pluralise processor
+         if (nproc > 1) write(*, '(a)', advance="no") "s"
 #ifdef OPENMP
-         !$omp parallel
+         !$OMP PARALLEL
          nthread = omp_get_num_threads()
-         !$omp end parallel
+         !$OMP END PARALLEL
          write(*, '(A, I0, A)',advance="no") " with ", nthread, " thread"
-         if (nthread > 1) then
-            ! Pluralise thread
-            write(*, '(a)', advance="no") "s"
-         end if
+         ! Pluralise thread
+         if (nthread > 1) write(*, '(a)', advance="no") "s"
 #endif
          ! Make sure we still get a blank line
          write(*,*) new_line('a')
-
       end if
 
       ! Call init_file_utils, ie. initialize the run_name, checking
@@ -428,14 +422,15 @@ contains
       ! Until the logic of init_file_utils is fixed we set trin_run
       ! when an external file name has been provided... this prevents
       ! it overriding the name from the command line.
+      ! Note we should unconditionally pass state%run_name_external
+      ! and then just check the value in init_file_utils.
       if (state%run_name_external) then
         call init_file_utils (state%list, trin_run=state%run_name_external, &
              name=state%run_name, n_ensembles=state%nensembles)
       else
         call init_file_utils (state%list, name="gs")
       end if
-      call debug_message(state%verb, &
-           'gs2_main::initialize_gs2 initialized file_utils')
+      call debug_message(state%verb, 'gs2_main::initialize_gs2 initialized file_utils')
     end if
     
     call broadcast (state%list)
@@ -454,15 +449,13 @@ contains
     call time_message(.false.,state%timers%total,' Total')
 
     ! Pass run name to other procs
-    if (proc0) then
-       run_name_target = trim(run_name)
-    end if
+    if (proc0) run_name_target = trim(run_name)
     call broadcast (run_name_target)
     if (.not. proc0) run_name => run_name_target
     call debug_message(state%verb, 'gs2_main::initialize_gs2 run_name = '//run_name)
 
     !Set using_measure_scatter to indicate we want to use in "gather/scatter" timings
-    using_measure_scatter=.false.
+    using_measure_scatter = .false.
 
     ! Initialize the gs2 initialization system
     call init_gs2_init()
