@@ -13,10 +13,6 @@
 module parameter_scan
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
-  !These should really be moved to specific routines where required
-  use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter
-  use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot, nout
-
   implicit none
 
   private
@@ -141,6 +137,7 @@ contains
     use file_utils, only: open_output_file
     use run_parameters, only: use_old_diagnostics
     use mp, only: proc0, mp_abort
+    use parameter_scan_arrays, only: write_scan_parameter, current_scan_parameter_value
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
 
@@ -179,6 +176,7 @@ contains
   subroutine allocate_target_arrays(nwrite, write_fluxes)
     use run_parameters, only: nstep
     use mp, only : mp_abort
+    use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot
     implicit none
     integer, intent(in) :: nwrite
     logical, intent(in) :: write_fluxes
@@ -200,6 +198,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine deallocate_target_arrays
+    use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot
     implicit none
     if (allocated(hflux_tot)) deallocate(hflux_tot)
     if (allocated(momflux_tot)) deallocate(momflux_tot)
@@ -221,6 +220,7 @@ contains
   subroutine update_scan_parameter_value(istep, reset, exit)
     use mp, only : mp_abort, proc0
     use gs2_time, only: user_time
+    use parameter_scan_arrays, only: current_scan_parameter_value
     implicit none
     logical, intent (inout) :: exit, reset
     integer, intent (in) :: istep
@@ -262,6 +262,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_target_reached(target_reached)
+    use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot, nout
     implicit none
     logical, intent (out) :: target_reached
     logical, save :: first = .true.
@@ -292,6 +293,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine increment_scan_parameter(increment, reset)
+    use parameter_scan_arrays, only: current_scan_parameter_value
     implicit none
     real, intent (in) :: increment
     logical, intent (inout) :: reset
@@ -304,6 +306,7 @@ contains
     use species, only: spec
     use dist_fn, only: g_exb
     use mp, only: proc0
+    use parameter_scan_arrays, only: current_scan_parameter_value
     implicit none
     logical, intent (inout) :: reset
 
@@ -356,6 +359,7 @@ contains
   subroutine read_parameters(parameter_scan_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
+    use parameter_scan_arrays, only: current_scan_parameter_value
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
 
