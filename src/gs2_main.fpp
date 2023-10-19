@@ -320,15 +320,11 @@ contains
   !> commuicator or set the input file name externally, these should
   !> be set before calling this function.
   subroutine initialize_gs2(state, header_in, header_out, quiet)
-    use file_utils, only: init_file_utils
-    use file_utils, only: run_name, run_name_target
+    use file_utils, only: init_file_utils, run_name, run_name_target
     use gs2_init, only: init_gs2_init
-    use job_manage, only: checktime, time_message
+    use job_manage, only: checktime, time_message, job_fork
     use job_manage, only: init_checktime, checktime_initialized
-    use job_manage, only: job_fork
-    use mp, only: init_mp, broadcast
-    use mp, only: iproc, nproc, proc0
-    use mp, only: trin_flag, job
+    use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
     use mp, only: use_nproc, included, mp_comm
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
@@ -391,8 +387,6 @@ contains
       call broadcast(state%external_job_id)
       call set_job_id(state%external_job_id)
     end if
-
-    trin_flag = .false. 
 
     call debug_message(state%verb, 'gs2_main::initialize_gs2 initialized mp')
 
