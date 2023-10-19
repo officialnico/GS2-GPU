@@ -546,12 +546,10 @@ contains
   !> uninitialized without finalizing the diagnostics, for example to
   !> change parameters such as the timestep.
   subroutine initialize_diagnostics(state, header)
-    use gs2_diagnostics, only: init_gs2_diagnostics
-    use gs2_diagnostics, only: nwrite, write_fluxes
+    use gs2_diagnostics, only: init_gs2_diagnostics, nwrite, write_fluxes
     use gs2_diagnostics, only: loop_diagnostics
 #ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: init_gs2_diagnostics_new
-    use gs2_diagnostics_new, only: run_diagnostics
+    use gs2_diagnostics_new, only: init_gs2_diagnostics_new, run_diagnostics
 #else
     use mp, only: proc0
 #endif
@@ -607,12 +605,8 @@ contains
         'gs2_main::initialize_diagnostics calling run_diagnostics')
       ! Write initial values
       call run_diagnostics(0, state%exit)
-#else
-      call mp_abort("use_old_diagnostics is .false. but you have &
-        & not built gs2 with new diagnostics enabled", .true.)
 #endif
     else ! if use_old_diagnostics
-
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
       call init_gs2_diagnostics (state%list, nstep, header=local_header)
