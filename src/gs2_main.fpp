@@ -325,7 +325,7 @@ contains
     use job_manage, only: checktime, time_message, job_fork
     use job_manage, only: init_checktime, checktime_initialized
     use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
-    use mp, only: use_nproc, included, mp_comm
+    use mp, only: use_nproc, included, mp_comm, mp_comm_null
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
     use standard_header, only: standard_header_type
@@ -375,8 +375,10 @@ contains
     ! create the communicator for this here.
     if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc &
          .and. state%init%opt_ov%nproc /= nproc) then
-      state%init%opt_ov%old_comm = mp_comm
-      call use_nproc(state%init%opt_ov%nproc)
+       state%init%opt_ov%old_comm = mp_comm
+       call use_nproc(state%init%opt_ov%nproc)
+    else
+      state%init%opt_ov%old_comm = mp_comm_null
     end if
     state%included = included
     state%nproc_actual = nproc
@@ -1040,7 +1042,7 @@ contains
     use file_utils, only: finish_file_utils
     use gs2_init, only: finish_gs2_init
     use job_manage, only: time_message
-    use mp, only: finish_mp, proc0, barrier, unsplit_all, included
+    use mp, only: finish_mp, proc0, barrier, unsplit_all, included, mp_comm_null
     use unit_tests, only: debug_message
     use standard_header, only: date_iso8601
     implicit none
@@ -1082,7 +1084,8 @@ contains
 
     end if
 
-    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc) &
+    if (state%init%opt_ov%is_initialised() .and. state%init%opt_ov%override_nproc &
+         .and. state%init%opt_ov%old_comm /= mp_comm_null) &
       call unsplit_all(state%init%opt_ov%old_comm)
     call barrier
     state%included = included
