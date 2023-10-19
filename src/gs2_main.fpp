@@ -1119,7 +1119,6 @@ contains
     use gs2_init, only: init, init_level_list
     use species, only: nspec
     type(gs2_program_state_type), intent(inout) :: state
-
     if (.not. state%included) return
     ! Initialize to the level below so that overrides are triggered
     call init(state%init, init_level_list%override_profiles-1)
@@ -1131,7 +1130,6 @@ contains
     use overrides, only: init_kt_grids_overrides
     use gs2_init, only: init, init_level_list
     type(gs2_program_state_type), intent(inout) :: state
-
     if (.not. state%included) return
     ! Initialize to the level below so that overrides are triggered
     call init(state%init, init_level_list%override_kt_grids-1)
@@ -1142,8 +1140,7 @@ contains
   subroutine prepare_initial_values_overrides(state)
     use overrides, only: init_initial_values_overrides
     use fields, only: force_maxwell_reinit
-    use gs2_init, only: in_memory
-    use gs2_init, only: init, init_level_list
+    use gs2_init, only: in_memory, init, init_level_list
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
@@ -1176,7 +1173,6 @@ contains
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
     integer :: istatus
-    !if (.not. state%included) return
 
     if (.not.initval_ov%is_initialised()) &
       call mp_abort("Trying to set initial value overrides &
@@ -1222,7 +1218,6 @@ contains
     use overrides, only: finish_miller_geometry_overrides
     use overrides, only: finish_initial_values_overrides
     type(gs2_program_state_type), intent(inout) :: state
-
     if (state%init%mgeo_ov%is_initialised()) call state%init%mgeo_ov%finish()
     if (state%init%prof_ov%is_initialised()) call state%init%prof_ov%finish()
     if (state%init%initval_ov%is_initialised()) call state%init%initval_ov%finish()
@@ -1230,18 +1225,15 @@ contains
 
   !> FIXME : Add documentation
   subroutine calculate_outputs(state)
-    use gs2_diagnostics, only: start_time
+    use gs2_diagnostics, only: start_time, diffusivity, ensemble_average
     use gs2_diagnostics, only: pflux_avg, qflux_avg, heat_avg, vflux_avg
-    use gs2_diagnostics, only: diffusivity
-    use gs2_diagnostics, only: ensemble_average
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: gnostics
-#endif 
+#endif
     use gs2_time, only: user_time
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
-    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes
+    use nonlinear_terms, only: nonlin
+    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics
     use species, only: nspec, spec
-    use run_parameters, only: use_old_diagnostics
     use mp, only: mp_abort
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
@@ -1252,75 +1244,73 @@ contains
 
     if (.not. state%included) return
 
-    !write (*,*) 'GETTING FLUXES', 'user_time', user_time, start_time, 'DIFF', time_interval
+    ! Note
+    if (state%nensembles > 1) call ensemble_average (state%nensembles, time_interval)
 
-    if (state%nensembles > 1) &
-      call ensemble_average (state%nensembles, time_interval)
-      
-   ! Use simple gamma / k^2 estimates for transport in the 
-   ! linear case. This is for testing Trinity
-   if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
-         nonlinear_mode_switch .eq. nonlinear_mode_none) then
-     if (use_old_diagnostics) then
-       diff = diffusivity()
-     else
+    ! Use simple gamma / k^2 estimates for transport in the
+    ! linear case. This is for testing Trinity
+    if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
+         .not. nonlin) then
+       if (use_old_diagnostics) then
+          diff = diffusivity()
+       else
 #ifdef NEW_DIAG
-       diff = gnostics%current_results%diffusivity
-#endif 
-     endif
-
-     do is = 1,nspec
-       ! Q = n chi grad T = n (gamma / k^2) dT / dr
-       ! = dens  n_r (gamma_N v_thr / k_N**2 rho_r a) dT / drho drho/dr
-       ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) T a / L_T drho/dr
-       ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) temp T_r tprim drho/dr_N/a
-       ! Q / (n_r  v_r T_r rho_r**2/a**2) 
-       ! = dens (gamma_N / k_N**2) temp tprim grho
-       !   
-       ! grho factored to diffusivity in diagnostics
-       qf(is) =  diff * spec(is)%dens * spec(is)%temp * spec(is)%tprim 
-       pf(is) =  diff * spec(is)%dens**2.0 * spec(is)%fprim 
-       ht = 0.0
-       vf = 0.0
-     end do
-     time_interval = 1.0 ! Used to be time_interval = user_time-start_time?
-   else 
-     if (use_old_diagnostics) then
-       time_interval = user_time-start_time
-       qf = qflux_avg
-       pf = pflux_avg
-       ht = heat_avg
-       vf = vflux_avg
-     else
-#ifdef NEW_DIAG
-       time_interval = user_time - gnostics%start_time
-       qf = gnostics%current_results%species_heat_flux_avg
-       pf = gnostics%current_results%species_particle_flux_avg
-       ht = gnostics%current_results%species_heating_avg
-       vf = gnostics%current_results%species_momentum_flux_avg
+          diff = gnostics%current_results%diffusivity
 #endif
-     endif
-   end if
+       endif
 
-   state%outputs%pflux = pf/time_interval
-   state%outputs%qflux = qf/time_interval
-   state%outputs%heat = ht/time_interval
-   state%outputs%vflux = vf(1)/time_interval
-   
-   if (trinity_ql_fluxes) then
+       do is = 1,nspec
+          ! Q = n chi grad T = n (gamma / k^2) dT / dr
+          ! = dens  n_r (gamma_N v_thr / k_N**2 rho_r a) dT / drho drho/dr
+          ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) T a / L_T drho/dr
+          ! = dens  n_r (gamma_N v_thr rho_r **2 / k_N**2 a) temp T_r tprim drho/dr_N/a
+          ! Q / (n_r  v_r T_r rho_r**2/a**2)
+          ! = dens (gamma_N / k_N**2) temp tprim grho
+          !
+          ! grho factored to diffusivity in diagnostics
+          qf(is) =  diff * spec(is)%dens * spec(is)%temp * spec(is)%tprim
+          pf(is) =  diff * spec(is)%dens**2.0 * spec(is)%fprim
+          ht = 0.0
+          vf = 0.0
+       end do
+       time_interval = 1.0 ! Used to be time_interval = user_time-start_time?
+    else
+       if (use_old_diagnostics) then
+          time_interval = user_time-start_time
+          qf = qflux_avg
+          pf = pflux_avg
+          ht = heat_avg
+          vf = vflux_avg
+       else
 #ifdef NEW_DIAG
-     qf = gnostics%current_results%species_heat_flux
-     pf = gnostics%current_results%species_particle_flux
-     ht = gnostics%current_results%species_heating
-     vf = gnostics%current_results%species_momentum_flux
-     state%outputs%pflux = pf/gnostics%current_results%phi2
-     state%outputs%qflux = qf/gnostics%current_results%phi2
-     state%outputs%heat = ht/gnostics%current_results%phi2
-     state%outputs%vflux = vf(1)/gnostics%current_results%phi2
+          time_interval = user_time - gnostics%start_time
+          qf = gnostics%current_results%species_heat_flux_avg
+          pf = gnostics%current_results%species_particle_flux_avg
+          ht = gnostics%current_results%species_heating_avg
+          vf = gnostics%current_results%species_momentum_flux_avg
+#endif
+       endif
+    end if
+
+    if (trinity_ql_fluxes) then
+#ifdef NEW_DIAG
+       qf = gnostics%current_results%species_heat_flux
+       pf = gnostics%current_results%species_particle_flux
+       ht = gnostics%current_results%species_heating
+       vf = gnostics%current_results%species_momentum_flux
+       state%outputs%pflux = pf/gnostics%current_results%phi2
+       state%outputs%qflux = qf/gnostics%current_results%phi2
+       state%outputs%heat = ht/gnostics%current_results%phi2
+       state%outputs%vflux = vf(1)/gnostics%current_results%phi2
 #else
-     call mp_abort('ERROR: trinity_ql_fluxes only works with new diagnostics', .true.)
-#endif 
-   end if
+       call mp_abort('ERROR: trinity_ql_fluxes only works with new diagnostics', .true.)
+#endif
+    else
+       state%outputs%pflux = pf/time_interval
+       state%outputs%qflux = qf/time_interval
+       state%outputs%heat = ht/time_interval
+       state%outputs%vflux = vf(1)/time_interval
+    end if
   end subroutine calculate_outputs
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
