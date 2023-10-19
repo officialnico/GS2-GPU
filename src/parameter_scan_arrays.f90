@@ -1,4 +1,6 @@
-!> FIXME : Add documentation
+!> Data module holding variables associated with the parameter
+!> scan functionality. Held separately from parameter_scan
+!> module to avoid complicating dependencies.
 module parameter_scan_arrays
   implicit none
   
