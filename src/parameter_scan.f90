@@ -322,11 +322,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine set_scan_parameter(reset)
-    !use parameter_scan_arrays, only: current_scan_parameter_value
-    !use parameter_scan_arrays, only: scan_parameter_switch
-    !use parameter_scan_arrays, only: scan_parameter_tprim
-    !use parameter_scan_arrays, only: scan_parameter_g_exb
-    !use parameter_scan_arrays
     use species, only: spec 
     use dist_fn, only: g_exb
     use mp, only: proc0
@@ -359,43 +354,26 @@ contains
 
     select case (increment_condition_switch)
     case (increment_condition_n_timesteps)
-      if (istep .lt. nstep_init) then
-        last_timestep = istep
-        increment_condition_satisfied = .false.
-        return
-      end if 
-      if ((istep - last_timestep) .gt. nstep_inc) then
-        last_timestep = istep
-        increment_condition_satisfied = .true.
-        if (proc0) write (*,*) 'Updating parameter at ', user_time 
-        return
-      end if
+       last_timestep = istep
+       ! Note this doesn't handle the case where istep - last_timestep == nstep_inc
+       if (istep < nstep_init) then
+          increment_condition_satisfied = .false.
+       else if ((istep - last_timestep) > nstep_inc) then
+          increment_condition_satisfied = .true.
+          if (proc0) write (*,*) 'Updating parameter at ', user_time
+       end if
     case (increment_condition_delta_t)
-      if (user_time .lt. delta_t_init) then
-        last_time = user_time
-        increment_condition_satisfied = .false.
-        return
-      end if 
-      if ((user_time - last_time) .gt. delta_t_inc) then
-        last_time = user_time
-        increment_condition_satisfied = .true.
-        if (proc0) write (*,*) 'Updating parameter at ', user_time 
-        return
-      end if
+       last_time = user_time
+       ! Note this doesn't handle the case where user_time - last_timestep == delta_t_inc
+       if (user_time < delta_t_init) then
+          increment_condition_satisfied = .false.
+       else if ((user_time - last_time) > delta_t_inc) then
+          increment_condition_satisfied = .true.
+          if (proc0) write (*,*) 'Updating parameter at ', user_time
+       end if
     case (increment_condition_saturated)
-      call mp_abort("increment_condition_saturated not implemented yet!")
-      !if (istep .lt. nstep_init) then
-        !last_timestep = istep
-        !increment_condition_satisfied = .false.
-        !return
-      !end if 
-      !call get_target_value_array(target_value_array)
-      !call check_saturated(target_value_array, &
-                           !istep, &
-                           !last_timestep, &
-                           !increment_condition_satisfied)
-      !if (increment_condition_satisfied) last_timestep = istep
-    end select 
+       call mp_abort("increment_condition_saturated not implemented yet!")
+    end select
   end subroutine check_increment_condition_satisfied
 
   !> FIXME : Add documentation  
