@@ -1320,13 +1320,7 @@ contains
   !> Reset timers data to 0
   subroutine reset_timers(timers)
     type(gs2_timers_type), intent(inout) :: timers
-    timers%init = 0.
-    timers%advance = 0.
-    timers%timestep = 0.
-    timers%finish = 0.
-    timers%total = 0. 
-    timers%diagnostics=0.
-    timers%main_loop = 0.
+    timers = gs2_timers_type()
   end subroutine reset_timers
 
   !> Gets statistics of passed real value across all processes.
