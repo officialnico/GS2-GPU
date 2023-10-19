@@ -40,7 +40,7 @@ program test_gs2_reinit
     !use fields_local, only: init_fields_local, finish_fields_local
     use unit_tests
     use unit_tests, only: should_print
-    use mp, only: init_mp, test_driver_flag, finish_mp
+    use mp, only: init_mp, finish_mp
     use mp, only: broadcast, barrier, iproc, mp_comm
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gnew
@@ -74,8 +74,6 @@ program test_gs2_reinit
     call init_mp
     state%mp_comm = mp_comm
 
-
-    test_driver_flag = .true.
     functional_test_flag = .true.
 
    call announce_module_test("gs2_reinit")

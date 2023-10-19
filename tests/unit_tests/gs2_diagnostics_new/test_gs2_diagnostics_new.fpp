@@ -27,7 +27,7 @@ program test_gs2_diagnostics_new
 #ifdef NEW_DIAG
     use diagnostics_config, only: override_screen_printout_options
 #endif
-    use mp, only: init_mp, mp_comm, proc0, test_driver_flag, finish_mp
+    use mp, only: init_mp, mp_comm, proc0, finish_mp
     use mp, only: broadcast
     use gs2_diagnostics, only: finish_gs2_diagnostics
     use gs2_diagnostics, only: pflux_avg, qflux_avg, heat_avg, vflux_avg
@@ -142,7 +142,6 @@ program test_gs2_diagnostics_new
   call broadcast(override_screen_printout_options)
 #endif
 
-  test_driver_flag = .true.
   functional_test_flag = .true.
   state%mp_comm = mp_comm
 
