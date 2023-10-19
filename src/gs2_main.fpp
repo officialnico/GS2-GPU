@@ -611,16 +611,13 @@ contains
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics')
       call init_gs2_diagnostics (state%list, nstep, header=local_header)
       call allocate_target_arrays(nwrite, write_fluxes) ! must be after init_gs2_diagnostics
-      call loop_diagnostics(0,state%exit)
+      call loop_diagnostics(0, state%exit)
     end if
 
     state%init%diagnostics_initialized = .true.
 
     call time_message(.false.,state%timers%total,' Total')
-
-    call debug_message(state%verb, &
-        'gs2_main::initialize_diagnostics finished')
-
+    call debug_message(state%verb, 'gs2_main::initialize_diagnostics finished')
   end subroutine initialize_diagnostics
 
   !> Run the initial value solver. nstep_run must
@@ -662,21 +659,17 @@ contains
     use fields, only: advance
     use gs2_diagnostics, only: nsave, loop_diagnostics
 #ifdef NEW_DIAG
-    use gs2_diagnostics_new, only: run_diagnostics
-    use gs2_diagnostics_new, only: gnostics
+    use gs2_diagnostics_new, only: run_diagnostics, gnostics
 #endif
-    use gs2_reinit, only: reset_time_step
-    use gs2_reinit, only: check_time_step
+    use gs2_reinit, only: reset_time_step, check_time_step
     use gs2_save, only: gs2_save_for_restart
     use gs2_time, only: user_time, update_time, write_dt, user_dt
     use gs2_time, only: code_dt, code_dt_prev1, code_dt_prev2, code_dt_max
     use job_manage, only: time_message, checkstop, checktime
-    use mp, only: proc0
-    use mp, only: scope, subprocs, broadcast
+    use mp, only: proc0, scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
     use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
-    use run_parameters, only: avail_cpu_time, margin_cpu_time
-    use run_parameters, only: use_old_diagnostics
+    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
@@ -706,28 +699,26 @@ contains
     
     call time_message(.false.,state%timers%total,' Total')
     
-    if (state%nensembles > 1) &
-          call scope (subprocs)
+    if (state%nensembles > 1) call scope (subprocs)
 
     if (state%is_trinity_job) call write_trinity_parameters(state)
 
     call time_message(.false.,state%timers%main_loop,' Main Loop')
 
-    ! Make sure exit is false before entering
-    ! timestep loop
+    ! Make sure exit is false before entering timestep loop
     state%exit = .false.
 
-    call debug_message(state%verb, &
-        'gs2_main::evolve_equations starting loop')
+    call debug_message(state%verb, 'gs2_main::evolve_equations starting loop')
+
     ! We run for nstep_run iterations, starting from whatever istep we got
     ! to in previous calls to this function. Note that calling
     ! finalize_diagnostics resets state%istep_end
     istep_loop_max = state%istep_end + nstep_run
     do istep = state%istep_end+1, istep_loop_max
-
-       if (istep .gt. nstep) then
+       if (istep > nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
-           & (set by nstep) without restarting diagnostics.'
+              & (set by nstep) without restarting diagnostics.'
+         ! Should we set an exit_reason here?
          exit
        end if
 
@@ -738,8 +729,7 @@ contains
        ! Try to take a time step
        call advance (istep)
        call time_message(.false.,state%timers%timestep,' Timestep')
-       call debug_message(state%verb+1, &
-            'gs2_main::evolve_equations called advance')
+       call debug_message(state%verb+1,'gs2_main::evolve_equations called advance')
 
        if(state%dont_change_timestep) reset = .false.
 
@@ -748,8 +738,7 @@ contains
        !cfl limit is exceeded.
        if (reset) then
          call prepare_initial_values_overrides(state)
-         call debug_message(state%verb+1, &
-              'gs2_main::evolve_equations resetting timestep')
+         call debug_message(state%verb+1, 'gs2_main::evolve_equations resetting timestep')
          call set_initval_overrides_to_current_vals(state%init%initval_ov)
          state%init%initval_ov%override = .true.
          if (state%is_external_job) then
@@ -763,12 +752,10 @@ contains
 
          ! If we've changed the timestep and have not decided to exit then
          ! we need to call advance to actually complete this timestep.
-         if (.not. state%exit) then
-           call advance(istep)
-         end if
+         if (.not. state%exit) call advance(istep)
        end if
 
-       if(state%exit) exit
+       if (state%exit) exit
 
        call debug_message(state%verb+1, &
             'gs2_main::evolve_equations calling gs2_save_for_restart')
