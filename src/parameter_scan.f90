@@ -14,7 +14,7 @@ module parameter_scan
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
   !These should really be moved to specific routines where required
-  use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter, run_scan
+  use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter
   use parameter_scan_arrays, only: scan_parameter_switch, scan_parameter_tprim, scan_parameter_g_exb
   use parameter_scan_arrays, only: scan_spec, hflux_tot, momflux_tot, phi2_tot, nout
 
@@ -149,14 +149,12 @@ contains
 
     scanning = .true.
     write_scan_parameter = .true.
-    run_scan = .true.
 
     ! Handle different cases and incompatibilities
     select case (scan_type_switch)
     case (scan_type_none)
        scanning = .false.
        write_scan_parameter = .false.
-       run_scan = .false.
        return
     case (scan_type_target)
        if (.not. use_old_diagnostics) then
