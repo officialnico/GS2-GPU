@@ -1045,6 +1045,7 @@ contains
     use mp, only: finish_mp, proc0, barrier, unsplit_all, included, mp_comm_null
     use unit_tests, only: debug_message
     use standard_header, only: date_iso8601
+    use optionals, only: get_option_with_default
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
     !> If true, don't print start-up messages/header
@@ -1053,14 +1054,9 @@ contains
     ! Internal value for optional `quiet` input
     logical :: quiet_value
 
-    if (present(quiet)) then
-      quiet_value = quiet
-    else
-      quiet_value = .false.
-    end if
+    quiet_value = get_option_with_default(quiet, .false.)
 
     if (state%included) then
-
       if (state%init%level .ne. init_level_list%basic) then
         write  (*,*) "ERROR: Called finalize_gs2 at the &
           & wrong init_level (perhaps you have called finalize_gs2 &
