@@ -266,10 +266,9 @@ contains
     logical, intent (out) :: target_reached
     logical, save :: first = .true.
     real, save :: last_value = 0.0
-
     target_reached = .false.
-
     last_value = current_target_value
+
     select case (target_parameter_switch)
     case (target_parameter_hflux_tot)
        current_target_value = hflux_tot(nout)
@@ -311,8 +310,7 @@ contains
     select case (scan_parameter_switch)
     case (scan_parameter_tprim)
        spec(scan_spec)%tprim = current_scan_parameter_value
-       if (proc0) write (*,*) &
-            "Set scan parameter tprim_1 to ", spec(scan_spec)%tprim
+       if (proc0) write (*,*) "Set scan parameter tprim_1 to ", spec(scan_spec)%tprim
        reset = .true.
     case (scan_parameter_g_exb)
        g_exb = current_scan_parameter_value
