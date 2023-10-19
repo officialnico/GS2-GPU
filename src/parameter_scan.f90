@@ -61,6 +61,7 @@ module parameter_scan
   real :: target_val
   integer :: scan_output_file
   real :: current_target_value = 0.0
+  logical :: scanning = .false.
   logical :: initialized = .false.
 
   !> Used to represent the input configuration of parameter_scan
@@ -147,42 +148,43 @@ contains
     use gs2_save, only: restore_current_scan_parameter_value 
     use init_g, only: init_init_g
     use file_utils, only: open_output_file
-    use mp, only: proc0
+    use run_parameters, only: use_old_diagnostics
+    use mp, only: proc0, mp_abort
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
 
     if (initialized) return
     initialized = .true.
 
-
     call read_parameters(parameter_scan_config_in)
 
-    select case (scan_type_switch) 
-    case (scan_type_none)
-      write_scan_parameter = .false.
-      run_scan = .false.
-      return
-    case (scan_type_target)
-      !call allocate_target_arrays
-    case (scan_type_root_finding)
-      !call allocate_target_arrays
-    end select
-
-
-    if (proc0) call open_output_file(scan_output_file, ".par_scan")
-      
+    scanning = .true.
     write_scan_parameter = .true.
     run_scan = .true.
 
+    ! Handle different cases and incompatibilities
+    select case (scan_type_switch) 
+    case (scan_type_none)
+       scanning = .false.
+       write_scan_parameter = .false.
+       run_scan = .false.
+       return
+    case (scan_type_target)
+       if (.not. use_old_diagnostics) then
+          call mp_abort('Error: Target parameter scans only supported with old_diagnostics')
+       end if
+    case (scan_type_root_finding)
+       call mp_abort('Error: Root finding parameter scans not supported yet')
+    end select
+ 
+    if (proc0) call open_output_file(scan_output_file, ".par_scan")
+
     ! scan_restarted is set manually 
     if (scan_restarted) then
-      call init_init_g ! To get restart file name
-      call restore_current_scan_parameter_value(current_scan_parameter_value)
+       call init_init_g ! To get restart file name
+       call restore_current_scan_parameter_value(current_scan_parameter_value)
     end if
-   
-    !write (*,*) "initialized parameter_scan"
-
-  end subroutine init_parameter_scan
+ end subroutine init_parameter_scan
 
   !> FIXME : Add documentation
   subroutine allocate_target_arrays(nwrite, write_fluxes)
