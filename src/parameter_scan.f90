@@ -224,10 +224,7 @@ contains
     implicit none
     logical, intent (inout) :: exit, reset
     integer, intent (in) :: istep
-    real :: increment
     logical :: increment_condition_satisfied, target_reached
-
-    !write (*,*) "update_scan_parameter_value"
     increment_condition_satisfied = .false.
     target_reached = .false.
 
@@ -239,14 +236,13 @@ contains
             user_time, current_scan_parameter_value
        call check_increment_condition_satisfied(istep, increment_condition_satisfied)
        if (.not. increment_condition_satisfied) return
-       increment = par_inc
-       if (increment == 0.0 .or. &
-            (increment > 0.0 .and. current_scan_parameter_value + increment > par_end) .or. &
-            (increment < 0.0 .and. current_scan_parameter_value + increment < par_end)) &
+       if (par_inc == 0.0 .or. &
+            (par_inc > 0.0 .and. current_scan_parameter_value + par_inc > par_end) .or. &
+            (par_inc < 0.0 .and. current_scan_parameter_value + par_inc < par_end)) &
             then
           exit = .true.
        else
-          call increment_scan_parameter(increment, reset)
+          call increment_scan_parameter(par_inc, reset)
        end if
     case (scan_type_target)
        if (proc0) write (scan_output_file, &
@@ -254,12 +250,11 @@ contains
             user_time, current_scan_parameter_value, current_target_value
        call check_increment_condition_satisfied(istep, increment_condition_satisfied)
        if (.not. increment_condition_satisfied) return
-       increment = par_inc
        call check_target_reached(target_reached)
        if (target_reached) then
           exit = .true.
        else
-          call increment_scan_parameter(increment, reset)
+          call increment_scan_parameter(par_inc, reset)
        end if
     case (scan_type_root_finding)
        call mp_abort("scan_type_root_finding not implemented yet!")
