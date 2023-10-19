@@ -103,10 +103,10 @@ module gs2_main
     !> The gradient of the flux tube volume wrt
     !> the flux label: related to the surface
     !> area of the flux tube
-    real :: dvdrho
+    real :: dvdrho = 0.0
     !> The average gradient of the flux tube
     !> label <|grad rho|>
-    real :: grho
+    real :: grho = 0.0
     !> Particle flux by species
     real, dimension (:), allocatable :: pflux
     !> Heat flux by species
@@ -502,18 +502,22 @@ contains
     call init_tstart(tstart)
 
     ! Here we copy some geometric information required by 
-    ! Trinity to state%outputs
-    if (proc0) then
-       state%outputs%dvdrho = dvdrhon
-       ! Note surfarea isn't defined/set for s-alpha geometry so
-       ! the following is not well defined.
-       ! Note this isn't actually "grho" as defined by the rest of the
-       ! code but rather "grhoavg", i.e. an average value. It may be
-       ! appropriate to replace this with something like `mean(grho)`
-       state%outputs%grho = surfarea / dvdrhon
+    ! Trinity to state%outputs. We should probably just do this
+    ! in calculate_outputs.
+    if (state%set_outputs) then
+       if (proc0) then
+          state%outputs%dvdrho = dvdrhon
+          ! Note surfarea isn't defined/set for s-alpha geometry so
+          ! the following is not well defined and can cause valgrind and similar
+          ! tools to flag this as an error.
+          ! Note this isn't actually "grho" as defined by the rest of the
+          ! code but rather "grhoavg", i.e. an average value. It may be
+          ! appropriate to replace this with something like `mean(grho)`
+          state%outputs%grho = surfarea / dvdrhon
+       end if
+       call broadcast (state%outputs%dvdrho)
+       call broadcast (state%outputs%grho)
     end if
-    call broadcast (state%outputs%dvdrho)
-    call broadcast (state%outputs%grho)
     
     call time_message(.false.,state%timers%init,' Initialization')
 
