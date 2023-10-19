@@ -531,9 +531,7 @@ contains
     ! Since the number of species may have changed
     ! since the last call to initialize_equations 
     ! we reallocate outputs every time.
-    if (allocated(state%outputs%pflux)) then
-      call deallocate_outputs(state)
-    end if
+    call deallocate_outputs(state)
     call allocate_outputs(state)
 
     call init_gs2_reinit
