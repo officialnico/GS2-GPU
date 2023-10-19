@@ -256,8 +256,6 @@ contains
        else
           call increment_scan_parameter(par_inc, reset)
        end if
-    case (scan_type_root_finding)
-       call mp_abort("scan_type_root_finding not implemented yet!")
     end select
     if (exit .and. proc0) write (scan_output_file, *) "Parameter scan is complete...."
   end subroutine update_scan_parameter_value
