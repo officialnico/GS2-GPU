@@ -67,7 +67,7 @@ module parameter_scan
   !> Used to represent the input configuration of parameter_scan
   type, extends(abstract_config_type) :: parameter_scan_config_type
      ! namelist : parameter_scan_knobs
-     ! indexed : false     
+     ! indexed : false
 
      !> When the increment condition is `"delta_t"`, the parameter will be changed
      !> every time `delta_t_inc` time has elapsed.
@@ -128,7 +128,7 @@ module parameter_scan
      !> - 'momflux_tot'
      !> - 'phi2_tot'
      character(len = 20) :: target_par = 'hflux_tot'
-     !> 
+     !>
      real :: target_val = 0.0
    contains
      procedure, public :: read => read_parameter_scan_config
@@ -145,7 +145,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_parameter_scan(parameter_scan_config_in)
-    use gs2_save, only: restore_current_scan_parameter_value 
+    use gs2_save, only: restore_current_scan_parameter_value
     use init_g, only: init_init_g
     use file_utils, only: open_output_file
     use run_parameters, only: use_old_diagnostics
@@ -163,7 +163,7 @@ contains
     run_scan = .true.
 
     ! Handle different cases and incompatibilities
-    select case (scan_type_switch) 
+    select case (scan_type_switch)
     case (scan_type_none)
        scanning = .false.
        write_scan_parameter = .false.
@@ -176,10 +176,10 @@ contains
     case (scan_type_root_finding)
        call mp_abort('Error: Root finding parameter scans not supported yet')
     end select
- 
+
     if (proc0) call open_output_file(scan_output_file, ".par_scan")
 
-    ! scan_restarted is set manually 
+    ! scan_restarted is set manually
     if (scan_restarted) then
        call init_init_g ! To get restart file name
        call restore_current_scan_parameter_value(current_scan_parameter_value)
@@ -209,7 +209,7 @@ contains
     end select
   end subroutine allocate_target_arrays
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine deallocate_target_arrays
     implicit none
     if (allocated(hflux_tot)) deallocate(hflux_tot)
@@ -228,7 +228,7 @@ contains
     call parameter_scan_config%reset()
   end subroutine finish_parameter_scan
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine update_scan_parameter_value(istep, reset, exit)
     use mp, only : mp_abort, proc0
     use gs2_time, only: user_time
@@ -256,13 +256,13 @@ contains
             (increment < 0.0 .and. current_scan_parameter_value + increment < par_end)) &
             then
           exit = .true.
-       else  
+       else
           call increment_scan_parameter(increment, reset)
        end if
     case (scan_type_target)
        if (proc0) write (scan_output_file, &
             fmt="('time=  ',e11.4,'  parameter=  ',e11.4,'  target=  ',e11.4)") &
-            user_time, current_scan_parameter_value, current_target_value 
+            user_time, current_scan_parameter_value, current_target_value
        call check_increment_condition_satisfied(istep, increment_condition_satisfied)
        if (.not. increment_condition_satisfied) return
        increment = par_inc
@@ -278,7 +278,7 @@ contains
     if (exit .and. proc0) write (scan_output_file, *) "Parameter scan is complete...."
   end subroutine update_scan_parameter_value
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine check_target_reached(target_reached)
     implicit none
     logical, intent (out) :: target_reached
@@ -311,7 +311,7 @@ contains
 
   end subroutine check_target_reached
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine increment_scan_parameter(increment, reset)
     implicit none
     real, intent (in) :: increment
@@ -320,9 +320,9 @@ contains
     call set_scan_parameter(reset)
   end subroutine increment_scan_parameter
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine set_scan_parameter(reset)
-    use species, only: spec 
+    use species, only: spec
     use dist_fn, only: g_exb
     use mp, only: proc0
     implicit none
@@ -342,7 +342,7 @@ contains
     end select
   end subroutine set_scan_parameter
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine check_increment_condition_satisfied(istep, increment_condition_satisfied)
     use gs2_time, only: user_time
     use mp, only : mp_abort, proc0
@@ -376,7 +376,7 @@ contains
     end select
   end subroutine check_increment_condition_satisfied
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine read_parameters(parameter_scan_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
@@ -402,7 +402,7 @@ contains
          (/ text_option('n_timesteps', increment_condition_n_timesteps), &
          text_option('delta_t', increment_condition_delta_t), &
          text_option('saturated', increment_condition_saturated) /)
-    character(20) :: inc_con 
+    character(20) :: inc_con
     integer :: ierr
     logical :: exist
 
