@@ -34,26 +34,26 @@ module parameter_scan
   public :: parameter_scan_config_type
   public :: set_parameter_scan_config
   public :: get_parameter_scan_config
-  
+
   logical :: scan_restarted
 
   integer :: target_parameter_switch, &
-             scan_type_switch, &
-             increment_condition_switch
+       scan_type_switch, &
+       increment_condition_switch
 
 
   integer, parameter :: scan_type_none = 1, &
-                        scan_type_range = 2, &
-                        scan_type_target =3, &
-                        scan_type_root_finding = 4
+       scan_type_range = 2, &
+       scan_type_target =3, &
+       scan_type_root_finding = 4
 
   integer, parameter :: target_parameter_hflux_tot = 1, &
-                        target_parameter_momflux_tot = 2, &
-                        target_parameter_phi2_tot = 3 
+       target_parameter_momflux_tot = 2, &
+       target_parameter_phi2_tot = 3
 
   integer, parameter :: increment_condition_n_timesteps = 1, &
-                        increment_condition_delta_t = 2, &
-                        increment_condition_saturated = 3
+       increment_condition_delta_t = 2, &
+       increment_condition_saturated = 3
 
   real :: par_start, par_end, par_inc
   integer :: nstep_init, nstep_inc
@@ -138,9 +138,9 @@ module parameter_scan
      procedure, public, nopass :: get_default_name => get_default_name_parameter_scan_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_parameter_scan_config
   end type parameter_scan_config_type
-  
+
   type(parameter_scan_config_type) :: parameter_scan_config
-  
+
 contains
 
   !> FIXME : Add documentation
@@ -194,19 +194,19 @@ contains
     integer, intent(in) :: nwrite
     logical, intent(in) :: write_fluxes
 
-     allocate(hflux_tot(nstep/nwrite+1))
-     allocate(momflux_tot(nstep/nwrite+1))
-     allocate(phi2_tot(nstep/nwrite+1))
+    allocate(hflux_tot(nstep/nwrite+1))
+    allocate(momflux_tot(nstep/nwrite+1))
+    allocate(phi2_tot(nstep/nwrite+1))
     if (scan_type_switch == scan_type_none) return
 
     select case (target_parameter_switch)
     case (target_parameter_hflux_tot)
-      if (.not. write_fluxes) &
-       call mp_abort("write_fluxes must be set to true for hflux target mode")
-     case (target_parameter_momflux_tot)
-      if (.not. write_fluxes) &
-       call mp_abort("write_fluxes must be set to true for momflux target mode")
-     end select 
+       if (.not. write_fluxes) &
+            call mp_abort("write_fluxes must be set to true for hflux target mode")
+    case (target_parameter_momflux_tot)
+       if (.not. write_fluxes) &
+            call mp_abort("write_fluxes must be set to true for momflux target mode")
+    end select
   end subroutine allocate_target_arrays
 
   !> FIXME : Add documentation  
@@ -284,30 +284,30 @@ contains
     logical, intent (out) :: target_reached
     logical, save :: first = .true.
     real, save :: last_value = 0.0
-   
+
     target_reached = .false.
-    
+
     last_value = current_target_value
     select case (target_parameter_switch)
     case (target_parameter_hflux_tot)
-      current_target_value = hflux_tot(nout)
+       current_target_value = hflux_tot(nout)
     case (target_parameter_momflux_tot)
-      current_target_value = momflux_tot(nout)
+       current_target_value = momflux_tot(nout)
     case (target_parameter_phi2_tot)
-      current_target_value = phi2_tot(nout)
+       current_target_value = phi2_tot(nout)
     end select
 
     if (first) then
-      last_value = current_target_value
-      first = .false.
-      return
+       last_value = current_target_value
+       first = .false.
+       return
     end if
 
     if ((last_value .lt. target_val .and. &
-          current_target_value .gt. target_val) .or. &
-          (last_value .gt. target_val .and. &
-          current_target_value .lt. target_val)) &
-             target_reached = .true.
+         current_target_value .gt. target_val) .or. &
+         (last_value .gt. target_val .and. &
+         current_target_value .lt. target_val)) &
+         target_reached = .true.
 
   end subroutine check_target_reached
 
@@ -327,17 +327,17 @@ contains
     use mp, only: proc0
     implicit none
     logical, intent (inout) :: reset
-     
+
     select case (scan_parameter_switch)
     case (scan_parameter_tprim)
        spec(scan_spec)%tprim = current_scan_parameter_value
        if (proc0) write (*,*) &
-         "Set scan parameter tprim_1 to ", spec(scan_spec)%tprim
+            "Set scan parameter tprim_1 to ", spec(scan_spec)%tprim
        reset = .true.
     case (scan_parameter_g_exb)
        g_exb = current_scan_parameter_value
        if (proc0) write (*,*) &
-         "Set scan parameter g_exb to ", g_exb
+            "Set scan parameter g_exb to ", g_exb
        reset = .false.
     end select
   end subroutine set_scan_parameter
@@ -382,26 +382,26 @@ contains
     use text_options, only: text_option, get_option_value
     implicit none
     type(parameter_scan_config_type), intent(in), optional :: parameter_scan_config_in
-    
+
     type (text_option), dimension (2), parameter :: scan_parameter_opts = &
          (/ text_option('tprim', scan_parameter_tprim), &
-            text_option('g_exb', scan_parameter_g_exb) /)
+         text_option('g_exb', scan_parameter_g_exb) /)
     character(20) :: scan_par
     type (text_option), dimension (4), parameter :: scan_type_opts = &
          (/ text_option('none', scan_type_none), &
-            text_option('range', scan_type_range), &
-            text_option('target', scan_type_target), &
-            text_option('root_finding', scan_type_root_finding) /)
+         text_option('range', scan_type_range), &
+         text_option('target', scan_type_target), &
+         text_option('root_finding', scan_type_root_finding) /)
     character(20) :: scan_type
     type (text_option), dimension (3), parameter :: target_parameter_opts = &
          (/ text_option('hflux_tot', target_parameter_hflux_tot), &
-            text_option('momflux_tot', target_parameter_momflux_tot), &
-            text_option('phi2_tot', target_parameter_phi2_tot) /)
+         text_option('momflux_tot', target_parameter_momflux_tot), &
+         text_option('phi2_tot', target_parameter_phi2_tot) /)
     character(20) :: target_par
     type (text_option), dimension (3), parameter :: increment_condition_opts = &
          (/ text_option('n_timesteps', increment_condition_n_timesteps), &
-            text_option('delta_t', increment_condition_delta_t), &
-            text_option('saturated', increment_condition_saturated) /)
+         text_option('delta_t', increment_condition_delta_t), &
+         text_option('saturated', increment_condition_saturated) /)
     character(20) :: inc_con 
     integer :: ierr
     logical :: exist
@@ -470,7 +470,7 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
+
   !> Reads in the parameter_scan_knobs namelist and populates the member variables
   subroutine read_parameter_scan_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -595,7 +595,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_parameter_scan_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_parameter_scan_config()
     implicit none
