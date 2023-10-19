@@ -1,15 +1,18 @@
-!> A module which allows multiple values of certain parameters to be considered within a single simulation.
-!!
-!! In its simplest form, it starts with a given value of the parameter in question, runs for a given number of timesteps, and then changes the parameter by a given increment, until a lower limit is reached.
-!!
-!! In a more advanced scenario, the parameter scan continues until a different condition is satisfied: for example, zero heat flux.
-!!
-!! In a third scenario, the parameter is varied using a root finding algorithm.
-!!
-!! In addition, the condition for changing the parameter may be changed from a simple number of time steps to, for example, reaching a saturated state.
+!> A module which allows multiple values of certain parameters to be
+!> considered within a single simulation.
+!>
+!> In its simplest form, it starts with a given value of the parameter
+!> in question, runs for a given number of timesteps, and then changes
+!> the parameter by a given increment, until a lower limit is reached.
+!> In a more advanced scenario, the parameter scan continues until a
+!> different condition is satisfied: for example, zero heat flux.
+!> In a third scenario, the parameter is varied using a root finding
+!> algorithm. In addition, the condition for changing the parameter
+!> may be changed from a simple number of time steps to, for example,
+!> reaching a saturated state.
 module parameter_scan
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  
+
   !These should really be moved to specific routines where required
   use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter, run_scan
   use parameter_scan_arrays, only: scan_parameter_switch, scan_parameter_tprim, scan_parameter_g_exb
