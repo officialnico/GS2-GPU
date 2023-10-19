@@ -933,11 +933,10 @@ contains
 #ifdef NEW_DIAG
     use gs2_diagnostics_new, only: reset_averages_and_counters
 #endif
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
+    use nonlinear_terms, only: nonlin
     use run_parameters, only: trinity_linear_fluxes, use_old_diagnostics
     use gs2_time, only: code_dt, save_dt
     use mp, only: scope, subprocs, allprocs
-    use mp, only: mp_abort
     use unit_tests, only: debug_message
     implicit none
     type(gs2_program_state_type), intent(inout) :: state
@@ -958,9 +957,7 @@ contains
 #endif
     end if
 
-    if (trinity_linear_fluxes .and. &
-       nonlinear_mode_switch .eq. nonlinear_mode_none) &
-        call reset_linear_magnitude
+    if (trinity_linear_fluxes .and. .not. nonlin) call reset_linear_magnitude
 
     state%istep_end = 0
 
