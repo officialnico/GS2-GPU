@@ -15,7 +15,6 @@ module parameter_scan
 
   !These should really be moved to specific routines where required
   use parameter_scan_arrays, only: current_scan_parameter_value, write_scan_parameter
-  use parameter_scan_arrays, only: scan_parameter_switch, scan_parameter_tprim, scan_parameter_g_exb
   use parameter_scan_arrays, only: hflux_tot, momflux_tot, phi2_tot, nout
 
   implicit none
@@ -30,6 +29,9 @@ module parameter_scan
   public :: parameter_scan_config_type, set_parameter_scan_config, get_parameter_scan_config
 
   logical :: scan_restarted
+
+  integer :: scan_parameter_switch
+  integer, parameter :: scan_parameter_tprim = 1, scan_parameter_g_exb = 2
 
   integer :: target_parameter_switch, scan_type_switch, increment_condition_switch
 
