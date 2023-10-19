@@ -775,8 +775,7 @@ contains
        call update_time
        call time_message(.false.,state%timers%diagnostics,' Diagnostics')
 
-       call debug_message(state%verb+1, &
-          'gs2_main::evolve_equations calling diagnostics')
+       call debug_message(state%verb+1, 'gs2_main::evolve_equations calling diagnostics')
        if (.not. state%skip_diagnostics) then 
          if (use_old_diagnostics) then 
            call loop_diagnostics (istep, state%exit)
@@ -787,7 +786,7 @@ contains
          end if
        end if
 
-       if(state%exit) state%converged = .true.
+       if (state%exit) state%converged = .true.
        if (state%exit) call debug_message(state%verb+1, &
          'gs2_main::evolve_equations exit true after diagnostics')
 
@@ -825,13 +824,14 @@ contains
             reset = .false.
          end if
 
-         if ((mod(istep,5) == 0).and.(.not.state%exit)) call checkstop(state%exit,state%exit_reason)
+         if ((mod(istep,5) == 0) .and. (.not.state%exit)) &
+              call checkstop(state%exit,state%exit_reason)
          if (state%exit) call debug_message(state%verb+1, &
               'gs2_main::evolve_equations exit true after checkstop')
          if (.not.state%exit) call checktime(avail_cpu_time,state%exit,margin_cpu_time)
          if (state%exit) call debug_message(state%verb+1, &
               'gs2_main::evolve_equations exit true after checktime')
-       endif
+       end if
        call debug_message(state%verb+1, &
         'gs2_main::evolve_equations after reset and checks')
 
@@ -845,11 +845,9 @@ contains
        end if
 
        if (state%exit) then
-           call debug_message(state%verb, &
-                'gs2_main::evolve_equations exiting loop')
+           call debug_message(state%verb, 'gs2_main::evolve_equations exiting loop')
           exit
        end if
-
     end do
 
     ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
@@ -859,7 +857,7 @@ contains
        ! incremented once from the last step actually taken. In cases where we explicitly exit the loop
        ! we need to pass istep instead.
        istep_offset = 1
-       if(state%exit) istep_offset = 0
+       if (state%exit) istep_offset = 0
        if (use_old_diagnostics) then
           call loop_diagnostics (istep - istep_offset, state%exit, force = .true.)
 #ifdef NEW_DIAG
@@ -884,9 +882,8 @@ contains
 
        ilast_step = state%istep_end
 
-       ! We also restore the value of the override
-       ! switch to what it was when this function was
-       ! called.
+       ! We also restore the value of the override switch to what it
+       ! was when this function was called.
        state%init%initval_ov%override = temp_initval_override_store
 
        call debug_message(state%verb,'gs2_main::evolve_equations finished')
