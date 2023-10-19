@@ -119,7 +119,7 @@ module gs2_main
 
   !> The object which specifies and records the gs2 program state.
   !> Some attributes of the object, like mp_comm_external, are
-  !> designed to directly manipulated by the user, and some are
+  !> designed to be directly manipulated by the user, and some are
   !> designed to store program state information and be manipulated
   !> internally, like `init%level`.
   type gs2_program_state_type
@@ -160,28 +160,27 @@ module gs2_main
      !> Gets set to the final value of istep in evolve equations. Any
      !> future calls to evolve_equations will increment this
      !> further. A call to finalize_diagnostics will set it back to
-     !> 1. Note that setting this manually is NOT advised.
+     !> 0. Note that setting this manually is NOT advised.
      integer :: istep_end = 0
 
      !> Verbosity at which we print out debug messages
      integer :: verb = 3
 
-     !> Parameters pertaining to cases when gs2 is being used as
-     !> library. external_job_id is not to confused with the parameter
+     !> Parameters pertaining to cases when gs2 is being used as a
+     !> library. external_job_id is not to be confused with the parameter
      !> job in mp, which identifies the subjob if running in list mode
      !> or with nensembles > 1
      integer :: external_job_id = -1
 
      !> is_external_job should be set to true when GS2 is being used
-     !> as a library
+     !> as a library. Perhaps this could just check external_job_id instead?
      logical :: is_external_job = .false.
 
      !> Set true if using trinity. This does several things:
      !>  * it forces the calculation of the fluxes
      !>  * it causes the species and theta_grid name lists to use parameters
      !>     provided by trinity
-     !> Setting this flag true automatically sets is_external_job
-     !> to true
+     !> Setting this flag true automatically sets is_external_job to true
      logical :: is_trinity_job = .false.
 
      !> Used to hold the current trinity timestep if being called via
@@ -201,8 +200,7 @@ module gs2_main
      !> MPI communicator. This MUST be set.
      integer :: mp_comm = mp_comm_null
 
-     !> This is set in initialize_gs2 to the number of procs actually
-     !> used
+     !> This is set in initialize_gs2 to the number of procs actually used
      integer :: nproc_actual = -1
 
      !> If true then we end up passing [[gs2_program_state_type:run_name]]
@@ -224,8 +222,8 @@ module gs2_main
      !> Whether this is a list mode run
      logical :: list = .false.
      !> The number of identical runs happening simultaneously (used
-     !> for ensemble averaging).  Cannot be used in conjunction with
-     !> list mode
+     !> for ensemble averaging). Cannot be used in conjunction with
+     !> list mode.
      integer :: nensembles = 1
 
      !> Holds some outputs of interest (e.g. for Trinity)
