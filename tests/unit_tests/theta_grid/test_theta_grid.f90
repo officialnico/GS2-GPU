@@ -33,7 +33,7 @@ program test_theta_grid
 
   ! Set up depenencies
   call init_mp
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'local')
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'local')
   !call init_species
   !call init_general_f0
 
@@ -64,7 +64,7 @@ program test_theta_grid
 
   !initialized = .false.
 
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'chease')
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'chease')
   call get_results(2)
   if (proc0) call finish_file_utils
 
@@ -72,7 +72,7 @@ program test_theta_grid
 
   !theta_rslt = - theta_rslt
 
-  if (proc0) call init_file_utils(dummy, .true., .true., .false., 'efit')
+  if (proc0) call init_file_utils(dummy, .true., .true., .false., input_file = 'efit')
   call get_results(3)
   if (proc0) call finish_file_utils
 
