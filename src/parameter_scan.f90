@@ -186,7 +186,7 @@ contains
     allocate(hflux_tot(nstep/nwrite+1))
     allocate(momflux_tot(nstep/nwrite+1))
     allocate(phi2_tot(nstep/nwrite+1))
-    if (scan_type_switch == scan_type_none) return
+    if (.not. scanning) return
 
     select case (target_parameter_switch)
     case (target_parameter_hflux_tot)
