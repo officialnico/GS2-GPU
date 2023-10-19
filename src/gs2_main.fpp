@@ -893,8 +893,7 @@ contains
   !> Employ the eigenvalue solver to seek eigenmodes using SLEPc
   subroutine run_eigensolver(state)
 #ifdef WITH_EIG
-    use eigval, only: init_eigval, finish_eigval
-    use eigval, only: BasicSolve
+    use eigval, only: init_eigval, finish_eigval, BasicSolve
 #endif 
     use job_manage, only: time_message
     use mp, only: mp_abort
@@ -919,7 +918,7 @@ contains
    !Stop timer
    call time_message(.false.,state%timers%eigval,' Eigensolver')
 #else
-   call mp_abort("Require slepc/petsc")
+   call mp_abort("Eigensolver requires GS2 to be built with slepc/petsc", .true.)
 #endif
    call time_message(.false.,state%timers%total,' Total')
 
