@@ -112,9 +112,6 @@ USE_FPIC ?=
 #       $ touch utils/constants.fpp
 #       $ make RUN_NAME_SIZE=<newsize>
 RUN_NAME_SIZE?=2000
-# If defined, fpp files will be preprocessed and compiled in one step, as
-# is normal for modern FORTRAN compilers (bin)
-ONE_STEP_PP?=
 # If defined then don't show the full command being run everywhere
 QUIET           ?= yes
 # If defined then use escape commands to colourise some output
@@ -659,21 +656,8 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
-ifdef ONE_STEP_PP
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
-else
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $(basename $<).F90 -o $(basename $<).f90
-	$(QUIETSYM)$(FC) $(F90FLAGS) -c $(basename $<).f90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
-endif
 
-# On many systems the two steps of preprocessing and compiling
-# can be done simultaneously. This has many advantages, the
-# most important of which is correctly reporting line numbers in 
-# the .fpp when debugging. 
-#
-# On some systems (e.g. Mac OS X) using cpp doesn't work at all
-# and you HAVE to preprocess and compile in one step.
-ifdef ONE_STEP_PP
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
@@ -681,25 +665,10 @@ $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-endif
-
-$(OBJDIR)/%.o:$(GENERATED_SRC_DIR)/%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
 	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-
-# The depend command needs the preprocessed source files. 
-# This is a little clunky, and maybe could be fixed in the future.
-$(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
-
-$(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
 $(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
@@ -712,19 +681,9 @@ $(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
 # Special handling for creating a serial version of the mp module
 $(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
 FPPFLAGS_SERIAL:=$(subst -DHAVE_MPI, ,$(subst -DMPI, ,$(FPPFLAGS)))
-ifdef ONE_STEP_PP
 $(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
-else
-$(GENERATED_SRC_DIR)/mp_serial.f90: $(UTILS)/mp.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS_SERIAL) $(INCLUDES) $< -o $@
-$(OBJDIR)/mp_serial.o:mp_serial.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM)mkdir -p $(MODDIR)/serial
-	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR)/serial -c $< -o $@
-endif
 
 DEPEND:=Makefile.depend
 DEPEND_CMD:=$(PERL) scripts/fortdep
@@ -736,13 +695,6 @@ $(DEPEND): $(UTILS_SENTINEL)
 $(DEPEND): $(UTILS_SENTINEL) depend
 #Provide a no-op recipe
 	@echo -n ""
-endif
-
-# If this is true then we keep the preprocessed files generated in the process
-# of producing the dependency file. This is a minor optimisation to make
-KEEP_PROCESSED_FILES_FROM_DEPEND?="no"
-ifdef ONE_STEP_PP
-KEEP_PROCESSED_FILES_FROM_DEPEND="no"
 endif
 
 depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
@@ -767,12 +719,8 @@ compiler_flags: force
 
 # Things that should be rebuilt if the compilation flags change (for example, on
 # a new commit). Files that get preprocessed need either the object file or the
-# preprocessed file to depend on compiler_flags, depending on ONE_STEP_PP
-ifdef ONE_STEP_PP
+# preprocessed file to depend on compiler_flags
 $(OBJDIR)/git_hash.o: compiler_flags
-else
-$(GENERATED_SRC_DIR)/git_hash.f90: compiler_flags
-endif
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
