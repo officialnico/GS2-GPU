@@ -1038,7 +1038,7 @@ contains
     use antenna, only: antenna_w
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
-    use parameter_scan, only: scan_type_switch, scan_type_none
+    use parameter_scan, only: scanning
     use optionals, only: get_option_with_default
     use diagnostics_printout, only: write_phi_fluxes_to_unit, write_fluxes_to_unit
     use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
@@ -1301,7 +1301,7 @@ contains
        end if
     endif
 
-    if (scan_type_switch /= scan_type_none) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
+    if (scanning) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
 
     if (write_cerr) call collision_error(phinew, bparnew, last)
 

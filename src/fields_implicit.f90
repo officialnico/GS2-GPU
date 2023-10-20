@@ -70,7 +70,6 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use unit_tests, only: should_print
     use mp, only: mp_abort
-!    use parameter_scan_arrays, only: run_scan
     implicit none
 
     logical :: debug=.false.
@@ -93,10 +92,6 @@ contains
     call init_theta_grid
     if (debug) write(6,*) "init_fields_implicit: kt_grids"
     call init_kt_grids
- !   if (debug .and. run_scan) &
- !       write(6,*) "init_fields_implicit: set_scan_parameter"
-        ! Must be done before resp. m.
-        !if (run_scan) call set_scan_parameter(dummy)
     if (debug) write(6,*) "init_fields_implicit: response_matrix"
     call init_response_matrix
     if (debug) write(6,*) "init_fields_implicit: antenna"
