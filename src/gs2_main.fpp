@@ -210,7 +210,7 @@ module gs2_main
      !> The run name to pass to [[init_file_utils]] if `run_name_external` is
      !> set to true. GS2 then uses this in place of any input file name passed
      !> at the command line.
-     character(run_name_size) :: run_name = 'unset'
+     character(run_name_size) :: run_name = 'gs'
 
      !> If true then skip the call to diagnostics calculations in
      !> evolve_equations (main loop and after main loop)
@@ -424,14 +424,8 @@ contains
       ! Until the logic of init_file_utils is fixed we set trin_run
       ! when an external file name has been provided... this prevents
       ! it overriding the name from the command line.
-      ! Note we should unconditionally pass state%run_name_external
-      ! and then just check the value in init_file_utils.
-      if (state%run_name_external) then
-        call init_file_utils (state%list, trin_run=state%run_name_external, &
-             name=state%run_name, n_ensembles=state%nensembles)
-      else
-        call init_file_utils (state%list, name="gs")
-      end if
+      call init_file_utils (state%list, trin_run=state%run_name_external, &
+           name=state%run_name, n_ensembles=state%nensembles)
       call debug_message(state%verb, 'gs2_main::initialize_gs2 initialized file_utils')
     end if
     
