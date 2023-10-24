@@ -266,7 +266,6 @@ contains
     ! update to the fields is calculated as a part of the implicit
     ! field solve and including the NL contribution here leads to
     ! "double counting".
-    call copy(gnew, g)
 
     call time_message(.false., time_add_explicit_terms, 'Explicit terms')
     call get_mp_times(total_time = mp_total_after)
