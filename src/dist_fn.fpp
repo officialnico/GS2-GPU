@@ -4063,6 +4063,7 @@ contains
              call advance_nonlinear_term(gnew, istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
+          ! Update g to reflect the change from the nonlinear operator
           call copy(gnew, g)
        end if
     else
