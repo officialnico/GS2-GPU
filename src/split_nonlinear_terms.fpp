@@ -394,7 +394,6 @@ contains
   subroutine advance_nonlinear_term_beuler(g_state, phinew, aparnew, bparnew, dt, &
        fields_func, source_func)
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: g_work
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, max_allreduce, proc0
     use run_parameters, only: immediate_reset
@@ -403,7 +402,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_state
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
-    complex, dimension(:, :, :), allocatable :: g_cur, gnl_1, gnl_2
+    complex, dimension(:, :, :), allocatable :: g_cur, g_local, gnl_1, gnl_2
     real, intent(in) :: dt
     real :: internal_time, time_step, max_vel
     integer :: counter, iglo
@@ -425,6 +424,7 @@ contains
 
     allocate(error_array(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(g_cur(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(g_local(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call copy(g_state, g_cur)
@@ -462,10 +462,10 @@ contains
           ! Calculate the estimate of the new g
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, g_work, g_cur, half_time, gnl_1) &
+          !$OMP SHARED(g_lo, g_local, g_cur, half_time, gnl_1) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             g_work(:, :, iglo) = g_cur(:, :, iglo) + half_time * gnl_1(:, :, iglo)
+             g_local(:, :, iglo) = g_cur(:, :, iglo) + half_time * gnl_1(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
 
@@ -476,14 +476,14 @@ contains
           ! need to explicitly store the full array)
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo) &
-          !$OMP SHARED(g_lo, error_array, g_state, g_work) &
+          !$OMP SHARED(g_lo, error_array, g_state, g_local) &
           !$OMP SCHEDULE(static)
           do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             error_array(:, :, iglo) = g_state(:, :, iglo) - g_work(:, :, iglo)
+             error_array(:, :, iglo) = g_state(:, :, iglo) - g_local(:, :, iglo)
           end do
           !$OMP END PARALLEL DO
           errors(1) = gs2_max_abs(error_array)
-          errors(2) = gs2_max_abs(g_work)
+          errors(2) = gs2_max_abs(g_local)
           call max_allreduce(errors)
 
           ! Calculate an approximate relative error
@@ -491,7 +491,7 @@ contains
 
           ! Update internals -- increment counter and update the 'previous' solution with the new one.
           counter = counter + 1
-          call copy(g_work, g_state)
+          call copy(g_local, g_state)
 
           ! Update the fields consistently with the current solution
           call fields_func(g_state, phinew, aparnew, bparnew, local_only = .true.)
@@ -525,7 +525,7 @@ contains
           ! Where gnl_1(h) is the source func evaluated with gnew=h.
 
           ! Here we calculate gnl_1(g_new_beuler) exactly. We could probably
-          ! rely on using the existing value of gnl_1(g_work) as, whilst this is
+          ! rely on using the existing value of gnl_1(g_local) as, whilst this is
           ! strictly from the previous iteration of the fixed-point scheme, we know
           ! it is within the convergence tolerance of the true value.
           call source_func(g_state, gnl_1, phinew, aparnew, bparnew, &
