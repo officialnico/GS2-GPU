@@ -4041,13 +4041,12 @@ contains
     use unit_tests, only: debug_message
     use collisions, only: split_collisions
     use gs2_time, only: code_dt
-    use array_utils, only: copy
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer,save :: istep_last=-1
+    integer, save :: istep_last = -1
     integer, parameter :: verb = 3
 
     !Calculate the explicit nonlinear terms
@@ -4056,15 +4055,13 @@ contains
        ! by code_dt.
        if (istep > 0 .and. istep /= istep_last) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(gnew, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(gnew, istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
-          ! Update g to reflect the change from the nonlinear operator
-          call copy(gnew, g)
        end if
     else
        call add_explicit_terms (gexp_1, gexp_2, gexp_3, &
