@@ -46,6 +46,7 @@ program test_split_nonlinear_integrators
   use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
   use run_parameters, only: nstep
   use test_integrator, only: null_field_op, exponential_source, exponential_coefficient
+  use array_utils, only: copy
   implicit none
   type(gs2_program_state_type) :: state
   logical :: agrees
@@ -73,8 +74,9 @@ program test_split_nonlinear_integrators
 
   exponential_coefficient = 0.1
   do i = 1, nstep
-     call advance_nonlinear_term(i, phi, apar, bpar, code_dt, &
+     call advance_nonlinear_term(gnew, i, phi, apar, bpar, code_dt, &
           null_field_op, exponential_source)
+     call copy(gnew, g)
   end do
 
   ! Form expected result, gnew = g(t=0) * exp(exponential_coefficient * dt)
