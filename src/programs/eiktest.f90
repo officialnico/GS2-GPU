@@ -172,7 +172,6 @@ program eiktest
            
   if (dipole) then
      shat = max(1.e-7, shat)
-     if (shat == 1.e-7) gds22 = shat*shat
   end if
 
   write(21,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
