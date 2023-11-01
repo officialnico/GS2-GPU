@@ -285,7 +285,7 @@ module init_g
      !> Which processor is responsible for saving/reading potentials to/from restart
      !> files. If <0 then all procs write to restart files. If >= nproc then set to
      !> proc_to_save_fields = mod(proc_to_save_fields, nproc)
-     integer :: proc_to_save_fields = -1
+     integer :: proc_to_save_fields = 0
      !> Width of "porcelli", "doubleharris" profiles in
      !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
