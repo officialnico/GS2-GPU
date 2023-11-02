@@ -252,6 +252,8 @@ module geometry
      real :: qsf
      real :: surfarea
      real :: dvdrhon
+     real :: shat
+     real :: dbetadrho
      real, dimension(:), allocatable :: theta
      real, dimension(:), allocatable :: bmag
      real, dimension(:), allocatable :: gradpar
@@ -313,6 +315,8 @@ contains
     results%qsf = full_results%qsf
     results%surfarea = full_results%surfarea
     results%dvdrhon = full_results%dvdrhon
+    results%shat = full_results%shat
+    results%dbetadrho = full_results%dbetadrho
 
     ! Make an index space array for the original theta
     ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
@@ -427,7 +431,8 @@ contains
     qsf = eikcoefs_results%qsf
     surfarea = eikcoefs_results%surfarea
     dvdrhon = eikcoefs_results%dvdrhon
-
+    shat = eikcoefs_results%shat
+    dbetadrho = eikcoefs_results%dbetadrho
   end subroutine set_eikcoefs_output
 
   !> FIXME : Add documentation
@@ -1391,6 +1396,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     outputs%qsf = qsf
     outputs%surfarea = surfarea
     outputs%dvdrhon = dvdrhon
+    outputs%shat = shat
+    outputs%dbetadrho = dbetadrho
 
   contains
 
