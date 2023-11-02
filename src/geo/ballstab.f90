@@ -422,6 +422,7 @@ contains
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
     use geometry, only: eikcoefs, eikcoefs_output
+    use optionals, only: get_option_with_default
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
     real, intent(out) :: dbetadrho_out
@@ -431,10 +432,15 @@ contains
     type(eikcoefs_output) :: eikcoefs_results
     real :: shat_bak, beta_prime_bak
     integer :: ntgrid
+    logical :: local_restore
     
-    !Store initial state
-    call get_shat(shat_bak)
-    call get_beta_prime(beta_prime_bak)
+    local_restore = get_option_with_default(restore, .false.)
+
+    !Store initial state if we're going to restore
+    if (local_restore) then
+       call get_shat(shat_bak)
+       call get_beta_prime(beta_prime_bak)
+    end if
 
     !Setup geometry
     !NOTE: As how we can influence beta_prime (and shat) varies with bishop
@@ -462,21 +468,20 @@ contains
          eikcoefs_results%cvdrift0, theta0)
 
     !Restore geometry if requested
-    if(present(restore))then
-       if(restore) then
-          call set_beta_prime(beta_prime_bak)
-          call set_shat(shat_bak)
-          call eikcoefs(ntheta, eikcoefs_results)
-       endif
-    endif
+    if (local_restore) then
+       call set_beta_prime(beta_prime_bak)
+       call set_shat(shat_bak)
+       call eikcoefs(ntheta, eikcoefs_results)
+    end if
   end subroutine check_stability
 
   !> Test stability of current system for passed theta0 and geometry -- return integer
   !>
   !> Note is_unstable>0 means unstable - Could use a logical but size
   !> may be interesting.
-  integer function is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
-       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) result(is_unstable_out)
+  pure integer function is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
+       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) &
+       result(is_unstable_out)
     use optionals, only: get_option_with_default
     implicit none
     integer, intent(in) :: ntgrid
@@ -488,8 +493,7 @@ contains
     real, dimension(-ntgrid:ntgrid) :: g, c, psi, c1, c2, ch, g1, g2, gh
     real, dimension(-ntgrid:ntgrid-1) :: delthet
     integer :: ig
-    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
-    logical, parameter :: debug = .false.
+    real :: one_m_diff, psi_prime, theta0
 
     !Initialise
     theta0 = get_option_with_default(theta0_in, 0.0)
@@ -507,21 +511,6 @@ contains
        ch(ig)=0.5*(c(ig)+c(ig-1))
        gh(ig)=0.5*(g(ig)+g(ig-1))
     enddo
-
-    ! Note this section (with writes) prevents us from marking this function
-    ! as pure.
-    if(debug) then
-       cflmax = delthet(-ntgrid)**2
-       cflmax = cflmax*(c(-ntgrid+1)+c(-ntgrid))/(g(-ntgrid+1)+g(-ntgrid))
-       cflmin = cflmax
-       do ig=-ntgrid+1,ntgrid
-          cflmax=max(cflmax,delthet(ig-1)**2*ch(ig)/gh(ig))
-          cflmin=min(cflmin,delthet(ig-1)**2*ch(ig)/gh(ig))
-       enddo
-       write(6,'("|cflmax| = ",F12.5)') abs(cflmax)
-       write(6,'("|cflmin| = ",F12.5)') abs(cflmin)
-       write(6,'("These should be much less than 1")') !Could actually do a quantitative check
-    endif
 
     !Calculate coefficients -- note we don't set the value at -ntgrid or ntgrid
     do ig=-ntgrid+1,ntgrid-1
