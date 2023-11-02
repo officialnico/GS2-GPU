@@ -140,7 +140,7 @@ module geometry
 
   private
 
-  public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho
+  public :: beta_a_fun, eikcoefs, geofax, pbarofrho
   public :: qfun, rpofrho, rcenter, nth_get  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
@@ -1175,7 +1175,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     end if
 
     if(isym == 1) call sym(gradpar, 0, ntgrid)
-     
 
     ! MAB, CMR, 6/5/2009:
     ! remove unnecessary restriction to calling plotdata for nperiod=1
