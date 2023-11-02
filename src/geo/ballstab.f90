@@ -30,11 +30,6 @@ module ballstab
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
 
-  interface is_unstable
-     module procedure is_unstable_use_geo
-     module procedure is_unstable_use_passed
-  end interface is_unstable
-
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
      ! namelist : ballstab_knobs
@@ -426,7 +421,7 @@ contains
        iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
-    use geometry, only: dbetadrho, eikcoefs, eikcoefs_output
+    use geometry, only: eikcoefs, eikcoefs_output
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
     real, intent(out) :: dbetadrho_out
@@ -435,6 +430,7 @@ contains
     logical, intent(in), optional :: restore
     type(eikcoefs_output) :: eikcoefs_results
     real :: shat_bak, beta_prime_bak
+    integer :: ntgrid
     
     !Store initial state
     call get_shat(shat_bak)
@@ -449,10 +445,21 @@ contains
     call eikcoefs(ntheta, eikcoefs_results) !Recalculate geometry terms
 
     !Here we pass out the value of dbetadrho, this should be bishop value independent
-    dbetadrho_out = dbetadrho
+    dbetadrho_out = eikcoefs_results%dbetadrho
+
+    !Note we don't use theta_grid:ntgrid as in the case that
+    !gridgen resizes the theta grid used by GS2 we don't end up
+    !resizing any of the geometry module arrays (that we use directly here)
+    !Really we would like to use everything from theta_grid directly but we'd
+    !need some way to force theta_grid to update it's internal arrays when we
+    !change parameters
+    ntgrid=ubound(eikcoefs_results%theta,1)
 
     !Test stability
-    iunstable = is_unstable(theta0)
+    iunstable = is_unstable(ntgrid, eikcoefs_results%theta, eikcoefs_results%bmag, &
+         eikcoefs_results%dbetadrho, eikcoefs_results%gradpar, eikcoefs_results%gds2, &
+         eikcoefs_results%gds21, eikcoefs_results%gds22, eikcoefs_results%cvdrift, &
+         eikcoefs_results%cvdrift0, theta0)
 
     !Restore geometry if requested
     if(present(restore))then
@@ -464,38 +471,11 @@ contains
     endif
   end subroutine check_stability
 
-  !> Test stability of current system for passed theta0 -- return integer
-  !>
-  !> Note is_unstable>0 means unstable - Could use a logical but size
-  !> may be interesting.
-  !>
-  !> Assumes a call has been made to eikcoefs so that geometry terms
-  !> are setup correctly and passes these to generic is_unstable
-  !> implementation
-  integer function is_unstable_use_geo(theta0_in) result(is_unstable_out)
-    use geometry, only: gds2, gradpar, bmag, cvdrift, dbetadrho, theta
-    use geometry, only: gds21, gds22, cvdrift0
-    implicit none
-    real, intent(in), optional :: theta0_in
-    integer :: ntgrid
-
-    !Note we don't use theta_grid:ntgrid as in the case that
-    !gridgen resizes the theta grid used by GS2 we don't end up
-    !resizing any of the geometry module arrays (that we use directly here)
-    !Really we would like to use everything from theta_grid directly but we'd
-    !need some way to force theta_grid to update it's internal arrays when we
-    !change parameters
-    ntgrid=ubound(theta,1)
-
-    is_unstable_out = is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
-         gds2, gds21, gds22, cvdrift, cvdrift0, theta0)
-  end function is_unstable_use_geo
-
   !> Test stability of current system for passed theta0 and geometry -- return integer
   !>
   !> Note is_unstable>0 means unstable - Could use a logical but size
   !> may be interesting.
-  integer function is_unstable_use_passed(ntgrid, theta, bmag, dbetadrho, gradpar, &
+  integer function is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
        gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) result(is_unstable_out)
     use optionals, only: get_option_with_default
     implicit none
@@ -578,7 +558,7 @@ contains
     enddo
 
     !Probably want to think about writing out psi if debug
-  end function is_unstable_use_passed
+  end function is_unstable
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
