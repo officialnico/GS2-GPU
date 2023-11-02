@@ -8,7 +8,7 @@ program eiktest
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
-  integer :: i, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta, shotnum
   real :: broot
   real :: q, qq, qplus, qmnus
   real :: bb, profile_fac
