@@ -97,7 +97,6 @@
 !>   thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
 !> qinp :: safety factor q at surface of interest
 !> shat :: d q/drho at surface of interest
-!> dIdrho :: d I/drho where I = R B_T
 !>
 !> delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
 !> rmin :: minimum minor radius at which items are evaluated
