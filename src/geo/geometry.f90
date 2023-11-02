@@ -155,7 +155,7 @@ module geometry
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
   public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
-  public :: big, dbetadrho, eqinit, rfun, tstar
+  public :: big, dbetadrho, eqinit, rfun
   public :: diameter, Hahm_Burrell
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
@@ -190,7 +190,6 @@ module geometry
 
   integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho
-  real :: tstar
    
   real :: dp_new, di_new
   real :: psi_0, psi_a

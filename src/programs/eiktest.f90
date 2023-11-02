@@ -20,6 +20,7 @@ program eiktest
   real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
+  real :: tstar
   integer :: nbeta, funit
 
   logical :: no_end_point
