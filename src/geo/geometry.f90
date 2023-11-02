@@ -95,7 +95,7 @@
 !> -> Alternative definitions:
 !>   theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
 !>   thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
-!> qinp :: safety factor q at surface of interest
+!> qinp :: safety factor q at surface of interest (local_eq = T only)
 !> shat :: d q/drho at surface of interest
 !>
 !> delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
