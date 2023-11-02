@@ -1357,6 +1357,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if (start_file_utils) call finish_file_utils
 
     ! Pack module level data into output type
+    outputs%ntheta = ntheta_input
     outputs%theta = theta
     outputs%bmag = bmag
     outputs%gradpar = gradpar
