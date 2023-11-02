@@ -2,7 +2,19 @@
 program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
-  use geometry
+  !> Inputs
+  use geometry, only: nperiod, geoType, rmaj, shift, eqfile
+  use geometry, only: equal_arc, rhoc, rmin, rmax, itor, qinp, iflux, delrho
+  use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
+  use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
+  use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
+  use geometry, only: transp_eq, eqnormfile, alpha_input
+  !> Outputs of geometry
+  use geometry, only: eikcoefs_output, aplot, aprime, bmag, bpol, cvdrift, cvdrift0
+  use geometry, only: dbetadrho, dp_mult, drhodpsin, dvdrhon, eqinit, gbdrift, theta
+  use geometry, only: gbdrift0, gds2, gds21, gds22, gradpar, grho, in_nt, kxfac, zplot
+  use geometry, only: pbarofrho, qfun, qsf, rplot, rpofrho, rprime, shat, surfarea, zprime
+  use geometry, only: rfun, diameter, beta_a_fun, geofax, Hahm_Burrell, eikcoefs
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
