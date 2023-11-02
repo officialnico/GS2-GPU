@@ -8,13 +8,10 @@ program eiktest
   use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
-  use geometry, only: transp_eq, eqnormfile, alpha_input
-  !> Outputs of geometry
-  use geometry, only: eikcoefs_output, aplot, aprime, bmag, bpol, cvdrift, cvdrift0
-  use geometry, only: dbetadrho, dp_mult, drhodpsin, dvdrhon, eqinit, gbdrift, theta
-  use geometry, only: gbdrift0, gds2, gds21, gds22, gradpar, grho, in_nt, kxfac, zplot
-  use geometry, only: pbarofrho, qfun, qsf, rplot, rpofrho, rprime, shat, surfarea, zprime
-  use geometry, only: rfun, diameter, beta_a_fun, geofax, Hahm_Burrell, eikcoefs
+  use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult, in_nt
+  !> Methods from geometry
+  use geometry, only: eikcoefs_output, eqinit, geofax, Hahm_Burrell, eikcoefs
+  use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
@@ -42,6 +39,10 @@ program eiktest
 
   character(len=run_name_size) :: ncout
   type(eikcoefs_output) :: eikcoefs_results
+  real, dimension(:), allocatable :: theta, bmag, aplot, aprime, bpol, cvdrift, grho
+  real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
+  real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
+  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsin, dbetadrho
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -170,8 +171,34 @@ program eiktest
   open(unit=78,file=out_stem//'eik7.out',status='unknown')
   
   call eikcoefs(ntheta, eikcoefs_results)
-! note that ntheta may have changed
 
+  ! Unpack results for ease of use
+  theta = eikcoefs_results%theta
+  bmag = eikcoefs_results%bmag
+  gradpar = eikcoefs_results%gradpar
+  grho = eikcoefs_results%grho
+  cvdrift = eikcoefs_results%cvdrift
+  gbdrift = eikcoefs_results%gbdrift
+  cvdrift0 = eikcoefs_results%cvdrift0
+  gbdrift0 = eikcoefs_results%gbdrift0
+  gds2 = eikcoefs_results%gds2
+  gds21 = eikcoefs_results%gds21
+  gds22 = eikcoefs_results%gds22
+  rplot = eikcoefs_results%rplot
+  zplot = eikcoefs_results%zplot
+  aplot = eikcoefs_results%aplot
+  rprime = eikcoefs_results%rprime
+  zprime = eikcoefs_results%zprime
+  aprime = eikcoefs_results%aprime
+  bpol = eikcoefs_results%bpol
+  kxfac = eikcoefs_results%kxfac
+  qsf = eikcoefs_results%qsf
+  surfarea = eikcoefs_results%surfarea
+  dvdrhon = eikcoefs_results%dvdrhon
+  shat = eikcoefs_results%shat
+  drhodpsin = eikcoefs_results%drhodpsin
+
+  ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2
 
   if (writelots) then
