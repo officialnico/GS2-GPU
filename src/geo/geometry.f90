@@ -147,12 +147,8 @@ module geometry
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
   public :: eqnormfile
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
-  public :: advanced_parameters_type, advanced_parameters
-  public :: rmin, rmax, isym, in_nt, writelots, itor
-  public :: constant_coefficients
-  public :: miller_parameters_type, miller_parameters
-  public :: constant_coefficients_type, verb
-  public :: grho, bmag, gradpar, cvdrift0, coefficients_type
+  public :: rmin, rmax, isym, in_nt, writelots, itor, verb
+  public :: grho, bmag, gradpar, cvdrift0
   public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
   public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
   public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
@@ -249,122 +245,8 @@ module geometry
   character(len=800) :: eqfile
   character(len=800) :: eqnormfile
 
-  !> FIXME : Add documentation  
-  type advanced_parameters_type  
-    logical :: equal_arc
-    real :: dp_mult
-    real :: delrho
-    real :: rmin
-    real :: rmax
-    integer :: isym
-    logical :: in_nt
-    logical :: writelots
-    integer :: itor
-  end type advanced_parameters_type
-
-  !> FIXME : Add documentation  
-  type miller_parameters_type
-     integer :: geoType
-     real :: rmaj
-     real :: R_geo
-     real :: aSurf
-     real :: shift
-     real :: shiftVert
-     integer :: mMode
-     integer :: nMode
-     real :: deltam
-     real :: deltan
-     real :: deltampri
-     real :: deltanpri
-     real :: thetam
-     real :: thetan
-     real :: qinp
-     real :: shat
-   end type miller_parameters_type
-
-  type(advanced_parameters_type) :: advanced_parameters
-  type(miller_parameters_type) :: miller_parameters
-
-  !> These are functions of theta that are output by the 
-  !! geometry module
-  type coefficients_type
-    real :: theta
-    real :: theta_eqarc   
-    real :: theta_prime
-    real :: theta_prime_eqarc   
-    real :: grho
-    real :: grho_eqarc   
-    real :: bmag
-    real :: bmag_eqarc       
-    real :: gradpar
-    real :: gradpar_eqarc    
-    real :: gradpar_prime
-    real :: gradpar_prime_eqarc    
-    real :: cvdrift
-    real :: cvdrift_eqarc    
-    real :: cvdrift0
-    real :: cvdrift0_eqarc   
-    real :: gbdrift
-    real :: gbdrift_eqarc    
-    real :: gbdrift0
-    real :: gbdrift0_eqarc   
-    real :: cdrift
-    real :: cdrift_eqarc    
-    real :: cdrift0
-    real :: cdrift0_eqarc    
-    real :: gbdrift_th
-    real :: gbdrift_th_eqarc 
-    real :: cvdrift_th
-    real :: cvdrift_th_eqarc 
-    real :: gds2
-    real :: gds2_eqarc       
-    real :: gds21
-    real :: gds21_eqarc      
-    real :: gds22
-    real :: gds22_eqarc      
-    real :: gds23
-    real :: gds23_eqarc      
-    real :: gds24
-    real :: gds24_eqarc      
-    real :: gds24_noq
-    real :: gds24_noq_eqarc  
-    real :: jacob
-    real :: jacob_eqarc      
-    real :: Rplot
-    real :: Rplot_eqarc      
-    real :: Zplot
-    real :: Zplot_eqarc      
-    real :: aplot
-    real :: aplot_eqarc      
-    real :: Rprime
-    real :: Rprime_eqarc     
-    real :: Zprime
-    real :: Zprime_eqarc     
-    real :: aprime
-    real :: aprime_eqarc     
-    real :: Uk1
-    real :: Uk1_eqarc        
-    real :: Uk2
-    real :: Uk2_eqarc        
-    real :: Bpol
-    real :: Bpol_eqarc       
-  end type coefficients_type
-
-  !> These are coefficients that are constant
-  !! on a flux surface
-  type constant_coefficients_type
-    real :: qsf
-    real :: rmaj
-    real :: shat
-    real :: kxfac
-    real :: aminor
-    real :: drhodpsin
-    real :: bi
-  end type constant_coefficients_type
-
-  type(constant_coefficients_type) :: constant_coefficients
-
-  real, parameter :: invalidValue = -24680.123579 !< Used to initialise values to indicate unset
+  !> Used to initialise values to indicate unset
+  real, parameter :: invalidValue = -24680.123579 
 
   !> A type to hold a collection of geometrical quantities as calculated by
   !> [[eikcoefs]]
