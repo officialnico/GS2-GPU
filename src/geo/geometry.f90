@@ -151,9 +151,9 @@ module geometry
   public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
   public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
-  public :: qsf, shat, kxfac, aminor, finish_geometry, drhodpsin
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
+  public :: qsf, shat, kxfac, finish_geometry, drhodpsin
   public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
   public :: big, dbetadrho, eqinit, rfun
   public :: diameter, Hahm_Burrell
@@ -183,13 +183,13 @@ module geometry
   real :: qinp, s_hat_input
 
   real :: shat
-  real :: rmin, rmax, qsf, aminor
   
   real :: p_prime_input, invLp_input, beta_prime_input
   real :: alpha_input, dp_mult
 
   integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho
+  real :: rmin, rmax, qsf
    
   real :: dp_new, di_new
   real :: psi_0, psi_a
