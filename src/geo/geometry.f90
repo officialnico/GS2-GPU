@@ -246,6 +246,12 @@ module geometry
   !> [[eikcoefs]]
   type eikcoefs_output
      integer :: ntheta
+     real :: s_hat_new
+     real :: drhodpsin
+     real :: kxfac
+     real :: qsf
+     real :: surfarea
+     real :: dvdrhon
      real, dimension(:), allocatable :: theta
      real, dimension(:), allocatable :: bmag
      real, dimension(:), allocatable :: gradpar
@@ -299,7 +305,14 @@ contains
     ntgrid_input = (size(theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
 
+    ! Set scalar outputs
     results%ntheta = ntheta_target
+    results%s_hat_new = full_results%s_hat_new
+    results%drhodpsin = full_results%drhodpsin
+    results%kxfac = full_results%kxfac
+    results%qsf = full_results%qsf
+    results%surfarea = full_results%surfarea
+    results%dvdrhon = full_results%dvdrhon
 
     ! Make an index space array for the original theta
     ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
@@ -407,9 +420,17 @@ contains
     zprime = eikcoefs_results%zprime
     aprime = eikcoefs_results%aprime
     bpol = eikcoefs_results%bpol
+
+    s_hat_new = eikcoefs_results%s_hat_new
+    drhodpsin = eikcoefs_results%drhodpsin
+    kxfac = eikcoefs_results%kxfac
+    qsf = eikcoefs_results%qsf
+    surfarea = eikcoefs_results%surfarea
+    dvdrhon = eikcoefs_results%dvdrhon
+
   end subroutine set_eikcoefs_output
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
@@ -1362,6 +1383,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     outputs%zprime = zprime
     outputs%aprime = aprime
     outputs%bpol = bpol
+
+    outputs%s_hat_new = s_hat_new
+    outputs%drhodpsin = drhodpsin
+    outputs%kxfac = kxfac
+    outputs%qsf = qsf
+    outputs%surfarea = surfarea
+    outputs%dvdrhon = dvdrhon
 
   contains
 
