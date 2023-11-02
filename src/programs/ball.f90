@@ -13,6 +13,7 @@ program ball
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   logical :: diagram
+  type(eikcoefs_output) :: eikcoefs_results
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -116,7 +117,7 @@ program ball
 
   if( (.not. gen_eq) .and. (.not. ppl_eq) &
        .and. (.not. transp_eq) .and. (.not. chs_eq)) then
-     call eikcoefs(ntheta)
+     call eikcoefs(ntheta, eikcoefs_results)
      ntgrid = (2*nperiod - 1)*(ntheta/2)
      allocate(psi(-ntgrid:ntgrid))
   else 
@@ -192,7 +193,7 @@ contains
           beta_prime_input = beta_prime
        endif
        
-       call eikcoefs(ntheta)
+       call eikcoefs(ntheta, eikcoefs_results)
        
        if(.not.local_eq) then
           ntgrid = (size(theta)-1)/2

@@ -288,12 +288,13 @@ contains
     integer, intent(in) :: ntheta_target
     type(eikcoefs_output), intent(out) :: results
     integer, intent(in), optional :: job_id
+    type(eikcoefs_output) :: full_results
     real, dimension(:), allocatable :: input_index_space, target_index_space
     integer :: ig, ntgrid_target, ntgrid_input
     real :: spacing
 
     ! First run eikcoefs using requested resolution
-    call eikcoefs(ntheta_input, job_id)
+    call eikcoefs(ntheta_input, full_results, job_id)
 
     ntgrid_input = (size(theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
@@ -318,34 +319,34 @@ contains
     end do
 
     ! Now interpolate theta grid onto target index space grid
-    call resample( input_index_space, theta, target_index_space, results%theta)
+    call resample( input_index_space, full_results%theta, target_index_space, results%theta)
 
     ! Now interpolate other output quantities onto target theta grid
-    call resample( theta, bmag, results%theta, results%bmag)
-    call resample( theta, gradpar, results%theta, results%gradpar)
-    call resample( theta, grho, results%theta, results%grho)
-    call resample( theta, cdrift, results%theta, results%cdrift)
-    call resample( theta, cvdrift, results%theta, results%cvdrift)
-    call resample( theta, gbdrift, results%theta, results%gbdrift)
-    call resample( theta, cdrift0, results%theta, results%cdrift0)
-    call resample( theta, cvdrift0, results%theta, results%cvdrift0)
-    call resample( theta, gbdrift0, results%theta, results%gbdrift0)
-    call resample( theta, cvdrift_th, results%theta, results%cvdrift_th)
-    call resample( theta, gbdrift_th, results%theta, results%gbdrift_th)
-    call resample( theta, gds2, results%theta, results%gds2)
-    call resample( theta, gds21, results%theta, results%gds21)
-    call resample( theta, gds22, results%theta, results%gds22)
-    call resample( theta, gds23, results%theta, results%gds23)
-    call resample( theta, gds24, results%theta, results%gds24)
-    call resample( theta, gds24_noq, results%theta, results%gds24_noq)
-    call resample( theta, jacob, results%theta, results%jacob)
-    call resample( theta, rplot, results%theta, results%rplot)
-    call resample( theta, zplot, results%theta, results%zplot)
-    call resample( theta, aplot, results%theta, results%aplot)
-    call resample( theta, rprime, results%theta, results%rprime)
-    call resample( theta, zprime, results%theta, results%zprime)
-    call resample( theta, aprime, results%theta, results%aprime)
-    call resample( theta, bpol, results%theta, results%bpol)
+    call resample( full_results%theta, full_results%bmag, results%theta, results%bmag)
+    call resample( full_results%theta, full_results%gradpar, results%theta, results%gradpar)
+    call resample( full_results%theta, full_results%grho, results%theta, results%grho)
+    call resample( full_results%theta, full_results%cdrift, results%theta, results%cdrift)
+    call resample( full_results%theta, full_results%cvdrift, results%theta, results%cvdrift)
+    call resample( full_results%theta, full_results%gbdrift, results%theta, results%gbdrift)
+    call resample( full_results%theta, full_results%cdrift0, results%theta, results%cdrift0)
+    call resample( full_results%theta, full_results%cvdrift0, results%theta, results%cvdrift0)
+    call resample( full_results%theta, full_results%gbdrift0, results%theta, results%gbdrift0)
+    call resample( full_results%theta, full_results%cvdrift_th, results%theta, results%cvdrift_th)
+    call resample( full_results%theta, full_results%gbdrift_th, results%theta, results%gbdrift_th)
+    call resample( full_results%theta, full_results%gds2, results%theta, results%gds2)
+    call resample( full_results%theta, full_results%gds21, results%theta, results%gds21)
+    call resample( full_results%theta, full_results%gds22, results%theta, results%gds22)
+    call resample( full_results%theta, full_results%gds23, results%theta, results%gds23)
+    call resample( full_results%theta, full_results%gds24, results%theta, results%gds24)
+    call resample( full_results%theta, full_results%gds24_noq, results%theta, results%gds24_noq)
+    call resample( full_results%theta, full_results%jacob, results%theta, results%jacob)
+    call resample( full_results%theta, full_results%rplot, results%theta, results%rplot)
+    call resample( full_results%theta, full_results%zplot, results%theta, results%zplot)
+    call resample( full_results%theta, full_results%aplot, results%theta, results%aplot)
+    call resample( full_results%theta, full_results%rprime, results%theta, results%rprime)
+    call resample( full_results%theta, full_results%zprime, results%theta, results%zprime)
+    call resample( full_results%theta, full_results%aprime, results%theta, results%aprime)
+    call resample( full_results%theta, full_results%bpol, results%theta, results%bpol)
 
   contains
     subroutine resample(x_orig, y_orig, x_new, y_new)
@@ -409,7 +410,7 @@ contains
   end subroutine set_eikcoefs_output
 
   !> FIXME : Add documentation    
-  subroutine eikcoefs (ntheta_input, job_id_in)
+  subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
@@ -431,6 +432,8 @@ contains
     !> If setting [[geometry:nth]], then even values are used directly, while odd values
     !> set `nth = ntheta_input - 1`
     integer, intent (inout) :: ntheta_input
+    !> A type containing all of the outputs of eikcoefs
+    type(eikcoefs_output) :: outputs
     !> job_id is the job id in a  Trinity or list mode run. Used
     !> for debug statements
     integer, intent(in), optional :: job_id_in
@@ -1332,8 +1335,35 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if (start_file_utils) call finish_file_utils
 
-  contains
+    ! Pack module level data into output type
+    outputs%theta = theta
+    outputs%bmag = bmag
+    outputs%gradpar = gradpar
+    outputs%grho = grho
+    outputs%cdrift = cdrift
+    outputs%cvdrift = cvdrift
+    outputs%gbdrift = gbdrift
+    outputs%cdrift0 = cdrift0
+    outputs%cvdrift0 = cvdrift0
+    outputs%gbdrift0 = gbdrift0
+    outputs%cvdrift_th = cvdrift_th
+    outputs%gbdrift_th = gbdrift_th
+    outputs%gds2 = gds2
+    outputs%gds21 = gds21
+    outputs%gds22 = gds22
+    outputs%gds23 = gds23
+    outputs%gds24 = gds24
+    outputs%gds24_noq = gds24_noq
+    outputs%jacob = jacob
+    outputs%rplot = rplot
+    outputs%zplot = zplot
+    outputs%aplot = aplot
+    outputs%rprime = rprime
+    outputs%zprime = zprime
+    outputs%aprime = aprime
+    outputs%bpol = bpol
 
+  contains
 
     !> FIXME : Add documentation
     subroutine alloc_local_arrays(n)

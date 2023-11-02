@@ -426,13 +426,14 @@ contains
        iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
-    use geometry, only: dbetadrho, eikcoefs
+    use geometry, only: dbetadrho, eikcoefs, eikcoefs_output
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
     real, intent(out) :: dbetadrho_out
     integer, intent(out) :: iunstable
     real, intent(in), optional :: theta0
     logical, intent(in), optional :: restore
+    type(eikcoefs_output) :: eikcoefs_results
     real :: shat_bak, beta_prime_bak
     
     !Store initial state
@@ -445,7 +446,7 @@ contains
     !physical parameter dbetadrho should really be the relevant parameter.
     call set_beta_prime(beta_prime_in)
     call set_shat(shat_in)
-    call eikcoefs(ntheta) !Recalculate geometry terms
+    call eikcoefs(ntheta, eikcoefs_results) !Recalculate geometry terms
 
     !Here we pass out the value of dbetadrho, this should be bishop value independent
     dbetadrho_out = dbetadrho
@@ -458,7 +459,7 @@ contains
        if(restore) then
           call set_beta_prime(beta_prime_bak)
           call set_shat(shat_bak)
-          call eikcoefs(ntheta)
+          call eikcoefs(ntheta, eikcoefs_results)
        endif
     endif
   end subroutine check_stability

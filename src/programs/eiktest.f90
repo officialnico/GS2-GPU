@@ -29,6 +29,7 @@ program eiktest
   character(len=:), allocatable :: in_stem, out_stem
 
   character(len=run_name_size) :: ncout
+  type(eikcoefs_output) :: eikcoefs_results
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -156,7 +157,7 @@ program eiktest
   open(unit=99,file=out_stem//'eik3.out',status='unknown')
   open(unit=78,file=out_stem//'eik7.out',status='unknown')
   
-  call eikcoefs(ntheta)
+  call eikcoefs(ntheta, eikcoefs_results)
 ! note that ntheta may have changed
 
   ntgrid = (size(theta)-1)/2

@@ -1712,7 +1712,7 @@ contains
        if (ntheta_geometry == -1) then
           write(ntheta_char, "(I4)") ntheta
           call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-          call eikcoefs(ntheta, job_id)
+          call eikcoefs(ntheta, eikcoefs_results, job_id)
        else
           write(ntheta_char, "(I4)") ntheta_geometry
           call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
