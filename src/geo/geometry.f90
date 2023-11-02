@@ -141,7 +141,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
-  public :: qfun, rpofrho, rcenter, nth_get, f_trap  !procedures
+  public :: qfun, rpofrho, rcenter, nth_get  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
   public :: eqnormfile
