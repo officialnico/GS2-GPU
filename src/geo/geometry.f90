@@ -278,7 +278,7 @@ contains
 
   !> Run eikcoefs with `ntheta = ntheta_input` and then resample onto
   !> a theta grid with resolution `ntheta_target`.
-  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results)
+  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results, job_id)
     implicit none
     !> This is the number of theta grid points per two pi period used in the
     !> geometry calculation (actually one less than this).
@@ -287,12 +287,13 @@ contains
     !> in the resulting geometrical coefficients used elsewhere.
     integer, intent(in) :: ntheta_target
     type(eikcoefs_output), intent(out) :: results
+    integer, intent(in), optional :: job_id
     real, dimension(:), allocatable :: input_index_space, target_index_space
     integer :: ig, ntgrid_target, ntgrid_input
     real :: spacing
 
     ! First run eikcoefs using requested resolution
-    call eikcoefs(ntheta_input)
+    call eikcoefs(ntheta_input, job_id)
 
     ntgrid_input = (size(theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2

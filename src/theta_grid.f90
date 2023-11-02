@@ -1668,7 +1668,6 @@ contains
     use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: debug_geo => debug, verb_geo => verb
-    use geometry, only: job_id_geo => job_id
     use geometry, only: ntheta_geometry
     use geometry, only: eikcoefs_output, set_eikcoefs_output, run_eikcoefs_and_resample
     use unit_tests, only: job_id
@@ -1688,7 +1687,6 @@ contains
     debug = (verbosity() > 2)
     debug_geo = debug
     verb_geo = verbosity()
-    job_id_geo = job_id
 
     !CMR
 
@@ -1714,11 +1712,11 @@ contains
        if (ntheta_geometry == -1) then
           write(ntheta_char, "(I4)") ntheta
           call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-          call eikcoefs(ntheta)
+          call eikcoefs(ntheta, job_id)
        else
           write(ntheta_char, "(I4)") ntheta_geometry
           call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
-          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results)
+          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results, job_id)
           call set_eikcoefs_output(eikcoefs_results)
        end if
     end if
