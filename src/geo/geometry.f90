@@ -155,7 +155,7 @@ module geometry
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
   public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
-  public :: job_id, big, dbetadrho, eqinit, rfun, tstar
+  public :: big, dbetadrho, eqinit, rfun, tstar
   public :: diameter, Hahm_Burrell
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
@@ -234,9 +234,6 @@ module geometry
   !> If debug then print out lots of debug info.
   !! debug is true if (verb > 3)
   logical :: debug = .false.
-  !> job_id is the job id in a  Trinity or list mode run. Used
-  !! for debug statements
-  integer :: job_id
 
   integer :: fort11_unit !For outputting geom values
 
@@ -412,7 +409,7 @@ contains
   end subroutine set_eikcoefs_output
 
   !> FIXME : Add documentation    
-  subroutine eikcoefs (ntheta_input)
+  subroutine eikcoefs (ntheta_input, job_id_in)
     use  geq, only: eqin, geq_init
     ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
@@ -426,6 +423,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
+    use optionals, only: get_option_with_default
     implicit none
     !> For most numerical equilibria, **returns** the value of [[geometry:nth]];
     !> for EFIT and local equilibria, instead **sets** [[geometry:nth]].
@@ -433,8 +431,11 @@ contains
     !> If setting [[geometry:nth]], then even values are used directly, while odd values
     !> set `nth = ntheta_input - 1`
     integer, intent (inout) :: ntheta_input
+    !> job_id is the job id in a  Trinity or list mode run. Used
+    !> for debug statements
+    integer, intent(in), optional :: job_id_in
     logical :: start_file_utils, dummy
-
+    integer :: job_id
 ! Local variables:
 
     real, allocatable, dimension(:)   :: smodel, dsdrp, grho2, seik, seik1, seik2
@@ -475,7 +476,7 @@ contains
 
     !Set output verbosity levels
     eeq_verbosity = verb
-
+    job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
 
     if (start_file_utils) then
