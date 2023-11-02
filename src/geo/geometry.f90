@@ -155,7 +155,7 @@ module geometry
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
   public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
-  public :: job_id, big, dbetadrho, eqinit, xanthopoulos, rfun, tstar
+  public :: job_id, big, dbetadrho, eqinit, rfun, tstar
   public :: diameter, Hahm_Burrell
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
@@ -211,9 +211,9 @@ module geometry
   logical :: chs_eq
 
   logical :: in_nt, writelots, equal_arc, dfit_eq, idfit_eq, gs2d_eq
-  logical :: transp_eq, Xanthopoulos
 
   integer :: bishop
+  logical :: transp_eq
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For

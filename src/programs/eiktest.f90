@@ -24,7 +24,7 @@ program eiktest
 
   logical :: no_end_point
 
-  logical :: fast, dipole, list
+  logical :: fast, dipole, list, Xanthopoulos
   character(len=:), allocatable :: in_stem, out_stem
 
   character(len=run_name_size) :: ncout
