@@ -12,6 +12,7 @@ program ball
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
+  real :: akappa, tri, akappri, tripri
   logical :: diagram
   type(eikcoefs_output) :: eikcoefs_results
 
@@ -67,6 +68,12 @@ program ball
   close(10)
   
   writelots = .false. 
+
+  ! Copy shaping inputs to generic names
+  deltam = akappa
+  deltan = tri
+  deltampri = akappri
+  deltanpri = tripri
 
   if(.not.local_eq) then
      if(beta_prime_times >= 0) then
