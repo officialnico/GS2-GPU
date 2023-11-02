@@ -1,140 +1,140 @@
 !> Deals with most types of equilibria to generate GS2's expected geometrical parameters
-!! Input: 
-!! rhoc :: minor radius of surface of interest (see irho below)
-!! itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
-!! iflux :: chooses mode of operation.  
-!!          case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
-!!                       iflux = 0 forces local_eq = .true. and irho = 2
-!!          case (1)  :: use numerical equilibrium.  5 choices:
-!!             ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
-!!             transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
-!!             gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
-!!             chs_eq = .true. ::  Use CHEASE generated equilibrium
-!! -------------------> [note: if either of the above == .true., 
-!!                      set eqfile = input file name]
-!!             efit_eq = .true. :: use EFIT  equilibrium
-!!             dfit_eq = .true. :: use dipole equilibrium
-!!          case (2) :: running inside nt without actual equilibria
-!!                       iflux = 2 forces local_eq = .true. and irho = 2
-!!         case (10) :: used by nt to initialize some variables.  Obsolescent.
-!! irho :: choose flux surface label
-!!         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
-!!         case (2) :: diameter/(diameter of LCFS).  recommended
-!!         case (3) :: poloidal flux/(poloidal flux of LCFS)
-!! 
-!! equal_arc :: .true. makes grad_par coefficient a constant.
-!!
-!! New feature:  Given an actual equilibrium, allow s_hat and d pressure/d rho
-!! to vary self-consistently (a la Greene and Chance, Bishop).  We use the 
-!! Bishop formalism [C. M. Bishop, et al., NF, Vol. 24, 1579 (1984).]
-!!
-!! bishop :: uses Bishop relations to generate coefficients.  
-!!        case(0) :: do not use Bishop relations
-!!        case(1) :: use Bishop relations with actual equilibrium shat, p'
-!!        case(3) :: use Bishop relations with new shat, L_p from below
-!! s_hat_input :: new magnetic shear, rho/q*dq/drho
-!! invLp_input :: new -1/pressure * d pressure/d rho
-!!        case(4) :: use Bishop relations with new shat, beta' from below
-!! s_hat_input :: new magnetic shear, rho/q*dq/drho
-!! beta_prime_input :: new d beta/d rho
-!!        case(5) :: use Bishop relations with new shat, alpha from below
-!! s_hat_input :: new magnetic shear, rho/q*dq/drho
-!! alpha_input :: new alpha = -q**2 * rmaj * d pressure/d rho
-!!        case(6) :: use Bishop relations with equilibrium shat, beta' from below
-!! beta_prime_input :: new d beta/d rho
-!!        case(7) :: use Bishop relations with equilibrium shat, beta' from below
-!! dp_mult :: d pressure/d rho = equilibrium gradient * dp_mult
-!!         (In each case, the definition of rho is determined by irho above)
-!!
-!! nperiod :: number of cells of width 2 pi in theta. 
-!!  
-!! geoType :: determines the analytic geometry specification
-!!         case (0) :: the tilted Miller geometry: generalization of Miller et al. PoP 1998
-!!           (see Chapter 3.2.1 of J. Ball MIT Masters thesis)
-!!         case (1) :: the global MHD solution geometry: calculated by inverting the large
-!!           aspect ratio, constant-current MHD solution
-!!           (see J. Ball "Optimized up-down asymmetry to drive fast intrinsic rotation in tokamak reactors")
-!!         case (2) :: the generalized ellipticity geometry: the polar formula for an ellipse generalized
-!!           to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
-!!         case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
-!!           of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
-!! rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
-!!      or major radius of center of flux surface of interest (units of aminor) otherwise
-!! r_geo :: major radius of last closed flux surface or
-!!       if iflux=0: sets the reference magnetic field to be the value of the toroidal
-!!       field at R=r_geo on the flux surface of interest
-!! aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
-!!   a major radius of Rmaj (only used when geoType={1})
-!! shift :: d rmaj/drho.  (Typically < 0.) (only used when geoType={0,2,3})
-!! -> Alternative definitions:
-!!   Raxis :: major radial location of the magnetic axis. (only used when geoType={1})
-!! shiftVert :: d zmaj/drho. (< 0 for a vertical shift) (only used when geoType={0,2,3})
-!! -> Alternative definitions:
-!!   Zaxis :: axial location of the magnetic axis. (only used when geoType={1})
-!! mMode :: the first poloidal mode number (only used when geoType={2,3})
-!! nMode :: the second poloidal mode number (only used when geoType={2,3})
-!! deltam :: magnitude of the first poloidal shaping effect (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   delta2 :: identical to akappa (only used when geoType={1})
-!!   akappa :: flux surface elongation (only used when geoType={0})
-!! deltan :: magnitude of the second poloidal shaping effect (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   delta3 :: magnitude of the triangulaity-like shaping effect (only used when geoType={1})
-!!   tri :: flux surface triangulaity (only used when geoType={0})
-!! deltampri :: d(deltam)/d(rhoc) (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   akappapri :: d(akappa)/d(rhoc) (only used when geoType={0})
-!! deltanpri :: d(deltan)/d(rhoc) (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   tripri :: d(tri)/d(rhoc) (only used when geoType={0})
-!! thetam :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   theta2 :: tilt angle of the flux surface elongation (only used when geoType={1})
-!!   thetak :: tilt angle of the flux surface elongation (only used when geoType={0})
-!! thetan :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
-!! -> Alternative definitions:
-!!   theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
-!!   thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
-!! qinp :: safety factor q at surface of interest
-!! shat :: d q/drho at surface of interest
-!! dIdrho :: d I/drho where I = R B_T
-!!  
-!! delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
-!! rmin :: minimum minor radius at which items are evaluated
-!! rmax :: should be equal to unity 
-!! 
-!! isym :: 1 -> assume up-down symmetric equilibrium.
-!! in_nt :: .true. if running inside of nt.
-!! writelots :: .true. for more output
-!!  
-!! Output: 
-!! theta :: the theta grid of the results.  The final grid has 
-!!          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
-!! bmag :: |B| 
-!! gradpar :: coefficient of b_hat.grad operator 
-!! grho :: grad(rho)
-!! cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad 
-!! cvdrift0 :: part of total curvature drift operator proportional to theta_0
-!! gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
-!! gbdrift0 :: part of total grad B drift operator proportional to theta_0
-!! gbdrift_th :: grad B drift . grad theta
-!! cvdrift_th :: curvature drift . grad theta
-!! cdrift :: part of coriolis drift operator independent of theta_0
-!! cdrift0 :: part of coriolis drift operator proportional to theta_0
-!! gds2 :: part of grad_perp**2 operator independent of theta_0
-!! gds21 :: part of grad_perp**2 operator proportional to theta_0
-!! gds22 :: part of grad_perp**2 operator proportional to theta_0**2
-!! gds23 :: part of v_E . grad theta operator independent of theta_0
-!! gds24 :: part of v_E . grad theta operator proportional to theta_0
-!! gds24_noq :: gds24/dqdrp
-!! jacob :: Jacobian
-!! 
-!!  Use: 
-!! Include this module, set input variables appropriately and call eikcoefs.  
-!!
-!! I do not recommend calling other routines, but a few are available for 
-!! diagnostic purposes.  
-!!  
+!> Input:
+!> rhoc :: minor radius of surface of interest (see irho below)
+!> itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
+!> iflux :: chooses mode of operation.
+!>          case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
+!>                       iflux = 0 forces local_eq = .true. and irho = 2
+!>          case (1)  :: use numerical equilibrium.  5 choices:
+!>             ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
+!>             transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
+!>             gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
+!>             chs_eq = .true. ::  Use CHEASE generated equilibrium
+!> -------------------> [note: if either of the above == .true.,
+!>                      set eqfile = input file name]
+!>             efit_eq = .true. :: use EFIT  equilibrium
+!>             dfit_eq = .true. :: use dipole equilibrium
+!>          case (2) :: running inside nt without actual equilibria
+!>                       iflux = 2 forces local_eq = .true. and irho = 2
+!>         case (10) :: used by nt to initialize some variables.  Obsolescent.
+!> irho :: choose flux surface label
+!>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
+!>         case (2) :: diameter/(diameter of LCFS).  recommended
+!>         case (3) :: poloidal flux/(poloidal flux of LCFS)
+!>
+!> equal_arc :: .true. makes grad_par coefficient a constant.
+!>
+!> New feature:  Given an actual equilibrium, allow s_hat and d pressure/d rho
+!> to vary self-consistently (a la Greene and Chance, Bishop).  We use the
+!> Bishop formalism [C. M. Bishop, et al., NF, Vol. 24, 1579 (1984).]
+!>
+!> bishop :: uses Bishop relations to generate coefficients.
+!>        case(0) :: do not use Bishop relations
+!>        case(1) :: use Bishop relations with actual equilibrium shat, p'
+!>        case(3) :: use Bishop relations with new shat, L_p from below
+!> s_hat_input :: new magnetic shear, rho/q*dq/drho
+!> invLp_input :: new -1/pressure * d pressure/d rho
+!>        case(4) :: use Bishop relations with new shat, beta' from below
+!> s_hat_input :: new magnetic shear, rho/q*dq/drho
+!> beta_prime_input :: new d beta/d rho
+!>        case(5) :: use Bishop relations with new shat, alpha from below
+!> s_hat_input :: new magnetic shear, rho/q*dq/drho
+!> alpha_input :: new alpha = -q**2 * rmaj * d pressure/d rho
+!>        case(6) :: use Bishop relations with equilibrium shat, beta' from below
+!> beta_prime_input :: new d beta/d rho
+!>        case(7) :: use Bishop relations with equilibrium shat, beta' from below
+!> dp_mult :: d pressure/d rho = equilibrium gradient * dp_mult
+!>         (In each case, the definition of rho is determined by irho above)
+!>
+!> nperiod :: number of cells of width 2 pi in theta.
+!>
+!> geoType :: determines the analytic geometry specification
+!>         case (0) :: the tilted Miller geometry: generalization of Miller et al. PoP 1998
+!>           (see Chapter 3.2.1 of J. Ball MIT Masters thesis)
+!>         case (1) :: the global MHD solution geometry: calculated by inverting the large
+!>           aspect ratio, constant-current MHD solution
+!>           (see J. Ball "Optimized up-down asymmetry to drive fast intrinsic rotation in tokamak reactors")
+!>         case (2) :: the generalized ellipticity geometry: the polar formula for an ellipse generalized
+!>           to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
+!>         case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
+!>           of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
+!> rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
+!>      or major radius of center of flux surface of interest (units of aminor) otherwise
+!> r_geo :: major radius of last closed flux surface or
+!>       if iflux=0: sets the reference magnetic field to be the value of the toroidal
+!>       field at R=r_geo on the flux surface of interest
+!> aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
+!>   a major radius of Rmaj (only used when geoType={1})
+!> shift :: d rmaj/drho.  (Typically < 0.) (only used when geoType={0,2,3})
+!> -> Alternative definitions:
+!>   Raxis :: major radial location of the magnetic axis. (only used when geoType={1})
+!> shiftVert :: d zmaj/drho. (< 0 for a vertical shift) (only used when geoType={0,2,3})
+!> -> Alternative definitions:
+!>   Zaxis :: axial location of the magnetic axis. (only used when geoType={1})
+!> mMode :: the first poloidal mode number (only used when geoType={2,3})
+!> nMode :: the second poloidal mode number (only used when geoType={2,3})
+!> deltam :: magnitude of the first poloidal shaping effect (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   delta2 :: identical to akappa (only used when geoType={1})
+!>   akappa :: flux surface elongation (only used when geoType={0})
+!> deltan :: magnitude of the second poloidal shaping effect (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   delta3 :: magnitude of the triangulaity-like shaping effect (only used when geoType={1})
+!>   tri :: flux surface triangulaity (only used when geoType={0})
+!> deltampri :: d(deltam)/d(rhoc) (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   akappapri :: d(akappa)/d(rhoc) (only used when geoType={0})
+!> deltanpri :: d(deltan)/d(rhoc) (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   tripri :: d(tri)/d(rhoc) (only used when geoType={0})
+!> thetam :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   theta2 :: tilt angle of the flux surface elongation (only used when geoType={1})
+!>   thetak :: tilt angle of the flux surface elongation (only used when geoType={0})
+!> thetan :: tilt angle of the first poloidal shaping effect (only used when geoType={2,3})
+!> -> Alternative definitions:
+!>   theta3 :: tilt angle of the triangularity-like shaping effect (only used when geoType={1})
+!>   thetad :: tilt angle of the flux surface triangularity (only used when geoType={0})
+!> qinp :: safety factor q at surface of interest
+!> shat :: d q/drho at surface of interest
+!> dIdrho :: d I/drho where I = R B_T
+!>
+!> delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
+!> rmin :: minimum minor radius at which items are evaluated
+!> rmax :: should be equal to unity
+!>
+!> isym :: 1 -> assume up-down symmetric equilibrium.
+!> in_nt :: .true. if running inside of nt.
+!> writelots :: .true. for more output
+!>
+!> Output:
+!> theta :: the theta grid of the results.  The final grid has
+!>          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
+!> bmag :: |B|
+!> gradpar :: coefficient of b_hat.grad operator
+!> grho :: grad(rho)
+!> cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad
+!> cvdrift0 :: part of total curvature drift operator proportional to theta_0
+!> gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
+!> gbdrift0 :: part of total grad B drift operator proportional to theta_0
+!> gbdrift_th :: grad B drift . grad theta
+!> cvdrift_th :: curvature drift . grad theta
+!> cdrift :: part of coriolis drift operator independent of theta_0
+!> cdrift0 :: part of coriolis drift operator proportional to theta_0
+!> gds2 :: part of grad_perp**2 operator independent of theta_0
+!> gds21 :: part of grad_perp**2 operator proportional to theta_0
+!> gds22 :: part of grad_perp**2 operator proportional to theta_0**2
+!> gds23 :: part of v_E . grad theta operator independent of theta_0
+!> gds24 :: part of v_E . grad theta operator proportional to theta_0
+!> gds24_noq :: gds24/dqdrp
+!> jacob :: Jacobian
+!>
+!>  Use:
+!> Include this module, set input variables appropriately and call eikcoefs.
+!>
+!> I do not recommend calling other routines, but a few are available for
+!> diagnostic purposes.
+!>
 module geometry
 
   implicit none
