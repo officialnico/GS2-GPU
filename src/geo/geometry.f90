@@ -140,7 +140,7 @@ module geometry
 
   private
 
-  public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho, bi_out
+  public :: beta_a_fun, eikcoefs, geofax, iofrho, pbarofrho
   public :: qfun, rpofrho, rcenter, nth_get  !procedures
   public :: psi, cvdrift, theta, dvdrhon, surfarea
   public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
@@ -183,7 +183,7 @@ module geometry
   real :: qinp, s_hat_input
 
   real :: shat
-  real :: rmin, rmax, qsf, aminor, bi_out
+  real :: rmin, rmax, qsf, aminor
   
   real :: p_prime_input, invLp_input, beta_prime_input
   real :: alpha_input, dp_mult
@@ -1189,9 +1189,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
     ! grid rather than the "new" one defined below).
     call plotdata (rgrid, seik, grads, dpsidrho)
-    
-    ! EGH added this for GRYFX
-    bi_out = btori(rgrid(0),theta(0))
 
     ! In the GK equation we have dg/dl.
     ! Our parallel coordinate is theta, so the term is 
