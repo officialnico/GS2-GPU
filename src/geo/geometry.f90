@@ -150,7 +150,7 @@ module geometry
   public :: rmin, rmax, isym, in_nt, writelots, itor, verb
   public :: grho, bmag, gradpar, cvdrift0
   public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
-  public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Uk1, Uk2, Bpol
+  public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
   public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
   public :: qsf, shat, kxfac, aminor, finish_geometry, drhodpsin
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
@@ -171,7 +171,7 @@ module geometry
 
   real, allocatable, dimension(:) :: grho, bmag, gradpar, &
        cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
-       Rplot, Zplot, Rprime, Zprime, aplot, aprime, Uk1, Uk2, &
+       Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
   
   real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
@@ -3000,8 +3000,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
          Rprime     (-n:n), &
          Zprime     (-n:n), &
          aprime     (-n:n), &
-         Uk1        (-n:n), &
-         Uk2        (-n:n), &
          theta_eqarc(-n:n), & !EGH
          theta_prime(-n:n), & !EGH
          theta_prime_eqarc(-n:n), & !EGH
@@ -3038,8 +3036,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
          Rprime     , &
          Zprime     , &
          aprime     , &
-         Uk1        , &
-         Uk2        , &
          theta_eqarc, & ! EGH
          theta_prime, & ! EGH
          theta_prime_eqarc, & ! EGH
