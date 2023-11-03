@@ -140,28 +140,14 @@ module geometry
 
   private
 
-  public :: beta_a_fun, eikcoefs, geofax, pbarofrho
-  public :: qfun, rpofrho, rcenter
-  public :: psi, cvdrift, theta, dvdrhon, surfarea
-  public :: nperiod, eqfile, irho, iflux, local_eq, gen_eq
-  public :: eqnormfile
-  public :: ppl_eq, transp_eq, chs_eq, efit_eq, equal_arc, bishop
-  public :: rmin, rmax, isym, in_nt, writelots, itor, verb
-  public :: grho, bmag, gradpar, cvdrift0
-  public :: gbdrift, gbdrift0, cdrift, cdrift0, gbdrift_th
-  public :: jacob, Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol
-  public :: cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
+  public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
+  public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, Hahm_Burrell
+  public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
+  public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
+  public :: rmin, rmax, isym, in_nt, writelots,  equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  public :: gs2d_eq, idfit_eq, dfit_eq, s_hat_new, beta_prime_new, debug
-  public :: qsf, shat, kxfac, finish_geometry, drhodpsin
-  public :: theta_eqarc, gradpar_prime, theta_prime, theta_prime_eqarc
-  public :: big, dbetadrho, eqinit, rfun
-  public :: diameter, Hahm_Burrell
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
-  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-  public :: qinp, s_hat_input
-  public :: Rpos, ntheta_geometry
-
+  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
   public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
 
   !> The theta grid of the results. The final grid has
