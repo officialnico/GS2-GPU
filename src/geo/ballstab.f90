@@ -266,21 +266,20 @@ contains
 
   !> Gets the current value of shat
   subroutine get_shat(shat_out)
-    use geometry, only: shat
+    use geometry, only: s_hat_input
     implicit none
     real, intent(out) :: shat_out
-    shat_out = shat
+    shat_out = s_hat_input
   end subroutine get_shat
 
   !> Sets the value of shat
   subroutine set_shat(shat_in)
-    use geometry, only: s_hat_input, shat
+    use geometry, only: s_hat_input
     implicit none
     real, intent(in) :: shat_in
     !Note for bishop = 6,7 or not in 2-9 and iflux==1 cannot change shat
     !Should flag this somewhere (during init)
     s_hat_input = shat_in
-    shat = shat_in
   end subroutine set_shat
 
   !> Gets the current value of beta_prime (or equivalent var)
