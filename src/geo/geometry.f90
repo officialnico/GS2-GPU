@@ -372,7 +372,7 @@ contains
     !> set `nth = ntheta_input - 1`
     integer, intent (inout) :: ntheta_input
     !> A type containing all of the outputs of eikcoefs
-    type(eikcoefs_output) :: outputs
+    type(eikcoefs_output), intent(out) :: outputs
     !> job_id is the job id in a  Trinity or list mode run. Used
     !> for debug statements
     integer, intent(in), optional :: job_id_in
