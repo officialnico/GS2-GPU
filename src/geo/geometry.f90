@@ -148,47 +148,23 @@ module geometry
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
-  public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
-
-  real :: dbetadrho, kxfac
+  public :: eikcoefs_output, run_eikcoefs_and_resample
 
   integer :: geotype, mMode, nMode
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
-  real :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-  real :: qinp, s_hat_input
-
-  real :: shat
-  
-  real :: p_prime_input, invLp_input, beta_prime_input
-  real :: alpha_input, dp_mult
+  real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
+  real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
 
   integer :: nperiod, ntheta_geometry
-  integer :: itor, iflux, irho
-  real :: rmin, rmax, qsf
+  integer :: itor, iflux, irho, isym, bishop
+  real :: rmin, rmax
    
-  real :: dp_new, di_new
-  real :: psi_0, psi_a
-  real :: B_T0, avgrmid, dvdrhon, surfarea, drhodpsin
-  real :: grhoavg  ! needed for Trinity -- MAB
-
+  real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
   real, dimension(3) :: rpval
-  real :: rpmin, rpmax
-  real :: s_hat_new
-  real :: beta_prime_new
-
-  integer :: isym, big = 0
-  integer :: eqinit = 1
+  integer :: eqinit = 1, big = 0
   
-  logical :: gen_eq, efit_eq, ppl_eq, local_eq
-
-  ! CHEASE equilbrium. EGH.
-  logical :: chs_eq
-
-  logical :: in_nt, writelots, equal_arc, dfit_eq, idfit_eq, gs2d_eq
-
-  integer :: bishop
-  logical :: transp_eq
-
+  logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
+  logical :: in_nt, writelots, equal_arc
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
   !> EFIT and local equilbria, this is set from
@@ -369,22 +345,6 @@ contains
 
   end subroutine run_eikcoefs_and_resample
 
-  !> Set the module level outputs from eikcoefs based on what is in
-  !> the passed output type. Ideally we wouldn't do this.
-  subroutine set_eikcoefs_output(eikcoefs_results)
-    implicit none
-    type(eikcoefs_output), intent(in) :: eikcoefs_results
-    s_hat_new = eikcoefs_results%s_hat_new
-    beta_prime_new = eikcoefs_results%beta_prime_new
-    drhodpsin = eikcoefs_results%drhodpsin
-    kxfac = eikcoefs_results%kxfac
-    qsf = eikcoefs_results%qsf
-    surfarea = eikcoefs_results%surfarea
-    dvdrhon = eikcoefs_results%dvdrhon
-    shat = eikcoefs_results%shat
-    dbetadrho = eikcoefs_results%dbetadrho
-  end subroutine set_eikcoefs_output
-
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use  geq, only: eqin, geq_init
@@ -436,7 +396,7 @@ contains
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
     real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
-
+    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin, beta_prime_new, s_hat_new
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi
     real :: qval, qval1, qval2, delrp, dum
@@ -999,7 +959,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        rp1=rp-delrp
        rp2=rp+delrp
        if (iflux == 0 .or. iflux == 2) then
-          dqdrho=dqdrhofun(rho)
+          dqdrho=dqdrhofun(rho, shat)
           qval1=qval-dqdrho*delrho
           qval2=qval+dqdrho*delrho
        endif
@@ -2480,9 +2440,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function pbarofrho
 
   !> FIXME : Add documentation    
-  function dqdrhofun(rho)
+  function dqdrhofun(rho, shat)
     implicit none
-    real, intent (in) :: rho
+    real, intent (in) :: rho, shat
     real dqdrhofun
     
     dqdrhofun=shat*qfun(pbarofrho(rho))/(rhoc)

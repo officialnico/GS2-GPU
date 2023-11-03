@@ -1673,7 +1673,7 @@ contains
     use geometry, only: nperiod_geo => nperiod, ntheta_geometry
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: debug_geo => debug, verb_geo => verb
-    use geometry, only: set_eikcoefs_output, run_eikcoefs_and_resample
+    use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
     use runtime_tests, only: verbosity
@@ -1720,7 +1720,6 @@ contains
           write(ntheta_char, "(I4)") ntheta_geometry
           call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
           call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results, job_id)
-          call set_eikcoefs_output(eikcoefs_results)
        end if
     end if
 
