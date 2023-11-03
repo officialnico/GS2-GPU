@@ -1264,8 +1264,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        gds22 = grho**2/drhodpsin**2
     end if
 
-    call dealloc_local_arrays
-
     !Close output files
     call close_output_file(fort11_unit)
 
@@ -1309,6 +1307,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     outputs%dvdrhon = dvdrhon
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
+
+    call dealloc_local_arrays
 
   contains
 
