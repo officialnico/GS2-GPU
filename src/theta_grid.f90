@@ -1257,11 +1257,11 @@ contains
   end subroutine wnml_theta_grid_eik
 
   !> FIXME : Add documentation  
-  subroutine check_theta_grid_eik(report_unit,dbetadrho)
+  subroutine check_theta_grid_eik(report_unit, dbetadrho)
     use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps
     use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam, thetan
-    use geometry, only: alpha_input, beta_prime_input, beta_prime_new, invLp_input
-    use geometry, only: s_hat_input, s_hat_new, shat
+    use geometry, only: alpha_input, beta_prime_input, invLp_input
+    use geometry, only: s_hat_input
     use geometry, only: dp_mult
     use geometry, only: rhoc, rmaj, r_geo, qinp
     use geometry, only: bishop, iflux, irho
@@ -1271,6 +1271,10 @@ contains
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: dbetadrho
+    real :: beta_prime_new, shat, s_hat_new
+    beta_prime_new = eikcoefs_results%beta_prime_new
+    shat = eikcoefs_results%shat
+    s_hat_new = eikcoefs_results%s_hat_new
     call checklogic_theta_grid_eik(report_unit)
     write (report_unit, *)
     if (local_eq .and. iflux == 0) then

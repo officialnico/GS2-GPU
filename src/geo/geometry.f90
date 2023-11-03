@@ -247,6 +247,7 @@ module geometry
   type eikcoefs_output
      integer :: ntheta
      real :: s_hat_new
+     real :: beta_prime_new
      real :: drhodpsin
      real :: kxfac
      real :: qsf
@@ -310,6 +311,7 @@ contains
     ! Set scalar outputs
     results%ntheta = ntheta_target
     results%s_hat_new = full_results%s_hat_new
+    results%beta_prime_new = full_results%beta_prime_new
     results%drhodpsin = full_results%drhodpsin
     results%kxfac = full_results%kxfac
     results%qsf = full_results%qsf
@@ -426,6 +428,7 @@ contains
     bpol = eikcoefs_results%bpol
 
     s_hat_new = eikcoefs_results%s_hat_new
+    beta_prime_new = eikcoefs_results%beta_prime_new
     drhodpsin = eikcoefs_results%drhodpsin
     kxfac = eikcoefs_results%kxfac
     qsf = eikcoefs_results%qsf
@@ -1391,6 +1394,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     outputs%bpol = bpol
 
     outputs%s_hat_new = s_hat_new
+    outputs%beta_prime_new = beta_prime_new
     outputs%drhodpsin = drhodpsin
     outputs%kxfac = kxfac
     outputs%qsf = qsf
