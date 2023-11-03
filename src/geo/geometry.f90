@@ -1956,11 +1956,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if (diameter == invalidValue) call mp_abort("diameter not set")    
   end function diameter
 
-  !> FIXME : Add documentation  
-  real function psifun (rp)
+  !> Calculates the normalised radial coordinate
+  pure real function psifun (rp)
     implicit none
     real, intent (in) :: rp
-    psifun = min(1., max(0., (rp-psi_0)/(psi_a-psi_0)))
+    psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
   end function psifun
 
   !> FIXME : Add documentation    
@@ -1970,17 +1970,17 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real, intent (in) :: rp
     real :: pbar
     integer :: i, initrho = 1
-    pbar = min(1.,max(0.,(rp-psi_0)/(psi_a-psi_0)))
+    pbar = psifun(rp)
     if (eqinit == 1) initrho = 1
     i = init_rho(initrho)
-    rhofun=deq_rhofun(pbar)
+    rhofun = deq_rhofun(pbar)
   end function rhofun
 
   !> FIXME : Add documentation    
   real function rpfun(r, thet)
     implicit none
     real, intent (in) :: r, thet
-    rpfun=psi(r, thet)
+    rpfun = psi(r, thet)
   end function rpfun
 
   !> FIXME : Add documentation    
@@ -2063,7 +2063,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(eqinit == 1) initb = 1
 
     if(iflux == 1) then
-       pbar=min(1.,max(0.,(rpfun(r,thet)-psi_0)/(psi_a-psi_0)))
+       pbar = psifun(rpfun(r,thet))
 
        if (gen_eq) then
           i=geq_init_btori(initb)
@@ -2107,7 +2107,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(eqinit == 1) initdb = 1
 
     if (iflux == 1) then
-       pbar = min(1.,max(0.,(rpfun(r,thet)-psi_0)/(psi_a-psi_0)))
+       pbar = psifun(rpfun(r,thet))
        if (gen_eq) then
           i = geq_init_dbtori(initdb) ; dbtori = geq_dbtori(pbar)
        else if (ppl_eq) then
@@ -2136,12 +2136,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     implicit none
     real, intent (in) :: rho
     integer, intent(in) :: fort11_unit
+    real :: pbar
     iofrho = invalidValue
-    
-    if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho, fort11_unit))
-    if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho, fort11_unit))
-    if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho, fort11_unit))
-    if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho, fort11_unit))
+    pbar = pbarofrho(rho, fort11_unit)
+    if (gen_eq) iofrho = geq_iofpbar(pbar)
+    if (ppl_eq) iofrho = peq_iofpbar(pbar)
+    if (chs_eq) iofrho = ceq_iofpbar(pbar)
+    if(efit_eq) iofrho = eeq_iofpbar(pbar)
     if(dfit_eq) iofrho = 0.
     if(local_eq) iofrho = leq_i()
 
@@ -2249,9 +2250,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        return
     endif
 
-    pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
+    pbar = psifun(psi(r, thet))
     if(eqinit == 1) initp = 1
-    
+
     if (gen_eq) then
        i=geq_init_pressure(initp)
        pfun = geq_pfun(pbar)
@@ -2300,7 +2301,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        return
     endif
 
-    pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
+    pbar = psifun(psi(r,thet))
 
     if(eqinit == 1) initdp = 1
     
@@ -2346,7 +2347,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
     
     beta_a_fun = 0.
-    pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
+    pbar = psifun(psi(r,thet))
     
     if (gen_eq) then
        i = geq_init_beta(initbeta)
@@ -2379,7 +2380,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(iflux /= 1) then
        pbarofrho=0.
     else
-       pbarofrho=min(1.,max(0.,(rpofrho(rho, fort11_unit)-psi_0)/(psi_a-psi_0)))
+       pbarofrho = psifun(rpofrho(rho, fort11_unit))
     end if
   end function pbarofrho
 
@@ -2465,17 +2466,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real :: pbar, pb(nimax), dpb
     integer :: i
       
-    pbar=(rp-psi_0)/(psi_a-psi_0)
-    if(.not.between(pbar,0.,1.)) then
-       write(*,*) 'Defining Phi outside of plasma'
-       write(*,*) 'rp, psi_0, psi_a = ',rp,psi_0,psi_a
-    endif
-    
-    phi=0.      
+    pbar = psifun(rp)
     do i=1,nimax
        pb(i)=pbar*float(i-1)/float(nimax-1)
     enddo
     dpb=pbar/float(nimax-1)
+
+    phi=0.
     do i=1,nimax-1 ! fixed by MB
        phi=phi+0.5*dpb*(qfun(pb(i+1))+qfun(pb(i)))
     enddo
