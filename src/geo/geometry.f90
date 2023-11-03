@@ -2598,6 +2598,7 @@ contains
 
   !> FIXME : Add documentation    
   real function rmagaxis()
+    use mp, only: mp_abort
     if(iflux == 1) then
        rmagaxis=rmaj
     else
