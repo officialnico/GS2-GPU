@@ -106,27 +106,6 @@
 !> in_nt :: .true. if running inside of nt.
 !> writelots :: .true. for more output
 !>
-!> Output:
-!> theta :: the theta grid of the results.  The final grid has
-!>          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
-!> bmag :: |B|
-!> gradpar :: coefficient of b_hat.grad operator
-!> grho :: grad(rho)
-!> cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad
-!> cvdrift0 :: part of total curvature drift operator proportional to theta_0
-!> gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
-!> gbdrift0 :: part of total grad B drift operator proportional to theta_0
-!> gbdrift_th :: grad B drift . grad theta
-!> cvdrift_th :: curvature drift . grad theta
-!> cdrift :: part of coriolis drift operator independent of theta_0
-!> cdrift0 :: part of coriolis drift operator proportional to theta_0
-!> gds2 :: part of grad_perp**2 operator independent of theta_0
-!> gds21 :: part of grad_perp**2 operator proportional to theta_0
-!> gds22 :: part of grad_perp**2 operator proportional to theta_0**2
-!> gds23 :: part of v_E . grad theta operator independent of theta_0
-!> gds24 :: part of v_E . grad theta operator proportional to theta_0
-!> gds24_noq :: gds24/dqdrp
-!> jacob :: Jacobian
 !>
 !>  Use:
 !> Include this module, set input variables appropriately and call eikcoefs.
@@ -158,11 +137,11 @@ module geometry
   integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho, isym, bishop
   real :: rmin, rmax
-   
+
   real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
   real, dimension(3) :: rpval
   integer :: eqinit = 1, big = 0
-  
+
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: in_nt, writelots, equal_arc
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -191,7 +170,7 @@ module geometry
   character(len=800) :: eqnormfile
 
   !> Used to initialise values to indicate unset
-  real, parameter :: invalidValue = -24680.123579 
+  real, parameter :: invalidValue = -24680.123579
 
   !> A type to hold a collection of geometrical quantities as calculated by
   !> [[eikcoefs]]
@@ -206,31 +185,58 @@ module geometry
      real :: dvdrhon
      real :: shat
      real :: dbetadrho
+     !> theta :: the theta grid of the results.  The final grid has
+     !>          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
      real, dimension(:), allocatable :: theta
+     !> bmag :: |B|
      real, dimension(:), allocatable :: bmag
+     !> gradpar :: coefficient of b_hat.grad operator
      real, dimension(:), allocatable :: gradpar
+     !> grho :: grad(rho)
      real, dimension(:), allocatable :: grho
+     !> cdrift :: part of coriolis drift operator independent of theta_0
      real, dimension(:), allocatable :: cdrift
+     !> cvdrift  :: coefficient of v_par**2/Omega b_hat x (b_hat.grad b_hat).grad
      real, dimension(:), allocatable :: cvdrift
+     !> gbdrift  :: coefficient of mu/Omega b_hat x (grad B).grad operator
      real, dimension(:), allocatable :: gbdrift
+     !> cdrift0 :: part of coriolis drift operator proportional to theta_0
      real, dimension(:), allocatable :: cdrift0
+     !> cvdrift0 :: part of total curvature drift operator proportional to theta_0
      real, dimension(:), allocatable :: cvdrift0
+     !> gbdrift0 :: part of total grad B drift operator proportional to theta_0
      real, dimension(:), allocatable :: gbdrift0
+     !> cvdrift_th :: curvature drift . grad theta
      real, dimension(:), allocatable :: cvdrift_th
+     !> gbdrift_th :: grad B drift . grad theta
      real, dimension(:), allocatable :: gbdrift_th
+     !> gds2 :: part of grad_perp**2 operator independent of theta_0
      real, dimension(:), allocatable :: gds2
+     !> gds21 :: part of grad_perp**2 operator proportional to theta_0
      real, dimension(:), allocatable :: gds21
+     !> gds22 :: part of grad_perp**2 operator proportional to theta_0**2
      real, dimension(:), allocatable :: gds22
+     !> gds23 :: part of v_E . grad theta operator independent of theta_0
      real, dimension(:), allocatable :: gds23
+     !> gds24 :: part of v_E . grad theta operator proportional to theta_0
      real, dimension(:), allocatable :: gds24
+     !> gds24_noq :: gds24/dqdrp
      real, dimension(:), allocatable :: gds24_noq
+     !> jacob :: Jacobian (not actually used externally currently)
      real, dimension(:), allocatable :: jacob
+     !> rplot :: R(theta) - major radius on theta grid
      real, dimension(:), allocatable :: rplot
+     !> zplot :: Z(theta) - height on theta grid
      real, dimension(:), allocatable :: zplot
+     !> aplot :: a(theta) - alpha-phi on theta grid
      real, dimension(:), allocatable :: aplot
+     !> rprime :: derivative wrt rho of R(theta) - major radius on theta grid
      real, dimension(:), allocatable :: rprime
+     !> zprime :: derivative  wrt rho Z(theta) - height on theta grid
      real, dimension(:), allocatable :: zprime
+     !> aprime :: derivative  wrt rho a(theta) - alpha-phi on theta grid
      real, dimension(:), allocatable :: aprime
+     !> bpol :: Poloidal magnetic field strength
      real, dimension(:), allocatable :: bpol
   end type eikcoefs_output
 
