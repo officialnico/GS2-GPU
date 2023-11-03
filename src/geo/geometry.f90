@@ -466,292 +466,42 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, &
          local_eq, dfit_eq, idfit_eq, chs_eq) 
 
-thetaShift = 0.0
-bMaxShift = .true. ! limits the initialization routine to run no more than twice
-do while (bMaxShift)
+    thetaShift = 0.0
+    bMaxShift = .true. ! limits the initialization routine to run no more than twice
+    do while (bMaxShift)
+       call initialise_geometry_and_get_bmod
+       
+       ! Start theta shift calc
+       ! This is used to modify the definition of theta such that the maxiumum magnetic field is at pi
+       ! This is necessary to correctly calculate bounce points ! JRB
+       bMaxShift = .false.
+       ! if using Miller local equilibrium
+       if (iflux /= 1 .and. iflux /= 10) then
 
-    if(iflux /= 1 .and. iflux /= 10) then
+          ! Locate the index of the maximum magnetic field in the range [-pi,pi)
+          iBmax = -nth
+          do i =-nth+1,nth-1
+             if (Bmod(iBmax)<Bmod(i)) then
+                iBmax = i
+             end if
+          enddo
 
-      call init_uniform_theta_grid(ntheta_input, theta)
+          ! If it is not at plus or minus pi and theta has never been
+          ! shifted, then shift theta
 
-       if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
+          ! thetaShift==0.0 limits the loop to at most execute twice
+          !  and is necessary to prevent an infinite loop if the field
+          !  is double peaked
+          if (iBmax/=-nth .and. thetaShift==0.0) then
+             bMaxShift = .true.
+             thetaShift = theta(iBmax)-theta(-nth)
 
-       call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
-            thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-       if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
-    endif
-
-if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
-
-    select case (iflux)
-       case (0)
-          avgrmid=1.
-       case (1, 10)
-          if (gs2d_eq) efit_eq = .true.
-          if(gen_eq) then
-             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-          else if(transp_eq) then
-if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
-
-             ppl_eq = .true.
-             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
-if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
-!CMRend
-          else if(ppl_eq) then
-             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-          else if(chs_eq) then
-             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-   !if (debug) write (*,*) 
-          else if(efit_eq) then
-             if(big <= 0) big = 8
-
-             if(gs2d_eq) then
-if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
-                call gs2din(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
-if (debug) write(6,*) "eikcoefs: done gs2din  psi_0,psi_a, rmaj, B_T0, avgrmid=",psi_0,psi_a, rmaj, B_T0, avgrmid
-             else
-if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
-                call efitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big) 
-             endif
-          else if(dfit_eq) then
-             if(big <= 0) big = 1
-             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
-          else if(idfit_eq) then
-             !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
-             !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
-             call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit) 
-          endif
-if (debug) write(6,*) 'eikcoefs: iflux=',iflux
-          if(iflux == 10) return
-
-          call init_uniform_theta_grid(ntheta_input, theta)
-if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-          call alloc_local_arrays(ntgrid)
-       case (2) 
-          continue
-    end select
-
-if (debug) writelots=.true.
-if (debug) write(6,*) "eikcoefs: if (writelots)"
-    if(writelots) then
-       write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
-       if(irho /= 2) then
-          write(fort11_unit,*) 'except rho, which always goes from 0 to 1.'
-          write(fort11_unit,*) 'The rho normalization is determined by irho.'
-       endif
-       write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
-       if(iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
-       if(iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
-    endif
-
-    rho=rhoc
-
-if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
-
-    if(iflux == 1) then
-       rpmin = psi_0
-       rpmax = psi_a
-if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
-       rp = rpofrho(rho, fort11_unit)
-if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
-    else
-       rpmin = 0.
-       rpmax = 1.0
-       rp=rho
-    endif
-
-!    if(iflux == 0 .and. R_geo /= rmaj) then 
-!       write(6,*) 
-!       write(6,*) 'You have set R_geo not equal to Rmaj.'
-!       write(6,*) 'This is unusual!  Make sure you mean it.'
-!       write(6,*) 
-!    endif
-
-    if(iflux == 1) R_geo=rcenter(rpmax)
-
-if (debug) write(6,*) "eikcoefs: find rgrid"    
-    if(efit_eq .or. dfit_eq) then
-       call rtg(rgrid, rp, theta)
-    else
-       rgrid = rp
-    endif
-
-    if(writelots) then
-       write(fort11_unit,*) 'rp of rho = ',rp
-       write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-       write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
-    endif
-
-    if(iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
-       write(6,*) 
-       write(6,*) 'Warning: the center of the LCFS is outboard of the '
-       write(6,*) 'center of the reference surface.  This is probably wrong.'
-       write(6,*) 
-    endif
-
-    if(writelots) then
-       call open_output_file(fort78_unit,".fort.78")
-       call open_output_file(fort99_unit,".fort.99")
-    
-       rbar = 0.
-       write(fort78_unit,*) '# theta_pol,  R,   Z'
-       do i= -nth,nth         
-          write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
-          write(fort78_unit,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
-       enddo
-
-       call close_output_file(fort78_unit)
-       call close_output_file(fort99_unit)
-
-       do i=-nth,nth-1
-          rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
-       end do
-       rbar = rbar / (2.*pi)
-       write (*,*) 'r_bar = ',rbar
-       write (*,*)
-    endif
-
-    call drho_drp(rp, drhodrp)
-
-    if(nperiod > 1) call periodic_copy(theta, 2.*pi)
-
-    if(writelots) then
-       write(fort11_unit,*) 'drhodrp=',drhodrp
-       if (irho == 1) then
-          call drho_drhod(rp, drhodrp, drhodrhod)
-          write(fort11_unit,*) 'drho_drhod=',drhodrhod
-       end if
-    end if
-
-!
-! should test whether this is a new equilibrium
-!
-
- if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
-
-    if(gen_eq)    call geq_init
-    if(ppl_eq)    call peq_init
-    if(chs_eq)    call ceq_init
-if (debug) write(6,*) "eikcoefs: call eeq_init"
-!    if(efit_eq)  call eeq_init
-    if(efit_eq)   call efit_init
-if (debug) write(6,*) "eikcoefs: done eeq_init"
-    if(dfit_eq)   call deq_init
-    if(idfit_eq)  call ideq_init
-
-if (debug) write(6,*) "eikcoefs: call rmajortgrid"
-    call rmajortgrid(rgrid, theta, rmajor)
-
-!     compute gradient of rp
-    char='P'
-
-    ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
-    ! and (rho,l,phi) coordinates if bishop>0
-    ! also, rpgrad is grad psi if iflux=1 and grad rho if iflux=0 -- MAB
-
-    ! When bishop > 0
-    ! rpgrad(:,1) is |grad rp|
-    ! rpgrad(:,2) is 0
-    ! crpgrad(:,1) is drp/dR
-    ! crpgrad(:,2) is drp/dZ
-    !
-    ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-
-    if(bishop == 0) then
-       call  grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-       crpgrad = rpgrad
-    else
-       call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-    endif
-
-    if(bishop /= 0) then       
-       call loftheta(rgrid, theta, ltheta)
-       call grad(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
-       call th_bishop(crpgrad, th_bish, nth)
-       ! note that Bpolmag and Bmod are recalculated later if using
-       ! Miller (local) equilibrium
-       call B_pol(rgrid, theta, crpgrad, Bpolmag, nth)
-       call B_mod(rgrid, theta, Bpolmag, Bmod, nth)
-       call R_pol(theta, th_bish, ltheta, Rpol, nth)
-
-       if(nperiod > 1) then
-          call periodic_copy(rmajor, 0.)
-          call periodic_copy(Bpolmag, 0.)
-          call periodic_copy(th_bish, 0.)
-          call periodic_copy(Rpol, 0.)
-          Ltot = ltheta(nth)-ltheta(-nth)
-          call periodic_copy(ltheta, Ltot)
-       endif
-    endif
-
-    call periodic_copy(crpgrad(:,1), 0.)
-    call periodic_copy(crpgrad(:,2), 0.)
-
-!     compute |grad rho|:
-    do k=-nperiod+1,nperiod-1
-       do i=-nth,nth
-          itot=i+k*ntheta
-          grho(itot)=sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*abs(drhodrp)
-       enddo
-    enddo
-    if(isym == 1) call sym(grho, 0, ntgrid)
-
-!     compute  coordinate gradients
-    if (debug) write(6,*) "eikcoefs: call thetagrad"
-    call thetagrad(rgrid,theta, thgrad)
-    if (debug) write(6,*) "eikcoefs: done thetagrad"
-     
-!     compute eikonal S
-    if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho, fort11_unit))
-    if (debug) write(6,*) "eikcoefs: call eikonal"
-    call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
-    if (debug) write(6,*) "eikcoefs: done eikonal"
-    if(writelots) write(fort11_unit,*) 'q= ',qval
-
-    if(iflux == 0 .or. iflux == 2) then
-       bi = btori(rgrid(0), theta(0))
-       drhodpsin = drhodrp/dpsidrp
-       do i=-nth,nth
-          rinv = invRfun(rgrid(i), theta(i))
-          Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*rinv*abs(dpsidrp)
-          Bmod(i) = sqrt( (bi*rinv)**2 + bpolmag(i)**2) 
-       enddo       
-       if(nperiod > 1) then
-          call periodic_copy(Bpolmag, 0.)
-          call periodic_copy(Bmod, 0.)
-       endif
-    endif
-
-    ! Start theta shift calc
-    ! This is used to modify the definition of theta such that the maxiumum magnetic field is at pi
-    ! This is necessary to correctly calculate bounce points ! JRB
-    bMaxShift = .false.
-    ! if using Miller local equilibrium
-    if (iflux /= 1 .and. iflux /= 10) then
-
-       ! Locate the index of the maximum magnetic field in the range [-pi,pi)
-       iBmax = -nth
-       do i =-nth+1,nth-1
-          if (Bmod(iBmax)<Bmod(i)) then
-             iBmax = i
+             write(*,*) "Bmax is not located at +pi or -pi, translating theta by", &
+                  thetaShift," so that it is..."
           end if
-       enddo
-
-       ! If it is not at plus or minus pi and theta has never been shifted, then shift theta
-
-       ! thetaShift==0.0 limits the loop to at most execute twice and is necessary to prevent an 
-       !  infinite loop if the field is double peaked
-       if (iBmax/=-nth .and. thetaShift==0.0) then
-          bMaxShift = .true.
-          thetaShift = theta(iBmax)-theta(-nth)
-
-          write(*,*) "Bmax is not located at +pi or -pi, translating theta by",thetaShift," so that it is..."
        end if
-    end if
- end do
-! End theta shift calc
+    end do
+    ! End theta shift calc
 
 !<DD> If anyone uncomments the below loop please use get_unused_unit and open_output_file
 !     to open the output file (and close_output_file to close it) rather than using unit=43 directly.
@@ -1317,6 +1067,263 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
   contains
 
+    !> Initialises the specific geometry backend
+    subroutine initialise_geometry_and_get_bmod
+      if(iflux /= 1 .and. iflux /= 10) then
+
+         call init_uniform_theta_grid(ntheta_input, theta)
+
+         if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
+
+         call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
+              thetam, thetan, qinp, s_hat_input, nth, thetaShift)
+         if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
+      endif
+
+      if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
+
+      select case (iflux)
+      case (0)
+         avgrmid=1.
+      case (1, 10)
+         if (gs2d_eq) efit_eq = .true.
+         if(gen_eq) then
+            call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+         else if(transp_eq) then
+            if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
+
+            ppl_eq = .true.
+            call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
+            if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
+            if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
+            !CMRend
+         else if(ppl_eq) then
+            call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+         else if(chs_eq) then
+            call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            !if (debug) write (*,*)
+         else if(efit_eq) then
+            if(big <= 0) big = 8
+
+            if(gs2d_eq) then
+               if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
+               call gs2din(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
+               if (debug) write(6,*) "eikcoefs: done gs2din  psi_0,psi_a, rmaj, B_T0, avgrmid=",psi_0,psi_a, rmaj, B_T0, avgrmid
+            else
+               if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
+               call efitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
+            endif
+         else if(dfit_eq) then
+            if(big <= 0) big = 1
+            call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
+         else if(idfit_eq) then
+            !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
+            !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
+            call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit)
+         endif
+         if (debug) write(6,*) 'eikcoefs: iflux=',iflux
+         if(iflux == 10) return
+
+         call init_uniform_theta_grid(ntheta_input, theta)
+         if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
+         call alloc_local_arrays(ntgrid)
+      case (2)
+         continue
+      end select
+
+      if (debug) writelots=.true.
+      if (debug) write(6,*) "eikcoefs: if (writelots)"
+      if(writelots) then
+         write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
+         if(irho /= 2) then
+            write(fort11_unit,*) 'except rho, which always goes from 0 to 1.'
+            write(fort11_unit,*) 'The rho normalization is determined by irho.'
+         endif
+         write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
+         if(iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
+         if(iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
+      endif
+
+      rho=rhoc
+
+      if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
+
+      if(iflux == 1) then
+         rpmin = psi_0
+         rpmax = psi_a
+         if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
+         rp = rpofrho(rho, fort11_unit)
+         if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
+      else
+         rpmin = 0.
+         rpmax = 1.0
+         rp=rho
+      endif
+
+      !    if(iflux == 0 .and. R_geo /= rmaj) then
+      !       write(6,*)
+      !       write(6,*) 'You have set R_geo not equal to Rmaj.'
+      !       write(6,*) 'This is unusual!  Make sure you mean it.'
+      !       write(6,*)
+      !    endif
+
+      if(iflux == 1) R_geo=rcenter(rpmax)
+
+      if (debug) write(6,*) "eikcoefs: find rgrid"
+      if(efit_eq .or. dfit_eq) then
+         call rtg(rgrid, rp, theta)
+      else
+         rgrid = rp
+      endif
+
+      if(writelots) then
+         write(fort11_unit,*) 'rp of rho = ',rp
+         write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
+         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
+      endif
+
+      if(iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
+         write(6,*)
+         write(6,*) 'Warning: the center of the LCFS is outboard of the '
+         write(6,*) 'center of the reference surface.  This is probably wrong.'
+         write(6,*)
+      endif
+
+      if(writelots) then
+         call open_output_file(fort78_unit,".fort.78")
+         call open_output_file(fort99_unit,".fort.99")
+
+         rbar = 0.
+         write(fort78_unit,*) '# theta_pol,  R,   Z'
+         do i= -nth,nth
+            write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
+            write(fort78_unit,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
+         enddo
+
+         call close_output_file(fort78_unit)
+         call close_output_file(fort99_unit)
+
+         do i=-nth,nth-1
+            rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
+         end do
+         rbar = rbar / (2.*pi)
+         write (*,*) 'r_bar = ',rbar
+         write (*,*)
+      endif
+
+      call drho_drp(rp, drhodrp)
+
+      if(nperiod > 1) call periodic_copy(theta, 2.*pi)
+
+      if(writelots) then
+         write(fort11_unit,*) 'drhodrp=',drhodrp
+         if (irho == 1) then
+            call drho_drhod(rp, drhodrp, drhodrhod)
+            write(fort11_unit,*) 'drho_drhod=',drhodrhod
+         end if
+      end if
+
+      !
+      ! should test whether this is a new equilibrium
+      !
+
+      if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
+
+      if(gen_eq)    call geq_init
+      if(ppl_eq)    call peq_init
+      if(chs_eq)    call ceq_init
+      if (debug) write(6,*) "eikcoefs: call eeq_init"
+      !    if(efit_eq)  call eeq_init
+      if(efit_eq)   call efit_init
+      if (debug) write(6,*) "eikcoefs: done eeq_init"
+      if(dfit_eq)   call deq_init
+      if(idfit_eq)  call ideq_init
+
+      if (debug) write(6,*) "eikcoefs: call rmajortgrid"
+      call rmajortgrid(rgrid, theta, rmajor)
+
+      !     compute gradient of rp
+      char='P'
+
+      ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
+      ! and (rho,l,phi) coordinates if bishop>0
+      ! also, rpgrad is grad psi if iflux=1 and grad rho if iflux=0 -- MAB
+
+      ! When bishop > 0
+      ! rpgrad(:,1) is |grad rp|
+      ! rpgrad(:,2) is 0
+      ! crpgrad(:,1) is drp/dR
+      ! crpgrad(:,2) is drp/dZ
+      !
+      ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
+
+      if(bishop == 0) then
+         call  grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+         crpgrad = rpgrad
+      else
+         call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+      endif
+
+      if(bishop /= 0) then
+         call loftheta(rgrid, theta, ltheta)
+         call grad(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
+         call th_bishop(crpgrad, th_bish, nth)
+         ! note that Bpolmag and Bmod are recalculated later if using
+         ! Miller (local) equilibrium
+         call B_pol(rgrid, theta, crpgrad, Bpolmag, nth)
+         call B_mod(rgrid, theta, Bpolmag, Bmod, nth)
+         call R_pol(theta, th_bish, ltheta, Rpol, nth)
+
+         if(nperiod > 1) then
+            call periodic_copy(rmajor, 0.)
+            call periodic_copy(Bpolmag, 0.)
+            call periodic_copy(th_bish, 0.)
+            call periodic_copy(Rpol, 0.)
+            Ltot = ltheta(nth)-ltheta(-nth)
+            call periodic_copy(ltheta, Ltot)
+         endif
+      endif
+
+      call periodic_copy(crpgrad(:,1), 0.)
+      call periodic_copy(crpgrad(:,2), 0.)
+
+      !     compute |grad rho|:
+      do k=-nperiod+1,nperiod-1
+         do i=-nth,nth
+            itot=i+k*ntheta
+            grho(itot)=sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*abs(drhodrp)
+         enddo
+      enddo
+      if(isym == 1) call sym(grho, 0, ntgrid)
+
+      !     compute  coordinate gradients
+      if (debug) write(6,*) "eikcoefs: call thetagrad"
+      call thetagrad(rgrid,theta, thgrad)
+      if (debug) write(6,*) "eikcoefs: done thetagrad"
+
+      !     compute eikonal S
+      if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho, fort11_unit))
+      if (debug) write(6,*) "eikcoefs: call eikonal"
+      call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+      if (debug) write(6,*) "eikcoefs: done eikonal"
+      if(writelots) write(fort11_unit,*) 'q= ',qval
+
+      if(iflux == 0 .or. iflux == 2) then
+         bi = btori(rgrid(0), theta(0))
+         drhodpsin = drhodrp/dpsidrp
+         do i=-nth,nth
+            rinv = invRfun(rgrid(i), theta(i))
+            Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*rinv*abs(dpsidrp)
+            Bmod(i) = sqrt( (bi*rinv)**2 + bpolmag(i)**2)
+         enddo
+         if(nperiod > 1) then
+            call periodic_copy(Bpolmag, 0.)
+            call periodic_copy(Bmod, 0.)
+         endif
+      endif
+    end subroutine initialise_geometry_and_get_bmod
+     
     !> FIXME : Add documentation
     subroutine alloc_local_arrays(n)
       implicit none
