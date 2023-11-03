@@ -352,7 +352,7 @@ contains
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use  geq, only: eqin, geq_init
-    use  ceq, only: ceqin, ceq_init 
+    use  ceq, only: ceqin, ceq_init
     use  peq, only: peqin => eqin, teqin, peq_init
     use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
     use  deq, only: dfitin, deq_init => dfit_init
@@ -417,7 +417,7 @@ contains
     real :: s_hat, dp, di, pressure, tmp, rbar
 
     character(1) :: char
-    integer :: i, j, k, itot, n
+    integer :: i, j, k, itot
     integer :: fort25_unit !For outputting geom values
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
@@ -431,7 +431,7 @@ contains
     if (start_file_utils) then
       ! Initialize file utils with a run name we provide
       ! and by setting trin_run prevent it from searching
-      ! the command line arguments. 
+      ! the command line arguments.
       write(*,*) 'WARNING: Automatically initializing file_utils&
       & in eikcoefs. This is a hack to &
       & support older programs like eiktest. You should&
@@ -443,7 +443,7 @@ contains
 
     !Compute the initial constants
     debug = (verb > 2)
-    
+
 if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
     if (local_eq .and. iflux == 1) then
        write (*,*) 'Forcing iflux = 0'
@@ -455,22 +455,22 @@ if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
        local_eq = .true.
        if(irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
-       if(bishop == 0) then 
+       if(bishop == 0) then
           write(*,*) 'Forcing bishop = 1'
-          bishop = 1          
+          bishop = 1
        endif
     endif
 
 if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
 
     call check(gen_eq, efit_eq, ppl_eq, &
-         local_eq, dfit_eq, idfit_eq, chs_eq) 
+         local_eq, dfit_eq, idfit_eq, chs_eq)
 
     thetaShift = 0.0
     bMaxShift = .true. ! limits the initialization routine to run no more than twice
     do while (bMaxShift)
        call initialise_geometry_and_get_bmod
-       
+
        ! Start theta shift calc
        ! This is used to modify the definition of theta such that the maxiumum magnetic field is at pi
        ! This is necessary to correctly calculate bounce points ! JRB
@@ -503,76 +503,64 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     end do
     ! End theta shift calc
 
-!<DD> If anyone uncomments the below loop please use get_unused_unit and open_output_file
-!     to open the output file (and close_output_file to close it) rather than using unit=43 directly.
-!    do i=-nth,nth
-!       write(43,*) theta(i), Bpolmag(i), rpos(rgrid(i), theta(i)), zpos(rgrid(i), theta(i)), seik(i)
-!    enddo
-
-!
-! ******************
-! Debug: 
-! Set itor=1 and the first two columns should be the 
-! same (better agreement results from higher ntheta)
-! Set itor=0 and the first and third columns should 
-! be equal.  All of this, of course, with iflux=0.
-! 
-! This amounts to checking the expression for
-! nu for axisymmetric, low beta equilibrium:
-! nu = - q r/R sin(theta).
-!
-!      call rmajortgrid(rgrid, theta, rmajor)
-!      do i=-nth,nth
-!         smodel(i)=-qval*(theta(i)-rgrid(i)*sin(theta(i))/rmajor(i))
-!         write(*,*) seik(i),smodel(i),-qval*theta(i)
-!      enddo
-! ******************
-
+    !
+    ! ******************
+    ! Debug:
+    ! Set itor=1 and the first two columns should be the
+    ! same (better agreement results from higher ntheta)
+    ! Set itor=0 and the first and third columns should
+    ! be equal.  All of this, of course, with iflux=0.
+    !
+    ! This amounts to checking the expression for
+    ! nu for axisymmetric, low beta equilibrium:
+    ! nu = - q r/R sin(theta).
+    !
+    !      call rmajortgrid(rgrid, theta, rmajor)
+    !      do i=-nth,nth
+    !         smodel(i)=-qval*(theta(i)-rgrid(i)*sin(theta(i))/rmajor(i))
+    !         write(*,*) seik(i),smodel(i),-qval*theta(i)
+    !      enddo
+    ! ******************
     if(writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
-!     
-!     compute derivatives of eikonal
 
+    !
+    !     compute derivatives of eikonal
     if(bishop /= 0) then
-
        drhodpsi = drhodrp / dpsidrp
+       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid),
+       da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
+            trip(-ntgrid:ntgrid))
 
-       n=ntgrid
-       if(.not. allocated(a_bish)) then
-          allocate(a_bish(-n:n), b_bish(-n:n), c_bish(-n:n), &
-               da_bish(-n:n), db_bish(-n:n), dc_bish(-n:n), trip(-n:n))
-       endif
-          
        bi = btori(rgrid(0),theta(0))
-       
+
        da_bish = 1/rmajor**2 + (bi/(Bpolmag*rmajor**2))**2
        db_bish = bi/(Bpolmag*rmajor)**2
        dc_bish = bi*(sin(th_bish) + rmajor/Rpol)/(-Bpolmag*rmajor**4)
-       
+
        call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
-       if (nperiod > 1) call periodic_copy(trip, 0.) 
+       if (nperiod > 1) call periodic_copy(trip, 0.)
 
        if(iflux == 0 .or. iflux == 2) trip = trip * dpsidrp
 
-!CMR, June06
-if (debug) write(6,*) "eikcoefs:  gradients"
-if (debug) write(6,*) 'drhodpsi', drhodpsi
-if (debug) write(6,*) 'bi', bi
-if (verb > 5) write(6,*) 'rmajor', rmajor(:)
-if (verb > 5) write(6,*) 'Bpolmag', Bpolmag(:)
-if (verb > 5) write(6,*) rpgrad(-nth:nth,1)
-if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
-if (verb > 5) write(6,*) thgrad(-nth:nth,1)
-if (verb > 5) write(6,*) thgrad(-nth:nth,2)
-if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
-if (verb > 5) write(6,*) -Rpol(-nth:nth)/bpolmag(-nth:nth)
-if (debug) write(6,*) "eikcoefs: end gradients"
-!CMRend
-
+       !CMR, June06
+       if (debug) write(6,*) "eikcoefs:  gradients"
+       if (debug) write(6,*) 'drhodpsi', drhodpsi
+       if (debug) write(6,*) 'bi', bi
+       if (verb > 5) write(6,*) 'rmajor', rmajor(:)
+       if (verb > 5) write(6,*) 'Bpolmag', Bpolmag(:)
+       if (verb > 5) write(6,*) rpgrad(-nth:nth,1)
+       if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
+       if (verb > 5) write(6,*) thgrad(-nth:nth,1)
+       if (verb > 5) write(6,*) thgrad(-nth:nth,2)
+       if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
+       if (verb > 5) write(6,*) -Rpol(-nth:nth)/bpolmag(-nth:nth)
+       if (debug) write(6,*) "eikcoefs: end gradients"
+       !CMRend
 
        da_bish = da_bish/trip
        db_bish = db_bish/trip
        dc_bish = dc_bish/trip
-       
+
        call integrate(da_bish, theta, a_bish, ntgrid)
        call integrate(db_bish, theta, b_bish, ntgrid)
        call integrate(dc_bish, theta, c_bish, ntgrid)
@@ -580,16 +568,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        a_b = a_bish(nth)-a_bish(-nth)
        b_b = b_bish(nth)-b_bish(-nth)
        c_b = c_bish(nth)-c_bish(-nth)
-       
+
        a_bish = - a_bish * Bpolmag * rmajor
        b_bish = - b_bish * Bpolmag * rmajor
        c_bish = - c_bish * Bpolmag * rmajor
-       
-! find shat, pressure' and report them
 
+       ! find shat, pressure' and report them
        if(iflux == 0 .or. iflux == 2) then
           dp = dpdrhofun()*drhodpsi
-       else          
+       else
           dp = dpfun(rgrid(0),theta(0))
        endif
 
@@ -598,10 +585,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        if (abs(qval) > epsilon(0.)) then
           tmp = rho/qval/(2.*pi)/drhodpsi
           s_hat = tmp*(a_b*di+ b_b*dp + c_b*2)
-!CMR, June06
+          !CMR, June06
           if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
-          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat 
-!CMRend
+          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat
+          !CMRend
        else
           tmp = 1.
           s_hat = 0.
@@ -609,7 +596,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
        pressure = pfun(rgrid(0),theta(0))
 
-       write(fort11_unit,*) 
+       write(fort11_unit,*)
        write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
        select case (bishop)
@@ -631,7 +618,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-       case (5) 
+       case (5)
           s_hat_new = s_hat_input
           dp_new = -alpha_input/qval**2/rmaj*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
@@ -676,11 +663,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           endif
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-      end select
+       end select
 
        write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
        if(writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
-       write(fort11_unit,*) 
+       write(fort11_unit,*)
 
        shat = s_hat_new
        dqdrp = s_hat_new*qval/rho*drhodrp
@@ -706,10 +693,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        gradztot(:,2) = dZdl
        ! gradztot(:,3) is grad Z . phihat
        gradztot(:,3) = 0.0
-
     else
 
-!     rp derivative
+       !     rp derivative
        delrp=delrho/drhodrp
        rp1=rp-delrp
        rp2=rp+delrp
@@ -718,19 +704,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           qval1=qval-dqdrho*delrho
           qval2=qval+dqdrho*delrho
        endif
-    
+
        call seikon(rp1, theta, qval1, seik1, dsdthet1, rgrid1, dum)
        call seikon(rp2, theta, qval2, seik2, dsdthet2, rgrid2, dum)
-       
+
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
        enddo
-    
+
        if(iflux == 1) then
           dqdrho=(qval2-qval1)/(2.*delrho)
           shat=dqdrho*rho/qval
        endif
-    
+
        if(writelots) then
           write(fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
           write(fort11_unit,*) 's_hat= ',shat
@@ -739,7 +725,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
              write (fort11_unit,*) i,rgrid(i),rgrid1(i),rgrid2(i)
           enddo
        endif
- 
+
        s_hat_new = shat
 
        rpval(1)=rp
@@ -748,13 +734,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
        if(iflux == 0 .or. iflux == 2) then
           dbetadrho = 2.*dpdrhofun()
-       else          
+       else
           dbetadrho = 2.*dpfun(rgrid(0),theta(0))/drhodrp
        endif
 
-!
-!     compute gradient of S
-    
+       !
+       !     compute gradient of S
+
        ! this is really gradient of alpha
        ! note that coordinates are R and Z (not rho and l, as in bishop case)
        dqdrp=dqdrho*drhodrp
@@ -766,7 +752,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
                 grads(itot,j)=rpgrad(i,j)*dsdrptot+thgrad(i,j)*dsdthet(i)
              enddo
           enddo
-       enddo    
+       enddo
        ! gradztot(:,1) is grad Z . Rhat
        gradztot(:,1) = 0.
        ! gradztot(:,2) is grad Z . Zhat
@@ -781,10 +767,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           write(fort11_unit,*) i,theta(i),grads(i,1),grads(i,2)
        enddo
     endif
-!     compute total grad S including toroidal part
+    !     compute total grad S including toroidal part
     call gradstottgrid(rmajor, grads, gradstot)
-     
-!     compute the magnitude squared of grad S
+
+    !     compute the magnitude squared of grad S
     dpsidrho=dpsidrp/drhodrp
     if(iflux == 1) drhodpsin = drhodrp/dpsidrp
     call dottgridf(gradstot, gradstot, gdsdum1)
@@ -803,12 +789,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     gds21 = gdsdum2*dqdrp      *dpsidrho**2
     gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
 
-! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
-! is needed to simulate low-flow gk equation
-! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
-! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
-! for numerical equilibria
-! <MAB
+    ! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
+    ! is needed to simulate low-flow gk equation
+    ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
+    ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
+    ! for numerical equilibria
+    ! <MAB
 
     ! gradthtot is grad theta
     ! since ballooning, theta goes from -ntheta*nperiod -> ntheta*nperiod,
@@ -831,18 +817,17 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     gds24 = gds24_noq*dqdrp
     gds24_noq = gds24_noq*qval/rhoc
 
-!     compute magnetic field
+    !     compute magnetic field
     call bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
-     
-!     compute curvature, grad b, and coriolis drift terms
+
+    !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, &
          dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
          gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
-     
-!     compute the magnetic field along theta
 
+    !     compute the magnetic field along theta
     if(itor /= 0) then
-       if(nperiod > 1 ) call periodic_copy(Bmod, 0.) 
+       if(nperiod > 1 ) call periodic_copy(Bmod, 0.)
        bmag = Bmod
     else
        do k= -nperiod+1,nperiod-1
@@ -855,7 +840,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     if(isym == 1) call sym(bmag, 0, ntgrid)
 
-!     compute the gradparallel coefficient 
+    !     compute the gradparallel coefficient
     if (dfit_eq) then
        gradpar = trip/bmag
     else
@@ -885,18 +870,18 @@ if (debug) write(6,*) "eikcoefs: end gradients"
          rplot, zplot, aplot, rprime, zprime, aprime)
 
     ! In the GK equation we have dg/dl.
-    ! Our parallel coordinate is theta, so the term is 
+    ! Our parallel coordinate is theta, so the term is
     ! dtheta/dl dg/dtheta and gradpar = dtheta/dl.
     ! We now define a new coordinate theta' such that
     ! gradpar' = dtheta'/dl is constant, and the term is now
-    ! dtheta'/dl dg/dtheta'. This is the coordinate that 
+    ! dtheta'/dl dg/dtheta'. This is the coordinate that
     ! is used if equal_arc = .true. and as a consequence
     ! the values of theta that are used, e.g. in calculating
-    ! the matrices for invert_rhs is emphatically not the 
+    ! the matrices for invert_rhs is emphatically not the
     ! poloidal angle but this new coordinate theta'.
     ! It is important to note that when you use equal_arc
-    ! it means that gradpar is constant, NOT that there are 
-    ! equal lengths of arc between gridpoints. In fact the 
+    ! it means that gradpar is constant, NOT that there are
+    ! equal lengths of arc between gridpoints. In fact the
     ! grid points do not move, it's just that we have changed
     ! the definition of our parallel coordinate, and consequently
     ! gradpar. In other words Delta l/ Delta theta' is constant,
@@ -918,27 +903,27 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     ! set of theta values, theta_eqarc, such that Delta theta'
     ! is constant but Delta theta is not. Since we have convenient
     ! equally spaced set of grid points in theta, we use that for
-    ! the x values of the interpolation routine. 
+    ! the x values of the interpolation routine.
     ! The four important arguments of the call below
     ! are:
     !     2. An unequally spaced set of theta' values: theta_prime
     !     3. The values of theta that correspond to them: theta
     !     5. A set of equally spaced theta' values: theta_prime_eqarc
     !     6. The new set of unequally spaced theta values, theta_eqarc, which correspond
-    !          to equally spaced theta' values and consequently constant 
+    !          to equally spaced theta' values and consequently constant
     !          values of Delta l, i.e. constant arc lengths between gridpoints.
-    !     
+    !
     !
     theta_prime_eqarc = theta
     call inter_cspl(size(theta), theta_prime,       theta, &
                     size(theta), theta_prime_eqarc, theta_eqarc)
-      
+
     ! In the lines below we redefine theta to be theta', and
     ! gradpar to be gradpar'. This means that the values of
     ! theta in the gs2 output file are not values of the poloidal
     ! angle but values of theta_prime EGH
     if(equal_arc) then
-      ! The lines below can now be replaced by 
+      ! The lines below can now be replaced by
       ! theta = theta_prime
       ! gradpar = gradpar_prime
       ! but we'll want to test extensively before doing it. EGH
@@ -946,56 +931,41 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        theta = arcl
     endif
 
-!     compute grad rho*Jacobian of the transformation to the new coordinates: 
-!     Axisymmetry assumed to get this (nu indep. of phi):
+    !     compute grad rho*Jacobian of the transformation to the new coordinates:
+    !     Axisymmetry assumed to get this (nu indep. of phi):
     do i=-nth,nth
        jacob(i)=abs(dpsidrho/(gradpar(i)*bmag(i)))
        ds(i)=grho(i)*jacob(i)
-!         write(*,*) theta(i),' Jac_eik= ',jacob(i)
     enddo
 
-!     compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
-!     does not work with equal_arc grid
-!      surfarea=surfareafun(rgrid)
-!      write(*,*) 'surface area= ',surfarea,' avgrmid**2'
-      
-!     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
+    !     compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
+    !     does not work with equal_arc grid
+
+    !     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
     call integrate(ds, theta, ans, nth)
     surfarea=2.*pi*(ans(nth)-ans(-nth))
-!    write(*,*) 'surface area= ',surfarea,' avgrmid**2'
     if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
-    
 
-!     compute dV/drhon = 2 pi Int(J dtheta)
+
+    !     compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, theta, ans, nth)
     dvdrhon=2.*pi*(ans(nth)-ans(-nth))
-!      write(*,*) 'dV/drhon= ',dvdrhon
-!      write(*,*) '< |grad rho| >= ',surfarea/dvdrhon
-!      write(*,*) 
 
-!     compute < |grad rho|**2>
+    !     compute < |grad rho|**2>
     do i=-nth,nth
        grho2(i)=grho(i)**2*jacob(i)
     enddo
-!> MAB -- needed for Trinity
-!    call integrate(abs(grho)*jacob, theta, ans, nth)
-!    grhoavg=2.*pi*(ans(nth)-ans(-nth))
     grhoavg=surfarea/dvdrhon
-!< MAB
-!    call integrate(grho2, theta, ans, nth)
-!    grho2n=2.*pi*(ans(nth)-ans(-nth))
-!    write (*,*) '< |grad rho|**2 > = ',grho2n
 
-    if(isym == 1) then 
+    if(isym == 1) then
        call sym(gds2, 0, ntgrid)
        call sym(gds21, 1, ntgrid)
        call sym(gds22, 0, ntgrid)
-! not sure abou the following yet -- MAB
-!       call sym(gds23, 0, ntgrid)
-!       call sym(gds24, 1, ntgrid)
+       ! not sure abou the following yet -- MAB
+       !       call sym(gds23, 0, ntgrid)
+       !       call sym(gds24, 1, ntgrid)
     endif
 
-    
     call open_output_file(fort25_unit,".fort.25")
     write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
@@ -1004,8 +974,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     qsf = qval
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
-
-    !write (*,*) 'gbdrift is ', gbdrift
 
     Bpol = bpolmag
 
