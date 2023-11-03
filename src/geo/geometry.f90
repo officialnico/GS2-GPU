@@ -1039,14 +1039,11 @@ contains
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
       if(iflux /= 1 .and. iflux /= 10) then
-
-         call init_uniform_theta_grid(ntheta_input, theta)
-
+         nth = ntheta_input / 2
          if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
-
-         call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
+         call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, &
+              mMode, nMode, deltam, deltan, deltampri, deltanpri, &
               thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-         if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
       endif
 
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
@@ -1060,7 +1057,6 @@ contains
             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
          else if(transp_eq) then
             if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
-
             ppl_eq = .true.
             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
             if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
@@ -1093,13 +1089,15 @@ contains
          endif
          if (debug) write(6,*) 'eikcoefs: iflux=',iflux
          if(iflux == 10) return
-
-         call init_uniform_theta_grid(ntheta_input, theta)
-         if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-         call alloc_local_arrays(ntgrid)
       case (2)
          continue
       end select
+
+      if (iflux /= 2) then
+         call init_uniform_theta_grid(ntheta_input, theta)
+         if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
+         call alloc_local_arrays(ntgrid)
+      end if
 
       if (debug) writelots=.true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
