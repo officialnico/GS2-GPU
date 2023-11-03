@@ -164,8 +164,6 @@ module geometry
   !! debug is true if (verb > 3)
   logical :: debug = .false.
 
-  integer :: fort11_unit !For outputting geom values
-
   character(len=800) :: eqfile
   character(len=800) :: eqnormfile
 
@@ -423,6 +421,7 @@ contains
     integer :: fort25_unit !For outputting geom values
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
+    integer :: fort11_unit !For outputting geom values
 
     !Set output verbosity levels
     eeq_verbosity = verb
@@ -555,7 +554,7 @@ if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
        rpmin = psi_0
        rpmax = psi_a
 if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
-       rp = rpofrho(rho)
+       rp = rpofrho(rho, fort11_unit)
 if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
     else
        rpmin = 0.
@@ -705,7 +704,7 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
     if (debug) write(6,*) "eikcoefs: done thetagrad"
      
 !     compute eikonal S
-    if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho))
+    if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho, fort11_unit))
     if (debug) write(6,*) "eikcoefs: call eikonal"
     call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     if (debug) write(6,*) "eikcoefs: done eikonal"
@@ -965,7 +964,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        rp1=rp-delrp
        rp2=rp+delrp
        if (iflux == 0 .or. iflux == 2) then
-          dqdrho=dqdrhofun(rho, shat)
+          dqdrho=dqdrhofun(rho, shat, fort11_unit)
           qval1=qval-dqdrho*delrho
           qval2=qval+dqdrho*delrho
        endif
@@ -2006,12 +2005,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function rpfun
 
   !> FIXME : Add documentation    
-  function rpofrho(rho)
+  real function rpofrho(rho, fort11_unit)
     implicit none
     real, intent(in) :: rho
-    real :: rpofrho
+    integer, intent(in) :: fort11_unit
     real :: a, b, xerrbi, xerrsec, fval, soln
-    integer :: nsolv,ier
+    integer :: nsolv, ier
 
     ier = 123456 ! Default to indicating error
     a=rpmin
@@ -2021,16 +2020,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     nsolv=1
     if(irho == 1) then
        fval=rho*rho*phi(b)
-       call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
+       call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     elseif(irho == 2) then
        fval=rho*diameter(b)
-       call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
+       call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     elseif(irho == 3) then
        fval=rho*psifun(b)
-       call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
+       call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     elseif(irho == 4) then
        fval=rho*rhofun(b)
-       call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, ier, soln)
+       call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     endif
 
     if (debug) then 
@@ -2167,7 +2166,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function dbtori
 
   !> FIXME : Add documentation    
-  function iofrho(rho)
+  real function iofrho(rho, fort11_unit)
     use geq, only: geq_iofpbar => btori
     use peq, only: peq_iofpbar => btori
     use ceq, only: ceq_iofpbar => btori
@@ -2175,15 +2174,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use leq, only: leq_i => btori
     use mp, only: mp_abort
     implicit none
-    real, intent (in) :: rho    
-    real :: iofrho
-
+    real, intent (in) :: rho
+    integer, intent(in) :: fort11_unit
     iofrho = invalidValue
     
-    if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho))
-    if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho))
-    if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho))
-    if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho))
+    if (gen_eq) iofrho = geq_iofpbar(pbarofrho(rho, fort11_unit))
+    if (ppl_eq) iofrho = peq_iofpbar(pbarofrho(rho, fort11_unit))
+    if (chs_eq) iofrho = ceq_iofpbar(pbarofrho(rho, fort11_unit))
+    if(efit_eq) iofrho = eeq_iofpbar(pbarofrho(rho, fort11_unit))
     if(dfit_eq) iofrho = 0.
     if(local_eq) iofrho = leq_i()
 
@@ -2430,32 +2428,31 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function beta_a_fun
 
   !> FIXME : Add documentation    
-  function pbarofrho(rho)
+  real function pbarofrho(rho, fort11_unit)
     implicit none
     real, intent (in) :: rho
-    real :: pbarofrho
-!     punt for now; not used
-
+    integer, intent(in) :: fort11_unit
+    !     punt for now; not used
     if(iflux /= 1) then
-!       write(*,*) 'error in pbarofrho!'
        pbarofrho=0.
        return         
     endif
 
-    pbarofrho=min(1.,max(0.,(rpofrho(rho)-psi_0)/(psi_a-psi_0)))
+    pbarofrho=min(1.,max(0.,(rpofrho(rho, fort11_unit)-psi_0)/(psi_a-psi_0)))
   end function pbarofrho
 
   !> FIXME : Add documentation    
-  function dqdrhofun(rho, shat)
+  function dqdrhofun(rho, shat, fort11_unit)
     implicit none
     real, intent (in) :: rho, shat
+    integer, intent(in) :: fort11_unit
     real dqdrhofun
     
-    dqdrhofun=shat*qfun(pbarofrho(rho))/(rhoc)
+    dqdrhofun=shat*qfun(pbarofrho(rho, fort11_unit))/(rhoc)
   end function dqdrhofun
 
   !> FIXME : Add documentation    
-  subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,ier,soln)
+  subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,fort11_unit, ier,soln)
     implicit none
     interface
       real function f(x_)
@@ -2464,7 +2461,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     end interface
     real, intent(in) :: fval, a, b, xerrbi, xerrsec
     real, intent(out) :: soln
-    integer, intent(in) :: nsolv
+    integer, intent(in) :: nsolv, fort11_unit
     integer, intent(out) :: ier
     real :: a1, b1, f1, f2, f3, trial, aold
     integer :: i,niter,isolv
@@ -2629,11 +2626,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> FIXME : Add documentation
   !!
   !! @note This routine is just used by eik, not GS2
-  subroutine geofax(rho, theta, t, e, d)
+  subroutine geofax(rho, theta, t, e, d, fort11_unit)
     implicit none
     real, intent (in) :: rho
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
+    integer, intent(in) :: fort11_unit
     real :: a, b, aa, bb
     real, dimension(-ntgrid:ntgrid) :: rgrid
     real :: rp, hmaxu, hmaxl, rmaxu, rmaxl
@@ -2644,7 +2642,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        write(6,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
        first=.false.
     endif
-    rp=rpofrho(rho)
+    rp=rpofrho(rho, fort11_unit)
 
     if(efit_eq .or. dfit_eq) then
        call rtg(rgrid, rp, theta)

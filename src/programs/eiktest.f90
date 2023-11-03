@@ -43,7 +43,7 @@ program eiktest
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
   real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsin, dbetadrho
-
+  integer :: fort11_unit
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
@@ -131,7 +131,7 @@ program eiktest
      endif
      dp_mult = beta_prime_times
   endif
-
+  fort11_unit = 12
 !
 ! Note that if iflux=1 then always choose itor=1
 !
@@ -248,7 +248,7 @@ program eiktest
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
-     bb=beta_a_fun(rfun(rpofrho(rhoc),0.,broot),0.)
+     bb=beta_a_fun(rfun(rpofrho(rhoc, fort11_unit),0.,broot),0.)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
         write(21,1000) -dbetadrho
@@ -266,27 +266,27 @@ program eiktest
      write (11,*) 'They should match the ones above' !EGH
      q=qfun(0.)
      write(11,*) 'q_0= ',q
-     q=qfun(pbarofrho(rhoc))
+     q=qfun(pbarofrho(rhoc, fort11_unit))
      write(11,*) 'rho= ',rhoc,' q(rho)= ',q
   !      write(*,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
   
-     call geofax(rhoc, theta, rt, rk, rd)
+     call geofax(rhoc, theta, rt, rk, rd, fort11_unit)
      if(iflux == 1) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
-        call geofax(rhocp, theta, rtp, rkp, rdp)
-        call geofax(rhocm, theta, rtm, rkm, rdm)
-        qplus=qfun(pbarofrho(rhocp))
-        qmnus=qfun(pbarofrho(rhocm))
+        call geofax(rhocp, theta, rtp, rkp, rdp, fort11_unit)
+        call geofax(rhocm, theta, rtm, rkm, rdm, fort11_unit)
+        qplus=qfun(pbarofrho(rhocp, fort11_unit))
+        qmnus=qfun(pbarofrho(rhocm, fort11_unit))
         rkpri=0.5*(rkp-rkm)/delrho
         rtpri=0.5*(rtp-rtm)/delrho
         rdpri=0.5*(rdp-rdm)/delrho
         if (dipole) then
            shat = 0.
         else
-           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbarofrho(rhoc))/delrho
+           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbarofrho(rhoc, fort11_unit))/delrho
         endif
      else
         rkpri=akappri
@@ -294,7 +294,7 @@ program eiktest
         rdpri=shift
      endif
   
-     qq=qfun(pbarofrho(rhoc))
+     qq=qfun(pbarofrho(rhoc, fort11_unit))
      write(11,*) 'shat= ',shat
      write(11,*) 'qinp= ',qq
      write(11,*) 'shift= ',rdpri
@@ -303,9 +303,9 @@ program eiktest
      write(11,*) 'tri= ',rt
      write(11,*) 'tripri= ',rtpri
      write(11,*) 'surface area= ',surfarea,' avgrmid**2'
-     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc))
-     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
-     write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
+     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc, fort11_unit))
+     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0, fort11_unit))/2.0, ' ...  should be 1'
+     write(11, *) 'r/a = ', diameter(rpofrho(rhoc, fort11_unit))/diameter(rpofrho(1.0, fort11_unit))
   end if
      
   close(11)
