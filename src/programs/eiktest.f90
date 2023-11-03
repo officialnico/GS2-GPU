@@ -272,12 +272,12 @@ program eiktest
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
   
-     call geofax(rhoc, rt, rk, rd)
+     call geofax(rhoc, theta, rt, rk, rd)
      if(iflux == 1) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
-        call geofax(rhocp, rtp, rkp, rdp)
-        call geofax(rhocm, rtm, rkm, rdm)
+        call geofax(rhocp, theta, rtp, rkp, rdp)
+        call geofax(rhocm, theta, rtm, rkm, rdm)
         qplus=qfun(pbarofrho(rhocp))
         qmnus=qfun(pbarofrho(rhocm))
         rkpri=0.5*(rkp-rkm)/delrho

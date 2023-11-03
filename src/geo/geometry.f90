@@ -150,17 +150,6 @@ module geometry
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
   public :: eikcoefs_output, run_eikcoefs_and_resample, set_eikcoefs_output
 
-  !> The theta grid of the results. The final grid has
-  !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
-  real, allocatable, dimension(:) :: theta
-
-  real, allocatable, dimension(:) :: grho, bmag, gradpar, &
-       cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
-       Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-       cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
-  
-  real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
-
   real :: dbetadrho, kxfac
 
   integer :: geotype, mMode, nMode
@@ -291,7 +280,7 @@ contains
     ! First run eikcoefs using requested resolution
     call eikcoefs(ntheta_input, full_results, job_id)
 
-    ntgrid_input = (size(theta) - 1) / 2
+    ntgrid_input = (size(full_results%theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
 
     ! Set scalar outputs
@@ -385,34 +374,6 @@ contains
   subroutine set_eikcoefs_output(eikcoefs_results)
     implicit none
     type(eikcoefs_output), intent(in) :: eikcoefs_results
-
-    theta = eikcoefs_results%theta
-    bmag = eikcoefs_results%bmag
-    gradpar = eikcoefs_results%gradpar
-    grho = eikcoefs_results%grho
-    cdrift = eikcoefs_results%cdrift
-    cvdrift = eikcoefs_results%cvdrift
-    gbdrift = eikcoefs_results%gbdrift
-    cdrift0 = eikcoefs_results%cdrift0
-    cvdrift0 = eikcoefs_results%cvdrift0
-    gbdrift0 = eikcoefs_results%gbdrift0
-    cvdrift_th = eikcoefs_results%cvdrift_th
-    gbdrift_th = eikcoefs_results%gbdrift_th
-    gds2 = eikcoefs_results%gds2
-    gds21 = eikcoefs_results%gds21
-    gds22 = eikcoefs_results%gds22
-    gds23 = eikcoefs_results%gds23
-    gds24 = eikcoefs_results%gds24
-    gds24_noq = eikcoefs_results%gds24_noq
-    jacob = eikcoefs_results%jacob
-    rplot = eikcoefs_results%rplot
-    zplot = eikcoefs_results%zplot
-    aplot = eikcoefs_results%aplot
-    rprime = eikcoefs_results%rprime
-    zprime = eikcoefs_results%zprime
-    aprime = eikcoefs_results%aprime
-    bpol = eikcoefs_results%bpol
-
     s_hat_new = eikcoefs_results%s_hat_new
     beta_prime_new = eikcoefs_results%beta_prime_new
     drhodpsin = eikcoefs_results%drhodpsin
@@ -427,7 +388,6 @@ contains
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use  geq, only: eqin, geq_init
-    ! CHEASE EQUILIBRIUM  EGH
     use  ceq, only: ceqin, ceq_init 
     use  peq, only: peqin => eqin, teqin, peq_init
     use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
@@ -455,7 +415,6 @@ contains
     logical :: start_file_utils, dummy
     integer :: job_id
 ! Local variables:
-
     real, allocatable, dimension(:)   :: smodel, dsdrp, grho2, seik, seik1, seik2
     real, allocatable, dimension(:)   :: dsdthet, dsdthet1, dsdthet2, grho1
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
@@ -467,9 +426,16 @@ contains
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot
     real, allocatable, dimension(:,:) :: gradthtot ! MAB
-
     real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
     real, allocatable, dimension(:) :: da_bish, db_bish, dc_bish, trip
+    !> The theta grid of the results. The final grid has
+    !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
+    real, allocatable, dimension(:) :: theta
+    real, allocatable, dimension(:) :: grho, bmag, gradpar, &
+         cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
+         cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
+    real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
 
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi
@@ -541,13 +507,12 @@ do while (bMaxShift)
 
     if(iflux /= 1 .and. iflux /= 10) then
 
-      call init_uniform_theta_grid(ntheta_input)
+      call init_uniform_theta_grid(ntheta_input, theta)
 
        if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
 
        call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan, deltampri, deltanpri, &
             thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-       if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
        if(.not.allocated(smodel)) call alloc_local_arrays(ntgrid)
     endif
 
@@ -596,10 +561,7 @@ if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
 if (debug) write(6,*) 'eikcoefs: iflux=',iflux
           if(iflux == 10) return
 
-          call init_uniform_theta_grid(ntheta_input)
-
-if (debug) write(6,*) 'eikcoefs: alloc_module_arrays, ntgrid=',ntgrid
-          if(.not.allocated(gds22)) call alloc_module_arrays(ntgrid)
+          call init_uniform_theta_grid(ntheta_input, theta)
 if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
           call alloc_local_arrays(ntgrid)
        case (2) 
@@ -646,7 +608,7 @@ if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
 if (debug) write(6,*) "eikcoefs: find rgrid"    
     if(efit_eq .or. dfit_eq) then
-       call rtg(rgrid, rp)
+       call rtg(rgrid, rp, theta)
     else
        rgrid = rp
     endif
@@ -772,17 +734,14 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
     if(isym == 1) call sym(grho, 0, ntgrid)
 
 !     compute  coordinate gradients
-
     if (debug) write(6,*) "eikcoefs: call thetagrad"
-
-    call thetagrad(rgrid,thgrad)
-
+    call thetagrad(rgrid,theta, thgrad)
     if (debug) write(6,*) "eikcoefs: done thetagrad"
      
 !     compute eikonal S
     if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho))
     if (debug) write(6,*) "eikcoefs: call eikonal"
-    call eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+    call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     if (debug) write(6,*) "eikcoefs: done eikonal"
     if(writelots) write(fort11_unit,*) 'q= ',qval
 
@@ -874,7 +833,7 @@ if (debug) write(6,*) "eikcoefs: call rmajortgrid"
        db_bish = bi/(Bpolmag*rmajor)**2
        dc_bish = bi*(sin(th_bish) + rmajor/Rpol)/(-Bpolmag*rmajor**4)
        
-       call tripprod2dtgrid(rpgrad, thgrad, rgrid, trip)
+       call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
        if (nperiod > 1) call periodic_copy(trip, 0.) 
 
        if(iflux == 0 .or. iflux == 2) trip = trip * dpsidrp
@@ -1045,8 +1004,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           qval2=qval+dqdrho*delrho
        endif
     
-       call seikon(rp1, qval1, seik1, dsdthet1, rgrid1, dum)
-       call seikon(rp2, qval2, seik2, dsdthet2, rgrid2, dum)
+       call seikon(rp1, theta, qval1, seik1, dsdthet1, rgrid1, dum)
+       call seikon(rp2, theta, qval2, seik2, dsdthet2, rgrid2, dum)
        
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
@@ -1162,7 +1121,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
      
 !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, &
-         dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta)
+         dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
+         gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
      
 !     compute the magnetic field along theta
 
@@ -1206,7 +1166,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     ! (although it's possible there could still be some interaction, given that one of the
     ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
     ! grid rather than the "new" one defined below).
-    call plotdata (rgrid, seik, grads, dpsidrho)
+    call plotdata (rgrid, seik, grads, dpsidrho, theta, &
+         rplot, zplot, aplot, rprime, zprime, aprime)
 
     ! In the GK equation we have dg/dl.
     ! Our parallel coordinate is theta, so the term is 
@@ -1232,7 +1193,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     ! new grid, which we call theta_eqarc, Delta l is itself a constant
     ! as a function of grid index.
     theta_eqarc = gradpar ! Temp storage
-    call arclength (ntheta, nperiod, gradpar, arcl)
+    call arclength (ntheta, nperiod, theta, gradpar, arcl)
     theta_prime = arcl
     gradpar_prime = gradpar
     gradpar = theta_eqarc ! Retrieve temp storage
@@ -1266,7 +1227,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
       ! theta = theta_prime
       ! gradpar = gradpar_prime
       ! but we'll want to test extensively before doing it. EGH
-       call arclength (ntheta, nperiod, gradpar, arcl)
+       call arclength (ntheta, nperiod, theta, gradpar, arcl)
        theta = arcl
     endif
 
@@ -1321,7 +1282,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
     
     call open_output_file(fort25_unit,".fort.25")
-    write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth))
+    write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
 
     kxfac = abs(qval/rhoc/drhodpsin)
@@ -1438,6 +1399,36 @@ if (debug) write(6,*) "eikcoefs: end gradients"
            gradztot   (-n:n,3), &
            gradthtot  (-n:n,3))  ! MAB
 
+    allocate(grho   (-n:n), &
+         bmag       (-n:n), &
+         gradpar    (-n:n), &
+         cvdrift    (-n:n), &
+         cvdrift0   (-n:n), &
+         gbdrift    (-n:n), &
+         gbdrift0   (-n:n), &
+         cdrift    (-n:n), &
+         cdrift0    (-n:n), &
+         gbdrift_th (-n:n), &
+         cvdrift_th (-n:n), &
+         gds2       (-n:n), &
+         gds21      (-n:n), &
+         gds22      (-n:n), &
+         gds23      (-n:n), &  ! MAB
+         gds24      (-n:n), &  ! MAB
+         gds24_noq  (-n:n), &  ! MAB
+         jacob      (-n:n), &
+         Rplot      (-n:n), &
+         Zplot      (-n:n), &
+         aplot      (-n:n), &
+         Rprime     (-n:n), &
+         Zprime     (-n:n), &
+         aprime     (-n:n), &
+         theta_eqarc(-n:n), & !EGH
+         theta_prime(-n:n), & !EGH
+         theta_prime_eqarc(-n:n), & !EGH
+         gradpar_prime(-n:n),     & !EGH
+         Bpol       (-n:n))
+
     end subroutine alloc_local_arrays
 
     !> FIXME : Add documentation      
@@ -1486,20 +1477,49 @@ if (debug) write(6,*) "eikcoefs: end gradients"
            gradztot  , &
            gradthtot )  ! MAB
 
+    if (allocated(grho)) deallocate(grho   , &
+         theta, &
+         bmag       , &
+         gradpar    , &
+         cvdrift    , &
+         cvdrift0   , &
+         gbdrift    , &
+         gbdrift0   , &
+         cdrift    , &
+         cdrift0    , &
+         gbdrift_th , &
+         cvdrift_th , &
+         gds2       , &
+         gds21      , &
+         gds22      , &
+         gds23      , &  ! MAB
+         gds24      , &  ! MAB
+         gds24_noq  , &  ! MAB
+         jacob      , &
+         Rplot      , &
+         Zplot      , &
+         aplot      , &
+         Rprime     , &
+         Zprime     , &
+         aprime     , &
+         theta_eqarc, & ! EGH
+         theta_prime, & ! EGH
+         theta_prime_eqarc, & ! EGH
+         gradpar_prime,     & ! EGH
+         Bpol       )
+
     end subroutine dealloc_local_arrays
 
   end subroutine eikcoefs
 
   !> FIXME : Add documentation  
-  function surfareafun(rgrid)
+  real function surfareafun(rgrid, theta)
     use constants, only: pi
     implicit none
-    real, dimension(:), intent(in) :: rgrid  
-    real :: surfareafun
+    real, dimension(:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:ntgrid) :: ds, drdth, ans
     integer :: i
-    
-    write(*,*) 'surfareafun not generalized yet? needs to be checked.'
+    !Note : surfareafun not generalized yet? needs to be checked.
 
     drdth(-nth)=(rgrid(nth-1)-rgrid(-nth+1))/(theta(nth-1)-theta(-nth+1))
 
@@ -1680,7 +1700,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function Zpos
 
   !> FIXME : Add documentation    
-  function invRfun(r, thet)
+  real function invRfun(r, thet)
     use  geq, only: geq_invR => invR
     use  peq, only: peq_invR => invR
     use  ceq, only: ceq_invR => invR
@@ -1691,7 +1711,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: invRfun
 
     invRfun = invalidValue
     
@@ -1712,14 +1731,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function invRfun
 
   !> FIXME : Add documentation    
-  subroutine drift(rgrid, rp, bvector, gradstot,  &
-       gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, drhodrp, Bmod, &
-       Bpolmag, Rpol, th_bish, ltheta)
+  subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
+       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
+       gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta
+    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp
-
+    real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
@@ -1744,7 +1763,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     else
        char='B'
        if(bishop >= 1) then
-          call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, bgrad1)
+          call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, bgrad1)
        else
           call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
@@ -1857,8 +1876,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
   end subroutine sym
       
-  subroutine seikon(rp, qval, seik, dsdthet, rgrid, dpsidrp)
+  subroutine seikon(rp, theta, qval, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
+    real, dimension(-ntgrid:), intent(in) :: theta
     real, intent(out) :: qval
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
@@ -1874,15 +1894,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)          
     end if
 
-    call thetagrad(rgrid, thgrad)
-    call eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+    call thetagrad(rgrid, theta, thgrad)
+    call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
   !> FIXME : Add documentation    
-  subroutine eikonal(rgrid, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+  subroutine eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
     use constants, only: pi
     implicit none
-    real, dimension(-ntgrid:), intent(in) :: rgrid
+    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
     real, dimension(-ntgrid:,:), intent(in) ::  rpgrad, thgrad
     real, intent(out) :: qval
@@ -1891,7 +1911,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real :: bi
     integer :: i
 
-    call tripprod2dtgrid(rpgrad, thgrad, rgrid, trip)
+    call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
     
     bi = btori(rgrid(0),theta(0))
     do i=-nth,nth
@@ -1914,10 +1934,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine eikonal
 
   !> FIXME : Add documentation    
-  subroutine thetagrad(rgrid, thgrad)
+  subroutine thetagrad(rgrid, theta, thgrad)
     use mp, only: mp_abort
     implicit none
-    real, dimension(-ntgrid:), intent (in) :: rgrid
+    real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
     character(1) :: char
@@ -2061,9 +2081,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function rpofrho
 
   !> FIXME : Add documentation    
-  subroutine tripprod2dtgrid(x, y, rgrid, val)
+  subroutine tripprod2dtgrid(x, y, rgrid, theta, val)
     implicit none
-    real, dimension(-ntgrid:), intent (in) :: rgrid
+    real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:), intent (out) :: val
     real, dimension(-ntgrid:, :), intent(in) :: x, y
     integer :: i
@@ -2204,13 +2224,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if (iofrho == invalidValue) call mp_abort("iofrho not set")
   end function iofrho
 
-  subroutine integrate(arg, grid, ans, n)
+  pure subroutine integrate(arg, grid, ans, n)
     real, dimension(-ntgrid:), intent (in) :: arg, grid
     real, dimension(-ntgrid:), intent (out) :: ans
-    integer :: i, n
-
+    integer, intent(in) :: n
+    integer :: i
     ans=0.
-    
     do i=1,n
        ans(i)=ans(i-1)+0.5*(grid(i)-grid(i-1))*(arg(i)+arg(i-1))
     enddo
@@ -2644,9 +2663,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> FIXME : Add documentation
   !!
   !! @note This routine is just used by eik, not GS2
-  subroutine geofax(rho, t, e, d)
+  subroutine geofax(rho, theta, t, e, d)
     implicit none
     real, intent (in) :: rho
+    real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
     real :: a, b, aa, bb
     real, dimension(-ntgrid:ntgrid) :: rgrid
@@ -2661,7 +2681,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     rp=rpofrho(rho)
 
     if(efit_eq .or. dfit_eq) then
-       call rtg(rgrid, rp)
+       call rtg(rgrid, rp, theta)
     else
        rgrid = rp
     endif
@@ -2800,11 +2820,12 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function bmodfun
 
   !> FIXME : Add documentation    
-  subroutine arclength (ntheta, nperiod, gpar, arcl)
+  subroutine arclength (ntheta, nperiod, theta, gpar, arcl)
     use constants, only: pi
     implicit none
     integer, intent (in) :: ntheta, nperiod
     real, dimension(-ntgrid:), intent (out) :: arcl
+    real, dimension(-ntgrid:), intent (in) :: theta
     real, dimension(-ntgrid:), intent (in out) :: gpar
     integer :: nth, j, k
     real :: arcfac
@@ -3019,82 +3040,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine R_pol
 
   !> FIXME : Add documentation    
-  subroutine alloc_module_arrays(n)
-    implicit none
-    integer, intent(in) :: n
-!cmr Jun06: adding following debug switch
-    logical, parameter :: debug=.false.
-!cmr
-    if (debug) write(6,*) "alloc_module_arrays: n=",n
-!CMR
-    allocate(grho   (-n:n), &
-         bmag       (-n:n), &
-         gradpar    (-n:n), &
-         cvdrift    (-n:n), &
-         cvdrift0   (-n:n), &
-         gbdrift    (-n:n), &
-         gbdrift0   (-n:n), &
-         cdrift    (-n:n), &
-         cdrift0    (-n:n), &
-         gbdrift_th (-n:n), &
-         cvdrift_th (-n:n), &
-         gds2       (-n:n), &
-         gds21      (-n:n), &
-         gds22      (-n:n), &
-         gds23      (-n:n), &  ! MAB
-         gds24      (-n:n), &  ! MAB
-         gds24_noq  (-n:n), &  ! MAB
-         jacob      (-n:n), &
-         Rplot      (-n:n), &
-         Zplot      (-n:n), &
-         aplot      (-n:n), &
-         Rprime     (-n:n), &
-         Zprime     (-n:n), &
-         aprime     (-n:n), &
-         theta_eqarc(-n:n), & !EGH
-         theta_prime(-n:n), & !EGH
-         theta_prime_eqarc(-n:n), & !EGH
-         gradpar_prime(-n:n),     & !EGH
-         Bpol       (-n:n))
-    if (debug) write(6,*) "alloc_module_arrays: done"
-  end subroutine alloc_module_arrays
-
-  !> FIXME : Add documentation    
-  subroutine dealloc_module_arrays
-    implicit none
-    if (allocated(grho)) deallocate(grho   , &
-         theta, &
-         bmag       , &
-         gradpar    , &
-         cvdrift    , &
-         cvdrift0   , &
-         gbdrift    , &
-         gbdrift0   , &
-         cdrift    , &
-         cdrift0    , &
-         gbdrift_th , &
-         cvdrift_th , &
-         gds2       , &
-         gds21      , &
-         gds22      , &
-         gds23      , &  ! MAB
-         gds24      , &  ! MAB
-         gds24_noq  , &  ! MAB
-         jacob      , &
-         Rplot      , &
-         Zplot      , &
-         aplot      , &
-         Rprime     , &
-         Zprime     , &
-         aprime     , &
-         theta_eqarc, & ! EGH
-         theta_prime, & ! EGH
-         theta_prime_eqarc, & ! EGH
-         gradpar_prime,     & ! EGH
-         Bpol       )
-  end subroutine dealloc_module_arrays
-
-  !> FIXME : Add documentation    
   subroutine finish_geometry
     use  geq, only:  geq_finish
     use  peq, only:  peq_finish
@@ -3104,10 +3049,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ideq, only: ideq_finish => dfit_finish
     use  leq, only:  leq_finish
     implicit none
-
-    call dealloc_module_arrays
     eqinit = 1
-
     if(gen_eq)   call  geq_finish
     if(ppl_eq)   call  peq_finish
     if(chs_eq)   call  ceq_finish
@@ -3123,10 +3065,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> `nth == nt - 1`.
   !>
   !> `nt` is set equal to [[geometry:ntheta]] on exit
-  subroutine init_uniform_theta_grid(nt)
+  subroutine init_uniform_theta_grid(nt, theta)
     use constants, only: pi
     implicit none
-    integer, intent(inout) :: nt
+    integer, intent(in out) :: nt
+    real, dimension(:), allocatable :: theta
     integer :: i
 
     nth = nt / 2
@@ -3170,9 +3113,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
-  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, gradB)
+  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, gradB)
     implicit none
-    real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta
+    real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol
+    real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, theta
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
     real :: bi, bp
@@ -3339,13 +3283,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   !> Calculate rgrid for the case of eeq and deq: 
   !! in this case, rgrid is the distance to the magnetic 
   !! axis as a function of theta.
-  subroutine rtg(rgrid, rp)
+  subroutine rtg(rgrid, rp, theta)
     use mp, only: mp_abort
     use eeq, only: ebound => bound
     use deq, only: dbound => bound
     implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
+    real, dimension(-ntgrid:), intent (in) :: theta
     real :: broot
     integer :: i
     
@@ -3600,10 +3545,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine drho_drhod
 
   !> FIXME : Add documentation    
-  function fluxavg(f)
+  pure real function fluxavg(f, theta, jacob)
     implicit none
-    real, dimension(-nth:nth), intent(in) :: f
-    real :: fluxavg
+    real, dimension(-nth:nth), intent(in) :: f, theta, jacob
     real, dimension(-nth:nth) :: delth
 
     delth(-nth+1:nth-1) = 0.5*(theta(-nth+2:nth)-theta(-nth:nth-2))
@@ -3619,26 +3563,26 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function fluxavg
 
   !> FIXME : Add documentation    
-  function f_trap(b_mag)
+  pure real function f_trap(b_mag, theta, jacob)
     implicit none
-    real, dimension(-nth:nth), intent (in) :: b_mag
-    real :: f_trap, ftu, ftl, havg, h2avg, h(-nth:nth)
-
+    real, dimension(-nth:nth), intent (in) :: b_mag, theta, jacob
+    real :: ftu, ftl, havg, h2avg, h(-nth:nth)
 ! use expressions from Y. R. Lin-Liu and Bob Miller, coding from Q. P. Liu
-    
     h = min(b_mag/maxval(b_mag),1.0)
-    havg = fluxavg(h)
-    h2avg = fluxavg(h**2)
+    havg = fluxavg(h, theta, jacob)
+    h2avg = fluxavg(h**2, theta, jacob)
     ftu = 1.0 - h2avg/havg**2*(1.0-sqrt(1.0-havg)*(1.0+0.5*havg))
-    ftl = 1.0 - h2avg*fluxavg((1.0-sqrt(1.0-h)*(1.0+0.5*h))/h**2)
+    ftl = 1.0 - h2avg*fluxavg((1.0-sqrt(1.0-h)*(1.0+0.5*h))/h**2, theta, jacob)
     f_trap = 0.75*ftu + 0.25*ftl 
   end function f_trap
 
   !> FIXME : Add documentation    
-  subroutine plotdata (rgrid, seik, grads, dpsidrho)
+  subroutine plotdata (rgrid, seik, grads, dpsidrho, theta, &
+       rplot, zplot, aplot, rprime, zprime, aprime)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, seik
+    real, dimension (-ntgrid:), intent (in) :: rgrid, seik, theta
     real, dimension (-ntgrid:,:), intent (in) :: grads
+    real, dimension (-ntgrid:), intent(out) :: rplot, zplot, aplot, rprime, zprime, aprime
     real, intent (in) :: dpsidrho
     real :: rplus, rminus, dr
     integer :: i
