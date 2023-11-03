@@ -444,7 +444,7 @@ contains
     !Compute the initial constants
     debug = (verb > 2)
 
-if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
+    if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
     if (local_eq .and. iflux == 1) then
        write (*,*) 'Forcing iflux = 0'
        iflux = 0
@@ -461,7 +461,7 @@ if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
        endif
     endif
 
-if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
+    if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
 
     call check(gen_eq, efit_eq, ppl_eq, &
          local_eq, dfit_eq, idfit_eq, chs_eq)
@@ -528,7 +528,7 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     !     compute derivatives of eikonal
     if(bishop /= 0) then
        drhodpsi = drhodrp / dpsidrp
-       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid),
+       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
        da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
             trip(-ntgrid:ntgrid))
 
