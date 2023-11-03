@@ -1509,10 +1509,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real, dimension(-ntgrid:,:), intent (in) :: rpgrad
     real, dimension(-ntgrid:,:), intent (out) :: bvector
     real, intent (in) :: dpsidrp
-    
     real :: bi
     real, dimension(-ntgrid:ntgrid) :: Rinv
-
     integer :: i
 
     bi = btori(rgrid(0), theta(0))
@@ -1531,12 +1529,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        bvector(i,2) = bvector(i,2) * Rinv(i)
        bvector(i,3) = bvector(i,3) * Rinv(i)
     enddo
-
-    return!?
   end subroutine bvectortgrid
 
   !> FIXME : Add documentation  
-  subroutine gradstottgrid (rmajor, grads, gradstot)
+  pure subroutine gradstottgrid (rmajor, grads, gradstot)
     real, dimension(-ntgrid:), intent (in) :: rmajor
     real, dimension(-ntgrid:, :), intent (in) :: grads
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
@@ -1557,7 +1553,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine gradstottgrid
 
   !> FIXME : Add documentation  
-  subroutine crosstgrid(a, b, c)
+  pure subroutine crosstgrid(a, b, c)
     real, dimension(-ntgrid:, :), intent (in) ::  a, b
     real, dimension(-ntgrid:, :), intent (out) ::  c
     integer :: i
@@ -1569,10 +1565,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     enddo
   end subroutine crosstgrid
 
-  !> FIXME : Add documentation  
-  subroutine dottgrid(a, b, c) 
-    real, dimension (-ntgrid:, :) :: a, b
-    real, dimension (-ntgrid:) :: c
+  !> FIXME : Add documentation
+  pure subroutine dottgrid(a, b, c)
+    real, dimension (-ntgrid:, :), intent(in) :: a, b
+    real, dimension (-ntgrid:), intent(out) :: c
     integer :: i, k, itot
 
     do k = -nperiod+1, nperiod-1
@@ -1584,7 +1580,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine dottgrid
 
   !> FIXME : Add documentation    
-  subroutine dottgridf(a, b, c)
+  pure subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
     real, dimension(-ntgrid:), intent(out) :: c
     c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
@@ -1595,22 +1591,18 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: bt
-    
     if(itor == 0) then
        bmagfun = abs(btori(r, thet)*invRfun(r, thet))
     else if(iflux == 1 .and. gen_eq) then
        bmagfun = bmodfun(r, thet)
-! needs to be upgraded!!!
+       ! needs to be upgraded!!!
     else 
-       bt = btori(r, thet)*invRfun(r, thet)
-       call mp_abort('bmagfun not defined.',.true.)
-!       bmagfun = sqrt(bt**2+bpmagfun(r, thet)**2)
+       call mp_abort('bmagfun not defined for this set of eik flags.',.true.)
     endif
   end function bmagfun
 
   !> FIXME : Add documentation    
-  function Rpos(r, thet)
+  real function Rpos(r, thet)
     use  geq, only: geq_R => Rpos
     use  peq, only: peq_R => Rpos
     use  ceq, only: ceq_R => Rpos
@@ -1621,10 +1613,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: rpos
 
     Rpos = invalidValue
-    
     if(gen_eq)  Rpos = geq_R (r, thet)       
     if(ppl_eq)  Rpos = peq_R (r, thet)       
     if(chs_eq)  Rpos = ceq_R (r, thet)       
@@ -1634,11 +1624,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(local_eq)Rpos = leq_R (r, thet)
 
     if (Rpos == invalidValue) call mp_abort("Rpos not set")
-
   end function Rpos
 
   !> FIXME : Add documentation    
-  function Zpos(r, thet)
+  real function Zpos(r, thet)
     use  geq, only: geq_Z => Zpos
     use  peq, only: peq_Z => Zpos
     use  ceq, only: ceq_Z => Zpos
@@ -1649,7 +1638,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: Zpos
 
     Zpos = invalidValue
     if(gen_eq)  Zpos =  geq_Z (r, thet)       
@@ -1661,7 +1649,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     if(local_eq)Zpos =  leq_Z (r, thet)
 
     if (Zpos == invalidValue) call mp_abort("Zpos not set")
-    
   end function Zpos
 
   !> FIXME : Add documentation    
@@ -1680,7 +1667,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     invRfun = invalidValue
     
     if(itor == 0) then
-       invRfun=1./rmaj
+       invRfun = 1./rmaj
     else
        if(gen_eq)  invRfun =  geq_invR (r, thet)
        if(ppl_eq)  invRfun =  peq_invR (r, thet)
@@ -1692,7 +1679,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if (invRfun == invalidValue) call mp_abort("invRFun not set")
-    
   end function invRfun
 
   !> FIXME : Add documentation    
@@ -1840,7 +1826,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        a(0)=0.
     endif
   end subroutine sym
-      
+
+  !> FIXME: Add documentation
   subroutine seikon(rp, theta, qval, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta
@@ -1924,7 +1911,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine thetagrad
 
   !> FIXME : Add documentation    
-  function diameter(rp)
+  real function diameter(rp)
     use geq, only: geq_diameter => diameter, geq_init_diameter => initialize_diameter
     use peq, only: peq_diameter => diameter, peq_init_diameter => initialize_diameter
     use ceq, only: ceq_diameter => diameter, ceq_init_diameter => initialize_diameter
@@ -1935,7 +1922,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     implicit none
     real, intent(in) :: rp
     integer :: i, initd = 1
-    real :: diameter
     real :: broot0, brootpi
 
     diameter = invalidValue
@@ -1971,36 +1957,29 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function diameter
 
   !> FIXME : Add documentation  
-  function psifun (rp)
+  real function psifun (rp)
     implicit none
     real, intent (in) :: rp
-    real :: psifun
-
-    psifun=min(1.,max(0.,(rp-psi_0)/(psi_a-psi_0)))
+    psifun = min(1., max(0., (rp-psi_0)/(psi_a-psi_0)))
   end function psifun
 
   !> FIXME : Add documentation    
-  function rhofun (rp)
+  real function rhofun (rp)
     use deq, only: deq_rhofun => rhofun, init_rho => initialize_rho
     implicit none
     real, intent (in) :: rp
-    real :: rhofun, pbar
+    real :: pbar
     integer :: i, initrho = 1
-
     pbar = min(1.,max(0.,(rp-psi_0)/(psi_a-psi_0)))
-
     if (eqinit == 1) initrho = 1
-
     i = init_rho(initrho)
     rhofun=deq_rhofun(pbar)
   end function rhofun
 
   !> FIXME : Add documentation    
-  function rpfun(r, thet)
+  real function rpfun(r, thet)
     implicit none
     real, intent (in) :: r, thet
-    real :: rpfun
-
     rpfun=psi(r, thet)
   end function rpfun
 
@@ -2052,16 +2031,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real, dimension(-ntgrid:), intent (out) :: val
     real, dimension(-ntgrid:, :), intent(in) :: x, y
     integer :: i
-
-! factor of 1/R from grad zeta
-
+    ! factor of 1/R from grad zeta
     do i=-nth,nth
        val(i)=(x(i,1)*y(i,2)-x(i,2)*y(i,1))*invRfun(rgrid(i),theta(i))
     enddo
   end subroutine tripprod2dtgrid
 
   !> FIXME : Add documentation    
-  function btori(r, thet)
+  real function btori(r, thet)
     use geq, only: geq_btori => btori , geq_init_btori => initialize_btori
     use peq, only: peq_btori => btori , ppl_init_btori => initialize_btori
     use ceq, only: ceq_btori => btori , chs_init_btori => initialize_btori
@@ -2069,8 +2046,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use leq, only: leq_btori => btori
     implicit none
     real, intent (in) :: r, thet
-    real :: btori
-    real :: pbar, f
+    real :: pbar
     real, save :: r_last, theta_last, I_last
     logical, save :: first_run = .true.
     integer :: i, initb = 1
@@ -2091,23 +2067,20 @@ if (debug) write(6,*) "eikcoefs: end gradients"
 
        if (gen_eq) then
           i=geq_init_btori(initb)
-          f=geq_btori(pbar)
+          btori=geq_btori(pbar)
        elseif (chs_eq) then
           i=chs_init_btori(initb)
-          f=ceq_btori(pbar)
+          btori=ceq_btori(pbar)
        elseif (ppl_eq) then
           i=ppl_init_btori(initb)
-          f=peq_btori(pbar)
+          btori=peq_btori(pbar)
        elseif (efit_eq) then
           i = efit_init_btori(initb)
-          f=eeq_btori(pbar)
+          btori=eeq_btori(pbar)
        elseif (dfit_eq) then
-          f=0.
+          btori=0.
        endif
-
        if(initb == 1) initb = 0
-
-       btori=f
     else         
        btori=leq_btori()
     endif
@@ -2118,9 +2091,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     first_run = .false.
   end function btori
 
-  !> FIXME : Add documentation    
-  function dbtori(r, thet)
- ! returns dI/dpsi
+  !> FIXME : Add documentation
+  !> returns dI/dpsi
+  real function dbtori(r, thet)
     use geq, only: geq_dbtori => dbtori , geq_init_dbtori => initialize_dbtori
     use peq, only: peq_dbtori => dbtori , ppl_init_dbtori => initialize_dbtori
     use ceq, only: ceq_dbtori => dbtori , chs_init_dbtori => initialize_dbtori
@@ -2128,38 +2101,25 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use eeq, only: eeq_dbtori => dbtori, efit_init_dbtori => initialize_dbtori
     implicit none
     real, intent (in) :: r, thet
-    real :: dbtori
-    real :: pbar, f
+    real :: pbar
     integer :: i, initdb = 1
 
     if(eqinit == 1) initdb = 1
 
-    if(iflux == 1) then
-       pbar=min(1.,max(0.,(rpfun(r,thet)-psi_0)/(psi_a-psi_0)))
-
+    if (iflux == 1) then
+       pbar = min(1.,max(0.,(rpfun(r,thet)-psi_0)/(psi_a-psi_0)))
        if (gen_eq) then
-
-          i=geq_init_dbtori(initdb)    ;  f=geq_dbtori(pbar)
-
-       elseif (ppl_eq) then
-
-          i=ppl_init_dbtori(initdb)    ;  f=peq_dbtori(pbar)
-
-       elseif (chs_eq) then
-
-          i=chs_init_dbtori(initdb)    ;  f=ceq_dbtori(pbar)
-
-       elseif (efit_eq) then        
-
-          i = efit_init_dbtori(initdb) ; f=eeq_dbtori(pbar)
-
-       elseif (dfit_eq) then
-          f=0.
-       endif
-
+          i = geq_init_dbtori(initdb) ; dbtori = geq_dbtori(pbar)
+       else if (ppl_eq) then
+          i = ppl_init_dbtori(initdb) ; dbtori = peq_dbtori(pbar)
+       else if (chs_eq) then
+          i = chs_init_dbtori(initdb) ; dbtori = ceq_dbtori(pbar)
+       else if (efit_eq) then        
+          i = efit_init_dbtori(initdb) ; dbtori = eeq_dbtori(pbar)
+       else if (dfit_eq) then
+          dbtori = 0.
+       end if
        if(initdb == 1) initdb = 0
-
-       dbtori=f
     else         
        dbtori=leq_dbtori()
     endif
@@ -2203,19 +2163,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine integrate
 
   !> Calculates rmajor = R(theta), where R is the distance
-  !! to the central axis (rmajor not to be confused with rmaj, r_geo etc)
-  !! rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
+  !> to the central axis (rmajor not to be confused with rmaj, r_geo etc)
+  !> rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
   subroutine rmajortgrid(rgrid, theta, rmajor)
     implicit none
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: rmajor
     integer :: i
-
     do i=-nth,nth
        rmajor(i)=Rpos(rgrid(i),theta(i))
     enddo
-    
-    return!?
   end subroutine rmajortgrid
 
   !> FIXME : Add documentation    
@@ -2224,16 +2181,13 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: Zoftheta
     integer :: i
-
     do i=-nth,nth
        Zoftheta(i)=Zpos(rgrid(i),theta(i))
     enddo
-    
-    return!?
   end subroutine Ztgrid
 
   !> FIXME : Add documentation    
-  function qfun(pbar)
+  real function qfun(pbar)
     use geq, only: geq_qfun => qfun, geq_init_q => initialize_q
     use peq, only: peq_qfun => qfun, ppl_init_q => initialize_q
     use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
@@ -2242,7 +2196,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent(in) :: pbar
-    real :: qfun
     integer :: i, initq = 1
     
     qfun = invalidValue
@@ -2271,13 +2224,11 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
 
     if(initq == 1) initq = 0
-
     if (qfun == invalidValue) call mp_abort("qfun not set")
-    
   end function qfun
 
   !> FIXME : Add documentation    
-  function pfun(r,thet)
+  real function pfun(r,thet)
     use  geq, only: geq_pfun => pfun, geq_init_pressure => initialize_pressure
     use  peq, only: peq_pfun => pfun, ppl_init_pressure => initialize_pressure
     use  ceq, only: ceq_pfun => pfun, chs_init_pressure => initialize_pressure
@@ -2288,8 +2239,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: pfun
-    real :: pbar, f
+    real :: pbar
     integer :: i, initp = 1
 
     pfun = invalidValue
@@ -2299,9 +2249,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        return
     endif
 
-    f=0.
     pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
-
     if(eqinit == 1) initp = 1
     
     if (gen_eq) then
@@ -2331,7 +2279,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function pfun
 
   !> FIXME : Add documentation    
-  function dpfun(r, thet)
+  real function dpfun(r, thet)
     use  geq, only: geq_dpfun => dpfun, geq_init_dpressure => initialize_dpressure
     use  peq, only: peq_dpfun => dpfun, ppl_init_dpressure => initialize_dpressure
     use  ceq, only: ceq_dpfun => dpfun, chs_init_dpressure => initialize_dpressure
@@ -2342,8 +2290,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: dpfun
-    real :: pbar, f
+    real :: pbar
     integer :: i, initdp = 1
 
     dpfun = invalidValue
@@ -2353,7 +2300,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        return
     endif
 
-    f=0.
     pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
 
     if(eqinit == 1) initdp = 1
@@ -2378,7 +2324,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function dpfun
 
   !> FIXME : Add documentation    
-  function beta_a_fun(r,thet)
+  real function beta_a_fun(r,thet)
     use  geq, only: geq_beta => betafun,  geq_init_beta => initialize_beta
     use  peq, only: peq_beta => betafun,  ppl_init_beta => initialize_beta
     use  ceq, only: ceq_beta => betafun,  chs_init_beta => initialize_beta
@@ -2387,8 +2333,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use ideq, only: ideq_beta => betafun, idfit_init_beta => initialize_beta
     implicit none
     real, intent (in) :: r, thet
-    real :: beta_a_fun
-    real :: pbar, f
+    real :: pbar
     integer :: i, initbeta = 1
 
     if(iflux == 0 .or. iflux == 2) then
@@ -2400,31 +2345,29 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        if(eqinit == 1) initbeta = 1
     endif
     
-    f=0.
+    beta_a_fun = 0.
     pbar=min(1.,max(0.,(psi(r,thet)-psi_0)/(psi_a-psi_0)))
     
     if (gen_eq) then
        i = geq_init_beta(initbeta)
-       f = geq_beta(pbar)
+       beta_a_fun = geq_beta(pbar)
     elseif (ppl_eq) then
        i = ppl_init_beta(initbeta)
-       f = peq_beta(pbar)
+       beta_a_fun = peq_beta(pbar)
     elseif (chs_eq) then
        i = chs_init_beta(initbeta)
-       f = ceq_beta(pbar)
+       beta_a_fun = ceq_beta(pbar)
     elseif(efit_eq) then
        i = efit_init_beta(initbeta)
-       f = eeq_beta(pbar)
+       beta_a_fun = eeq_beta(pbar)
     elseif(dfit_eq) then
        i = dfit_init_beta(initbeta)
-       f = deq_beta(pbar)
+       beta_a_fun = deq_beta(pbar)
     elseif(idfit_eq) then
        i = idfit_init_beta(initbeta)
-       f = ideq_beta(pbar)
+       beta_a_fun = ideq_beta(pbar)
     endif
-
     initbeta = 0
-    beta_a_fun=f
   end function beta_a_fun
 
   !> FIXME : Add documentation    
@@ -2435,19 +2378,16 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     !     punt for now; not used
     if(iflux /= 1) then
        pbarofrho=0.
-       return         
-    endif
-
-    pbarofrho=min(1.,max(0.,(rpofrho(rho, fort11_unit)-psi_0)/(psi_a-psi_0)))
+    else
+       pbarofrho=min(1.,max(0.,(rpofrho(rho, fort11_unit)-psi_0)/(psi_a-psi_0)))
+    end if
   end function pbarofrho
 
   !> FIXME : Add documentation    
-  function dqdrhofun(rho, shat, fort11_unit)
+  real function dqdrhofun(rho, shat, fort11_unit)
     implicit none
     real, intent (in) :: rho, shat
     integer, intent(in) :: fort11_unit
-    real dqdrhofun
-    
     dqdrhofun=shat*qfun(pbarofrho(rho, fort11_unit))/(rhoc)
   end function dqdrhofun
 
@@ -2490,7 +2430,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           b1=trial
           f2=f3
        endif
-!      write(fort11_unit,*) 'i,a1,f1,b1,f2 ',i,a1,f1,b1,f2
     enddo
  1000 continue
     if( abs(f1) > abs(f2) ) then
@@ -2502,7 +2441,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        b1=aold
     endif
 !     start secant method
-!     write(fort11_unit,*) 'a1,f1,b1,f2',a1,f1,b1,f2
     isolv=0
     do i=1,10
        aold=a1
@@ -2511,31 +2449,22 @@ if (debug) write(6,*) "eikcoefs: end gradients"
        a1=a1-f1*(b1-a1)/f3
        f2=f1
        b1=aold
-!       write(fort11_unit,*) 'a1,f1,b1,f2',a1,f1,b1,f2
        if(abs(a1-b1) < xerrsec) isolv=isolv+1
        if (isolv >= nsolv) goto 9000
        f1=f(a1)-fval
     enddo
 9000 soln=a1
-
   end subroutine root
 
   !> FIXME : Add documentation    
-  function phi(rp)
+  real function phi(rp)
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: rp
-    real :: phi
     integer, parameter :: nimax = 200
     real :: pbar, pb(nimax), dpb
-    integer :: i, ni
+    integer :: i
       
-    !This variable+logic doesn't seem to have any point?
-    ni=200
-    if(ni > nimax) then
-       call mp_abort('Increase nimax in phi function',.true.)
-    endif
-    
     pbar=(rp-psi_0)/(psi_a-psi_0)
     if(.not.between(pbar,0.,1.)) then
        write(*,*) 'Defining Phi outside of plasma'
@@ -2543,18 +2472,18 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     endif
     
     phi=0.      
-    do i=1,ni
-       pb(i)=pbar*float(i-1)/float(ni-1)
+    do i=1,nimax
+       pb(i)=pbar*float(i-1)/float(nimax-1)
     enddo
-    dpb=pbar/float(ni-1)
-    do i=1,ni-1 ! fixed by MB
+    dpb=pbar/float(nimax-1)
+    do i=1,nimax-1 ! fixed by MB
        phi=phi+0.5*dpb*(qfun(pb(i+1))+qfun(pb(i)))
     enddo
     phi=phi*(psi_a-psi_0)   ! fixed by MB
   end function phi
       
   !> FIXME : Add documentation  
-  function psi(r, thet)
+  real function psi(r, thet)
     use  geq, only: geq_psi => psi,  geq_init_psi => initialize_psi
     use  peq, only: peq_psi => psi,  ppl_init_psi => initialize_psi
     use  ceq, only: ceq_psi => psi,  chs_init_psi => initialize_psi
@@ -2565,7 +2494,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: psi    
     integer :: init = 1, i
 
     psi = invalidValue
@@ -2612,10 +2540,9 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function psi
 
   !> FIXME : Add documentation    
-  function between(x,x1,x2)
+  pure logical function between(x,x1,x2)
     implicit none
     real, intent(in) :: x, x1, x2
-    logical :: between
     if( ((x1 <= x).and.(x <= x2)) .or. ((x1 >= x).and.(x >= x2)) ) then
        between = .true.
     else
@@ -2624,8 +2551,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function between
 
   !> FIXME : Add documentation
-  !!
-  !! @note This routine is just used by eik, not GS2
+  !>
+  !> @note This routine is just used by eik, not GS2
   subroutine geofax(rho, theta, t, e, d, fort11_unit)
     implicit none
     real, intent (in) :: rho
@@ -2639,10 +2566,10 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     integer :: i
     logical, save :: first=.true.
     if(first)then
-       write(6,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
+       write(*,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
        first=.false.
     endif
-    rp=rpofrho(rho, fort11_unit)
+    rp = rpofrho(rho, fort11_unit)
 
     if(efit_eq .or. dfit_eq) then
        call rtg(rgrid, rp, theta)
@@ -2697,28 +2624,23 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine geofax
 
   !> FIXME : Add documentation    
-  function rmagaxis()
-    implicit none
-    real :: rmagaxis
-    
+  real function rmagaxis()
     if(iflux == 1) then
        rmagaxis=rmaj
     else
-      write (*,*) 'ERROR: This formula for rmagaxis is wrong: &
-        & the position of the magnetic axis is undefined &
-        & in local (Miller) geometry'
-      stop 1
+       call mp_abort( &
+            'ERROR: This formula for rmagaxis is wrong: &
+            & the position of the magnetic axis is undefined &
+            & in local (Miller) geometry', .true.)
       ! EGH This is wrong! When iflux=0, r_geo
       ! is I_N=I/a^2 Ba where I = RB_t
       ! As far as I can tell this formula is not used
       ! anywhere so no harm done.
-       rmagaxis=R_geo
     endif
-    
   end function rmagaxis
 
   !> FIXME : Add documentation    
-  function rcenter(rp)
+  real function rcenter(rp)
     use geq, only: geq_rcenter => rcenter, geq_init_rc => initialize_rcenter
     use peq, only: peq_rcenter => rcenter, peq_init_rc => initialize_rcenter
     use ceq, only: ceq_rcenter => rcenter, ceq_init_rc => initialize_rcenter
@@ -2728,7 +2650,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     use constants, only: pi
     implicit none
     real, intent (in) :: rp
-    real :: rcenter
     integer :: i, init_rc = 1
     real :: broot0, brootpi
     if(eqinit == 1) init_rc = 1
@@ -2755,30 +2676,18 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end function rcenter
 
   !> FIXME : Add documentation    
-  function bmodfun(r,thet)
+  real function bmodfun(r,thet)
     use geq, only: geqitem => eqitem, eqB_psi => B_psi
     use ideq, only: ideqitem => eqitem, ideqB_psi => B_psi
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: bmodfun
-    integer :: init = 1
     real :: f
-
-    if(eqinit == 1) init = 1 
-
     if (gen_eq) then
-       
-       call geqitem(r, thet, eqB_psi, f, 'R')
-       bmodfun=f
-       return
-    elseif (idfit_eq) then
-       
-       call ideqitem(r, thet, ideqB_psi, f, 'R')
-       bmodfun=f
-       return
+       call geqitem(r, thet, eqB_psi, bmodfun, 'R')
+    else if (idfit_eq) then
+       call ideqitem(r, thet, ideqB_psi, bmodfun, 'R')
     else
-       write(*,*) 'Stopping in bmodfun.'  
        call mp_abort('You must use gen_eq or idfit_eq to call bmodfun.',.true.)
     endif
   end function bmodfun
@@ -2822,7 +2731,7 @@ if (debug) write(6,*) "eikcoefs: end gradients"
     real, dimension (-ntgrid:), intent(out) :: ltheta
     integer :: i
     real :: rold, told, rpos_old, zpos_old, rpos_new, zpos_new
-    real :: r, thet  !, L_tot
+    real :: r, thet
         
     ltheta(0)=0.
 !
@@ -3173,15 +3082,15 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine check
 
   !> Calculate the derivative of rp w.r.t. R and Z. Parameters
-  !! are: 
-  !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-  !!   - theta: grid of theta
-  !!   - gradf(:,1): deriv w.r.t. R as fn of theta
-  !!   - gradf(:,2): deriv w.r.t  Z as fn of theta
-  !!   - char: if char = 'R', return the gradient of pressure instead
-  !!   - rp: value of rp on the flux surface where we want the grad
-  !!   - nth: number of theta points
-  !!   - ntgrid: lower index of theta array is -ntgrid
+  !> are:
+  !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+  !>   - theta: grid of theta
+  !>   - gradf(:,1): deriv w.r.t. R as fn of theta
+  !>   - gradf(:,2): deriv w.r.t  Z as fn of theta
+  !>   - char: if char = 'R', return the gradient of pressure instead
+  !>   - rp: value of rp on the flux surface where we want the grad
+  !>   - nth: number of theta points
+  !>   - ntgrid: lower index of theta array is -ntgrid
   subroutine grad(rgrid, theta, gradf, char, rp, nth, ntgrid)
      use  geq, only:  geq_gradient => gradient
      use  peq, only:  peq_gradient => gradient
@@ -3207,19 +3116,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
    end subroutine grad
    
    !> Calculate the derivative of rp w.r.t. R and Z and return
-   !! the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
-   !! Parameters are: 
-   !!   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-   !!   - theta: grid of theta
-   !!   - gradf(:,1): |grad psi|
-   !!   - gradf(:,2): 0.0
-   !!   - char: if char = 'R', return |grad pressure| instead
-   !!   - char: if char = 'T', then return theta gradient in bishop form
-   !!    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
-   !!    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
-   !!   - rp: value of rp on the flux surface where we want the grad
-   !!   - nth: number of theta points
-   !!   - ntgrid: lower index of theta array is -ntgrid
+   !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
+   !> Parameters are:
+   !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+   !>   - theta: grid of theta
+   !>   - gradf(:,1): |grad psi|
+   !>   - gradf(:,2): 0.0
+   !>   - char: if char = 'R', return |grad pressure| instead
+   !>   - char: if char = 'T', then return theta gradient in bishop form
+   !>    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
+   !>    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
+   !>   - rp: value of rp on the flux surface where we want the grad
+   !>   - nth: number of theta points
+   !>   - ntgrid: lower index of theta array is -ntgrid
    subroutine bgrad(rgrid, theta, gradf, char, rp, nth, ntgrid)
      use  geq, only:  geq_bgradient => bgradient
      use  peq, only:  peq_bgradient => bgradient
@@ -3245,8 +3154,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
    end subroutine bgrad
 
   !> Calculate rgrid for the case of eeq and deq: 
-  !! in this case, rgrid is the distance to the magnetic 
-  !! axis as a function of theta.
+  !> in this case, rgrid is the distance to the magnetic
+  !> axis as a function of theta.
   subroutine rtg(rgrid, rp, theta)
     use mp, only: mp_abort
     use eeq, only: ebound => bound
@@ -3281,19 +3190,19 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine rtg
 
   !> Returns the distance to the magnetic axis
-  !! as a function of rp (the normalised poloidal flux variable)
-  !! and theta. If broot is set > 0, assumes distance is less 
-  !! than or equal to broot: i.e. specifies the outer limit 
-  !! of the root finding.
-  !! Only for eeq and deq
-  function rfun(rp, thet, broot)
+  !> as a function of rp (the normalised poloidal flux variable)
+  !> and theta. If broot is set > 0, assumes distance is less
+  !> than or equal to broot: i.e. specifies the outer limit
+  !> of the root finding.
+  !> Only for eeq and deq
+  real function rfun(rp, thet, broot)
     use eeq, only: ebound => bound
     use deq, only: dbound => bound
     implicit none
     real, intent(in) :: rp, thet
     real, intent(in out) :: broot
     integer :: i, j, k, imax, jmax, kmax
-    real :: rfun, fa, fb, fbroot, bmult, rootval, thetroot
+    real :: fa, fb, fbroot, bmult, rootval, thetroot
     real :: a, b, xerrsec
 
     if(.not. (efit_eq .or. dfit_eq)) then
@@ -3339,17 +3248,14 @@ if (debug) write(6,*) "eikcoefs: end gradients"
           enddo
        enddo
     enddo
-    write(*,*) 'yuk'
+    write(*,*) 'yuk: Did not find bracket of root in rfun'
  100   continue 
     xerrsec=1.e-9
-!         write(*,*) 'a, b = ',a,b
     rfun=zbrent(rpfun, a, b, rootval, thetroot, xerrsec)
-!         write(*,1000) a, b, fa, fb, rfun, thet
-! 1000 format(1x,11e16.9)
   end function rfun
 
   !> FIXME : Add documentation    
-  function zbrent(func, x1, x2, rootval, thetroot, tol)
+  real function zbrent(func, x1, x2, rootval, thetroot, tol)
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: x1, x2, rootval, thetroot, tol
@@ -3358,7 +3264,6 @@ if (debug) write(6,*) "eikcoefs: end gradients"
         real, intent(in) :: x_, root_
       end function func
     end interface
-    real :: zbrent
     real, parameter :: eps = 3.e-8, eps1 = 2.e-8
     integer, parameter :: itmax = 100
     real :: a, b, c, fa, fb, fc, d, e, tol1, xm, q, p, r, s
@@ -3458,10 +3363,8 @@ if (debug) write(6,*) "eikcoefs: end gradients"
   end subroutine Hahm_Burrell
 
   !> FIXME : Add documentation    
-  function nth_get()
+  pure integer function nth_get()
     implicit none
-    integer :: nth_get
-
     nth_get = nth
   end function nth_get
 
