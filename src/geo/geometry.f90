@@ -467,13 +467,14 @@ if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
          local_eq, dfit_eq, idfit_eq, chs_eq)
 
     thetaShift = 0.0
-    bMaxShift = .true. ! limits the initialization routine to run no more than twice
+    bMaxShift = .true.
     do while (bMaxShift)
        call initialise_geometry_and_get_bmod
+       if (iflux == 10) return
 
-       ! Start theta shift calc
-       ! This is used to modify the definition of theta such that the maxiumum magnetic field is at pi
-       ! This is necessary to correctly calculate bounce points ! JRB
+       ! Start theta shift calc. This is used to modify the definition
+       ! of theta such that the maxiumum magnetic field is at pi. This
+       ! is necessary to correctly calculate bounce points
        bMaxShift = .false.
        ! if using Miller local equilibrium
        if (iflux /= 1 .and. iflux /= 10) then
