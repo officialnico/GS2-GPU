@@ -371,7 +371,7 @@ contains
     integer :: job_id
 ! Local variables:
     real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2
-    real, allocatable, dimension(:)   :: dsdthet, dsdthet1, dsdthet2
+    real, allocatable, dimension(:)   :: dsdthet
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
     real, allocatable, dimension(:)   :: gdsdum4, gdsdum5  ! MAB
     real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta
@@ -691,8 +691,8 @@ contains
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
        ! this _might_ not do what is expected.
-       call seikon(rp1, theta, qval1, seik1, dsdthet1, dummy, dum)
-       call seikon(rp2, theta, qval2, seik2, dsdthet2, dummy, dum)
+       call seikon(rp1, theta, qval1, seik1, dummy2, dummy, dum)
+       call seikon(rp2, theta, qval2, seik2, dummy2, dummy, dum)
 
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
@@ -730,7 +730,7 @@ contains
 
        ! this is really gradient of alpha
        ! note that coordinates are R and Z (not rho and l, as in bishop case)
-       ! Note we don't use dsdthet1/2
+       ! Note we don't use dsdthet1/2 (dummy2 above)
        do k=-nperiod+1,nperiod-1
           do j=1,2
              do i=-nth,nth
@@ -1263,8 +1263,6 @@ contains
            seik1      (-n:n), &
            seik2      (-n:n), &
            dsdthet    (-n:n), &
-           dsdthet1   (-n:n), &
-           dsdthet2   (-n:n), &
            gdsdum1    (-n:n), &
            gdsdum2    (-n:n), &
            gdsdum3    (-n:n), &
@@ -1275,6 +1273,7 @@ contains
            ltheta     (-n:n), &
            rgrid      (-n:n), &
            dummy      (-n:n), &
+           dummy2     (-n:n), &
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
            dSdl       (-n:n), &
@@ -1337,8 +1336,6 @@ contains
            seik1     , &
            seik2     , &
            dsdthet   , &
-           dsdthet1  , &
-           dsdthet2  , &
            gdsdum1   , &
            gdsdum2   , &
            gdsdum3   , &
@@ -1349,6 +1346,7 @@ contains
            ltheta    , &
            rgrid     , &
            dummy     , &
+           dummy2    , &
            Bpolmag   , &
            Bmod      , &
            dSdl      , &
