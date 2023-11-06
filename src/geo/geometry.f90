@@ -2963,7 +2963,7 @@ contains
     
     if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
       write (*,*) 'Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
-      & efit_eq, ppl_eq, iflux = 0 is not permitted'
+      & efit_eq, ppl_eq, local_eq is not permitted'
        write(*,*) 'Stopping.'
        call mp_abort('Clash of equilibrium flags.')
     endif
@@ -2987,7 +2987,7 @@ contains
     endif
 
     if(geq .and. leq) then
-       write(*,*) 'Choosing gen_eq = .true. AND iflux = 0 is not permitted.'
+       write(*,*) 'Choosing gen_eq = .true. AND local_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
        call mp_abort('Clash of equilibrium flags.')
     endif
@@ -2999,7 +2999,7 @@ contains
     endif
 
     if(eeq .and. leq) then
-       write(*,*) 'Choosing efit_eq = .true. AND iflux = 0 is not permitted.'
+       write(*,*) 'Choosing efit_eq = .true. AND local_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
        call mp_abort('Clash of equilibrium flags.')
     endif
@@ -3011,7 +3011,7 @@ contains
     endif
 
     if(deq .and. leq) then
-       write(*,*) 'Choosing dfit_eq = .true. AND iflux = 0 is not permitted.'
+       write(*,*) 'Choosing dfit_eq = .true. AND local_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
        call mp_abort('Clash of equilibrium flags.')
     endif
@@ -3023,7 +3023,7 @@ contains
     endif
 
     if(peq .and. leq) then
-       write(*,*) 'Choosing ppl_eq = .true. AND iflux = 0 is not permitted.'
+       write(*,*) 'Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.'
        write(*,*) 'Stopping.'
        call mp_abort('Clash of equilibrium flags.')
     endif
