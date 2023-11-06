@@ -133,7 +133,7 @@ module geometry
   logical :: writelots, equal_arc
   character(len=800) :: eqfile, eqnormfile
 
-  real :: dp_new, di_new, psi_0, psi_a, avgrmid, rpmin, rpmax
+  real :: psi_0, psi_a, avgrmid, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -391,7 +391,7 @@ contains
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
     real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
     real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin, beta_prime_new, s_hat_new
-    real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0
+    real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, Ltot, rinv
@@ -1651,7 +1651,8 @@ contains
     else
        char='B'
        if(bishop >= 1) then
-          call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, bgrad1)
+          call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
+               dp_new, bgrad1)
        else
           call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
@@ -2915,10 +2916,11 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
-  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, gradB)
+  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, theta
+    real, intent(in) :: dp_new
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
     real :: bi, bp
