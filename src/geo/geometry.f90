@@ -370,8 +370,8 @@ contains
     logical :: start_file_utils, dummy
     integer :: job_id
 ! Local variables:
-    real, allocatable, dimension(:)   :: dsdrp, grho2, seik, seik1, seik2
-    real, allocatable, dimension(:)   :: dsdthet, dsdthet1, dsdthet2, grho1
+    real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2
+    real, allocatable, dimension(:)   :: dsdthet, dsdthet1, dsdthet2
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
     real, allocatable, dimension(:)   :: gdsdum4, gdsdum5  ! MAB
     real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta
@@ -938,11 +938,6 @@ contains
     call integrate(jacob, theta, ans, nth)
     dvdrhon=2.*pi*(ans(nth)-ans(-nth))
 
-    !     compute < |grad rho|**2>
-    do i=-nth,nth
-       grho2(i)=grho(i)**2*jacob(i)
-    enddo
-
     if(isym == 1) then
        call sym(gds2, 0, ntgrid)
        call sym(gds21, 1, ntgrid)
@@ -1264,8 +1259,6 @@ contains
       integer, intent(in) :: n
 
       allocate(dsdrp  (-n:n), &
-           grho2      (-n:n), &
-           grho1      (-n:n), &
            seik       (-n:n), &
            seik1      (-n:n), &
            seik2      (-n:n), &
@@ -1340,8 +1333,6 @@ contains
       implicit none
       
       deallocate(dsdrp     , &
-           grho2     , &
-           grho1     , &
            seik      , &
            seik1     , &
            seik2     , &
