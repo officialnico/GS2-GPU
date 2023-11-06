@@ -446,12 +446,12 @@ contains
 
     if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
     if (local_eq .and. iflux == 1) then
-       write (*,*) 'Forcing iflux = 0'
+       write (*,*) 'Forcing iflux = 0 as local_eq is true'
        iflux = 0
     end if
 
     if(iflux == 0 .or. iflux == 2) then
-       if(.not. local_eq) write(*,*) 'Forcing local_eq = true'
+       if(.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0 or 2'
        local_eq = .true.
        if(irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
@@ -543,7 +543,6 @@ contains
 
        if(iflux == 0 .or. iflux == 2) trip = trip * dpsidrp
 
-       !CMR, June06
        if (debug) write(6,*) "eikcoefs:  gradients"
        if (debug) write(6,*) 'drhodpsi', drhodpsi
        if (debug) write(6,*) 'bi', bi
@@ -556,7 +555,6 @@ contains
        if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
        if (verb > 5) write(6,*) -Rpol(-nth:nth)/bpolmag(-nth:nth)
        if (debug) write(6,*) "eikcoefs: end gradients"
-       !CMRend
 
        da_bish = da_bish/trip
        db_bish = db_bish/trip
@@ -586,10 +584,8 @@ contains
        if (abs(qval) > epsilon(0.)) then
           tmp = rho/qval/(2.*pi)/drhodpsi
           s_hat = tmp*(a_b*di+ b_b*dp + c_b*2)
-          !CMR, June06
           if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
           if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat
-          !CMRend
        else
           tmp = 1.
           s_hat = 0.
@@ -1062,12 +1058,10 @@ contains
             if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
             if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
             if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
-            !CMRend
          else if(ppl_eq) then
             call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
          else if(chs_eq) then
             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-            !if (debug) write (*,*)
          else if(efit_eq) then
             if(big <= 0) big = 8
 
@@ -1127,13 +1121,6 @@ contains
          rpmax = 1.0
          rp=rho
       endif
-
-      !    if(iflux == 0 .and. R_geo /= rmaj) then
-      !       write(6,*)
-      !       write(6,*) 'You have set R_geo not equal to Rmaj.'
-      !       write(6,*) 'This is unusual!  Make sure you mean it.'
-      !       write(6,*)
-      !    endif
 
       if(iflux == 1) R_geo=rcenter(rpmax)
 
