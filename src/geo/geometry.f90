@@ -694,6 +694,9 @@ contains
           qval2=qval+dqdrho*delrho
        endif
 
+       ! Note seikon sets rgrid = rp. This is only the same as the regular
+       ! rgrid for equilibrium types other than efit or dfit. For those cases
+       ! this _might_ not do what is expected.
        call seikon(rp1, theta, qval1, seik1, dsdthet1, rgrid1, dum)
        call seikon(rp2, theta, qval2, seik2, dsdthet2, rgrid2, dum)
 
