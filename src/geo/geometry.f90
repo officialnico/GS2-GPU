@@ -103,7 +103,6 @@
 !> rmax :: should be equal to unity
 !>
 !> isym :: 1 -> assume up-down symmetric equilibrium.
-!> in_nt :: .true. if running inside of nt.
 !> writelots :: .true. for more output
 !>
 !>
@@ -123,7 +122,7 @@ module geometry
   public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, Hahm_Burrell
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
-  public :: rmin, rmax, isym, in_nt, writelots,  equal_arc, bishop, qinp, s_hat_input
+  public :: rmin, rmax, isym, writelots,  equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
@@ -143,7 +142,7 @@ module geometry
   integer :: eqinit = 1, big = 0
 
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
-  logical :: in_nt, writelots, equal_arc
+  logical :: writelots, equal_arc
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
   !> EFIT and local equilbria, this is set from
@@ -1057,15 +1056,15 @@ contains
          avgrmid=1.
       case (1, 10)
          if(gen_eq) then
-            call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
          else if(ppl_eq) then
             if (transp_eq) then
-               call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+               call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
             else
-               call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+               call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
             end if
          else if(chs_eq) then
-            call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
          else if(efit_eq) then
             if(big <= 0) big = 8
 
@@ -2304,10 +2303,6 @@ contains
     if(iflux == 0 .or. iflux == 2) then
        beta_a_fun=0.
        return
-    endif
-    
-    if(in_nt .and. iflux == 1) then
-       if(eqinit == 1) initbeta = 1
     endif
     
     beta_a_fun = 0.

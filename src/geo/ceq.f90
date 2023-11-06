@@ -199,13 +199,12 @@ contains
 
   !> FIXME : Add documentation  
   subroutine ceqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, in_nt, nthg) 
+       avgrmid, initeq, nthg) 
     use read_chease, only: read_infile
     implicit none
     character(len=*), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
-    logical, intent(in) :: in_nt 
     integer, intent(out) :: nthg
     real :: f_N, psi_N
 
@@ -219,15 +218,12 @@ contains
       nthg = nt
       return
     endif
-    
-    if (.not.in_nt) then
        
-       write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
-       !    Read the data
-       call read_infile(trim(eqfile))
-
-       call set_ceq_from_chease
-    endif
+    write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
+    !    Read the data
+    call read_infile(trim(eqfile))
+    
+    call set_ceq_from_chease
                        
     !
     !     Normalize, rename quantities 

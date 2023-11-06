@@ -8,7 +8,7 @@ program eiktest
   use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
-  use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult, in_nt
+  use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
   use geometry, only: eikcoefs_output, eqinit, geofax, Hahm_Burrell, eikcoefs
   use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
@@ -34,7 +34,7 @@ program eiktest
 
   logical :: no_end_point
 
-  logical :: fast, dipole, list, Xanthopoulos
+  logical :: fast, dipole, list, Xanthopoulos, in_nt
   character(len=:), allocatable :: in_stem, out_stem
 
   character(len=run_name_size) :: ncout
@@ -74,7 +74,7 @@ program eiktest
   tstar = 1.0
 
   ntheta=32; nperiod=1
-  equal_arc = .false. ; bishop = 0 ; in_nt = .false. ; fast = .true.
+  equal_arc = .false. ; bishop = 0 ; fast = .true.
   itor=1; iflux=0;  big = 8
 
   eqfile='dskeq.cdf'
@@ -123,6 +123,10 @@ program eiktest
   open(newunit=funit,file=in_stem//'.in')
   read(funit,nml=stuff)
   close(funit)
+
+  if (Xanthopoulos) write(*,*) "Option deprecated : Xanthopoulos set but unused"
+  if (in_nt) write(*,*) "Option deprecated : in_nt set but unused"
+  if (.not. fast) write(*,*) "Option deprecated : fast set but doesn't do anything"
   
   if(bishop >= 7) then
      if(beta_prime_times == -1) then

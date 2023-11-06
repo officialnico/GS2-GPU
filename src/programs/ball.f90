@@ -7,7 +7,7 @@ program ball
   use geometry, only: bishop, irho, isym, efit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
-  use geometry, only: transp_eq, alpha_input, dp_mult, in_nt
+  use geometry, only: transp_eq, alpha_input, dp_mult
   use geometry, only: deltam, deltan, deltampri, deltanpri, eqinit
   implicit none
 
@@ -37,7 +37,7 @@ program ball
 ! set defaults
 
   ntheta=32; nperiod=1
-  equal_arc = .false. ; bishop = 0 ; in_nt = .false.
+  equal_arc = .false. ; bishop = 0
   itor=1; iflux=0
 
   eqfile='dskeq.cdf'
