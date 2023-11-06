@@ -1091,6 +1091,7 @@ module theta_grid_eik
   
   logical :: exist, initialized = .false.
   type(eikcoefs_output) :: eikcoefs_results
+  integer :: ntheta_geometry
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_eik_config_type
@@ -1656,7 +1657,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: nperiod_geo => nperiod, ntheta_geometry
+    use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: run_eikcoefs_and_resample
@@ -1818,7 +1819,7 @@ contains
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult, s_hat_input
     use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
     use geometry, only: deltampri, deltanpri, thetam, thetan, qinp, rmaj, r_geo
-    use geometry, only: delrho, rmin, rmax, ntheta_geometry, isym, writelots
+    use geometry, only: delrho, isym, writelots
     use theta_grid_params, only: nperiod_in => nperiod
     use theta_grid_params, only: rhoc_in => rhoc
     use theta_grid_params, only: rmaj_in => rmaj, r_geo_in => r_geo

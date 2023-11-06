@@ -120,7 +120,7 @@ module geometry
   public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
-  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
+  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: eikcoefs_output, run_eikcoefs_and_resample
 
   integer :: geotype, mMode, nMode
@@ -128,7 +128,7 @@ module geometry
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
   real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
 
-  integer :: nperiod, ntheta_geometry
+  integer :: nperiod
   integer :: itor, iflux, irho, isym, bishop
 
   real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
