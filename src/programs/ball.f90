@@ -107,8 +107,8 @@ program ball
      write(*,*) 'Forcing itor=1'
   endif
   
-  if(iflux.eq.2) then
-     write(*,*) 'iflux=2 is not a standalone option.'
+  if(iflux /= 0 .and. iflux /=0) then
+     write(*,*) 'iflux=0 or 1 is the only option.'
      stop
   endif
 !

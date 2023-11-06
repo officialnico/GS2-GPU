@@ -14,11 +14,6 @@
 !>                      set eqfile = input file name]
 !>             efit_eq = .true. :: use EFIT  equilibrium
 !>             dfit_eq = .true. :: use dipole equilibrium
-!>          case (2) :: running inside nt without actual equilibria
-!>                       iflux = 2 forces local_eq = .true. and irho = 2
-!>                     The only difference wrt iflux = 0 is that this skips
-!>                     calculation of theta grid and allocation of local arrays. This
-!>                     currently leads to seg-faults.
 !> irho :: choose flux surface label
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
@@ -453,8 +448,8 @@ contains
        iflux = 0
     end if
 
-    if(iflux == 0 .or. iflux == 2) then
-       if(.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0 or 2'
+    if(iflux == 0) then
+       if(.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0'
        local_eq = .true.
        if(irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
@@ -545,7 +540,7 @@ contains
        call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
        if (nperiod > 1) call periodic_copy(trip, 0.)
 
-       if(iflux == 0 .or. iflux == 2) trip = trip * dpsidrp
+       if(iflux == 0) trip = trip * dpsidrp
 
        if (debug) write(6,*) "eikcoefs:  gradients"
        if (debug) write(6,*) 'drhodpsi', drhodpsi
@@ -577,7 +572,7 @@ contains
        c_bish = - c_bish * Bpolmag * rmajor
 
        ! find shat, pressure' and report them
-       if(iflux == 0 .or. iflux == 2) then
+       if(iflux == 0) then
           dp = dpdrhofun()*drhodpsi
        else
           dp = dpfun(rgrid(0),theta(0))
@@ -700,7 +695,7 @@ contains
        delrp=delrho/drhodrp
        rp1=rp-delrp
        rp2=rp+delrp
-       if (iflux == 0 .or. iflux == 2) then
+       if (iflux == 0) then
           dqdrho=dqdrhofun(rho, shat, fort11_unit)
           qval1=qval-dqdrho*delrho
           qval2=qval+dqdrho*delrho
@@ -733,7 +728,7 @@ contains
        rpval(2)=rp1
        rpval(3)=rp2
 
-       if(iflux == 0 .or. iflux == 2) then
+       if(iflux == 0) then
           dbetadrho = 2.*dpdrhofun()
        else
           dbetadrho = 2.*dpfun(rgrid(0),theta(0))/drhodrp
@@ -1041,19 +1036,15 @@ contains
 
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
+      if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
 
-      if(iflux /= 1) then
+      select case (iflux)
+      case (0)
          nth = ntheta_input / 2
          if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
          call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, &
               mMode, nMode, deltam, deltan, deltampri, deltanpri, &
               thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-      endif
-
-      if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
-
-      select case (iflux)
-      case (0)
          avgrmid=1.
       case (1, 10)
          if(gen_eq) then
@@ -1086,15 +1077,11 @@ contains
             call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit)
          endif
          if (debug) write(6,*) 'eikcoefs: iflux=',iflux
-      case (2)
-         continue
       end select
 
-      if (iflux /= 2) then
-         call init_uniform_theta_grid(ntheta_input, theta)
-         if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-         if (.not. allocated(smodel)) call alloc_local_arrays(ntgrid)
-      end if
+      call init_uniform_theta_grid(ntheta_input, theta)
+      if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
+      if (.not. allocated(smodel)) call alloc_local_arrays(ntgrid)
 
       if (debug) writelots=.true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
@@ -1259,13 +1246,13 @@ contains
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
       !     compute eikonal S
-      if(iflux == 0 .or. iflux == 2) qval=qfun(pbarofrho(rho, fort11_unit))
+      if (iflux == 0) qval=qfun(pbarofrho(rho, fort11_unit))
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if(writelots) write(fort11_unit,*) 'q= ',qval
 
-      if(iflux == 0 .or. iflux == 2) then
+      if (iflux == 0) then
          bi = btori(rgrid(0), theta(0))
          drhodpsin = drhodrp/dpsidrp
          do i=-nth,nth
@@ -1836,16 +1823,16 @@ contains
 
     call integrate(dsdthet, theta, seik, ntgrid)
 
-    if(iflux == 0 .or. iflux == 2) then
+    if (iflux == 0) then
        dpsidrp=-(seik(nth)-seik(-nth))/(2.*pi*qval)
        do i=-nth,nth
           seik(i)=seik(i)/dpsidrp
           dsdthet(i)=dsdthet(i)/dpsidrp
-       enddo
+       end do
     else
        dpsidrp=1.
        qval=-(seik(nth)-seik(-nth))/(2.*pi)
-    endif
+    end if
   end subroutine eikonal
 
   !> FIXME : Add documentation    
@@ -2164,7 +2151,7 @@ contains
     
     qfun = invalidValue
     
-    if(iflux == 0 .or. iflux == 2) then
+    if(iflux == 0) then
        qfun=leq_qfun()
        return
     endif
@@ -2300,7 +2287,7 @@ contains
     real :: pbar
     integer :: i, initbeta = 1
 
-    if(iflux == 0 .or. iflux == 2) then
+    if(iflux == 0) then
        beta_a_fun=0.
        return
     endif

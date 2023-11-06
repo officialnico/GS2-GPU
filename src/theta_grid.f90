@@ -1152,7 +1152,6 @@ module theta_grid_eik
      !>
      !> -  0: Use analytic parameterization of local toroidal MHD equilibrium (Miller).
      !> -  1: Read equilibrium data from output of MHD Grad Shafranov solver
-     !> -  2: Running inside a transport code without numerical equilibrium
      !>
      integer :: iflux = 0
      !> Used with [[theta_grid_eik_knobs:bishop]] == 3: controls pressure length
