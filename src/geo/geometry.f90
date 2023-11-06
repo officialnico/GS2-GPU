@@ -133,7 +133,7 @@ module geometry
   logical :: writelots, equal_arc
   character(len=800) :: eqfile, eqnormfile
 
-  real :: psi_0, psi_a, avgrmid, rpmin, rpmax
+  real :: psi_0, psi_a, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -1020,7 +1020,7 @@ contains
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
-
+      real :: avgrmid
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
