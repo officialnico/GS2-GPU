@@ -3,7 +3,7 @@ program ball
   use geometry, only: eikcoefs, eikcoefs_output
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, rmin, rmax, itor, qinp, iflux, delrho
+  use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
   use geometry, only: bishop, irho, isym, efit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -21,7 +21,7 @@ program ball
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
-  real :: akappa, tri, akappri, tripri
+  real :: akappa, tri, akappri, tripri, rmin, rmax
   logical :: diagram
   type(eikcoefs_output) :: eikcoefs_results
 
@@ -43,8 +43,7 @@ program ball
   eqfile='dskeq.cdf'
   rhoc=0.5
 
-  rmin=0.05
-  rmax=1.0  ! other than unity is an inconsistent normalization
+  rmin = -1.0 ; rmax = -1.0
 
   diagram = .false.
   nshat = 1 ; s_hat_max = 2.0
@@ -73,8 +72,11 @@ program ball
   open(10,file='eik.in')
   read(10,stuff)
   close(10)
-  
-  writelots = .false. 
+
+  if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
+  if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
+
+  writelots = .false.
 
   ! Copy shaping inputs to generic names
   deltam = akappa

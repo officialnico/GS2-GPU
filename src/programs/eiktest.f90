@@ -4,7 +4,7 @@ program eiktest
   use constants, only: pi, run_name_size
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, rmin, rmax, itor, qinp, iflux, delrho
+  use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
   use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -25,7 +25,7 @@ program eiktest
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
   real :: rhocm, rhocp
-  real :: bbar
+  real :: bbar, rmin, rmax
   real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
@@ -80,8 +80,7 @@ program eiktest
   eqfile='dskeq.cdf'
   rhoc=0.5
 
-  rmin=0.05
-  rmax=1.0  ! other than unity is an inconsistent normalization
+  rmin=-1.0 ; rmax=-1.0
 
   beta_prime_times = -1.
 
@@ -127,7 +126,9 @@ program eiktest
   if (Xanthopoulos) write(*,*) "Option deprecated : Xanthopoulos set but unused"
   if (in_nt) write(*,*) "Option deprecated : in_nt set but unused"
   if (.not. fast) write(*,*) "Option deprecated : fast set but doesn't do anything"
-  
+  if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
+  if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
+
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
         write(*,*) 'beta_prime_times should be set for bishop = 7 or 8'

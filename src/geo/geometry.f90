@@ -96,8 +96,6 @@
 !> shat :: d q/drho at surface of interest
 !>
 !> delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
-!> rmin :: minimum minor radius at which items are evaluated
-!> rmax :: should be equal to unity
 !>
 !> isym :: 1 -> assume up-down symmetric equilibrium.
 !> writelots :: .true. for more output
@@ -119,7 +117,7 @@ module geometry
   public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, Hahm_Burrell
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
-  public :: rmin, rmax, isym, writelots,  equal_arc, bishop, qinp, s_hat_input
+  public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan,  ntheta_geometry
@@ -132,7 +130,6 @@ module geometry
 
   integer :: nperiod, ntheta_geometry
   integer :: itor, iflux, irho, isym, bishop
-  real :: rmin, rmax
 
   real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
   real, dimension(3) :: rpval
@@ -2558,11 +2555,10 @@ contains
     e = (hmaxu-hmaxl)/a
     ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)    
     rmid=(Routr-Rinnr)/2. ! midplane minor radius of this surface
-    ! Returning only the upper triangularity:
-    rmax=rmaxu
+    ! Using only the upper triangularity:
     ! wasn't properly normalized before 29 Feb 08, and don't use asin:
     !    t = asin(rcenter(rp)-rmax)
-    t = (rcenter(rp)-rmax)/rmid
+    t = (rcenter(rp)-rmaxu)/rmid
     d = rcenter(rp) - rcenter(psi_a)
   end subroutine geofax
 
