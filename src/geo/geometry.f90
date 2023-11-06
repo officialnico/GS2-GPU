@@ -464,7 +464,7 @@ contains
     if (transp_eq) ppl_eq = .true.
 
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
-    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq)
+    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, iflux)
 
     thetaShift = 0.0
     bMaxShift = .true.
@@ -2951,10 +2951,15 @@ contains
   end subroutine bishop_gradB
 
   !> FIXME : Add documentation    
-  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq)
+  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, iflux)
     use mp, only: mp_abort
     implicit none
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq
+    integer, intent(in) :: iflux
+
+    if (iflux /= 0 .and. iflux /= 1) then
+       call mp_abort('Can only choose iflux = 0 or iflux = 1', .true.)
+    end if
     
     if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
       write (*,*) 'Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
