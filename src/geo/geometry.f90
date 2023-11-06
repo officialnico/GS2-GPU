@@ -16,7 +16,6 @@
 !>             dfit_eq = .true. :: use dipole equilibrium
 !>          case (2) :: running inside nt without actual equilibria
 !>                       iflux = 2 forces local_eq = .true. and irho = 2
-!>         case (10) :: used by nt to initialize some variables.  Obsolescent.
 !> irho :: choose flux surface label
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
@@ -473,14 +472,13 @@ contains
     bMaxShift = .true.
     do while (bMaxShift)
        call initialise_geometry_and_get_bmod
-       if (iflux == 10) return
 
        ! Start theta shift calc. This is used to modify the definition
        ! of theta such that the maxiumum magnetic field is at pi. This
        ! is necessary to correctly calculate bounce points
        bMaxShift = .false.
        ! if using Miller local equilibrium
-       if (iflux /= 1 .and. iflux /= 10) then
+       if (iflux /= 1) then
 
           ! Locate the index of the maximum magnetic field in the range [-pi,pi)
           iBmax = -nth
@@ -1041,7 +1039,7 @@ contains
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
 
-      if(iflux /= 1 .and. iflux /= 10) then
+      if(iflux /= 1) then
          nth = ntheta_input / 2
          if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
          call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, &
@@ -1085,7 +1083,6 @@ contains
             call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit)
          endif
          if (debug) write(6,*) 'eikcoefs: iflux=',iflux
-         if(iflux == 10) return
       case (2)
          continue
       end select
