@@ -375,7 +375,7 @@ contains
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
     real, allocatable, dimension(:)   :: gdsdum4, gdsdum5  ! MAB
     real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta
-    real, allocatable, dimension(:)   :: rgrid, rgrid1, rgrid2, Bpolmag, Bmod, dSdl
+    real, allocatable, dimension(:)   :: rgrid, dummy, Bpolmag, Bmod, dSdl
     real, allocatable, dimension(:)   :: rmajor, ans, ds, arcl
     real, allocatable, dimension(:)   :: Zoftheta, dZdl
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
@@ -691,8 +691,8 @@ contains
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
        ! this _might_ not do what is expected.
-       call seikon(rp1, theta, qval1, seik1, dsdthet1, rgrid1, dum)
-       call seikon(rp2, theta, qval2, seik2, dsdthet2, rgrid2, dum)
+       call seikon(rp1, theta, qval1, seik1, dsdthet1, dummy, dum)
+       call seikon(rp2, theta, qval2, seik2, dsdthet2, dummy, dum)
 
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
@@ -713,7 +713,7 @@ contains
           write (fort11_unit,*) 's_hat= ',shat
           write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
           do i=-nth,nth
-             write (fort11_unit,*) i,rgrid(i),rgrid1(i),rgrid2(i)
+             write (fort11_unit,*) i,rgrid(i),rp1,rp2
           end do
        end if
 
@@ -1282,8 +1282,7 @@ contains
            Rpol       (-n:n), &
            ltheta     (-n:n), &
            rgrid      (-n:n), &
-           rgrid1     (-n:n), &
-           rgrid2     (-n:n), &
+           dummy      (-n:n), &
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
            dSdl       (-n:n), &
@@ -1360,8 +1359,7 @@ contains
            Rpol      , &
            ltheta    , &
            rgrid     , &
-           rgrid1    , &
-           rgrid2    , &
+           dummy     , &
            Bpolmag   , &
            Bmod      , &
            dSdl      , &
