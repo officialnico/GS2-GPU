@@ -468,9 +468,7 @@ contains
     if (transp_eq) ppl_eq = .true.
 
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
-
-    call check(gen_eq, efit_eq, ppl_eq, &
-         local_eq, dfit_eq, idfit_eq, chs_eq)
+    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq)
 
     thetaShift = 0.0
     bMaxShift = .true.
@@ -1060,14 +1058,12 @@ contains
       case (1, 10)
          if(gen_eq) then
             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-         else if(transp_eq) then
-            if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
-            call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
-            if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
-            if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
-            if (debug) write(6,*) 'eikcoefs: transp_eq, called tdef'
          else if(ppl_eq) then
-            call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            if (transp_eq) then
+               call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            else
+               call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
+            end if
          else if(chs_eq) then
             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
          else if(efit_eq) then
