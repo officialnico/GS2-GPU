@@ -132,7 +132,6 @@ module geometry
   integer :: itor, iflux, irho, isym, bishop
 
   real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
-  real, dimension(3) :: rpval
   integer :: eqinit = 1, big = 0
 
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
@@ -720,10 +719,6 @@ contains
        endif
 
        s_hat_new = shat
-
-       rpval(1)=rp
-       rpval(2)=rp1
-       rpval(3)=rp2
 
        if(iflux == 0) then
           dbetadrho = 2.*dpdrhofun()
