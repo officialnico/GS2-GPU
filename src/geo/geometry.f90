@@ -683,16 +683,10 @@ contains
        ! gradztot(:,3) is grad Z . phihat
        gradztot(:,3) = 0.0
     else
-
        !     rp derivative
        delrp=delrho/drhodrp
        rp1=rp-delrp
        rp2=rp+delrp
-       if (iflux == 0) then
-          dqdrho=dqdrhofun(rho, shat, fort11_unit)
-          qval1=qval-dqdrho*delrho
-          qval2=qval+dqdrho*delrho
-       endif
 
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
@@ -702,45 +696,50 @@ contains
 
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
-       enddo
+       end do
 
-       if(iflux == 1) then
-          dqdrho=(qval2-qval1)/(2.*delrho)
-          shat=dqdrho*rho/qval
-       endif
+       if (iflux == 0) then
+          dqdrho = dqdrhofun(rho, shat, fort11_unit)
+          qval1 = qval - dqdrho * delrho
+          qval2 = qval + dqdrho * delrho
+       else if (iflux == 1) then
+          dqdrho = (qval2 - qval1) / (2. * delrho)
+          shat = dqdrho * rho / qval
+       end if
+       dqdrp = dqdrho * drhodrp
 
-       if(writelots) then
-          write(fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
-          write(fort11_unit,*) 's_hat= ',shat
+       if (writelots) then
+          write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
+          write (fort11_unit,*) 's_hat= ',shat
           write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
           do i=-nth,nth
              write (fort11_unit,*) i,rgrid(i),rgrid1(i),rgrid2(i)
-          enddo
-       endif
+          end do
+       end if
 
        s_hat_new = shat
 
-       if(iflux == 0) then
+       if (iflux == 0) then
           dbetadrho = 2.*dpdrhofun()
        else
           dbetadrho = 2.*dpfun(rgrid(0),theta(0))/drhodrp
-       endif
+       end if
 
        !
        !     compute gradient of S
 
        ! this is really gradient of alpha
        ! note that coordinates are R and Z (not rho and l, as in bishop case)
-       dqdrp=dqdrho*drhodrp
+       ! Note we don't use dsdthet1/2
        do k=-nperiod+1,nperiod-1
           do j=1,2
              do i=-nth,nth
                 itot=i+k*ntheta
                 dsdrptot=dsdrp(i)-k*2*pi*dqdrp
                 grads(itot,j)=rpgrad(i,j)*dsdrptot+thgrad(i,j)*dsdthet(i)
-             enddo
-          enddo
-       enddo
+             end do
+          end do
+       end do
        ! gradztot(:,1) is grad Z . Rhat
        gradztot(:,1) = 0.
        ! gradztot(:,2) is grad Z . Zhat
@@ -1452,7 +1451,7 @@ contains
     real, dimension(-ntgrid:,:), intent (out) :: bvector
     real, intent (in) :: dpsidrp
     real :: bi
-    real, dimension(-ntgrid:ntgrid) :: Rinv
+    real, dimension(-nth:nth) :: Rinv
     integer :: i
 
     bi = btori(rgrid(0), theta(0))
@@ -1783,6 +1782,7 @@ contains
     
     rgrid = rp
     char='P'
+    ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
        call grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
     else
