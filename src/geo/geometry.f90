@@ -2654,7 +2654,6 @@ contains
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-    real :: f
     if (gen_eq) then
        call geqitem(r, thet, eqB_psi, bmodfun, 'R')
     else if (idfit_eq) then
