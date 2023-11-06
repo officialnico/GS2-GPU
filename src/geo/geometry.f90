@@ -1036,6 +1036,10 @@ contains
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
+
+      ! Initialise the specific geometry types (mostly reading data
+      ! from file and calculating derived quantities).
+
       if(iflux /= 1 .and. iflux /= 10) then
          nth = ntheta_input / 2
          if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
@@ -1186,13 +1190,12 @@ contains
 
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
 
+      ! Calculate grad(psi), grad(BT) and grad(theta for the
+      ! specific geometry class we're using
       if(gen_eq)    call geq_init
       if(ppl_eq)    call peq_init
       if(chs_eq)    call ceq_init
-      if (debug) write(6,*) "eikcoefs: call eeq_init"
-      !    if(efit_eq)  call eeq_init
       if(efit_eq)   call efit_init
-      if (debug) write(6,*) "eikcoefs: done eeq_init"
       if(dfit_eq)   call deq_init
       if(idfit_eq)  call ideq_init
 
