@@ -1033,6 +1033,8 @@ contains
               mMode, nMode, deltam, deltan, deltampri, deltanpri, &
               thetam, thetan, qinp, s_hat_input, nth, thetaShift)
          avgrmid=1.
+         psi_0 = 0.0
+         psi_a = 1.0
          B_T0 = -1.0 !Indicate that this has not been set from equilibrium
       case (1, 10)
          if(gen_eq) then
@@ -1088,17 +1090,15 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
+      rpmin = psi_0
+      rpmax = psi_a
+      if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
       if(iflux == 1) then
-         rpmin = psi_0
-         rpmax = psi_a
-         if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
          rp = rpofrho(rho, fort11_unit)
-         if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
       else
-         rpmin = 0.
-         rpmax = 1.0
          rp=rho
       endif
+      if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
       if(iflux == 1) R_geo=rcenter(rpmax)
 
