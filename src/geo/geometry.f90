@@ -133,7 +133,7 @@ module geometry
   logical :: writelots, equal_arc
   character(len=800) :: eqfile, eqnormfile
 
-  real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
+  real :: dp_new, di_new, psi_0, psi_a, avgrmid, grhoavg, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -391,7 +391,7 @@ contains
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
     real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
     real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin, beta_prime_new, s_hat_new
-    real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod
+    real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, Ltot, rinv
