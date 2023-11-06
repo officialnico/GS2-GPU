@@ -463,6 +463,10 @@ contains
        endif
     endif
 
+    ! If variant geometry type active ensure parent type active
+    if (gs2d_eq) efit_eq = .true.
+    if (transp_eq) ppl_eq = .true.
+
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
 
     call check(gen_eq, efit_eq, ppl_eq, &
@@ -1054,12 +1058,10 @@ contains
       case (0)
          avgrmid=1.
       case (1, 10)
-         if (gs2d_eq) efit_eq = .true.
          if(gen_eq) then
             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
          else if(transp_eq) then
             if (debug) write(6,fmt='("eikcoefs: transp_eq, eqfile=",a)') eqfile, 'jid=',job_id
-            ppl_eq = .true.
             call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input)
             if (debug) write(6,*) 'eikcoefs: transp_eq, called teqin'
             if (debug) write(6,fmt='("eikcoefs: teqin returns",1p,5e10.2,i6,l2,i6)') psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, in_nt, ntheta_input
