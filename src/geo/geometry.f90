@@ -371,16 +371,11 @@ contains
     integer :: job_id
 ! Local variables:
     real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2
-    real, allocatable, dimension(:)   :: dsdthet
-    real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
-    real, allocatable, dimension(:)   :: gdsdum4, gdsdum5  ! MAB
-    real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta
-    real, allocatable, dimension(:)   :: rgrid, dummy, Bpolmag, Bmod, dSdl
-    real, allocatable, dimension(:)   :: rmajor, ans, ds, arcl
-    real, allocatable, dimension(:)   :: Zoftheta, dZdl
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl
+    real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
+    real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta, Zoftheta, dZdl
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
-    real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot
-    real, allocatable, dimension(:,:) :: gradthtot ! MAB
+    real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
     real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
     real, allocatable, dimension(:) :: da_bish, db_bish, dc_bish, trip
     !> The theta grid of the results. The final grid has
@@ -929,14 +924,14 @@ contains
     !     does not work with equal_arc grid
 
     !     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
-    call integrate(ds, theta, ans, nth)
-    surfarea=2.*pi*(ans(nth)-ans(-nth))
+    call integrate(ds, theta, dummy, nth)
+    surfarea=2.*pi*(dummy(nth)-dummy(-nth))
     if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
 
 
     !     compute dV/drhon = 2 pi Int(J dtheta)
-    call integrate(jacob, theta, ans, nth)
-    dvdrhon=2.*pi*(ans(nth)-ans(-nth))
+    call integrate(jacob, theta, dummy, nth)
+    dvdrhon=2.*pi*(dummy(nth)-dummy(-nth))
 
     if(isym == 1) then
        call sym(gds2, 0, ntgrid)
@@ -1278,7 +1273,6 @@ contains
            Bmod       (-n:n), &
            dSdl       (-n:n), &
            rmajor     (-n:n), &
-           ans        (-n:n), &
            ds         (-n:n), &
            arcl       (-n:n), &
            Zoftheta   (-n:n), &
@@ -1351,7 +1345,6 @@ contains
            Bmod      , &
            dSdl      , &
            rmajor    , &
-           ans       , &
            ds        , &
            arcl      , &
            Zoftheta  , &
