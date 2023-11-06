@@ -133,6 +133,7 @@ module geometry
   logical :: writelots, equal_arc
   character(len=800) :: eqfile, eqnormfile
 
+  !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
@@ -806,7 +807,7 @@ contains
 
     !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, &
-         dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
+         dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, &
          gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
 
     !     compute the magnetic field along theta
@@ -1621,12 +1622,12 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
+       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, &
        gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
-    real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp
+    real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
