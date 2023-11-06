@@ -370,7 +370,7 @@ contains
     logical :: start_file_utils, dummy
     integer :: job_id
 ! Local variables:
-    real, allocatable, dimension(:)   :: smodel, dsdrp, grho2, seik, seik1, seik2
+    real, allocatable, dimension(:)   :: dsdrp, grho2, seik, seik1, seik2
     real, allocatable, dimension(:)   :: dsdthet, dsdthet1, dsdthet2, grho1
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3
     real, allocatable, dimension(:)   :: gdsdum4, gdsdum5  ! MAB
@@ -510,8 +510,8 @@ contains
     !
     !      call rmajortgrid(rgrid, theta, rmajor)
     !      do i=-nth,nth
-    !         smodel(i)=-qval*(theta(i)-rgrid(i)*sin(theta(i))/rmajor(i))
-    !         write(*,*) seik(i),smodel(i),-qval*theta(i)
+    !         dum=-qval*(theta(i)-rgrid(i)*sin(theta(i))/rmajor(i))
+    !         write(*,*) seik(i),dum,-qval*theta(i)
     !      enddo
     ! ******************
     if(writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
@@ -1074,7 +1074,7 @@ contains
 
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-      if (.not. allocated(smodel)) call alloc_local_arrays(ntgrid)
+      if (.not. allocated(dsdrp)) call alloc_local_arrays(ntgrid)
 
       if (debug) writelots=.true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
@@ -1263,8 +1263,7 @@ contains
       implicit none
       integer, intent(in) :: n
 
-      allocate(smodel (-n:n), &
-           dsdrp      (-n:n), &
+      allocate(dsdrp  (-n:n), &
            grho2      (-n:n), &
            grho1      (-n:n), &
            seik       (-n:n), &
@@ -1340,8 +1339,7 @@ contains
     subroutine dealloc_local_arrays
       implicit none
       
-      deallocate(smodel, &
-           dsdrp     , &
+      deallocate(dsdrp     , &
            grho2     , &
            grho1     , &
            seik      , &
