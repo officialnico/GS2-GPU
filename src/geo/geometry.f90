@@ -16,6 +16,9 @@
 !>             dfit_eq = .true. :: use dipole equilibrium
 !>          case (2) :: running inside nt without actual equilibria
 !>                       iflux = 2 forces local_eq = .true. and irho = 2
+!>                     The only difference wrt iflux = 0 is that this skips
+!>                     calculation of theta grid and allocation of local arrays. This
+!>                     currently leads to seg-faults.
 !> irho :: choose flux surface label
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
