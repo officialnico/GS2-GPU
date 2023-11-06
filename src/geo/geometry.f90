@@ -1033,6 +1033,7 @@ contains
               mMode, nMode, deltam, deltan, deltampri, deltanpri, &
               thetam, thetan, qinp, s_hat_input, nth, thetaShift)
          avgrmid=1.
+         B_T0 = -1.0 !Indicate that this has not been set from equilibrium
       case (1, 10)
          if(gen_eq) then
             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
