@@ -183,6 +183,7 @@ module geometry
      real :: dvdrhon
      real :: shat
      real :: dbetadrho
+     real :: rhoc
      !> theta :: the theta grid of the results.  The final grid has
      !>          pi - 2*pi*nperiod <= theta <= 2*pi*nperiod - pi
      real, dimension(:), allocatable :: theta
@@ -274,6 +275,7 @@ contains
     results%dvdrhon = full_results%dvdrhon
     results%shat = full_results%shat
     results%dbetadrho = full_results%dbetadrho
+    results%rhoc = full_results%rhoc
 
     ! Make an index space array for the original theta
     ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
@@ -1027,7 +1029,7 @@ contains
     outputs%dvdrhon = dvdrhon
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
-
+    outputs%rhoc = rhoc
     call dealloc_local_arrays
 
   contains
