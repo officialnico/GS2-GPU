@@ -1096,7 +1096,7 @@ contains
       if (iflux /= 2) then
          call init_uniform_theta_grid(ntheta_input, theta)
          if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-         call alloc_local_arrays(ntgrid)
+         if (.not. allocated(smodel)) call alloc_local_arrays(ntgrid)
       end if
 
       if (debug) writelots=.true.
