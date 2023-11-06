@@ -128,14 +128,14 @@ module geometry
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
   real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
 
-  integer :: nperiod
-  integer :: itor, iflux, irho, isym, bishop
+  integer :: nperiod, itor, iflux, irho, isym, bishop
+  logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
+  logical :: writelots, equal_arc
+  character(len=800) :: eqfile, eqnormfile
 
   real :: dp_new, di_new, psi_0, psi_a, B_T0, avgrmid, grhoavg, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
-  logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
-  logical :: writelots, equal_arc
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
   !> EFIT and local equilbria, this is set from
@@ -149,15 +149,11 @@ module geometry
   !> Equal to `2 * nth`
   !> FIXME: Remove and replace uses with calls to [[periodic_copy]]
   integer :: ntheta
-
-  integer :: verb = 2 ! Verbosity of print statements | Should we use runtime_tests:verbosity?
-  ! EGH debug now set by verb, which (in GS2) is set in theta_grid
+  !> Verbosity of print statements | Should we use runtime_tests:verbosity?
+  integer :: verb = 2
   !> If debug then print out lots of debug info.
-  !! debug is true if (verb > 3)
+  !> debug is true if (verb >= 3)
   logical :: debug = .false.
-
-  character(len=800) :: eqfile
-  character(len=800) :: eqnormfile
 
   !> Used to initialise values to indicate unset
   real, parameter :: invalidValue = -24680.123579
