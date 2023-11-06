@@ -133,7 +133,7 @@ module geometry
   logical :: writelots, equal_arc
   character(len=800) :: eqfile, eqnormfile
 
-  real :: dp_new, di_new, psi_0, psi_a, avgrmid, grhoavg, rpmin, rpmax
+  real :: dp_new, di_new, psi_0, psi_a, avgrmid, rpmin, rpmax
   integer :: eqinit = 1, big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -939,7 +939,6 @@ contains
     do i=-nth,nth
        grho2(i)=grho(i)**2*jacob(i)
     enddo
-    grhoavg=surfarea/dvdrhon
 
     if(isym == 1) then
        call sym(gds2, 0, ntgrid)
