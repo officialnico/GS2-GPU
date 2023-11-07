@@ -1122,19 +1122,20 @@ contains
 
       if(writelots) then
          call open_output_file(fort78_unit,".fort.78")
-         call open_output_file(fort99_unit,".fort.99")
-
-         rbar = 0.
          write(fort78_unit,*) '# theta_pol,  R,   Z'
-         do i= -nth,nth
-            write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
+         do i = -nth, nth
             write(fort78_unit,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
-         enddo
-
+         end do
          call close_output_file(fort78_unit)
+
+         call open_output_file(fort99_unit,".fort.99")
+         do i = -nth, nth
+            write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
+         end do
          call close_output_file(fort99_unit)
 
-         do i=-nth,nth-1
+         rbar = 0.
+         do i =-nth, nth-1
             rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
          end do
          rbar = rbar / (2.*pi)
