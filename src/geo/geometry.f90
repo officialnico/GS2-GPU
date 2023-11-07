@@ -1192,9 +1192,6 @@ contains
          crpgrad = rpgrad
       else
          call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-      endif
-
-      if(bishop /= 0) then
          call loftheta(rgrid, theta, ltheta)
          call grad(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
          call th_bishop(crpgrad, th_bish, nth)
@@ -2760,13 +2757,13 @@ contains
     real, dimension(-ntgrid:ntgrid) :: Rinv
     integer :: i
      
-    do i=-nth,nth
+    do i = -nth, nth
        Rinv(i) = invRfun(rgrid(i),theta(i))
-    enddo
+    end do
 
-    do i=-nth,nth
-       Bpolmag(i)=sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2)*Rinv(i)
-    enddo
+    do i = -nth, nth
+       Bpolmag(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2)*Rinv(i)
+    end do
   end subroutine B_pol
 
   !> FIXME : Add documentation    
@@ -2778,11 +2775,10 @@ contains
     real :: bi
     integer :: i
 
-       bi = btori(rgrid(0),theta(0))
-       do i=-nth,nth
-       Bmod(i)=sqrt((bi*invRfun(rgrid(i),theta(i)))**2 &
-            +Bpolmag(i)**2)
-    enddo
+    bi = btori(rgrid(0),theta(0))
+    do i = -nth, nth
+       Bmod(i) = sqrt((bi*invRfun(rgrid(i),theta(i)))**2 + Bpolmag(i)**2)
+    end do
   end subroutine B_mod
 
   !> FIXME : Add documentation    
