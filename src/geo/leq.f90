@@ -354,7 +354,7 @@ contains
 
   !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
   !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
-  subroutine derm(f, dfm, char)
+  pure subroutine derm(f, dfm, char)
     use constants, only: pi
     implicit none
     !> 2D array to be differentiated, indices radius, theta
@@ -590,13 +590,12 @@ contains
   !!
   !! - Gradient in the first coordinate is in `(:,:,1)`
   !! - Gradient in the second coordinate is in `(:,:,2)`
-  subroutine eqdcart(dfm, dfcart)
+  pure subroutine eqdcart(dfm, dfcart)
     !> Index-space derivative
     real, dimension(nr,-nt:nt,2), intent(in)  :: dfm
     !> Cylindrical coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(out) :: dfcart
     real, dimension(nr,-nt:nt) :: denom
-
     integer :: i, j
       
     denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
@@ -620,13 +619,12 @@ contains
   !!
   !! - Gradient in the first coordinate is in `(:,:,1)`
   !! - Gradient in the second coordinate is in `(:,:,2)`
-  subroutine eqdbish(dcart, dbish)
+  pure subroutine eqdbish(dcart, dbish)
     !> Cylindrical coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(in) :: dcart
     !> Bishop coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(out) :: dbish
     real, dimension(nr,-nt:nt) :: denom
-
     integer :: i, j
 
     denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
@@ -644,19 +642,13 @@ contains
   end subroutine eqdbish
 
   !> Return the inverse of the major radius at \((r, \theta)\)
-  function invR (r, theta)
-    implicit none
+  real function invR (r, theta)
     real, intent (in) :: r, theta
-    real :: invR
-    
     invR=1./Rpos(r, theta)
   end function invR
 
   !> Return the major radius of the centre of the flux surface
-  function rcenter()
-    implicit none
-    real :: rcenter
-    
+  pure real function rcenter()
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
@@ -668,10 +660,10 @@ contains
   end function rcenter
 
   !> Return the major radius at \((r, \theta)\)
-  function Rpos (r, theta)
+  real function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: Rpos, dummy
+    real :: dummy
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
@@ -690,10 +682,10 @@ contains
   end function Rpos
 
   !> Return the axial coordinate at \((r, \theta)\)
-  function Zpos (r, theta)
+  real function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: dummy, Zpos
+    real :: dummy
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
@@ -716,7 +708,7 @@ contains
   !!
   !! See section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
   !! "GS2 analytic geometry specification"
-  subroutine geo_Miller(r, theta, Rpos, Zpos)
+  pure subroutine geo_Miller(r, theta, Rpos, Zpos)
     implicit none
     real, intent(in) :: r, theta
     real, intent(out) :: Rpos, Zpos
@@ -768,7 +760,7 @@ contains
   !> global MHD model
   !!
   !! See section 2.1.2 of "GS2 analytic geometry specification"
-  subroutine geo_global(r, theta, Rpos, Zpos)
+  pure subroutine geo_global(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -809,7 +801,7 @@ contains
   !!
   !! See section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
   !! "GS2 analytic geometry specification"
-  subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+  pure subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -843,7 +835,7 @@ contains
   !!
   !! See section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
   !! "GS2 analytic geometry specification"
-  subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
+  pure subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -867,11 +859,8 @@ contains
   end subroutine geo_FourierSeries
 
   !> FIXME : Add documentation  
-  function psi (r)
-    implicit none
+  pure real function psi (r)
     real, intent (in) :: r
-    real :: psi
-
     psi = r - surf%r
   end function psi
 
@@ -882,10 +871,9 @@ contains
   !!
   !! General purpose, could be moved into utils? Could also drop the
   !! tolerance?
-  function mod2pi (theta)
+  pure real function mod2pi (theta)
     use constants, only: pi
     real, intent(in) :: theta
-    real :: mod2pi
     real, parameter :: theta_tol = 1.e-6
     if(theta <= pi .and. theta >= -pi) then
       mod2pi = theta
@@ -899,60 +887,43 @@ contains
   end function mod2pi
 
   !> FIXME : Add documentation  
-  function diameter (rp)
-    implicit none
+  pure real function diameter (rp)
     real, intent(in) :: rp
-    real :: diameter
-
     diameter = 2.*rp
   end function diameter
 
   !> FIXME : Add documentation  
-  function dbtori ()
-    implicit none
-    real :: dbtori
+  pure real function dbtori ()
     dbtori = 1.
   end function dbtori
 
   !> FIXME : Add documentation  
-  function btori ()
-    implicit none
-    real :: btori
+  pure real function btori ()
     btori = surf%Rgeo
   end function btori
 
   !> FIXME : Add documentation  
-  function qfun ()
-    implicit none
-    real :: qfun
+  pure real function qfun ()
     qfun = surf%q
   end function qfun
 
   !> FIXME : Add documentation
-  function pfun ()
-    implicit none
-    real :: pfun
+  pure real function pfun ()
     pfun = 0.5*beta_0
   end function pfun
 
   !> FIXME : Add documentation  
-  function dpfun ()
-    implicit none
-    real :: dpfun    
+  pure real function dpfun ()
     dpfun = -1.
   end function dpfun
 
   !> FIXME : Add documentation  
-  function dpdrhofun()
-    implicit none
-    real :: dpdrhofun
+  pure real function dpdrhofun()
     dpdrhofun = 0 ! surf%pp
   end function dpdrhofun
 
   !> FIXME : Add documentation  
-  function betafun ()
-    implicit none
-    real :: betafun
+  pure real function betafun ()
     betafun = beta_0
   end function betafun
 end module leq
