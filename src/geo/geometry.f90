@@ -1845,7 +1845,7 @@ contains
     if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
   end function rpofrho
 
-  !> FIXME : Add documentation    
+  !> Computes something like x cross y dot grad zeta.
   subroutine tripprod2dtgrid(x, y, rgrid, theta, val)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta
@@ -1946,18 +1946,21 @@ contains
     endif
   end function dbtori
 
+  !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
+  !> ends of the grid (usually +/- pi) storing the cumulative integral
+  !> in the output `ans`.
   pure subroutine integrate(arg, grid, ans, n)
     real, dimension(-ntgrid:), intent (in) :: arg, grid
     real, dimension(-ntgrid:), intent (out) :: ans
     integer, intent(in) :: n
     integer :: i
-    ans=0.
-    do i=1,n
-       ans(i)=ans(i-1)+0.5*(grid(i)-grid(i-1))*(arg(i)+arg(i-1))
-    enddo
-    do i=-1,-n,-1
-       ans(i)=ans(i+1)+0.5*(grid(i)-grid(i+1))*(arg(i)+arg(i+1))
-    enddo
+    ans = 0.
+    do i = 1, n
+       ans(i) = ans(i-1) + 0.5 * (grid(i)-grid(i-1)) * (arg(i)+arg(i-1))
+    end do
+    do i = -1, -n, -1
+       ans(i) = ans(i+1) + 0.5 * (grid(i)-grid(i+1)) * (arg(i)+arg(i+1))
+    end do
   end subroutine integrate
 
   !> Calculates rmajor = R(theta), where R is the distance
