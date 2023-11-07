@@ -369,7 +369,7 @@ contains
     integer, intent(in), optional :: job_id_in
     logical :: start_file_utils, dummy_flag
     integer :: job_id
-! Local variables:
+    ! Local variables:
     real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2, rgrid, bpolmag
     real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dummy2, dsdl
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
@@ -683,6 +683,14 @@ contains
        rp1=rp-delrp
        rp2=rp+delrp
 
+       ! Note for iflux == 0 we need to ensure qval is set before
+       !calling seikon.
+       if (iflux == 0) then
+          dqdrho = dqdrhofun(rho, shat, fort11_unit)
+          qval1 = qval - dqdrho * delrho
+          qval2 = qval + dqdrho * delrho
+       end if
+
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
        ! this _might_ not do what is expected.
@@ -693,11 +701,7 @@ contains
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
        end do
 
-       if (iflux == 0) then
-          dqdrho = dqdrhofun(rho, shat, fort11_unit)
-          qval1 = qval - dqdrho * delrho
-          qval2 = qval + dqdrho * delrho
-       else if (iflux == 1) then
+       if (iflux == 1) then
           dqdrho = (qval2 - qval1) / (2. * delrho)
           shat = dqdrho * rho / qval
        end if
@@ -1751,7 +1755,7 @@ contains
   subroutine seikon(rp, theta, qval, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta
-    real, intent(out) :: qval
+    real, intent(in out) :: qval
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
@@ -1778,7 +1782,7 @@ contains
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
     real, dimension(-ntgrid:,:), intent(in) ::  rpgrad, thgrad
-    real, intent(out) :: qval
+    real, intent(in out) :: qval
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid) :: trip
     real :: bi
