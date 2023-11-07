@@ -2000,31 +2000,27 @@ contains
     integer :: i, initq = 1
     
     qfun = invalidValue
-    
-    if(iflux == 0) then
-       qfun=leq_qfun()
-       return
-    endif
-
-    if(eqinit ==1 ) initq = 1
+    if (eqinit ==1 ) initq = 1
 
     if (gen_eq) then
        i = geq_init_q(initq)
        qfun = geq_qfun(pbar)
-    elseif (ppl_eq) then
+    else if (ppl_eq) then
        i = ppl_init_q(initq)
        qfun = peq_qfun(pbar)
-    elseif (chs_eq) then
+    else if (chs_eq) then
        i = chs_init_q(initq)
        qfun = ceq_qfun(pbar)
-    elseif (efit_eq) then
+    else if (efit_eq) then
        i = efit_init_q(initq)
        qfun = eeq_qfun(pbar)
-    elseif (dfit_eq) then
+    else if (dfit_eq) then
        qfun = 0.
-    endif
+    else if (local_eq) then
+       qfun = leq_qfun()
+    end if
 
-    if(initq == 1) initq = 0
+    if (initq == 1) initq = 0
     if (qfun == invalidValue) call mp_abort("qfun not set")
   end function qfun
 
@@ -2044,39 +2040,34 @@ contains
     integer :: i, initp = 1
 
     pfun = invalidValue
-    
-    if(iflux /= 1) then
-       pfun=leq_pfun() 
-       return
-    endif
 
-    pbar = psifun(psi(r, thet))
-    if(eqinit == 1) initp = 1
+    if (iflux == 1) pbar = psifun(psi(r, thet))
+    if (eqinit == 1) initp = 1
 
     if (gen_eq) then
        i=geq_init_pressure(initp)
        pfun = geq_pfun(pbar)
-    elseif (ppl_eq) then
+    else if (ppl_eq) then
        i=ppl_init_pressure(initp)
        pfun = peq_pfun(pbar)
-    elseif (chs_eq) then
+    else if (chs_eq) then
        i=chs_init_pressure(initp)
        pfun = ceq_pfun(pbar)
-    elseif (efit_eq) then
+    else if (efit_eq) then
        i = efit_init_pressure(initp)
        pfun = eeq_pfun(pbar)
-    elseif (dfit_eq) then
+    else if (dfit_eq) then
        i = dfit_init_pressure(initp)
        pfun = deq_pfun(pbar)
-    elseif (idfit_eq) then
+    else if (idfit_eq) then
        i = idfit_init_pressure(initp)
        pfun = ideq_pfun(pbar)
+    else if (local_eq) then
+       pfun = leq_pfun()
     endif
 
-    if(initp == 1) initp = 0
-
+    if (initp == 1) initp = 0
     if (pfun == invalidValue) call mp_abort("pfun not set")
-
   end function pfun
 
   !> FIXME : Add documentation    
