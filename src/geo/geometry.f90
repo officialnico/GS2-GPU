@@ -1729,25 +1729,27 @@ contains
     endif
   end subroutine drift
 
-  !> FIXME : Add documentation    
-  subroutine sym(a, isign, ntgrid)
+  !> Forces symmetry in theta in the passed array. If isign == 0 then
+  !> `a(+/- theta)` is replaced by the average of `a(+/-theta)`, otherwise
+  !> `a(+/- theta)` is replace by `+/- (a(theta)-a(-theta))`.
+  pure subroutine sym(a, isign, ntgrid)
     implicit none
     integer, intent(in) :: isign, ntgrid
     real, dimension(-ntgrid:), intent (in out) :: a
     integer :: i
 
-    if(isign == 0) then
-       do i=1,ntgrid
-          a(i)=0.5*(a(i)+a(-i))
-          a(-i)=a(i)
-       enddo
+    if (isign == 0) then
+       do i = 1, ntgrid
+          a(i) = 0.5 * (a(i) + a(-i))
+          a(-i) = a(i)
+       end do
     else
-       do i=1,ntgrid
-          a(i)=0.5*(a(i)-a(-i))
-          a(i)=-a(-i)
-       enddo
-       a(0)=0.
-    endif
+       do i = 1, ntgrid
+          a(i) = 0.5 * (a(i) - a(-i))
+          a(i) = -a(-i)
+       end do
+       a(0) = 0.
+    end if
   end subroutine sym
 
   !> FIXME: Add documentation
