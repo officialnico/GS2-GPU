@@ -1887,7 +1887,8 @@ contains
     psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
   end function psifun
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
+  !> Only used with undocumented `irho = 4` option
   real function rhofun (rp)
     use deq, only: deq_rhofun => rhofun, init_rho => initialize_rho
     implicit none
