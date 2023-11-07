@@ -1946,30 +1946,6 @@ contains
     endif
   end function dbtori
 
-  !> FIXME : Add documentation    
-  real function iofrho(rho, fort11_unit)
-    use geq, only: geq_iofpbar => btori
-    use peq, only: peq_iofpbar => btori
-    use ceq, only: ceq_iofpbar => btori
-    use eeq, only: eeq_iofpbar => btori
-    use leq, only: leq_i => btori
-    use mp, only: mp_abort
-    implicit none
-    real, intent (in) :: rho
-    integer, intent(in) :: fort11_unit
-    real :: pbar
-    iofrho = invalidValue
-    pbar = pbarofrho(rho, fort11_unit)
-    if (gen_eq) iofrho = geq_iofpbar(pbar)
-    if (ppl_eq) iofrho = peq_iofpbar(pbar)
-    if (chs_eq) iofrho = ceq_iofpbar(pbar)
-    if(efit_eq) iofrho = eeq_iofpbar(pbar)
-    if(dfit_eq) iofrho = 0.
-    if(local_eq) iofrho = leq_i()
-
-    if (iofrho == invalidValue) call mp_abort("iofrho not set")
-  end function iofrho
-
   pure subroutine integrate(arg, grid, ans, n)
     real, dimension(-ntgrid:), intent (in) :: arg, grid
     real, dimension(-ntgrid:), intent (out) :: ans
