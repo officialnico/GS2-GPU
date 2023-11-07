@@ -48,7 +48,7 @@ module ceq
   logical :: init_invR = .true.
 
   logical, parameter :: debug = .true.
-
+  logical :: skip_file_read = .false.
   !> Expose private routines for testing only!
   type :: ceq_testing_type
   contains
@@ -71,6 +71,7 @@ module ceq
     procedure, nopass :: set_bish_arrays
     procedure, nopass :: get_cart_arrays
     procedure, nopass :: get_bish_arrays
+    procedure, nopass :: set_skip_file_read
   end type ceq_testing_type
 
 contains
@@ -180,6 +181,14 @@ contains
     dtbish_out = dtbish
   end subroutine get_bish_arrays
 
+  !> Set module-level `skip_file_read`
+  !! PURELY FOR TESTING
+  !! FIXME: Remove when we have more control over module-level variables for testing
+  subroutine set_skip_file_read(skip_file_read_in)
+    logical, intent(in) :: skip_file_read_in
+    skip_file_read = skip_file_read_in
+  end subroutine set_skip_file_read
+
   !> Convert from theta-index which is `-pi` to `pi`, to chi-index, which
   !> is `0` to `2*pi.`
   !> Assumes `nchi` is even?
@@ -188,9 +197,9 @@ contains
     integer :: chease_chi_index
     ! when ichi = 0, itheta = (ntheta-1)/2 + 1
     ! when itheta = 0, ichi = ntheta / 2
-    ! itheta  1 2 3 4 5 6 7 8 
-    ! ichi    5 6 7 8 1 2 3 4         
-    if (itheta > nchi/2) then 
+    ! itheta  1 2 3 4 5 6 7 8
+    ! ichi    5 6 7 8 1 2 3 4
+    if (itheta > nchi/2) then
        chease_chi_index = itheta - nchi/2
     else
        chease_chi_index = itheta + nchi/2
@@ -218,13 +227,14 @@ contains
       nthg = nt
       return
     endif
+
+    if (.not. skip_file_read) then ! Primarily for testing
+       write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
+       !    Read the data
+       call read_infile(trim(eqfile))
        
-    write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
-    !    Read the data
-    call read_infile(trim(eqfile))
-    
-    call set_ceq_from_chease
-                       
+       call set_ceq_from_chease
+    end if
     !
     !     Normalize, rename quantities 
     !

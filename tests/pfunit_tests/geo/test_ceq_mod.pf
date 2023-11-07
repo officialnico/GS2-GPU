@@ -78,6 +78,7 @@ contains
                        i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
                         shape=shape(z_chease))
 
+    call ceq_privates%set_skip_file_read(skip_file_read_in = .true.)
     call ceq_privates%set_ceq_from_chease
   end subroutine set_ceq_test_data
 
@@ -90,7 +91,7 @@ contains
 
     call ceqin("this won't be read", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
-         initeq=1, in_nt=.true., nthg=ntheta)
+         initeq=1, nthg=ntheta)
   end subroutine initialise_ceq_with_test_data
 
   @test
@@ -104,7 +105,7 @@ contains
 
     call ceqin("this won't be read", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
-         initeq=1, in_nt=.true., nthg=ntheta)
+         initeq=1, nthg=ntheta)
 
     @assertEqual(1.25, psi_0_out, tolerance=1e-5, message="psi_0_out")
     @assertEqual(3.75, psi_a_out, tolerance=1e-5, message="psi_a_out")
@@ -128,7 +129,7 @@ contains
     call ceq_privates%set_nrnt(-1, expected_ntheta)
     call ceqin("this won't be read", &
          psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
-         initeq=0, in_nt=.true., nthg=ntheta)
+         initeq=0, nthg=ntheta)
 
     @assertEqual(expected_ntheta, ntheta)
   end subroutine test_ceqin_non_init
