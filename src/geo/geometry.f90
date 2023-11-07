@@ -1648,32 +1648,31 @@ contains
           bgradtot(i,3)=0.
        enddo
 
-!     create curvature
+       !     create curvature
        char='R'
        select case (bishop) 
        case (0) 
           call grad(rgrid, theta, pgrad, char, rp, nth, ntgrid)
-       case (1) 
+          do i = -nth, nth
+             pgradtot(i,1) = pgrad(i,1)
+             pgradtot(i,2) = pgrad(i,2)
+             pgradtot(i,3) = 0.
+          end do
+          ! Note here we have not filled the full theta domain unlike in the other
+          ! bishop cases.
+       case (1)
+          ! When bishop = 1 dp_new should probably also be dpfun(rgrid(0), theta(0))
+          ! so it's not clear we need this special case?
           pgradtot = gradrptot*dpsidrho*drhodrp*dpfun(rgrid(0), theta(0))
        case default
           pgradtot = gradrptot*dpsidrho*drhodrp*dp_new
        end select
 
-       if(bishop < 1) then
-          do i=-nth,nth
-             pgradtot(i,1) = pgrad(i,1)
-             pgradtot(i,2) = pgrad(i,2)
-             pgradtot(i,3) = 0.
-          enddo
-       endif
-
        do i=-nth,nth
-          curve(i,1)=bgradtot(i,1)/bmod(i)+pgradtot(i,1)/bmod(i)**2
-          curve(i,2)=bgradtot(i,2)/bmod(i)+pgradtot(i,2)/bmod(i)**2
-          curve(i,3)=0.
+          curve(i,1) = bgradtot(i,1)/bmod(i)+pgradtot(i,1)/bmod(i)**2
+          curve(i,2) = bgradtot(i,2)/bmod(i)+pgradtot(i,2)/bmod(i)**2
+          curve(i,3) = 0.
        enddo
-
-!       write(*,*) 'curve 1, 2 ',curve(0,1), curve(0,2)
 
        call crosstgrid(bvector,bgradtot,dummy1)
        call dottgrid(dummy1,gradstot,gbdrift1)
