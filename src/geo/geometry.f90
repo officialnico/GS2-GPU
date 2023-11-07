@@ -1768,6 +1768,7 @@ contains
     use ceq, only: ceq_diameter => diameter, ceq_init_diameter => initialize_diameter
     use ideq,only: ideq_diameter => diameter, ideq_init_diameter => initialize_diameter
     use eeq, only: bound
+    use leq, only: leq_diameter => diameter
     use constants, only: pi
     use mp, only: mp_abort
     implicit none
@@ -1785,7 +1786,7 @@ contains
     if(eqinit == 1) initd = 1
 
     if(iflux /= 1) then
-       diameter=2.*rp
+       diameter = leq_diameter(rp)
     else
        if (gen_eq)  i=geq_init_diameter(initd)
        if (idfit_eq)i=ideq_init_diameter(initd)
