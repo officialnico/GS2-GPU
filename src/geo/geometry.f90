@@ -1401,20 +1401,21 @@ contains
     enddo
   end subroutine gradstottgrid
 
-  !> FIXME : Add documentation  
+  !> Calculate the cross product c = a x b on the `[-nth, nth]` domain
   pure subroutine crosstgrid(a, b, c)
     real, dimension(-ntgrid:, :), intent (in) ::  a, b
     real, dimension(-ntgrid:, :), intent (out) ::  c
     integer :: i
-
     do i = -nth, nth
-       c(i,1)=a(i,2)*b(i,3)-b(i,2)*a(i,3)
-       c(i,2)=a(i,3)*b(i,1)-b(i,3)*a(i,1)
-       c(i,3)=a(i,1)*b(i,2)-b(i,1)*a(i,2)
-    enddo
+       c(i,1) = a(i,2)*b(i,3) - b(i,2)*a(i,3)
+       c(i,2) = a(i,3)*b(i,1) - b(i,3)*a(i,1)
+       c(i,3) = a(i,1)*b(i,2) - b(i,1)*a(i,2)
+    end do
   end subroutine crosstgrid
 
-  !> FIXME : Add documentation
+  !> Calculate the dot product c = a.b where a is on the `[-nth, nth]` domain
+  !> and b and c are both on the `[-ntgrid, ntgrid]` domain. In other words a
+  !> is considered periodic on 2pi whilst b may not be.
   pure subroutine dottgrid(a, b, c)
     real, dimension (-ntgrid:, :), intent(in) :: a, b
     real, dimension (-ntgrid:), intent(out) :: c
@@ -1428,7 +1429,7 @@ contains
     enddo
   end subroutine dottgrid
 
-  !> FIXME : Add documentation    
+  !> Calculate the dot product c = a.b where a, b and c are on the `[-ntgrid, ntgrid]` domain
   pure subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
     real, dimension(-ntgrid:), intent(out) :: c
@@ -1542,14 +1543,12 @@ contains
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
-    real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
-    real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3
+    real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
+    real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3, cdrift1, cdrift2
 
     real :: dum
     character(1) :: char
-    integer :: i, k, itot, ndum
-
-    ndum = 2*nth + 1
+    integer :: i, k, itot
 
     if (itor == 0) then
        gbdrift = (-sin(theta)*gradstot(:,1)-cos(theta)*gradstot(:,2))/rmaj
@@ -1612,6 +1611,8 @@ contains
        call dottgrid(dummy,gradthtot,cvdrift3)
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
+       ! Provided bmod is specified on [-ntgrid, ntgrid] we could replace
+       ! the below nested loop with do i = -ntgrid, ntgrid....
        do k=-nperiod+1,nperiod-1
           do i=-nth,nth
              itot=i+k*ntheta
@@ -2895,17 +2896,17 @@ contains
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
     real :: bi, bp
     integer :: i 
-
+    ! We already calculate rmajor so should probably pass that in instead.
     call rmajortgrid(rgrid, theta, rmajor)
     call gradl(ltheta, Bmod, dBdl, 0., nth)
 
-    bi = btori(rgrid(0),theta(0))
-    do i=-nth, nth
-       bp=-Bpolmag(i)
-       gradB(i,1)=bp/Bmod(i) *(bp/Rpol(i) + dp_new*rmajor(i) &
-            - bi**2*sin(th_bish(i))/rmajor(i)**3/bp)
-       gradB(i,2)=dBdl(i)
-    enddo
+    bi = btori(rgrid(0), theta(0))
+    do i = -nth, nth
+       bp = -Bpolmag(i)
+       gradB(i,1) = bp/Bmod(i) *(bp/Rpol(i) + dp_new*rmajor(i) &
+            - bi**2 * sin(th_bish(i)) / rmajor(i)**3 / bp)
+       gradB(i,2) = dBdl(i)
+    end do
   end subroutine bishop_gradB
 
   !> FIXME : Add documentation    
