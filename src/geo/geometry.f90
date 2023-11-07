@@ -2690,8 +2690,10 @@ contains
     enddo
   end subroutine loftheta
 
-  !> FIXME : Add documentation    
-  subroutine gradl (ltheta, f, dfdl, ext, n)
+  !> Compute df / dltheta using a periodic central difference. The
+  !> input `ext` can be used to control the effective jump in f
+  !> between both ends of the "periodic" grid.
+  pure subroutine gradl (ltheta, f, dfdl, ext, n)
     implicit none
     real, dimension (-ntgrid:), intent(in) :: ltheta, f
     real, dimension (-ntgrid:), intent(out) :: dfdl
@@ -2699,12 +2701,14 @@ contains
     integer, intent(in) :: n
     integer :: i
 
-    dfdl(-n) = (f(n-1) + ext - f(-n+1)) &
-         /(ltheta(-n) - ltheta(-n+1))/2.
+    ! Note here we're effectively assuming a uniformly (or symetric)
+    ! spaced ltheta grid - we could probably use
+    !(ltheta(-n) - ltheta(-n+1) + ltheta(n) - ltheta(n-1)) to avoid this
+    dfdl(-n) = (f(n-1) + ext - f(-n+1)) / (2. * (ltheta(-n) - ltheta(-n+1)))
 
     do i = -n+1, n-1
-       dfdl(i) = (f(i+1) - f(i-1))/(ltheta(i+1)-ltheta(i-1))
-    enddo
+       dfdl(i) = (f(i+1) - f(i-1)) / (ltheta(i+1)-ltheta(i-1))
+    end do
     
     dfdl(n) = dfdl(-n)
   end subroutine gradl
