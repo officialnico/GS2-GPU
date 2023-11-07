@@ -491,6 +491,9 @@ contains
     end do
     ! End theta shift calc
 
+    ! Make sure full Bmod array set
+    if(nperiod > 1 ) call periodic_copy(Bmod, 0.)
+
     !
     ! ******************
     ! Debug:
@@ -813,7 +816,6 @@ contains
 
     !     compute the magnetic field along theta
     if(itor /= 0) then
-       if(nperiod > 1 ) call periodic_copy(Bmod, 0.)
        bmag = Bmod
     else
        do k= -nperiod+1,nperiod-1
