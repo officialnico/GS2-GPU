@@ -386,12 +386,12 @@ contains
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
     real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
-    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin, beta_prime_new, s_hat_new
+    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
-    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi
+    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, beta_prime_new, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, Ltot, rinv
-
+    logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
@@ -451,6 +451,7 @@ contains
     if (gs2d_eq) efit_eq = .true.
     if (transp_eq) ppl_eq = .true.
 
+    force_sym = (isym == 1)
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, iflux)
 
@@ -810,8 +811,8 @@ contains
     call bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
 
     !     compute curvature, grad b, and coriolis drift terms
-    call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, &
-         dqdrp, dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, &
+    call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
+         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, force_sym, &
          gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
 
     !     compute the magnetic field along theta
@@ -826,7 +827,7 @@ contains
        enddo
     endif
 
-    if(isym == 1) call sym(bmag, 0, ntgrid)
+    if (force_sym) call sym(bmag, 0, ntgrid)
 
     !     compute the gradparallel coefficient
     if (dfit_eq) then
@@ -841,7 +842,7 @@ contains
        enddo
     end if
 
-    if(isym == 1) call sym(gradpar, 0, ntgrid)
+    if (force_sym) call sym(gradpar, 0, ntgrid)
 
     ! MAB, CMR, 6/5/2009:
     ! remove unnecessary restriction to calling plotdata for nperiod=1
@@ -939,7 +940,7 @@ contains
     call integrate(jacob, theta, dummy, nth)
     dvdrhon=2.*pi*(dummy(nth)-dummy(-nth))
 
-    if(isym == 1) then
+    if (force_sym) then
        call sym(gds2, 0, ntgrid)
        call sym(gds21, 1, ntgrid)
        call sym(gds22, 0, ntgrid)
@@ -1224,7 +1225,7 @@ contains
             grho(itot)=sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*abs(drhodrp)
          enddo
       enddo
-      if(isym == 1) call sym(grho, 0, ntgrid)
+      if (force_sym) call sym(grho, 0, ntgrid)
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
@@ -1603,12 +1604,13 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, &
+       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, force_sym, &
        gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new
+    logical, intent(in) :: force_sym
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
@@ -1718,12 +1720,12 @@ contains
        end do
     end do
 
-    if(isym == 1) then
+    if (force_sym) then
        call sym(gbdrift, 0, ntgrid)
        call sym(cvdrift, 0, ntgrid)
        call sym(gbdrift0, 1, ntgrid)
        call sym(cvdrift0, 1, ntgrid)
-! should maybe add in cdrift, cdrift0, gbdrift_th, and cvdrift_th here -- MAB
+       ! should maybe add in cdrift, cdrift0, gbdrift_th, and cvdrift_th here -- MAB
     endif
   end subroutine drift
 
