@@ -3270,12 +3270,6 @@ contains
     if(chs_eq) call ceq_Hahm_Burrell(i, a)
   end subroutine Hahm_Burrell
 
-  !> FIXME : Add documentation    
-  pure integer function nth_get()
-    implicit none
-    nth_get = nth
-  end function nth_get
-
   !> Calculate the derivative of the flux label rho
   !! with respect to the internal flux label rp (the 
   !! normalised poloidal flux)
@@ -3310,7 +3304,7 @@ contains
     real, intent (in) :: drhodrp, rp
     real, intent (out) :: drhodrhod
     real :: rp1, rp2,  rho1, rho2
-!     compute d rho / d rb
+    !     compute d rho / d rb
     rp1=rp*(1.-delrho)
     rp2=rp*(1.+delrho)
     rho1=0.5*diameter(rp1)
@@ -3342,7 +3336,7 @@ contains
     implicit none
     real, dimension(-nth:nth), intent (in) :: b_mag, theta, jacob
     real :: ftu, ftl, havg, h2avg, h(-nth:nth)
-! use expressions from Y. R. Lin-Liu and Bob Miller, coding from Q. P. Liu
+    ! use expressions from Y. R. Lin-Liu and Bob Miller, coding from Q. P. Liu
     h = min(b_mag/maxval(b_mag),1.0)
     havg = fluxavg(h, theta, jacob)
     h2avg = fluxavg(h**2, theta, jacob)
