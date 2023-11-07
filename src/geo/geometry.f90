@@ -1820,20 +1820,18 @@ contains
     real :: dum
     character(1) :: char
     
-    char='T'
-    if(bishop == 0) then
-       if(efit_eq .or. dfit_eq) then
-          call mp_abort('error in thetagrad',.true.)
-       endif
+    char = 'T'
+    if (bishop == 0) then
+       if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.)
        call grad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     else
        call bgrad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     end if
 
-    if(nperiod > 1) then
-       call periodic_copy(thgrad(-ntgrid:ntgrid,1),0.)
-       call periodic_copy(thgrad(-ntgrid:ntgrid,2),0.)
-    endif
+    if (nperiod > 1) then
+       call periodic_copy(thgrad(:, 1), 0.)
+       call periodic_copy(thgrad(:, 2), 0.)
+    end if
   end subroutine thetagrad
 
   !> FIXME : Add documentation    
