@@ -367,13 +367,13 @@ contains
     !> job_id is the job id in a  Trinity or list mode run. Used
     !> for debug statements
     integer, intent(in), optional :: job_id_in
-    logical :: start_file_utils, dummy
+    logical :: start_file_utils, dummy_flag
     integer :: job_id
 ! Local variables:
-    real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl
+    real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2, rgrid, bpolmag
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dummy2, dsdl
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
-    real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta, Zoftheta, dZdl
+    real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta, Zoftheta, dZdl, bmod
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
     real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
@@ -422,7 +422,7 @@ contains
       & in eikcoefs. This is a hack to &
       & support older programs like eiktest. You should&
       & initialize file utils before calling eikcoefs'
-      call init_file_utils(dummy, name='geometry_module', trin_run=.true., input=.false.)
+      call init_file_utils(dummy_flag, name='geometry_module', trin_run=.true., input=.false.)
     end if
     !Create module level output file and get unit
     call open_output_file(fort11_unit,".fort.11")
