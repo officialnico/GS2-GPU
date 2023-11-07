@@ -1365,19 +1365,13 @@ contains
     bi = btori(rgrid(0), theta(0))
     do i = -nth, nth
        Rinv(i) = invRfun(rgrid(i), theta(i))
-    enddo
+    end do
 
-    do i=-nth,nth
-       bvector(i,1) =-dpsidrp*rpgrad(i,2)
-       bvector(i,2) = dpsidrp*rpgrad(i,1)
-       bvector(i,3) = bi
-    enddo
-
-    do i=-nth,nth
-       bvector(i,1) = bvector(i,1) * Rinv(i)
-       bvector(i,2) = bvector(i,2) * Rinv(i)
-       bvector(i,3) = bvector(i,3) * Rinv(i)
-    enddo
+    do i = -nth, nth
+       bvector(i,1) = -dpsidrp * rpgrad(i,2) * Rinv(i)
+       bvector(i,2) = dpsidrp * rpgrad(i,1) * Rinv(i)
+       bvector(i,3) = bi * Rinv(i)
+    end do
   end subroutine bvectortgrid
 
   !> FIXME : Add documentation  
