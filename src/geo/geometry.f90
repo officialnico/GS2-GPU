@@ -832,12 +832,10 @@ contains
        gradpar = trip/bmag
     else
        bi = btori(rgrid(0),theta(0))
-       do k=-nperiod+1,nperiod-1
-          do i=-nth,nth
-             itot=i+k*ntheta
-             gradpar(itot) = -bi/(rmajor(i)**2*bmag(i)*dsdthet(i))
-          enddo
-       enddo
+       do i = -nth, nth
+          gradpar(i) = -bi/(rmajor(i)**2*bmag(i)*dsdthet(i))
+       end do
+       call periodic_copy(gradpar, 0., nperiod)
     end if
 
     if (force_sym) call sym(gradpar, 0, ntgrid)
@@ -1108,7 +1106,7 @@ contains
 
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
 
-      ! Calculate grad(psi), grad(BT) and grad(theta for the
+      ! Calculate grad(psi), grad(BT) and grad(theta) for the
       ! specific geometry class we're using
       if(gen_eq)    call geq_init
       if(ppl_eq)    call peq_init
