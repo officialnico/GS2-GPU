@@ -493,7 +493,7 @@ contains
     ! End theta shift calc
 
     ! Make sure full Bmod array set
-    if(nperiod > 1 ) call periodic_copy(Bmod, 0.)
+    call periodic_copy(Bmod, 0., nperiod)
 
     !
     ! ******************
@@ -530,7 +530,7 @@ contains
        dc_bish = bi*(sin(th_bish) + rmajor/Rpol)/(-Bpolmag*rmajor**4)
 
        call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
-       if (nperiod > 1) call periodic_copy(trip, 0.)
+       call periodic_copy(trip, 0., nperiod)
 
        if(iflux == 0) trip = trip * dpsidrp
 
@@ -662,7 +662,7 @@ contains
        dbetadrho = 2*dp_new/drhodpsi
 
        call gradl(ltheta, seik, dSdl, 2*pi*qval, nth)
-       if(nperiod > 1) call periodic_copy(dSdl, 0.)
+       call periodic_copy(dSdl, 0., nperiod)
 
        ! here the coordinates are rho and l
        grads(:,1) = a_bish*di_new + b_bish*dp_new + c_bish*2
@@ -670,10 +670,10 @@ contains
 
        ! obtain Z(theta)
        call Ztgrid(rgrid, theta, Zoftheta)
-       if(nperiod > 1) call periodic_copy(Zoftheta, 0.)
+       call periodic_copy(Zoftheta, 0., nperiod)
        ! calculate dZ/dl
        call gradl(ltheta, Zoftheta, dZdl, 0., nth)
-       if(nperiod > 1) call periodic_copy(dZdl, 0.)
+       call periodic_copy(dZdl, 0., nperiod)
 
        ! gradztot(:,1) is grad Z . rhohat
        gradztot(:,1) = crpgrad(:,2)/grho
@@ -1144,7 +1144,9 @@ contains
 
       call drho_drp(rp, drhodrp)
 
-      if(nperiod > 1) call periodic_copy(theta, 2.*pi)
+      ! Not clear that we need this -- init_uniform_theta_grid
+      ! already populates the full theta domain
+      call periodic_copy(theta, 2.*pi, nperiod)
 
       if(writelots) then
          write(fort11_unit,*) 'drhodrp=',drhodrp
@@ -1201,27 +1203,22 @@ contains
          call B_mod(rgrid, theta, Bpolmag, Bmod, nth)
          call R_pol(theta, th_bish, ltheta, Rpol, nth)
 
-         if(nperiod > 1) then
-            call periodic_copy(rmajor, 0.)
-            call periodic_copy(Bpolmag, 0.)
-            call periodic_copy(th_bish, 0.)
-            call periodic_copy(Rpol, 0.)
-            Ltot = ltheta(nth)-ltheta(-nth)
-            call periodic_copy(ltheta, Ltot)
-         endif
+         call periodic_copy(rmajor, 0., nperiod)
+         call periodic_copy(Bpolmag, 0., nperiod)
+         call periodic_copy(th_bish, 0., nperiod)
+         call periodic_copy(Rpol, 0., nperiod)
+         Ltot = ltheta(nth)-ltheta(-nth)
+         call periodic_copy(ltheta, Ltot, nperiod)
       endif
 
-      call periodic_copy(crpgrad(:,1), 0.)
-      call periodic_copy(crpgrad(:,2), 0.)
+      call periodic_copy(crpgrad(:,1), 0., nperiod)
+      call periodic_copy(crpgrad(:,2), 0., nperiod)
 
       !     compute |grad rho|:
-      ! Could we just set -nth:nth and then use periodic_copy?
-      do k=-nperiod+1,nperiod-1
-         do i=-nth,nth
-            itot=i+k*ntheta
-            grho(itot)=sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*abs(drhodrp)
-         enddo
-      enddo
+      do i = -nth, nth
+         grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
+      end do
+      call periodic_copy(grho, 0., nperiod)
       if (force_sym) call sym(grho, 0, ntgrid)
 
       !     compute  coordinate gradients
@@ -1244,10 +1241,8 @@ contains
             Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*rinv*abs(dpsidrp)
             Bmod(i) = sqrt( (bi*rinv)**2 + bpolmag(i)**2)
          enddo
-         if(nperiod > 1) then
-            call periodic_copy(Bpolmag, 0.)
-            call periodic_copy(Bmod, 0.)
-         endif
+         call periodic_copy(Bpolmag, 0., nperiod)
+         call periodic_copy(Bmod, 0., nperiod)
       endif
     end subroutine initialise_geometry_and_get_bmod
      
@@ -1791,7 +1786,7 @@ contains
     do i=-nth,nth
        dsdthet(i)=-bi/trip(i)*invRfun(rgrid(i),theta(i))**2
     enddo
-    if(nperiod > 1) call periodic_copy(dsdthet, 0.)
+    call periodic_copy(dsdthet, 0., nperiod)
 
     call integrate(dsdthet, theta, seik, ntgrid)
 
@@ -1824,10 +1819,8 @@ contains
        call bgrad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     end if
 
-    if (nperiod > 1) then
-       call periodic_copy(thgrad(:, 1), 0.)
-       call periodic_copy(thgrad(:, 2), 0.)
-    end if
+    call periodic_copy(thgrad(:, 1), 0., nperiod)
+    call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
 
   !> FIXME : Add documentation    
@@ -2629,12 +2622,8 @@ contains
        arcl(j)=arcl(j)*2.*pi*arcfac-pi
     enddo
     
-    if(nperiod > 1) call periodic_copy(arcl, 2.*pi)
-    do k=-nperiod+1,nperiod-1
-       do j=-nth,nth
-          gpar(j+k*ntheta)=2.*pi*arcfac
-       enddo
-    enddo
+    call periodic_copy(arcl, 2.*pi, nperiod)
+    gpar = 2 * pi * arcfac
   end subroutine arclength
 
   !> FIXME : Add documentation  
@@ -2877,28 +2866,31 @@ contains
 
   end subroutine init_uniform_theta_grid
 
-  !> FIXME : Add documentation    
-  subroutine periodic_copy(a, ext)
+  !> Copy the `[-nth,nth] = [-pi,pi]` section of the passed array into
+  !> the `theta > +/- pi` parts, adding on `k * ext` (with k an integer
+  !> labelling the sections/periods). Here we expect `ext == array(nth) - array(-nth)`.
+  pure subroutine periodic_copy(a, ext, nperiod)
     implicit none
     real, dimension(-ntgrid:ntgrid), intent(in out) :: a
     real, intent(in) :: ext
+    integer, intent(in) :: nperiod
     integer :: i, k, itot
-
-    if(nperiod == 1) return
-
-    do k=1-nperiod,-1
-       do i=-nth,nth
-          itot = i + k*ntheta
-          a(itot) = a(i) + k*ext
-       enddo
-    enddo
+    if (nperiod <= 1) return
+    ! Note we end up enforcing a(nth)-a(-nth) = ext, but we should probably check this is
+    ! also true on input to the routine
+    do k = -nperiod + 1, -1
+       do i = -nth, nth
+          itot = i + k * ntheta
+          a(itot) = a(i) + k * ext
+       end do
+    end do
 
     do k=1,nperiod-1
        do i=-nth,nth
           itot = i + k*ntheta
           a(itot) = a(i) + k*ext
-       enddo
-    enddo
+       end do
+    end do
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
@@ -3108,7 +3100,7 @@ contains
           rgrid(i)=rfun(rp, theta(i), broot)
        enddo
     endif
-    if(nperiod>1) call periodic_copy(rgrid,0.0)
+    call periodic_copy(rgrid, 0.0, nperiod)
   end subroutine rtg
 
   !> Returns the distance to the magnetic axis
