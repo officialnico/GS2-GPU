@@ -1976,15 +1976,15 @@ contains
     enddo
   end subroutine rmajortgrid
 
-  !> FIXME : Add documentation    
+  !> Calculates the vertical height, Z, on the theta grid
   subroutine Ztgrid(rgrid, theta, Zoftheta)
     implicit none
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: Zoftheta
     integer :: i
-    do i=-nth,nth
-       Zoftheta(i)=Zpos(rgrid(i),theta(i))
-    enddo
+    do i = -nth, nth
+       Zoftheta(i) = Zpos(rgrid(i), theta(i))
+    end do
   end subroutine Ztgrid
 
   !> FIXME : Add documentation    
