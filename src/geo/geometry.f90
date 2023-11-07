@@ -1327,31 +1327,6 @@ contains
   end subroutine eikcoefs
 
   !> FIXME : Add documentation  
-  real function surfareafun(rgrid, theta)
-    use constants, only: pi
-    implicit none
-    real, dimension(:), intent(in) :: rgrid, theta
-    real, dimension(-ntgrid:ntgrid) :: ds, drdth, ans
-    integer :: i
-    !Note : surfareafun not generalized yet? needs to be checked.
-
-    drdth(-nth)=(rgrid(nth-1)-rgrid(-nth+1))/(theta(nth-1)-theta(-nth+1))
-
-    do i=-nth+1,nth-1
-       drdth(i)=(rgrid(i+1)-rgrid(i-1))/(theta(i+1)-theta(i-1))
-    enddo
-
-    drdth(nth)=(rgrid(-nth+1)-rgrid(nth-1))/(theta(-nth+1)-theta(nth-1))
-
-    do i=-nth,nth
-       ds(i)=2.*pi/invRfun(rgrid(i),theta(i))*sqrt(rgrid(i)**2+drdth(i)**2)
-    enddo
-
-    call integrate(ds, theta, ans, nth)
-    surfareafun=ans(nth)-ans(-nth)
-  end function surfareafun
-
-  !> FIXME : Add documentation  
   subroutine bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: rgrid, theta
