@@ -2848,7 +2848,7 @@ contains
     use constants, only: pi
     implicit none
     integer, intent(in out) :: nt
-    real, dimension(:), allocatable :: theta
+    real, dimension(:), allocatable, intent(in out) :: theta
     integer :: i
 
     nth = nt / 2
