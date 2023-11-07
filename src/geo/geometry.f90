@@ -384,7 +384,7 @@ contains
     real, allocatable, dimension(:) :: grho, bmag, gradpar, &
          cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-         cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th, Bpol ! MAB
+         cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
     real, allocatable, dimension(:) :: theta_eqarc, gradpar_prime, theta_prime_eqarc, theta_prime
     real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin, beta_prime_new, s_hat_new
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
@@ -955,8 +955,6 @@ contains
     dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
 
-    Bpol = bpolmag
-
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
        !RN> I think kxfac should include the sign.
@@ -999,7 +997,7 @@ contains
     outputs%rprime = rprime
     outputs%zprime = zprime
     outputs%aprime = aprime
-    outputs%bpol = bpol
+    outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
     outputs%beta_prime_new = beta_prime_new
@@ -1217,6 +1215,7 @@ contains
       call periodic_copy(crpgrad(:,2), 0.)
 
       !     compute |grad rho|:
+      ! Could we just set -nth:nth and then use periodic_copy?
       do k=-nperiod+1,nperiod-1
          do i=-nth,nth
             itot=i+k*ntheta
@@ -1320,9 +1319,7 @@ contains
          theta_eqarc(-n:n), & !EGH
          theta_prime(-n:n), & !EGH
          theta_prime_eqarc(-n:n), & !EGH
-         gradpar_prime(-n:n),     & !EGH
-         Bpol       (-n:n))
-
+         gradpar_prime(-n:n))
     end subroutine alloc_local_arrays
 
     !> FIXME : Add documentation      
@@ -1393,9 +1390,7 @@ contains
          theta_eqarc, & ! EGH
          theta_prime, & ! EGH
          theta_prime_eqarc, & ! EGH
-         gradpar_prime,     & ! EGH
-         Bpol       )
-
+         gradpar_prime)
     end subroutine dealloc_local_arrays
 
   end subroutine eikcoefs
