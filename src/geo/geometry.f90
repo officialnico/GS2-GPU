@@ -702,8 +702,8 @@ contains
        call seikon(rp1, theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
        call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
 
-       do i=-nth,nth
-          dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
+       do i = -nth, nth
+          dsdrp(i) = (seik2(i) - seik1(i)) / (2.*delrp)
        end do
 
        if (iflux == 1) then
@@ -716,8 +716,8 @@ contains
           write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
           write (fort11_unit,*) 's_hat= ',shat
           write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
-          do i=-nth,nth
-             write (fort11_unit,*) i,rgrid(i),rp1,rp2
+          do i = -nth, nth
+             write (fort11_unit,*) i, rgrid(i), rp1, rp2
           end do
        end if
 
@@ -735,12 +735,12 @@ contains
        ! this is really gradient of alpha
        ! note that coordinates are R and Z (not rho and l, as in bishop case)
        ! Note we don't use dsdthet1/2 (dummy2 above)
-       do k=-nperiod+1,nperiod-1
-          do j=1,2
-             do i=-nth,nth
-                itot=i+k*ntheta
-                dsdrptot=dsdrp(i)-k*2*pi*dqdrp
-                grads(itot,j)=rpgrad(i,j)*dsdrptot+thgrad(i,j)*dsdthet(i)
+       do k = -nperiod+1, nperiod-1
+          do j = 1, 2
+             do i = -nth, nth
+                itot = i + k * ntheta
+                dsdrptot = dsdrp(i) - k * 2 * pi * dqdrp
+                grads(itot, j) = rpgrad(i, j) * dsdrptot + thgrad(i, j) * dsdthet(i)
              end do
           end do
        end do
@@ -752,18 +752,18 @@ contains
        gradztot(:,3) = 0.
     end if
 
-    if(writelots) then
+    if (writelots) then
        write(fort11_unit,*) 'i,theta,grads1,2=  '
-       do i=-ntgrid,ntgrid
-          write(fort11_unit,*) i,theta(i),grads(i,1),grads(i,2)
-       enddo
-    endif
+       do i = -ntgrid, ntgrid
+          write(fort11_unit,*) i, theta(i), grads(i, 1), grads(i, 2)
+       end do
+    end if
     !     compute total grad S including toroidal part
     call gradstottgrid(rmajor, grads, gradstot)
 
     !     compute the magnitude squared of grad S
-    dpsidrho=dpsidrp/drhodrp
-    if(iflux == 1) drhodpsin = drhodrp/dpsidrp
+    dpsidrho = dpsidrp / drhodrp
+    if( iflux == 1) drhodpsin = drhodrp / dpsidrp
     call dottgridf(gradstot, gradstot, gdsdum1)
 
     do i = -nth, nth
@@ -817,14 +817,14 @@ contains
          cdrift, cdrift0)
 
     !     compute the magnetic field along theta
-    if(itor /= 0) then
+    if (itor /= 0) then
        bmag = Bmod
     else
        do i = -nth, nth
           bmag(i)= 1./(1.+rgrid(i)*cos(theta(i))/rmaj)
        end do
        call periodic_copy(bmag, 0., nperiod)
-    endif
+    end if
 
     if (force_sym) call sym(bmag, 0, ntgrid)
 
@@ -858,17 +858,17 @@ contains
     ! gradpar to be gradpar'. This means that the values of
     ! theta in the gs2 output file are not values of the poloidal
     ! angle but values of theta_prime EGH
-    if(equal_arc) then
+    if (equal_arc) then
        call arclength (ntheta, nperiod, theta, gradpar, arcl)
        theta = arcl
-    endif
+    end if
 
     !     compute grad rho*Jacobian of the transformation to the new coordinates:
     !     Axisymmetry assumed to get this (nu indep. of phi):
-    do i=-nth,nth
-       jacob(i)=abs(dpsidrho/(gradpar(i)*bmag(i)))
-       ds(i)=grho(i)*jacob(i)
-    enddo
+    do i = -nth, nth
+       jacob(i) = abs(dpsidrho / (gradpar(i)*bmag(i)))
+       ds(i) = grho(i) * jacob(i)
+    end do
 
     !     compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
     !     does not work with equal_arc grid
@@ -889,7 +889,7 @@ contains
        ! not sure abou the following yet -- MAB
        !       call sym(gds23, 0, ntgrid)
        !       call sym(gds24, 1, ntgrid)
-    endif
+    end if
 
     call open_output_file(fort25_unit,".fort.25")
     write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
@@ -897,7 +897,7 @@ contains
 
     kxfac = abs(qval/rhoc/drhodpsin)
     qsf = qval
-    if(eqinit >= 1) eqinit=0
+    if (eqinit >= 1) eqinit = 0
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
