@@ -1858,12 +1858,12 @@ contains
     real, dimension(-ntgrid:, :), intent(in) :: x, y
     integer :: i
     ! factor of 1/R from grad zeta
-    do i=-nth,nth
-       val(i)=(x(i,1)*y(i,2)-x(i,2)*y(i,1))*invRfun(rgrid(i),theta(i))
-    enddo
+    do i =-nth, nth
+       val(i) = (x(i,1)*y(i,2)-x(i,2)*y(i,1)) * invRfun(rgrid(i),theta(i))
+    end do
   end subroutine tripprod2dtgrid
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function btori(r, thet)
     use geq, only: geq_btori => btori , geq_init_btori => initialize_btori
     use peq, only: peq_btori => btori , ppl_init_btori => initialize_btori
@@ -1876,41 +1876,37 @@ contains
     real, save :: r_last, theta_last, I_last
     logical, save :: first_run = .true.
     integer :: i, initb = 1
-!
-! In the present code, most calls to this routine have the same r, thet, so: 
-!
+    !
+    ! In the present code, most calls to this routine have the same r, thet, so:
+    !
+    ! Instead of this caching we could just store the result and pass it around.
     if(.not.first_run)then
-       if(r == r_last .and. thet == theta_last .and. eqinit /= 1) then
+       if (r == r_last .and. thet == theta_last .and. eqinit /= 1) then
           btori = I_last
           return
-       endif
-    endif
+       end if
+    end if
 
-    if(eqinit == 1) initb = 1
-
-    if(iflux == 1) then
-       pbar = psifun(rpfun(r,thet))
-
-       if (gen_eq) then
-          i=geq_init_btori(initb)
-          btori=geq_btori(pbar)
-       elseif (chs_eq) then
-          i=chs_init_btori(initb)
-          btori=ceq_btori(pbar)
-       elseif (ppl_eq) then
-          i=ppl_init_btori(initb)
-          btori=peq_btori(pbar)
-       elseif (efit_eq) then
-          i = efit_init_btori(initb)
-          btori=eeq_btori(pbar)
-       elseif (dfit_eq) then
-          btori=0.
-       endif
-       if(initb == 1) initb = 0
-    else         
-       btori=leq_btori()
-    endif
-
+    if (eqinit == 1) initb = 1
+    if (iflux == 1) pbar = psifun(rpfun(r,thet))
+    if (gen_eq) then
+       i = geq_init_btori(initb) ; btori = geq_btori(pbar)
+    else if (ppl_eq) then
+       i = ppl_init_btori(initb) ; btori = peq_btori(pbar)
+    else if (chs_eq) then
+       i = chs_init_btori(initb) ; btori = ceq_btori(pbar)
+    else if (efit_eq) then
+       i = efit_init_btori(initb) ; btori = eeq_btori(pbar)
+    else if (dfit_eq) then
+       btori = 0.
+    else if (idfit_eq) then
+       btori = 0.
+    else if (local_eq) then
+       btori = leq_btori()
+    else
+       btori = invalidValue
+    end if
+    initb = 0
     r_last = r
     theta_last = thet
     I_last = btori
@@ -1929,26 +1925,26 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initdb = 1
-
-    if(eqinit == 1) initdb = 1
-
-    if (iflux == 1) then
-       pbar = psifun(rpfun(r,thet))
-       if (gen_eq) then
-          i = geq_init_dbtori(initdb) ; dbtori = geq_dbtori(pbar)
-       else if (ppl_eq) then
-          i = ppl_init_dbtori(initdb) ; dbtori = peq_dbtori(pbar)
-       else if (chs_eq) then
-          i = chs_init_dbtori(initdb) ; dbtori = ceq_dbtori(pbar)
-       else if (efit_eq) then        
-          i = efit_init_dbtori(initdb) ; dbtori = eeq_dbtori(pbar)
-       else if (dfit_eq) then
-          dbtori = 0.
-       end if
-       if(initdb == 1) initdb = 0
-    else         
-       dbtori=leq_dbtori()
-    endif
+    if (eqinit == 1) initdb = 1
+    if (iflux == 1) pbar = psifun(rpfun(r,thet))
+    if (gen_eq) then
+       i = geq_init_dbtori(initdb) ; dbtori = geq_dbtori(pbar)
+    else if (ppl_eq) then
+       i = ppl_init_dbtori(initdb) ; dbtori = peq_dbtori(pbar)
+    else if (chs_eq) then
+       i = chs_init_dbtori(initdb) ; dbtori = ceq_dbtori(pbar)
+    else if (efit_eq) then
+       i = efit_init_dbtori(initdb) ; dbtori = eeq_dbtori(pbar)
+    else if (dfit_eq) then
+       dbtori = 0.
+    else if (idfit_eq) then
+       dbtori = 0.
+    else if (local_eq) then
+       dbtori = leq_dbtori()
+    else
+       dbtori = invalidValue
+    end if
+    initdb = 0
   end function dbtori
 
   !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
