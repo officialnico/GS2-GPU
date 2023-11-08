@@ -4046,20 +4046,20 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer,save :: istep_last=-1
+    integer, save :: istep_last = -1
     integer, parameter :: verb = 3
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then       
+       if (istep > 0 .and. istep /= istep_last) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
