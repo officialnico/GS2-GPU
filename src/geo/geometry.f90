@@ -1105,12 +1105,19 @@ contains
 
       ! Calculate grad(psi), grad(BT) and grad(theta) for the
       ! specific geometry class we're using
-      if(gen_eq)    call geq_init
-      if(ppl_eq)    call peq_init
-      if(chs_eq)    call ceq_init
-      if(efit_eq)   call efit_init
-      if(dfit_eq)   call deq_init
-      if(idfit_eq)  call ideq_init
+      if (gen_eq) then
+         call geq_init
+      else if (ppl_eq) then
+         call peq_init
+      else if (chs_eq) then
+         call ceq_init
+      else if (efit_eq) then
+         call efit_init
+      else if (dfit_eq) then
+         call deq_init
+      else if (idfit_eq) then
+         call ideq_init
+      end if
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor)
