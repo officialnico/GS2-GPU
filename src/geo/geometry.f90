@@ -1988,44 +1988,38 @@ contains
     end do
   end subroutine Ztgrid
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function qfun(pbar)
     use geq, only: geq_qfun => qfun, geq_init_q => initialize_q
     use peq, only: peq_qfun => qfun, ppl_init_q => initialize_q
     use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
     use eeq, only: eeq_qfun => qfun, efit_init_q => initialize_q
     use leq, only: leq_qfun => qfun
-    use mp, only: mp_abort
     implicit none
     real, intent(in) :: pbar
     integer :: i, initq = 1
-    
-    qfun = invalidValue
     if (eqinit ==1 ) initq = 1
-
     if (gen_eq) then
-       i = geq_init_q(initq)
-       qfun = geq_qfun(pbar)
+       i = geq_init_q(initq) ; qfun = geq_qfun(pbar)
     else if (ppl_eq) then
-       i = ppl_init_q(initq)
-       qfun = peq_qfun(pbar)
+       i = ppl_init_q(initq) ; qfun = peq_qfun(pbar)
     else if (chs_eq) then
-       i = chs_init_q(initq)
-       qfun = ceq_qfun(pbar)
+       i = chs_init_q(initq) ; qfun = ceq_qfun(pbar)
     else if (efit_eq) then
-       i = efit_init_q(initq)
-       qfun = eeq_qfun(pbar)
+       i = efit_init_q(initq) ; qfun = eeq_qfun(pbar)
     else if (dfit_eq) then
+       qfun = 0.
+    else if (idfit_eq) then
        qfun = 0.
     else if (local_eq) then
        qfun = leq_qfun()
+    else
+       qfun = invalidValue
     end if
-
-    if (initq == 1) initq = 0
-    if (qfun == invalidValue) call mp_abort("qfun not set")
+    initq = 0
   end function qfun
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function pfun(r,thet)
     use  geq, only: geq_pfun => pfun, geq_init_pressure => initialize_pressure
     use  peq, only: peq_pfun => pfun, ppl_init_pressure => initialize_pressure
@@ -2034,44 +2028,33 @@ contains
     use  deq, only: deq_pfun => pfun, dfit_init_pressure => initialize_pressure
     use ideq, only: ideq_pfun => pfun, idfit_init_pressure => initialize_pressure
     use  leq, only: leq_pfun => pfun
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initp = 1
-
-    pfun = invalidValue
-
-    if (iflux == 1) pbar = psifun(psi(r, thet))
     if (eqinit == 1) initp = 1
-
+    if (iflux == 1) pbar = psifun(psi(r, thet))
     if (gen_eq) then
-       i=geq_init_pressure(initp)
-       pfun = geq_pfun(pbar)
+       i = geq_init_pressure(initp) ; pfun = geq_pfun(pbar)
     else if (ppl_eq) then
-       i=ppl_init_pressure(initp)
-       pfun = peq_pfun(pbar)
+       i = ppl_init_pressure(initp) ; pfun = peq_pfun(pbar)
     else if (chs_eq) then
-       i=chs_init_pressure(initp)
-       pfun = ceq_pfun(pbar)
+       i = chs_init_pressure(initp) ; pfun = ceq_pfun(pbar)
     else if (efit_eq) then
-       i = efit_init_pressure(initp)
-       pfun = eeq_pfun(pbar)
+       i = efit_init_pressure(initp) ; pfun = eeq_pfun(pbar)
     else if (dfit_eq) then
-       i = dfit_init_pressure(initp)
-       pfun = deq_pfun(pbar)
+       i = dfit_init_pressure(initp) ; pfun = deq_pfun(pbar)
     else if (idfit_eq) then
-       i = idfit_init_pressure(initp)
-       pfun = ideq_pfun(pbar)
+       i = idfit_init_pressure(initp) ; pfun = ideq_pfun(pbar)
     else if (local_eq) then
        pfun = leq_pfun()
+    else
+       pfun = invalidValue
     endif
-
-    if (initp == 1) initp = 0
-    if (pfun == invalidValue) call mp_abort("pfun not set")
+    initp = 0
   end function pfun
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function dpfun(r, thet)
     use  geq, only: geq_dpfun => dpfun, geq_init_dpressure => initialize_dpressure
     use  peq, only: peq_dpfun => dpfun, ppl_init_dpressure => initialize_dpressure
@@ -2080,43 +2063,33 @@ contains
     use  deq, only: deq_dpfun => dpfun, dfit_init_dpressure => initialize_dpressure
     use ideq, only: ideq_dpfun => dpfun, idfit_init_dpressure => initialize_dpressure
     use  leq, only: leq_dpfun => dpfun
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initdp = 1
-
-    dpfun = invalidValue
-    
-    if(iflux /= 1) then
-       dpfun=leq_dpfun() 
-       return
+    if (eqinit == 1) initdp = 1
+    if (iflux == 1) pbar = psifun(psi(r, thet))
+    if (gen_eq) then
+       i = geq_init_dpressure(initp) ; dpfun = geq_dpfun(pbar)
+    else if (ppl_eq) then
+       i = ppl_init_dpressure(initp) ; dpfun = peq_dpfun(pbar)
+    else if (chs_eq) then
+       i = chs_init_dpressure(initp) ; dpfun = ceq_dpfun(pbar)
+    else if (efit_eq) then
+       i = efit_init_dpressure(initp) ; dpfun = eeq_dpfun(pbar)
+    else if (dfit_eq) then
+       i = dfit_init_dpressure(initp) ; dpfun = deq_dpfun(pbar)
+    else if (idfit_eq) then
+       i = idfit_init_dpressure(initp) ; dpfun = ideq_dpfun(pbar)
+    else if (local_eq) then
+       dpfun = leq_dpfun()
+    else
+       dpfun = invalidValue
     endif
-
-    pbar = psifun(psi(r,thet))
-
-    if(eqinit == 1) initdp = 1
-    
-    if(gen_eq)  i = geq_init_dpressure(initdp)
-    if(ppl_eq)  i = ppl_init_dpressure(initdp)
-    if(chs_eq)  i = chs_init_dpressure(initdp)
-    if(efit_eq) i = efit_init_dpressure(initdp)
-    if(dfit_eq) i = dfit_init_dpressure(initdp)
-    if(idfit_eq)i = idfit_init_dpressure(initdp)
-    initdp=0
-          
-    if(gen_eq)   dpfun = geq_dpfun(pbar)
-    if(ppl_eq)   dpfun = peq_dpfun(pbar)
-    if(chs_eq)   dpfun = ceq_dpfun(pbar)
-    if(efit_eq)  dpfun = eeq_dpfun(pbar)
-    if(dfit_eq)  dpfun = deq_dpfun(pbar)
-    if(idfit_eq) dpfun = ideq_dpfun(pbar)
-
-    if (dpfun == invalidValue) call mp_abort("dpfun not set")
-    
+    initdp = 0
   end function dpfun
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function beta_a_fun(r,thet)
     use  geq, only: geq_beta => betafun,  geq_init_beta => initialize_beta
     use  peq, only: peq_beta => betafun,  ppl_init_beta => initialize_beta
@@ -2128,33 +2101,24 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initbeta = 1
-
-    if(iflux == 0) then
-       beta_a_fun=0.
-       return
-    endif
-    
-    beta_a_fun = 0.
-    pbar = psifun(psi(r,thet))
-    
+    if (eqinit == 1) initbeta = 1
+    if (iflux == 1) pbar = psifun(psi(r,thet))
     if (gen_eq) then
-       i = geq_init_beta(initbeta)
-       beta_a_fun = geq_beta(pbar)
-    elseif (ppl_eq) then
-       i = ppl_init_beta(initbeta)
-       beta_a_fun = peq_beta(pbar)
-    elseif (chs_eq) then
-       i = chs_init_beta(initbeta)
-       beta_a_fun = ceq_beta(pbar)
-    elseif(efit_eq) then
-       i = efit_init_beta(initbeta)
-       beta_a_fun = eeq_beta(pbar)
-    elseif(dfit_eq) then
-       i = dfit_init_beta(initbeta)
-       beta_a_fun = deq_beta(pbar)
-    elseif(idfit_eq) then
-       i = idfit_init_beta(initbeta)
-       beta_a_fun = ideq_beta(pbar)
+       i = geq_init_beta(initbeta) ; beta_a_fun = geq_beta(pbar)
+    else if (ppl_eq) then
+       i = ppl_init_beta(initbeta) ; beta_a_fun = peq_beta(pbar)
+    else if (chs_eq) then
+       i = chs_init_beta(initbeta) ; beta_a_fun = ceq_beta(pbar)
+    else if(efit_eq) then
+       i = efit_init_beta(initbeta) ; beta_a_fun = eeq_beta(pbar)
+    else if(dfit_eq) then
+       i = dfit_init_beta(initbeta) ; beta_a_fun = deq_beta(pbar)
+    else if(idfit_eq) then
+       i = idfit_init_beta(initbeta) ; beta_a_fun = ideq_beta(pbar)
+    else if (local_eq) then
+       beta_a_fun = 0.
+    else
+       beta_a_fun = invalidValue
     endif
     initbeta = 0
   end function beta_a_fun
