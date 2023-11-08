@@ -1861,19 +1861,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    real, save :: r_last, theta_last, I_last
-    logical, save :: first_run = .true.
     integer :: i, initb = 1
-    !
-    ! In the present code, most calls to this routine have the same r, thet, so:
-    !
-    ! Instead of this caching we could just store the result and pass it around.
-    if(.not.first_run)then
-       if (r == r_last .and. thet == theta_last .and. eqinit /= 1) then
-          btori = I_last
-          return
-       end if
-    end if
     btori = invalidValue
     if (eqinit == 1) initb = 1
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
@@ -1893,10 +1881,6 @@ contains
        btori = leq_btori()
     end if
     initb = 0
-    r_last = r
-    theta_last = thet
-    I_last = btori
-    first_run = .false.
   end function btori
 
   !> FIXME : Add documentation
