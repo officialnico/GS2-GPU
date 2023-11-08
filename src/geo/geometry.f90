@@ -2230,8 +2230,8 @@ contains
     enddo
     phi=phi*(psi_a-psi_0)   ! fixed by MB
   end function phi
-      
-  !> FIXME : Add documentation  
+
+  !> FIXME : Add documentation
   real function psi(r, thet)
     use  geq, only: geq_psi => psi,  geq_init_psi => initialize_psi
     use  peq, only: peq_psi => psi,  ppl_init_psi => initialize_psi
@@ -2240,52 +2240,36 @@ contains
     use  deq, only: deq_psi => psi, dfit_init_psi => initialize_psi
     use ideq, only: ideq_psi => psi, idfit_init_psi => initialize_psi
     use  leq, only: leq_psi => psi
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
     integer :: init = 1, i
+    if (r == 0.) then
+       psi = psi_0
+       return
+    else if (r == 1. .and. thet == 0.) then
+       psi = psi_a
+       return
+    endif
 
-    psi = invalidValue
-    
-    if(r == 0.) then
-       psi=psi_0
-       return
-    endif
-    if(r == 1. .and. thet == 0.) then
-       psi=psi_a
-       return
-    endif
-!
-! Reinitialize if equilibrium has changed.
-!
     if(eqinit == 1) init = 1
-
     if (gen_eq) then
-       i = geq_init_psi(init)
-       psi = geq_psi(r)       
+       i = geq_init_psi(init) ; psi = geq_psi(r)
     elseif (ppl_eq) then
-       i = ppl_init_psi(init)
-       psi = peq_psi(r)       
+       i = ppl_init_psi(init) ; psi = peq_psi(r)
     elseif (chs_eq) then
-       i = chs_init_psi(init)
-       psi = ceq_psi(r)       
+       i = chs_init_psi(init) ; psi = ceq_psi(r)
     else if(efit_eq) then
-       i = efit_init_psi(init)
-       psi = eeq_psi(r, thet)
+       i = efit_init_psi(init) ; psi = eeq_psi(r, thet)
     else if(dfit_eq) then
-       i = dfit_init_psi(init)
-       psi = deq_psi(r, thet)
+       i = dfit_init_psi(init) ; psi = deq_psi(r, thet)
     else if(idfit_eq) then
-       i = idfit_init_psi(init)
-       psi = ideq_psi(r)
+       i = idfit_init_psi(init) ; psi = ideq_psi(r)
     else if(local_eq) then
        psi = leq_psi(r)
+    else
+       psi = invalidValue
     endif
-
     init = 0
-
-    if (psi == invalidValue) call mp_abort("psi not set")
-    
   end function psi
 
   !> FIXME : Add documentation    
