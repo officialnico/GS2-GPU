@@ -766,14 +766,14 @@ contains
     if(iflux == 1) drhodpsin = drhodrp/dpsidrp
     call dottgridf(gradstot, gradstot, gdsdum1)
 
-    do k=-nperiod+1,nperiod-1
-       do i=-nth,nth
-          itot=i+k*ntheta
-          gradrptot(itot,1)=rpgrad(i,1)
-          gradrptot(itot,2)=rpgrad(i,2)
-          gradrptot(itot,3)=0.
-       enddo
-    enddo
+    do i = -nth, nth
+       gradrptot(i, 1) = rpgrad(i, 1)
+       gradrptot(i, 2) = rpgrad(i, 2)
+    end do
+    call periodic_copy(gradrptot(:, 1), 0., nperiod)
+    call periodic_copy(gradrptot(:, 2), 0., nperiod)
+    gradrptot(:, 3) = 0.
+
     call dottgridf(gradstot, gradrptot, gdsdum2)
     call dottgridf(gradrptot, gradrptot, gdsdum3)
     gds2  = gdsdum1            *dpsidrho**2
@@ -790,14 +790,13 @@ contains
     ! gradthtot is grad theta
     ! since ballooning, theta goes from -ntheta*nperiod -> ntheta*nperiod,
     ! but grad theta is periodic in theta
-    do k=-nperiod+1,nperiod-1
-       do i=-nth,nth
-          itot=i+k*ntheta
-          gradthtot(itot,1)=thgrad(i,1)
-          gradthtot(itot,2)=thgrad(i,2)
-          gradthtot(itot,3)=0.
-       enddo
-    enddo
+    do i = -nth, nth
+       gradthtot(i, 1) = thgrad(i, 1)
+       gradthtot(i, 2) = thgrad(i, 2)
+    end do
+    call periodic_copy(gradthtot(:, 1), 0., nperiod)
+    call periodic_copy(gradthtot(:, 2), 0., nperiod)
+    gradthtot(:, 3) = 0.
 
     ! calculate grad rho dot grad theta
     call dottgridf(gradrptot, gradthtot, gdsdum4)
