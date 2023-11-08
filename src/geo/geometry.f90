@@ -1798,7 +1798,7 @@ contains
     integer :: i, initrho = 1
     pbar = psifun(rp)
     if (eqinit == 1) initrho = 1
-    i = init_rho(initrho)
+    i = init_rho(initrho) ; initrho = 0
     rhofun = deq_rhofun(pbar)
   end function rhofun
 
