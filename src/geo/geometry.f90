@@ -1443,6 +1443,8 @@ contains
        Rpos = ideq_R (r, thet)
     else if (local_eq) then
        Rpos = leq_R (r, thet)
+    else
+       Rpos = invalidValue
     end if
   end function Rpos
 
@@ -1471,6 +1473,8 @@ contains
        Zpos = ideq_Z (r, thet)
     else if (local_eq) then
        Zpos = leq_Z (r, thet)
+    else
+       Zpos = invalidValue
     end if
   end function Zpos
 
@@ -1503,6 +1507,8 @@ contains
           invRfun = ideq_invR (r, thet)
        else if (local_eq) then
           invRfun = leq_invR (r, thet)
+       else
+          invRfun = invalidValue
        end if
     end if
   end function invRfun
