@@ -817,12 +817,10 @@ contains
     if(itor /= 0) then
        bmag = Bmod
     else
-       do k= -nperiod+1,nperiod-1
-          do i=-nth,nth
-             itot= i+k*ntheta
-             bmag(itot)= 1./(1.+rgrid(i)*cos(theta(i))/rmaj)
-          enddo
-       enddo
+       do i = -nth, nth
+          bmag(i)= 1./(1.+rgrid(i)*cos(theta(i))/rmaj)
+       end do
+       call periodic_copy(bmag, 0., nperiod)
     endif
 
     if (force_sym) call sym(bmag, 0, ntgrid)
