@@ -2812,6 +2812,10 @@ contains
     if (iflux /= 0 .and. iflux /= 1) then
        call mp_abort('Can only choose iflux = 0 or iflux = 1', .true.)
     end if
+
+    if (.not. any([geq, ceq, eeq, peq, leq, deq, ideq])) then
+       call mp_abort('Must set at least one equilibrium flag to true', .true.)
+    end if
     
     if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
       write (*,*) 'Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
