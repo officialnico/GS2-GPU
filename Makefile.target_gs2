@@ -185,13 +185,6 @@ $(LIBDIR)/geo.a: $(GEO_OBJ) |$(LIBDIR)
 .PHONY: geo.a
 geo.a: $(LIBDIR)/geo.a
 
-#### Not sure what the following two rules are for
-geo_c: $(OBJDIR)/geometry_c_driver.o geo.a utils.a
-	$(QUIETSYM)$(FC) -o  geo_c geometry_c_driver.o ../geo.a ../utils.a -Mnomain 
-
-geo_c.a: geometry_c_interface.o ../geo.a ../utils.a  
-	$(QUIETSYM)$(FC) -o  geo_c2.a geometry_c_interface.o ../geo.a ../utils.a -Mnomain -Mnostartup -Mnostdlib
-
 ### LIBGS2
 libgs2_all: $(LIBDIR)/libgs2.a
 

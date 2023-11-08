@@ -546,8 +546,7 @@ contains
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom

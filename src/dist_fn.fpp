@@ -8445,9 +8445,8 @@ contains
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: ntgrid, bmag, gds21, gds22, qval, shat
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use kt_grids, only: aky, theta0
     use le_grids, only: integrate_volume, nlambda, negrid
     use le_grids, only: get_flux_vs_theta_vs_vpa
@@ -8564,8 +8563,7 @@ contains
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only:has_phi
     use constants, only: zi
-    use geometry, only: rhoc
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi

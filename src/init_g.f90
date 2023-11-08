@@ -4245,12 +4245,12 @@ contains
   !! JRB
   subroutine ginit_stationary_mode
     use species, only: spec, nspec
-    use theta_grid, only: ntgrid, theta, bmag
+    use theta_grid, only: ntgrid, theta, bmag, rhoc
     use kt_grids, only: akx
-    use dist_fn_arrays, only: g, gnew, vpa,  aj0
+    use dist_fn_arrays, only: g, gnew, vpa, aj0
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
-    use geometry, only : rhoc, qinp, Rpos, R_geo
+    use geometry, only : qinp, Rpos, R_geo
     use spfunc, only: j0
     use array_utils, only: copy
     implicit none
