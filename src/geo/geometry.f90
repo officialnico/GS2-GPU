@@ -2909,16 +2909,23 @@ contains
      real, dimension(-ntgrid:,:), intent(out) :: gradf
      character(1), intent(in) :: char
      real, intent(in) :: rp
-
-     if(gen_eq)   call  geq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(ppl_eq)   call  peq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(chs_eq)   call  ceq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(efit_eq)  call  eeq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(dfit_eq)  call  deq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(idfit_eq) call ideq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(local_eq) call  leq_gradient(theta, gradf, char, rp, nth, ntgrid)
+     if (gen_eq) then
+        call  geq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (ppl_eq) then
+        call  peq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (chs_eq) then
+        call  ceq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (efit_eq) then
+        call  eeq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (dfit_eq) then
+        call  deq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (idfit_eq) then
+        call ideq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (local_eq) then
+        call  leq_gradient(theta, gradf, char, rp, nth, ntgrid)
+     end if
    end subroutine grad
-   
+
    !> Calculate the derivative of rp w.r.t. R and Z and return
    !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
    !> Parameters are:
@@ -2947,14 +2954,21 @@ contains
      real, dimension(-ntgrid:,:), intent(out) :: gradf
      character(1), intent(in) :: char
      real, intent(in) :: rp
-
-     if(gen_eq)   call  geq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(ppl_eq)   call  peq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(chs_eq)   call  ceq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(efit_eq)  call  eeq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(dfit_eq)  call  deq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(idfit_eq) call ideq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     if(local_eq) call  leq_bgradient(theta, gradf, char, rp, nth, ntgrid)
+     if (gen_eq) then
+        call  geq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (ppl_eq) then
+        call  peq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (chs_eq) then
+        call  ceq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (efit_eq) then
+        call  eeq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (dfit_eq) then
+        call  deq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (idfit_eq) then
+        call ideq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
+     else if (local_eq) then
+        call  leq_bgradient(theta, gradf, char, rp, nth, ntgrid)
+     end if
    end subroutine bgrad
 
   !> Calculate rgrid for the case of eeq and deq: 
