@@ -1111,6 +1111,7 @@ contains
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor)
+      call periodic_copy(rmajor, 0., nperiod)
 
       !     compute gradient of rp
       char='P'
@@ -1141,7 +1142,6 @@ contains
          call B_mod(rgrid, theta, Bpolmag, Bmod, bi, nth)
          call R_pol(theta, th_bish, ltheta, Rpol, nth)
 
-         call periodic_copy(rmajor, 0., nperiod)
          call periodic_copy(Bpolmag, 0., nperiod)
          call periodic_copy(th_bish, 0., nperiod)
          call periodic_copy(Rpol, 0., nperiod)
