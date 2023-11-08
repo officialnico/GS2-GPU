@@ -1131,8 +1131,8 @@ contains
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
 
-      if(bishop == 0) then
-         call  grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+      if (bishop == 0) then
+         call grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
          crpgrad = rpgrad
       else
          call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
@@ -1151,7 +1151,7 @@ contains
          call periodic_copy(Rpol, 0., nperiod)
          Ltot = ltheta(nth)-ltheta(-nth)
          call periodic_copy(ltheta, Ltot, nperiod)
-      endif
+      end if
 
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
@@ -1178,14 +1178,14 @@ contains
       if (iflux == 0) then
          bi = btori(rgrid(0), theta(0))
          drhodpsin = drhodrp/dpsidrp
-         do i=-nth,nth
+         do i = -nth, nth
             rinv = invRfun(rgrid(i), theta(i))
             Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*rinv*abs(dpsidrp)
             Bmod(i) = sqrt( (bi*rinv)**2 + bpolmag(i)**2)
-         enddo
+         end do
          call periodic_copy(Bpolmag, 0., nperiod)
          call periodic_copy(Bmod, 0., nperiod)
-      endif
+      end if
     end subroutine initialise_geometry_and_get_bmod
      
     !> FIXME : Add documentation
@@ -1296,14 +1296,14 @@ contains
            gradthtot )  ! MAB
 
     if (allocated(grho)) deallocate(grho   , &
-         theta, &
+         theta      , &
          bmag       , &
          gradpar    , &
          cvdrift    , &
          cvdrift0   , &
          gbdrift    , &
          gbdrift0   , &
-         cdrift    , &
+         cdrift     , &
          cdrift0    , &
          gbdrift_th , &
          cvdrift_th , &
@@ -1644,7 +1644,6 @@ contains
     integer, intent(in) :: isign, ntgrid
     real, dimension(-ntgrid:), intent (in out) :: a
     integer :: i
-
     if (isign == 0) then
        do i = 1, ntgrid
           a(i) = 0.5 * (a(i) + a(-i))
@@ -1669,7 +1668,6 @@ contains
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real :: dum
     character(1) :: char    
-    
     rgrid = rp
     char='P'
     ! Note we only call this routine when bishop == 0
@@ -2116,9 +2114,9 @@ contains
     implicit none
     real, intent (in) :: rho
     integer, intent(in) :: fort11_unit
-    !     punt for now; not used
-    if(iflux /= 1) then
-       pbarofrho=0.
+    if (local_eq) then
+       !     punt for now; not used
+       pbarofrho = 0.
     else
        pbarofrho = psifun(rpofrho(rho, fort11_unit))
     end if
