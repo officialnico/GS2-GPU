@@ -808,9 +808,9 @@ contains
 
     !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, &
-         force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
-         cdrift0)
+         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, rmajor, dp_new, &
+         bi, force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, &
+         cdrift, cdrift0)
 
     !     compute the magnetic field along theta
     if(itor /= 0) then
@@ -1503,11 +1503,12 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, &
+       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, rmajor, dp_new, bi, &
        force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
        cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta
+    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish
+    real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new, bi
     logical, intent(in) :: force_sym
@@ -1534,7 +1535,7 @@ contains
        char='B'
        if(bishop >= 1) then
           call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
-               dp_new, bi, bgrad1)
+               rmajor, dp_new, bi, bgrad1)
        else
           call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
@@ -1937,9 +1938,9 @@ contains
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: rmajor
     integer :: i
-    do i=-nth,nth
-       rmajor(i)=Rpos(rgrid(i),theta(i))
-    enddo
+    do i = -nth, nth
+       rmajor(i) = Rpos(rgrid(i), theta(i))
+    end do
   end subroutine rmajortgrid
 
   !> Calculates the vertical height, Z, on the theta grid
@@ -2737,19 +2738,17 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
-  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, gradB)
+  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, rmajor, &
+       dp_new, bi, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol
-    real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, theta
+    real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, theta, rmajor
     real, intent(in) :: dp_new, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
-    real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
+    real, dimension(-ntgrid:ntgrid) :: dBdl
     real :: bp
     integer :: i 
-    ! We already calculate rmajor so should probably pass that in instead.
-    call rmajortgrid(rgrid, theta, rmajor)
     call gradl(ltheta, Bmod, dBdl, 0., nth)
-
     do i = -nth, nth
        bp = -Bpolmag(i)
        gradB(i,1) = bp/Bmod(i) *(bp/Rpol(i) + dp_new*rmajor(i) &
