@@ -2755,71 +2755,49 @@ contains
     end if
     
     if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
-      write (*,*) 'Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
-      & efit_eq, ppl_eq, local_eq is not permitted'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+      call mp_abort('Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
+      & efit_eq, ppl_eq, local_eq is not permitted', .true.)
+    end if
 
-    if(geq .and. deq) then
-       write(*,*) 'Choosing gen_eq = .true. AND dfit_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (geq .and. deq) then
+       call mp_abort('Choosing gen_eq = .true. AND dfit_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(geq .and. eeq) then
-       write(*,*) 'Choosing gen_eq = .true. AND efit_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (geq .and. eeq) then
+       call mp_abort('Choosing gen_eq = .true. AND efit_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(geq .and. peq) then
-       write(*,*) 'Choosing gen_eq = .true. AND ppl_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (geq .and. peq) then
+       call mp_abort('Choosing gen_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(geq .and. leq) then
-       write(*,*) 'Choosing gen_eq = .true. AND local_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (geq .and. leq) then
+       call mp_abort('Choosing gen_eq = .true. AND local_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(eeq .and. deq) then
-       write(*,*) 'Choosing efit_eq = .true. AND dfit_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (eeq .and. deq) then
+       call mp_abort('Choosing efit_eq = .true. AND dfit_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(eeq .and. leq) then
-       write(*,*) 'Choosing efit_eq = .true. AND local_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (eeq .and. leq) then
+       call mp_abort('Choosing efit_eq = .true. AND local_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(eeq .and. peq) then
-       write(*,*) 'Choosing efit_eq = .true. AND ppl_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (eeq .and. peq) then
+       call mp_abort('Choosing efit_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(deq .and. leq) then
-       write(*,*) 'Choosing dfit_eq = .true. AND local_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (deq .and. leq) then
+       call mp_abort('Choosing dfit_eq = .true. AND local_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(deq .and. peq) then
-       write(*,*) 'Choosing dfit_eq = .true. AND ppl_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (deq .and. peq) then
+       call mp_abort('Choosing dfit_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
+    end if
 
-    if(peq .and. leq) then
-       write(*,*) 'Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.'
-       write(*,*) 'Stopping.'
-       call mp_abort('Clash of equilibrium flags.')
-    endif
+    if (peq .and. leq) then
+       call mp_abort('Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.', .true.)
+    end if
   end subroutine check
 
   !> Calculate the derivative of rp w.r.t. R and Z. Parameters
