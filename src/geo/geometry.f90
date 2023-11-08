@@ -396,10 +396,8 @@ contains
     real :: thetaShift
     integer :: iBmax
     logical :: bMaxShift
-
     real :: a_b, b_b, c_b
     real :: s_hat, dp, di, pressure, tmp, rbar
-
     character(1) :: char
     integer :: i, j, k, itot
     integer :: fort25_unit !For outputting geom values
@@ -434,16 +432,16 @@ contains
        iflux = 0
     end if
 
-    if(iflux == 0) then
-       if(.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0'
+    if (iflux == 0) then
+       if (.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0'
        local_eq = .true.
        if(irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
-       if(bishop == 0) then
+       if (bishop == 0) then
           write(*,*) 'Forcing bishop = 1'
           bishop = 1
-       endif
-    endif
+       end if
+    end if
 
     ! If variant geometry type active ensure parent type active
     if (gs2d_eq) efit_eq = .true.
@@ -467,11 +465,11 @@ contains
 
           ! Locate the index of the maximum magnetic field in the range [-pi,pi)
           iBmax = -nth
-          do i =-nth+1,nth-1
+          do i = -nth+1, nth-1
              if (Bmod(iBmax)<Bmod(i)) then
                 iBmax = i
              end if
-          enddo
+          end do
 
           ! If it is not at plus or minus pi and theta has never been
           ! shifted, then shift theta
@@ -511,11 +509,11 @@ contains
     !         write(*,*) seik(i),dum,-qval*theta(i)
     !      enddo
     ! ******************
-    if(writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
+    if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
 
     !
     !     compute derivatives of eikonal
-    if(bishop /= 0) then
+    if (bishop /= 0) then
        drhodpsi = drhodrp / dpsidrp
        allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
        da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
@@ -528,7 +526,7 @@ contains
        call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
        call periodic_copy(trip, 0., nperiod)
 
-       if(iflux == 0) trip = trip * dpsidrp
+       if (iflux == 0) trip = trip * dpsidrp
 
        if (debug) write(6,*) "eikcoefs:  gradients"
        if (debug) write(6,*) 'drhodpsi', drhodpsi
@@ -560,11 +558,11 @@ contains
        c_bish = - c_bish * Bpolmag * rmajor
 
        ! find shat, pressure' and report them
-       if(iflux == 0) then
+       if (iflux == 0) then
           dp = dpdrhofun()*drhodpsi
        else
           dp = dpfun(rgrid(0),theta(0))
-       endif
+       end if
 
        di = dbtori(rgrid(0),theta(0))
 
@@ -589,54 +587,54 @@ contains
           dp_new = p_prime_input
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
-          if(writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
+          if (writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
        case (3)
           s_hat_new = s_hat_input
           dp_new = -invLp_input*pressure*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
-          if(writelots) write(*,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
+          if (writelots) write(*,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
        case (4)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (5)
           s_hat_new = s_hat_input
           dp_new = -alpha_input/qval**2/rmaj*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
                -qval**2*rmaj*dp_new/drhodpsi
-          if(writelots) write(*,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
+          if (writelots) write(*,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
                -qval**2*rmaj*dp_new/drhodpsi
        case (6)
           s_hat_new = s_hat
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (7)
           s_hat_new = s_hat
           dp_new = dp * dp_mult
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           beta_prime_new=2.*dp_new/drhodpsi
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (8)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi * dp_mult
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (9)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
           di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case default
-          if(iflux /= 1) then
+          if (iflux /= 1) then
              s_hat_new = s_hat_input
              dp_new = dp
              di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
@@ -644,13 +642,13 @@ contains
              s_hat_new = s_hat
              dp_new = dp
              di_new = di
-          endif
+          end if
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if(writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        end select
 
        write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
-       if(writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
+       if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
        write(fort11_unit,*)
 
        shat = s_hat_new
@@ -679,9 +677,9 @@ contains
        gradztot(:,3) = 0.0
     else
        !     rp derivative
-       delrp=delrho/drhodrp
-       rp1=rp-delrp
-       rp2=rp+delrp
+       delrp = delrho / drhodrp
+       rp1 = rp - delrp
+       rp2 = rp + delrp
 
        ! Note for iflux == 0 we need to ensure qval is set before
        !calling seikon.
