@@ -384,7 +384,7 @@ contains
          cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
-    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, qsf, drhodpsin
+    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, drhodpsin
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, beta_prime_new, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
@@ -896,7 +896,6 @@ contains
     call close_output_file(fort25_unit)
 
     kxfac = abs(qval/rhoc/drhodpsin)
-    qsf = qval
     if (eqinit >= 1) eqinit = 0
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
@@ -947,7 +946,7 @@ contains
     outputs%beta_prime_new = beta_prime_new
     outputs%drhodpsin = drhodpsin
     outputs%kxfac = kxfac
-    outputs%qsf = qsf
+    outputs%qsf = qval
     outputs%surfarea = surfarea
     outputs%dvdrhon = dvdrhon
     outputs%shat = shat
