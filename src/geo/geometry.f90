@@ -2372,7 +2372,7 @@ contains
     endif
   end function rmagaxis
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function rcenter(rp)
     use geq, only: geq_rcenter => rcenter, geq_init_rc => initialize_rcenter
     use peq, only: peq_rcenter => rcenter, peq_init_rc => initialize_rcenter
@@ -2386,26 +2386,24 @@ contains
     integer :: i, init_rc = 1
     real :: broot0, brootpi
     if(eqinit == 1) init_rc = 1
-
-    if (gen_eq)  i = geq_init_rc(init_rc) 
-    if (ppl_eq)  i = peq_init_rc(init_rc) 
-    if (chs_eq)  i = ceq_init_rc(init_rc) 
-    if (efit_eq) i = eeq_init_rc(init_rc)
-    if (idfit_eq)i = ideq_init_rc(init_rc)
+    if (gen_eq) then
+       i = geq_init_rc(initd) ; rcenter = geq_rcenter(rp)
+    else if (ppl_eq) then
+       i = peq_init_rc(initd) ; rcenter = peq_rcenter(rp)
+    else if (chs_eq) then
+       i = ceq_init_rc(initd) ; rcenter = ceq_rcenter(rp)
+    else if (efit_eq) then
+       rcenter = rmaj + 0.5 * (rfun(rp, 0., bound(0.)) - rfun(rp, pi, bound(pi)))
+    else if (dfit_eq) then
+       rcenter = rmaj ! Note this is a historic fall back, perhaps should be invalidValue
+    else if (idfit_eq) then
+       i = ideq_init_rc(initd) ; rcenter = ideq_rcenter(rp)
+    else if (local_eq) then
+       rcenter = leq_rcenter(rp)
+    else
+       rcenter = invalidValue
+    end if
     init_rc = 0
-
-    rcenter=rmaj
-    if(gen_eq)   rcenter = geq_rcenter(rp) 
-    if(idfit_eq) rcenter = ideq_rcenter(rp) 
-    if(ppl_eq)   rcenter = peq_rcenter(rp) 
-    if(chs_eq)   rcenter = ceq_rcenter(rp) 
-
-    if(efit_eq) then
-       broot0 = bound(0.)
-       brootpi= bound(pi)
-       rcenter = rmaj + 0.5*(rfun(rp, 0., broot0 )-rfun(rp,pi,brootpi))
-    endif
-    if(local_eq) rcenter = leq_rcenter()
   end function rcenter
 
   !> FIXME : Add documentation    
