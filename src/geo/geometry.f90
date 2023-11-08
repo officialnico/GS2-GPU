@@ -1348,19 +1348,15 @@ contains
     real, dimension(-ntgrid:, :), intent (in) :: grads
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
     integer :: i, k, itot
-
-    do k=-nperiod+1,nperiod-1
-       do i=-nth,nth
-          itot=i+k*ntheta
-          gradstot(itot,1)=grads(itot,1)
-          gradstot(itot,2)=grads(itot,2)
-          if(itor == 0) then
-             gradstot(itot,3)=0.
-          else
-             gradstot(itot,3)=1./rmajor(i)
-          endif
-       enddo
-    enddo
+    gradstot(:, 1:2) = grads
+    if (itor == 0) then
+       gradstot(:, 3) = 0.
+    else
+       do i = -nth, nth
+          gradstot(i, 3) = 1.0 / rmajor(i)
+       end do
+       call periodic_copy(gradstot(:, 3), 0.0, nperiod)
+    end if
   end subroutine gradstottgrid
 
   !> Calculate the cross product c = a x b on the `[-nth, nth]` domain
