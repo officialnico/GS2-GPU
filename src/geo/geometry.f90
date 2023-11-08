@@ -1742,7 +1742,8 @@ contains
     call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
 
-  !> FIXME : Add documentation    
+  !> Returns the diameter of the surface labelled by rp.
+  !> @note This is not defined for dfit_eq = T
   real function diameter(rp)
     use geq, only: geq_diameter => diameter, geq_init_diameter => initialize_diameter
     use peq, only: peq_diameter => diameter, peq_init_diameter => initialize_diameter
@@ -1751,42 +1752,33 @@ contains
     use eeq, only: bound
     use leq, only: leq_diameter => diameter
     use constants, only: pi
-    use mp, only: mp_abort
     implicit none
     real, intent(in) :: rp
     integer :: i, initd = 1
-    real :: broot0, brootpi
-
-    diameter = invalidValue
-    
-    if(rp <= rpmin .and. .not. efit_eq) then 
+    if (rp <= rpmin .and. .not. efit_eq) then
        diameter = 0.
        return
-    endif
-    
-    if(eqinit == 1) initd = 1
+    end if
 
-    if(iflux /= 1) then
+    if(eqinit == 1) initd = 1
+    if (gen_eq) then
+       i = geq_init_diameter(initd) ; diameter = geq_diameter(rp)
+    else if (ppl_eq) then
+       i = peq_init_diameter(initd) ; diameter = peq_diameter(rp)
+    else if (chs_eq) then
+       i = ceq_init_diameter(initd) ; diameter = ceq_diameter(rp)
+    else if (efit_eq) then
+       diameter = rfun(rp, 0., bound(0.)) + rfun(rp, pi, bound(pi))
+    else if (dfit_eq) then
+       diameter = invalidValue !Note we don't set this!
+    else if (idfit_eq) then
+       i = ideq_init_diameter(initd) ; diameter = ideq_diameter(rp)
+    else if (local_eq) then
        diameter = leq_diameter(rp)
     else
-       if (gen_eq)  i=geq_init_diameter(initd)
-       if (idfit_eq)i=ideq_init_diameter(initd)
-       if (ppl_eq)  i=peq_init_diameter(initd)
-       if (chs_eq)  i=ceq_init_diameter(initd)
-       initd=0
-         
-       if(gen_eq)  diameter = geq_diameter(rp)
-       if(idfit_eq)diameter = ideq_diameter(rp)
-       if(ppl_eq)  diameter = peq_diameter(rp)
-       if(chs_eq)  diameter = ceq_diameter(rp)
-       if(efit_eq) then
-          broot0 = bound(0.)
-          brootpi = bound(pi)
-          diameter = rfun(rp, 0., broot0) + rfun(rp, pi, brootpi)
-       endif
-    endif
-
-    if (diameter == invalidValue) call mp_abort("diameter not set")    
+       diameter = invalidValue
+    end if
+    initd=0
   end function diameter
 
   !> Calculates the normalised radial coordinate
