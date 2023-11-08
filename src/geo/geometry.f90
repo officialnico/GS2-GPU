@@ -1418,7 +1418,7 @@ contains
     endif
   end function bmagfun
 
-  !> FIXME : Add documentation    
+  !> Returns the major radius R corresponding to the passed r and theta
   real function Rpos(r, thet)
     use  geq, only: geq_R => Rpos
     use  peq, only: peq_R => Rpos
@@ -1427,23 +1427,26 @@ contains
     use  eeq, only: eeq_R => Rpos
     use  deq, only: deq_R => Rpos
     use ideq, only: ideq_R => Rpos
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-
-    Rpos = invalidValue
-    if(gen_eq)  Rpos = geq_R (r, thet)       
-    if(ppl_eq)  Rpos = peq_R (r, thet)       
-    if(chs_eq)  Rpos = ceq_R (r, thet)       
-    if(efit_eq) Rpos = eeq_R (r, thet)
-    if(dfit_eq) Rpos = deq_R (r, thet)
-    if(idfit_eq)Rpos = ideq_R (r, thet)
-    if(local_eq)Rpos = leq_R (r, thet)
-
-    if (Rpos == invalidValue) call mp_abort("Rpos not set")
+    if (gen_eq) then
+       Rpos = geq_R (r, thet)
+    else if (ppl_eq) then
+       Rpos = peq_R (r, thet)
+    else if (chs_eq) then
+       Rpos = ceq_R (r, thet)
+    else if (efit_eq) then
+       Rpos = eeq_R (r, thet)
+    else if (dfit_eq) then
+       Rpos = deq_R (r, thet)
+    else if (idfit_eq) then
+       Rpos = ideq_R (r, thet)
+    else if (local_eq) then
+       Rpos = leq_R (r, thet)
+    end if
   end function Rpos
 
-  !> FIXME : Add documentation    
+  !> Returns the height Z corresponding to the passed r and theta
   real function Zpos(r, thet)
     use  geq, only: geq_Z => Zpos
     use  peq, only: peq_Z => Zpos
@@ -1452,23 +1455,27 @@ contains
     use  eeq, only: eeq_Z => Zpos
     use  deq, only: deq_Z => Zpos
     use ideq, only: ideq_Z => Zpos
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-
-    Zpos = invalidValue
-    if(gen_eq)  Zpos =  geq_Z (r, thet)       
-    if(ppl_eq)  Zpos =  peq_Z (r, thet)       
-    if(chs_eq)  Zpos =  ceq_Z (r, thet)       
-    if(efit_eq) Zpos =  eeq_Z (r, thet)
-    if(dfit_eq) Zpos =  deq_Z (r, thet)
-    if(idfit_eq)Zpos = ideq_Z (r, thet)
-    if(local_eq)Zpos =  leq_Z (r, thet)
-
-    if (Zpos == invalidValue) call mp_abort("Zpos not set")
+    if (gen_eq) then
+       Zpos = geq_Z (r, thet)
+    else if (ppl_eq) then
+       Zpos = peq_Z (r, thet)
+    else if (chs_eq) then
+       Zpos = ceq_Z (r, thet)
+    else if (efit_eq) then
+       Zpos = eeq_Z (r, thet)
+    else if (dfit_eq) then
+       Zpos = deq_Z (r, thet)
+    else if (idfit_eq) then
+       Zpos = ideq_Z (r, thet)
+    else if (local_eq) then
+       Zpos = leq_Z (r, thet)
+    end if
   end function Zpos
 
-  !> FIXME : Add documentation    
+  !> Returns the inverse of the major radius, 1/R, corresponding to the passed r and theta
+  !> Should we implement this in terms of 1/Rpos?
   real function invRfun(r, thet)
     use  geq, only: geq_invR => invR
     use  peq, only: peq_invR => invR
@@ -1477,25 +1484,27 @@ contains
     use  eeq, only: eeq_invR => invR
     use  deq, only: deq_invR => invR
     use ideq, only: ideq_invR => invR
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: r, thet
-
-    invRfun = invalidValue
-    
     if(itor == 0) then
-       invRfun = 1./rmaj
+       invRfun = 1. / rmaj
     else
-       if(gen_eq)  invRfun =  geq_invR (r, thet)
-       if(ppl_eq)  invRfun =  peq_invR (r, thet)
-       if(chs_eq)  invRfun =  ceq_invR (r, thet)
-       if(efit_eq) invRfun =  eeq_invR (r, thet)
-       if(dfit_eq) invRfun =  deq_invR (r, thet)
-       if(idfit_eq)invRfun = ideq_invR (r, thet)
-       if(local_eq)invRfun =  leq_invR (r, thet)
-    endif
-
-    if (invRfun == invalidValue) call mp_abort("invRFun not set")
+       if (gen_eq) then
+          invRfun = geq_invR (r, thet)
+       else if (ppl_eq) then
+          invRfun = peq_invR (r, thet)
+       else if (chs_eq) then
+          invRfun = ceq_invR (r, thet)
+       else if (efit_eq) then
+          invRfun = eeq_invR (r, thet)
+       else if (dfit_eq) then
+          invRfun = deq_invR (r, thet)
+       else if (idfit_eq) then
+          invRfun = ideq_invR (r, thet)
+       else if (local_eq) then
+          invRfun = leq_invR (r, thet)
+       end if
+    end if
   end function invRfun
 
   !> FIXME : Add documentation    
