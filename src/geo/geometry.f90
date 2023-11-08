@@ -521,8 +521,6 @@ contains
        da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
             trip(-ntgrid:ntgrid))
 
-       bi = btori(rgrid(0),theta(0))
-
        da_bish = 1/rmajor**2 + (bi/(Bpolmag*rmajor**2))**2
        db_bish = bi/(Bpolmag*rmajor)**2
        dc_bish = bi*(sin(th_bish) + rmajor/Rpol)/(-Bpolmag*rmajor**4)
@@ -696,8 +694,8 @@ contains
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
        ! this _might_ not do what is expected.
-       call seikon(rp1, theta, qval1, seik1, dummy2, dummy, dum)
-       call seikon(rp2, theta, qval2, seik2, dummy2, dummy, dum)
+       call seikon(rp1, theta, qval1, bi, seik1, dummy2, dummy, dum)
+       call seikon(rp2, theta, qval2, bi, seik2, dummy2, dummy, dum)
 
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
@@ -747,7 +745,7 @@ contains
        gradztot(:,2) = 1.
        ! gradztot(:,3) is grad Z . phihat
        gradztot(:,3) = 0.
-    endif
+    end if
 
     if(writelots) then
        write(fort11_unit,*) 'i,theta,grads1,2=  '
@@ -806,12 +804,13 @@ contains
     gds24_noq = gds24_noq*qval/rhoc
 
     !     compute magnetic field
-    call bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
+    call bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bi, bvector)
 
     !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, force_sym, &
-         gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
+         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, &
+         force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
+         cdrift0)
 
     !     compute the magnetic field along theta
     if(itor /= 0) then
@@ -829,7 +828,6 @@ contains
     if (dfit_eq) then
        gradpar = trip/bmag
     else
-       bi = btori(rgrid(0),theta(0))
        do i = -nth, nth
           gradpar(i) = -bi/(rmajor(i)**2*bmag(i)*dsdthet(i))
        end do
@@ -1140,7 +1138,7 @@ contains
          ! note that Bpolmag and Bmod are recalculated later if using
          ! Miller (local) equilibrium
          call B_pol(rgrid, theta, crpgrad, Bpolmag, nth)
-         call B_mod(rgrid, theta, Bpolmag, Bmod, nth)
+         call B_mod(rgrid, theta, Bpolmag, Bmod, bi, nth)
          call R_pol(theta, th_bish, ltheta, Rpol, nth)
 
          call periodic_copy(rmajor, 0., nperiod)
@@ -1166,15 +1164,17 @@ contains
       call thetagrad(rgrid,theta, thgrad)
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
+      ! Get the toroidal field function (i.e. fp = R B_T)
+      bi = btori(rgrid(0),theta(0))
+
       !     compute eikonal S
       if (iflux == 0) qval=qfun(pbarofrho(rho, fort11_unit))
       if (debug) write(6,*) "eikcoefs: call eikonal"
-      call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+      call eikonal(rgrid, theta, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if(writelots) write(fort11_unit,*) 'q= ',qval
 
       if (iflux == 0) then
-         bi = btori(rgrid(0), theta(0))
          drhodpsin = drhodrp/dpsidrp
          do i = -nth, nth
             rinv = invRfun(rgrid(i), theta(i))
@@ -1323,17 +1323,14 @@ contains
   end subroutine eikcoefs
 
   !> FIXME : Add documentation  
-  subroutine bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bvector)
+  subroutine bvectortgrid(rgrid, theta, nth, rpgrad, dpsidrp, bi, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:,:), intent (in) :: rpgrad
     real, dimension(-ntgrid:,:), intent (out) :: bvector
-    real, intent (in) :: dpsidrp
-    real :: bi
+    real, intent (in) :: dpsidrp, bi
     real, dimension(-nth:nth) :: Rinv
     integer :: i
-
-    bi = btori(rgrid(0), theta(0))
     do i = -nth, nth
        Rinv(i) = invRfun(rgrid(i), theta(i))
     end do
@@ -1510,19 +1507,19 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, force_sym, &
-       gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0)
+       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, &
+       force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
+       cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
-    real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new
+    real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new, bi
     logical, intent(in) :: force_sym
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
     real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3, cdrift1, cdrift2
-
     real :: dum
     character(1) :: char
     integer :: i, k, itot
@@ -1541,7 +1538,7 @@ contains
        char='B'
        if(bishop >= 1) then
           call bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, &
-               dp_new, bgrad1)
+               dp_new, bi, bgrad1)
        else
           call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
@@ -1657,10 +1654,11 @@ contains
   end subroutine sym
 
   !> FIXME: Add documentation
-  subroutine seikon(rp, theta, qval, seik, dsdthet, rgrid, dpsidrp)
+  subroutine seikon(rp, theta, qval, bi, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta
     real, intent(in out) :: qval
+    real, intent(in) :: bi
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
@@ -1676,28 +1674,27 @@ contains
     end if
 
     call thetagrad(rgrid, theta, thgrad)
-    call eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+    call eikonal(rgrid, theta, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
   !> FIXME : Add documentation    
-  subroutine eikonal(rgrid, theta, rpgrad, thgrad, qval, seik, dsdthet, dpsidrp)
+  subroutine eikonal(rgrid, theta, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
     use constants, only: pi
     implicit none
     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
     real, dimension(-ntgrid:,:), intent(in) ::  rpgrad, thgrad
     real, intent(in out) :: qval
+    real, intent(in) :: bi
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid) :: trip
-    real :: bi
     integer :: i
 
     call tripprod2dtgrid(rpgrad, thgrad, rgrid, theta, trip)
     
-    bi = btori(rgrid(0),theta(0))
-    do i=-nth,nth
-       dsdthet(i)=-bi/trip(i)*invRfun(rgrid(i),theta(i))**2
-    enddo
+    do i = -nth, nth
+       dsdthet(i) = -bi/trip(i)*invRfun(rgrid(i),theta(i))**2
+    end do
     call periodic_copy(dsdthet, 0., nperiod)
 
     call integrate(dsdthet, theta, seik, ntgrid)
@@ -2617,15 +2614,13 @@ contains
   end subroutine B_pol
 
   !> FIXME : Add documentation    
-  subroutine B_mod(rgrid, theta, Bpolmag, Bmod, nth)
+  subroutine B_mod(rgrid, theta, Bpolmag, Bmod, bi, nth)
     implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: rgrid, theta, Bpolmag
     real, dimension(-ntgrid:), intent (out) :: Bmod
-    real :: bi
+    real, intent(in) :: bi
     integer :: i
-
-    bi = btori(rgrid(0),theta(0))
     do i = -nth, nth
        Bmod(i) = sqrt((bi*invRfun(rgrid(i),theta(i)))**2 + Bpolmag(i)**2)
     end do
@@ -2762,20 +2757,19 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
-  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, gradB)
+  subroutine bishop_gradB(rgrid, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, dp_new, bi, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, theta
-    real, intent(in) :: dp_new
+    real, intent(in) :: dp_new, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: rmajor, dBdl
-    real :: bi, bp
+    real :: bp
     integer :: i 
     ! We already calculate rmajor so should probably pass that in instead.
     call rmajortgrid(rgrid, theta, rmajor)
     call gradl(ltheta, Bmod, dBdl, 0., nth)
 
-    bi = btori(rgrid(0), theta(0))
     do i = -nth, nth
        bp = -Bpolmag(i)
        gradB(i,1) = bp/Bmod(i) *(bp/Rpol(i) + dp_new*rmajor(i) &
