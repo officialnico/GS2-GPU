@@ -1116,6 +1116,9 @@ contains
       call invRtgrid(rgrid, theta, invR)
       call periodic_copy(invR, 0., nperiod)
 
+      ! Get the toroidal field function (i.e. fp = R B_T)
+      bi = btori(rgrid(0),theta(0))
+
       !     compute gradient of rp
       char='P'
 
@@ -1166,9 +1169,6 @@ contains
       if (debug) write(6,*) "eikcoefs: call thetagrad"
       call thetagrad(rgrid,theta, thgrad)
       if (debug) write(6,*) "eikcoefs: done thetagrad"
-
-      ! Get the toroidal field function (i.e. fp = R B_T)
-      bi = btori(rgrid(0),theta(0))
 
       !     compute eikonal S
       if (iflux == 0) qval=qfun(pbarofrho(rho, fort11_unit))
