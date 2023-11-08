@@ -2707,13 +2707,21 @@ contains
     use  leq, only:  leq_finish
     implicit none
     eqinit = 1
-    if(gen_eq)   call  geq_finish
-    if(ppl_eq)   call  peq_finish
-    if(chs_eq)   call  ceq_finish
-    if(efit_eq)  call  eeq_finish
-    if(dfit_eq)  call  deq_finish
-    if(idfit_eq) call ideq_finish
-    if(local_eq) call  leq_finish
+    if (gen_eq) then
+       call  geq_finish
+    else if (ppl_eq) then
+       call  peq_finish
+    else if (chs_eq) then
+       call  ceq_finish
+    else if (efit_eq)  then
+       call  eeq_finish
+    else if (dfit_eq) then
+       call  deq_finish
+    else if (idfit_eq) then
+       call ideq_finish
+    else if (local_eq) then
+       call  leq_finish
+    end if
   end subroutine finish_geometry
 
   !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
@@ -2742,7 +2750,6 @@ contains
     allocate(theta(-ntgrid:ntgrid))
 
     theta = [ (i*pi/real(nth), i=-ntgrid, ntgrid) ]
-
   end subroutine init_uniform_theta_grid
 
   !> Copy the `[-nth,nth] = [-pi,pi]` section of the passed array into
