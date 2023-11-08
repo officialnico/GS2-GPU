@@ -388,7 +388,7 @@ contains
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, beta_prime_new, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
-    real :: bi, Ltot
+    real :: bi, bi1, bi2, Ltot
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -691,11 +691,16 @@ contains
           qval2 = qval + dqdrho * delrho
        end if
 
+       ! Calculate modified btori -- note we use the fact that rgrid == rp in
+       ! seikon to avoid having to form rgrid1/rgrid2 here.
+       bi1 = btori(rp1, theta(0))
+       bi2 = btori(rp2, theta(0))
+
        ! Note seikon sets rgrid = rp. This is only the same as the regular
        ! rgrid for equilibrium types other than efit or dfit. For those cases
        ! this _might_ not do what is expected.
-       call seikon(rp1, theta, invR, qval1, bi, seik1, dummy2, dummy, dum)
-       call seikon(rp2, theta, invR, qval2, bi, seik2, dummy2, dummy, dum)
+       call seikon(rp1, theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
+       call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
 
        do i=-nth,nth
           dsdrp(i)=(seik2(i)-seik1(i))/(2.*delrp)
