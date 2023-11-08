@@ -2482,47 +2482,26 @@ contains
     real, dimension (-ntgrid:), intent(out) :: ltheta
     integer :: i
     real :: rold, told, rpos_old, zpos_old, rpos_new, zpos_new
-    real :: r, thet
+    real :: r, thet, rpos_orig, zpos_orig
         
     ltheta(0)=0.
-!
-! this could be made more efficient
-!
-    rold=rgrid(0)
-    told=theta(0)
+    rold=rgrid(0) ; told=theta(0)
+    rpos_orig = Rpos(rold, told) ; zpos_orig = Zpos(rold, told)
+    rpos_new = rpos_orig ; zpos_new = zpos_orig
+    do i = 1, nth
+       rpos_old = rpos_new ; zpos_old = zpos_new
+       r=rgrid(i) ; thet=theta(i)
+       rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
+       ltheta(i) = ltheta(i-1) + sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
+    end do
 
-    do i=1,nth
-       r=rgrid(i)
-       thet=theta(i)
-
-       rpos_old = Rpos(rold, told)
-       zpos_old = Zpos(rold, told)
-       rpos_new = Rpos(r, thet)
-       zpos_new = Zpos(r, thet)
-
-       ltheta(i)=ltheta(i-1) &
-            +sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
-       rold=r
-       told=thet
-    enddo
-
-    rold=rgrid(0)
-    told=theta(0)
-
-    do i=-1,-nth,-1
-       r=rgrid(i)
-       thet=theta(i)
-
-       rpos_old = Rpos(rold, told)
-       zpos_old = Zpos(rold, told)
-       rpos_new = Rpos(r, thet)
-       zpos_new = Zpos(r, thet)
-
-       ltheta(i)=ltheta(i+1) &
-            -sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
-       rold=r
-       told=thet
-    enddo
+    rpos_new = rpos_orig ; zpos_new = zpos_orig
+    do i = -1, -nth, -1
+       rpos_old = rpos_new ; zpos_old = zpos_new
+       r=rgrid(i) ; thet=theta(i)
+       rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
+       ltheta(i) = ltheta(i+1) - sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
+    end do
   end subroutine loftheta
 
   !> Compute df / dltheta using a periodic central difference. The
