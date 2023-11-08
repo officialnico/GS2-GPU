@@ -970,12 +970,12 @@ contains
          call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, &
               mMode, nMode, deltam, deltan, deltampri, deltanpri, &
               thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-         avgrmid=1.
+         avgrmid = 1.
          psi_0 = 0.0
          psi_a = 1.0
          B_T0 = -1.0 !Indicate that this has not been set from equilibrium
-      case (1, 10)
-         if(gen_eq) then
+      case (1)
+         if (gen_eq) then
             call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
          else if(ppl_eq) then
             if (transp_eq) then
@@ -986,9 +986,8 @@ contains
          else if(chs_eq) then
             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
          else if(efit_eq) then
-            if(big <= 0) big = 8
-
-            if(gs2d_eq) then
+            if (big <= 0) big = 8
+            if (gs2d_eq) then
                if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
                call gs2din(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
                if (debug) write(6,*) "eikcoefs: done gs2din  psi_0,psi_a, rmaj, B_T0, avgrmid=",psi_0,psi_a, rmaj, B_T0, avgrmid
@@ -997,13 +996,13 @@ contains
                call efitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
             endif
          else if(dfit_eq) then
-            if(big <= 0) big = 1
+            if (big <= 0) big = 1
             call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
          else if(idfit_eq) then
-            !<DD>WARNING : ON EXIT AVGRMID WILL BE UNDEFINED AS IDFITIN DOESN'T GIVE IT A VALUE
-            !THIS SHOULD BE FIXED BUT SHOULD BE OK AS AVGRMID NOT USED ANYWHERE (AT THE MOMENT)?
+            ! Note : On exit avgrmid will be undefined here as idfitin doesn't set this.
+            ! We only use avgrmid for 'debug' output so should be ok.
             call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit)
-         endif
+         end if
          if (debug) write(6,*) 'eikcoefs: iflux=',iflux
       end select
 
@@ -1013,54 +1012,54 @@ contains
 
       if (debug) writelots=.true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
-      if(writelots) then
+      if (writelots) then
          write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
-         if(irho /= 2) then
+         if (irho /= 2) then
             write(fort11_unit,*) 'except rho, which always goes from 0 to 1.'
             write(fort11_unit,*) 'The rho normalization is determined by irho.'
-         endif
+         end if
          write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
-         if(iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
-         if(iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
-      endif
+         if (iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
+         if (iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
+      end if
 
-      rho=rhoc
+      rho = rhoc
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
       rpmin = psi_0
       rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
-      if(iflux == 1) then
+      if (iflux == 1) then
          rp = rpofrho(rho, fort11_unit)
       else
-         rp=rho
-      endif
+         rp = rho
+      end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
-      if(iflux == 1) R_geo=rcenter(rpmax)
+      if (iflux == 1) R_geo = rcenter(rpmax)
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
-      if(efit_eq .or. dfit_eq) then
+      if (efit_eq .or. dfit_eq) then
          call rtg(rgrid, rp, theta)
       else
          rgrid = rp
-      endif
+      end if
 
-      if(writelots) then
+      if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
          write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
          write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
-      endif
+      end if
 
-      if(iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
+      if (iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
          write(6,*)
          write(6,*) 'Warning: the center of the LCFS is outboard of the '
          write(6,*) 'center of the reference surface.  This is probably wrong.'
          write(6,*)
-      endif
+      end if
 
-      if(writelots) then
+      if (writelots) then
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
@@ -1081,7 +1080,7 @@ contains
          rbar = rbar / (2.*pi)
          write (*,*) 'r_bar = ',rbar
          write (*,*)
-      endif
+      end if
 
       call drho_drp(rp, drhodrp)
 
@@ -1089,7 +1088,7 @@ contains
       ! already populates the full theta domain
       call periodic_copy(theta, 2.*pi, nperiod)
 
-      if(writelots) then
+      if (writelots) then
          write(fort11_unit,*) 'drhodrp=',drhodrp
          if (irho == 1) then
             call drho_drhod(rp, drhodrp, drhodrhod)
@@ -1130,7 +1129,7 @@ contains
       bi = btori(rgrid(0),theta(0))
 
       !     compute gradient of rp
-      char='P'
+      char = 'P'
 
       ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
       ! and (rho,l,phi) coordinates if bishop>0
@@ -1185,7 +1184,7 @@ contains
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
-      if(writelots) write(fort11_unit,*) 'q= ',qval
+      if (writelots) write(fort11_unit,*) 'q= ',qval
 
       if (iflux == 0) then
          drhodpsin = drhodrp/dpsidrp
