@@ -1393,21 +1393,6 @@ contains
     c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
   end subroutine dottgridf
 
-  !> FIXME : Add documentation    
-  real function bmagfun(r, thet)
-    use mp, only: mp_abort
-    implicit none
-    real, intent (in) :: r, thet
-    if(itor == 0) then
-       bmagfun = abs(btori(r, thet)*invRfun(r, thet))
-    else if(iflux == 1 .and. gen_eq) then
-       bmagfun = bmodfun(r, thet)
-       ! needs to be upgraded!!!
-    else 
-       call mp_abort('bmagfun not defined for this set of eik flags.',.true.)
-    endif
-  end function bmagfun
-
   !> Returns the major radius R corresponding to the passed r and theta
   real function Rpos(r, thet)
     use  geq, only: geq_R => Rpos
