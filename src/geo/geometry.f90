@@ -2070,17 +2070,17 @@ contains
     if (eqinit == 1) initdp = 1
     if (iflux == 1) pbar = psifun(psi(r, thet))
     if (gen_eq) then
-       i = geq_init_dpressure(initp) ; dpfun = geq_dpfun(pbar)
+       i = geq_init_dpressure(initdp) ; dpfun = geq_dpfun(pbar)
     else if (ppl_eq) then
-       i = ppl_init_dpressure(initp) ; dpfun = peq_dpfun(pbar)
+       i = ppl_init_dpressure(initdp) ; dpfun = peq_dpfun(pbar)
     else if (chs_eq) then
-       i = chs_init_dpressure(initp) ; dpfun = ceq_dpfun(pbar)
+       i = chs_init_dpressure(initdp) ; dpfun = ceq_dpfun(pbar)
     else if (efit_eq) then
-       i = efit_init_dpressure(initp) ; dpfun = eeq_dpfun(pbar)
+       i = efit_init_dpressure(initdp) ; dpfun = eeq_dpfun(pbar)
     else if (dfit_eq) then
-       i = dfit_init_dpressure(initp) ; dpfun = deq_dpfun(pbar)
+       i = dfit_init_dpressure(initdp) ; dpfun = deq_dpfun(pbar)
     else if (idfit_eq) then
-       i = idfit_init_dpressure(initp) ; dpfun = ideq_dpfun(pbar)
+       i = idfit_init_dpressure(initdp) ; dpfun = ideq_dpfun(pbar)
     else if (local_eq) then
        dpfun = leq_dpfun()
     else
@@ -2387,19 +2387,19 @@ contains
     real :: broot0, brootpi
     if(eqinit == 1) init_rc = 1
     if (gen_eq) then
-       i = geq_init_rc(initd) ; rcenter = geq_rcenter(rp)
+       i = geq_init_rc(init_rc) ; rcenter = geq_rcenter(rp)
     else if (ppl_eq) then
-       i = peq_init_rc(initd) ; rcenter = peq_rcenter(rp)
+       i = peq_init_rc(init_rc) ; rcenter = peq_rcenter(rp)
     else if (chs_eq) then
-       i = ceq_init_rc(initd) ; rcenter = ceq_rcenter(rp)
+       i = ceq_init_rc(init_rc) ; rcenter = ceq_rcenter(rp)
     else if (efit_eq) then
        rcenter = rmaj + 0.5 * (rfun(rp, 0., bound(0.)) - rfun(rp, pi, bound(pi)))
     else if (dfit_eq) then
        rcenter = rmaj ! Note this is a historic fall back, perhaps should be invalidValue
     else if (idfit_eq) then
-       i = ideq_init_rc(initd) ; rcenter = ideq_rcenter(rp)
+       i = ideq_init_rc(init_rc) ; rcenter = ideq_rcenter(rp)
     else if (local_eq) then
-       rcenter = leq_rcenter(rp)
+       rcenter = leq_rcenter()
     else
        rcenter = invalidValue
     end if
@@ -3018,24 +3018,25 @@ contains
     use deq, only: dbound => bound
     implicit none
     real, intent(in) :: rp, thet
-    real, intent(in out) :: broot
+    real, intent(in) :: broot
     integer :: i, j, k, imax, jmax, kmax
     real :: fa, fb, fbroot, bmult, rootval, thetroot
-    real :: a, b, xerrsec
+    real :: a, b, xerrsec, local_broot
 
     if(.not. (efit_eq .or. dfit_eq)) then
        rfun = rp
        return
     endif
-    
+
+    local_broot = broot
     thetroot=thet
     rootval=rp
     a=0.
-    b=broot
+    b=local_broot
 
     if(broot < 0.) then
-       if (efit_eq) broot = ebound(thet)
-       if (dfit_eq) broot = dbound(thet)
+       if (efit_eq) local_broot = ebound(thet)
+       if (dfit_eq) local_broot = dbound(thet)
     endif
 
     fa    =rpfun(a,thetroot)-rootval
@@ -3055,12 +3056,12 @@ contains
        do j=1,jmax
           imax=imax*2
           do i=1,imax
-             b=broot*(1+bmult*float(i)/float(imax))
+             b=local_broot*(1+bmult*float(i)/float(imax))
              fb=rpfun(b,thetroot)-rootval
              if(fa*fb <= 0.) goto 100
           enddo
           do i=1,imax
-             b=broot/(1+bmult*float(i)/float(imax))
+             b=local_broot/(1+bmult*float(i)/float(imax))
              fb=rpfun(b,thetroot)-rootval
              if(fa*fb <= 0.) goto 100
           enddo
