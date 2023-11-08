@@ -1429,6 +1429,7 @@ contains
     use ideq, only: ideq_R => Rpos
     implicit none
     real, intent (in) :: r, thet
+    Rpos = invalidValue
     if (gen_eq) then
        Rpos = geq_R (r, thet)
     else if (ppl_eq) then
@@ -1443,8 +1444,6 @@ contains
        Rpos = ideq_R (r, thet)
     else if (local_eq) then
        Rpos = leq_R (r, thet)
-    else
-       Rpos = invalidValue
     end if
   end function Rpos
 
@@ -1459,6 +1458,7 @@ contains
     use ideq, only: ideq_Z => Zpos
     implicit none
     real, intent (in) :: r, thet
+    Zpos = invalidValue
     if (gen_eq) then
        Zpos = geq_Z (r, thet)
     else if (ppl_eq) then
@@ -1473,8 +1473,6 @@ contains
        Zpos = ideq_Z (r, thet)
     else if (local_eq) then
        Zpos = leq_Z (r, thet)
-    else
-       Zpos = invalidValue
     end if
   end function Zpos
 
@@ -1493,6 +1491,7 @@ contains
     if(itor == 0) then
        invRfun = 1. / rmaj
     else
+       invRfun = invalidValue
        if (gen_eq) then
           invRfun = geq_invR (r, thet)
        else if (ppl_eq) then
@@ -1507,8 +1506,6 @@ contains
           invRfun = ideq_invR (r, thet)
        else if (local_eq) then
           invRfun = leq_invR (r, thet)
-       else
-          invRfun = invalidValue
        end if
     end if
   end function invRfun
@@ -1759,7 +1756,7 @@ contains
        diameter = 0.
        return
     end if
-
+    diameter = invalidValue
     if(eqinit == 1) initd = 1
     if (gen_eq) then
        i = geq_init_diameter(initd) ; diameter = geq_diameter(rp)
@@ -1775,8 +1772,6 @@ contains
        i = ideq_init_diameter(initd) ; diameter = ideq_diameter(rp)
     else if (local_eq) then
        diameter = leq_diameter(rp)
-    else
-       diameter = invalidValue
     end if
     initd=0
   end function diameter
@@ -1886,7 +1881,7 @@ contains
           return
        end if
     end if
-
+    btori = invalidValue
     if (eqinit == 1) initb = 1
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
     if (gen_eq) then
@@ -1903,8 +1898,6 @@ contains
        btori = 0.
     else if (local_eq) then
        btori = leq_btori()
-    else
-       btori = invalidValue
     end if
     initb = 0
     r_last = r
@@ -1925,6 +1918,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initdb = 1
+    dbtori = invalidValue
     if (eqinit == 1) initdb = 1
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
     if (gen_eq) then
@@ -1941,8 +1935,6 @@ contains
        dbtori = 0.
     else if (local_eq) then
        dbtori = leq_dbtori()
-    else
-       dbtori = invalidValue
     end if
     initdb = 0
   end function dbtori
@@ -1998,6 +1990,7 @@ contains
     implicit none
     real, intent(in) :: pbar
     integer :: i, initq = 1
+    qfun = invalidValue
     if (eqinit ==1 ) initq = 1
     if (gen_eq) then
        i = geq_init_q(initq) ; qfun = geq_qfun(pbar)
@@ -2013,8 +2006,6 @@ contains
        qfun = 0.
     else if (local_eq) then
        qfun = leq_qfun()
-    else
-       qfun = invalidValue
     end if
     initq = 0
   end function qfun
@@ -2032,6 +2023,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initp = 1
+    pfun = invalidValue
     if (eqinit == 1) initp = 1
     if (iflux == 1) pbar = psifun(psi(r, thet))
     if (gen_eq) then
@@ -2048,9 +2040,7 @@ contains
        i = idfit_init_pressure(initp) ; pfun = ideq_pfun(pbar)
     else if (local_eq) then
        pfun = leq_pfun()
-    else
-       pfun = invalidValue
-    endif
+    end if
     initp = 0
   end function pfun
 
@@ -2067,6 +2057,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initdp = 1
+    dpfun = invalidValue
     if (eqinit == 1) initdp = 1
     if (iflux == 1) pbar = psifun(psi(r, thet))
     if (gen_eq) then
@@ -2083,9 +2074,7 @@ contains
        i = idfit_init_dpressure(initdp) ; dpfun = ideq_dpfun(pbar)
     else if (local_eq) then
        dpfun = leq_dpfun()
-    else
-       dpfun = invalidValue
-    endif
+    end if
     initdp = 0
   end function dpfun
 
@@ -2101,6 +2090,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     integer :: i, initbeta = 1
+    beta_a_fun = invalidValue
     if (eqinit == 1) initbeta = 1
     if (iflux == 1) pbar = psifun(psi(r,thet))
     if (gen_eq) then
@@ -2117,9 +2107,7 @@ contains
        i = idfit_init_beta(initbeta) ; beta_a_fun = ideq_beta(pbar)
     else if (local_eq) then
        beta_a_fun = 0.
-    else
-       beta_a_fun = invalidValue
-    endif
+    end if
     initbeta = 0
   end function beta_a_fun
 
@@ -2243,6 +2231,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     integer :: init = 1, i
+    psi = invalidValue
     if (r == 0.) then
        psi = psi_0
        return
@@ -2266,9 +2255,7 @@ contains
        i = idfit_init_psi(init) ; psi = ideq_psi(r)
     else if(local_eq) then
        psi = leq_psi(r)
-    else
-       psi = invalidValue
-    endif
+    end if
     init = 0
   end function psi
 
@@ -2385,6 +2372,7 @@ contains
     real, intent (in) :: rp
     integer :: i, init_rc = 1
     real :: broot0, brootpi
+    rcenter = invalidValue
     if(eqinit == 1) init_rc = 1
     if (gen_eq) then
        i = geq_init_rc(init_rc) ; rcenter = geq_rcenter(rp)
@@ -2400,8 +2388,6 @@ contains
        i = ideq_init_rc(init_rc) ; rcenter = ideq_rcenter(rp)
     else if (local_eq) then
        rcenter = leq_rcenter()
-    else
-       rcenter = invalidValue
     end if
     init_rc = 0
   end function rcenter
