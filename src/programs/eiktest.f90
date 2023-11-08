@@ -145,7 +145,7 @@ program eiktest
      write(*,*) 'Forcing itor=1'
   endif
   
-  if(iflux /= 0 .and. iflux /=0) then
+  if(iflux /= 0 .and. iflux /=1) then
      write(*,*) 'iflux=0 or 1 is the only option.'
      stop
   endif
