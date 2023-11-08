@@ -878,7 +878,6 @@ contains
     surfarea=2.*pi*(dummy(nth)-dummy(-nth))
     if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
 
-
     !     compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, theta, dummy, nth)
     dvdrhon=2.*pi*(dummy(nth)-dummy(-nth))
@@ -898,7 +897,6 @@ contains
 
     kxfac = abs(qval/rhoc/drhodpsin)
     qsf = qval
-    dum=qfun(0.5)
     if(eqinit >= 1) eqinit=0
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
