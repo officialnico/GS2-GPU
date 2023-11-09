@@ -2368,22 +2368,6 @@ contains
     init_rc = 0
   end function rcenter
 
-  !> FIXME : Add documentation    
-  real function bmodfun(r,thet)
-    use geq, only: geqitem => eqitem, eqB_psi => B_psi
-    use ideq, only: ideqitem => eqitem, ideqB_psi => B_psi
-    use mp, only: mp_abort
-    implicit none
-    real, intent (in) :: r, thet
-    if (gen_eq) then
-       call geqitem(r, thet, eqB_psi, bmodfun, 'R')
-    else if (idfit_eq) then
-       call ideqitem(r, thet, ideqB_psi, bmodfun, 'R')
-    else
-       call mp_abort('You must use gen_eq or idfit_eq to call bmodfun.',.true.)
-    endif
-  end function bmodfun
-
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
   !> such that gradpar is constant and theta_eqarc is a theta grid with uniform arc length.
   !> @note It is not clear that the gradpar_eqarc and theta_eqarc are actually consistent
