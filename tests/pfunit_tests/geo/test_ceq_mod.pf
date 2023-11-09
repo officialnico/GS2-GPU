@@ -337,7 +337,7 @@ contains
   @test
   subroutine test_eqitem()
     use constants, only : pi
-    use ceq, only : ceq_testing_type, eqitem
+    use ceq, only : ceq_testing_type
     type(ceq_testing_type) :: ceq_privates
 
     integer, parameter :: nradius = 3
@@ -369,19 +369,19 @@ contains
     array = reshape([([(real(j) * 2 * pi / real(ntheta - 1) - pi, &
          i=1, nradius)], j=0, ntheta-1)], total_size)
 
-    call eqitem(psi, theta_zero, array, actual)
+    call ceq_privates%eqitem(psi, theta_zero, array, actual)
     @assertEqual(expected_zero, actual, tolerance=value_tolerance)
 
-    call eqitem(psi, theta_inside, array, actual)
+    call ceq_privates%eqitem(psi, theta_inside, array, actual)
     @assertEqual(expected_inside, actual, tolerance=value_tolerance)
 
-    call eqitem(psi, theta_inside_negative, array, actual)
+    call ceq_privates%eqitem(psi, theta_inside_negative, array, actual)
     @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
 
-    call eqitem(psi, theta_outside, array, actual)
+    call ceq_privates%eqitem(psi, theta_outside, array, actual)
     @assertEqual(expected_outside, actual, tolerance=value_tolerance)
 
-    call eqitem(psi, theta_outside_negative, array, actual)
+    call ceq_privates%eqitem(psi, theta_outside_negative, array, actual)
     @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
 
   end subroutine test_eqitem

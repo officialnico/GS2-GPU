@@ -72,6 +72,7 @@ module ceq
     procedure, nopass :: get_cart_arrays
     procedure, nopass :: get_bish_arrays
     procedure, nopass :: set_skip_file_read
+    procedure, nopass :: eqitem
   end type ceq_testing_type
 
 contains

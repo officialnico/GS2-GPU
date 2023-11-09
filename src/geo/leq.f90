@@ -135,6 +135,7 @@ module leq
     procedure, nopass :: alloc_arrays
     procedure, nopass :: dealloc_arrays    
     procedure, nopass :: set_surf
+    procedure, nopass :: eqitem
   end type leq_testing_type
 
 contains
