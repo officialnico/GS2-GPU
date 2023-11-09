@@ -43,6 +43,7 @@ module ceq
      procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
+     procedure, private :: derm => derm
      procedure, private :: eqitem => eqitem
      procedure, private :: eqdcart => eqdcart
      procedure, private :: eqdbish => eqdbish
@@ -277,11 +278,11 @@ contains
        eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
     end do
 
-    call derm(eqth, self%dtm, 'T')
-    call derm(self%R_psi, self%drm, 'E')
-    call derm(self%Z_psi,  self%dzm, 'O')
-    call derm(eqbtor, self%dbtm, 'E')
-    call derm(eqpsi1, self%dpm, 'E')
+    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi,  self%dzm, 'O')
+    call self%derm(eqbtor, self%dbtm, 'E')
+    call self%derm(eqpsi1, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)
@@ -332,19 +333,16 @@ contains
   !> - char specifies the periodicity in theta
   !>   - 'E', 'O' mean continuous at theta = +/- pi
   !>   - 'T' means a jump of 2 pi at theta = +/- pi
-  pure subroutine derm(f, dfm, char)
+  pure subroutine derm(self, f, dfm, char)
     use constants, only: pi
     implicit none
-    integer i, j
+    class(ceq_type), intent(in) :: self
     character(1), intent(in) :: char
     real, intent(in) :: f(:,:)
     real, intent(out) :: dfm(:,:,:)
-    integer :: nr, nt
-    ! Should this be a type bound method so we can get these from the type?
-    ! This is a fairly generic operation (finite differences) so could potentially
-    ! put a generic form in geo_utils instead?
-    nr = size(f, dim = 1)
-    nt = size(f, dim = 2)
+    integer :: i, j, nr, nt
+    nr = self%nr
+    nt = self%nt
 
     i = 1
     ! Radial derivative

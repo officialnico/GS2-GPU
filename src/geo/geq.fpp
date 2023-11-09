@@ -51,6 +51,7 @@ module geq
      procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
+     procedure, private :: derm => derm
      procedure, private :: eqitem => eqitem
      procedure, private :: eqdcart => eqdcart
      procedure, private :: eqdbish => eqdbish
@@ -331,12 +332,12 @@ contains
        eqth(:, j) = (j-1) * pi / real(self%nt-1)
     end do
 
-    call derm(eqth, self%dtm, 'T')
-    call derm(self%R_psi, self%drm, 'E')
-    call derm(self%Z_psi, self%dzm, 'O')
-    call derm(self%B_psi, self%dbm, 'E')
-    call derm(eqbtor, self%dbtm, 'E')
-    call derm(eqpsi1, self%dpm, 'E')
+    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi, self%dzm, 'O')
+    call self%derm(self%B_psi, self%dbm, 'E')
+    call self%derm(eqbtor, self%dbtm, 'E')
+    call self%derm(eqpsi1, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)
@@ -384,18 +385,16 @@ contains
   end subroutine delete_splines
 
   !> FIXME : Add documentation
-  subroutine derm(f, dfm, char)
+  pure subroutine derm(self, f, dfm, char)
     use constants, only: pi
     implicit none
+    class(geq_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
     character(1), intent(in) :: char
     integer :: i, j, nr, nt
-    ! Should this be a type bound method so we can get these from the type?
-    ! This is a fairly generic operation (finite differences) so could potentially
-    ! put a generic form in geo_utils instead?
-    nr = size(f, dim = 1)
-    nt = size(f, dim = 2)
+    nr = self%nr
+    nt = self%nt
 
     i = 1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
