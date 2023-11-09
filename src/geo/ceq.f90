@@ -611,8 +611,7 @@ contains
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (self%nr, self%nt) :: denom
     integer :: i, j
-    denom(:,:) = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-
+    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
     dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
 
@@ -644,8 +643,7 @@ contains
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
     ! denom is |grad psi|
-    denom(:,:) = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-
+    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 

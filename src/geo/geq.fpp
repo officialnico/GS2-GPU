@@ -20,6 +20,8 @@ module geq
 
   type, extends(abstract_eqfile_geo_type) :: geq_type
      private
+     real, allocatable, dimension (:,:)   :: B_psi
+     real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
      character(len = EQFILE_LENGTH) :: filename
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, I_0, beta_0
@@ -28,8 +30,8 @@ module geq
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
      real, allocatable, dimension (:,:)   :: R_psi, Z_psi, B_psi
      real, allocatable, dimension (:,:,:) :: drm, dzm, dbm, dbtm, dpm, dtm
-     real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
-     real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
+     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
+     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise_eqfile => eqin
@@ -316,6 +318,7 @@ contains
     class(geq_type), intent(in out) :: self
     self%initialised = .false.
     call self%dealloc_arrays
+    call self%delete_splines
   end subroutine geq_finish
 
   !> FIXME : Add documentation
@@ -655,8 +658,7 @@ contains
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (self%nr, self%nt) :: denom
     integer :: i, j
-    denom(:,:) = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-
+    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
     dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
 
@@ -675,9 +677,7 @@ contains
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
-
-    denom(:,:) = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-
+    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 

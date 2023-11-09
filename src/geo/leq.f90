@@ -143,7 +143,6 @@ module leq
      procedure, private :: geo_global => geo_global
      procedure, private :: geo_generalizedEllipticity => geo_generalizedEllipticity
      procedure, private :: geo_FourierSeries => geo_FourierSeries
-     procedure, private :: dpdrhofun => dpdrhofun
   end type leq_type
 
 contains
@@ -533,9 +532,7 @@ contains
     real, dimension(self%nr,-self%nt:self%nt,2), intent(out) :: dfcart
     real, dimension(self%nr,-self%nt:self%nt) :: denom
     integer :: i, j
-
-    denom(:,:) = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-
+    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
     dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
 
@@ -562,9 +559,7 @@ contains
     real, dimension(self%nr, -self%nt:self%nt, 2), intent(out) :: dbish
     real, dimension(self%nr, -self%nt:self%nt) :: denom
     integer :: i, j
-
-    denom(:,:) = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-
+    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 
@@ -878,9 +873,7 @@ contains
   end function betafun
 
   !> FIXME : Add documentation
-  real function dpdrhofun(self, pbar)
-    class(leq_type), intent(in) :: self
-    real, intent(in) :: pbar
+  real function dpdrhofun()
     dpdrhofun = 0
   end function dpdrhofun
 
