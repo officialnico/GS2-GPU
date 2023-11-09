@@ -1,6 +1,5 @@
 !> FIXME : Add documentation
 module peq
-
 # ifdef NETCDF
   use netcdf, only: NF90_FLOAT, NF90_DOUBLE
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR
@@ -11,72 +10,84 @@ module peq
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
   use netcdf_utils, only: netcdf_error
 # endif
-
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use splines, only: spline
   implicit none
 
   private
 
-  public :: peq_init, eqin, teqin, gradient, bgradient, Hahm_Burrell, peq_finish
+  public :: Hahm_Burrell, peq_type, teq_type
 
-  public :: invR,     initialize_invR
-  public :: Rpos
-  public :: Zpos
-  public :: rcenter,  initialize_rcenter 
-  public :: diameter, initialize_diameter
-  public :: btori,    initialize_btori
-  public :: dbtori,   initialize_dbtori
-  public :: qfun,     initialize_q
-  public :: pfun,     initialize_pressure
-  public :: dpfun,    initialize_dpressure
-  public :: betafun,  initialize_beta
-  public :: psi,      initialize_psi
+  type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
+     private
+     logical :: transp
+     real, allocatable, dimension(:) :: rho_b
+     character(len = EQFILE_LENGTH) :: filename
+     integer :: nr, nt
+     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: R_mag, Z_mag, aminor
+     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
+     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
+     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
+     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
+     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
+     type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
+   contains
+     procedure :: calculate_gradients => peq_init
+     procedure :: setup_splines => setup_splines
+     procedure :: delete_splines => delete_splines
+     procedure :: finalise => peq_finish
+     procedure :: rpos => rpos
+     procedure :: zpos => zpos
+     procedure :: invr => invr
+     procedure :: rcenter => rcenter
+     procedure :: diameter => diameter
+     procedure :: btori => btori
+     procedure :: dbtori => dbtori
+     procedure :: qfun => qfun
+     procedure :: pfun => pfun
+     procedure :: dpfun => dpfun
+     procedure :: betafun => betafun
+     procedure :: psi => psi
+     procedure :: gradient => gradient
+     procedure :: bgradient => bgradient
+     procedure, private :: derm => derm
+     procedure, private :: eqitem => eqitem
+     procedure, private :: eqdcart => eqdcart
+     procedure, private :: eqdbish => eqdbish
+     procedure, private :: alloc_arrays => alloc_arrays
+     procedure, private :: dealloc_arrays => dealloc_arrays
+  end type peq_base_type
 
-  integer :: nr, nt, i_sym
-  
-  real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, beta
-  real, allocatable, dimension (:)     :: pressure, diam, rc, qsf, rho_b
-  real, allocatable, dimension (:,:)   :: R_psi, Z_psi !, B_psi
-  real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm  !, dbm
-  real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
+  type, extends(peq_base_type) :: peq_type
+   contains
+     procedure :: initialise_eqfile => eqin
+  end type peq_type
 
-  real :: psi_0, psi_a, B_T, beta_0
-  real :: R_mag, Z_mag, aminor
-  
-  logical :: init_rcenter = .true.
-  logical :: init_diameter = .true.
-  logical :: init_btori = .true.
-  logical :: init_dbtori = .true.
-  logical :: init_q = .true.
-  logical :: init_pressure = .true.
-  logical :: init_dpressure = .true.
-  logical :: init_beta = .true.
-  logical :: init_psi = .true.
-  logical :: init_invR = .true.
-  logical :: transp = .false.
+  type, extends(peq_base_type) :: teq_type
+   contains
+     procedure :: initialise_eqfile => teqin
+  end type teq_type
 
 contains
 
   !> This subroutine reads a generic NetCDF equilibrium file
-  !! containing the axisymmetric magnetic field geometry in flux 
-  !! coordinates
-  subroutine eqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg) 
+  !> containing the axisymmetric magnetic field geometry in flux
+  !> coordinates
+  subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
-
-    character (len=80), intent(in) :: eqfile
+    class(peq_type), intent(in out) :: self
+    character (len = EQFILE_LENGTH), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
     real :: d, R_geo
     integer :: istatus
     integer :: ncid, id, i, j
-    integer :: nchar
-    character (len=80) :: filename
-    !
-    ! what is the best way to handle the netcdf single/double problem?
-    !
+    integer :: nchar, i_sym
     integer nz1, nz2
     real, allocatable, dimension(:) :: work
     real :: f_N, psi_N
@@ -90,13 +101,12 @@ contains
     ! inconsistently sized arrays. This is expected to affect `ideal_ball`
     ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
-    
-    nchar=index(eqfile,' ')-1
-    filename=eqfile(1:nchar)
+
+    self%filename = trim(adjustl(eqfile))
 
     !     netcdf open file
-    istatus = nf90_open(filename, NF90_NOWRITE, ncid)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=filename)
+    istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
     !     netcdf read scalar: nr
     !
@@ -114,12 +124,12 @@ contains
 
     istatus = nf90_inq_dimid (ncid, 'npsi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='npsi')
-    istatus = nf90_inquire_dimension (ncid, id, len=nr)
+    istatus = nf90_inquire_dimension (ncid, id, len = self%nr)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
     istatus = nf90_inq_varid (ncid, 'nxy', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='nxy')
-    istatus = nf90_get_var (ncid, id, i_sym, start=(/ 8 /))
+    istatus = nf90_get_var (ncid, id, i_sym, start=[8])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     !     netcdf read scalar: nt
@@ -127,10 +137,10 @@ contains
     !     nt == number of theta grid points in theta eq grid
     istatus = nf90_inq_dimid (ncid, 'nthe', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='nthe')
-    istatus = nf90_inquire_dimension (ncid, id, len=nt)
+    istatus = nf90_inquire_dimension (ncid, id, len = self%nt)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-    call alloc_arrays(nr, nt)
+    call self%alloc_arrays()
 
     !     netcdf read vectors: rho_d, eqpsi, psi_bar, fp, beta, pressure
     !
@@ -149,17 +159,17 @@ contains
 
     istatus = nf90_inq_varid (ncid, 'psivec', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psivec')
-    istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
+    istatus = nf90_get_var (ncid, id, self%eqpsi, count = [self%nr])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     istatus = nf90_inq_varid (ncid, 'fvec', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='fvec')
-    istatus = nf90_get_var (ncid, id, fp, count=(/ nr /))
+    istatus = nf90_get_var (ncid, id, self%fp, count = [self%nr])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     istatus = nf90_inq_varid (ncid, 'pvec', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='pvec')
-    istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
+    istatus = nf90_get_var (ncid, id, self%eqpsi, count = [self%nr])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     !     assign scalars: psi_0, psi_a, B_T
@@ -168,10 +178,10 @@ contains
     !     psi_a == value of psi at the boundary of the plasma
     !     B_T == vacuum toroidal magnetic field at R_center
     !
-    psi_0 = eqpsi(1)
-    psi_a = eqpsi(nr)
+    self%psi_0 = self%eqpsi(1)
+    self%psi_a = self%eqpsi(self%nr)
 
-    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
+    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
 
     !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
     !     R_psi(1:nr, 1:nt) -- transpose of Menard's storage ...
@@ -181,33 +191,33 @@ contains
 
     istatus = nf90_inq_varid (ncid, 'x', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='x')
-    istatus = nf90_get_var (ncid, id, work, count=(/ nz1*nz2 /))
+    istatus = nf90_get_var (ncid, id, work, count = [nz1*nz2])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    if(i_sym == 0) then
+    if (i_sym == 0) then
        write(*,*) 'Up-down asymmetries not yet handled correctly.'
-    endif
+    end if
 
-    do j=1,nt
-       do i=1,nr
-          R_psi(i,j) = work(3+j-1+nz1*(i-1))
-       enddo
-    enddo
+    do j = 1, self%nt
+       do i = 1, self%nr
+          self%R_psi(i,j) = work(3+j-1+nz1*(i-1))
+       end do
+    end do
 
     istatus = nf90_inq_varid (ncid, 'z', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='z')
-    istatus = nf90_get_var (ncid, id, work, count=(/ nz1, nz2 /))
+    istatus = nf90_get_var (ncid, id, work, count=[nz1, nz2]) !Should this be nz1*nz2?
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    if(i_sym == 0) then
+    if (i_sym == 0) then
        write(*,*) 'Up-down asymmetries not yet handled correctly.'
-    endif
+    end if
 
-    do j=1,nt
-       do i=1,nr
-          Z_psi(i,j) = work(3+j-1+nz1*(i-1))
-       enddo
-    enddo
+    do j = 1, self%nt
+       do i = 1, self%nr
+          self%Z_psi(i,j) = work(3+j-1+nz1*(i-1))
+       end do
+    end do
 
 
     !     assign scalars: R_mag, Z_mag, aminor
@@ -216,59 +226,65 @@ contains
     !     Z_mag == Z position of magnetic axis
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
 
-    d = R_psi(nr,1) - R_psi(nr,nt)
-    R_geo = (R_psi(nr,1) + R_psi(nr, nt))/2.
-    aminor = d/2.
+    d = self%R_psi(self%nr, 1) - self%R_psi(self%nr, self%nt)
+    R_geo = (self%R_psi(self%nr, 1) + self%R_psi(self%nr, self%nt))/2.
+    self%aminor = d/2.
 
-    B_T = fp(nr)/R_geo
+    self%B_T = self%fp(self%nr) / R_geo
 
-    R_psi = R_psi / aminor
-    Z_psi = Z_psi / aminor
+    self%R_psi = self%R_psi / self%aminor
+    self%Z_psi = self%Z_psi / self%aminor
 
-    R_mag = R_psi(1,1)
-    Z_mag = Z_psi(1,1)
+    self%R_mag = self%R_psi(1,1)
+    self%Z_mag = self%Z_psi(1,1)
 
-    beta = 8. * pi * 1.e-7 * pressure / B_T**2  ! not correct definition yet
-    beta_0 = beta(1)
-    pressure = pressure/pressure(1)
+    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / self%pressure(1)
 
     istatus = nf90_close(ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
 
     deallocate(work)
-                       
+
     !
-    !     Normalize, rename quantities 
+    !     Normalize, rename quantities
     !
 
-    avgrmid = aminor
-    rmaj = R_mag 
-    B_T0 = abs(B_T)
+    avgrmid = self%aminor
+    rmaj = self%R_mag
+    B_T0 = abs(self%B_T)
 
     psi_N = B_T0 * avgrmid**2
-    psi_a = psi_a / psi_N
-    psi_0 = psi_0 / psi_N
-    psi_a_out = psi_a 
-    psi_0_out = psi_0 
-    eqpsi = eqpsi / psi_N
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    psi_a_out = self%psi_a
+    psi_0_out = self%psi_0
+    self%eqpsi = self%eqpsi / psi_N
 
-    f_N = B_T0*avgrmid
-    fp=fp/f_N
+    f_N = B_T0 * avgrmid
+    self%fp = self%fp / f_N
 
-    nthg=nt
+    nthg = self%nt
+    self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
+    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
+
+    self%transp = .false.
+    self%initialised = .true.
 # else
     call mp_abort('error: peq eqin is called without netcdf',.true.)
 # endif
   end subroutine eqin
 
   !> This subroutine reads a generic NetCDF equilibrium file
-  !! containing the axisymmetric magnetic field geometry in flux 
-  !! coordinates
-  subroutine teqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg) 
+  !> containing the axisymmetric magnetic field geometry in flux
+  !> coordinates
+  subroutine teqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
-    character(len=80), intent(in) :: eqfile
+    class(teq_type), intent(in out) :: self
+    character (len = EQFILE_LENGTH), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
@@ -276,102 +292,98 @@ contains
     integer :: istatus
     integer :: ncid, id, i, j
     integer :: nchar
-    character (len=80) :: filename
-    !
     ! what is the best way to handle the netcdf single/double problem?
-    !
     real, allocatable, dimension(:,:) :: work
     real :: f_N, psi_N
     !     read the data
 
-    if(initeq == 0) then
-       nthg = nt/2
+    if (initeq == 0) then
+       nthg = self%nt/2
        return
-    endif
+    end if
 
-    nchar=index(eqfile,' ')-1
-    filename=eqfile(1:nchar)
+    self%filename = trim(adjustl(eqfile))
 
 # ifdef NETCDF
-    !     netcdf open file         
-    istatus = nf90_open(filename, NF90_NOWRITE, ncid)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=filename)
+    !     netcdf open file
+    istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
     !     netcdf read scalar: nr
     !
     !     nr == number of radial grid points in radial eq grid
-    
+
     istatus = nf90_inq_varid (ncid, 'ns', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='ns')
-    istatus = nf90_get_var (ncid, id, nr)
+    istatus = nf90_get_var (ncid, id, self%nr)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    
+
     !     netcdf read scalar: nt
     !
     !     nt == number of theta grid points in theta eq grid
     istatus = nf90_inq_varid (ncid, 'nt1', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='nt1')
-    istatus = nf90_get_var (ncid, id, nt)
+    istatus = nf90_get_var (ncid, id, self%nt)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-   
-    call alloc_arrays(nr, nt)
+
+    call self%alloc_arrays()
 
     !     netcdf read scalars: psi_0,psi_a,B_T
     !
     !     psi_0 == value of psi at the magnetic axis
     !     psi_a == value of psi at the boundary of the plasma
     !     B_T == vacuum toroidal magnetic field at R_center
-    
+
     !       id = ncvid (ncid, 'B_T', ifail)
     !       call ncvgt1 (ncid, id, start, work1, ifail)
     !       B_T = work1*1.e-4  ! cgs to MKS
-    
+
     !     netcdf read vectors: eqpsi,fp,qsf,beta,pressure
     !
-    !     rho_d(1:nr) == half diameters of flux surfaces at elevation 
+    !     rho_d(1:nr) == half diameters of flux surfaces at elevation
     !                             of Z_mag on the radial grid
     !     psi is the poloidal flux
     !     eqpsi(1:nr) == values of psi on the radial grid
     !     psi_bar(1:nr) == values of psi_bar on the radial grid
     !     [psi_bar == (eqpsi - psi_0)/(psi_a - psi_0) if not available]
-    !     fp(1:nr) == the function that satisfies 
+    !     fp(1:nr) == the function that satisfies
     !              B = fp grad zeta + grad zeta x grad psi
     !     qsf(1:nr) == q profile on the radial grid
-    !     beta(1:nr) == local beta, with the magnetic field defined 
+    !     beta(1:nr) == local beta, with the magnetic field defined
     !     to be vacuum magnetic field on axis
     !     pressure(1:nr) == pressure profile on the radial grid,
-    !     normalized to the value at the magnetic axis.     
+    !     normalized to the value at the magnetic axis.
     istatus = nf90_inq_varid (ncid, 'rho', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='rho')
-    istatus = nf90_get_var (ncid, id, rho_b)
+    istatus = nf90_get_var (ncid, id, self%rho_b)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     istatus = nf90_inq_varid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
-    istatus = nf90_get_var (ncid, id, eqpsi)
+    istatus = nf90_get_var (ncid, id, self%eqpsi)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    eqpsi(1:nr) = abs(eqpsi(1:nr))
-    
-    psi_0 = eqpsi(1)
-    psi_a = eqpsi(nr)
+    self%eqpsi = abs(self%eqpsi)
 
-    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
-    
+    self%psi_0 = self%eqpsi(1)
+    self%psi_a = self%eqpsi(self%nr)
+
+    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
+
     istatus = nf90_inq_varid (ncid, 'g', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='g')
-    istatus = nf90_get_var (ncid, id, fp)
+    istatus = nf90_get_var (ncid, id, self%fp)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    fp(1:nr) = abs(fp(1:nr))
-    
+    self%fp = abs(self%fp)
+
     istatus = nf90_inq_varid (ncid, 'q', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='q')
-    istatus = nf90_get_var (ncid, id, qsf)
+    istatus = nf90_get_var (ncid, id, self%qsf)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    qsf(1:nr) = abs(qsf(1:nr))
-    
+    self%qsf = abs(self%qsf)
+
     istatus = nf90_inq_varid (ncid, 'p', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='p')
-    istatus = nf90_get_var (ncid, id, pressure)
+    istatus = nf90_get_var (ncid, id, self%pressure)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
@@ -379,344 +391,359 @@ contains
     !     eq_Zpsi(1:nr, 1:nt)
     !     eq_Bpsi(1:nr, 1:nt)
 
-    allocate(work(nt,nr))
+    allocate(work(self%nt, self%nr))
 
     istatus = nf90_inq_varid (ncid, 'R', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='R')
     istatus = nf90_get_var (ncid, id, work)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    do j=1,nt
-       do i=1,nr
-          R_psi(i,j) = work(j,i)
-       enddo
-    enddo
-    
+    do j = 1, self%nt
+       do i = 1, self%nr
+          self%R_psi(i, j) = work(j, i)
+       end do
+    end do
+
     istatus = nf90_inq_varid (ncid, 'Z', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Z')
     istatus = nf90_get_var (ncid, id, work)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    do j=1,nt
-       do i=1,nr
-          Z_psi(i,j) = work(j,i)
-       enddo
-    enddo
-    
+    do j = 1, self%nt
+       do i = 1, self%nr
+          self%Z_psi(i, j) = work(j, i)
+       end do
+    end do
+
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
-    
+
     deallocate(work)
 
-    ! mildly gimpy at the moment, because the TRANSP output does not 
-    ! regularly include the point at theta=0.  
-    
+    ! mildly gimpy at the moment, because the TRANSP output does not
+    ! regularly include the point at theta=0.
+
     ! find aminor
-    aminor = 0.5*abs(R_psi(nr,nt/2)-R_psi(nr,1))
+    self%aminor = 0.5 * abs(self%R_psi(self%nr, self%nt/2) - self%R_psi(self%nr, 1))
 
     ! find R_geo
-    R_geo = 0.5*(R_psi(nr,nt/2)+R_psi(nr,1))
+    R_geo = 0.5 * (self%R_psi(self%nr, self%nt/2) + self%R_psi(self%nr, 1))
 
     ! find rho_d
-    rho_d = 0.5*(R_psi(:,nt/2)-R_psi(:,1))/aminor
+    self%rho_d = 0.5 * (self%R_psi(:, self%nt/2) - self%R_psi(:, 1)) / self%aminor
 
     ! find magnetic axis
-    R_mag = R_psi(1,1)
-    Z_mag = Z_psi(1,1)
+    self%R_mag = self%R_psi(1, 1)
+    self%Z_mag = self%Z_psi(1, 1)
 
     ! Find normalizing magnetic field
-    B_T = fp(nr)/R_geo
+    self%B_T = self%fp(self%nr) / R_geo
 
     !
-    !     Normalize, rename quantities 
+    !     Normalize, rename quantities
     !
-    R_mag = R_mag
-    Z_mag = Z_mag
-    R_geo = R_geo/aminor
-    R_psi = R_psi/aminor
-    Z_psi = Z_psi/aminor
-     
+    R_geo = R_geo / self%aminor
+    self%R_psi = self%R_psi / self%aminor
+    self%Z_psi = self%Z_psi / self%aminor
 
-    beta = 8. * pi * 1.e-7 * pressure / B_T**2  ! not correct definition yet?
-    beta_0 = beta(1)
-    pressure = pressure/pressure(1)
+    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet?
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / self%pressure(1)
 
-    avgrmid = aminor
-    rmaj = R_mag / aminor   ! used to reference the grid
-    B_T0 = abs(B_T)
+    avgrmid = self%aminor
+    rmaj = self%R_mag / self%aminor   ! used to reference the grid
+    B_T0 = abs(self%B_T)
 
     psi_N = B_T0 * avgrmid**2
-    psi_a = psi_a / psi_N
-    psi_0 = psi_0 / psi_N
-    psi_a_out = psi_a 
-    psi_0_out = psi_0 
-    eqpsi = eqpsi / psi_N
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    psi_a_out = self%psi_a
+    psi_0_out = self%psi_0
+    self%eqpsi = self%eqpsi / psi_N
 
     f_N = B_T0*avgrmid
-    fp=fp/f_N
+    self%fp = self%fp / f_N
 
     !CMR 28/6/2011: why divide the number of theta points by two here?
-    nthg=nt/2
+    nthg = self%nt/2
+    self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
+    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
 
-    transp = .true.
-
+    self%transp = .true.
+    self%initialised = .true.
 # else
     call mp_abort('error: peq teqin is called without netcdf',.true.)
 # endif
   end subroutine teqin
 
   !> FIXME : Add documentation
-  subroutine alloc_arrays(nr, nt)
+  pure subroutine alloc_arrays(self)
     implicit none
-    integer, intent(in) :: nr, nt
+    class(peq_base_type), intent(in out) :: self
+    integer :: nr, nt
+    nr = self%nr ; nt = self%nt
 
-    allocate(rho_d(nr), eqpsi(nr), psi_bar(nr), fp(nr), beta(nr), pressure(nr), &
-         rc(nr), diam(nr), qsf(nr), rho_b(nr))
-    rho_d = 0. ; eqpsi = 0. ; psi_bar = 0. ; fp = 0. ; beta = 0. ; pressure = 0. 
-    rc = 0. ; diam = 0. ; qsf = 0. ; rho_b = 0.
-    allocate(R_psi(nr, nt), Z_psi(nr, nt))
-    R_psi = 0.  ; Z_psi = 0.
-    allocate(drm(nr, nt, 2), dzm(nr, nt, 2), dbtm(nr, nt, 2), &
-         dpm(nr, nt, 2), dtm(nr, nt, 2))
-    drm = 0. ; dzm = 0. ; dbtm = 0. ; dpm = 0. ; dtm = 0.
-    allocate(dpcart(nr, nt, 2), dtcart(nr, nt, 2), dbtcart(nr, nt, 2))
-    allocate(dpbish(nr, nt, 2), dtbish(nr, nt, 2), dbtbish(nr, nt, 2))
-
-    dpcart = 0. ; dtcart = 0. ; dbtcart = 0. 
-    dpbish = 0. ; dtbish = 0. ; dbtbish = 0.
+    allocate(self%rho_d(nr), self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
+         self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr), self%rho_b(nr))
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbtm(nr, nt, 2), &
+         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
+    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbtcart(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
   end subroutine alloc_arrays
 
-  !> FIXME : Add documentation  
-  subroutine dealloc_arrays
+  !> FIXME : Add documentation
+  pure subroutine dealloc_arrays(self)
     implicit none
-    if(allocated(rho_d)) deallocate(rho_d,eqpsi,psi_bar,fp,beta,pressure,rc,diam,qsf,rho_b)
-    if(allocated(R_psi)) deallocate(R_psi,Z_psi)
-    if(allocated(drm)) deallocate(drm,dzm,dbtm,dpm,dtm)
-    if(allocated(dpcart)) deallocate(dpcart,dtcart,dbtcart)
-    if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
+    class(peq_base_type), intent(in out) :: self
+    if (allocated(self%rho_d)) deallocate(self%rho_d, self%eqpsi, self%psi_bar, self%fp, &
+         self%beta, self%pressure, self%rc, self%diam, self%qsf, self%rho_b)
+    if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
+    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)
+    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
+    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
   end subroutine dealloc_arrays
 
-  !> FIXME : Add documentation  
-  subroutine peq_finish
+  !> FIXME : Add documentation
+  subroutine peq_finish(self)
     implicit none
-    call dealloc_arrays
+    class(peq_base_type), intent(in out) :: self
+    self%initialised = .false.
+    call self%dealloc_arrays
+    call self%delete_splines
   end subroutine peq_finish
 
-  !> FIXME : Add documentation  
-  subroutine peq_init
+  !> FIXME : Add documentation
+  subroutine peq_init(self)
     use constants, only: pi
     implicit none
-    real, dimension(nr,nt) :: eqpsi1, eqth, eqbtor
+    class(peq_base_type), intent(in out) :: self
+    real, dimension(self%nr, self%nt) :: eqpsi1, eqth, eqbtor
     integer :: i, j
-   
-    do j=1,nt
-       do i=1,nr
-          eqbtor(i,j) = fp(i)/R_psi(i,j)
-          eqpsi1(i,j) = eqpsi(i)
-       enddo
-    enddo
-    
-    if (transp) then
-       do j=1,nt
-          eqth(:,j) = (j-1)*2.*pi/float(nt-1)-pi
-       enddo
+
+    do j = 1, self%nt
+       eqbtor(:, j) = self%fp / self%R_psi(:, j)
+       eqpsi1(:, j) = self%eqpsi
+    end do
+
+    if (self%transp) then
+       do j = 1, self%nt
+          eqth(:, j) = (j-1) * 2.*pi / float(self%nt-1) - pi
+       end do
     else
-       do j=1,nt
-          eqth(:,j) = (j-1)*pi/float(nt-1)
-       enddo
+       do j = 1, self%nt
+          eqth(:, j) = (j-1) *pi / float(self%nt-1)
+       end do
     end if
 
-    call derm(eqth,   dtm,  'T')
-    call derm(R_psi,  drm,  'E')
-    call derm(Z_psi,  dzm,  'O')
-    call derm(eqbtor, dbtm, 'E')
-    call derm(eqpsi1, dpm,  'E')
+    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi, self%dzm, 'O')
+    call self%derm(eqbtor, self%dbtm, 'E')
+    call self%derm(eqpsi1, self%dpm, 'E')
 
-    ! grad(psi) in cartesian form 
-    call eqdcart(dpm, dpcart)
-    ! grad(psi) in Bishop form 
-    call eqdbish(dpcart, dpbish)
+    ! grad(psi) in cartesian form
+    call self%eqdcart(self%dpm, self%dpcart)
+    ! grad(psi) in Bishop form
+    call self%eqdbish(self%dpcart, self%dpbish)
 
     ! grad(BT) in cartesian form
-    call eqdcart(dbtm, dbtcart)
+    call self%eqdcart(self%dbtm, self%dbtcart)
     ! grad(BT) in Bishop form
-    call eqdbish(dbtcart, dbtbish)
+    call self%eqdbish(self%dbtcart, self%dbtbish)
 
     ! grad(theta) in cartesian form
-    call eqdcart(dtm, dtcart)
+    call self%eqdcart(self%dtm, self%dtcart)
     ! grad(theta) in Bishop form
-    call eqdbish(dtcart, dtbish)
+    call self%eqdbish(self%dtcart, self%dtbish)
   end subroutine peq_init
 
-  !> FIXME : Add documentation  
-  subroutine derm(f, dfm, char)
+    subroutine setup_splines(self)
+    use splines, only: new_spline
+    implicit none
+    class(peq_base_type), intent(in out) :: self
+    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
+    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
+    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
+    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+  end subroutine setup_splines
+
+  subroutine delete_splines(self)
+    use splines, only: delete_spline
+    implicit none
+    class(peq_base_type), intent(in out) :: self
+    call delete_spline(self%diam_spl)
+    call delete_spline(self%rcenter_spl)
+    call delete_spline(self%btori_spl)
+    call delete_spline(self%qsf_spl)
+    call delete_spline(self%pressure_spl)
+    call delete_spline(self%beta_spl)
+  end subroutine delete_splines
+
+  !> FIXME : Add documentation
+  pure subroutine derm(self, f, dfm, char)
     use constants, only: pi
     implicit none
+    class(peq_base_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
     character(1), intent(in) :: char
-    integer :: i, j
+    integer :: i, j, nr, nt
+    nr = self%nr
+    nt = self%nt
 
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
-    
-    i=nr
+    i = 1
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
+
+    i = nr
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-   
-    if (.not. transp) then
+
+    if (.not. self%transp) then
        ! assume up-down symmetry for now:
-       
+
        select case (char)
-       case ('E') 
+       case ('E')
           j=1
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
-          
-          j=nt      
+
+          j=nt
           dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
        case ('O')
           j=1
           dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-          
-          j=nt      
+
+          j=nt
           dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
        case ('T')
           j=1
           dfm(:,j,2) = f(:,j+1)
-          
-          j=nt      
+
+          j=nt
           dfm(:,j,2) = pi - f(:,j-1)
        end select
-       
+
     else
 
        select case (char)
-       case ('E') 
+       case ('E')
           j=1
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-          
-          j=nt      
+
+          j=nt
           dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
        case ('O')
           j=1
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-          
-          j=nt      
+
+          j=nt
           dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
        case ('T')
           j=1
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
-          
+
           j=nt
           dfm(:,j,2) = 0.5*(2.*pi + f(:,2) - f(:,j-1))
        end select
-       
+
     end if
-    
-    do i=2,nr-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
-    enddo
-    
-    do j=2,nt-1
-       dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
-    enddo
+
+    do i = 2, nr-1
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
+    end do
+
+    do j = 2, nt-1
+       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
+    end do
   end subroutine derm
 
   !> FIXME : Add documentation
-  subroutine gradient(rgrid, theta, grad, char, rp, nth_used, ntm)
-    use mp, only: mp_abort
+  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
+    class(peq_base_type), intent(in) :: self
     integer, intent(in) :: nth_used, ntm
     character(1), intent(in) :: char
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real tmp(2), aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) :: dcart
-    real, dimension(nr,nt) :: f
+    real, dimension(self%nr, self%nt, 2) :: dcart
     integer :: i
-    
-    select case(char)
-    case('B') 
-       call mp_abort('error: bishop = 1 not allowed with peq.',.true.)
-    case('D')  ! diagnostic 
-       dcart = dbtcart
-    case('P') 
-       dcart = dpcart
-    case('R') 
-       dcart = dpcart  ! dpcart is correct for 'R'
-    case('T')
-       dcart = dtcart
-    end select
-    
-    do i=-nth_used,-1
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i), theta(i), f, tmp(1), 'R')
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i), theta(i), f, tmp(2), 'Z')
-       if(char == 'T' .and. .not. transp) then
-          grad(i,1)=-tmp(1)
-          grad(i,2)=-tmp(2)
-       else
-          grad(i,1)=tmp(1)
-          grad(i,2)=tmp(2)
-       endif
-    enddo
 
-    do i=0,nth_used
-       f(:,:) = dcart(:,:,1)
-       call eqitem(rgrid(i),theta(i),f,tmp(1), 'R')
-       f(:,:) = dcart(:,:,2)
-       call eqitem(rgrid(i),theta(i),f,tmp(2), 'Z')
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
-    enddo
+    select case(char)
+    case('D')  ! diagnostic
+       dcart = self%dbtcart
+    case('P')
+       dcart = self%dpcart
+    case('R')
+       dcart = self%dpcart  ! dpcart is correct for 'R'
+    case('T')
+       dcart = self%dtcart
+    end select
+
+    do i = -nth_used, -1
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), tmp(2), 'Z')
+       if (char == 'T' .and. .not. self%transp) then
+          grad(i,1) = -tmp(1)
+          grad(i,2) = -tmp(2)
+       else
+          grad(i,1) = tmp(1)
+          grad(i,2) = tmp(2)
+       end if
+    end do
+
+    do i = 0, nth_used
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(2), 'Z')
+       grad(i,1) = tmp(1)
+       grad(i,2) = tmp(2)
+    end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
+    if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(nr, eqpsi, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
-       enddo
-    endif
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
+       end do
+    end if
   end subroutine gradient
 
-  !> FIXME : Add documentation  
-  subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
-    use mp, only: mp_abort
+  !> FIXME : Add documentation
+  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
+    class(peq_base_type), intent(in) :: self
     integer, intent(in) :: nth_used, ntm
     character(1), intent(in) :: char
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) ::  dbish
+    real, dimension(self%nr, self%nt, 2) ::  dbish
     integer :: i
 
     select case(char)
-    case('B') 
-       call mp_abort('error: bishop = 1 not allowed with peq. (2)',.true.)
     case('D')  ! diagnostic
-       dbish = dbtbish
-    case('P') 
-       dbish = dpbish
-    case('R') 
-       dbish = dpbish  ! dpcart is correct for 'R'
+       dbish = self%dbtbish
+    case('P')
+       dbish = self%dpbish
+    case('R')
+       dbish = self%dpbish  ! dpcart is correct for 'R'
     case('T')
-       dbish = dtbish
+       dbish = self%dtbish
     end select
 
-    do i=-nth_used,nth_used
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
+    do i = -nth_used, nth_used
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
     enddo
 
-    if (char == 'T' .and. .not. transp) then
+    if (char == 'T' .and. .not. self%transp) then
        where (theta(-nth_used:nth_used) < 0.0)
           grad(-nth_used:nth_used,1) = -grad(-nth_used:nth_used,1)
           grad(-nth_used:nth_used,2) = -grad(-nth_used:nth_used,2)
@@ -724,116 +751,109 @@ contains
     end if
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
+    if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(nr, eqpsi, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
-       enddo
-    endif
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
+       end do
+    end if
   end subroutine bgradient
 
-  !> FIXME : Add documentation  
-  subroutine eqitem(r, theta_in, f, fstar, char)
+  !> FIXME : Add documentation
+  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
-    real, intent(in) :: r, theta_in
+    class(peq_base_type), intent(in) :: self
+    real, intent(in) :: r_in, theta_in
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
     real, intent(out) :: fstar
     real :: thet, sign, tp, tps
-    real :: st, dt, sr, dr
+    real :: st, dt, sr, dr, r
     real, dimension(size(f,2)) :: mtheta
+    !Copy input r to avoid any modification
+    r = r_in
 
     ! check for axis evaluation
-      
-    if(r == eqpsi(1)) then
+    if (r == self%eqpsi(1)) then
        write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, eqpsi(1)
+       write(*,*) r, theta_in, self%eqpsi(1)
        call mp_abort('no evaluation at axis allowed in eqitem')
-    endif
-    
-    ! allow psi(r) to be a decreasing function
+    end if
 
-    sign=1.
-    if(eqpsi(2) < eqpsi(1)) sign=-1.
-    
-    if(r < sign*eqpsi(1)) then
+    ! allow psi(r) to be a decreasing function
+    sign = 1.
+    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
+
+    if (r < sign * self%eqpsi(1)) then
        write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r,sign,eqpsi(1)
+       write(*,*) r, sign, self%eqpsi(1)
        call mp_abort('r < Psi_0 in eqitem')
-    endif
-      
+    end if
+
     ! find r on psi mesh
 
     ! disallow evaluations on or outside the surface for now
-
-    if(r >= eqpsi(nr)) then
+    if (r >= self%eqpsi(self%nr)) then
        write(*,*) 'No evaluation of eqitem allowed on or outside surface'
        write(*,*) '(Could this be relaxed a bit?)'
-       write(*,*) r, theta_in, eqpsi(nr), sign
+       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
        call mp_abort('No evaluation of eqitem allowed on or outside surface')
-    endif
-    
-    istar=0
-    do i=2,nr
-       if(r < sign*eqpsi(i)) then
-          dr = r - sign*eqpsi(i-1)
-          sr = sign*eqpsi(i) - r
-          istar=i-1
+    end if
+
+    istar = 0
+    do i = 2, self%nr
+       if (r < sign * self%eqpsi(i)) then
+          dr = r - sign * self%eqpsi(i-1)
+          sr = sign * self%eqpsi(i) - r
+          istar = i-1
           exit
-       endif
-    enddo
-    
+       end if
+    end do
+
     ! no gradients available at axis, so do not get too close
-
-    if(istar == 1) then
+    if (istar == 1) then
        write(*,*) 'Too close to axis in eqitem'
-       write(*,*) r, theta_in, eqpsi(1), eqpsi(2)
+       write(*,*) r, theta_in, self%eqpsi(1), self%eqpsi(2)
        call mp_abort('Too close to axis in eqitem')
-    endif
-  
-    ! Now do theta direction
+    end if
 
+    ! Now do theta direction
     thet = mod2pi(theta_in)
 
 
     ! assume up-down symmetry
-
-    if (.not. transp) then
-       tp=abs(thet)
-       tps=1.
-       if(char == 'Z' .and. tp >= 1.e-10) tps=thet/tp
+    if (.not. self%transp) then
+       tp = abs(thet)
+       tps = 1.
+       if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
 
        ! get thet on theta mesh
+       do j = 1, self%nt
+          mtheta(j) = (j-1)*pi / float(self%nt-1)
+       end do
 
-       do j=1,nt
-          mtheta(j)=(j-1)*pi/float(nt-1)
-       enddo
-       
-       ! note that theta(1)=0 for gen_eq theta 
-
-       jstar=-1
-       do j=1,nt
-          if(jstar /= -1) cycle
-          if(tp < mtheta(j)) then
+       ! note that theta(1)=0 for gen_eq theta
+       jstar = -1
+       do j = 1, self%nt
+          if (jstar /= -1) cycle
+          if (tp < mtheta(j)) then
              dt = tp - mtheta(j-1)
              st = mtheta(j) - tp
-             jstar=j-1
-          endif
-       enddo
-      
+             jstar = j-1
+          end if
+       end do
+
        ! treat theta = pi separately
-       
-       if(jstar == -1) then
-          jstar=nt-1
-          dt=mtheta(jstar+1)-mtheta(jstar)
-          st=0.
-       endif
+       if (jstar == -1) then
+          jstar = self%nt - 1
+          dt = mtheta(jstar+1) - mtheta(jstar)
+          st = 0.
+       end if
 
        ! use opposite area stencil to interpolate
 
@@ -841,447 +861,247 @@ contains
             +f(istar + 1, jstar    ) * dr * st &
             +f(istar    , jstar + 1) * sr * dt &
             +f(istar + 1, jstar + 1) * dr * dt
-       fstar=fstar*tps &
-            /abs(eqpsi(istar+1)-eqpsi(istar)) &
-            /(mtheta(jstar+1)-mtheta(jstar))
+       fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
+            (mtheta(jstar+1) - mtheta(jstar)))
 
     else
 
        ! get thet on theta mesh
+       do j = 1, self%nt
+          mtheta(j) = (j-1)*2.*pi / float(self%nt-1) - pi
+       end do
 
-       do j=1,nt
-          mtheta(j)=(j-1)*2.*pi/float(nt-1)-pi
-       enddo
-       
-       ! note that theta(1)=0 for gen_eq theta 
-
-       jstar=-1
-       do j=1,nt
-          if(jstar /= -1) cycle
-          if(thet < mtheta(j)) then
+       ! note that theta(1)=0 for gen_eq theta
+       jstar = -1
+       do j = 1, self%nt
+          if (jstar /= -1) cycle
+          if (thet < mtheta(j)) then
              dt = thet - mtheta(j-1)
              st = mtheta(j) - thet
-             jstar=j-1
-          endif
-       enddo
-      
+             jstar = j-1
+          end if
+       end do
+
        ! treat pi separately
-  
-       if(jstar == -1) then
-          jstar=nt-1
-          dt=mtheta(jstar+1)-mtheta(jstar)
-          st=0.
-       endif
+       if (jstar == -1) then
+          jstar = self%nt - 1
+          dt = mtheta(jstar+1) - mtheta(jstar)
+          st = 0.
+       end if
 
        ! use opposite area stencil to interpolate
-
        fstar=f(istar    , jstar    ) * sr * st &
             +f(istar + 1, jstar    ) * dr * st &
             +f(istar    , jstar + 1) * sr * dt &
             +f(istar + 1, jstar + 1) * dr * dt
-       fstar=fstar &
-            /abs(eqpsi(istar+1)-eqpsi(istar)) &
-            /(mtheta(jstar+1)-mtheta(jstar))
+       fstar=fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
+            (mtheta(jstar+1) - mtheta(jstar)))
     end if
   end subroutine eqitem
 
-  !> FIXME : Add documentation  
-  subroutine eqdcart(dfm, dfcart)
+  !> FIXME : Add documentation
+  pure subroutine eqdcart(self, dfm, dfcart)
     implicit none
+    class(peq_base_type), intent(in) :: self
     real, dimension (:,:,:), intent(in)  :: dfm
     real, dimension (:,:,:), intent(out) :: dfcart
-    real, dimension (size(dfm,1),size(dfm,2)) :: denom
+    real, dimension (self%nr, self%nt) :: denom
     integer :: i, j
-      
-    denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
-    
-    dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
+    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
+    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
+    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
 
-    do j=1,nt
-       do i=2,nr
-          dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
-       enddo
-    enddo    
+    do j = 1, self%nt
+       do i = 2, self%nr
+          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
+       end do
+    end do
   end subroutine eqdcart
 
-  !> FIXME : Add documentation  
-  subroutine eqdbish(dcart, dbish)
+  !> FIXME : Add documentation
+  subroutine eqdbish(self, dcart, dbish)
     implicit none
+    class(peq_base_type), intent(in) :: self
     real, dimension(:, :, :), intent (in) :: dcart
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
+    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
+    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
+    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 
-    denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
-
-    dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
-    
-    do j=1,nt
-       do i=2,nr
-          dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
-       enddo
-    enddo
+    do j = 1, self%nt
+       do i = 2, self%nr
+          dbish(i,j,:) = dbish(i,j,:) / denom(i,j)
+       end do
+    end do
   end subroutine eqdbish
 
-  !> FIXME : Add documentation  
-  function initialize_invR (init)
+  !> FIXME : Add documentation
+  real function invR (self, r, theta)
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_invR
-    
-    init_invR = .false.
-    if(init == 1) init_invR = .true.
-    initialize_invR = 1
-  end function initialize_invR
-
-  !> FIXME : Add documentation  
-  function invR (r, theta)
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: f, invR
-    real :: th
-    
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, R_psi, f, 'R')
-    invR=1./f
+    invR = 1. / self%Rpos(r, theta)
   end function invR
 
-  !> FIXME : Add documentation  
-  function Rpos (r, theta)
+  !> FIXME : Add documentation
+  real function Rpos (self, r, theta)
     implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: f, Rpos
     real :: th
-    
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, R_psi, f, 'R')
-    Rpos=f
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%R_psi, Rpos, 'R')
   end function Rpos
 
-  !> FIXME : Add documentation  
-  function Zpos (r, theta)
+  !> FIXME : Add documentation
+  real function Zpos (self, r, theta)
     implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: f, Zpos
     real :: th
-    
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, Z_psi, f, 'Z')
-    Zpos=f
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%Z_psi, Zpos, 'Z')
   end function Zpos
 
-  !> FIXME : Add documentation  
-  function initialize_psi (init)
+  !> FIXME : Add documentation
+  real function psi (self, r)
     implicit none
-    integer, intent(in) :: init
-    integer ::initialize_psi
-    
-    init_psi = .false.
-    if(init == 1) init_psi = .true.
-    initialize_psi = 1
-  end function initialize_psi
-
-  !> FIXME : Add documentation  
-  function psi (r)
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent (in) :: r
-    real :: psi
-
     psi = r
   end function psi
 
-  !> FIXME : Add documentation  
-  function mod2pi (theta)
-    use constants, only: pi
+  !> FIXME : Add documentation
+  real function diameter (self, rp)
+    use splines, only: splint
     implicit none
-    real, intent(in) :: theta
-    real :: th, mod2pi
-    logical :: out
-    
-    if(theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-       return
-    endif
-    
-    th=theta
-    out=.true.
-    do while(out)
-       if(th > pi) th = th - 2.*pi
-       if(th <-pi) th = th + 2.*pi
-       if(th <= pi .and. th >= -pi) out=.false.
-    enddo
-    mod2pi=th
-  end function mod2pi
-
-  !> FIXME : Add documentation  
-  function initialize_diameter (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_diameter
-    
-    init_diameter = .false.
-    if(init == 1) init_diameter = .true.
-    initialize_diameter = 1
-  end function initialize_diameter
-
-  !> FIXME : Add documentation  
-  function diameter (rp)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: rp
-    real :: diameter
-    type (spline), save :: spl
-
-    if(init_diameter) then
-       diam(:) = abs(R_psi(:,nt/2) - R_psi(:,1))
-       call new_spline(nr, eqpsi, diam, spl)
-       init_diameter = .false.
-    endif
-
-    diameter = splint(rp, spl)
+    diameter = splint(rp, self%diam_spl)
   end function diameter
 
-  !> FIXME : Add documentation  
-  function initialize_rcenter (init)
+  !> FIXME : Add documentation
+  real function rcenter (self, rp)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_rcenter
-    
-    init_rcenter = .false.
-    if(init == 1) init_rcenter = .true.
-    initialize_rcenter = 1
-  end function initialize_rcenter
-
-  !> FIXME : Add documentation  
-  function rcenter (rp)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: rp
-    real :: rcenter
-    type (spline), save :: spl
-
-    if(init_rcenter) then
-       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2))
-       call new_spline(nr, eqpsi, rc, spl)
-       init_rcenter = .false.
-    endif
-
-    rcenter = splint(rp, spl)
+    rcenter = splint(rp, self%rcenter_spl)
   end function rcenter
 
-  !> FIXME : Add documentation  
-  function initialize_dbtori (init)
+  !> FIXME : Add documentation
+  real function dbtori (self, pbar)
+    use splines, only: dsplint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dbtori
-    
-    init_dbtori = .false.
-    if(init == 1) init_dbtori = .true.
-    initialize_dbtori = 1
-  end function initialize_dbtori
-
-  !> FIXME : Add documentation  
-  function dbtori (pbar)
-    use splines, only: new_spline, dsplint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: dbtori
-    type (spline), save :: spl
-
-    if(init_dbtori) call new_spline(nr, psi_bar, fp, spl)
-    init_dbtori=.false.
-
-    dbtori = dsplint(pbar, spl)/(psi_a-psi_0)
+    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a - self%psi_0)
   end function dbtori
 
-  !> FIXME : Add documentation  
-  function initialize_btori (init)
+  !> FIXME : Add documentation
+  real function btori (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_btori
-    
-    init_btori = .false.
-    if(init == 1) init_btori = .true.
-    initialize_btori = 1
-  end function initialize_btori
-
-  !> FIXME : Add documentation  
-  function btori (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: btori
-    type (spline), save :: spl
-
-    if(init_btori) call new_spline(nr, psi_bar, fp, spl)
-    init_btori=.false.
-
-    btori = splint(pbar, spl)
+    btori = splint(pbar, self%btori_spl)
   end function btori
 
-  !> FIXME : Add documentation  
-  function initialize_q (init)
+  !> FIXME : Add documentation
+  real function qfun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_q
-    
-    init_q = .false.
-    if(init == 1) init_q = .true.
-    initialize_q = 1
-  end function initialize_q
-
-  !> FIXME : Add documentation  
-  function qfun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: qfun
-    type (spline), save :: spl
-
-    if(init_q) call new_spline(nr, psi_bar, qsf, spl)
-    init_q = .false.
-
-    qfun = splint(pbar, spl)
+    qfun = splint(pbar, self%qsf_spl)
   end function qfun
 
-  !> FIXME : Add documentation  
-  function initialize_pressure (init)
+  !> FIXME : Add documentation
+  real function pfun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_pressure
-    
-    init_pressure = .false.
-    if(init == 1) init_pressure = .true.
-    initialize_pressure = 1
-  end function initialize_pressure
-
-  !> FIXME : Add documentation  
-  function pfun (pbar)  
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: pfun
-    type (spline), save :: spl
-
-    if(init_pressure) call new_spline(nr, psi_bar, pressure, spl)
-    init_pressure = .false.
-    !
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    !
-    pfun = 0.5*beta_0*splint(pbar, spl)
+    pfun = 0.5 * self%beta_0 * splint(pbar, self%pressure_spl)
   end function pfun
 
-  !> FIXME : Add documentation  
-  function initialize_dpressure (init)
+  !> FIXME : Add documentation
+  real function dpfun (self, pbar)
+    use splines, only: dsplint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dpressure
-    
-    init_dpressure = .false.
-    if(init == 1) init_dpressure = .true.
-    initialize_dpressure = 1
-  end function initialize_dpressure
-
-  !> FIXME : Add documentation  
-  function dpfun (pbar)  
-    use splines, only: new_spline, dsplint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: dpfun
-    type (spline), save :: spl
-    !
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    !
-    if(init_dpressure) then
-       call new_spline(nr, psi_bar, pressure, spl)
-       init_dpressure = .false.
-    endif
-
-    dpfun = dsplint(pbar, spl)/(psi_a-psi_0) * beta_0/2.
+    dpfun = dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0) * self%beta_0/2.
   end function dpfun
 
-  !> FIXME : Add documentation  
-  function initialize_beta (init)
+  !> FIXME : Add documentation
+  real function betafun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_beta
-    
-    init_beta = .false.
-    if(init == 1) init_beta = .true.
-    initialize_beta = 1
-  end function initialize_beta
-
-  !> FIXME : Add documentation  
-  function betafun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: betafun
-    type (spline), save :: spl
-
     if(pbar == 0.) then
-       betafun=beta(1)
+       betafun = self%beta(1)
        return
-    endif
-
-    if(init_beta) call new_spline(nr, psi_bar, beta, spl)
-    init_beta = .false.
-
-    betafun = splint(pbar, spl)
+    end if
+    betafun = splint(pbar, self%beta_spl)
   end function betafun
 
-  !> FIXME : Add documentation  
-  subroutine Hahm_Burrell(irho, a)
+  !> FIXME : Add documentation
+  subroutine Hahm_Burrell(geom, irho, a)
     use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
     implicit none
+    type(peq_type), intent(in) :: geom
     real, intent(in) :: a
     integer, intent(in) :: irho
-    integer :: i, fort24_unit
+    integer :: i, fort24_unit, nr
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(nr) :: gamma, pbar, dp, d2p, pres
+    real, dimension(geom%nr) :: gamma, pbar, dp, d2p, pres
+    if (.not. proc0) return
+    nr = geom%nr
 
     gamma = 0.
 
-    pbar = (eqpsi-eqpsi(1))/(eqpsi(nr)-eqpsi(1))
+    pbar = (geom%eqpsi - geom%eqpsi(1)) / (geom%eqpsi(geom%nr) - geom%eqpsi(1))
 
-    do i=2, nr-1
-       dp(i)  = dpfun(pbar(i))
-    enddo
+    do i = 2, nr-1
+       dp(i)  = geom%dpfun(pbar(i))
+    end do
 
-    do i=3,nr-2
-       d2p(i) = (dp(i+1)-dp(i-1))/(eqpsi(i+1)-eqpsi(i-1))
+    do i = 3, nr-2
+       d2p(i) = (dp(i+1)-dp(i-1))/(geom%eqpsi(i+1)-geom%eqpsi(i-1))
     enddo
 
     pres=0.
-    do i=3, nr-2
-       rp1=eqpsi(i+1)
-       rp2=eqpsi(i-1)
-       rho1=0.5*diameter(rp1)
-       rho2=0.5*diameter(rp2)
+    do i = 3, nr-2
+       rp1=geom%eqpsi(i+1)
+       rp2=geom%eqpsi(i-1)
+       rho1=0.5*geom%diameter(rp1)
+       rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
-       
-       call eqitem(eqpsi(i), 0., dpbish(:,:,1), gradpsi, 'R')
-       
-       mag_B=sqrt( (btori(pbar(i))**2 + gradpsi**2))/Rpos(eqpsi(i),0.)
 
-       pres(i) = pfun(pbar(i))
+       call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
+
+       mag_B=sqrt( (geom%btori(pbar(i))**2 + gradpsi**2))/geom%Rpos(geom%eqpsi(i),0.)
+
+       pres(i) = geom%pfun(pbar(i))
 
        gamma(i) = 0.01*gradpsi**2*(d2p(i)/pres(i)-a*(dp(i)/pres(i))**2) &
-            /mag_B*(2.*pres(i)/beta_0)**((1-a)/2.) &
-            *(-pres(i)/(dp(i)/drhodpsiq))            
+            /mag_B*(2.*pres(i)/geom%beta_0)**((1-a)/2.) &
+            *(-pres(i)/(dp(i)/drhodpsiq))
     enddo
-    
+
     call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then
-          rho_eq = eqpsi(i)
+          rho_eq = geom%eqpsi(i)
        else if(irho == 2) then
-          rho_eq = 0.5 * diameter(eqpsi(i))
+          rho_eq = 0.5 * geom%diameter(geom%eqpsi(i))
        else if(irho == 3) then
           rho_eq = pbar(i)
        endif
