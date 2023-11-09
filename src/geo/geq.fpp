@@ -537,8 +537,8 @@ contains
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        do i = -nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*self%beta_0
+          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
        end do
     end if
   end subroutine bgradient
