@@ -5,7 +5,7 @@ module ceq
 
   implicit none
 
-  public :: ceq_init, ceqin, gradient, eqitem, bgradient, Hahm_Burrell, ceq_finish
+  public :: ceq_init, ceqin, gradient, bgradient, Hahm_Burrell, ceq_finish
   public :: invR,     initialize_invR
   public :: Rpos
   public :: Zpos

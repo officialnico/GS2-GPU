@@ -17,7 +17,7 @@ module geq
   private
 
   public :: B_psi 
-  public :: geq_init, eqin, gradient, eqitem, bgradient, Hahm_Burrell, geq_finish
+  public :: geq_init, eqin, gradient, bgradient, Hahm_Burrell, geq_finish
 
   public :: invR,     initialize_invR
   public :: Rpos

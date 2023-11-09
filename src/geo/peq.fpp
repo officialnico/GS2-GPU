@@ -16,7 +16,7 @@ module peq
 
   private
 
-  public :: peq_init, eqin, teqin, gradient, eqitem, bgradient, Hahm_Burrell, peq_finish
+  public :: peq_init, eqin, teqin, gradient, bgradient, Hahm_Burrell, peq_finish
 
   public :: invR,     initialize_invR
   public :: Rpos

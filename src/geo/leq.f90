@@ -23,7 +23,7 @@ module leq
 
   private
   
-  public :: leq_init, leqin, gradient, eqitem, bgradient, leq_finish
+  public :: leq_init, leqin, gradient, bgradient, leq_finish
   public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 

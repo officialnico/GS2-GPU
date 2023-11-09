@@ -6,7 +6,7 @@ module ideq
   private
 
   public :: B_psi
-  public :: dfit_init, idfitin, gradient, eqitem, bgradient, dfit_finish
+  public :: dfit_init, idfitin, gradient, bgradient, dfit_finish
 
   public :: invR
   public :: Rpos

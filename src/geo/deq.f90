@@ -5,7 +5,7 @@ module deq
 
   private
 
-  public :: dfit_init, dfitin, gradient, eqitem, bgradient, dfit_finish
+  public :: dfit_init, dfitin, gradient, bgradient, dfit_finish
   public :: invR
   public :: Rpos
   public :: Zpos
