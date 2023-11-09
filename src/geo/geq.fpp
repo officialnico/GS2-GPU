@@ -554,7 +554,7 @@ contains
     real, intent(in) :: theta_in
     real, dimension(:,:), intent(in) :: f
     real, intent(out) :: fstar
-    character(1), intent(in) :: char
+    character(len = 1), intent(in) :: char
     integer :: i, j, istar, jstar
     real :: thet, sign, tp, tps, r
     real :: st, dt, sr, dr, rt
@@ -804,81 +804,81 @@ contains
   end function betafun
 
   !> FIXME : Add documentation
-  subroutine Hahm_Burrell(geq_geom, irho, a)
+  subroutine Hahm_Burrell(geom, irho, a)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     implicit none
-    type(geq_type), intent(in) :: geq_geom
+    type(geq_type), intent(in) :: geom
     real, intent(in) :: a
     integer, intent(in) :: irho
     integer :: i, nr
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(geq_geom%nr) :: gamma, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
+    real, dimension(geom%nr) :: gamma, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
     integer :: fort24_unit
-
     if (.not. proc0) return
-    nr = geq_geom%nr
+    nr = geom%nr
     if(irho /= 2) then
        write(*,*) 'use irho=2 to get correct shearing rate.'
     endif
 
     gamma = 0.
 
-    pbar = (geq_geom%eqpsi-geq_geom%eqpsi(1))/(geq_geom%eqpsi(nr)-geq_geom%eqpsi(1))
+    pbar = (geom%eqpsi-geom%eqpsi(1))/(geom%eqpsi(nr)-geom%eqpsi(1))
 
     do i=2, nr-1
-       dp(i)  = geq_geom%dpfun(pbar(i))
+       dp(i)  = geom%dpfun(pbar(i))
     enddo
 
     do i=3,nr-2
-       d2p(i) = (dp(i+1)-dp(i-1))/(geq_geom%eqpsi(i+1)-geq_geom%eqpsi(i-1))
+       d2p(i) = (dp(i+1)-dp(i-1))/(geom%eqpsi(i+1)-geom%eqpsi(i-1))
     enddo
 
     pres=0.
 
-    do i=3,geq_geom%nr-2
-       rp1=geq_geom%eqpsi(i+1)
-       rp2=geq_geom%eqpsi(i-1)
-       rho1=0.5*geq_geom%diameter(rp1)
-       rho2=0.5*geq_geom%diameter(rp2)
+    do i=3,nr-2
+       rp1=geom%eqpsi(i+1)
+       rp2=geom%eqpsi(i-1)
+       rho1=0.5*geom%diameter(rp1)
+       rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
-       s__hat(i) = (geq_geom%qfun(pbar(i+1))-geq_geom%qfun(pbar(i-1)))/(rho2-rho1) &
-            * 0.5*(rho1+rho2)/geq_geom%qfun(pbar(i))
-       pres(i) = geq_geom%pfun(pbar(i))
+       
+       s__hat(i) = (geom%qfun(pbar(i+1))-geom%qfun(pbar(i-1)))/(rho2-rho1) &
+            * 0.5*(rho1+rho2)/geom%qfun(pbar(i))
+       
+       pres(i) = geom%pfun(pbar(i))
 
-       call geq_geom%eqitem(geq_geom%eqpsi(i), 0., geq_geom%dpbish(:,:,1), gradpsi, 'R')
-       call geq_geom%eqitem(geq_geom%eqpsi(i), 0., geq_geom%B_psi, mag_B, 'R')
+       call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
+       call geom%eqitem(geom%eqpsi(i), 0., geom%B_psi, mag_B, 'R')
 
        gamma(i) = (d2p(i)/pres(i)-a*(dp(i)/pres(i))**2)
        gamma(i) = 0.01*gradpsi**2*gamma(i) &
-            /mag_B*(2.*pres(i)/geq_geom%beta_0)**((1-a)/2.) &
+            /mag_B*(2.*pres(i)/geom%beta_0)**((1-a)/2.) &
             *(-pres(i)/(dp(i)/drhodpsiq))
     enddo
     !
     ! Assume rho_*0 = 0.01, nu_*0 = 1.0
     !
     do i=3,nr-2
-       bs_coll(i)=0.01*((2.*pres(i)/geq_geom%beta_0)**(1-a))**2.5 &
-            / (2.*pres(i)/geq_geom%beta_0)**a * geq_geom%qfun(0.) &
-            * 0.5*geq_geom%diameter(geq_geom%eqpsi(i)) &
-            * (-dp(i)/pres(i)) * geq_geom%R_psi(1,1)**1.5
-       bs_sh(i)=(-pres(i)/(dp(i)/drhodpsiq))*s__hat(i)/geq_geom%R_psi(1,1) &
-            / geq_geom%qfun(pbar(i)) /sqrt(pres(i))
+       bs_coll(i)=0.01*((2.*pres(i)/geom%beta_0)**(1-a))**2.5 &
+            / (2.*pres(i)/geom%beta_0)**a * geom%qfun(0.) &
+            * 0.5*geom%diameter(geom%eqpsi(i)) &
+            * (-dp(i)/pres(i)) * geom%R_psi(1,1)**1.5
+       bs_sh(i)=(-pres(i)/(dp(i)/drhodpsiq))*s__hat(i)/geom%R_psi(1,1) &
+            / geom%qfun(pbar(i)) /sqrt(pres(i))
     enddo
 
     call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then
-          rho_eq = geq_geom%eqpsi(i)
+          rho_eq = geom%eqpsi(i)
        else if(irho == 2) then
-          rho_eq = 0.5 * geq_geom%diameter(geq_geom%eqpsi(i))
+          rho_eq = 0.5 * geom%diameter(geom%eqpsi(i))
        else if(irho == 3) then
           rho_eq = pbar(i)
        endif
        write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma(i), bs_coll(i), bs_sh(i)
     enddo
 
-    if(irho == 1) write(* ,*) '# irho = 1 produces psi instead of rho_eq'
     if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
 
     call close_output_file(fort24_unit)

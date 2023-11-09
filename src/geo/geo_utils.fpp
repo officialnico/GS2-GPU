@@ -179,7 +179,7 @@ contains
     write(*,*) 'Not implemented'
   end subroutine initialise_analytic_null
 
-  !> FIXME : Add documentation
+  !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)
     use constants, only: pi
     implicit none
