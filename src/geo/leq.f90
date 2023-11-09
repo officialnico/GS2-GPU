@@ -54,8 +54,6 @@ module leq
   !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
   real, allocatable, dimension (:,:,:) :: dbtbish
 
-  real :: thetaShift
-
   !> Private helper type to wrap up some module-level variables
   type :: flux_surface
      !> Flux surface major radius, \(R_{0N}\), input variable: `Rmaj`
@@ -197,7 +195,7 @@ contains
     class(leq_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%eqpsi(nr), self%beta(nr), self%pressure(nr))
+    allocate(self%eqpsi(nr), self%pressure(nr))
     allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt))
     allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), self%dbtm(nr, -nt:nt, 2), &
          self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
@@ -211,7 +209,7 @@ contains
   pure subroutine dealloc_arrays(self)
     implicit none
     class(leq_type), intent(in out) :: self
-    if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%beta, self%pressure)
+    if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%pressure)
     if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
     if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)
     if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
@@ -264,8 +262,8 @@ contains
     call self%derm(eqth,   self%dtm,  'T')
     ! char arguments E and O are redundant, but are retained so that `derm` interface
     ! is the same in all geometry modules.
-    call self%derm(R_psi,  self%drm,  'E')
-    call self%derm(Z_psi,  self%dzm,  'O')
+    call self%derm(self%R_psi,  self%drm,  'E')
+    call self%derm(self%Z_psi,  self%dzm,  'O')
     call self%derm(eqbtor, self%dbtm, 'E')
     call self%derm(eqpsi1, self%dpm,  'E')
 
@@ -469,7 +467,7 @@ contains
     !> Desired theta location
     real, intent(in) :: theta_in
     !> Array to interpolate
-    real, dimension(:,-nt:), intent(in) :: f
+    real, dimension(:,-self%nt:), intent(in) :: f
     !> Interpolation result
     real, intent(out) :: fstar
     !> FIXME: Unused
