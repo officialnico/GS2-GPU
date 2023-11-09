@@ -1102,7 +1102,8 @@ contains
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
 
       ! Calculate grad(psi), grad(BT) and grad(theta) for the
-      ! specific geometry class we're using
+      ! specific geometry class we're using. We might want to move this
+      ! earlier to ensure we have access to geometry methods/data immediately
       if (gen_eq) then
          call geq_init
       else if (ppl_eq) then
@@ -1115,6 +1116,8 @@ contains
          call deq_init
       else if (idfit_eq) then
          call ideq_init
+      else if (local_eq) then
+         call leq_init
       end if
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"

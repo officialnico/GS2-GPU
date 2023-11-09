@@ -213,10 +213,6 @@ contains
   end subroutine set_bish_arrays
 
   !> Set module-level parameters and initialise the leq module
-  !>
-  !> Note: in contrast to the other geometry modules, this also calls
-  !> `leq_init`, whereas others have separate `Xeqin` and `Xeq_init`
-  !> procedures
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, &
        delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
@@ -252,7 +248,6 @@ contains
     nt = nt_used
     if(.not.allocated(beta)) call alloc_arrays(3, nt)
     surf%nt = nt
-    call leq_init
   end subroutine leqin
 
   !> Allocate internal module-level arrays
