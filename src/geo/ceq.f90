@@ -1,201 +1,65 @@
 !> Reads in the geometry using a CHEASE output file.
-!! The CHEASE output file is read using the helper module
-!! read_chease.
+!> The CHEASE output file is read using the helper module read_chease.
 module ceq
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use splines, only: spline
 
   implicit none
 
-  public :: ceq_init, ceqin, gradient, bgradient, Hahm_Burrell, ceq_finish
-  public :: invR,     initialize_invR
-  public :: Rpos
-  public :: Zpos
-  public :: rcenter,  initialize_rcenter 
-  public :: diameter, initialize_diameter
-  public :: btori,    initialize_btori
-  public :: dbtori,   initialize_dbtori
-  public :: qfun,     initialize_q
-  public :: pfun,     initialize_pressure
-  public :: dpfun,    initialize_dpressure
-  public :: betafun,  initialize_beta
-  public :: psi,      initialize_psi
-  public :: eqdbish
-
-  public :: ceq_testing_type
+  public :: Hahm_Burrell, ceq_type
 
   private
 
-  integer :: nr, nt
-  
-  real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, beta
-  real, allocatable, dimension (:)     :: pressure, diam, rc, qsf, rho_b
-  real, allocatable, dimension (:,:)   :: R_psi, Z_psi !, B_psi
-  real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm  !, dbm
-  real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
-  real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
-
-  real :: psi_0, psi_a, B_T, beta_0
-  real :: R_mag, Z_mag, aminor
-  
-  logical :: init_rcenter = .true.
-  logical :: init_diameter = .true.
-  logical :: init_btori = .true.
-  logical :: init_dbtori = .true.
-  logical :: init_q = .true.
-  logical :: init_pressure = .true.
-  logical :: init_dpressure = .true.
-  logical :: init_beta = .true.
-  logical :: init_psi = .true.
-  logical :: init_invR = .true.
+  type, extends(abstract_eqfile_geo_type) :: ceq_type
+     private
+     character(len = EQFILE_LENGTH) :: filename
+     integer :: nr, nt
+     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: R_mag, Z_mag, aminor
+     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
+     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi !, B_psi
+     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm!, dbm
+     real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
+     real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
+     type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
+   contains
+     procedure :: initialise_eqfile => ceqin
+     procedure :: calculate_gradients => ceq_init
+     procedure :: setup_splines => setup_splines
+     procedure :: delete_splines => delete_splines
+     procedure :: finalise => ceq_finish
+     procedure :: rpos => rpos
+     procedure :: zpos => zpos
+     procedure :: invr => invr
+     procedure :: rcenter => rcenter
+     procedure :: diameter => diameter
+     procedure :: btori => btori
+     procedure :: dbtori => dbtori
+     procedure :: qfun => qfun
+     procedure :: pfun => pfun
+     procedure :: dpfun => dpfun
+     procedure :: betafun => betafun
+     procedure :: psi => psi
+     procedure :: gradient => gradient
+     procedure :: bgradient => bgradient
+     procedure, private :: eqitem => eqitem
+     procedure, private :: eqdcart => eqdcart
+     procedure, private :: eqdbish => eqdbish
+     procedure, private :: alloc_arrays => alloc_arrays
+     procedure, private :: dealloc_arrays => dealloc_arrays
+     procedure, private :: set_ceq_from_chease => set_ceq_from_chease
+  end type ceq_type
 
   logical, parameter :: debug = .true.
   logical :: skip_file_read = .false.
-  !> Expose private routines for testing only!
-  type :: ceq_testing_type
-  contains
-    procedure, nopass :: alloc_arrays
-    procedure, nopass :: chease_chi_index
-    procedure, nopass :: dealloc_arrays
-    procedure, nopass :: derm
-    procedure, nopass :: eqdbish
-    procedure, nopass :: eqdcart
-    procedure, nopass :: mod2pi
-    procedure, nopass :: set_ceq_from_chease
-    procedure, nopass :: set_dpcart
-    procedure, nopass :: set_drm
-    procedure, nopass :: set_dzm
-    procedure, nopass :: set_eqpsi
-    procedure, nopass :: set_nrnt
-    procedure, nopass :: set_R_psi
-    procedure, nopass :: set_Z_psi
-    procedure, nopass :: set_cart_arrays
-    procedure, nopass :: set_bish_arrays
-    procedure, nopass :: get_cart_arrays
-    procedure, nopass :: get_bish_arrays
-    procedure, nopass :: set_skip_file_read
-    procedure, nopass :: eqitem
-  end type ceq_testing_type
-
 contains
-
-  !> Set module-level `nt`, `nr`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_nrnt(nradius, ntheta)
-    integer, intent(in) :: nradius, ntheta
-    nr = nradius
-    nt = ntheta
-  end subroutine set_nrnt
-
-  !> Set module-level `drm`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_drm(drm_in)
-    real, dimension(nr,nt,2), intent(in) :: drm_in
-    drm = drm_in
-  end subroutine set_drm
-
-  !> Set module-level `dzm`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_dzm(dzm_in)
-    real, dimension(nr,nt,2), intent(in) :: dzm_in
-    dzm = dzm_in
-  end subroutine set_dzm
-
-  !> Set module-level `dpcart`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_dpcart(dpcart_in)
-    real, dimension(nr,nt,2), intent(in) :: dpcart_in
-    dpcart = dpcart_in
-  end subroutine set_dpcart
-
-  !> Set module-level `eqpsi`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_eqpsi(eqpsi_in)
-    real, dimension(nr), intent(in) :: eqpsi_in
-    eqpsi = eqpsi_in
-  end subroutine set_eqpsi
-
-  !> Set module-level `R_psi`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_R_psi(R_psi_in)
-    real, dimension(nr, nt), intent(in) :: R_psi_in
-    R_psi = R_psi_in
-  end subroutine set_R_psi
-
-  !> Set module-level `Z_psi`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_Z_psi(Z_psi_in)
-    real, dimension(nr, nt), intent(in) :: Z_psi_in
-    Z_psi = Z_psi_in
-  end subroutine set_Z_psi
-
-  !> Set module-level `dpcart`, `dbtcart` and `dtcart`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
-    real, dimension(nr, nt, 2), intent(in) :: dpcart_in
-    real, dimension(nr, nt, 2), intent(in) :: dbtcart_in
-    real, dimension(nr, nt, 2), intent(in) :: dtcart_in
-    dpcart = dpcart_in
-    dbtcart = dbtcart_in
-    dtcart = dtcart_in
-  end subroutine set_cart_arrays
-
-  !> Set module-level `dpbish`, `dbtbish` and `dtbish`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
-    real, dimension(nr, nt, 2), intent(in) :: dpbish_in
-    real, dimension(nr, nt, 2), intent(in) :: dbtbish_in
-    real, dimension(nr, nt, 2), intent(in) :: dtbish_in
-    dpbish = dpbish_in
-    dbtbish = dbtbish_in
-    dtbish = dtbish_in
-  end subroutine set_bish_arrays
-
-  !> Get module-level `dpcart`, `dbtcart` and `dtcart`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine get_cart_arrays(dpcart_out, dbtcart_out, dtcart_out)
-    real, dimension(nr, nt, 2), intent(out) :: dpcart_out
-    real, dimension(nr, nt, 2), intent(out) :: dbtcart_out
-    real, dimension(nr, nt, 2), intent(out) :: dtcart_out
-    dpcart_out = dpcart
-    dbtcart_out = dbtcart
-    dtcart_out = dtcart
-  end subroutine get_cart_arrays
-
-  !> Get module-level `dpbish`, `dbtbish` and `dtbish`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine get_bish_arrays(dpbish_out, dbtbish_out, dtbish_out)
-    real, dimension(nr, nt, 2), intent(out) :: dpbish_out
-    real, dimension(nr, nt, 2), intent(out) :: dbtbish_out
-    real, dimension(nr, nt, 2), intent(out) :: dtbish_out
-    dpbish_out = dpbish
-    dbtbish_out = dbtbish
-    dtbish_out = dtbish
-  end subroutine get_bish_arrays
-
-  !> Set module-level `skip_file_read`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
-  subroutine set_skip_file_read(skip_file_read_in)
-    logical, intent(in) :: skip_file_read_in
-    skip_file_read = skip_file_read_in
-  end subroutine set_skip_file_read
 
   !> Convert from theta-index which is `-pi` to `pi`, to chi-index, which
   !> is `0` to `2*pi.`
   !> Assumes `nchi` is even?
-  function chease_chi_index(nchi,itheta)
+  elemental integer function chease_chi_index(nchi, itheta)
     integer, intent(in) :: nchi, itheta
-    integer :: chease_chi_index
     ! when ichi = 0, itheta = (ntheta-1)/2 + 1
     ! when itheta = 0, ichi = ntheta / 2
     ! itheta  1 2 3 4 5 6 7 8
@@ -207,12 +71,13 @@ contains
     end if
   end function chease_chi_index
 
-  !> FIXME : Add documentation  
-  subroutine ceqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg) 
+  !> FIXME : Add documentation
+  subroutine ceqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
+       avgrmid, initeq, nthg)
     use read_chease, only: read_infile
     implicit none
-    character(len=*), intent(in) :: eqfile
+    class(ceq_type), intent(in out) :: self
+    character(len = EQFILE_LENGTH), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
@@ -225,52 +90,57 @@ contains
       ! with the value set at the end of this subroutine when not exiting
       ! early or the calling procedure may end up with inconsistently sized
       ! arrays.
-      nthg = nt
+      nthg = self%nt
       return
     endif
 
+    self%filename = trim(adjustl(eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
-       write (*,*)  'Reading CHEASE input file: ', trim(eqfile)
+       write (*,*)  'Reading CHEASE input file: ', self%filename
        !    Read the data
-       call read_infile(trim(eqfile))
-       
-       call set_ceq_from_chease
+       call read_infile(self%filename)
+       call self%set_ceq_from_chease
     end if
     !
-    !     Normalize, rename quantities 
+    !     Normalize, rename quantities
     !
 
-    avgrmid = aminor
+    avgrmid = self%aminor
     ! rmaj changes depending on iflux.. FIX!!
-    ! see geometr... for Miller is the rgeo for the flux surface of 
+    ! see geometr... for Miller is the rgeo for the flux surface of
     ! interest... rgeo is rgeo of LCFS... check!!!
     ! actually when iflux = 1, it is the major radius of the magnetic axis,
     ! so below is OK.
-    rmaj = R_mag 
-    B_T0 = abs(B_T)
+    rmaj = self%R_mag
+    B_T0 = abs(self%B_T)
 
     psi_N = B_T0 * avgrmid**2
-    psi_a = psi_a / psi_N
-    psi_0 = psi_0 / psi_N
-    psi_a_out = psi_a 
-    psi_0_out = psi_0 
-    eqpsi = eqpsi / psi_N
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    psi_a_out = self%psi_a
+    psi_0_out = self%psi_0
+    self%eqpsi = self%eqpsi / psi_N
 
     f_N = B_T0*avgrmid
-    fp=fp/f_N
+    self%fp = self%fp / f_N
 
-    nthg=nt
+    nthg = self%nt
 
     if (debug) then
        write (*,*) "Finished ceqin... imported CHEASE equilibrium"
        write (*,*) 'Some important quantities:'
-       write (*,*) "aminor", aminor
-       write (*,*) 'R_mag', R_mag
+       write (*,*) "aminor", self%aminor
+       write (*,*) 'R_mag', self%R_mag
        write (*,*) 'B_T0', B_T0
        write (*,*) 'f_N', f_N
        write (*,*) 'nthg', nthg
-       write (*,*) 'beta', beta_0
+       write (*,*) 'beta', self%beta_0
     end if
+
+    self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
+    self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
+
+    self%initialised = .true.
   end subroutine ceqin
 
   !> Set the ceq module-level variables from the read_chease module
@@ -278,221 +148,247 @@ contains
   !>
   !> This involves changing the theta grid from 0 to 2pi => -pi to pi,
   !> adding a point at theta == 0, and some normalisations
-  subroutine set_ceq_from_chease
+  pure subroutine set_ceq_from_chease(self)
     use constants, only: pi
     use read_chease, only: npsi_chease, nchi_chease, b0exp_chease
     use read_chease, only: psi_chease, f_chease, q_chease, p_chease
     use read_chease, only: r_chease, z_chease
-
+    implicit none
+    class(ceq_type), intent(in out) :: self
     real :: d, R_geo
     integer :: i, j
 
     !     nr == number of actual grid points in radial array
-    nr = npsi_chease
+    self%nr = npsi_chease
 
     !     nt == number of theta grid points in theta eq grid
-    nt = nchi_chease + 1
+    self%nt = nchi_chease + 1
 
-    call alloc_arrays(nr, nt)
+    call self%alloc_arrays()
 
     !     eqpsi(1:nr) == values of psi on the radial grid
-    eqpsi = psi_chease
+    self%eqpsi = psi_chease
 
     !     fp(1:nr) == the function that satisfies
     !              B = fp grad zeta + grad zeta x grad psi
-    fp = f_chease
+    self%fp = f_chease
 
-    qsf = q_chease
+    self%qsf = q_chease
 
     !     pressure(1:nr) == pressure profile on the radial grid,
     !     normalized to the value at the magnetic axis.
-    pressure = p_chease
+    self%pressure = p_chease
 
     !     psi_0 == value of psi at the magnetic axis
     !     psi_a == value of psi at the boundary of the plasma
-    psi_0 = eqpsi(1)
-    psi_a = eqpsi(nr)
-    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
+    self%psi_0 = self%eqpsi(1)
+    self%psi_a = self%eqpsi(self%nr)
+    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
 
-    do j=1,nt
-      do i=1,nr
-        R_psi(i,j) = r_chease(i,chease_chi_index(nchi_chease, j))
-      enddo
-    enddo
+    do j = 1, self%nt
+      do i = 1, self%nr
+        self%R_psi(i, j) = r_chease(i, chease_chi_index(nchi_chease, j))
+      end do
+    end do
 
-    do j=1,nt
-      do i=1,nr
-        Z_psi(i,j) = z_chease(i,chease_chi_index(nchi_chease, j))
-      enddo
-    enddo
+    do j = 1, self%nt
+      do i = 1, self%nr
+        self%Z_psi(i,j) = z_chease(i, chease_chi_index(nchi_chease, j))
+      end do
+    end do
 
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
-    d = R_psi(nr,nt/2+1) - R_psi(nr,1)
-    R_geo = (R_psi(nr,nt/2+1) + R_psi(nr, 1))/2.
-    aminor = d/2.
+    d = self%R_psi(self%nr, self%nt/2+1) - self%R_psi(self%nr, 1)
+    R_geo = (self%R_psi(self%nr, self%nt/2+1) + self%R_psi(self%nr, 1))/2.
+    self%aminor = d/2.
 
-    B_T = fp(nr)/R_geo
+    self%B_T = self%fp(self%nr)/R_geo
 
-    R_psi = R_psi / aminor
-    Z_psi = Z_psi / aminor
+    self%R_psi = self%R_psi / self%aminor
+    self%Z_psi = self%Z_psi / self%aminor
 
     !     R_mag == R position of magnetic axis
     !     Z_mag == Z position of magnetic axis
-    R_mag = R_psi(1,1)
-    Z_mag = Z_psi(1,1)
+    self%R_mag = self%R_psi(1,1)
+    self%Z_mag = self%Z_psi(1,1)
 
-    beta = 8. * pi * 1.e-7 * pressure / b0exp_chease**2  ! not correct definition yet
-    beta_0 = beta(1)
-    pressure = pressure/pressure(1)
+    self%beta = 8. * pi * 1.e-7 * self%pressure / b0exp_chease**2  !not correct definition yet
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / self%pressure(1)
   end subroutine set_ceq_from_chease
 
   !> Allocate module-level arrays
-  subroutine alloc_arrays(nr, nt)
+  pure subroutine alloc_arrays(self)
     implicit none
-    !> Number of points in radial direction
-    integer, intent(in) :: nr
-    !> Number of points in theta direction
-    integer, intent(in) :: nt
-
-    allocate(rho_d(nr), eqpsi(nr), psi_bar(nr), fp(nr), beta(nr), pressure(nr), &
-         rc(nr), diam(nr), qsf(nr), rho_b(nr))
-    rho_d = 0. ; eqpsi = 0. ; psi_bar = 0. ; fp = 0. ; beta = 0. ; pressure = 0. 
-    rc = 0. ; diam = 0. ; qsf = 0. ; rho_b = 0.
-    allocate(R_psi(nr, nt), Z_psi(nr, nt))
-    R_psi = 0.  ; Z_psi = 0.
-    allocate(drm(nr, nt, 2), dzm(nr, nt, 2), dbtm(nr, nt, 2), &
-         dpm(nr, nt, 2), dtm(nr, nt, 2))
-    drm = 0. ; dzm = 0. ; dbtm = 0. ; dpm = 0. ; dtm = 0.
-    allocate(dpcart(nr, nt, 2), dtcart(nr, nt, 2), dbtcart(nr, nt, 2))
-    allocate(dpbish(nr, nt, 2), dtbish(nr, nt, 2), dbtbish(nr, nt, 2))
-
-    dpcart = 0. ; dtcart = 0. ; dbtcart = 0. 
-    dpbish = 0. ; dtbish = 0. ; dbtbish = 0.
-
+    class(ceq_type), intent(in out) :: self
+    integer :: nr, nt
+    nr = self%nr ; nt = self%nt
+    allocate(self%rho_d(nr), self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
+         self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
+    ! rho_d = 0. ; eqpsi = 0. ; psi_bar = 0. ; fp = 0. ; beta = 0. ; pressure = 0.
+    ! rc = 0. ; diam = 0. ; qsf = 0.
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
+    ! R_psi = 0.  ; Z_psi = 0.
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbtm(nr, nt, 2), &
+         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
+    ! drm = 0. ; dzm = 0. ; dbtm = 0. ; dpm = 0. ; dtm = 0.
+    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbtcart(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
+    ! dpcart = 0. ; dtcart = 0. ; dbtcart = 0.
+    ! dpbish = 0. ; dtbish = 0. ; dbtbish = 0.
   end subroutine alloc_arrays
 
   !> Deallocate module-level arrays
-  subroutine dealloc_arrays
+  pure subroutine dealloc_arrays(self)
     implicit none
-    if(allocated(rho_d)) deallocate(rho_d,eqpsi,psi_bar,fp,beta,pressure,rc,diam,qsf,rho_b)
-    if(allocated(R_psi)) deallocate(R_psi,Z_psi)
-    if(allocated(drm)) deallocate(drm,dzm,dbtm,dpm,dtm)
-    if(allocated(dpcart)) deallocate(dpcart,dtcart,dbtcart)
-    if(allocated(dpbish)) deallocate(dpbish,dtbish,dbtbish)
+    class(ceq_type), intent(in out) :: self
+    if (allocated(self%rho_d)) deallocate(self%rho_d, self%eqpsi, self%psi_bar, self%fp, &
+         self%beta, self%pressure, self%rc, self%diam, self%qsf)
+    if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
+    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)
+    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
+    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
   end subroutine dealloc_arrays
 
   !> Finish this module; deallocate arrays
-  subroutine ceq_finish
+  subroutine ceq_finish(self)
     use read_chease, only : finish
     implicit none
-    call dealloc_arrays
+    class(ceq_type), intent(in out) :: self
+    self%initialised = .false.
+    call self%dealloc_arrays
     call finish
   end subroutine ceq_finish
 
   !> Initialise CHEASE equilibrium module
-  !!
-  !! Assumes data has already been read in
-  subroutine ceq_init
+  !>
+  !> Assumes data has already been read in
+  pure subroutine ceq_init(self)
     use constants, only: pi
     implicit none
-    real, dimension(nr,nt) :: eqpsi1, eqth, eqbtor
-    integer i, j
-   
-    do j=1,nt
-       do i=1,nr
-          eqbtor(i,j) = fp(i)/R_psi(i,j)
-          eqpsi1(i,j) = eqpsi(i)
-       enddo
-    enddo
-    
-    do j=1,nt
-       eqth(:,j) = (j-1)*2.*pi/real(nt-1)-pi
-    enddo
+    class(ceq_type), intent(in out) :: self
+    real, dimension(self%nr, self%nt) :: eqpsi1, eqth, eqbtor
+    integer :: j
 
-    call derm(eqth,   dtm,  'T')
-    call derm(R_psi,  drm,  'E')
-    call derm(Z_psi,  dzm,  'O')
-    call derm(eqbtor, dbtm, 'E')
-    call derm(eqpsi1, dpm,  'E')
+    do j = 1, self%nt
+       eqbtor(:, j) = self%fp / self%R_psi(:, j)
+       eqpsi1(:, j) = self%eqpsi
+       eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
+    end do
 
-    ! grad(psi) in cartesian form 
-    call eqdcart(dpm, dpcart)
-    ! grad(psi) in Bishop form 
-    call eqdbish(dpcart, dpbish)
+    call derm(eqth, self%dtm, 'T')
+    call derm(self%R_psi, self%drm, 'E')
+    call derm(self%Z_psi,  self%dzm, 'O')
+    call derm(eqbtor, self%dbtm, 'E')
+    call derm(eqpsi1, self%dpm, 'E')
+
+    ! grad(psi) in cartesian form
+    call self%eqdcart(self%dpm, self%dpcart)
+    ! grad(psi) in Bishop form
+    call self%eqdbish(self%dpcart, self%dpbish)
 
     ! grad(BT) in cartesian form
-    call eqdcart(dbtm, dbtcart)
+    call self%eqdcart(self%dbtm, self%dbtcart)
     ! grad(BT) in Bishop form
-    call eqdbish(dbtcart, dbtbish)
+    call self%eqdbish(self%dbtcart, self%dbtbish)
 
     ! grad(theta) in cartesian form
-    call eqdcart(dtm, dtcart)
+    call self%eqdcart(self%dtm, self%dtcart)
     ! grad(theta) in Bishop form
-    call eqdbish(dtcart, dtbish)
-
+    call self%eqdbish(self%dtcart, self%dtbish)
   end subroutine ceq_init
 
+  subroutine setup_splines(self) !Identical to geq
+    use splines, only: new_spline
+    implicit none
+    class(ceq_type), intent(in out) :: self
+    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
+    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
+    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
+    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+  end subroutine setup_splines
+
+  subroutine delete_splines(self) !Identical to geq
+    use splines, only: delete_spline
+    implicit none
+    class(ceq_type), intent(in out) :: self
+    call delete_spline(self%diam_spl)
+    call delete_spline(self%rcenter_spl)
+    call delete_spline(self%btori_spl)
+    call delete_spline(self%qsf_spl)
+    call delete_spline(self%pressure_spl)
+    call delete_spline(self%beta_spl)
+  end subroutine delete_splines
+
   !> Calculate the derivative of f w.r.t to the radial
-  !! and poloidal indexes (i.e. calculate the finite 
-  !! differences without dividing by 
-  !! delta psi and delta theta).
-  !! - dfm(:,:,1) is the psi derivative
-  !! - dfm(:,:,2) is the theta derivative
-  !! - char specifies the periodicity in theta
-  !!   - 'E', 'O' mean continuous at theta = +/- pi
-  !!   - 'T' means a jump of 2 pi at theta = +/- pi
-  subroutine derm(f, dfm, char)
+  !> and poloidal indexes (i.e. calculate the finite
+  !> differences without dividing by
+  !> delta psi and delta theta).
+  !> - dfm(:,:,1) is the psi derivative
+  !> - dfm(:,:,2) is the theta derivative
+  !> - char specifies the periodicity in theta
+  !>   - 'E', 'O' mean continuous at theta = +/- pi
+  !>   - 'T' means a jump of 2 pi at theta = +/- pi
+  pure subroutine derm(f, dfm, char)
     use constants, only: pi
     implicit none
     integer i, j
     character(1), intent(in) :: char
     real, intent(in) :: f(:,:)
     real, intent(out) :: dfm(:,:,:)
-    
-    i=1
+    integer :: nr, nt
+    ! Should this be a type bound method so we can get these from the type?
+    ! This is a fairly generic operation (finite differences) so could potentially
+    ! put a generic form in geo_utils instead?
+    nr = size(f, dim = 1)
+    nt = size(f, dim = 2)
+
+    i = 1
     ! Radial derivative
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))         
-    
-    i=nr
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
+
+    i = nr
     ! Radial derivative
     dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-   
+
     select case (char)
-    case ('E') 
-       j=1
+    case ('E')
+       j = 1
        ! theta derivative, periodic
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-       
-       j=nt      
+
+       j = nt
        dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
     case ('O')
-       j=1
+       j = 1
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-       
-       j=nt      
+
+       j = nt
        dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
     case ('T')
-       j=1
+       j = 1
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
-          
-       j=nt
+
+       j = nt
        dfm(:,j,2) = 0.5*(2.*pi + f(:,2) - f(:,j-1))
     end select
-    
-    do i=2,nr-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))
-    enddo
-    
-    do j=2,nt-1
-       dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))
-    enddo
 
+    do i = 2, nr-1
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
+    end do
+
+    do j = 2, nt-1
+       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
+    end do
   end subroutine derm
 
   !> Calculate the derivative of a selected field w.r.t. R and Z
-  subroutine gradient(rgrid, theta, grad, char, rp, nth_used, ntm)
+  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
+    class(ceq_type), intent(in) :: self
     !> Number of theta points
     integer, intent(in) :: nth_used
     !> Lower index of theta array
@@ -514,45 +410,45 @@ contains
     !> Radius for taking pressure derivative (FIXME: double-check)
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) :: dcart
+    real, dimension(self%nr, self%nt, 2) :: dcart
     integer :: i
-    
+
     select case(char)
-    case('B') 
-       dcart = dbcart
-    case('D')  ! diagnostic 
-       dcart = dbtcart
-    case('P') 
-       dcart = dpcart
-    case('R') 
-       dcart = dpcart  ! dpcart is correct for 'R'
+    case('B')
+       dcart = self%dbcart
+    case('D')  ! diagnostic
+       dcart = self%dbtcart
+    case('P')
+       dcart = self%dpcart
+    case('R')
+       dcart = self%dpcart  ! dpcart is correct for 'R'
     case('T')
-       dcart = dtcart
+       dcart = self%dtcart
     end select
-    
-    do i=-nth_used,nth_used
-       call eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1))
-       call eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2))
-    enddo
+
+    do i = -nth_used, nth_used
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2), 'Z')
+    end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if(char == 'R') then
+    if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(nr, eqpsi, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
-       enddo
-    endif
-
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
+       end do
+    end if
   end subroutine gradient
 
   !> Calculate the derivative of a selected field w.r.t. the Bishop
   !> coordinate system
-  subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
+  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     use mp, only: mp_abort
     use splines, only: inter_d_cspl
     implicit none
+    class(ceq_type), intent(in) :: self
     !> Number of theta points
     integer, intent(in) :: nth_used
     !> Lower index of theta array
@@ -573,169 +469,170 @@ contains
     !> Radius for taking pressure derivative (?)
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
-    real, dimension(nr,nt,2) ::  dbish
+    real, dimension(self%nr, self%nt, 2) ::  dbish
     integer :: i
 
     select case(char)
-    case('B') 
+    case('B')
        call mp_abort('error: bishop = 1 not allowed with ceq. (2)',.true.)
     case('D')  ! diagnostic
-       dbish = dbtbish
-    case('P') 
-       dbish = dpbish
-    case('R') 
-       dbish = dpbish  ! dpcart is correct for 'R'
+       dbish = self%dbtbish
+    case('P')
+       dbish = self%dpbish
+    case('R')
+       dbish = self%dpbish  ! dpcart is correct for 'R'
     case('T')
-       dbish = dtbish
+       dbish = self%dtbish
     end select
 
-    do i=-nth_used,nth_used
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1))
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2))
-    enddo
+    do i = -nth_used, nth_used
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
+    end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if(char == 'R') then
+    if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(nr, eqpsi, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0
-       enddo
-    endif
-
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
+       end do
+    end if
   end subroutine bgradient
 
   !> Calculates fstar which is f interpolated at the location (r,theta).
-  !! Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
-  !! and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
-  subroutine eqitem(r, theta_in, f, fstar)
+  !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
+  !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
+  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
     use mp, only: mp_abort
     use constants, only: pi
-    real, intent(in) :: r, theta_in
+    class(ceq_type), intent(in) :: self
+    real, intent(in) :: r_in, theta_in
     real, intent(out) :: fstar
-    real, dimension(:,:), intent(inout) :: f
+    real, dimension(:,:), intent(in) :: f
+    character(len = 1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: thet, sign
+    real :: thet, sign, r
     real :: st, dt, sr, dr
     real, dimension(size(f,2)) :: mtheta
 
+    r = r_in
+
     ! check for axis evaluation
-    if(r == eqpsi(1)) then
+    if (r == self%eqpsi(1)) then
        write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, eqpsi(1)
+       write(*,*) r, theta_in, self%eqpsi(1)
        call mp_abort('no evaluation at axis allowed in eqitem')
-    endif
-    
+    end if
+
     ! allow psi(r) to be a decreasing function
-    sign=1.
-    if(eqpsi(2) < eqpsi(1)) sign=-1.
-    
-    if(r < sign*eqpsi(1)) then
+    sign = 1.
+    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
+
+    if (r < sign * self%eqpsi(1)) then
        write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r,sign,eqpsi(1)
+       write(*,*) r, sign, self%eqpsi(1)
        call mp_abort('r < Psi_0 in eqitem')
     endif
-      
+
     ! find r on psi mesh
-    
+
     ! disallow evaluations on or outside the surface for now
-    if(r >= eqpsi(nr)) then
+    if (r >= self%eqpsi(self%nr)) then
        write(*,*) 'No evaluation of eqitem allowed on or outside surface'
        write(*,*) '(Could this be relaxed a bit?)'
-       write(*,*) r, theta_in, eqpsi(nr), sign
+       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
        call mp_abort('No evaluation of eqitem allowed on or outside surface')
     endif
-    
-    istar=0
-    do i=2,nr
-       if(r < sign*eqpsi(i)) then
-          dr = r - sign*eqpsi(i-1)
-          sr = sign*eqpsi(i) - r
-          istar=i-1
+
+    istar = 0
+    do i = 2, self%nr
+       if (r < sign * self%eqpsi(i)) then
+          dr = r - sign * self%eqpsi(i-1)
+          sr = sign * self%eqpsi(i) - r
+          istar = i-1
           exit
-       endif
-    enddo
-    
+       end if
+    end do
+
     ! no gradients available at axis, so do not get too close
-    if(istar == 1) then
+    if (istar == 1) then
        write(*,*) 'Too close to axis in eqitem'
-       write(*,*) r, theta_in, eqpsi(1), eqpsi(2)
+       write(*,*) r, theta_in, self%eqpsi(1), self%eqpsi(2)
        call mp_abort('Too close to axis in eqitem')
     endif
-  
+
     ! Now do theta direction
     thet = mod2pi(theta_in)
 
     ! get thet on theta mesh
-    do j=1,nt
-       mtheta(j)=(j-1)*2.*pi/real(nt-1)-pi
-    enddo
-       
-    ! note that theta(1)=0 for gen_eq theta 
-    jstar=-1
-    do j=1,nt
-       if(jstar /= -1) cycle
-       if(thet < mtheta(j)) then
+    do j = 1, self%nt
+       mtheta(j) = (j-1) * 2. * pi / real(self%nt-1) - pi
+    end do
+
+    ! note that theta(1)=0 for gen_eq theta
+    jstar = -1
+    do j = 1, self%nt
+       if (jstar /= -1) cycle
+       if (thet < mtheta(j)) then
           dt = thet - mtheta(j-1)
           st = mtheta(j) - thet
-          jstar=j-1
-       endif
-    enddo
-      
+          jstar = j-1
+       end if
+    end do
+
     ! treat pi separately
-    
-    if(jstar == -1) then
-       jstar=nt-1
-       dt=mtheta(jstar+1)-mtheta(jstar)
-       st=0.
-    endif
+    if (jstar == -1) then
+       jstar = self%nt-1
+       dt = mtheta(jstar+1) - mtheta(jstar)
+       st = 0.
+    end if
 
     ! use opposite area stencil to interpolate
     fstar=f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar=fstar &
-         /abs(eqpsi(istar+1)-eqpsi(istar)) &
-         /(mtheta(jstar+1)-mtheta(jstar))
+    fstar = fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
+         (mtheta(jstar+1) - mtheta(jstar)))
   end subroutine eqitem
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
-  !! w.r.t. (R,Z).
-  !! Note that `dfcart(1, :, :)` is not valid
-  subroutine eqdcart(dfm, dfcart)    
+  !> w.r.t. (R,Z).
+  !> Note that `dfcart(1, :, :)` is not valid
+  pure subroutine eqdcart(self, dfm, dfcart)
     implicit none
+    class(ceq_type), intent(in) :: self
     !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
     !> dfm(:,:,2) is deriv w.r.t. theta_index
     real, dimension (:,:,:), intent(in)  :: dfm
     !> dfcart(:,:,1) is deriv w.r.t. R;
     !> dfcart(:,:,2) is deriv w.r.t. Z
     real, dimension (:,:,:), intent(out) :: dfcart
-    real, dimension (size(dfm,1),size(dfm,2)) :: denom
+    real, dimension (self%nr, self%nt) :: denom
     integer :: i, j
-      
-    denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
-    
-    dfcart(:,:,1) =   dfm(:,:,1)*dzm(:,:,2) - dzm(:,:,1)*dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1)*drm(:,:,2) + drm(:,:,1)*dfm(:,:,2)
+    denom(:,:) = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
+
+    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
+    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
 
     ! Inner loop skips first point because it's likely exactly on the
     ! magnetic axis, which means the Jacobian is zero. Do we need
     ! need a better way to either calculate dfcart there, or to ensure
     ! we ignore it in other places?
-    do j=1,nt
-       do i=2,nr
-          dfcart(i,j,:)=dfcart(i,j,:)/denom(i,j)
-       enddo
-    enddo    
-
+    do j = 1, self%nt
+       do i = 2, self%nr
+          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
+       end do
+    end do
   end subroutine eqdcart
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form
-  !! Note that `dbish(1, :, :)` is not valid
-  subroutine eqdbish(dcart, dbish)
+  !> Note that `dbish(1, :, :)` is not valid
+  pure subroutine eqdbish(self, dcart, dbish)
     implicit none
+    class(ceq_type), intent(in) :: self
     !> dcart(:,:,1) is gradient of f w.r.t. R;
     !> dcart(:,:,2) is gradient of f w.r.t. Z
     real, dimension(:, :, :), intent (in) :: dcart
@@ -747,401 +644,185 @@ contains
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart,1),size(dcart,2)) :: denom
     integer :: i, j
-
     ! denom is |grad psi|
-    denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
+    denom(:,:) = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
 
-    dbish(:,:,1) = dcart(:,:,1)*dpcart(:,:,1) + dcart(:,:,2)*dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1)*dpcart(:,:,2) + dcart(:,:,2)*dpcart(:,:,1)
-    
-    ! Inner loop skips first point because it's likely exactly on the
-    ! magnetic axis, which means the Jacobian is zero. Do we need
-    ! need a better way to either calculate dfcart there, or to ensure
-    ! we ignore it in other places?
-    do j=1,nt
-       do i=2,nr
-          dbish(i,j,:) = dbish(i,j,:)/denom(i,j)
-       enddo
-    enddo
+    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
+    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 
+    do j = 1, self%nt
+       do i = 2, self%nr
+          dbish(i,j,:) = dbish(i,j,:)/ denom(i,j)
+       end do
+    end do
   end subroutine eqdbish
 
-  !> If `init == 1`, set flag to initialize invR spline when
-  !> `invR` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_invR (init) 
-    implicit none
-    integer :: init, initialize_invR
-    
-    init_invR = (init == 1)
-    initialize_invR = 1
-  end function initialize_invR
-
   !> Return the inverse of the major radius at \((r, \theta)\)
-  function invR (r, theta)
+  real function invR (self, r, theta)
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: invR
-    
-    invR = 1./Rpos(r, theta)
-
+    invR = 1. / self%Rpos(r, theta)
   end function invR
 
   !> Return the major radius at \((r, \theta)\)
-  function Rpos (r, theta)
+  real function Rpos (self, r, theta)
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: f, Rpos
     real :: th
-    
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, R_psi, f)
-    Rpos=f
-    
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%R_psi, Rpos, 'R')
   end function Rpos
 
   !> Return the vertical coordinate at \((r, \theta)\)
-  function Zpos (r, theta)
+  real function Zpos (self, r, theta)
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: f, Zpos
     real :: th
-    
-    th = mod2pi( theta)
-    
-    call eqitem(r, th, Z_psi, f)
-    Zpos=f
-    
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%Z_psi, Zpos, 'Z')
   end function Zpos
 
-  !> If `init == 1`, set flag to initialize psi spline when
-  !> `psi` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_psi (init) 
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_psi
-    
-    init_psi = (init == 1)
-    initialize_psi = 1
-  end function initialize_psi
-
   !> Return the flux surface label `psi`
-  function psi (r)
+  real function psi (self, r)
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent (in) :: r
-    real :: psi
-
     psi = r
-
   end function psi
 
-  !> Put `theta` into the range \([-\pi, \pi]\)
-  function mod2pi (theta)
-    use constants, only: pi
-    implicit none
-    real, intent(in) :: theta
-    real :: th, mod2pi
-    logical :: out
-    
-    if(theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-       return
-    endif
-    
-    th=theta
-    out=.true.
-    do while(out)
-       if(th > pi) th = th - 2.*pi
-       if(th <-pi) th = th + 2.*pi
-       if(th <= pi .and. th >= -pi) out=.false.
-    enddo
-    mod2pi=th
-  end function mod2pi
-
-  !> If `init == 1`, set flag to initialize diameter spline when
-  !> `diameter` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_diameter (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_diameter
-
-    init_diameter = (init == 1)
-    initialize_diameter = 1
-
-  end function initialize_diameter
-
   !> Return the diameter of the flux surface at a given major radius
-  function diameter (rp)
-    use splines, only: new_spline, splint, spline
+  real function diameter (self, rp)
+    use splines, only: splint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: rp
-    real :: diameter
-    type (spline), save :: spl
-
-    if(init_diameter) then
-       diam(:) = abs(R_psi(:,nt/2 + 1) - R_psi(:,1))
-       call new_spline(nr, eqpsi, diam, spl)
-       init_diameter = .false.
-    endif
-
-    diameter = splint(rp, spl)
-
+    diameter = splint(rp, self%diam_spl)
   end function diameter
 
-  !> If `init == 1`, set flag to initialize rcenter spline when
-  !> `rcenter` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_rcenter (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_rcenter
-
-    init_rcenter = (init == 1)
-    initialize_rcenter = 1
-  end function initialize_rcenter
-
   !> Return the major radius of the centre of a given flux surface
-  function rcenter (rp)
-    use splines, only: new_spline, splint, spline
+  real function rcenter (self, rp)
+    use splines, only: splint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: rp
-    real :: rcenter
-    type (spline), save :: spl
-
-    if(init_rcenter) then
-       rc(:) = 0.5*(R_psi(:,1) + R_psi(:,nt/2 + 1))
-       call new_spline(nr, eqpsi, rc, spl)
-       init_rcenter = .false.
-    endif
-
-    rcenter = splint(rp, spl)
-
+    rcenter = splint(rp, self%rcenter_spl)
   end function rcenter
 
-  !> If `init == 1`, set flag to initialize dbtori spline when
-  !> `dbtori` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_dbtori (init) 
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dbtori
-
-    init_dbtori = (init == 1)
-    initialize_dbtori = 1
-  end function initialize_dbtori
-
   !> \(\frac{dI}{d\psi}\) at the given normalised \(\psi\)
-  function dbtori (pbar)
-    use splines, only: new_spline, dsplint, spline
+  real function dbtori (self, pbar)
+    use splines, only: dsplint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: dbtori
-    type (spline), save :: spl
-
-    if(init_dbtori) call new_spline(nr, psi_bar, fp, spl)
-    init_dbtori=.false.
-
-    dbtori = dsplint(pbar, spl)/(psi_a-psi_0)
-
+    dbtori = dsplint(pbar, self%btori_spl)/(self%psi_a - self%psi_0)
   end function dbtori
 
-  !> If `init == 1`, set flag to initialize btori spline when
-  !> `btori` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_btori (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_btori
-
-    init_btori = (init == 1)
-    initialize_btori = 1
-  end function initialize_btori
-  
   !> FIXME : Add documentation
-  function btori (pbar)
-    use splines, only: new_spline, splint, spline
+  real function btori (self, pbar)
+    use splines, only: splint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: btori
-    type (spline), save :: spl
-
-    if(init_btori) call new_spline(nr, psi_bar, fp, spl)
-    init_btori=.false.
-
-    btori = splint(pbar, spl)
+    btori = splint(pbar, self%btori_spl)
   end function btori
 
-  !> If `init == 1`, set flag to initialize `q` spline when
-  !> `qfun` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_q (init) 
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_q
-
-    init_q = (init == 1)
-    initialize_q = 1
-  end function initialize_q
-
   !> FIXME : Add documentation
-  function qfun (pbar)
-    use splines, only: new_spline, splint, spline
+  real function qfun (self, pbar)
+    use splines, only: splint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: qfun
-    type (spline), save :: spl
-
-    if(init_q) call new_spline(nr, psi_bar, qsf, spl)
-    init_q = .false.
-
-    qfun = splint(pbar, spl)
-
+    qfun = splint(pbar, self%qsf_spl)
   end function qfun
 
-  !> If `init == 1`, set flag to initialize pressure spline when
-  !> `pfun` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_pressure (init) 
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_pressure
-
-    init_pressure = (init == 1)
-    initialize_pressure = 1
-  end function initialize_pressure
-
   !> FIXME : Add documentation
-  function pfun (pbar) 
-    use splines, only: new_spline, splint, spline
+  real function pfun (self, pbar)
+    use splines, only: splint
     implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: pfun
-    type (spline), save :: spl
-
-    if(init_pressure) call new_spline(nr, psi_bar, pressure, spl)
-    init_pressure = .false.
-    !
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    !
-    pfun = 0.5*beta_0*splint(pbar, spl)
-
+    pfun = 0.5*self%beta_0*splint(pbar, self%pressure_spl)
   end function pfun
 
-  !> If `init == 1`, set flag to initialize dpressure spline when
-  !> `dpfun` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_dpressure (init) 
+  !> FIXME : Add documentation
+  real function dpfun (self, pbar)
+    use splines, only: dsplint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dpressure
-
-    init_dpressure = (init == 1)
-    initialize_dpressure = 1
-  end function initialize_dpressure
-
-  !> FIXME : Add documentation  
-  function dpfun (pbar)   
-    use splines, only: new_spline, dsplint, spline
-    implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: dpfun
-    type (spline), save :: spl
-    !
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    !
-    if(init_dpressure) then
-       call new_spline(nr, psi_bar, pressure, spl)
-       init_dpressure = .false.
-    endif
-
-    dpfun = dsplint(pbar, spl)/(psi_a-psi_0) * beta_0/2.
-
+    dpfun = dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0) * self%beta_0/2.
   end function dpfun
 
-  !> If `init == 1`, set flag to initialize beta spline when
-  !> `betafun` is called
-  !! FIXME: this _always_ returns 1, change to subroutine
-  function initialize_beta (init)
+  !> FIXME : Add documentation
+  real function betafun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_beta
-
-    init_beta = (init == 1)
-    initialize_beta = 1
-  end function initialize_beta
-
-  !> FIXME : Add documentation  
-  function betafun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(ceq_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: betafun
-    type (spline), save :: spl
-
-    if(pbar == 0.) then
-       betafun=beta(1)
+    if (pbar == 0.) then
+       betafun = self%beta(1)
        return
-    endif
-
-    if(init_beta) call new_spline(nr, psi_bar, beta, spl)
-    init_beta = .false.
-
-    betafun = splint(pbar, spl)
-
+    end if
+    betafun = splint(pbar, self%beta_spl)
   end function betafun
 
-  !> FIXME : Add documentation  
-  subroutine Hahm_Burrell(irho, a) 
+  !> FIXME : Add documentation
+  subroutine Hahm_Burrell(geom, irho, a)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     implicit none
+    type(ceq_type), intent(in) :: geom
     real, intent(in) :: a
     integer, intent(in) :: irho
-    integer :: i
+    integer :: i, nr
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(nr) :: gamma, pbar, dp, d2p, pres
+    real, dimension(geom%nr) :: gamma, pbar, dp, d2p, pres
     integer :: fort24_unit
     if (.not. proc0) return
+    nr = geom%nr
+
     gamma = 0.
 
-    pbar = (eqpsi-eqpsi(1))/(eqpsi(nr)-eqpsi(1))
+    pbar = (geom%eqpsi-geom%eqpsi(1))/(geom%eqpsi(nr)-geom%eqpsi(1))
 
     do i=2, nr-1
-       dp(i)  = dpfun(pbar(i))
+       dp(i)  = geom%dpfun(pbar(i))
     enddo
 
     do i=3,nr-2
-       d2p(i) = (dp(i+1)-dp(i-1))/(eqpsi(i+1)-eqpsi(i-1))
+       d2p(i) = (dp(i+1)-dp(i-1))/(geom%eqpsi(i+1)-geom%eqpsi(i-1))
     enddo
 
     pres=0.
     do i=3, nr-2
-       rp1=eqpsi(i+1)
-       rp2=eqpsi(i-1)
-       rho1=0.5*diameter(rp1)
-       rho2=0.5*diameter(rp2)
+       rp1=geom%eqpsi(i+1)
+       rp2=geom%eqpsi(i-1)
+       rho1=0.5*geom%diameter(rp1)
+       rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
-       
-       call eqitem(eqpsi(i), 0., dpbish(:,:,1), gradpsi)
-       
-       mag_B=sqrt( (btori(pbar(i))**2 + gradpsi**2))/Rpos(eqpsi(i),0.)
 
-       pres(i) = pfun(pbar(i))
+       call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
+
+       mag_B = sqrt( (geom%btori(pbar(i))**2 + gradpsi**2))/geom%Rpos(geom%eqpsi(i),0.)
+
+       pres(i) = geom%pfun(pbar(i))
 
        gamma(i) = 0.01*gradpsi**2*(d2p(i)/pres(i)-a*(dp(i)/pres(i))**2) &
-            /mag_B*(2.*pres(i)/beta_0)**((1-a)/2.) &
-            *(-pres(i)/(dp(i)/drhodpsiq))            
+            /mag_B*(2.*pres(i)/geom%beta_0)**((1-a)/2.) &
+            *(-pres(i)/(dp(i)/drhodpsiq))
     enddo
-    
+
     call open_output_file(fort24_unit,".fort.24")
     do i=3,nr-2
        if(irho == 1) then
-          rho_eq = eqpsi(i)
+          rho_eq = geom%eqpsi(i)
        else if(irho == 2) then
-          rho_eq = 0.5 * diameter(eqpsi(i))
+          rho_eq = 0.5 * geom%diameter(geom%eqpsi(i))
        else if(irho == 3) then
           rho_eq = pbar(i)
        endif
@@ -1153,6 +834,5 @@ contains
     call close_output_file(fort24_unit)
 
 1000 format(i5,11(1x,e16.9))
-
   end subroutine Hahm_Burrell
 end module ceq
