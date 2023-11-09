@@ -257,6 +257,7 @@ contains
     class(ceq_type), intent(in out) :: self
     self%initialised = .false.
     call self%dealloc_arrays
+    call self%delete_splines
     call finish
   end subroutine ceq_finish
 
