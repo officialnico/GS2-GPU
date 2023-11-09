@@ -342,13 +342,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
-    use  geq, only: eqin, geq_init
-    use  ceq, only: ceqin, ceq_init
-    use  peq, only: peqin => eqin, teqin, peq_init
-    use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
-    use  deq, only: dfitin, deq_init => dfit_init
-    use ideq, only: idfitin, ideq_init => dfit_init
-    use  leq, only: leqin, dpdrhofun
+    use leq, only: dpdrhofun
     use constants, only: pi
     use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
@@ -406,7 +400,6 @@ contains
     integer :: fort11_unit !For outputting geom values
 
     !Set output verbosity levels
-    eeq_verbosity = verb
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
 
@@ -956,6 +949,13 @@ contains
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
+      use  geq, only: eqin, geq_init
+      use  ceq, only: ceqin, ceq_init
+      use  peq, only: peqin => eqin, teqin, peq_init
+      use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
+      use  deq, only: dfitin, deq_init => dfit_init
+      use ideq, only: idfitin, ideq_init => dfit_init
+      use  leq, only: leqin
       real :: avgrmid
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -984,6 +984,7 @@ contains
          else if(chs_eq) then
             call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
          else if(efit_eq) then
+            eeq_verbosity = verb
             if (big <= 0) big = 8
             if (gs2d_eq) then
                if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
