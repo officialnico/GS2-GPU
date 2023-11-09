@@ -28,8 +28,8 @@ module geq
      real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     real, allocatable, dimension (:,:)   :: R_psi, Z_psi, B_psi
-     real, allocatable, dimension (:,:,:) :: drm, dzm, dbm, dbtm, dpm, dtm
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
+     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
      real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
@@ -313,7 +313,7 @@ contains
   end subroutine dealloc_arrays
 
   !> FIXME : Add documentation
-  pure subroutine geq_finish(self)
+  subroutine geq_finish(self)
     implicit none
     class(geq_type), intent(in out) :: self
     self%initialised = .false.
