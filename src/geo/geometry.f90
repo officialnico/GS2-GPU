@@ -955,7 +955,7 @@ contains
       use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
       use  deq, only: dfitin, deq_init => dfit_init
       use ideq, only: idfitin, ideq_init => dfit_init
-      use  leq, only: leqin
+      use  leq, only: leqin, leq_init
       real :: avgrmid
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
