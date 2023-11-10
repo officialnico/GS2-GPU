@@ -684,10 +684,10 @@ contains
   end function Zpos
 
   !> Return the flux surface label `psi`
-  real function psi (self, r)
+  real function psi (self, r, theta)
     implicit none
     class(ceq_type), intent(in) :: self
-    real, intent (in) :: r
+    real, intent (in) :: r, theta
     psi = r
   end function psi
 

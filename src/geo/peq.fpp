@@ -970,10 +970,10 @@ contains
   end function Zpos
 
   !> FIXME : Add documentation
-  real function psi (self, r)
+  real function psi (self, r, theta)
     implicit none
     class(peq_base_type), intent(in) :: self
-    real, intent (in) :: r
+    real, intent (in) :: r, theta
     psi = r
   end function psi
 

@@ -777,9 +777,9 @@ contains
   end subroutine geo_FourierSeries
 
   !> FIXME : Add documentation
-  real function psi (self, r)
+  real function psi (self, r, theta)
     class(leq_type), intent(in) :: self
-    real, intent (in) :: r
+    real, intent (in) :: r, theta
     psi = r - self%surf%r
   end function psi
 

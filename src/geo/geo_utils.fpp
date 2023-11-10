@@ -107,10 +107,10 @@ module geo_utils
        real, intent(in) :: pbar
      end function betafun_interface
 
-     real function psi_interface(self, r)
+     real function psi_interface(self, r, theta)
        import
        class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: r
+       real, intent(in) :: r, theta
      end function psi_interface
 
      subroutine gradient_interface(self, rgrid, theta, grad, char, rp, nth_used, ntm)
