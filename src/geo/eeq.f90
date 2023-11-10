@@ -43,7 +43,7 @@ contains
     allocate(rgrid(nr),zgrid(nz),psi(nr,nz))
     read(1,fmt='(a80)') line ; read(1,*) rgrid
     read(1,fmt='(a80)') line ; read(1,*) zgrid
-    
+
     read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') psi
     close(1)
   end subroutine read_gs2d
@@ -87,98 +87,124 @@ contains
 end module gs2d
 
 !> This module is a submodule of geometry which handles reading from the
-!! ascii EQDSK format output by EFIT, but also now by other codes. This 
-!! file contains psi on an R,Z grid, as well as other quantities such as
-!! q (safety factor), I (a.k.a. f) and p (pressure) on a psi grid. 
-!!
-!! The normalising field is set to the field on axis; the normalising length
-!! is set to the half-diameter of the LCFS.
+!> ascii EQDSK format output by EFIT, but also now by other codes. This
+!> file contains psi on an R,Z grid, as well as other quantities such as
+!> q (safety factor), I (a.k.a. f) and p (pressure) on a psi grid.
+!>
+!> The normalising field is set to the field on axis; the normalising length
+!> is set to the half-diameter of the LCFS.
 module eeq
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use splines, only: spline, periodic_spline
 
   implicit none
 
   private
 
-  public :: efit_init, efitin, gradient, bgradient, efit_finish, gs2din
-
-  public :: invR
-  public :: Rpos
-  public :: Zpos
-  public :: btori,    initialize_btori
-  public :: dbtori,   initialize_dbtori
-  public :: qfun,     initialize_q
-  public :: pfun,     initialize_pressure
-  public :: dpfun,    initialize_dpressure
-  public :: betafun,  initialize_beta
-  public :: bound,    initialize_bound
-  public :: psi,      initialize_psi
+  public :: eeq_type, gs2d_type
   public :: verbosity  !Should this be replaced by usage of runtime_test:verbosity?
-
-  integer :: nw, nh, nbbbs
 
   integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 
-  real, allocatable, dimension (:) :: psi_bar, fp, qsf, pressure, beta, spsi_bar
-  real, allocatable, dimension (:) :: dummy, efit_R, efit_Z, sefit_R, sefit_Z, efit_t
-  real, allocatable, dimension (:,:) :: dum2, efit_psi, sefit_psi
-  real, allocatable, dimension (:,:,:) :: dpm, dtm, dum3
-  real, allocatable, dimension (:) :: rbbbs, zbbbs, thetab, r_bound !boundary of plasma
+  type, abstract, extends(abstract_eqfile_geo_type) :: eeq_base_type
+     private
+     integer :: nw, nh, nwb, nhb, nbbbs
+     real :: efit_dR, efit_dZ
+     real, allocatable, dimension(:) :: thetab, r_bound, efit_R, efit_Z
+     real, allocatable, dimension (:,:) :: efit_psi
+     type(periodic_spline) :: rbound_spl
+     character(len = EQFILE_LENGTH) :: filename
+     integer :: nr, nt
+     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: R_mag, Z_mag, aminor
+     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
+     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
+     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
+     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
+     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
+     !     type(spline) :: diam_spl, rcenter_spl
+     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
+   contains
+     procedure :: calculate_gradients => efit_init
+     procedure :: setup_splines => setup_splines
+     procedure :: delete_splines => delete_splines
+     procedure :: finalise => efit_finish
+     procedure :: rpos => rpos
+     procedure :: zpos => zpos
+     procedure :: invr => invr
+     procedure :: rcenter => rcenter
+     procedure :: diameter => diameter
+     procedure :: btori => btori
+     procedure :: dbtori => dbtori
+     procedure :: qfun => qfun
+     procedure :: pfun => pfun
+     procedure :: dpfun => dpfun
+     procedure :: betafun => betafun
+     procedure :: psi => psi
+     procedure :: gradient => gradient
+     procedure :: bgradient => bgradient
+     procedure :: bound => bound
+     procedure, private :: derm => derm
+     procedure, private :: eqitem => eqitem
+     !procedure, private :: eqdcart => eqdcart
+     !procedure, private :: eqdbish => eqdbish
+     procedure, private :: alloc_arrays => alloc_arrays
+     procedure, private :: dealloc_arrays => dealloc_arrays
+  end type eeq_base_type
 
-  real :: efit_dR, efit_dZ, psi_N
+  type, extends(eeq_base_type) :: eeq_type
+   contains
+     procedure :: initialise_eqfile => efitin
+  end type eeq_type
 
-  real :: R_mag, Z_mag, B_T0, aminor, beta_0
-
-  logical :: init_bound = .true.
-  logical :: init_btori = .true.
-  logical :: init_dbtori = .true.
-  logical :: init_q = .true.
-  logical :: init_pressure = .true.
-  logical :: init_dpressure = .true.
-  logical :: init_beta = .true.
-  logical :: init_psi = .true.
+  type, extends(eeq_base_type) :: gs2d_type
+   contains
+     procedure :: initialise_eqfile => gs2din
+  end type gs2d_type
 
 contains
 
-  !> This subroutine reads a GS2D output file containing 
-  !! the axisymmetric magnetic field geometry on a rectangular 
-  !! domain defined by the coordinates (R,Z).
-  !!
-  !! efit_R     R grid
-  !! efit_Z     Z grid
-  !! fp    F on psibar grid
-  !! efit_psi   psi on (R,Z) grid
-  !! R_mag        major radius of the magnetic axis
-  !! Z_mag        elevation of the magnetic axis
-  !! rwid       total width of the domain
-  !! rleft      position of leftmost point of domain
-  !! zhei       total height of domain
-  subroutine gs2din(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
+  !> This subroutine reads a GS2D output file containing
+  !> the axisymmetric magnetic field geometry on a rectangular
+  !> domain defined by the coordinates (R,Z).
+  !>
+  !> efit_R     R grid
+  !> efit_Z     Z grid
+  !> fp    F on psibar grid
+  !> efit_psi   psi on (R,Z) grid
+  !> R_mag        major radius of the magnetic axis
+  !> Z_mag        elevation of the magnetic axis
+  !> rwid       total width of the domain
+  !> rleft      position of leftmost point of domain
+  !> zhei       total height of domain
+  subroutine gs2din(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
+       big_in)
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: pi, twopi
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
     use gs2d, only: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
+    use optionals, only: get_option_with_default
     use mp, only: mp_abort
     implicit none
-
-    character(len=80), intent(in) :: eqfile
-    real, intent(out) :: psi_0, psi_a, B_T, amin, rmaj
-    integer, intent(in) :: initeq, big
-    real :: p_0
-    real :: rwid, rleft, zhei
-    real :: rcentr, bcentr
+    class(gs2d_type), intent(in out) :: self
+    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
+    integer, intent(in) :: initeq
+    integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
+    real :: p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
+    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
+    real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
-    character(80) :: filename
-    integer :: i, j, init, nhb, nwb, ierr
+    integer :: i, j, ierr, big
     logical, parameter :: debug =.false.
-!What is the following for?        
-    data init /1/
-    save init
-    
-! Need to generalize initialization condition if equilibrium changes
-
-if (debug) write(6,*) "gs2din: initeq=",initeq
+    nthg = -1
+    big = get_option_with_default(big_in, 1)
+    ! Need to generalize initialization condition if equilibrium changes
+    if (debug) write(6,*) "gs2din: initeq=",initeq
     ! WARNING: Exiting early without setting `nthg` may result in `nthg`
     ! being uninitialised in the calling procedure. The value it gets set to
     ! must be consistent with the value set at the end of this subroutine
@@ -186,210 +212,182 @@ if (debug) write(6,*) "gs2din: initeq=",initeq
     ! inconsistently sized arrays. This is expected to affect `ideal_ball`
     ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
-    init=0
-    
-    i=index(eqfile,' ')-1
-    filename = eqfile(1:i)
-if (debug) write(6,*) "gs2din: filename=",filename
-! read GS2D datafile
-    call read_gs2d(filename)
-if (debug) write(6,*) "gs2din: read_gs2d done, "
-if (debug) write(6,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
 
-    nw=nr ; nh=nz
-    nwb = nw * big
-    nhb = nh * big
-    call alloc_module_arrays(nwb, nwb, nhb, nw, nh)
-    rwid=maxval(rgrid)-minval(rgrid) ; zhei=maxval(zgrid)-minval(zgrid)
-    rcentr=r0 ; rleft=minval(rgrid)
-    R_mag=rmag ; Z_mag=zmag ; psi_0=psmin ; psi_a=psip ; bcentr=b0
+    self%filename = trim(adjustl(eqfile))
+    if (debug) write(6,*) "gs2din: filename=",self%filename
+    ! read GS2D datafile
+    call read_gs2d(self%filename)
+    if (debug) write(6,*) "gs2din: read_gs2d done, "
+    if (debug) write(6,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
 
-    psi_0 = psi_0/twopi
-    psi_a = psi_a/twopi
-if (debug) write(6,*) "gs2din: psi_0, psi_a=", psi_0, psi_a
+    self%nw = nr ; self%nh = nz
+    self%nwb = self%nw * big
+    self%nhb = self%nh * big
+    call self%alloc_arrays()
+    allocate(spsi_bar(self%nw), sefit_R(self%nw), sefit_Z(self%nh))
+    allocate(sefit_psi(self%nw, self%nh))
+    rwid = maxval(rgrid) - minval(rgrid) ; zhei = maxval(zgrid) - minval(zgrid)
+    rcentr = r0 ; rleft = minval(rgrid)
+    self%R_mag = rmag ; self%Z_mag = zmag
+    self%psi_0 = psmin ; self%psi_a = psip ; bcentr = b0
 
-!
-! pbar is defined by
-! pbar = (psi-psi_0)/(psi_a-psi_0)
-! fp and q are functions of pbar
-!
+    self%psi_0 = self%psi_0 / twopi
+    self%psi_a = self%psi_a / twopi
+    if (debug) write(6,*) "gs2din: psi_0, psi_a=", self%psi_0, self%psi_a
+
+    ! pbar is defined by
+    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! fp and q are functions of pbar
     sefit_R = rgrid ; sefit_Z = zgrid
-    if (size(ps) /= nw) then
-       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',nw,')'
+    if (size(ps) /= self%nw) then
+       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',self%nw,')'
        write(6,*) 'gs2din: => should fix the GS2D output file and try again'
        call mp_abort('gs2din: => should fix the GS2D output file and try again')
-    endif
-    spsi_bar=(ps-minval(ps))/(maxval(ps)-minval(ps))
+    end if
+    spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
 
-    do i=1,nwb
-       psi_bar(i) = float(i-1) / float(nwb-1)
-       efit_R(i) = rleft +rwid * float(i-1) / float(nwb-1)
-    enddo
+    do i = 1, self%nwb
+       self%psi_bar(i) = float(i-1) / float(self%nwb-1)
+       self%efit_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
+    end do
 
-! nb Zgrid is not necessarily UpDown symmetric
-    do j=1,nhb
-       efit_Z(j) = ((float(j-1) / float(nhb-1) ))*zhei+minval(zgrid)
-    enddo
+    ! nb Zgrid is not necessarily UpDown symmetric
+    do j = 1, self%nhb
+       self%efit_Z(j) = ((float(j-1) / float(self%nhb-1) ))*zhei+minval(zgrid)
+    end do
 
-    call inter_cspl(nw, spsi_bar, f, nwb, psi_bar, fp)
-    call inter_cspl(nw, spsi_bar, p, nwb, psi_bar, pressure)
-! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
-    sefit_psi=psi/twopi
+    call inter_cspl(self%nw, spsi_bar, f, self%nwb, self%psi_bar, self%fp)
+    call inter_cspl(self%nw, spsi_bar, p, self%nwb, self%psi_bar, self%pressure)
+    ! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
+    sefit_psi = psi / twopi
 
-    allocate(zp(3*nw*nh), temp(nw+2*nh))
-    allocate(zx1(nh), zxm(nh), zy1(nw), zyn(nw))
+    allocate(zp(3*self%nw*self%nh), temp(self%nw+2*self%nh))
+    allocate(zx1(self%nh), zxm(self%nh), zy1(self%nw), zyn(self%nw))
 
-    call fitp_surf1(nw, nh, sefit_R, sefit_Z, sefit_psi, &
-         nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
+    ! Setup 2D interpolation of psi(R, Z)
+    call fitp_surf1(self%nw, self%nh, sefit_R, sefit_Z, sefit_psi, &
+         self%nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
          255, zp, temp, 1., ierr)
 
-    do j = 1, nhb
-       do i = 1, nwb
-          efit_psi(i,j) = fitp_surf2(efit_R(i), efit_Z(j), nw, nh, &
-               sefit_R, sefit_Z, sefit_psi, nw, zp, 1.)
-       enddo
-    enddo
-      
+    do j = 1, self%nhb
+       do i = 1, self%nwb
+          self%efit_psi(i,j) = fitp_surf2(self%efit_R(i), self%efit_Z(j), self%nw, self%nh, &
+               sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
+       end do
+    end do
+
     deallocate(zp, temp)
 
-    call inter_cspl(nw, spsi_bar, q, nwb, psi_bar, qsf)
+    call inter_cspl(self%nw, spsi_bar, q, self%nwb, self%psi_bar, self%qsf)
 
-    nw = nwb
-    nh = nhb
+    self%nw = self%nwb
+    self%nh = self%nhb
 
-    nbbbs=size(rsep)
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs), thetab(nbbbs), r_bound(nbbbs))
-    rbbbs=rsep ; zbbbs=zsep
+    self%nbbbs = size(rsep)
+    allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
+    allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
+    rbbbs = rsep ; zbbbs = zsep
 
-! get r_boundary(theta)
+    ! get r_boundary(theta)
+    self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
+    self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
 
-    thetab = atan2 ((zbbbs-Z_mag), (rbbbs-R_mag))
-    r_bound = sqrt( (rbbbs - R_mag)**2 + (zbbbs - Z_mag)**2 )
+    call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
 
-    call sort(thetab, r_bound, zbbbs, rbbbs)
+    ! Allow for duplicated points near +- pi:
+    if (self%thetab(1) == self%thetab(2)) then
+       self%thetab(1) = self%thetab(1) + twopi
+       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
+    end if
 
-! Allow for duplicated points near +- pi:
+    if (self%thetab(self%nbbbs-1) == self%thetab(self%nbbbs)) then
+       self%thetab(self%nbbbs) = self%thetab(self%nbbbs) - twopi
+       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
+    end if
 
-    if(thetab(1) == thetab(2)) then
-       thetab(1) = thetab(1) + twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
+    ! It isn't likely that a duplicate point would exist near theta = 0,
+    ! so I am not allowing this possibility for now.
+    do i = 1, self%nbbbs-1
+       if (self%thetab(i+1) == self%thetab(i)) then
+          ! put in kluge for duplicate points, which happens near theta=0:
+          self%thetab(i+1) = self%thetab(i+1)+1.e-8
+       end if
+    end do
 
-    if(thetab(nbbbs-1) == thetab(nbbbs)) then
-       thetab(nbbbs) = thetab(nbbbs) - twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
-
-! It isn't likely that a duplicate point would exist near theta = 0, 
-! so I am not allowing this possibility for now.
-
-    do i=1,nbbbs-1
-       if(thetab(i+1) == thetab(i)) then
-!          write(*,*) 'Duplicates near theta = 0 not allowed.'
-!          write(*,*) i, i+1, ' Stopping.'
-!          stop
-!
-! put in kluge for duplicate points, which happens near theta=0:
-          thetab(i+1) = thetab(i+1)+1.e-8
-       endif
-    enddo
-
-if (debug) write(6,*) "gs2din:  rbbbs=",rbbbs
-if (debug) write(6,*) "gs2din:  zbbbs=",zbbbs
-    call a_minor(rbbbs, zbbbs, Z_mag, amin)
-    aminor=amin
-if (debug) write(6,*) "gs2din:  aminor=",aminor
-
+    if (debug) write(6,*) "gs2din:  rbbbs=",rbbbs
+    if (debug) write(6,*) "gs2din:  zbbbs=",zbbbs
+    call a_minor(rbbbs, zbbbs, self%Z_mag, avgrmid)
+    self%aminor = avgrmid
+    if (debug) write(6,*) "gs2din:  aminor=", self%aminor
     deallocate (rbbbs, zbbbs)
 
-    r_bound = r_bound / aminor
+    ! Normalise
+    self%r_bound = self%r_bound / self%aminor
+    self%R_mag = self%R_mag / self%aminor
+    self%Z_mag = self%Z_mag / self%aminor
+    self%efit_R = self%efit_R / self%aminor
+    self%efit_Z = self%efit_Z / self%aminor
 
-    R_mag = R_mag / aminor
-    Z_mag = Z_mag / aminor
-!    rleft = rleft / aminor
-!    rwid = rwid / aminor
-!    zhei = zhei / aminor
-    rcentr = rcentr / aminor
-    efit_R = efit_R / aminor
-    efit_Z = efit_Z / aminor
-    
-! should rmaj be R_mag or rcentr? use R_mag for now.  
-
-    rmaj = R_mag
+    ! should rmaj be R_mag or rcentr? use R_mag for now.
+    rmaj = self%R_mag
     B_T0 = abs(bcentr)
-    B_T = B_T0
-    psi_a = psi_a / (B_T0*aminor**2)
-    psi_0 = psi_0 / (B_T0*aminor**2)
-    psi_N = psi_a - psi_0
+    self%B_T = B_T0
+    self%psi_a = self%psi_a / (B_T0*self%aminor**2)
+    self%psi_0 = self%psi_0 / (B_T0*self%aminor**2)
+    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+    if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", self%B_T, self%aminor, &
+         self%psi_0, self%psi_a
 
-if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0, psi_a
+    p_0 = self%pressure(1)
+    self%fp = self%fp / (self%B_T * self%aminor)
+    ! MKS: beta = 2 mu_0 p / B**2
 
-    
-    p_0=pressure(1)
-!    do i=1,nw
-!       psi_bar(i) = float(i-1) / float(nw-1)
-!       efit_R(i) = rleft +rwid * float(i-1) / float(nw-1)
-!    enddo
-
-    fp = fp / (B_T0*aminor)
-
-! MKS: beta = 2 mu_0 p / B**2
-
-    beta = 8. * pi * pressure * 1.e-7 / B_T0**2
-    beta_0 = beta(1)
-
-    pressure = pressure / p_0
-    
-    efit_psi = efit_psi / (B_T0*aminor**2)
-    
-!    do j=1,nh
-!       efit_Z(j) = ((float(j-1) / float(nh-1) ) - 0.5)*zhei
-!    enddo
-
-    efit_dR = efit_R(2) - efit_R(1)
-    efit_dZ = efit_Z(2) - efit_Z(1)
-
+    self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / p_0
+    self%efit_psi = self%efit_psi / (self%B_T * self%aminor**2)
+    self%efit_dR = self%efit_R(2) - self%efit_R(1)
+    self%efit_dZ = self%efit_Z(2) - self%efit_Z(1)
+    self%initialised = .true.
   end subroutine gs2din
 
-  !> This subroutine reads an EFIT output file containing 
-  !! the axisymmetric magnetic field geometry on a rectangular 
-  !! domain defined by the coordinates (R,Z). It reads and stores
-  !! the following quantities (among others).
-  !!  
-  !! - efit_R:     R grid
-  !! - efit_Z:     Z grid
-  !! - fp:    F on psibar grid
-  !! - efit_psi:   psi on (R,Z) grid
-  !! - R_mag:        major radius of the magnetic axis
-  !! - Z_mag:        elevation of the magnetic axis
-  !! - rwid:       total width of the domain
-  !! - rleft:      position of leftmost point of domain
-  !! - zhei:       total height of domain
-  subroutine efitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, big)
+  !> This subroutine reads an EFIT output file containing
+  !> the axisymmetric magnetic field geometry on a rectangular
+  !> domain defined by the coordinates (R,Z). It reads and stores
+  !> the following quantities (among others).
+  !>
+  !> - efit_R:     R grid
+  !> - efit_Z:     Z grid
+  !> - fp:    F on psibar grid
+  !> - efit_psi:   psi on (R,Z) grid
+  !> - R_mag:        major radius of the magnetic axis
+  !> - Z_mag:        elevation of the magnetic axis
+  !> - rwid:       total width of the domain
+  !> - rleft:      position of leftmost point of domain
+  !> - zhei:       total height of domain
+  subroutine efitin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
+       big_in)
     use constants, only: pi, twopi
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
+    use optionals, only: get_option_with_default
     implicit none
-    
-    character(len=80), intent(in) :: eqfile
-    real, intent(out) :: psi_0, psi_a, B_T, amin, rmaj
-    integer, intent(in) :: initeq, big
-    real :: xdum, p_0
-    real :: rwid, rleft, zhei
-    real :: rcentr, bcentr
-    real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
+    class(eeq_type), intent(in out) :: self
+    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
+    integer, intent(in) :: initeq
+    integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
+    real :: xdum, p_0, rwid, rleft, zhei, rcentr, bcentr
+    real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy
+    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
+    real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
-    
-    character(80) :: filename
     character(10) ::  char
-    
-    integer :: i, j, init, ndum, nhb, nwb, ierr
-!What is the following for?            
-    data init /1/
-    save init
-    
-! Need to generalize initialization condition if equilibrium changes
-
+    integer :: i, j, init, ndum, ierr, big
+    nthg = -1
+    big = get_option_with_default(big_in, 1)
+    ! Need to generalize initialization condition if equilibrium changes
     if (verbosity>2) write (*,*) 'Starting efitin'
     ! WARNING: Exiting early without setting `nthg` may result in `nthg`
     ! being uninitialised in the calling procedure. The value it gets set to
@@ -398,753 +396,569 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     ! inconsistently sized arrays. This is expected to affect `ideal_ball`
     ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
-    init=0
-    
-    i=index(eqfile,' ')-1
-    filename = eqfile(1:i)
-    if (verbosity>1) write (*,*) 'Opening file ', filename
-    open(unit=5,file=filename,status='old',form='formatted')
-    
-! Read the data
 
-    read(5,1000) char, char, char, char, char, i, nw, nh
+    self%filename = trim(adjustl(eqfile))
+    if (verbosity>1) write (*,*) 'Opening file ', self%filename
+    open(unit=5, file = self%filename, status='old',form='formatted')
 
-    if (verbosity>1) write (*,*) 'EFIT dimensions are: ', nw, nh
-!   write(*,1000) char, char, char, char, char, i, nw, nh
+    ! Read the data
+    read(5,1000) char, char, char, char, char, i, self%nw, self%nh
 
-    nwb = nw * big
-    nhb = nh * big
-    
-    call alloc_module_arrays(nwb, nwb, nhb, nw, nh)
-   
-    read(5,2020) rwid, zhei, rcentr, rleft, xdum      
-    read(5,2020) R_mag, Z_mag, psi_0, psi_a, bcentr
-!    write(*,2020) rwid, zhei, rcentr, rleft, xdum      
-!    write(*,2020) R_mag, Z_mag, psi_0, psi_a, bcentr
+    if (verbosity>1) write (*,*) 'EFIT dimensions are: ', self%nw, self%nh
 
-!
-! pbar is defined by
-! pbar = (psi-psi_0)/(psi_a-psi_0)
-! fp and q are functions of pbar
-!
-    do i=1,2
-       read(5,2020)xdum,xdum,xdum,xdum,xdum
-    enddo
-    
-    do i=1,nw
-       spsi_bar(i) = float(i-1) / float(nw-1)
-       sefit_R(i) = rleft +rwid * float(i-1) / float(nw-1)
-    enddo
+    self%nwb = self%nw * big
+    self%nhb = self%nh * big
 
-    do j=1,nh
-       sefit_Z(j) = ((float(j-1) / float(nh-1) ) - 0.5)*zhei
-    enddo
+!    call alloc_module_arrays(nwb, nwb, nhb, nw, nh)
+    call self%alloc_arrays()
+    allocate(spsi_bar(self%nw), sefit_R(self%nw), sefit_Z(self%nh), dummy(self%nw))
+    allocate(sefit_psi(self%nw, self%nh))
 
-    do i=1,nwb
-       psi_bar(i) = float(i-1) / float(nwb-1)
-       efit_R(i) = rleft +rwid * float(i-1) / float(nwb-1)
-    enddo
+    read(5,2020) rwid, zhei, rcentr, rleft, xdum
+    read(5,2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
 
-    do j=1,nhb
-       efit_Z(j) = ((float(j-1) / float(nhb-1) ) - 0.5)*zhei
-    enddo
+    ! pbar is defined by
+    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! fp and q are functions of pbar
+    do i = 1, 2
+       read(5,2020) xdum,xdum,xdum,xdum,xdum
+    end do
 
-    read(5,2020) (dummy(j),   j = 1, nw)
-    call inter_cspl(nw, spsi_bar, dummy, nwb, psi_bar, fp)
-    read(5,2020) (dummy(j), j = 1, nw)
-    call inter_cspl(nw, spsi_bar, dummy, nwb, psi_bar, pressure)
-    read(5,2020) (dummy(j),     j = 1, nw)
-    read(5,2020) (dummy(j),     j = 1 ,nw)
-    read(5,2020) ((sefit_psi(i,j) , i = 1, nw) , j = 1, nh)
+    do i = 1, self%nw
+       spsi_bar(i) = float(i-1) / float(self%nw-1)
+       sefit_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
+    end do
+
+    do j = 1, self%nh
+       sefit_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
+    end do
+
+    do i = 1, self%nwb
+       self%psi_bar(i) = float(i-1) / float(self%nwb-1)
+       self%efit_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
+    end do
+
+    do j = 1, self%nhb
+       self%efit_Z(j) = ((float(j-1) / float(self%nhb-1) ) - 0.5)*zhei
+    end do
+
+    read(5,2020) (dummy(j),   j = 1, self%nw)
+    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%fp)
+    read(5,2020) (dummy(j), j = 1, self%nw)
+    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%pressure)
+    read(5,2020) (dummy(j),     j = 1, self%nw)
+    read(5,2020) (dummy(j),     j = 1 ,self%nw)
+    read(5,2020) ((sefit_psi(i,j) , i = 1, self%nw) , j = 1, self%nh)
 
 
-    allocate(zp(3*nw*nh), temp(nw+2*nh))
-    allocate(zx1(nh), zxm(nh), zy1(nw), zyn(nw))
+    allocate(zp(3*self%nw*self%nh), temp(self%nw+2*self%nh))
+    allocate(zx1(self%nh), zxm(self%nh), zy1(self%nw), zyn(self%nw))
 
-    call fitp_surf1(nw, nh, sefit_R, sefit_Z, sefit_psi, &
-         nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
+    call fitp_surf1(self%nw, self%nh, sefit_R, sefit_Z, sefit_psi, &
+         self%nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
          255, zp, temp, 1., ierr)
 
-    do j = 1, nhb
-       do i = 1, nwb
-          efit_psi(i,j) = fitp_surf2(efit_R(i), efit_Z(j), nw, nh, &
-               sefit_R, sefit_Z, sefit_psi, nw, zp, 1.)
-!          write (9, *) efit_R(i), efit_Z(j), efit_psi(i,j)
-       enddo
-!       write (9, *)
-    enddo
-      
+    do j = 1, self%nhb
+       do i = 1, self%nwb
+          self%efit_psi(i,j) = fitp_surf2(self%efit_R(i), self%efit_Z(j), self%nw, self%nh, &
+               sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
+       end do
+    end do
+
     deallocate(zp, temp)
 
-    read(5,2020) (dummy(j) ,   j = 1, nw)
-    
-!    write(*,2020) (dummy(j) ,   j = 1, nw)
-!    write (*,*) 
-    call inter_cspl(nw, spsi_bar, dummy, nwb, psi_bar, qsf)
+    read(5,2020) (dummy(j) ,   j = 1, self%nw)
+    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%qsf)
 
-    nw = nwb
-    nh = nhb
-!    read (5, *) nbbbs, ndum
-    read(5,2022) nbbbs, ndum
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs), thetab(nbbbs), r_bound(nbbbs))
-    read(5,2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
-!    write (*,*) (rbbbs(i), i=1,nbbbs)
-! get r_boundary(theta)
-
-    thetab = atan2 ((zbbbs-Z_mag), (rbbbs-R_mag))
-    r_bound = sqrt( (rbbbs - R_mag)**2 + (zbbbs - Z_mag)**2 )
-
-    call sort(thetab, r_bound, zbbbs, rbbbs)
-
-
-! Allow for duplicated points near +- pi:
-
-    if(thetab(1) == thetab(2)) then
-       thetab(1) = thetab(1) + twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
-
-    if(thetab(nbbbs-1) == thetab(nbbbs)) then
-       thetab(nbbbs) = thetab(nbbbs) - twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
-
-! It isn't likely that a duplicate point would exist near theta = 0, 
-! so I am not allowing this possibility for now.
-
-    do i=1,nbbbs-1
-       if(thetab(i+1) == thetab(i)) then
-!          write(*,*) 'Duplicates near theta = 0 not allowed.'
-!          write(*,*) i, i+1, ' Stopping.'
-!          stop
-!
-! put in kluge for duplicate points, which happens near theta=0:
-          thetab(i+1) = thetab(i+1)+1.e-8
-       endif
-    enddo
-
-    call a_minor(rbbbs, zbbbs, Z_mag, amin)
-    aminor=amin
-
-!      read(5,2020)(xlim(i),ylim(i),i=1,limitr)
+    self%nw = self%nwb
+    self%nh = self%nhb
+    read(5,2022) self%nbbbs, ndum
+    allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
+    allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
+    read(5,2020) (rbbbs(i), zbbbs(i) , i = 1, self%nbbbs)
     close(5)
+
+    self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
+    self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
+
+    call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
+
+    ! Allow for duplicated points near +- pi:
+    if (self%thetab(1) == self%thetab(2)) then
+       self%thetab(1) = self%thetab(1) + twopi
+       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
+    end if
+
+    if (self%thetab(self%nbbbs-1) == self%thetab(self%nbbbs)) then
+       self%thetab(self%nbbbs) = self%thetab(self%nbbbs) - twopi
+       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
+    end if
+
+    ! It isn't likely that a duplicate point would exist near theta = 0,
+    ! so I am not allowing this possibility for now.
+    do i = 1, self%nbbbs-1
+       if (self%thetab(i+1) == self%thetab(i)) then
+          ! put in kluge for duplicate points, which happens near theta=0:
+          self%thetab(i+1) = self%thetab(i+1) +  1.e-8
+       end if
+    end do
+
+    call a_minor(rbbbs, zbbbs, self%Z_mag, avgrmid)
+    self%aminor = avgrmid
 
     deallocate (rbbbs, zbbbs)
 
-    r_bound = r_bound / aminor
+    self%r_bound = self%r_bound / self%aminor
+    self%R_mag = self%R_mag / self%aminor
+    self%Z_mag = self%Z_mag / self%aminor
+    self%efit_R = self%efit_R / self%aminor
+    self%efit_Z = self%efit_Z / self%aminor
 
-    R_mag = R_mag / aminor
-    Z_mag = Z_mag / aminor
-!    rleft = rleft / aminor
-!    rwid = rwid / aminor
-!    zhei = zhei / aminor
-    rcentr = rcentr / aminor
-    efit_R = efit_R / aminor
-    efit_Z = efit_Z / aminor
-    
-! should rmaj be R_mag or rcentr? use R_mag for now.  
-
-    rmaj = R_mag
+    ! should rmaj be R_mag or rcentr? use R_mag for now.
+    rmaj = self%R_mag
     B_T0 = abs(bcentr)
-    B_T = B_T0
-    psi_a = psi_a / (B_T0*aminor**2)
-    psi_0 = psi_0 / (B_T0*aminor**2)
-    psi_N = psi_a - psi_0
-    
-    p_0=pressure(1)
-!    do i=1,nw
-!       psi_bar(i) = float(i-1) / float(nw-1)
-!       efit_R(i) = rleft +rwid * float(i-1) / float(nw-1)
-!    enddo
+    self%B_T = B_T0
+    self%psi_a = self%psi_a / (self%B_T * self%aminor**2)
+    self%psi_0 = self%psi_0 / (self%B_T * self%aminor**2)
+    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
 
-    fp = fp / (B_T0*aminor)
-
-! MKS: beta = 2 mu_0 p / B**2
-
-    beta = 8. * pi * pressure * 1.e-7 / B_T0**2
-    beta_0 = beta(1)
-
-    pressure = pressure / p_0
-    
-    efit_psi = efit_psi / (B_T0*aminor**2)
-    
-!    do j=1,nh
-!       efit_Z(j) = ((float(j-1) / float(nh-1) ) - 0.5)*zhei
-!    enddo
-
-    efit_dR = efit_R(2) - efit_R(1)
-    efit_dZ = efit_Z(2) - efit_Z(1)
+    p_0 = self%pressure(1)
+    self%fp = self%fp / (self%B_T * self%aminor)
+    ! MKS: beta = 2 mu_0 p / B**2
+    self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / p_0
+    self%efit_psi = self%efit_psi / (self%B_T * self%aminor**2)
+    self%efit_dR = self%efit_R(2) - self%efit_R(1)
+    self%efit_dZ = self%efit_Z(2) - self%efit_Z(1)
 
     if (.true.) then
        write (*,*) "Finished efitin... imported EFIT equilibrium"
        write (*,*) 'Some important quantities:'
-       write (*,*) "aminor", aminor
-       write (*,*) 'R_mag', R_mag
-       write (*,*) 'B_T0', B_T0
-       write (*,*) 'beta', beta_0
+       write (*,*) "aminor", self%aminor
+       write (*,*) 'R_mag', self%R_mag
+       write (*,*) 'B_T0', self%B_T
+       write (*,*) 'beta', self%beta_0
     end if
 
+    self%initialised = .true.
 1000 format(5(a10),i2,i4,i4)
 2020 format (5e16.9)
-2022 format (2i5)      
-    
+2022 format (2i5)
   end subroutine efitin
 
-  !> Calculate the following arrays:
-  !! - eqth, which is theta on an R,Z grid
-  !! - dpm, which is (d psi / d R) and (d psi / d Z) on an R,Z grid
-  !! - dtm, which is (d theta / d R) and (d theta / d Z) on an R,Z grid 
-  subroutine efit_init
+  !> FIXME : Add documentation
+  pure subroutine alloc_arrays(self)
     implicit none
-    real, dimension(:, :), allocatable :: eqth 
+    class(eeq_base_type), intent(in out) :: self
+    integer :: nw, nh
+    nw = self%nwb ; nh = self%nhb
+    allocate(self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
+    allocate(self%efit_R(nw), self%efit_Z(nh))
+    allocate(self%efit_psi(nw, nh), self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
+  end subroutine alloc_arrays
+
+  !> FIXME : Add documentation
+  pure subroutine dealloc_arrays(self)
+    implicit none
+    class(eeq_base_type), intent(in out) :: self
+    if (allocated(self%psi_bar)) deallocate(self%psi_bar, self%fp, self%qsf, &
+         self%pressure, self%beta)
+    if (allocated(self%efit_R)) deallocate(self%efit_R, self%efit_Z, self%efit_psi)
+    if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
+    if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
+  end subroutine dealloc_arrays
+
+  !> FIXME : Add documentation
+  subroutine efit_finish(self)
+    implicit none
+    class(eeq_base_type), intent(in out) :: self
+    self%initialised = .false.
+    call self%dealloc_arrays
+  end subroutine efit_finish
+
+  !> Calculate the following arrays:
+  !> - eqth, which is theta on an R,Z grid
+  !> - dpm, which is (d psi / d R) and (d psi / d Z) on an R,Z grid
+  !> - dtm, which is (d theta / d R) and (d theta / d Z) on an R,Z grid
+  subroutine efit_init(self)
+    implicit none
+    class(eeq_base_type), intent(in out) :: self
+    real, dimension(self%nw, self%nh) :: eqth
     integer :: i, j
-
-    allocate(eqth(nw,nh))
-    if (verbosity > 2) write(6,*) "efit_init: do i"     
-    do i = 1, nw
-       do j = 1,nh
-          if(efit_Z(j) == Z_mag .and. efit_R(i) == R_mag) then
-             eqth(i,j) = 0.  ! value should not matter
+    if (verbosity > 2) write(6,*) "efit_init: do i"
+    do i = 1, self%nw
+       do j = 1, self%nh
+          if (self%efit_Z(j) == self%Z_mag .and. self%efit_R(i) == self%R_mag) then
+             eqth(i, j) = 0.  ! value should not matter
           else
-             eqth(i,j) = atan2( (efit_Z(j)-Z_mag), (efit_R(i)-R_mag))
-          endif
-       enddo
-    enddo
+             eqth(i, j) = atan2( (self%efit_Z(j) - self%Z_mag), &
+                  (self%efit_R(i) - self%R_mag))
+          end if
+       end do
+    end do
 
-    if (verbosity > 2) write(6,*) "efit_init: derm"     
     ! dpm(:,:,1) is d psi / d R
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
-    call derm(efit_psi, dpm)
-    if (verbosity > 2) write(6,*) "efit_init: tderm"     
-    call tderm(eqth, dtm)
-    if (verbosity > 2) write(6,*) "efit_init: finished"     
-    deallocate(eqth)
-    
+    if (verbosity > 2) write(6,*) "efit_init: derm"
+    call self%derm(self%efit_psi, self%dpm, 'E')
+    if (verbosity > 2) write(6,*) "efit_init: tderm"
+    call self%derm(eqth, self%dtm, 'T')
+    if (verbosity > 2) write(6,*) "efit_init: finished"
   end subroutine efit_init
 
-  !> FIXME : Add documentation
-  subroutine tderm(f, dfm)
-    use constants, only: pi
+  subroutine setup_splines(self)
+    use splines, only: new_spline, new_periodic_spline
+    use constants, only: twopi
     implicit none
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    integer :: i, j
-    
-! EFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-! is therefore not completely general.  It is fine for EFIT output.    
+    class(eeq_base_type), intent(in out) :: self
+    call new_spline(self%nw, self%psi_bar, self%fp, self%btori_spl)
+    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
+         self%rbound_spl, drop_last_point = .true.)
+  end subroutine setup_splines
 
-    if (verbosity > 2) write(6,*) "efit: tderm: R boundary"     
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/efit_dR
-    
-    i=nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))/efit_dR
-   
-    if (verbosity > 2) write(6,*) "efit: tderm: Z boundary"     
-    j=1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))/efit_dZ
-    
-    j=nh      
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))/efit_dZ
-    
-    if (verbosity > 2) write(6,*) "efit: tderm: R derivative"     
-    do i=2,nw-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))/efit_dR
-    enddo
-    
-    if (verbosity > 2) write(6,*) "efit: tderm: Z derivative"     
-    do j=2,nh-1
-       if (verbosity > 4) write(6,*) "efit: tderm: Z derivative, j = ", j,&
-            "/", nh-1 
-       do i = 1,nw
-          if(f(i,j+1)-f(i,j-1) > pi) then
-             dfm(i,j,2)=0.5*(f(i,j+1)-f(i,j-1)-2.*pi)/efit_dZ
-          else
-             dfm(i,j,2)=0.5*(f(i,j+1)-f(i,j-1))/efit_dZ
-          endif
-       enddo
-    enddo
-    if (verbosity > 2) write(6,*) "efit: tderm: Z derivative done"     
-  end subroutine tderm
+  subroutine delete_splines(self)
+    use splines, only: delete_spline, delete_periodic_spline
+    implicit none
+    class(eeq_base_type), intent(in out) :: self
+    call delete_spline(self%btori_spl)
+    call delete_spline(self%qsf_spl)
+    call delete_spline(self%pressure_spl)
+    call delete_spline(self%beta_spl)
+    call delete_periodic_spline(self%rbound_spl)
+  end subroutine delete_splines
 
   !> Calculate the derivative of f w.r.t. R, Z
-  !! - dfm(:,:,1) is deriv w.r.t. R
-  !! - def(:,:,2) is deriv w.r.t. Z
-  subroutine derm(f, dfm)
+  !> - dfm(:,:,1) is deriv w.r.t. R
+  !> - def(:,:,2) is deriv w.r.t. Z
+  pure subroutine derm(self, f, dfm, char)
+    use constants, only: pi
     implicit none
+    class(eeq_base_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
-    integer :: i, j
-    
-! EFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-! is therefore not completely general.  It is fine for EFIT output.    
+    character(1), intent(in) :: char
+    integer :: i, j, nw, nh
+    nw = self%nw ; nh = self%nh
 
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/efit_dR
-    
-    i=nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))/efit_dR
-   
-    j=1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))/efit_dZ
-    
-    j=nh      
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))/efit_dZ
-    
-    do i=2,nw-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))/efit_dR
-    enddo
-    
-    do j=2,nh-1
-       dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))/efit_dZ
-    enddo
-    
+    ! EFIT grid is equally spaced in R, Z -- this routine uses that fact and
+    ! is therefore not completely general.  It is fine for EFIT output.
+    i = 1
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%efit_dR
+
+    i = nw
+    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%efit_dR
+
+    j = 1
+    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%efit_dZ
+
+    j = nh
+    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%efit_dZ
+
+    do i = 2, nw-1
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%efit_dR
+    end do
+
+    select case (char)
+    case ('T')
+       do j = 2, nh-1
+          do i = 1, nw
+             if(f(i,j+1)-f(i,j-1) > pi) then
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%efit_dZ
+             else
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%efit_dZ
+             end if
+          end do
+       end do
+    case('P')
+       do j = 2, nh-1
+          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%efit_dZ
+       end do
+    end select
   end subroutine derm
 
   !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z. Parameters
-  !! are: 
-  !! - rgrid: distance to mag axis as a fn of theta
-  !! - theta: grid of theta
-  !! - grad(:,1): deriv w.r.t. R as fn of theta
-  !! - grad(:,2): deriv w.r.t  Z as fn of theta
-  !! - char: if char = 'R', return the gradient of pressure instead
-  !! - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !! - nth: number of theta points
-  !! - ntm: lower index of theta array is -ntm
-  subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
+  !> are:
+  !> - rgrid: distance to mag axis as a fn of theta
+  !> - theta: grid of theta
+  !> - grad(:,1): deriv w.r.t. R as fn of theta
+  !> - grad(:,2): deriv w.r.t  Z as fn of theta
+  !> - char: if char = 'R', return the gradient of pressure instead
+  !> - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
+  !> - nth: number of theta points
+  !> - ntm: lower index of theta array is -ntm
+  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_d_cspl
     implicit none
-    integer, intent(in) :: nth, ntm
+    class(eeq_base_type), intent(in) :: self
+    integer, intent(in) :: nth_used, ntm
     character(len=1), intent(in) ::  char
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
     integer :: i
-    
+
     grad = 0.
-    do i=-nth, nth
-       call eqitem(rgrid(i), theta(i), dpm(:,:,1), grad(i,1))
-       call eqitem(rgrid(i), theta(i), dpm(:,:,2), grad(i,2))
-    enddo
+    do i = -nth_used, nth_used
+       call self%eqitem(rgrid(i), theta(i), self%dpm(:,:,1), grad(i,1), 'R')
+       call self%eqitem(rgrid(i), theta(i), self%dpm(:,:,2), grad(i,2), 'Z')
+    end do
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    if (char == 'R') then
        rpt(1) = rp
        ! This returns d (pressure/pressure(1)) / d psibar
        ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
        ! multiply by beta_0 to get d (pressure) / d (psi)
        ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(nw, psi_bar, pressure, 1, rpt, aa, daa)
-       grad = grad*daa(1)*0.5* beta_0/psi_N
-    endif
-
+       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
+       grad = grad*daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
+    end if
   end subroutine gradient
 
   !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z and return
-  !! the modulus sqrt(dpsi/dR ^ 2 + dpsi/dZ^2). I.e. return |grad psi|.
-  !! Parameters are: 
-  !! - rgrid: distance to mag axis as a fn of theta
-  !! - theta: grid of theta
-  !! - grad(:,1): |grad psi|
-  !! - grad(:,2): 0.0
-  !! - char: if char = 'R', return |grad pressure| instead
-  !! - char: if char = 'T', then return theta gradient in bishop form
-  !!  - grad(:,1): (dtheta/dZ d psi/dR - dtheta/dR dpsi/dZ)/ |grad psi|
-  !!  - grad(:,2): (dtheta/dR d psi/dR + dtheta/dZ dpsi/dZ)/ |grad psi|
-  !! - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !! - nth: number of theta points
-  !! - ntm: lower index of theta array is -ntm
-  subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
+  !> the modulus sqrt(dpsi/dR ^ 2 + dpsi/dZ^2). I.e. return |grad psi|.
+  !> Parameters are:
+  !> - rgrid: distance to mag axis as a fn of theta
+  !> - theta: grid of theta
+  !> - grad(:,1): |grad psi|
+  !> - grad(:,2): 0.0
+  !> - char: if char = 'R', return |grad pressure| instead
+  !> - char: if char = 'T', then return theta gradient in bishop form
+  !>  - grad(:,1): (dtheta/dZ d psi/dR - dtheta/dR dpsi/dZ)/ |grad psi|
+  !>  - grad(:,2): (dtheta/dR d psi/dR + dtheta/dZ dpsi/dZ)/ |grad psi|
+  !> - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
+  !> - nth: number of theta points
+  !> - ntm: lower index of theta array is -ntm
+  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_d_cspl
     implicit none
-    
+    class(eeq_base_type), intent(in) :: self
     integer, intent(in) :: nth_used, ntm
     character(len=1), intent(in) :: char
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: tmp(2), aa(1), daa(1), rpt(1)
-    real, dimension(:, :, :), allocatable ::  dbish
+    real, dimension(self%nw, self%nh, 2) ::  dbish
     integer :: i
-
-
-    allocate(dbish(nw, nh, 2)) 
- 
-    dbish(:,:,1) = sqrt(dpm(:,:,1)**2 + dpm(:,:,2)**2)
+    ! Other eq types precalculates this in the init stage, e.g. calling eqdcart etc.
+    dbish(:,:,1) = sqrt(self%dpm(:,:,1)**2 + self%dpm(:,:,2)**2)
     dbish(:,:,2) = 0.
-    
-    if(char == 'T') then  ! the order of the next two statements matters
-       dbish(:,:,2) = (dtm(:,:,2)*dpm(:,:,1)-dtm(:,:,1)*dpm(:,:,2))/dbish(:,:,1)
-       dbish(:,:,1) = (dtm(:,:,1)*dpm(:,:,1)+dtm(:,:,2)*dpm(:,:,2))/dbish(:,:,1)
-    endif
 
-    do i=-nth_used,-1
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), tmp(1))
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), tmp(2))
-       grad(i,1) = tmp(1)
-       grad(i,2) = tmp(2)
-    enddo
+    if (char == 'T') then  ! the order of the next two statements matters
+       dbish(:,:,2) = (self%dtm(:,:,2) * self%dpm(:,:,1) - &
+            self%dtm(:,:,1) * self%dpm(:,:,2)) / dbish(:,:,1)
+       dbish(:,:,1) = (self%dtm(:,:,1) * self%dpm(:,:,1) + &
+            self%dtm(:,:,2) * self%dpm(:,:,2)) / dbish(:,:,1)
+    end if
 
-    do i=0,nth_used
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), tmp(1))
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
-    enddo
+    do i = -nth_used, nth_used
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i, 2), 'Z')
+    end do
 
-!     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    if (char == 'R') then
        rpt(1) = rp
        ! This returns d (pressure/pressure(1)) / d psibar
        ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
        ! multiply by beta_0 to get d (pressure) / d (psi)
        ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(nw, psi_bar, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0/psi_N
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0/psi_N
-       enddo
-    endif
-    deallocate(dbish)
-
+       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad = grad*daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
+       end do
+    end if
   end subroutine bgradient
 
   !> fstar is f(R,Z) interpolated at the values (r,thetain). The parameter
-  !! r is the distance to the magnetic axis.
-  subroutine eqitem(r, thetin, f, fstar)
+  !> r is the distance to the magnetic axis.
+  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
     use mp, only: mp_abort
     implicit none
-    real, intent (in) :: r, thetin, f(:,:)
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: r_in, theta_in
+    real, dimension(:, :), intent(in) :: f
     real, intent (out) :: fstar
+    character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr
+    real :: st, dt, sr, dr, r
     real :: r_pos, z_pos
-    
-    r_pos = Rpos(r, thetin)
-    z_pos = Zpos(r, thetin)
+    !Copy input r to avoid any modification
+    r = r_in
+
+    r_pos = self%Rpos(r, theta_in)
+    z_pos = self%Zpos(r, theta_in)
 
 ! find point on R mesh
 
-    if(r_pos >= efit_R(nw) .or. r_pos <= efit_R(1)) then
+    if (r_pos >= self%efit_R(self%nw) .or. r_pos <= self%efit_R(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'
-       write(*,*) r, thetin, efit_R(nw), r_pos
+       write(*,*) r, theta_in, self%efit_R(self%nw), r_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
-    endif
+    end if
 
-! ensure point is on Z mesh
-
-    if(z_pos >= efit_Z(nh) .or. z_pos <= efit_Z(1)) then
+    ! ensure point is on Z mesh
+    if (z_pos >= self%efit_Z(self%nh) .or. z_pos <= self%efit_Z(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of Z domain'
-       write(*,*) r, thetin, efit_Z(1), efit_Z(nh), z_pos
+       write(*,*) r, theta_in, self%efit_Z(1), self%efit_Z(self%nh), z_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
-    endif
-    
-    istar=0
-    do i=2,nw
-       if(istar /= 0) cycle
-       if(r_pos < efit_R(i)) then
-          dr = r_pos - efit_R(i-1)
-          sr = efit_R(i) - r_pos
-          istar=i-1
-       endif
-    enddo
-      
-! Now do Z direction
+    end if
 
-    jstar=0
-    do j=1,nh
-       if(jstar /= 0) cycle
-       if(z_pos < efit_Z(j)) then
-          dt = z_pos - efit_Z(j-1)
-          st = efit_Z(j) - z_pos
-          jstar=j-1
-       endif
-    enddo
-      
-! use opposite area stencil to interpolate
+    istar = 0
+    do i = 2, self%nw
+       if (istar /= 0) cycle
+       if (r_pos < self%efit_R(i)) then
+          dr = r_pos - self%efit_R(i-1)
+          sr = self%efit_R(i) - r_pos
+          istar = i-1
+       end if
+    end do
 
+    ! Now do Z direction
+    jstar = 0
+    do j = 1, self%nh
+       if (jstar /= 0) cycle
+       if (z_pos < self%efit_Z(j)) then
+          dt = z_pos - self%efit_Z(j-1)
+          st = self%efit_Z(j) - z_pos
+          jstar = j-1
+       end if
+    end do
+
+    ! use opposite area stencil to interpolate
     fstar=f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar &
-         /abs(efit_R(istar+1)-efit_R(istar)) &
-         /(efit_Z(jstar+1)-efit_Z(jstar))
-!     write(*,*) i, dr, dt, sr, st
-!     write(*,*) f(istar,jstar+1),f(istar+1,jstar+1)
-!     write(*,*) f(istar,jstar),f(istar+1,jstar)
-!     write(*,*) efit_R(istar),efit_R(istar+1)
-!     write(*,*) efit_Z(jstar),efit_Z(jstar+1)
-
+    fstar = fstar / (abs(self%efit_R(istar+1)-self%efit_R(istar)) * &
+         (self%efit_Z(jstar+1)-self%efit_Z(jstar)))
   end subroutine eqitem
 
-  !> FIXME : Add documentation  
-  function Zpos (r, theta)
+  !> FIXME : Add documentation
+  real function invR (self, r, theta)
     implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: Zpos
-    
-    Zpos = Z_mag + r * sin(theta)
-  end function Zpos
-
-  !> FIXME : Add documentation  
-  function Rpos (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: Rpos
-
-    Rpos = R_mag + r * cos(theta)
-  end function Rpos
-
-  !> FIXME : Add documentation  
-  function invR (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: invR
-
-    invR = 1/(R_mag + r*cos(theta))
+    invR = 1. / self%Rpos(r, theta)
   end function invR
 
-  !> FIXME : Add documentation  
-  function initialize_psi (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_psi
-    
-    init_psi = .false.
-    if(init == 1) init_psi = .true.
-    initialize_psi = 1
-  end function initialize_psi
-
-  !> FIXME : Add documentation  
-  function psi (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: f, psi
-
-    call eqitem(r, theta, efit_psi, f)
-    psi = f
-  end function psi
-   
   !> FIXME : Add documentation
-  function initialize_btori (init)
+  real function Rpos (self, r, theta)
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_btori
-    
-    init_btori = .false.
-    if(init == 1) init_btori = .true.
-    initialize_btori = 1
-  end function initialize_btori
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    Rpos = self%R_mag + r * cos(theta)
+  end function Rpos
 
-  !> FIXME : Add documentation  
-  function btori (pbar)
-    use splines, only: new_spline, splint, spline
+  !> FIXME : Add documentation
+  real function Zpos (self, r, theta)
     implicit none
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    Zpos = self%Z_mag + r * sin(theta)
+  end function Zpos
+
+  !> FIXME : Add documentation
+  real function psi (self, r, theta)
+    implicit none
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    call self%eqitem(r, theta, self%efit_psi, psi, '?')
+  end function psi
+
+  !> FIXME : Add documentation   | Not implemented
+  real function diameter (self, rp)
+    implicit none
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: rp
+    diameter = -1
+  end function diameter
+
+  !> FIXME : Add documentation   | Not implemented
+  real function rcenter (self, rp)
+    implicit none
+    class(eeq_base_type), intent(in) :: self
+    real, intent (in) :: rp
+    rcenter = -1
+  end function rcenter
+
+  !> FIXME : Add documentation
+  real function btori (self, pbar)
+    use splines, only: splint
+    implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: btori
-    type (spline), save :: spl
-
-    if(init_btori) call new_spline(nw, psi_bar, fp, spl)
-
-    btori = splint(pbar, spl)
+    btori = splint(pbar, self%btori_spl)
   end function btori
 
-  !> FIXME : Add documentation  
-  function initialize_dbtori (init)
+  !> FIXME : Add documentation
+  real function dbtori (self, pbar)
+    use splines, only: dsplint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dbtori
-    
-    init_dbtori = .false.
-    if(init == 1) init_dbtori = .true.
-    initialize_dbtori = 1
-  end function initialize_dbtori
-
-  !> FIXME : Add documentation  
-  function dbtori (pbar)
-    use splines, only: new_spline, dsplint, spline
-    implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: dbtori
-    type (spline), save :: spl
-
-    if(init_dbtori) call new_spline(nw, psi_bar, fp, spl)
-
-    dbtori = dsplint(pbar, spl)/psi_N
+    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a - self%psi_0)
   end function dbtori
 
-  !> FIXME : Add documentation  
-  function initialize_q (init)
+  !> FIXME : Add documentation
+  real function qfun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_q
-    
-    init_q = .false.
-    if(init == 1) init_q = .true.
-    initialize_q = 1
-  end function initialize_q
-
-  !> FIXME : Add documentation  
-  function qfun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: qfun
-    type (spline), save :: spl
-
-    if(init_q) then
-       call new_spline(nw, psi_bar, qsf, spl)
-    endif
-
-    qfun = splint(pbar, spl)
+    qfun = splint(pbar, self%qsf_spl)
   end function qfun
 
-  !> FIXME : Add documentation  
-  function initialize_pressure (init)
+  !> FIXME : Add documentation
+  real function pfun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_pressure
-    
-    init_pressure = .false.
-    if(init == 1) init_pressure = .true.
-    initialize_pressure = 1
-  end function initialize_pressure
-
-  !> FIXME : Add documentation  
-  function pfun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: pfun
-    type (spline), save :: spl
-
-    if(init_pressure) call new_spline(nw, psi_bar, pressure, spl)
-
-    pfun = splint(pbar, spl) * beta_0/2.
+    pfun = 0.5 * self%beta_0 * splint(pbar, self%pressure_spl)
   end function pfun
 
-  !> FIXME : Add documentation  
-  function initialize_dpressure (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dpressure
-    
-    init_dpressure = .false.
-    if(init == 1) init_dpressure = .true.
-    initialize_dpressure = 1
-  end function initialize_dpressure
-
-  !> FIXME : Add documentation  
-  function dpfun (pbar)
-    use splines, only: new_spline, dsplint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: dpfun
-    type (spline), save :: spl
-
-    if(init_dpressure) call new_spline(nw, psi_bar, pressure, spl)
-
-    dpfun = dsplint(pbar, spl)/psi_N * beta_0/2.
-  end function dpfun
-  
   !> FIXME : Add documentation
-  function initialize_beta (init)
+  real function dpfun (self, pbar)
+    use splines, only: dsplint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_beta
-    
-    init_beta = .false.
-    if(init == 1) init_beta = .true.
-    initialize_beta = 1
-  end function initialize_beta
-
-  !> FIXME : Add documentation  
-  function betafun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: pbar
-    real :: betafun
-    type (spline), save :: spl
+    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl)
+  end function dpfun
 
-    if(init_beta) call new_spline(nw, psi_bar, beta, spl)
-
-    betafun = splint(pbar, spl)
-  end function betafun
-
-  !> FIXME : Add documentation  
-  function initialize_bound (init)
+  !> FIXME : Add documentation
+  real function betafun (self, pbar)
+    use splines, only: splint
     implicit none
-    integer, intent(in) :: init
-    integer :: initialize_bound
-    
-    init_bound = .false.
-    if(init == 1) init_bound = .true.
-    initialize_bound = 1
-  end function initialize_bound
+    class(eeq_base_type), intent(in) :: self
+    real, intent(in) :: pbar
+    betafun = splint(pbar, self%beta_spl)
+  end function betafun
 
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.
-  function bound(theta) 
+  real function bound(self, theta)
     use splines, only: new_periodic_spline, periodic_splint, periodic_spline
     use constants, only: twopi
     implicit none
+    class(eeq_base_type), intent(in) :: self
     real, intent(in) :: theta
-    real :: bound
-    type (periodic_spline), save :: spl
+    bound = periodic_splint(theta, self%rbound_spl)
+  end function bound
 
-    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
-    init_bound = .false.
-    
-    bound = periodic_splint(theta, spl)
-  end function bound    
-
-  !> FIXME : Add documentation  
-  subroutine alloc_module_arrays(np, nw, nh, nws, nhs, ntime)
-    implicit none
-    integer, intent(in) :: np, nw, nh, nws, nhs
-    integer, intent (in), optional :: ntime
- 
-    allocate(psi_bar(np), fp(np), qsf(np), pressure(np), beta(np))
-    allocate(dummy(nws), efit_R(nw), efit_Z(nh))
-    allocate(spsi_bar(nws), sefit_R(nws), sefit_Z(nhs))
-    allocate(efit_psi(nw, nh), sefit_psi(nws, nhs))
-    allocate(dpm(nw, nh, 2), dtm(nw, nh, 2))
-
-    if (present(ntime)) then
-       allocate (dum2(ntime,nws), dum3(nws, nhs, ntime))
-       allocate (efit_t(ntime))
-    end if
-  end subroutine alloc_module_arrays
-
-  !> FIXME : Add documentation  
-  subroutine dealloc_module_arrays
-    implicit none
-    if(allocated(psi_bar)) deallocate(psi_bar,fp,qsf,pressure,beta)
-    if(allocated(dummy)) deallocate(dummy,efit_R,efit_Z)
-    if(allocated(spsi_bar)) deallocate(spsi_bar,sefit_R,sefit_Z)
-    if(allocated(efit_psi)) deallocate(efit_psi,sefit_psi)
-    if(allocated(dpm)) deallocate(dpm,dtm)
-    if(allocated(dum2)) deallocate(dum2,dum3)
-    if(allocated(efit_t)) deallocate(efit_t)
-    if(allocated(thetab)) deallocate(thetab, r_bound)
-  end subroutine dealloc_module_arrays
-
-  !> FIXME : Add documentation  
-  subroutine efit_finish
-    implicit none
-    call dealloc_module_arrays
-  end subroutine efit_finish
-
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine a_minor(r, z, Z_mag, a)
     use mp, only: mp_abort
     use splines, only: new_spline, splint, delete_spline, spline
@@ -1158,7 +972,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     real, dimension(nz) :: rtmp, ztmp
     integer i, j, i1, n
     type (spline) :: spl
-!CMR, 28/10/08: add code to avoid duplicate points in 5 point spline 
+!CMR, 28/10/08: add code to avoid duplicate points in 5 point spline
 !               to determine r2 on inboard mid-plane
     integer :: k
     logical, parameter :: debug=.false.
@@ -1200,9 +1014,9 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     if (debug) write(6,fmt='("rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("ztmp=",5f8.4)') ztmp
     if (debug) write(6,fmt='("Z_mag=",f8.4)') Z_mag
-    
+
     call new_spline(nz, ztmp, rtmp, spl)
-    r1 = splint(Z_mag, spl)    
+    r1 = splint(Z_mag, spl)
     call delete_spline(spl)
 
 ! find point near magnetic axis elevation on low field side
@@ -1210,7 +1024,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
     ! Initialise i1 to some invalid value so we can check if an appropriate
     ! point is not found.
     i1 = invalidPoint
-    
+
     ! Note there appears to be an assumption here about the order
     ! of z which may not be true
     do i = nz, n
@@ -1224,8 +1038,8 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
        write(*, '("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")')
        call mp_abort("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")
     endif
-    
-!CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline 
+
+!CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
 !               to determine r2 on inboard mid-plane
     do i = 1, nz
        index = i1 - half_nz + i - 1 + k
@@ -1264,7 +1078,7 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
   !> FIXME : Add documentation
   subroutine sort(a, b, c, d)
     !Can we use something from the sorting module?
-    implicit none    
+    implicit none
     real, dimension(:), intent(in out) :: a, b, c, d
     real :: tmp
     integer :: i, jmax
@@ -1272,11 +1086,11 @@ if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", B_T0, aminor, psi_0
 
     jmax = size(a)
 
-    do 
+    do
        sorted = .true.
        do i=1,jmax-1
           if(a(i+1) < a(i)) then
-             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp             
+             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp
              tmp=b(i); b(i)=b(i+1); b(i+1)=tmp
              tmp=c(i); c(i)=c(i+1); c(i+1)=tmp
              tmp=d(i); d(i)=d(i+1); d(i+1)=tmp
