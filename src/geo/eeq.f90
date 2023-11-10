@@ -602,7 +602,7 @@ contains
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
     if (verbosity > 2) write(6,*) "efit_init: derm"
-    call self%derm(self%efit_psi, self%dpm, 'E')
+    call self%derm(self%efit_psi, self%dpm, 'P')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(eqth, self%dtm, 'T')
     if (verbosity > 2) write(6,*) "efit_init: finished"
