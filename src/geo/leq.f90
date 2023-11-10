@@ -877,13 +877,14 @@ contains
 
   !> Not used
   subroutine leqin_alt_init_null(self, eqfile, psi_0_out, psi_a_out, rmaj, &
-       B_T0, avgrmid, initeq, nthg)
+       B_T0, avgrmid, initeq, nthg, big_in)
     use mp, only: mp_abort
     class(leq_type), intent(in out) :: self
     character(len = EQFILE_LENGTH), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
     call mp_abort("ERROR: Eqfile based initialisation not implemented for local_eq", .true.)
   end subroutine leqin_alt_init_null
 

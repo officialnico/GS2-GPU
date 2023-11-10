@@ -75,7 +75,8 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
-  subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg)
+  subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
+       big_in)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
@@ -84,6 +85,7 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
     real :: d, R_geo
     integer :: istatus
     integer :: ncid, id, i, j
@@ -279,7 +281,8 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
-  subroutine teqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg)
+  subroutine teqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
+       big_in)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
@@ -288,6 +291,7 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
     real :: R_geo
     integer :: istatus
     integer :: ncid, id, i, j

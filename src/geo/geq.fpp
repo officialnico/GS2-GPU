@@ -67,13 +67,14 @@ contains
   !! containing the axisymmetric magnetic field geometry in flux
   !! coordinates
   subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg)
+       avgrmid, initeq, nthg, big_in)
     implicit none
     class(geq_type), intent(in out) :: self
     character (len = EQFILE_LENGTH), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
     integer :: istatus
     integer :: ncid, id
     !

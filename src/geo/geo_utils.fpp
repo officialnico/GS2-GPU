@@ -144,13 +144,14 @@ module geo_utils
      end subroutine eqitem_interface
 
      subroutine initialise_eqfile_interface(self, eqfile, psi_0_out, psi_a_out, rmaj, &
-          B_T0, avgrmid, initeq, nthg)
+          B_T0, avgrmid, initeq, nthg, big_in)
        import
        class(abstract_geo_type), intent(in out) :: self
        character(len = EQFILE_LENGTH), intent(in) :: eqfile
        real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
        integer, intent(in) :: initeq
        integer, intent(out) :: nthg
+       integer, intent(in), optional :: big_in
      end subroutine initialise_eqfile_interface
 
      subroutine initialise_analytic_interface(self, geoType, Rmaj, Rgeo, r, dr, aSurf, &

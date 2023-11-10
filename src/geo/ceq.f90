@@ -74,7 +74,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine ceqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg)
+       avgrmid, initeq, nthg, big_in)
     use read_chease, only: read_infile
     implicit none
     class(ceq_type), intent(in out) :: self
@@ -82,6 +82,7 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
+    integer, intent(in), optional :: big_in
     real :: f_N, psi_N
 
     ! Exit early if already initialised
