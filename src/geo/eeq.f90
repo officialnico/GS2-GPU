@@ -951,7 +951,7 @@ contains
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.
   real function bound(self, theta)
-    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+    use splines, only: periodic_splint
     use constants, only: twopi
     implicit none
     class(eeq_base_type), intent(in) :: self
