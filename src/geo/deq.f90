@@ -50,6 +50,7 @@ module deq
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: bound => bound
+     procedure :: rhofun => rhofun
      procedure, private :: derm => derm
      procedure, private :: eqitem => eqitem
      !procedure, private :: eqdcart => eqdcart
