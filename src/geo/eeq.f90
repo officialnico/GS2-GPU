@@ -575,6 +575,7 @@ contains
     class(eeq_base_type), intent(in out) :: self
     self%initialised = .false.
     call self%dealloc_arrays
+    call self%delete_splines
   end subroutine efit_finish
 
   !> Calculate the following arrays:
