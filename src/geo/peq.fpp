@@ -562,7 +562,7 @@ contains
     call self%eqdbish(self%dtcart, self%dtbish)
   end subroutine peq_init
 
-    subroutine setup_splines(self)
+  subroutine setup_splines(self)
     use splines, only: new_spline
     implicit none
     class(peq_base_type), intent(in out) :: self
@@ -829,7 +829,6 @@ contains
     ! Now do theta direction
     thet = mod2pi(theta_in)
 
-
     ! assume up-down symmetry
     if (.not. self%transp) then
        tp = abs(thet)
@@ -860,7 +859,6 @@ contains
        end if
 
        ! use opposite area stencil to interpolate
-
        fstar=f(istar    , jstar    ) * sr * st &
             +f(istar + 1, jstar    ) * dr * st &
             +f(istar    , jstar + 1) * sr * dt &
@@ -1039,7 +1037,7 @@ contains
     class(peq_base_type), intent(in) :: self
     real, intent(in) :: pbar
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    dpfun = dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0) * self%beta_0/2.
+    dpfun =  0.5 * self%beta_0 *dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0)
   end function dpfun
 
   !> FIXME : Add documentation
