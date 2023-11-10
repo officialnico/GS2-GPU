@@ -116,6 +116,7 @@ module leq
      procedure :: initialise_analytic => leqin
      procedure :: initialise_eqfile => leqin_alt_init_null
      procedure :: calculate_gradients => leq_init
+     procedure :: finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
@@ -284,6 +285,12 @@ contains
     ! grad(theta) in Bishop form
     call self%eqdbish(self%dtcart, self%dtbish)
   end subroutine leq_init
+
+  !> Finish the leq setup
+  subroutine leq_finish_setup(self)
+    class(leq_type), intent(in out) :: self
+    call self%calculate_gradients
+  end subroutine leq_finish_setup
 
   !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
   !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.

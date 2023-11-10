@@ -15,6 +15,8 @@ module geo_utils
      generic :: initialise => initialise_eqfile, initialise_analytic
      procedure(initialise_eqfile_interface), deferred :: initialise_eqfile
      procedure(initialise_analytic_interface), deferred :: initialise_analytic
+     procedure(calculate_gradients_interface), deferred, private :: calculate_gradients
+     procedure(finish_setup_interface), deferred :: finish_setup
      procedure(rpos_interface), deferred :: rpos
      procedure(zpos_interface), deferred :: zpos
      procedure(invr_interface), deferred :: invr
@@ -35,6 +37,9 @@ module geo_utils
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
    contains
      procedure :: initialise_analytic => initialise_analytic_null
+     procedure :: finish_setup => finish_setup_eqfile
+     procedure(setup_splines_interface), deferred :: setup_splines
+     procedure(delete_splines_interface), deferred :: delete_splines
   end type abstract_eqfile_geo_type
 
   ! Define the procedure interfaces. Note we _could_ reuse
@@ -165,6 +170,28 @@ module geo_utils
        integer, intent(in) :: nt_used, geoType, mMode, nMode
      end subroutine initialise_analytic_interface
 
+     subroutine calculate_gradients_interface(self)
+       import
+       class(abstract_geo_type), intent(in out) :: self
+     end subroutine calculate_gradients_interface
+
+     subroutine finish_setup_interface(self)
+       import
+       class(abstract_geo_type), intent(in out) :: self
+     end subroutine finish_setup_interface
+
+     ! Additional interfaces for eqfile variant
+
+     subroutine setup_splines_interface(self)
+       import
+       class(abstract_eqfile_geo_type), intent(in out) :: self
+     end subroutine setup_splines_interface
+
+     subroutine delete_splines_interface(self)
+       import
+       class(abstract_eqfile_geo_type), intent(in out) :: self
+     end subroutine delete_splines_interface
+
   end interface
 
 contains
@@ -179,6 +206,12 @@ contains
     integer, intent(in) :: nt_used, geoType, mMode, nMode
     write(*,*) 'Not implemented'
   end subroutine initialise_analytic_null
+
+  subroutine finish_setup_eqfile(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+    call self%calculate_gradients
+    call self%setup_splines
+  end subroutine finish_setup_eqfile
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)
