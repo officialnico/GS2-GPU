@@ -578,7 +578,7 @@ contains
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: rp
-    rcenter = -1
+    rcenter = self%R_mag !Historic fallback
   end function rcenter
 
   !> FIXME : Add documentation | Always zero here?
