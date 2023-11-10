@@ -24,7 +24,7 @@ module geq
      real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
      character(len = EQFILE_LENGTH) :: filename
      integer :: nr, nt
-     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: psi_0, psi_a, B_T, beta_0
      real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
@@ -75,6 +75,7 @@ contains
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
     integer, intent(in), optional :: big_in
+    real :: I_0
     integer :: istatus
     integer :: ncid, id
     !
@@ -143,7 +144,7 @@ contains
 
     istatus = nf90_inq_varid (ncid, 'I_0', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='I_0')
-    istatus = nf90_get_var (ncid, id, self%I_0)
+    istatus = nf90_get_var (ncid, id, I_0)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     !     netcdf read scalars: R_mag,Z_mag,aminor

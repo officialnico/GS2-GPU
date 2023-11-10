@@ -19,7 +19,7 @@ module deq
      type(spline) :: rho_spl
      character(len = EQFILE_LENGTH) :: filename
      integer :: nr, nt
-     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: psi_0, psi_a, B_T, beta_0
      real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc

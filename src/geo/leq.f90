@@ -105,7 +105,7 @@ module leq
      type(flux_surface) :: surf
      ! Regular variables
      integer :: nr, nt
-     real :: psi_0, psi_a, B_T, I_0, beta_0
+     real :: psi_0, psi_a, B_T, beta_0
      real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: eqpsi, pressure
      real, allocatable, dimension (:,:)   :: R_psi, Z_psi
