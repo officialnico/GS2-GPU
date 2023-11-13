@@ -996,7 +996,7 @@ contains
          inputs%surf%deln = deltan ; inputs%surf%delmp = deltampri
          inputs%surf%delnp = deltanpri ; inputs%surf%thm = thetam
          inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
-         inputs%surf%nt = nth ; inputs%thShift = thetaShift
+         inputs%surf%nt = ntheta_input / 2 ; inputs%thShift = thetaShift
       case (1)
          if (big <= 0 ) then
             if (dfit_eq) then

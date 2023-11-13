@@ -128,7 +128,7 @@ contains
     B_T0 = -1.0
     avgrmid = 1.0
     rmaj = self%surf%Rmaj
-    nthg = self%nt
+    nthg = self%nt * 2 !Output is equivalent to ntheta_input
     self%initialised = .true.
   end subroutine leqin
 
