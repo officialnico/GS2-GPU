@@ -1024,6 +1024,10 @@ contains
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(dsdrp)) call alloc_local_arrays(ntgrid)
 
+      ! Calculate grad(psi), grad(BT) and grad(theta) for the
+      ! specific geometry class we're using.
+      call geom%finish_setup
+
       if (debug) writelots=.true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
       if (writelots) then
@@ -1115,11 +1119,6 @@ contains
       !
 
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
-
-      ! Calculate grad(psi), grad(BT) and grad(theta) for the
-      ! specific geometry class we're using. We might want to move this
-      ! earlier to ensure we have access to geometry methods/data immediately
-      call geom%finish_setup
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor)
