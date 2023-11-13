@@ -26,7 +26,7 @@ module geq
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0
      real :: R_mag, Z_mag, aminor
-     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
+     real, allocatable, dimension (:)     :: eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
      real, allocatable, dimension (:,:)   :: R_psi, Z_psi
      real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
@@ -76,19 +76,18 @@ contains
     integer, intent(out) :: nthg
     integer, intent(in), optional :: big_in
     real :: I_0
+    real, dimension(:), allocatable :: rho_d
     integer :: istatus
     integer :: ncid, id
-    !
     ! what is the best way to handle the netcdf single/double problem?
-    !
     real :: f_N, psi_N
 
     !     read the data
 
-    if(initeq == 0) then
+    if (initeq == 0) then
        nthg = self%nt
        return
-    endif
+    end if
 
     self%filename = trim(adjustl(eqfile))
 
@@ -116,6 +115,7 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
     call self%alloc_arrays()
+    allocate(rho_d(self%nr))
 
     !     netcdf read scalars: psi_0,psi_a,B_T,I_0
     !
@@ -189,7 +189,7 @@ contains
 
     istatus = nf90_inq_varid (ncid, 'rho', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='rho')
-    istatus = nf90_get_var (ncid, id, self%rho_d)
+    istatus = nf90_get_var (ncid, id, rho_d)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     istatus = nf90_inq_varid (ncid, 'psi', id)
@@ -287,31 +287,27 @@ contains
     implicit none
     class(geq_type), intent (in out) :: self
     integer :: nr, nt
-    if (.not. allocated(self%rho_d)) then
-       nr = self%nr ; nt = self%nt
-       allocate(self%rho_d(nr), self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%qsf(nr))
-       allocate(self%beta(nr), self%pressure(nr), self%rc(nr), self%diam(nr))
-       allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
-       allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2))
-       allocate(self%dbtm(nr, nt, 2), self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
-       allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dtcart(nr, nt, 2))
-       allocate(self%dbtcart(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
-       allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2))
-    end if
+    nr = self%nr ; nt = self%nt
+    allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%qsf(nr))
+    allocate(self%beta(nr), self%pressure(nr), self%rc(nr), self%diam(nr))
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2))
+    allocate(self%dbtm(nr, nt, 2), self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
+    allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dtcart(nr, nt, 2))
+    allocate(self%dbtcart(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2))
   end subroutine alloc_arrays
 
   !> FIXME : Add documentation
   pure subroutine dealloc_arrays(self)
     implicit none
     class(geq_type), intent(in out) :: self
-    if (allocated(self%rho_d)) deallocate(self%rho_d, self%eqpsi, self%psi_bar, self%fp, &
+    deallocate(self%eqpsi, self%psi_bar, self%fp, &
          self%qsf, self%beta, self%pressure, self%rc, self%diam)
-    if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi, self%B_psi)
-    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbm, self%dbtm, &
-         self%dpm, self%dtm)
-    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dbcart, &
-         self%dtcart, self%dbtcart, self%dtbish, self%dbtbish)
-    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dbbish)
+    deallocate(self%R_psi, self%Z_psi, self%B_psi)
+    deallocate(self%drm, self%dzm, self%dbm, self%dbtm, self%dpm, self%dtm)
+    deallocate(self%dpcart, self%dbcart, self%dtcart, self%dbtcart, self%dtbish)
+    deallocate(self%dpbish, self%dbbish, self%dbtbish)
   end subroutine dealloc_arrays
 
   !> FIXME : Add documentation
@@ -398,8 +394,7 @@ contains
     real, dimension(:,:,:), intent(out) :: dfm
     character(1), intent(in) :: char
     integer :: i, j, nr, nt
-    nr = self%nr
-    nt = self%nt
+    nr = self%nr ; nt = self%nt
 
     i = 1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
@@ -450,7 +445,6 @@ contains
     real, dimension (-ntm:,:), intent (out) :: grad
     real, intent(in) :: rp
     real, dimension(self%nr, self%nt, 2) :: dcart
-    real, dimension (2) :: tmp
     real, dimension (1) :: aa, daa, rpt
     integer :: i
 
@@ -468,22 +462,17 @@ contains
     end select
 
     do i = -nth_used, -1
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), tmp(2), 'Z')
-       if (char == 'T') then
-          grad(i,1) = -tmp(1)
-          grad(i,2) = -tmp(2)
-       else
-          grad(i,1) = tmp(1)
-          grad(i,2) = tmp(2)
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
+       if(char == 'T') then
+          grad(i,1) = -grad(i, 1)
+          grad(i,2) = -grad(i, 2)
        end if
     end do
 
     do i = 0, nth_used
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), tmp(2), 'Z')
-       grad(i,1) = tmp(1)
-       grad(i,2) = tmp(2)
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -491,8 +480,8 @@ contains
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        do i = -nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*self%beta_0
+          grad(i,1)=grad(i,1)*daa(1) * 0.5 * self%beta_0
+          grad(i,2)=grad(i,2)*daa(1) * 0.5 * self%beta_0
        end do
     end if
   end subroutine gradient
@@ -542,8 +531,8 @@ contains
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
+          grad(i,1) = grad(i,1)*daa(1) * 0.5 * self%beta_0
+          grad(i,2) = grad(i,2)*daa(1) * 0.5 * self%beta_0
        end do
     end if
   end subroutine bgradient
@@ -587,7 +576,6 @@ contains
     ! find r on psi mesh
 
     ! disallow evaluations outside the plasma surface for now
-
     if (r == self%eqpsi(self%nr)) then
        rt = 0.9999999999*r
        if (rt > self%eqpsi(self%nr)) rt = 1.0000000001*r
@@ -619,13 +607,11 @@ contains
     if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
 
     ! get thet on theta mesh
-
     do j = 1, self%nt
        mtheta(j) = (j-1) * pi / real(self%nt-1)
     end do
 
     ! note that theta(1)=0 for gen_eq theta
-
     jstar = -1
     do j = 1, self%nt
        if (jstar /= -1) cycle
@@ -644,11 +630,11 @@ contains
     end if
 
     ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    ) * sr * st &
+    fstar = f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) *&
+    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
          (mtheta(jstar+1) - mtheta(jstar)))
   end subroutine eqitem
 
@@ -842,10 +828,10 @@ contains
        rho1=0.5*geom%diameter(rp1)
        rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
-       
+
        s__hat(i) = (geom%qfun(pbar(i+1))-geom%qfun(pbar(i-1)))/(rho2-rho1) &
             * 0.5*(rho1+rho2)/geom%qfun(pbar(i))
-       
+
        pres(i) = geom%pfun(pbar(i))
 
        call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
