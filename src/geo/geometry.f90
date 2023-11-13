@@ -2551,23 +2551,22 @@ contains
   !> axis as a function of theta.
   subroutine rtg(rgrid, rp, theta)
     use mp, only: mp_abort
-    use geo_utils, only: abstract_eqfile_cart_geo_type
     implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
     real, dimension(-ntgrid:), intent (in) :: theta
     integer :: i
-
-    select type(geom)
-    class is(abstract_eqfile_cart_geo_type)
-       do i = -nth, nth
-          rgrid(i) = geom%rfun(rp, theta(i))
-       end do
-    class default
-       call mp_abort('error in rtg.  efit_eq = .false.',.true.)
-    end select
+    do i = -nth, nth
+       rgrid(i) = geom%rfun(rp, theta(i))
+    end do
     call periodic_copy(rgrid, 0.0, nperiod)
   end subroutine rtg
+
+  real function rfun(rp, theta)
+    implicit none
+    real, intent(in) :: rp, theta
+    rfun = geom%rfun(rp, theta)
+  end function rfun
 
   !> FIXME : Add documentation  
   !!
