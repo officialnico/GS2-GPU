@@ -38,7 +38,6 @@ module geq
      procedure :: calculate_gradients => geq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => geq_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -301,15 +300,6 @@ contains
     deallocate(self%dpcart, self%dbcart, self%dtcart, self%dbtcart, self%dtbish)
     deallocate(self%dpbish, self%dbbish, self%dbtbish)
   end subroutine dealloc_arrays
-
-  !> FIXME : Add documentation
-  subroutine geq_finish(self)
-    implicit none
-    class(geq_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-  end subroutine geq_finish
 
   !> FIXME : Add documentation
   subroutine geq_init(self)

@@ -29,7 +29,6 @@ module ideq
      procedure :: calculate_gradients => idfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => idfit_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -263,15 +262,6 @@ contains
     deallocate(self%dpcart, self%dbcart, self%dtcart, self%dbtcart)
     deallocate(self%dpbish, self%dbbish, self%dtbish, self%dbtbish)
   end subroutine dealloc_arrays
-
-  !> FIXME : Add documentation
-  subroutine idfit_finish(self)
-    implicit none
-    class(ideq_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-  end subroutine idfit_finish
 
   !> FIXME : Add documentation
   subroutine idfit_init(self)

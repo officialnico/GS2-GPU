@@ -34,7 +34,6 @@ module deq
      procedure :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => dfit_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -292,15 +291,6 @@ contains
     if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
     if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_arrays
-
-  !> FIXME : Add documentation
-  subroutine dfit_finish(self)
-    implicit none
-    class(deq_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-  end subroutine dfit_finish
 
   !> FIXME : Add documentation
   subroutine dfit_init(self)

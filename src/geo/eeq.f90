@@ -129,7 +129,6 @@ module eeq
      procedure :: calculate_gradients => efit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => efit_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -544,15 +543,6 @@ contains
     if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
     if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_arrays
-
-  !> FIXME : Add documentation
-  subroutine efit_finish(self)
-    implicit none
-    class(eeq_base_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-  end subroutine efit_finish
 
   !> Calculate the following arrays:
   !> - eqth, which is theta on an R,Z grid

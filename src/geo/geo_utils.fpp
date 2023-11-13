@@ -92,10 +92,13 @@ module geo_utils
      procedure(gradient_interface), deferred :: gradient
      procedure(bgradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred, private :: eqitem
+     procedure(alloc_arrays_interface), deferred, private :: alloc_arrays
+     procedure(dealloc_arrays_interface), deferred, private :: dealloc_arrays
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
    contains
+     procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile
      procedure(setup_splines_interface), deferred :: setup_splines
      procedure(delete_splines_interface), deferred :: delete_splines
@@ -207,6 +210,16 @@ module geo_utils
        character(len=1), intent(in) :: char
      end subroutine eqitem_interface
 
+     pure subroutine alloc_arrays_interface(self)
+       import
+       class(abstract_geo_type), intent(in out) :: self
+     end subroutine alloc_arrays_interface
+
+     pure subroutine dealloc_arrays_interface(self)
+       import
+       class(abstract_geo_type), intent(in out) :: self
+     end subroutine dealloc_arrays_interface
+
      subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
           B_T0, avgrmid, nthg)
        import
@@ -246,6 +259,13 @@ module geo_utils
   end interface
 
 contains
+
+  subroutine finalise_eqfile(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+    self%initialised = .false.
+    call self%dealloc_arrays
+    call self%delete_splines
+  end subroutine finalise_eqfile
 
   subroutine finish_setup_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

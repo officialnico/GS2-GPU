@@ -37,7 +37,6 @@ module peq
      procedure :: calculate_gradients => peq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => peq_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -489,15 +488,6 @@ contains
     if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
     if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
   end subroutine dealloc_arrays
-
-  !> FIXME : Add documentation
-  subroutine peq_finish(self)
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-  end subroutine peq_finish
 
   !> FIXME : Add documentation
   subroutine peq_init(self)

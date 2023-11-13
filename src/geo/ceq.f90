@@ -28,7 +28,6 @@ module ceq
      procedure :: calculate_gradients => ceq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: finalise => ceq_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
      procedure :: invr => invr
@@ -74,7 +73,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    use read_chease, only: read_infile
+    use read_chease, only: read_infile, finish
     use geo_utils, only: geo_input_type
     implicit none
     class(ceq_type), intent(in out) :: self
@@ -88,6 +87,7 @@ contains
        !    Read the data
        call read_infile(self%filename)
        call self%set_ceq_from_chease
+       call finish
     end if
     !
     !     Normalize, rename quantities
@@ -237,17 +237,6 @@ contains
     if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
     if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
   end subroutine dealloc_arrays
-
-  !> Finish this module; deallocate arrays
-  subroutine ceq_finish(self)
-    use read_chease, only : finish
-    implicit none
-    class(ceq_type), intent(in out) :: self
-    self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
-    call finish
-  end subroutine ceq_finish
 
   !> Initialise CHEASE equilibrium module
   !>
