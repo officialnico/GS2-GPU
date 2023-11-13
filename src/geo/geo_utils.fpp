@@ -108,8 +108,9 @@ module geo_utils
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
    contains
-     procedure :: rfun => rfun_eqfile_cart
      procedure(bound_interface), deferred :: bound
+     procedure :: rfun
+     procedure :: zbrent
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces. Note we _could_ reuse
@@ -338,7 +339,7 @@ contains
   !> Returns the distance to the magnetic axis
   !> as a function of rp (the normalised poloidal flux variable)
   !> and theta.
-  real function rfun_eqfile_cart(self, r, theta) result(rfun)
+  real function rfun(self, r, theta)
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, intent(in) :: r, theta
@@ -382,103 +383,95 @@ contains
     write(*,*) 'yuk: Did not find bracket of root in rfun'
 100 continue
     xerrsec = 1.e-9
-    rfun = zbrent(rpfun, a, b, rootval, thetroot, xerrsec)
-  contains
-    real function rpfun(r, th)
-      real, intent(in) :: r, th
-      rpfun = self%psi(r, th)
-    end function rpfun
-  end function rfun_eqfile_cart
+    rfun = self%zbrent(a, b, rootval, thetroot, xerrsec)
+  end function rfun
 
   !> FIXME : Add documentation
-  real function zbrent(func, x1, x2, rootval, thetroot, tol)
+  real function zbrent(self, x1, x2, rootval, thetroot, tol)
     use mp, only: mp_abort
     implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, intent (in) :: x1, x2, rootval, thetroot, tol
-    interface
-      real function func(x_, root_)
-        real, intent(in) :: x_, root_
-      end function func
-    end interface
     real, parameter :: eps = 3.e-8, eps1 = 2.e-8
     integer, parameter :: itmax = 100
     real :: a, b, c, fa, fb, fc, d, e, tol1, xm, q, p, r, s
     integer :: iter
 
-    a=x1
-    b=x2
-    c=0.
-    fa=func(a,thetroot)-rootval
-    fb=func(b,thetroot)-rootval
-    if(fb*fa > 0.) then
-! check to see if fa or fb is close to zero already:
-       if(abs(fa) < eps1) then
-          zbrent=a
+    a = x1
+    b = x2
+    c = 0.
+    fa = self%psi(a, thetroot) - rootval
+    fb = self%psi(b, thetroot) - rootval
+    if (fb * fa > 0.) then
+       ! check to see if fa or fb is close to zero already:
+       if (abs(fa) < eps1) then
+          zbrent = a
           return
-       elseif(abs(fb) < eps1) then
-          zbrent=b
+       else if (abs(fb) < eps1) then
+          zbrent = b
           return
-       endif
-       write(*,*) a,b,fa,fb
-       call mp_abort('root must be bracketed for zbrent.',.true.)
-    endif
-    fc=fb
-    do 11 iter=1,itmax
-       if(fb*fc > 0.) then
-          c=a
-          fc=fa
-          d=b-a
-          e=d
-       endif
-       if(abs(fc) < abs(fb)) then
-          a=b
-          b=c
-          c=a
-          fa=fb
-          fb=fc
-          fc=fa
-       endif
-       tol1=2.*eps*abs(b)+0.5*tol
-       xm=.5*(c-b)
-       if(abs(xm) <= tol1 .or. fb == 0.)then
-          zbrent=b
+       end if
+       write(*,*) a, b, fa, fb
+       call mp_abort('root must be bracketed for zbrent.', .true.)
+    end if
+    fc = fb
+
+    do iter = 1, itmax
+       if (fb * fc > 0.) then
+          c = a
+          fc = fa
+          d = b - a
+          e = d
+       end if
+       if (abs(fc) < abs(fb)) then
+          a = b
+          b = c
+          c = a
+          fa = fb
+          fb = fc
+          fc = fa
+       end if
+       tol1 = 2. * eps * abs(b) + 0.5 * tol
+       xm = 0.5 * (c - b)
+       if (abs(xm) <= tol1 .or. fb == 0.) then
+          zbrent = b
           return
-       endif
-       if(abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
-          s=fb/fa
-          if(a == c) then
-             p=2.*xm*s
-             q=1.-s
+       end if
+       if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
+          s = fb / fa
+          if (a == c) then
+             p = 2. * xm * s
+             q = 1. - s
           else
-             q=fa/fc
-             r=fb/fc
-             p=s*(2.*xm*q*(q-r)-(b-a)*(r-1.))
-             q=(q-1.)*(r-1.)*(s-1.)
-          endif
-          if(p > 0.) q=-q
-          p=abs(p)
-          if(2.*p  <  min(3.*xm*q-abs(tol1*q),abs(e*q))) then
-             e=d
-             d=p/q
+             q = fa / fc
+             r = fb / fc
+             p = s * (2. * xm * q * (q - r) - (b - a) * (r - 1.))
+             q = (q - 1.) * (r - 1.) * (s - 1.)
+          end if
+          if (p > 0.) q = -q
+          p = abs(p)
+          if (2. * p  <  min(3. * xm * q - abs(tol1 * q), abs(e * q))) then
+             e = d
+             d = p / q
           else
-             d=xm
-             e=d
-          endif
+             d = xm
+             e = d
+          end if
        else
-          d=xm
-          e=d
-       endif
-       a=b
-       fa=fb
-       if(abs(d)  >  tol1) then
-          b=b+d
+          d = xm
+          e = d
+       end if
+       a = b
+       fa = fb
+       if (abs(d)  >  tol1) then
+          b = b + d
        else
-          b=b+sign(tol1,xm)
-       endif
-       fb=func(b,thetroot)-rootval
-11     continue
-       call mp_abort('zbrent exceeding maximum iterations.',.true.)
-       zbrent=b
+          b = b + sign(tol1, xm)
+       end if
+       fb = self%psi(b, thetroot) - rootval
+    end do
+    call mp_abort('zbrent exceeding maximum iterations.',.true.)
+    zbrent = b
   end function zbrent
 
 end module geo_utils
