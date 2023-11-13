@@ -2364,7 +2364,10 @@ contains
   !> FIXME : Add documentation    
   subroutine finish_geometry
     implicit none
-    call geom%finalise
+    if (allocated(geom)) then
+       call geom%finalise
+       deallocate(geom)
+    end if
   end subroutine finish_geometry
 
   !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
