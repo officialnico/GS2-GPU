@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module deq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_cart_geo_type, mod2pi, EQFILE_LENGTH
   use splines, only: spline, periodic_spline
 
   implicit none
@@ -9,7 +9,7 @@ module deq
 
   public :: deq_type
 
-  type, extends(abstract_eqfile_geo_type) :: deq_type
+  type, extends(abstract_eqfile_cart_geo_type) :: deq_type
      private
      integer :: nw, nh, nwb, nhb, nbbbs, nrho
      real :: dfit_dR, dfit_dZ
@@ -545,12 +545,12 @@ contains
     call self%eqitem(r, theta, self%dfit_psi, psi, '?')
   end function psi
 
-  !> FIXME : Add documentation   | Not implemented
+  !> FIXME : Add documentation
   real function diameter (self, rp)
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: rp
-    diameter = -1
+    diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
   end function diameter
 
   !> FIXME : Add documentation   | Not implemented

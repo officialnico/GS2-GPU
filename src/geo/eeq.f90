@@ -94,7 +94,7 @@ end module gs2d
 !> The normalising field is set to the field on axis; the normalising length
 !> is set to the half-diameter of the LCFS.
 module eeq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_cart_geo_type, mod2pi, EQFILE_LENGTH
   use splines, only: spline, periodic_spline
 
   implicit none
@@ -106,7 +106,7 @@ module eeq
 
   integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 
-  type, abstract, extends(abstract_eqfile_geo_type) :: eeq_base_type
+  type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
      integer :: nw, nh, nwb, nhb, nbbbs
      real :: efit_dR, efit_dZ
@@ -844,20 +844,23 @@ contains
     call self%eqitem(r, theta, self%efit_psi, psi, '?')
   end function psi
 
-  !> FIXME : Add documentation   | Not implemented
+  !> FIXME : Add documentation
   real function diameter (self, rp)
+    use constants, only: pi
     implicit none
     class(eeq_base_type), intent(in) :: self
     real, intent (in) :: rp
-    diameter = -1
+    diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
   end function diameter
 
-  !> FIXME : Add documentation   | Not implemented
+  !> FIXME : Add documentation
   real function rcenter (self, rp)
+    use constants, only: pi
     implicit none
     class(eeq_base_type), intent(in) :: self
     real, intent (in) :: rp
-    rcenter = -1
+    rcenter = self%R_mag + &
+         0.5 * (self%rfun(rp, 0.) - self%rfun(rp, pi))
   end function rcenter
 
   !> FIXME : Add documentation
