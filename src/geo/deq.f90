@@ -9,7 +9,7 @@ module deq
 
   public :: deq_type
 
-  type, abstract, extends(abstract_eqfile_geo_type) :: deq_type
+  type, extends(abstract_eqfile_geo_type) :: deq_type
      private
      integer :: nw, nh, nwb, nhb, nbbbs, nrho
      real :: dfit_dR, dfit_dZ
