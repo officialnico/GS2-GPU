@@ -601,9 +601,9 @@ contains
     implicit none
     class(eeq_base_type), intent(in out) :: self
     call new_spline(self%nw, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    call new_spline(self%nw, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nw, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nw, self%psi_bar, self%beta, self%beta_spl)
     call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
   end subroutine setup_splines

@@ -328,9 +328,9 @@ contains
     implicit none
     class(deq_type), intent(in out) :: self
     call new_spline(self%nw, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    call new_spline(self%nw, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nw, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nw, self%psi_bar, self%beta, self%beta_spl)
     call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
     call new_spline(self%nrho, self%psi_mid, self%rho_mid, self%rho_spl)
