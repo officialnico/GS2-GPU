@@ -249,11 +249,10 @@ program eiktest
      
   call Hahm_Burrell(irho, profile_fac)
 
-  broot=-1.
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
-     bb=beta_a_fun(rfun(rpofrho(rhoc, fort11_unit),0.,broot),0.)
+     bb=beta_a_fun(rfun(rpofrho(rhoc, fort11_unit),0.),0.)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
         write(21,1000) -dbetadrho

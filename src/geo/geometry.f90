@@ -1656,8 +1656,6 @@ contains
   !> Returns the diameter of the surface labelled by rp.
   !> @note This is not defined for dfit_eq = T
   real function diameter(rp)
-    use eeq, only: bound
-    use constants, only: pi
     implicit none
     real, intent(in) :: rp
     integer :: i
@@ -1665,13 +1663,7 @@ contains
        diameter = 0.
        return
     end if
-    diameter = invalidValue
-    if (efit_eq) then
-       ! Need to implement this _in_ eeq_type/gs2d_type
-       diameter = rfun(rp, 0., bound(0.)) + rfun(rp, pi, bound(pi))
-    else
-       diameter = geom%diameter(rp)
-    end if
+    diameter = geom%diameter(rp)
   end function diameter
 
   !> Calculates the normalised radial coordinate
@@ -2118,18 +2110,10 @@ contains
 
   !> FIXME : Add documentation
   real function rcenter(rp)
-    use eeq, only: bound
-    use constants, only: pi
     implicit none
     real, intent (in) :: rp
     integer :: i
-    rcenter = invalidValue
-    if (efit_eq) then
-       ! Need to migrate this to eeq if possible
-       rcenter = rmaj + 0.5 * (rfun(rp, 0., bound(0.)) - rfun(rp, pi, bound(pi)))
-    else
-       rcenter = geom%rcenter(rp)
-    end if
+    rcenter = geom%rcenter(rp)
   end function rcenter
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
@@ -2567,194 +2551,23 @@ contains
   !> axis as a function of theta.
   subroutine rtg(rgrid, rp, theta)
     use mp, only: mp_abort
-    use eeq, only: ebound => bound
-    use deq, only: dbound => bound
+    use geo_utils, only: abstract_eqfile_cart_geo_type
     implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
     real, dimension(-ntgrid:), intent (in) :: theta
-    real :: broot
     integer :: i
-    
-    if(.not. (efit_eq .or. dfit_eq)) then
-       call mp_abort('error in rtg.  efit_eq = .false.',.true.)
-    endif
 
-    if (efit_eq) then
-       do i=-nth,nth
-          ! The line below calcualates the distance
-          ! of the boundary away from the magnetic axis
-          ! at this value of theta: i.e. the maximum value 
-          ! of rfun.
-          broot=ebound(theta(i))
-          rgrid(i)=rfun(rp, theta(i), broot)
-       enddo
-    else if (dfit_eq) then
-       do i=-nth,nth
-          broot = dbound(theta(i))
-          rgrid(i)=rfun(rp, theta(i), broot)
-       enddo
-    endif
+    select type(geom)
+    class is(abstract_eqfile_cart_geo_type)
+       do i = -nth, nth
+          rgrid(i) = geom%rfun(rp, theta(i))
+       end do
+    class default
+       call mp_abort('error in rtg.  efit_eq = .false.',.true.)
+    end select
     call periodic_copy(rgrid, 0.0, nperiod)
   end subroutine rtg
-
-  !> Returns the distance to the magnetic axis
-  !> as a function of rp (the normalised poloidal flux variable)
-  !> and theta. If broot is set > 0, assumes distance is less
-  !> than or equal to broot: i.e. specifies the outer limit
-  !> of the root finding.
-  !> Only for eeq and deq
-  real function rfun(rp, thet, broot)
-    use eeq, only: ebound => bound
-    use deq, only: dbound => bound
-    implicit none
-    real, intent(in) :: rp, thet
-    real, intent(in) :: broot
-    integer :: i, j, k, imax, jmax, kmax
-    real :: fa, fb, fbroot, bmult, rootval, thetroot
-    real :: a, b, xerrsec, local_broot
-
-    if(.not. (efit_eq .or. dfit_eq)) then
-       rfun = rp
-       return
-    endif
-
-    local_broot = broot
-    thetroot=thet
-    rootval=rp
-    a=0.
-    b=local_broot
-
-    ! Should we do this _before_ we do b=local_broot?
-    if(broot < 0.) then
-       if (efit_eq) local_broot = ebound(thet)
-       if (dfit_eq) local_broot = dbound(thet)
-    endif
-
-    fa    =rpfun(a,thetroot)-rootval
-    fbroot=rpfun(b,thetroot)-rootval
-    fb=fbroot
-    if(fa*fbroot <= 0.) goto 100
-    
-! need to bracket root.  
-
-    bmult=0.01
-    jmax=5
-    kmax=5
-       
-    do k=1,kmax
-       bmult=bmult*2.
-       imax=10
-       do j=1,jmax
-          imax=imax*2
-          do i=1,imax
-             b=local_broot*(1+bmult*float(i)/float(imax))
-             fb=rpfun(b,thetroot)-rootval
-             if(fa*fb <= 0.) goto 100
-          enddo
-          do i=1,imax
-             b=local_broot/(1+bmult*float(i)/float(imax))
-             fb=rpfun(b,thetroot)-rootval
-             if(fa*fb <= 0.) goto 100
-          enddo
-       enddo
-    enddo
-    write(*,*) 'yuk: Did not find bracket of root in rfun'
- 100   continue 
-    xerrsec=1.e-9
-    rfun=zbrent(rpfun, a, b, rootval, thetroot, xerrsec)
-  end function rfun
-
-  !> FIXME : Add documentation    
-  real function zbrent(func, x1, x2, rootval, thetroot, tol)
-    use mp, only: mp_abort
-    implicit none
-    real, intent (in) :: x1, x2, rootval, thetroot, tol
-    interface
-      real function func(x_, root_)
-        real, intent(in) :: x_, root_
-      end function func
-    end interface
-    real, parameter :: eps = 3.e-8, eps1 = 2.e-8
-    integer, parameter :: itmax = 100
-    real :: a, b, c, fa, fb, fc, d, e, tol1, xm, q, p, r, s
-    integer :: iter
-
-    a=x1
-    b=x2
-    c=0.
-    fa=func(a,thetroot)-rootval
-    fb=func(b,thetroot)-rootval
-    if(fb*fa > 0.) then
-! check to see if fa or fb is close to zero already:
-       if(abs(fa) < eps1) then
-          zbrent=a
-          return
-       elseif(abs(fb) < eps1) then
-          zbrent=b
-          return
-       endif
-       write(*,*) a,b,fa,fb
-       call mp_abort('root must be bracketed for zbrent.',.true.)
-    endif
-    fc=fb
-    do 11 iter=1,itmax
-       if(fb*fc > 0.) then
-          c=a
-          fc=fa
-          d=b-a
-          e=d
-       endif
-       if(abs(fc) < abs(fb)) then
-          a=b
-          b=c
-          c=a
-          fa=fb
-          fb=fc
-          fc=fa
-       endif
-       tol1=2.*eps*abs(b)+0.5*tol
-       xm=.5*(c-b)
-       if(abs(xm) <= tol1 .or. fb == 0.)then
-          zbrent=b
-          return
-       endif
-       if(abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
-          s=fb/fa
-          if(a == c) then
-             p=2.*xm*s
-             q=1.-s
-          else
-             q=fa/fc
-             r=fb/fc
-             p=s*(2.*xm*q*(q-r)-(b-a)*(r-1.))
-             q=(q-1.)*(r-1.)*(s-1.)
-          endif
-          if(p > 0.) q=-q
-          p=abs(p)
-          if(2.*p  <  min(3.*xm*q-abs(tol1*q),abs(e*q))) then
-             e=d
-             d=p/q
-          else
-             d=xm
-             e=d
-          endif
-       else
-          d=xm
-          e=d
-       endif
-       a=b
-       fa=fb
-       if(abs(d)  >  tol1) then
-          b=b+d
-       else
-          b=b+sign(tol1,xm)
-       endif
-       fb=func(b,thetroot)-rootval
-11     continue
-       call mp_abort('zbrent exceeding maximum iterations.',.true.)
-       zbrent=b
-  end function zbrent
 
   !> FIXME : Add documentation  
   !!
