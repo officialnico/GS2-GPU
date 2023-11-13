@@ -108,7 +108,7 @@
 !> diagnostic purposes.
 !>
 module geometry
-
+  use geo_utils, only: abstract_geo_type
   implicit none
 
   private
@@ -122,6 +122,8 @@ module geometry
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: eikcoefs_output, run_eikcoefs_and_resample, get_theta_eqarc
+
+  class(abstract_geo_type), allocatable :: geom
 
   integer :: geotype, mMode, nMode
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
@@ -348,6 +350,13 @@ contains
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
     use optionals, only: get_option_with_default
+    use geq, only: geq_type
+    use leq, only: leq_type
+    use ceq, only: ceq_type
+    use peq, only: peq_type, teq_type
+    use eeq, only: eeq_type, gs2d_type
+    use deq, only: deq_type
+    use ideq, only: ideq_type
     implicit none
     !> For most numerical equilibria, **returns** the value of [[geometry:nth]];
     !> for EFIT and local equilibria, instead **sets** [[geometry:nth]].
@@ -398,7 +407,6 @@ contains
     integer :: fort78_unit !For outputting geom values
     integer :: fort99_unit !For outputting geom values
     integer :: fort11_unit !For outputting geom values
-
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -428,7 +436,7 @@ contains
     if (iflux == 0) then
        if (.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0'
        local_eq = .true.
-       if(irho /= 2) write(*,*) 'Forcing irho = 2'
+       if (irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
        if (bishop == 0) then
           write(*,*) 'Forcing bishop = 1'
@@ -443,6 +451,26 @@ contains
     force_sym = (isym == 1)
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, iflux)
+
+    if (gen_eq) then
+       allocate(geq_type :: geom)
+    else if (chs_eq) then
+       allocate(ceq_type :: geom)
+    else if (gs2d_eq) then
+       allocate(gs2d_type :: geom)
+    else if (efit_eq) then
+       allocate(eeq_type :: geom)
+    else if (transp_eq) then
+       allocate(teq_type :: geom)
+    else if (ppl_eq) then
+       allocate(peq_type :: geom)
+    else if (dfit_eq) then
+       allocate(deq_type :: geom)
+    else if (idfit_eq) then
+       allocate(ideq_type :: geom)
+    else if (local_eq) then
+       allocate(leq_type :: geom)
+    end if
 
     thetaShift = 0.0
     bMaxShift = .true.
@@ -552,7 +580,7 @@ contains
 
        ! find shat, pressure' and report them
        if (iflux == 0) then
-          dp = dpdrhofun()*drhodpsi
+          dp = dpdrhofun() * drhodpsi
        else
           dp = dpfun(rgrid(0),theta(0))
        end if
@@ -949,62 +977,44 @@ contains
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
-      use  geq, only: eqin, geq_init
-      use  ceq, only: ceqin, ceq_init
-      use  peq, only: peqin => eqin, teqin, peq_init
-      use  eeq, only: efitin, efit_init, gs2din, eeq_verbosity => verbosity
-      use  deq, only: dfitin, deq_init => dfit_init
-      use ideq, only: idfitin, ideq_init => dfit_init
-      use  leq, only: leqin, leq_init
+      use eeq, only: eeq_verbosity => verbosity
+      use geo_utils, only: geo_input_type
+      type(geo_input_type) :: inputs
       real :: avgrmid
+      integer :: ntheta_out
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
 
       select case (iflux)
       case (0)
-         nth = ntheta_input / 2
-         if (verb>3) write (*,*) 'Starting leqin, ntheta = ', ntheta, ntgrid
-         call leqin(geoType, rmaj, R_geo, rhoc, delrho, aSurf, shift, shiftVert, &
-              mMode, nMode, deltam, deltan, deltampri, deltanpri, &
-              thetam, thetan, qinp, s_hat_input, nth, thetaShift)
-         avgrmid = 1.
-         psi_0 = 0.0
-         psi_a = 1.0
-         B_T0 = -1.0 !Indicate that this has not been set from equilibrium
+         inputs%surf%geoType = geoType
+         inputs%surf%mMode = mMode ; inputs%surf%nMode = nMode
+         inputs%surf%rmaj = rmaj ; inputs%surf%Rgeo = R_geo ; inputs%surf%r = rhoc
+         inputs%surf%dr = delrho ; inputs%surf%aSurf = aSurf ; inputs%surf%sHorz = shift
+         inputs%surf%sVert = shiftVert ; inputs%surf%delm = deltam
+         inputs%surf%deln = deltan ; inputs%surf%delmp = deltampri
+         inputs%surf%delnp = deltanpri ; inputs%surf%thm = thetam
+         inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
+         inputs%surf%nt = nth ; inputs%thShift = thetaShift
       case (1)
-         if (gen_eq) then
-            call eqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
-         else if(ppl_eq) then
-            if (transp_eq) then
-               call teqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
+         if (big <= 0 ) then
+            if (dfit_eq) then
+               big = 1
             else
-               call peqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
+               big = 8
             end if
-         else if(chs_eq) then
-            call ceqin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, ntheta_input)
-         else if(efit_eq) then
-            eeq_verbosity = verb
-            if (big <= 0) big = 8
-            if (gs2d_eq) then
-               if (debug) write(6,*) "eikcoefs: call gs2din eqfile=",eqfile
-               call gs2din(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
-               if (debug) write(6,*) "eikcoefs: done gs2din  psi_0,psi_a, rmaj, B_T0, avgrmid=",psi_0,psi_a, rmaj, B_T0, avgrmid
-            else
-               if (debug) write(6,*) "eikcoefs: call efitin eqfile=",eqfile, "eqinit =", eqinit
-               call efitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, big)
-            endif
-         else if(dfit_eq) then
-            if (big <= 0) big = 1
-            call dfitin(eqfile, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit, eqnormfile)
-         else if(idfit_eq) then
-            ! Note : On exit avgrmid will be undefined here as idfitin doesn't set this.
-            ! We only use avgrmid for 'debug' output so should be ok.
-            call idfitin(eqfile, theta, psi_0, psi_a, rmaj, B_T0, avgrmid, eqinit)
          end if
-         if (debug) write(6,*) 'eikcoefs: iflux=',iflux
+         eeq_verbosity = verb
+         inputs%eqfile = eqfile
+         inputs%big = big
+         if (idfit_eq) inputs%eqnormfile = eqnormfile
       end select
-
+      call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
+      
+      ! Handle possible ntheta_out < 0?
+      ntheta_input = ntheta_out
+      
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(dsdrp)) call alloc_local_arrays(ntgrid)
@@ -1104,21 +1114,7 @@ contains
       ! Calculate grad(psi), grad(BT) and grad(theta) for the
       ! specific geometry class we're using. We might want to move this
       ! earlier to ensure we have access to geometry methods/data immediately
-      if (gen_eq) then
-         call geq_init
-      else if (ppl_eq) then
-         call peq_init
-      else if (chs_eq) then
-         call ceq_init
-      else if (efit_eq) then
-         call efit_init
-      else if (dfit_eq) then
-         call deq_init
-      else if (idfit_eq) then
-         call ideq_init
-      else if (local_eq) then
-         call leq_init
-      end if
+      call geom%finish_setup
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor)
@@ -1406,93 +1402,27 @@ contains
 
   !> Returns the major radius R corresponding to the passed r and theta
   real function Rpos(r, thet)
-    use  geq, only: geq_R => Rpos
-    use  peq, only: peq_R => Rpos
-    use  ceq, only: ceq_R => Rpos
-    use  leq, only: leq_R => Rpos
-    use  eeq, only: eeq_R => Rpos
-    use  deq, only: deq_R => Rpos
-    use ideq, only: ideq_R => Rpos
     implicit none
     real, intent (in) :: r, thet
-    Rpos = invalidValue
-    if (gen_eq) then
-       Rpos = geq_R (r, thet)
-    else if (ppl_eq) then
-       Rpos = peq_R (r, thet)
-    else if (chs_eq) then
-       Rpos = ceq_R (r, thet)
-    else if (efit_eq) then
-       Rpos = eeq_R (r, thet)
-    else if (dfit_eq) then
-       Rpos = deq_R (r, thet)
-    else if (idfit_eq) then
-       Rpos = ideq_R (r, thet)
-    else if (local_eq) then
-       Rpos = leq_R (r, thet)
-    end if
+    Rpos = geom%Rpos(r, thet)
   end function Rpos
 
   !> Returns the height Z corresponding to the passed r and theta
   real function Zpos(r, thet)
-    use  geq, only: geq_Z => Zpos
-    use  peq, only: peq_Z => Zpos
-    use  ceq, only: ceq_Z => Zpos
-    use  leq, only: leq_Z => Zpos
-    use  eeq, only: eeq_Z => Zpos
-    use  deq, only: deq_Z => Zpos
-    use ideq, only: ideq_Z => Zpos
     implicit none
     real, intent (in) :: r, thet
-    Zpos = invalidValue
-    if (gen_eq) then
-       Zpos = geq_Z (r, thet)
-    else if (ppl_eq) then
-       Zpos = peq_Z (r, thet)
-    else if (chs_eq) then
-       Zpos = ceq_Z (r, thet)
-    else if (efit_eq) then
-       Zpos = eeq_Z (r, thet)
-    else if (dfit_eq) then
-       Zpos = deq_Z (r, thet)
-    else if (idfit_eq) then
-       Zpos = ideq_Z (r, thet)
-    else if (local_eq) then
-       Zpos = leq_Z (r, thet)
-    end if
+    Zpos = geom%Zpos(r, thet)
   end function Zpos
 
   !> Returns the inverse of the major radius, 1/R, corresponding to the passed r and theta
   !> Should we implement this in terms of 1/Rpos?
   real function invRfun(r, thet)
-    use  geq, only: geq_invR => invR
-    use  peq, only: peq_invR => invR
-    use  ceq, only: ceq_invR => invR
-    use  leq, only: leq_invR => invR
-    use  eeq, only: eeq_invR => invR
-    use  deq, only: deq_invR => invR
-    use ideq, only: ideq_invR => invR
     implicit none
     real, intent (in) :: r, thet
     if(itor == 0) then
        invRfun = 1. / rmaj
     else
-       invRfun = invalidValue
-       if (gen_eq) then
-          invRfun = geq_invR (r, thet)
-       else if (ppl_eq) then
-          invRfun = peq_invR (r, thet)
-       else if (chs_eq) then
-          invRfun = ceq_invR (r, thet)
-       else if (efit_eq) then
-          invRfun = eeq_invR (r, thet)
-       else if (dfit_eq) then
-          invRfun = deq_invR (r, thet)
-       else if (idfit_eq) then
-          invRfun = ideq_invR (r, thet)
-       else if (local_eq) then
-          invRfun = leq_invR (r, thet)
-       end if
+       invRfun = geom%invR(r, thet)
     end if
   end function invRfun
 
@@ -1726,38 +1656,22 @@ contains
   !> Returns the diameter of the surface labelled by rp.
   !> @note This is not defined for dfit_eq = T
   real function diameter(rp)
-    use geq, only: geq_diameter => diameter, geq_init_diameter => initialize_diameter
-    use peq, only: peq_diameter => diameter, peq_init_diameter => initialize_diameter
-    use ceq, only: ceq_diameter => diameter, ceq_init_diameter => initialize_diameter
-    use ideq,only: ideq_diameter => diameter, ideq_init_diameter => initialize_diameter
     use eeq, only: bound
-    use leq, only: leq_diameter => diameter
     use constants, only: pi
     implicit none
     real, intent(in) :: rp
-    integer :: i, initd = 1
+    integer :: i
     if (rp <= rpmin .and. .not. efit_eq) then
        diameter = 0.
        return
     end if
     diameter = invalidValue
-    if(eqinit == 1) initd = 1
-    if (gen_eq) then
-       i = geq_init_diameter(initd) ; diameter = geq_diameter(rp)
-    else if (ppl_eq) then
-       i = peq_init_diameter(initd) ; diameter = peq_diameter(rp)
-    else if (chs_eq) then
-       i = ceq_init_diameter(initd) ; diameter = ceq_diameter(rp)
-    else if (efit_eq) then
+    if (efit_eq) then
+       ! Need to implement this _in_ eeq_type/gs2d_type
        diameter = rfun(rp, 0., bound(0.)) + rfun(rp, pi, bound(pi))
-    else if (dfit_eq) then
-       diameter = invalidValue !Note we don't set this!
-    else if (idfit_eq) then
-       i = ideq_init_diameter(initd) ; diameter = ideq_diameter(rp)
-    else if (local_eq) then
-       diameter = leq_diameter(rp)
+    else
+       diameter = geom%diameter(rp)
     end if
-    initd=0
   end function diameter
 
   !> Calculates the normalised radial coordinate
@@ -1770,15 +1684,18 @@ contains
   !> FIXME : Add documentation
   !> Only used with undocumented `irho = 4` option
   real function rhofun (rp)
-    use deq, only: deq_rhofun => rhofun, init_rho => initialize_rho
+    use deq, only: deq_type
     implicit none
     real, intent (in) :: rp
     real :: pbar
     integer :: i, initrho = 1
     pbar = psifun(rp)
-    if (eqinit == 1) initrho = 1
-    i = init_rho(initrho) ; initrho = 0
-    rhofun = deq_rhofun(pbar)
+    select type(geom)
+    type is(deq_type)
+       rhofun = geom%rhofun(pbar)
+    class default
+       rhofun = 0.
+    end select
   end function rhofun
 
   !> FIXME : Add documentation    
@@ -1844,67 +1761,27 @@ contains
 
   !> FIXME : Add documentation
   real function btori(r, thet)
-    use geq, only: geq_btori => btori , geq_init_btori => initialize_btori
-    use peq, only: peq_btori => btori , ppl_init_btori => initialize_btori
-    use ceq, only: ceq_btori => btori , chs_init_btori => initialize_btori
-    use eeq, only: eeq_btori => btori, efit_init_btori => initialize_btori
-    use leq, only: leq_btori => btori
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i, initb = 1
+    integer :: i
     btori = invalidValue
-    if (eqinit == 1) initb = 1
+    pbar = 0.0
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
-    if (gen_eq) then
-       i = geq_init_btori(initb) ; btori = geq_btori(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_btori(initb) ; btori = peq_btori(pbar)
-    else if (chs_eq) then
-       i = chs_init_btori(initb) ; btori = ceq_btori(pbar)
-    else if (efit_eq) then
-       i = efit_init_btori(initb) ; btori = eeq_btori(pbar)
-    else if (dfit_eq) then
-       btori = 0.
-    else if (idfit_eq) then
-       btori = 0.
-    else if (local_eq) then
-       btori = leq_btori()
-    end if
-    initb = 0
+    btori = geom%btori(pbar)
   end function btori
 
   !> FIXME : Add documentation
   !> returns dI/dpsi
   real function dbtori(r, thet)
-    use geq, only: geq_dbtori => dbtori , geq_init_dbtori => initialize_dbtori
-    use peq, only: peq_dbtori => dbtori , ppl_init_dbtori => initialize_dbtori
-    use ceq, only: ceq_dbtori => dbtori , chs_init_dbtori => initialize_dbtori
-    use leq, only: leq_dbtori => dbtori
-    use eeq, only: eeq_dbtori => dbtori, efit_init_dbtori => initialize_dbtori
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i, initdb = 1
+    integer :: i
     dbtori = invalidValue
-    if (eqinit == 1) initdb = 1
+    pbar = 0.0
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
-    if (gen_eq) then
-       i = geq_init_dbtori(initdb) ; dbtori = geq_dbtori(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_dbtori(initdb) ; dbtori = peq_dbtori(pbar)
-    else if (chs_eq) then
-       i = chs_init_dbtori(initdb) ; dbtori = ceq_dbtori(pbar)
-    else if (efit_eq) then
-       i = efit_init_dbtori(initdb) ; dbtori = eeq_dbtori(pbar)
-    else if (dfit_eq) then
-       dbtori = 0.
-    else if (idfit_eq) then
-       dbtori = 0.
-    else if (local_eq) then
-       dbtori = leq_dbtori()
-    end if
-    initdb = 0
+    dbtori = geom%dbtori(pbar)
   end function dbtori
 
   !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
@@ -1963,133 +1840,55 @@ contains
 
   !> FIXME : Add documentation
   real function qfun(pbar)
-    use geq, only: geq_qfun => qfun, geq_init_q => initialize_q
-    use peq, only: peq_qfun => qfun, ppl_init_q => initialize_q
-    use ceq, only: ceq_qfun => qfun, chs_init_q => initialize_q
-    use eeq, only: eeq_qfun => qfun, efit_init_q => initialize_q
-    use leq, only: leq_qfun => qfun
     implicit none
     real, intent(in) :: pbar
     integer :: i, initq = 1
     qfun = invalidValue
-    if (eqinit ==1 ) initq = 1
-    if (gen_eq) then
-       i = geq_init_q(initq) ; qfun = geq_qfun(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_q(initq) ; qfun = peq_qfun(pbar)
-    else if (chs_eq) then
-       i = chs_init_q(initq) ; qfun = ceq_qfun(pbar)
-    else if (efit_eq) then
-       i = efit_init_q(initq) ; qfun = eeq_qfun(pbar)
-    else if (dfit_eq) then
+    if (eqinit == 1) initq = 1
+    if (dfit_eq) then
        qfun = 0.
     else if (idfit_eq) then
        qfun = 0.
-    else if (local_eq) then
-       qfun = leq_qfun()
+    else
+       qfun = geom%qfun(pbar)
     end if
     initq = 0
   end function qfun
 
   !> FIXME : Add documentation
-  real function pfun(r,thet)
-    use  geq, only: geq_pfun => pfun, geq_init_pressure => initialize_pressure
-    use  peq, only: peq_pfun => pfun, ppl_init_pressure => initialize_pressure
-    use  ceq, only: ceq_pfun => pfun, chs_init_pressure => initialize_pressure
-    use  eeq, only: eeq_pfun => pfun, efit_init_pressure => initialize_pressure
-    use  deq, only: deq_pfun => pfun, dfit_init_pressure => initialize_pressure
-    use ideq, only: ideq_pfun => pfun, idfit_init_pressure => initialize_pressure
-    use  leq, only: leq_pfun => pfun
+  real function pfun(r, thet)
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i, initp = 1
+    integer :: i
     pfun = invalidValue
-    if (eqinit == 1) initp = 1
+    pbar = 0.
     if (iflux == 1) pbar = psifun(psi(r, thet))
-    if (gen_eq) then
-       i = geq_init_pressure(initp) ; pfun = geq_pfun(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_pressure(initp) ; pfun = peq_pfun(pbar)
-    else if (chs_eq) then
-       i = chs_init_pressure(initp) ; pfun = ceq_pfun(pbar)
-    else if (efit_eq) then
-       i = efit_init_pressure(initp) ; pfun = eeq_pfun(pbar)
-    else if (dfit_eq) then
-       i = dfit_init_pressure(initp) ; pfun = deq_pfun(pbar)
-    else if (idfit_eq) then
-       i = idfit_init_pressure(initp) ; pfun = ideq_pfun(pbar)
-    else if (local_eq) then
-       pfun = leq_pfun()
-    end if
-    initp = 0
+    pfun = geom%pfun(pbar)
   end function pfun
 
   !> FIXME : Add documentation
   real function dpfun(r, thet)
-    use  geq, only: geq_dpfun => dpfun, geq_init_dpressure => initialize_dpressure
-    use  peq, only: peq_dpfun => dpfun, ppl_init_dpressure => initialize_dpressure
-    use  ceq, only: ceq_dpfun => dpfun, chs_init_dpressure => initialize_dpressure
-    use  eeq, only: eeq_dpfun => dpfun, efit_init_dpressure => initialize_dpressure
-    use  deq, only: deq_dpfun => dpfun, dfit_init_dpressure => initialize_dpressure
-    use ideq, only: ideq_dpfun => dpfun, idfit_init_dpressure => initialize_dpressure
-    use  leq, only: leq_dpfun => dpfun
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i, initdp = 1
+    integer :: i
     dpfun = invalidValue
-    if (eqinit == 1) initdp = 1
+    pbar = 0.0
     if (iflux == 1) pbar = psifun(psi(r, thet))
-    if (gen_eq) then
-       i = geq_init_dpressure(initdp) ; dpfun = geq_dpfun(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_dpressure(initdp) ; dpfun = peq_dpfun(pbar)
-    else if (chs_eq) then
-       i = chs_init_dpressure(initdp) ; dpfun = ceq_dpfun(pbar)
-    else if (efit_eq) then
-       i = efit_init_dpressure(initdp) ; dpfun = eeq_dpfun(pbar)
-    else if (dfit_eq) then
-       i = dfit_init_dpressure(initdp) ; dpfun = deq_dpfun(pbar)
-    else if (idfit_eq) then
-       i = idfit_init_dpressure(initdp) ; dpfun = ideq_dpfun(pbar)
-    else if (local_eq) then
-       dpfun = leq_dpfun()
-    end if
-    initdp = 0
+    dpfun = geom%dpfun(pbar)
   end function dpfun
 
   !> FIXME : Add documentation
   real function beta_a_fun(r,thet)
-    use  geq, only: geq_beta => betafun,  geq_init_beta => initialize_beta
-    use  peq, only: peq_beta => betafun,  ppl_init_beta => initialize_beta
-    use  ceq, only: ceq_beta => betafun,  chs_init_beta => initialize_beta
-    use  eeq, only: eeq_beta => betafun, efit_init_beta => initialize_beta
-    use  deq, only: deq_beta => betafun, dfit_init_beta => initialize_beta
-    use ideq, only: ideq_beta => betafun, idfit_init_beta => initialize_beta
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i, initbeta = 1
+    integer :: i
     beta_a_fun = invalidValue
-    if (eqinit == 1) initbeta = 1
+    pbar = 0.
     if (iflux == 1) pbar = psifun(psi(r,thet))
-    if (gen_eq) then
-       i = geq_init_beta(initbeta) ; beta_a_fun = geq_beta(pbar)
-    else if (ppl_eq) then
-       i = ppl_init_beta(initbeta) ; beta_a_fun = peq_beta(pbar)
-    else if (chs_eq) then
-       i = chs_init_beta(initbeta) ; beta_a_fun = ceq_beta(pbar)
-    else if(efit_eq) then
-       i = efit_init_beta(initbeta) ; beta_a_fun = eeq_beta(pbar)
-    else if(dfit_eq) then
-       i = dfit_init_beta(initbeta) ; beta_a_fun = deq_beta(pbar)
-    else if(idfit_eq) then
-       i = idfit_init_beta(initbeta) ; beta_a_fun = ideq_beta(pbar)
-    else if (local_eq) then
-       beta_a_fun = 0.
-    end if
-    initbeta = 0
+    beta_a_fun = geom%betafun(pbar)
   end function beta_a_fun
 
   !> FIXME : Add documentation    
@@ -2202,16 +2001,9 @@ contains
 
   !> FIXME : Add documentation
   real function psi(r, thet)
-    use  geq, only: geq_psi => psi,  geq_init_psi => initialize_psi
-    use  peq, only: peq_psi => psi,  ppl_init_psi => initialize_psi
-    use  ceq, only: ceq_psi => psi,  chs_init_psi => initialize_psi
-    use  eeq, only: eeq_psi => psi, efit_init_psi => initialize_psi
-    use  deq, only: deq_psi => psi, dfit_init_psi => initialize_psi
-    use ideq, only: ideq_psi => psi, idfit_init_psi => initialize_psi
-    use  leq, only: leq_psi => psi
     implicit none
     real, intent (in) :: r, thet
-    integer :: init = 1, i
+    integer :: i
     psi = invalidValue
     if (r == 0.) then
        psi = psi_0
@@ -2219,25 +2011,9 @@ contains
     else if (r == 1. .and. thet == 0.) then
        psi = psi_a
        return
-    endif
-
-    if(eqinit == 1) init = 1
-    if (gen_eq) then
-       i = geq_init_psi(init) ; psi = geq_psi(r)
-    elseif (ppl_eq) then
-       i = ppl_init_psi(init) ; psi = peq_psi(r)
-    elseif (chs_eq) then
-       i = chs_init_psi(init) ; psi = ceq_psi(r)
-    else if(efit_eq) then
-       i = efit_init_psi(init) ; psi = eeq_psi(r, thet)
-    else if(dfit_eq) then
-       i = dfit_init_psi(init) ; psi = deq_psi(r, thet)
-    else if(idfit_eq) then
-       i = idfit_init_psi(init) ; psi = ideq_psi(r)
-    else if(local_eq) then
-       psi = leq_psi(r)
     end if
-    init = 0
+
+    psi = geom%psi(r, thet)
   end function psi
 
   !> FIXME : Add documentation    
@@ -2342,34 +2118,18 @@ contains
 
   !> FIXME : Add documentation
   real function rcenter(rp)
-    use geq, only: geq_rcenter => rcenter, geq_init_rc => initialize_rcenter
-    use peq, only: peq_rcenter => rcenter, peq_init_rc => initialize_rcenter
-    use ceq, only: ceq_rcenter => rcenter, ceq_init_rc => initialize_rcenter
-    use eeq, only: bound, eeq_init_rc => initialize_bound
-    use leq, only: leq_rcenter => rcenter
-    use ideq, only: ideq_rcenter => rcenter, ideq_init_rc => initialize_rcenter
+    use eeq, only: bound
     use constants, only: pi
     implicit none
     real, intent (in) :: rp
-    integer :: i, init_rc = 1
+    integer :: i
     rcenter = invalidValue
-    if(eqinit == 1) init_rc = 1
-    if (gen_eq) then
-       i = geq_init_rc(init_rc) ; rcenter = geq_rcenter(rp)
-    else if (ppl_eq) then
-       i = peq_init_rc(init_rc) ; rcenter = peq_rcenter(rp)
-    else if (chs_eq) then
-       i = ceq_init_rc(init_rc) ; rcenter = ceq_rcenter(rp)
-    else if (efit_eq) then
+    if (efit_eq) then
+       ! Need to migrate this to eeq if possible
        rcenter = rmaj + 0.5 * (rfun(rp, 0., bound(0.)) - rfun(rp, pi, bound(pi)))
-    else if (dfit_eq) then
-       rcenter = rmaj ! Note this is a historic fall back, perhaps should be invalidValue
-    else if (idfit_eq) then
-       i = ideq_init_rc(init_rc) ; rcenter = ideq_rcenter(rp)
-    else if (local_eq) then
-       rcenter = leq_rcenter()
+    else
+       rcenter = geom%rcenter(rp)
     end if
-    init_rc = 0
   end function rcenter
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
@@ -2619,30 +2379,8 @@ contains
 
   !> FIXME : Add documentation    
   subroutine finish_geometry
-    use  geq, only:  geq_finish
-    use  peq, only:  peq_finish
-    use  ceq, only:  ceq_finish
-    use  eeq, only:  eeq_finish => efit_finish
-    use  deq, only:  deq_finish => dfit_finish
-    use ideq, only: ideq_finish => dfit_finish
-    use  leq, only:  leq_finish
     implicit none
-    eqinit = 1
-    if (gen_eq) then
-       call  geq_finish
-    else if (ppl_eq) then
-       call  peq_finish
-    else if (chs_eq) then
-       call  ceq_finish
-    else if (efit_eq)  then
-       call  eeq_finish
-    else if (dfit_eq) then
-       call  deq_finish
-    else if (idfit_eq) then
-       call ideq_finish
-    else if (local_eq) then
-       call  leq_finish
-    end if
+    call geom%finalise
   end subroutine finish_geometry
 
   !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
@@ -2791,34 +2529,13 @@ contains
   !>   - nth: number of theta points
   !>   - ntgrid: lower index of theta array is -ntgrid
   subroutine grad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     use  geq, only:  geq_gradient => gradient
-     use  peq, only:  peq_gradient => gradient
-     use  ceq, only:  ceq_gradient => gradient
-     use  eeq, only:  eeq_gradient => gradient
-     use  deq, only:  deq_gradient => gradient
-     use ideq, only: ideq_gradient => gradient
-     use  leq, only:  leq_gradient => gradient
      implicit none
      integer, intent(in) :: nth, ntgrid
      real, dimension(-ntgrid:), intent(in) :: rgrid, theta
      real, dimension(-ntgrid:,:), intent(out) :: gradf
      character(1), intent(in) :: char
      real, intent(in) :: rp
-     if (gen_eq) then
-        call  geq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (ppl_eq) then
-        call  peq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (chs_eq) then
-        call  ceq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (efit_eq) then
-        call  eeq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (dfit_eq) then
-        call  deq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (idfit_eq) then
-        call ideq_gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (local_eq) then
-        call  leq_gradient(theta, gradf, char, rp, nth, ntgrid)
-     end if
+     call geom%gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
    end subroutine grad
 
    !> Calculate the derivative of rp w.r.t. R and Z and return
@@ -2836,34 +2553,13 @@ contains
    !>   - nth: number of theta points
    !>   - ntgrid: lower index of theta array is -ntgrid
    subroutine bgrad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     use  geq, only:  geq_bgradient => bgradient
-     use  peq, only:  peq_bgradient => bgradient
-     use  ceq, only:  ceq_bgradient => bgradient
-     use  eeq, only:  eeq_bgradient => bgradient
-     use  deq, only:  deq_bgradient => bgradient
-     use ideq, only: ideq_bgradient => bgradient
-     use  leq, only:  leq_bgradient => bgradient
      implicit none
      integer, intent(in) :: nth, ntgrid
      real, dimension(-ntgrid:), intent(in) :: rgrid, theta
      real, dimension(-ntgrid:,:), intent(out) :: gradf
      character(1), intent(in) :: char
      real, intent(in) :: rp
-     if (gen_eq) then
-        call  geq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (ppl_eq) then
-        call  peq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (chs_eq) then
-        call  ceq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (efit_eq) then
-        call  eeq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (dfit_eq) then
-        call  deq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (idfit_eq) then
-        call ideq_bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     else if (local_eq) then
-        call  leq_bgradient(theta, gradf, char, rp, nth, ntgrid)
-     end if
+     call geom%bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
    end subroutine bgrad
 
   !> Calculate rgrid for the case of eeq and deq: 
@@ -3064,17 +2760,23 @@ contains
   !!
   !! @note Not used by GS2 (just eik/et)
   subroutine Hahm_Burrell(i, a)   
-    use geq, only: geq_Hahm_Burrell => Hahm_Burrell
-    use peq, only: peq_Hahm_Burrell => Hahm_Burrell
-    use ceq, only: ceq_Hahm_Burrell => Hahm_Burrell
+    use geq, only: geq_Hahm_Burrell => Hahm_Burrell, geq_type
+    use peq, only: peq_Hahm_Burrell => Hahm_Burrell, peq_type
+    use ceq, only: ceq_Hahm_Burrell => Hahm_Burrell, ceq_type
+    use mp, only: mp_abort
     implicit none
     integer, intent(in) :: i
     real, intent(in) :: a
-    
-    !Should be a select case?
-    if(gen_eq) call geq_Hahm_Burrell(i, a)
-    if(ppl_eq) call peq_Hahm_Burrell(i, a)
-    if(chs_eq) call ceq_Hahm_Burrell(i, a)
+    select type(geom)
+    type is(geq_type)
+       call geq_Hahm_Burrell(geom, i, a)
+    type is(peq_type)
+       call peq_Hahm_Burrell(geom, i, a)
+    type is(ceq_type)
+       call ceq_Hahm_Burrell(geom, i, a)
+    class default
+       call mp_abort('Hahm Burrell not supported for this geometry type.', .true.)
+    end select
   end subroutine Hahm_Burrell
 
   !> Calculate the derivative of the flux label rho
