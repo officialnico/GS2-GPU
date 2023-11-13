@@ -547,6 +547,7 @@ contains
 
   !> FIXME : Add documentation
   real function diameter (self, rp)
+    use constants, only: pi
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: rp
