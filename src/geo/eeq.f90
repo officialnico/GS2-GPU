@@ -197,6 +197,16 @@ contains
     real :: zxy11, zxym1, zxy1n, zxymn
     integer :: i, j, ierr, big
     logical, parameter :: debug =.false.
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = -1
+       return
+    end if
+
     nthg = -1
     big = inputs%big
     self%filename = trim(adjustl(inputs%eqfile))
@@ -368,6 +378,16 @@ contains
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
     integer :: i, j, init, ndum, ierr, big
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = -1
+       return
+    end if
+
     nthg = -1
     big = inputs%big
     ! Need to generalize initialization condition if equilibrium changes

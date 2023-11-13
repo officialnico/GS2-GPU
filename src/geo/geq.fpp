@@ -80,6 +80,16 @@ contains
     ! what is the best way to handle the netcdf single/double problem?
     real :: f_N, psi_N
 
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = self%nt
+       return
+    end if
+
     !     read the data
     self%filename = trim(adjustl(inputs%eqfile))
 

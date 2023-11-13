@@ -116,13 +116,16 @@ contains
     if (inputs%surf%geoType > 4 .or. inputs%surf%geoType < 0) &
        call mp_abort("ERROR: invalid analytic geometry specification", .true.)
 
-    self%surf = inputs%surf
-    self%beta_0 = 1.
-    self%thetaShift = inputs%thShift
-    self%nr = 3
-    self%nt = self%surf%nt
-    call self%alloc_arrays()
+    if (.not. self%initialised) then
+       self%surf = inputs%surf
+       self%beta_0 = 1.
+       self%thetaShift = inputs%thShift
+       self%nr = 3
+       self%nt = self%surf%nt
+       call self%alloc_arrays()
+    end if
 
+    !Set outputs
     psi_0_out = 0.0
     psi_a_out = 1.0
     B_T0 = -1.0

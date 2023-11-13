@@ -89,6 +89,15 @@ contains
     integer :: i, j, idum, jj, jmax
     character (200) :: line
     logical, dimension(:), allocatable :: has_duplicate_point
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = self%nt
+       return
+    end if
 
     ! Need to generalize initialization condition if equilibrium changes
     self%nt = size(inputs%theta)

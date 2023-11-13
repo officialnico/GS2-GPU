@@ -88,6 +88,15 @@ contains
     real :: delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax
     logical :: eqnorm_exists
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = -1
+       return
+    end if
     ! Need to generalize initialization condition if equilibrium changes
     lref = 0.
     bref = 0.

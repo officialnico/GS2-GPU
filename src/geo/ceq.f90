@@ -82,6 +82,16 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
     real :: f_N, psi_N
+    if (self%initialised) then
+       psi_0_out = self%psi_0
+       psi_a_out = self%psi_a
+       rmaj = self%R_mag
+       B_T0 = self%B_T
+       avgrmid = self%aminor
+       nthg = self%nt
+       return
+    end if
+
     self%filename = trim(adjustl(inputs%eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
        write (*,*)  'Reading CHEASE input file: ', self%filename
