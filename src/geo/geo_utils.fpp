@@ -5,7 +5,7 @@ module geo_utils
   implicit none
 
   public :: abstract_geo_type, abstract_eqfile_geo_type
-  public :: mod2pi, EQFILE_LENGTH
+  public :: mod2pi, sort, EQFILE_LENGTH
 
   integer, parameter :: EQFILE_LENGTH = 80
 
@@ -233,5 +233,25 @@ contains
        mod2pi = th
     end if
   end function mod2pi
+
+  !> FIXME : Add documentation
+  !>
+  !> @note Could we use the sorting module here?
+  subroutine sort(a, b, c, d)
+    real, dimension(:), intent(in out) :: a, b, c, d
+    real tmp
+    integer :: i, j, jmax
+    jmax = size(a)
+    do j = 1, jmax
+       do i = 1, jmax - j
+          if (a(i+1) < a(i)) then
+             tmp = a(i); a(i) = a(i+1); a(i+1) = tmp
+             tmp = b(i); b(i) = b(i+1); b(i+1) = tmp
+             tmp = c(i); c(i) = c(i+1); c(i+1) = tmp
+             tmp = d(i); d(i) = d(i+1); d(i+1) = tmp
+          end if
+       end do
+    end do
+  end subroutine sort
 
 end module geo_utils

@@ -79,6 +79,7 @@ contains
     use mp, only: mp_abort
     use constants, only: pi, twopi
     use splines, only: inter_cspl
+    use geo_utils, only: sort
     implicit none
     class(deq_type), intent(in out) :: self
     character (len = EQFILE_LENGTH), intent(in) :: eqfile
@@ -655,27 +656,4 @@ contains
     real, intent(in) :: theta
     bound = periodic_splint(theta, self%rbound_spl)
   end function bound
-
-  !> FIXME : Add documentation
-  !!
-  !! @note Could we use routines from the sorting module instead?
-  subroutine sort(a, b, c, d)
-    implicit none
-    real, dimension(:), intent(in out) :: a, b, c, d
-    real :: tmp
-    integer :: i, j, jmax
-
-    jmax = size(a)
-
-    do j=1,jmax
-       do i=1,jmax-j
-          if(a(i+1) < a(i)) then
-             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp
-             tmp=b(i); b(i)=b(i+1); b(i+1)=tmp
-             tmp=c(i); c(i)=c(i+1); c(i+1)=tmp
-             tmp=d(i); d(i)=d(i+1); d(i+1)=tmp
-          endif
-       enddo
-    enddo
-  end subroutine sort
 end module deq

@@ -186,6 +186,7 @@ contains
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
     use gs2d, only: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
     use optionals, only: get_option_with_default
+    use geo_utils, only: sort
     use mp, only: mp_abort
     implicit none
     class(gs2d_type), intent(in out) :: self
@@ -371,6 +372,7 @@ contains
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use optionals, only: get_option_with_default
+    use geo_utils, only: sort
     implicit none
     class(eeq_type), intent(in out) :: self
     character (len = EQFILE_LENGTH), intent(in) :: eqfile
@@ -1075,31 +1077,4 @@ contains
     if (debug) write(6,*) "a_minor: a=",a
 
   end subroutine a_minor
-
-  !> FIXME : Add documentation
-  subroutine sort(a, b, c, d)
-    !Can we use something from the sorting module?
-    implicit none
-    real, dimension(:), intent(in out) :: a, b, c, d
-    real :: tmp
-    integer :: i, jmax
-    logical :: sorted
-
-    jmax = size(a)
-
-    do
-       sorted = .true.
-       do i=1,jmax-1
-          if(a(i+1) < a(i)) then
-             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp
-             tmp=b(i); b(i)=b(i+1); b(i+1)=tmp
-             tmp=c(i); c(i)=c(i+1); c(i+1)=tmp
-             tmp=d(i); d(i)=d(i+1); d(i+1)=tmp
-             sorted = .false.
-          endif
-       enddo
-       if (sorted) exit
-    enddo
-
-  end subroutine sort
 end module eeq
