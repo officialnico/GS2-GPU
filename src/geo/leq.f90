@@ -87,6 +87,7 @@ module leq
      procedure :: dpfun => dpfun
      procedure :: betafun => betafun
      procedure :: psi => psi
+     procedure :: rfun => rfun
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure, private :: derm => derm
@@ -732,6 +733,13 @@ contains
     real, intent (in) :: r, theta
     psi = r - self%surf%r
   end function psi
+
+  !> FIXME : Add documentation
+  real function rfun (self, r, theta)
+    class(leq_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    rfun = r
+  end function rfun
 
   !> Put `theta` into the range `[-pi, pi]`
   !>

@@ -50,6 +50,7 @@ module geq
      procedure :: dpfun => dpfun
      procedure :: betafun => betafun
      procedure :: psi => psi
+     procedure :: rfun => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure, private :: derm => derm

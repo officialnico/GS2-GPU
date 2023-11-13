@@ -90,6 +90,7 @@ module geo_utils
      procedure(dpfun_interface), deferred :: dpfun
      procedure(betafun_interface), deferred :: betafun
      procedure(psi_interface), deferred :: psi
+     procedure(rfun_interface), deferred :: rfun
      procedure(gradient_interface), deferred :: gradient
      procedure(bgradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred, private :: eqitem
@@ -186,6 +187,12 @@ module geo_utils
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: r, theta
      end function psi_interface
+
+     real function rfun_interface(self, r, theta)
+       import
+       class(abstract_geo_type), intent(in) :: self
+       real, intent(in) :: r, theta
+     end function rfun_interface
 
      subroutine gradient_interface(self, rgrid, theta, grad, char, rp, nth_used, ntm)
        import
@@ -331,17 +338,17 @@ contains
   !> Returns the distance to the magnetic axis
   !> as a function of rp (the normalised poloidal flux variable)
   !> and theta.
-  real function rfun_eqfile_cart(self, rp, thet) result(rfun)
+  real function rfun_eqfile_cart(self, r, theta) result(rfun)
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
-    real, intent(in) :: rp, thet
+    real, intent(in) :: r, theta
     integer :: i, j, k, imax, jmax, kmax
     real :: fa, fb, fbroot, bmult, rootval, thetroot
     real :: a, b, xerrsec, local_broot
 
-    local_broot = self%bound(thet)
-    thetroot = thet
-    rootval = rp
+    local_broot = self%bound(theta)
+    thetroot = theta
+    rootval = r
     a = 0.
     b = local_broot
 
