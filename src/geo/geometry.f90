@@ -350,13 +350,6 @@ contains
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
     use optionals, only: get_option_with_default
-    use geq, only: geq_type
-    use leq, only: leq_type
-    use ceq, only: ceq_type
-    use peq, only: peq_type, teq_type
-    use eeq, only: eeq_type, gs2d_type
-    use deq, only: deq_type
-    use ideq, only: ideq_type
     implicit none
     !> For most numerical equilibria, **returns** the value of [[geometry:nth]];
     !> for EFIT and local equilibria, instead **sets** [[geometry:nth]].
@@ -452,25 +445,7 @@ contains
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, iflux)
 
-    if (gen_eq) then
-       allocate(geq_type :: geom)
-    else if (chs_eq) then
-       allocate(ceq_type :: geom)
-    else if (gs2d_eq) then
-       allocate(gs2d_type :: geom)
-    else if (efit_eq) then
-       allocate(eeq_type :: geom)
-    else if (transp_eq) then
-       allocate(teq_type :: geom)
-    else if (ppl_eq) then
-       allocate(peq_type :: geom)
-    else if (dfit_eq) then
-       allocate(deq_type :: geom)
-    else if (idfit_eq) then
-       allocate(ideq_type :: geom)
-    else if (local_eq) then
-       allocate(leq_type :: geom)
-    end if
+    if (.not. allocated(geom)) call allocate_geom
 
     thetaShift = 0.0
     bMaxShift = .true.
@@ -974,6 +949,36 @@ contains
     call dealloc_local_arrays
 
   contains
+    !> Allocate the geom instance to the correct type
+    subroutine allocate_geom
+      use geq, only: geq_type
+      use leq, only: leq_type
+      use ceq, only: ceq_type
+      use peq, only: peq_type, teq_type
+      use eeq, only: eeq_type, gs2d_type
+      use deq, only: deq_type
+      use ideq, only: ideq_type
+      implicit none
+      if (gen_eq) then
+         allocate(geq_type :: geom)
+      else if (chs_eq) then
+         allocate(ceq_type :: geom)
+      else if (gs2d_eq) then
+         allocate(gs2d_type :: geom)
+      else if (efit_eq) then
+         allocate(eeq_type :: geom)
+      else if (transp_eq) then
+         allocate(teq_type :: geom)
+      else if (ppl_eq) then
+         allocate(peq_type :: geom)
+      else if (dfit_eq) then
+         allocate(deq_type :: geom)
+      else if (idfit_eq) then
+         allocate(ideq_type :: geom)
+      else if (local_eq) then
+         allocate(leq_type :: geom)
+      end if
+    end subroutine allocate_geom
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
