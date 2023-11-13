@@ -24,7 +24,7 @@ module ceq
      real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: initialise_eqfile => ceqin
+     procedure :: initialise => ceqin
      procedure :: calculate_gradients => ceq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
@@ -73,30 +73,16 @@ contains
   end function chease_chi_index
 
   !> FIXME : Add documentation
-  subroutine ceqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg, big_in)
+  subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use read_chease, only: read_infile
+    use geo_utils, only: geo_input_type
     implicit none
     class(ceq_type), intent(in out) :: self
-    character(len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: f_N, psi_N
-
-    ! Exit early if already initialised
-    if(initeq == 0) then
-      ! Ensure `nthg` gets set if exiting early or it may be uninitialised in
-      ! the calling procedure. The value it gets set to must be consistent
-      ! with the value set at the end of this subroutine when not exiting
-      ! early or the calling procedure may end up with inconsistently sized
-      ! arrays.
-      nthg = self%nt
-      return
-    endif
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
        write (*,*)  'Reading CHEASE input file: ', self%filename
        !    Read the data

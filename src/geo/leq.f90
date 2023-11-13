@@ -19,7 +19,7 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, EQFILE_LENGTH
+  use geo_utils, only: abstract_geo_type, flux_surface_type, EQFILE_LENGTH
   implicit none
 
   private
@@ -54,55 +54,13 @@ module leq
   !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
   real, allocatable, dimension (:,:,:) :: dbtbish
 
-  !> Private helper type to wrap up some module-level variables
-  type :: flux_surface
-     !> Flux surface major radius, \(R_{0N}\), input variable: `Rmaj`
-     real :: Rmaj
-     !> Location of reference magnetic field, \(R_{geoN}\), input variable: `R_geo`
-     real :: Rgeo
-     !> Minor radius, \(r_{\psi N}\), input variable: `rhoc`
-     real :: r
-     !> Step size for radial derivatives, \(\Delta r_{\psi N}\), input variable: `delrho`
-     real :: dr
-     !> Minor radius of shaping surface, \(a_{\psi N}\), input variable: `aSurf`
-     real :: aSurf
-     !> Horizontal Shafranov shift, \(dR_{0N}/dr_{\psi N}\), input variable: `shift`, `Raxis`
-     real :: sHorz
-     !> Vertical Shafranov shift, \(dZ_{0N}/dr_{\psi N}\), input variable: `shiftVert`, `Zaxis`
-     real :: sVert
-     !> First shaping mode strength, \(\Delta_m\), input variable: `akappa`, `delta2`, `deltam`
-     real :: delm
-     !> Second shaping mode strength, \(\Delta_n\), input variable: `tri`, `delta3`, `deltan`
-     real :: deln
-     !> First shaping mode derivative, \(d\Delta_m/dr_{\psi N}\), input variable: `akappri`, `deltampri`
-     real :: delmp
-     !> Second shaping mode derivative, \(d\Delta_n/dr_{\psi N}\), input variable: `tripri`, `deltanpri`
-     real :: delnp
-     !> First shaping mode tilt angle, \(\theta_m\), input variable: `thetak`, `theta2`, `thetam`
-     real :: thm
-     !> Second shaping mode tilt angle, \(\theta_n\), input variable: `thetad`, `theta2`, `thetan`
-     real :: thn
-     !> Safety factor, \(q\), input variable: `qinp`
-     real :: q
-     !> Magnetic shear, \(\hat{s}\), input variable: `s_hat_input`
-     real :: shat
-     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
-     integer :: nt
-     !> Geometry specification type, input variable: `geoType`
-     integer :: geoType
-     !> The first poloidal mode number, input variable: `mMode`
-     integer :: mMode
-     !> The second poloidal mode number, input variable: `nMode`
-     integer :: nMode
-  end type flux_surface
-
   type, extends(abstract_geo_type) :: leq_type
      private
      !> Used to translate definition of the poloidal angle such that the location
      !> of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
      !> Masters thesis or section 2.4 of "GS2 analytic geometry specification")
      real :: thetaShift
-     type(flux_surface) :: surf
+     type(flux_surface_type) :: surf
      ! Regular variables
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0
@@ -113,8 +71,7 @@ module leq
      real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
    contains
-     procedure :: initialise_analytic => leqin
-     procedure :: initialise_eqfile => leqin_alt_init_null
+     procedure :: initialise => leqin
      procedure :: calculate_gradients => leq_init
      procedure :: finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
@@ -147,44 +104,30 @@ module leq
 contains
 
   !> Set module-level parameters and initialise the leq module
-  subroutine leqin(self, geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, &
-       delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
+  subroutine leqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
+    use geo_utils, only: geo_input_type
     implicit none
     class(leq_type), intent(in out) :: self
-    real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, &
-         delmp, delnp, thm, thn, q, shat
-    real, intent(in) :: thShift
-    integer, intent(in) :: nt_used, geoType, mMode, nMode
-
-    if (geoType > 4 .or. geoType < 0) &
+    type(geo_input_type), intent(in) :: inputs
+    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    integer, intent(out) :: nthg
+    if (inputs%surf%geoType > 4 .or. inputs%surf%geoType < 0) &
        call mp_abort("ERROR: invalid analytic geometry specification", .true.)
 
-    self%surf%geoType = geoType
-    self%surf%Rmaj = Rmaj
-    self%surf%Rgeo = Rgeo
-    self%surf%r = r
-    self%surf%dr = dr
-    self%surf%aSurf = aSurf
-    self%surf%sHorz = sHorz
-    self%surf%sVert = sVert
-    self%surf%mMode = mMode
-    self%surf%nMode = nMode
-    self%surf%delm = delm
-    self%surf%deln = deln
-    self%surf%delmp = delmp
-    self%surf%delnp = delnp
-    self%surf%thm = thm
-    self%surf%thn = thn
-    self%surf%q = q
-    self%surf%shat = shat
+    self%surf = inputs%surf
     self%beta_0 = 1.
-    self%thetaShift = thShift
-
+    self%thetaShift = inputs%thShift
     self%nr = 3
-    self%nt = nt_used
-    self%surf%nt = self%nt
+    self%nt = self%surf%nt
     call self%alloc_arrays()
+
+    psi_0_out = 0.0
+    psi_a_out = 1.0
+    B_T0 = -1.0
+    avgrmid = 1.0
+    rmaj = self%surf%Rmaj
+    nthg = self%nt
     self%initialised = .true.
   end subroutine leqin
 
@@ -881,18 +824,4 @@ contains
   real function dpdrhofun()
     dpdrhofun = 0
   end function dpdrhofun
-
-  !> Not used
-  subroutine leqin_alt_init_null(self, eqfile, psi_0_out, psi_a_out, rmaj, &
-       B_T0, avgrmid, initeq, nthg, big_in)
-    use mp, only: mp_abort
-    class(leq_type), intent(in out) :: self
-    character(len = EQFILE_LENGTH), intent(in) :: eqfile
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(in) :: initeq
-    integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
-    call mp_abort("ERROR: Eqfile based initialisation not implemented for local_eq", .true.)
-  end subroutine leqin_alt_init_null
-
 end module leq

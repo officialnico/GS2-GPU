@@ -155,12 +155,12 @@ module eeq
 
   type, extends(eeq_base_type) :: eeq_type
    contains
-     procedure :: initialise_eqfile => efitin
+     procedure :: initialise => efitin
   end type eeq_type
 
   type, extends(eeq_base_type) :: gs2d_type
    contains
-     procedure :: initialise_eqfile => gs2din
+     procedure :: initialise => gs2din
   end type gs2d_type
 
 contains
@@ -178,23 +178,19 @@ contains
   !> rwid       total width of the domain
   !> rleft      position of leftmost point of domain
   !> zhei       total height of domain
-  subroutine gs2din(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
-       big_in)
+  subroutine gs2din(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: pi, twopi
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
     use gs2d, only: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
-    use optionals, only: get_option_with_default
-    use geo_utils, only: sort
+    use geo_utils, only: sort, geo_input_type
     use mp, only: mp_abort
     implicit none
     class(gs2d_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
@@ -203,18 +199,8 @@ contains
     integer :: i, j, ierr, big
     logical, parameter :: debug =.false.
     nthg = -1
-    big = get_option_with_default(big_in, 1)
-    ! Need to generalize initialization condition if equilibrium changes
-    if (debug) write(6,*) "gs2din: initeq=",initeq
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-
-    self%filename = trim(adjustl(eqfile))
+    big = inputs%big
+    self%filename = trim(adjustl(inputs%eqfile))
     if (debug) write(6,*) "gs2din: filename=",self%filename
     ! read GS2D datafile
     call read_gs2d(self%filename)
@@ -366,20 +352,16 @@ contains
   !> - rwid:       total width of the domain
   !> - rleft:      position of leftmost point of domain
   !> - zhei:       total height of domain
-  subroutine efitin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
-       big_in)
+  subroutine efitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use constants, only: pi, twopi
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
-    use optionals, only: get_option_with_default
-    use geo_utils, only: sort
+    use geo_utils, only: sort, geo_input_type
     implicit none
     class(eeq_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: xdum, p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
@@ -388,18 +370,10 @@ contains
     character(10) ::  char
     integer :: i, j, init, ndum, ierr, big
     nthg = -1
-    big = get_option_with_default(big_in, 1)
+    big = inputs%big
     ! Need to generalize initialization condition if equilibrium changes
     if (verbosity>2) write (*,*) 'Starting efitin'
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
     if (verbosity>1) write (*,*) 'Opening file ', self%filename
     open(unit=5, file = self%filename, status='old',form='formatted')
 

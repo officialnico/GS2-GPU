@@ -25,7 +25,7 @@ module ideq
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: initialise_eqfile => idfitin
+     procedure :: initialise => idfitin
      procedure :: calculate_gradients => idfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
@@ -55,15 +55,14 @@ module ideq
 contains
 
   !> FIXME : Add documentation
-  subroutine idfitin(self, eqfile, theta, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg)
+  subroutine idfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use constants, only: twopi, pi
     use splines, only: new_periodic_spline, delete_periodic_spline, &
          periodic_splint, periodic_spline
-    use geo_utils, only: sort
+    use geo_utils, only: sort, geo_input_type
     implicit none
     class(ideq_type), intent(in out) :: self
-
+    type(geo_input_type), intent(in) :: inputs
     !> FIXME : Add documentation
     type :: grid_type
        integer :: nt
@@ -83,13 +82,8 @@ contains
        real, dimension (:), allocatable :: volume
        type (grid_type), dimension (:), allocatable :: grid
     end type eq_type
-
     type (eq_type) :: d
-
-    character (len = EQFILE_LENGTH), intent (in) :: eqfile
-    real, dimension(:), intent (in) :: theta
     real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
-    integer, intent (in) :: initeq
     integer, intent (out) :: nthg
     real :: xdum, I_ring, dpsidr, dpsidz, psi_N
     integer :: i, j, idum, jj, jmax
@@ -97,18 +91,9 @@ contains
     logical, dimension(:), allocatable :: has_duplicate_point
 
     ! Need to generalize initialization condition if equilibrium changes
+    self%nt = size(inputs%theta)
 
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-
-    self%nt = size(theta)
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
 
     open(unit = 5, file = self%filename, status = 'old', form = 'formatted')
 
@@ -182,7 +167,7 @@ contains
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%R(:), &
             twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%R_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
+          self%R_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
        end do
        call delete_periodic_spline (d%grid(i)%spl)
     end do
@@ -191,7 +176,7 @@ contains
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%Z(:), &
             twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%Z_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
+          self%Z_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
        end do
        call delete_periodic_spline (d%grid(i)%spl)
     end do
@@ -200,7 +185,7 @@ contains
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%B(:), &
             twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%B_psi (i, jj) = periodic_splint (theta(jj), d%grid(i)%spl)
+          self%B_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
        end do
        call delete_periodic_spline (d%grid(i)%spl)
     end do

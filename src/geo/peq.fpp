@@ -62,12 +62,12 @@ module peq
 
   type, extends(peq_base_type) :: peq_type
    contains
-     procedure :: initialise_eqfile => eqin
+     procedure :: initialise => eqin
   end type peq_type
 
   type, extends(peq_base_type) :: teq_type
    contains
-     procedure :: initialise_eqfile => teqin
+     procedure :: initialise => teqin
   end type teq_type
 
 contains
@@ -75,17 +75,15 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
-  subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
-       big_in)
+  subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
     use constants, only: pi
+    use geo_utils, only: geo_input_type
     implicit none
     class(peq_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: d, R_geo
     integer :: istatus
     integer :: ncid, id, i, j
@@ -96,15 +94,7 @@ contains
     !     read the data
 
 # ifdef NETCDF
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
 
     !     netcdf open file
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
@@ -281,17 +271,15 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
-  subroutine teqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg, &
-       big_in)
+  subroutine teqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
     use constants, only: pi
+    use geo_utils, only: geo_input_type
     implicit none
     class(teq_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: R_geo
     integer :: istatus
     integer :: ncid, id, i, j
@@ -300,13 +288,7 @@ contains
     real, allocatable, dimension(:,:) :: work
     real :: f_N, psi_N
     !     read the data
-
-    if (initeq == 0) then
-       nthg = self%nt/2
-       return
-    end if
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
 
 # ifdef NETCDF
     !     netcdf open file

@@ -30,7 +30,7 @@ module deq
      !     type(spline) :: diam_spl, rcenter_spl
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: initialise_eqfile => dfitin
+     procedure :: initialise => dfitin
      procedure :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
@@ -74,46 +74,33 @@ contains
   !> rwid       total width of the domain
   !> rleft      position of leftmost point of domain
   !> zhei       total height of domain
-  subroutine dfitin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, &
-       initeq, eqnormfile)
+  subroutine dfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
     use constants, only: pi, twopi
     use splines, only: inter_cspl
-    use geo_utils, only: sort
+    use geo_utils, only: sort, geo_input_type
     implicit none
     class(deq_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
-    character (len = EQFILE_LENGTH), intent(in) :: eqnormfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(in) :: initeq
+    integer, intent(out) :: nthg
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy
     real :: p_0, rwid, zhei, bcentr
     real :: delta_R, delta_Z, lref, bref
-    integer :: i, j, init, jmin, jmax
+    integer :: i, j, jmin, jmax
     logical :: eqnorm_exists
-
     ! Need to generalize initialization condition if equilibrium changes
-
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-    init=0
-
     lref = 0.
     bref = 0.
     ! read eqnorm file if exists
-    inquire(file = trim(eqnormfile), exist = eqnorm_exists)
+    inquire(file = trim(inputs%eqnormfile), exist = eqnorm_exists)
     if (eqnorm_exists) then
-       open(unit=5, file = trim(eqnormfile), status='old', form='formatted')
+       open(unit=5, file = trim(inputs%eqnormfile), status='old', form='formatted')
        read(5,*) lref, bref
        close(5)
     end if
 
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
     open(unit = 5, file = self%filename, status='old', form='formatted')
 
     ! Read the data
@@ -278,6 +265,7 @@ contains
     self%dfit_dR = self%dfit_R(2) - self%dfit_R(1)
     self%dfit_dZ = self%dfit_Z(2) - self%dfit_Z(1)
 
+    nthg = -1
     self%initialised = .true.
 2020 format (5e16.8)
 

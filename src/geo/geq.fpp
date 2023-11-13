@@ -34,7 +34,7 @@ module geq
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: initialise_eqfile => eqin
+     procedure :: initialise => eqin
      procedure :: calculate_gradients => geq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
@@ -66,15 +66,13 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !! containing the axisymmetric magnetic field geometry in flux
   !! coordinates
-  subroutine eqin(self, eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, nthg, big_in)
+  subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+    use geo_utils, only: geo_input_type
     implicit none
     class(geq_type), intent(in out) :: self
-    character (len = EQFILE_LENGTH), intent(in) :: eqfile
+    type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    integer, intent(in), optional :: big_in
     real :: I_0
     real, dimension(:), allocatable :: rho_d
     integer :: istatus
@@ -83,13 +81,7 @@ contains
     real :: f_N, psi_N
 
     !     read the data
-
-    if (initeq == 0) then
-       nthg = self%nt
-       return
-    end if
-
-    self%filename = trim(adjustl(eqfile))
+    self%filename = trim(adjustl(inputs%eqfile))
 
 # ifdef NETCDF
     !     netcdf open file

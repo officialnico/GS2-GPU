@@ -4,17 +4,76 @@
 module geo_utils
   implicit none
 
-  public :: abstract_geo_type, abstract_eqfile_geo_type
+  public :: abstract_geo_type, abstract_eqfile_geo_type, geo_input_type, flux_surface_type
   public :: mod2pi, sort, EQFILE_LENGTH
 
   integer, parameter :: EQFILE_LENGTH = 80
 
+  !> Helper type to wrap up some flux surface specific variables for
+  !> analytic equilibrium type.
+  type :: flux_surface_type
+     !> Flux surface major radius, \(R_{0N}\), input variable: `Rmaj`
+     real :: Rmaj
+     !> Location of reference magnetic field, \(R_{geoN}\), input variable: `R_geo`
+     real :: Rgeo
+     !> Minor radius, \(r_{\psi N}\), input variable: `rhoc`
+     real :: r
+     !> Step size for radial derivatives, \(\Delta r_{\psi N}\), input variable: `delrho`
+     real :: dr
+     !> Minor radius of shaping surface, \(a_{\psi N}\), input variable: `aSurf`
+     real :: aSurf
+     !> Horizontal Shafranov shift, \(dR_{0N}/dr_{\psi N}\), input variable: `shift`, `Raxis`
+     real :: sHorz
+     !> Vertical Shafranov shift, \(dZ_{0N}/dr_{\psi N}\), input variable: `shiftVert`, `Zaxis`
+     real :: sVert
+     !> First shaping mode strength, \(\Delta_m\), input variable: `akappa`, `delta2`, `deltam`
+     real :: delm
+     !> Second shaping mode strength, \(\Delta_n\), input variable: `tri`, `delta3`, `deltan`
+     real :: deln
+     !> First shaping mode derivative, \(d\Delta_m/dr_{\psi N}\), input variable: `akappri`, `deltampri`
+     real :: delmp
+     !> Second shaping mode derivative, \(d\Delta_n/dr_{\psi N}\), input variable: `tripri`, `deltanpri`
+     real :: delnp
+     !> First shaping mode tilt angle, \(\theta_m\), input variable: `thetak`, `theta2`, `thetam`
+     real :: thm
+     !> Second shaping mode tilt angle, \(\theta_n\), input variable: `thetad`, `theta2`, `thetan`
+     real :: thn
+     !> Safety factor, \(q\), input variable: `qinp`
+     real :: q
+     !> Magnetic shear, \(\hat{s}\), input variable: `s_hat_input`
+     real :: shat
+     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
+     integer :: nt
+     !> Geometry specification type, input variable: `geoType`
+     integer :: geoType
+     !> The first poloidal mode number, input variable: `mMode`
+     integer :: mMode
+     !> The second poloidal mode number, input variable: `nMode`
+     integer :: nMode
+  end type flux_surface_type
+
+  !> A derived type used to hold the inputs to the geo initialisation routine.
+  !> By encapsulating all possible inputs in this type we can avoid having to
+  !> have multiple initialisation interfaces which all types have to define.
+  type :: geo_input_type
+     !> Filename to read in for equilibria based on reading a file
+     character(len = EQFILE_LENGTH) :: eqfile = 'EQFILE_NOT_SET'
+     !> Upsampling factor used in efit, dfit and gs2d cases
+     integer :: big = -1
+     !> File containing normalisation factors for dfit
+     character(len = EQFILE_LENGTH) :: eqnormfile = ' EQNORMFILE_NOT_SET'
+     !> Target theta grid used for ideq
+     real, dimension(:), allocatable :: theta
+     !> Used for analytic local equiliria
+     type(flux_surface_type) :: surf
+     !> Theta shift used in analytic local equiliria
+     real :: thShift
+  end type geo_input_type
+
   type, abstract :: abstract_geo_type
      logical :: initialised = .false.
    contains
-     generic :: initialise => initialise_eqfile, initialise_analytic
-     procedure(initialise_eqfile_interface), deferred :: initialise_eqfile
-     procedure(initialise_analytic_interface), deferred :: initialise_analytic
+     procedure(initialise_interface), deferred :: initialise
      procedure(calculate_gradients_interface), deferred, private :: calculate_gradients
      procedure(finish_setup_interface), deferred :: finish_setup
      procedure(rpos_interface), deferred :: rpos
@@ -36,7 +95,6 @@ module geo_utils
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
    contains
-     procedure :: initialise_analytic => initialise_analytic_null
      procedure :: finish_setup => finish_setup_eqfile
      procedure(setup_splines_interface), deferred :: setup_splines
      procedure(delete_splines_interface), deferred :: delete_splines
@@ -148,27 +206,14 @@ module geo_utils
        character(len=1), intent(in) :: char
      end subroutine eqitem_interface
 
-     subroutine initialise_eqfile_interface(self, eqfile, psi_0_out, psi_a_out, rmaj, &
-          B_T0, avgrmid, initeq, nthg, big_in)
+     subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
+          B_T0, avgrmid, nthg)
        import
        class(abstract_geo_type), intent(in out) :: self
-       character(len = EQFILE_LENGTH), intent(in) :: eqfile
+       type(geo_input_type), intent(in) :: inputs
        real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-       integer, intent(in) :: initeq
        integer, intent(out) :: nthg
-       integer, intent(in), optional :: big_in
-     end subroutine initialise_eqfile_interface
-
-     subroutine initialise_analytic_interface(self, geoType, Rmaj, Rgeo, r, dr, aSurf, &
-          sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, &
-          shat, nt_used, thShift)
-       import
-       class(abstract_geo_type), intent(in out) :: self
-       real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, &
-            delmp, delnp, thm, thn, q, shat
-       real, intent(in) :: thShift
-       integer, intent(in) :: nt_used, geoType, mMode, nMode
-     end subroutine initialise_analytic_interface
+     end subroutine initialise_interface
 
      subroutine calculate_gradients_interface(self)
        import
@@ -195,17 +240,6 @@ module geo_utils
   end interface
 
 contains
-
-  subroutine initialise_analytic_null(self, geoType, Rmaj, Rgeo, r, dr, aSurf, &
-       sHorz, sVert, mMode, nMode, delm, deln, delmp, delnp, thm, thn, q, &
-       shat, nt_used, thShift)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-    real, intent(in) :: Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, delm, deln, &
-         delmp, delnp, thm, thn, q, shat
-    real, intent(in) :: thShift
-    integer, intent(in) :: nt_used, geoType, mMode, nMode
-    write(*,*) 'Not implemented'
-  end subroutine initialise_analytic_null
 
   subroutine finish_setup_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
