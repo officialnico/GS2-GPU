@@ -74,6 +74,7 @@ module geo_utils
      logical :: initialised = .false.
    contains
      procedure(initialise_interface), deferred :: initialise
+     procedure(finalise_interface), deferred :: finalise
      procedure(calculate_gradients_interface), deferred, private :: calculate_gradients
      procedure(finish_setup_interface), deferred :: finish_setup
      procedure(rpos_interface), deferred :: rpos
@@ -214,6 +215,11 @@ module geo_utils
        real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
        integer, intent(out) :: nthg
      end subroutine initialise_interface
+
+     subroutine finalise_interface(self)
+       import
+       class(abstract_geo_type), intent(in out) :: self
+     end subroutine finalise_interface
 
      subroutine calculate_gradients_interface(self)
        import
