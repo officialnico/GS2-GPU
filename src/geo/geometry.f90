@@ -1018,7 +1018,7 @@ contains
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
       
       ! Handle possible ntheta_out < 0?
-      ntheta_input = ntheta_out
+      if (ntheta_out > 0) ntheta_input = ntheta_out
       
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
