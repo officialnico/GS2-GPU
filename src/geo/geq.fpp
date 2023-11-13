@@ -702,7 +702,13 @@ contains
     implicit none
     class(geq_type), intent(in) :: self
     real, intent (in) :: r, theta
-    psi = r
+    if (r==0.) then
+       psi = self%psi_0
+    else if (r==1. .and. theta == 0.0) then
+       psi = self%psi_a
+    else
+       psi = r
+    end if
   end function psi
 
   !> FIXME : Add documentation

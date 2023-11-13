@@ -551,7 +551,13 @@ contains
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: r, theta
-    call self%eqitem(r, theta, self%dfit_psi, psi, '?')
+    if (r==0.) then
+       psi = self%psi_0
+    else if (r==1. .and. theta == 0.0) then
+       psi = self%psi_a
+    else
+       call self%eqitem(r, theta, self%dfit_psi, psi, '?')
+    end if
   end function psi
 
   !> FIXME : Add documentation
