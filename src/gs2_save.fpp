@@ -199,7 +199,8 @@ contains
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
 
     ! Decide if we are saving the fields
-    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0)
+    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0) &
+         .or. .not. is_one_file_per_processor
 
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
@@ -340,7 +341,7 @@ contains
        endif
     end if
 
-    if (this_proc_saves_fields .or. .not. is_one_file_per_processor) then
+    if (this_proc_saves_fields) then
        if (has_phi) then
           call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
                [thetaid, kxid, kyid], phir_id)
