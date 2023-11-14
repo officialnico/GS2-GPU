@@ -68,6 +68,9 @@ contains
   !! coordinates
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use geo_utils, only: geo_input_type
+# ifndef NETCDF
+    use mp, only: mp_abort
+# endif
     implicit none
     class(geq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
