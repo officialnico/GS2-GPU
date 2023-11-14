@@ -340,7 +340,7 @@ contains
        endif
     end if
 
-    if (this_proc_saves_fields) then
+    if (this_proc_saves_fields .or. .not. is_one_file_per_processor) then
        if (has_phi) then
           call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
                [thetaid, kxid, kyid], phir_id)
