@@ -25,7 +25,7 @@ module ceq
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => ceqin
-     procedure :: calculate_gradients => ceq_init
+     procedure, private :: calculate_gradients => ceq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos

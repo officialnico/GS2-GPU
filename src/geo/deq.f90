@@ -31,7 +31,7 @@ module deq
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => dfitin
-     procedure :: calculate_gradients => dfit_init
+     procedure, private :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos

@@ -72,7 +72,7 @@ module leq
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
    contains
      procedure :: initialise => leqin
-     procedure :: calculate_gradients => leq_init
+     procedure, private :: calculate_gradients => leq_init
      procedure :: finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
      procedure :: rpos => rpos

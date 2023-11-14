@@ -34,7 +34,7 @@ module peq
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: calculate_gradients => peq_init
+     procedure, private :: calculate_gradients => peq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos

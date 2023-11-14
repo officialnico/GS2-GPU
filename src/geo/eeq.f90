@@ -126,7 +126,7 @@ module eeq
      !     type(spline) :: diam_spl, rcenter_spl
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
-     procedure :: calculate_gradients => efit_init
+     procedure, private :: calculate_gradients => efit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos
