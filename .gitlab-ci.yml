@@ -112,15 +112,6 @@ standard_tests:
     CASENAME: "standard"
   script: *default_script
 
-parallel_netcdf_tests:
-  stage: test
-  image: fedora:37
-  variables:
-    CASENAME: "parallel_netcdf"
-    EXTRA_MAKE_FLAGS: "USE_PARALLEL_NETCDF=on"
-    EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
-  script: *default_script
-
 openmp_tests:
   stage: test
   image: fedora:37
@@ -205,13 +196,12 @@ coverage_standard_tests:
     - date
     - su -c "time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build" theuser
 
-
 onestep_standard_tests:
   stage: test
   image: fedora:37
   variables:
     CASENAME: "standard_one_step_pp"
-    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_NETCDF_COMPRESSION=on"
+    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
   script: *default_script
 
