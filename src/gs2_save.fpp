@@ -199,7 +199,8 @@ contains
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
 
     ! Decide if we are saving the fields
-    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0)
+    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0) &
+         .or. .not. is_one_file_per_processor
 
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
