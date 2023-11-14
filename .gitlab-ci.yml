@@ -112,6 +112,15 @@ standard_tests:
     CASENAME: "standard"
   script: *default_script
 
+parallel_netcdf_tests:
+  stage: test
+  image: fedora:37
+  variables:
+    CASENAME: "parallel_netcdf"
+    EXTRA_MAKE_FLAGS: "USE_PARALLEL_NETCDF=on"
+    EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
+  script: *default_script
+
 openmp_tests:
   stage: test
   image: fedora:37
