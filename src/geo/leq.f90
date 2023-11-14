@@ -72,7 +72,7 @@ module leq
      real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
    contains
      procedure :: initialise => leqin
-     procedure, private :: calculate_gradients => leq_init
+     procedure :: calculate_gradients => leq_init
      procedure :: finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
      procedure :: rpos => rpos
@@ -91,11 +91,11 @@ module leq
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure, private :: derm => derm
-     procedure, private :: eqitem => eqitem
+     procedure :: eqitem => eqitem
      procedure, private :: eqdcart => eqdcart
      procedure, private :: eqdbish => eqdbish
-     procedure, private :: alloc_arrays => alloc_arrays
-     procedure, private :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_arrays => alloc_arrays
+     procedure :: dealloc_arrays => dealloc_arrays
      procedure, private :: geo_Miller => geo_Miller
      procedure, private :: geo_global => geo_global
      procedure, private :: geo_generalizedEllipticity => geo_generalizedEllipticity

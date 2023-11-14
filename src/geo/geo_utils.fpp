@@ -76,7 +76,7 @@ module geo_utils
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(finalise_interface), deferred :: finalise
-     procedure(calculate_gradients_interface), deferred, private :: calculate_gradients
+     procedure(calculate_gradients_interface), deferred :: calculate_gradients
      procedure(finish_setup_interface), deferred :: finish_setup
      procedure(rpos_interface), deferred :: rpos
      procedure(zpos_interface), deferred :: zpos
@@ -93,9 +93,9 @@ module geo_utils
      procedure(rfun_interface), deferred :: rfun
      procedure(gradient_interface), deferred :: gradient
      procedure(bgradient_interface), deferred :: bgradient
-     procedure(eqitem_interface), deferred, private :: eqitem
-     procedure(alloc_arrays_interface), deferred, private :: alloc_arrays
-     procedure(dealloc_arrays_interface), deferred, private :: dealloc_arrays
+     procedure(eqitem_interface), deferred :: eqitem
+     procedure(alloc_arrays_interface), deferred :: alloc_arrays
+     procedure(dealloc_arrays_interface), deferred :: dealloc_arrays
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type

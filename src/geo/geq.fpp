@@ -35,7 +35,7 @@ module geq
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => eqin
-     procedure, private :: calculate_gradients => geq_init
+     procedure :: calculate_gradients => geq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos
@@ -54,11 +54,11 @@ module geq
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure, private :: derm => derm
-     procedure, private :: eqitem => eqitem
+     procedure :: eqitem => eqitem
      procedure, private :: eqdcart => eqdcart
      procedure, private :: eqdbish => eqdbish
-     procedure, private :: alloc_arrays => alloc_arrays
-     procedure, private :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_arrays => alloc_arrays
+     procedure :: dealloc_arrays => dealloc_arrays
   end type geq_type
 
 contains

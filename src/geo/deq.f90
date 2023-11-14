@@ -31,7 +31,7 @@ module deq
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => dfitin
-     procedure, private :: calculate_gradients => dfit_init
+     procedure :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rpos => rpos
@@ -51,11 +51,11 @@ module deq
      procedure :: bound => bound
      procedure :: rhofun => rhofun
      procedure, private :: derm => derm
-     procedure, private :: eqitem => eqitem
+     procedure :: eqitem => eqitem
      !procedure, private :: eqdcart => eqdcart
      !procedure, private :: eqdbish => eqdbish
-     procedure, private :: alloc_arrays => alloc_arrays
-     procedure, private :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_arrays => alloc_arrays
+     procedure :: dealloc_arrays => dealloc_arrays
   end type deq_type
 
 contains
