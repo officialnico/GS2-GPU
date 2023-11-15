@@ -74,7 +74,8 @@ module geo_utils
 
   type, abstract :: abstract_geo_type
      logical :: initialised = .false.
-     !> Typically the number of radial and theta grid points. Not used for cartesian like types (e.g. eeq)
+     !> Typically the number of radial and theta grid points. Not used
+     !> for cartesian like types (e.g. eeq)
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0, R_mag, Z_mag, aminor
      !> 2D map of co-ordinates to R or Z
@@ -108,27 +109,13 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: dbtbish
    contains
      procedure(initialise_interface), deferred :: initialise
-     procedure(finalise_interface), deferred :: finalise
-     procedure(calculate_gradients_interface), deferred :: calculate_gradients
-     procedure(finish_setup_interface), deferred :: finish_setup
-     procedure(rpos_interface), deferred :: rpos
-     procedure(zpos_interface), deferred :: zpos
-     procedure(invr_interface), deferred :: invr
-     procedure(rcenter_interface), deferred :: rcenter
-     procedure(diameter_interface), deferred :: diameter
-     procedure(btori_interface), deferred :: btori
-     procedure(dbtori_interface), deferred :: dbtori
-     procedure(qfun_interface), deferred :: qfun
-     procedure(pfun_interface), deferred :: pfun
-     procedure(dpfun_interface), deferred :: dpfun
-     procedure(betafun_interface), deferred :: betafun
-     procedure(psi_interface), deferred :: psi
-     procedure(rfun_interface), deferred :: rfun
-     procedure(gradient_interface), deferred :: gradient
-     procedure(bgradient_interface), deferred :: bgradient
+     procedure(noargs_interface), deferred :: finalise, calculate_gradients, finish_setup
+     procedure(rtheta_interface), deferred :: rpos, zpos, invr, psi, rfun
+     procedure(rp_interface), deferred :: rcenter, diameter
+     procedure(pbar_interface), deferred :: btori, dbtori, qfun, pfun, dpfun, betafun
+     procedure(gradient_interface), deferred :: gradient, bgradient
      procedure(eqitem_interface), deferred :: eqitem
-     procedure(alloc_arrays_interface), deferred :: alloc_arrays
-     procedure(dealloc_arrays_interface), deferred :: dealloc_arrays
+     procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
@@ -138,98 +125,36 @@ module geo_utils
    contains
      procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile
-     procedure(setup_splines_interface), deferred :: setup_splines
-     procedure(delete_splines_interface), deferred :: delete_splines
+     procedure(splines_interface), deferred :: setup_splines, delete_splines
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
    contains
      procedure(bound_interface), deferred :: bound
-     procedure :: rfun
-     procedure :: zbrent
+     procedure :: rfun, zbrent
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces. Note we _could_ reuse
   ! several of these rather defining an interface for each routine.
   ! We don't do this at the moment for flexibility and clarity.
   interface
-     real function rpos_interface(self, r, theta)
+     real function rtheta_interface(self, r, theta)
        import
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: r, theta
-     end function rpos_interface
+     end function rtheta_interface
 
-     real function zpos_interface(self, r, theta)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: r, theta
-     end function zpos_interface
-
-     real function invr_interface(self, r, theta)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: r, theta
-     end function invr_interface
-
-     real function rcenter_interface(self, rp)
+     real function rp_interface(self, rp)
        import
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: rp
-     end function rcenter_interface
+     end function rp_interface
 
-     real function diameter_interface(self, rp)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: rp
-     end function diameter_interface
-
-     real function btori_interface(self, pbar)
+     real function pbar_interface(self, pbar)
        import
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: pbar
-     end function btori_interface
-
-     real function dbtori_interface(self, pbar)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: pbar
-     end function dbtori_interface
-
-     real function qfun_interface(self, pbar)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: pbar
-     end function qfun_interface
-
-     real function pfun_interface(self, pbar)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: pbar
-     end function pfun_interface
-
-     real function dpfun_interface(self, pbar)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: pbar
-     end function dpfun_interface
-
-     real function betafun_interface(self, pbar)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: pbar
-     end function betafun_interface
-
-     real function psi_interface(self, r, theta)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: r, theta
-     end function psi_interface
-
-     real function rfun_interface(self, r, theta)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, intent(in) :: r, theta
-     end function rfun_interface
+     end function pbar_interface
 
      subroutine gradient_interface(self, rgrid, theta, grad, char, rp, nth_used, ntm)
        import
@@ -240,16 +165,6 @@ module geo_utils
        real, intent(in) :: rp
        integer, intent(in) :: nth_used, ntm
      end subroutine gradient_interface
-
-     subroutine bgradient_interface(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, dimension(-ntm:), intent(in) :: rgrid, theta
-       real, dimension(-ntm:, :), intent(out) :: grad
-       character(len=1), intent(in) :: char
-       real, intent(in) :: rp
-       integer, intent(in) :: nth_used, ntm
-     end subroutine bgradient_interface
 
      ! It might make sense to convert this to a function?
      subroutine eqitem_interface(self, r_in, theta_in, f, fstar, char)
@@ -266,11 +181,6 @@ module geo_utils
        class(abstract_geo_type), intent(in out) :: self
      end subroutine alloc_arrays_interface
 
-     pure subroutine dealloc_arrays_interface(self)
-       import
-       class(abstract_geo_type), intent(in out) :: self
-     end subroutine dealloc_arrays_interface
-
      subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
           B_T0, avgrmid, nthg)
        import
@@ -280,32 +190,16 @@ module geo_utils
        integer, intent(out) :: nthg
      end subroutine initialise_interface
 
-     subroutine finalise_interface(self)
+     subroutine noargs_interface(self)
        import
        class(abstract_geo_type), intent(in out) :: self
-     end subroutine finalise_interface
-
-     subroutine calculate_gradients_interface(self)
-       import
-       class(abstract_geo_type), intent(in out) :: self
-     end subroutine calculate_gradients_interface
-
-     subroutine finish_setup_interface(self)
-       import
-       class(abstract_geo_type), intent(in out) :: self
-     end subroutine finish_setup_interface
+     end subroutine noargs_interface
 
      ! Additional interfaces for eqfile variant
-
-     subroutine setup_splines_interface(self)
+     subroutine splines_interface(self)
        import
        class(abstract_eqfile_geo_type), intent(in out) :: self
-     end subroutine setup_splines_interface
-
-     subroutine delete_splines_interface(self)
-       import
-       class(abstract_eqfile_geo_type), intent(in out) :: self
-     end subroutine delete_splines_interface
+     end subroutine splines_interface
 
      ! Additional interfaces for eqfile cartesian variant
      real function bound_interface(self, theta)
