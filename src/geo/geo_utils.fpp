@@ -227,8 +227,8 @@ contains
     ! magnetic axis, which means the Jacobian is zero. Do we need
     ! need a better way to either calculate dfcart there, or to ensure
     ! we ignore it in other places?
-    do j = 1, self%nt
-       do i = 2, self%nr
+    do j = 1, size(dfm, 2)
+       do i = 2, size(dfm, 1)
           dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
        end do
     end do
@@ -255,8 +255,8 @@ contains
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
 
-    do j = 1, self%nt
-       do i = 2, self%nr
+    do j = 1, size(dcart, 2)
+       do i = 2, size(dcart, 1)
           dbish(i,j,:) = dbish(i,j,:)/ denom(i,j)
        end do
     end do
