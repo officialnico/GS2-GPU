@@ -171,14 +171,13 @@ module geo_utils
      end subroutine gradient_interface
 
      ! It might make sense to convert this to a function?
-     subroutine eqitem_interface(self, r_in, theta_in, f, fstar, char)
+     real function eqitem_interface(self, r_in, theta_in, f, char) result(fstar)
        import
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: r_in, theta_in
        real, dimension(:, :), intent(in) :: f
-       real, intent(out) :: fstar
        character(len=1), intent(in) :: char
-     end subroutine eqitem_interface
+     end function eqitem_interface
 
      pure subroutine alloc_arrays_interface(self)
        import
@@ -302,7 +301,7 @@ contains
     real, intent (in) :: r, theta
     real :: th
     th = mod2pi(theta)
-    call self%eqitem(r, th, self%R_psi, rpos, 'R')
+    rpos = self%eqitem(r, th, self%R_psi, 'R')
   end function rpos_eqfile
 
   real function zpos_eqfile (self, r, theta) result(zpos)
@@ -311,7 +310,7 @@ contains
     real, intent (in) :: r, theta
     real :: th
     th = mod2pi(theta)
-    call self%eqitem(r, th, self%Z_psi, zpos, 'Z')
+    zpos = self%eqitem(r, th, self%Z_psi, 'Z')
   end function zpos_eqfile
 
   !> Find the value of the major radius on the plasma boundary
@@ -347,7 +346,7 @@ contains
     else if (r==1. .and. theta == 0.0) then
        psi = self%psi_a
     else
-       call self%eqitem(r, theta, self%eq_psi, psi, '?')
+       psi = self%eqitem(r, theta, self%eq_psi, '?')
     end if
   end function psi_eqfile_cart
 

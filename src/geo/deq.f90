@@ -387,8 +387,8 @@ contains
     integer :: i
     grad = 0.
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), self%dpm(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), self%dpm(:,:,2), grad(i,2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), self%dpm(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), self%dpm(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -424,8 +424,8 @@ contains
     end if
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i, 1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i, 2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -437,13 +437,12 @@ contains
   end subroutine bgradient
 
   !> FIXME : Add documentation
-  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
+  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use mp, only: mp_abort
     implicit none
     class(deq_type), intent(in) :: self
     real, intent (in) :: r_in, theta_in
     real, dimension(:, :), intent(in) :: f
-    real, intent (out) :: fstar
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
     real :: st, dt, sr, dr, r
@@ -498,7 +497,7 @@ contains
          +f(istar + 1, jstar + 1) * dr * dt
     fstar = fstar / (abs(self%eq_R(istar+1) - self%eq_R(istar)) * &
          (self%eq_Z(jstar+1) - self%eq_Z(jstar)))
-  end subroutine eqitem
+  end function eqitem
 
   !> FIXME : Add documentation
   real function diameter (self, rp)

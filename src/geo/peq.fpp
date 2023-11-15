@@ -650,8 +650,8 @@ contains
     end select
 
     do i = -nth_used, -1
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
        if (char == 'T' .and. .not. self%transp) then
           grad(i, 1) = -grad(i, 1)
           grad(i, 2) = -grad(i, 2)
@@ -659,8 +659,8 @@ contains
     end do
 
     do i = 0, nth_used
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -698,9 +698,9 @@ contains
     end select
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
-    enddo
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
+    end do
 
     if (char == 'T' .and. .not. self%transp) then
        where (theta(-nth_used:nth_used) < 0.0)
@@ -721,7 +721,7 @@ contains
   end subroutine bgradient
 
   !> FIXME : Add documentation
-  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
+  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
@@ -730,7 +730,6 @@ contains
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real, intent(out) :: fstar
     real :: thet, sign, tp, tps
     real :: st, dt, sr, dr, r
     real, dimension(size(f,2)) :: mtheta
@@ -854,7 +853,7 @@ contains
        fstar=fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
             (mtheta(jstar+1) - mtheta(jstar)))
     end if
-  end subroutine eqitem
+  end function eqitem
 
   !> FIXME : Add documentation
   pure subroutine eqdcart(self, dfm, dfcart)
@@ -946,7 +945,7 @@ contains
        rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
 
-       call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
+       gradpsi = geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), 'R')
 
        mag_B=sqrt( (geom%btori(pbar(i))**2 + gradpsi**2))/geom%Rpos(geom%eqpsi(i),0.)
 

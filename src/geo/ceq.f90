@@ -374,8 +374,8 @@ contains
     end select
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
     end do
     !Note no special handling for theta unlike some others
 
@@ -432,8 +432,8 @@ contains
     end select
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -450,12 +450,11 @@ contains
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
-  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
+  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use mp, only: mp_abort
     use constants, only: pi
     class(ceq_type), intent(in) :: self
     real, intent(in) :: r_in, theta_in
-    real, intent(out) :: fstar
     real, dimension(:,:), intent(in) :: f
     character(len = 1), intent(in) :: char
     integer :: i, j, istar, jstar
@@ -542,7 +541,7 @@ contains
          +f(istar + 1, jstar + 1) * dr * dt
     fstar = fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
          (mtheta(jstar+1) - mtheta(jstar)))
-  end subroutine eqitem
+  end function eqitem
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
   !> w.r.t. (R,Z).
@@ -654,7 +653,7 @@ contains
        rho2=0.5*geom%diameter(rp2)
        drhodpsiq=(rho1-rho2)/(rp1-rp2)
 
-       call geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), gradpsi, 'R')
+       gradpsi = geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), 'R')
 
        mag_B = sqrt( (geom%btori(pbar(i))**2 + gradpsi**2))/geom%Rpos(geom%eqpsi(i),0.)
 

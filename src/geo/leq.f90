@@ -283,8 +283,8 @@ contains
     end select
 
     do i = -nth_used, -1
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
        if (char == 'T') then
           grad(i, 1) = -grad(i, 1)
           grad(i, 2) = -grad(i, 2)
@@ -292,8 +292,8 @@ contains
     end do
 
     do i = 0, nth_used
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -342,8 +342,8 @@ contains
     end select
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -358,7 +358,7 @@ contains
   end subroutine bgradient
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
-  subroutine eqitem(self, r_in, theta_in, f, fstar, char)
+  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use constants, only: pi
     implicit none
     class(leq_type), intent(in) :: self
@@ -367,8 +367,6 @@ contains
     real, intent(in) :: theta_in
     !> Array to interpolate
     real, dimension(:,-self%nt:), intent(in) :: f
-    !> Interpolation result
-    real, intent(out) :: fstar
     !> FIXME: Unused
     character(1), intent(in) :: char
     !> Internal loop variable
@@ -413,7 +411,7 @@ contains
     fstar=f(istar    , jstar    )  * st &
          +f(istar    , jstar + 1)  * dt
     fstar = fstar / (mtheta(jstar+1)-mtheta(jstar))
-  end subroutine eqitem
+  end function eqitem
 
   !> Convert `dfm` from index-space derivative to derivative on
   !> cylindrical coordinates
