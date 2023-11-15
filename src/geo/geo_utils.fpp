@@ -73,6 +73,36 @@ module geo_utils
 
   type, abstract :: abstract_geo_type
      logical :: initialised = .false.
+     real :: psi_0, psi_a, B_T, beta_0, R_mag, Z_mag, aminor
+     !> 2D map of co-ordinates to R or Z
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
+     ! The following quantities represent changes between adjacent grid
+     ! points. The first two dimensions are minor radius and theta,
+     ! respectively. The last dimension is the difference along either
+     ! the (minor) radial or theta directions, respectively
+     !> Major radius differences on theta, minor radius grids
+     real, allocatable, dimension (:,:,:) :: drm
+     !> Vertical differences on theta, minor radius grids
+     real, allocatable, dimension (:,:,:) :: dzm
+     !> Magnetic field magnitude differences on theta, minor radius grids
+     real, allocatable, dimension (:,:,:) :: dbtm
+     !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
+     real, allocatable, dimension (:,:,:) :: dpm
+     !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
+     real, allocatable, dimension (:,:,:) :: dtm
+     !> Minor radius gradient in cylindrical coordinates \((\hat{e}_R,
+     !> \hat{e}_Z, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dpcart
+     !> Theta gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dtcart
+     !> Magnetic field magnitude gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dbtcart
+     !> Minor radius gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dpbish
+     !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dtbish
+     !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dbtbish
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(finalise_interface), deferred :: finalise

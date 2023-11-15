@@ -26,34 +26,6 @@ module leq
 
   public :: leq_type, dpdrhofun
 
-  ! The following quantities represent changes between adjacent grid
-  ! points. The first two dimensions are minor radius and theta,
-  ! respectively. The last dimension is the difference along either
-  ! the (minor) radial or theta directions, respectively
-
-  !> Major radius differences on theta, minor radius grids
-  real, allocatable, dimension (:,:,:) :: drm
-  !> Vertical differences on theta, minor radius grids
-  real, allocatable, dimension (:,:,:) :: dzm
-  !> Magnetic field magnitude differences on theta, minor radius grids
-  real, allocatable, dimension (:,:,:) :: dbtm
-  !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
-  real, allocatable, dimension (:,:,:) :: dpm
-  !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
-  real, allocatable, dimension (:,:,:) :: dtm
-  !> Minor radius gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dpcart
-  !> Theta gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dtcart
-  !> Magnetic field magnitude gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dbtcart
-  !> Minor radius gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dpbish
-  !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dtbish
-  !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
-  real, allocatable, dimension (:,:,:) :: dbtbish
-
   type, extends(abstract_geo_type) :: leq_type
      private
      !> Used to translate definition of the poloidal angle such that the location
@@ -63,13 +35,7 @@ module leq
      type(flux_surface_type) :: surf
      ! Regular variables
      integer :: nr, nt
-     real :: psi_0, psi_a, B_T, beta_0
-     real :: R_mag, Z_mag, aminor
-     real, allocatable, dimension (:)     :: eqpsi, pressure
-     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
-     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
-     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
+     real, allocatable, dimension(:) :: eqpsi, pressure
    contains
      procedure :: initialise => leqin
      procedure :: calculate_gradients => leq_init

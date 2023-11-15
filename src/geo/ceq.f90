@@ -14,14 +14,8 @@ module ceq
      private
      character(len = EQFILE_LENGTH) :: filename
      integer :: nr, nt
-     real :: psi_0, psi_a, B_T, beta_0
-     real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
-     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
-     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
-     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => ceqin
