@@ -377,10 +377,8 @@ contains
     select case(char)
     case('B')
        dcart = self%dbcart
-    case('P')
+    case('P', 'R')
        dcart = self%dpcart
-    case('R')
-       dcart = self%dpcart  ! dpcart is correct for 'R'
     case('T')
        dcart = self%dtcart
     end select

@@ -643,10 +643,8 @@ contains
     integer :: i
 
     select case(char)
-    case('P')
+    case('P', 'R')
        dcart = self%dpcart
-    case('R')
-       dcart = self%dpcart  ! dpcart is correct for 'R'
     case('T')
        dcart = self%dtcart
     end select

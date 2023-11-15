@@ -276,10 +276,8 @@ contains
     integer :: i
 
     select case(char)
-    case('P')
+    case('P', 'R')
        dcart = self%dpcart
-    case('R')
-       dcart = self%dpcart  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
        dcart = self%dtcart  ! Never reached: bgradient always used
     end select
