@@ -138,8 +138,7 @@ module geo_utils
      real, allocatable, dimension (:,:) :: eq_psi
      type(periodic_spline) :: rbound_spl
    contains
-     procedure(bound_interface), deferred :: bound
-     procedure :: rfun, zbrent
+     procedure :: bound => bound_eqfile_cart, rfun, zbrent
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces. Note we _could_ reuse
@@ -208,14 +207,6 @@ module geo_utils
        import
        class(abstract_eqfile_geo_type), intent(in out) :: self
      end subroutine splines_interface
-
-     ! Additional interfaces for eqfile cartesian variant
-     real function bound_interface(self, theta)
-       import
-       class(abstract_eqfile_cart_geo_type), intent(in) :: self
-       real, intent(in) :: theta
-     end function bound_interface
-
   end interface
 
 contains
@@ -278,6 +269,16 @@ contains
     end if
     betafun = splint(pbar, self%beta_spl)
   end function betafun_eqfile
+
+  !> Find the value of the major radius on the plasma boundary
+  !> at given geometric theta.
+  real function bound_eqfile_cart(self, theta) result(bound)
+    use splines, only: periodic_splint
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, intent(in) :: theta
+    bound = periodic_splint(theta, self%rbound_spl)
+  end function bound_eqfile_cart
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)

@@ -28,7 +28,6 @@ module deq
      procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
-     procedure :: bound => bound
      procedure :: rhofun => rhofun
      procedure, private :: derm => derm
      procedure :: eqitem => eqitem
@@ -579,14 +578,4 @@ contains
     rhofun = splint(pbar, self%rho_spl)
   end function rhofun
 
-  !> Find the value of the major radius on the plasma boundary
-  !> at given geometric theta.
-  real function bound(self, theta)
-    use splines, only: periodic_splint
-    use constants, only: twopi
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent(in) :: theta
-    bound = periodic_splint(theta, self%rbound_spl)
-  end function bound
 end module deq

@@ -120,7 +120,6 @@ module eeq
      procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
-     procedure :: bound => bound
      procedure, private :: derm => derm
      procedure :: eqitem => eqitem
      !procedure, private :: eqdcart => eqdcart
@@ -867,17 +866,6 @@ contains
     real, intent(in) :: pbar
     dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl)
   end function dpfun
-
-  !> Find the value of the major radius on the plasma boundary
-  !> at given geometric theta.
-  real function bound(self, theta)
-    use splines, only: periodic_splint
-    use constants, only: twopi
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: theta
-    bound = periodic_splint(theta, self%rbound_spl)
-  end function bound
 
   !> FIXME : Add documentation
   subroutine a_minor(r, z, Z_mag, a)
