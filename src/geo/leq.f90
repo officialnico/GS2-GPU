@@ -19,7 +19,7 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type, EQFILE_LENGTH
+  use geo_utils, only: abstract_geo_type, flux_surface_type
   implicit none
 
   private

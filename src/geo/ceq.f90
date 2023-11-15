@@ -1,7 +1,7 @@
 !> Reads in the geometry using a CHEASE output file.
 !> The CHEASE output file is read using the helper module read_chease.
 module ceq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
   use splines, only: spline
 
   implicit none

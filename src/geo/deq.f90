@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module deq
-  use geo_utils, only: abstract_eqfile_cart_geo_type, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_cart_geo_type
   use splines, only: spline
 
   implicit none

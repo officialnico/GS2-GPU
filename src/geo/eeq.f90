@@ -94,7 +94,7 @@ end module gs2d
 !> The normalising field is set to the field on axis; the normalising length
 !> is set to the half-diameter of the LCFS.
 module eeq
-  use geo_utils, only: abstract_eqfile_cart_geo_type, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_cart_geo_type
 
   implicit none
 
@@ -747,8 +747,7 @@ contains
     r_pos = self%Rpos(r, theta_in)
     z_pos = self%Zpos(r, theta_in)
 
-! find point on R mesh
-
+    ! find point on R mesh
     if (r_pos >= self%eq_R(self%nw) .or. r_pos <= self%eq_R(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'

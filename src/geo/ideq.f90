@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module ideq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
   use splines, only: spline
 
   implicit none

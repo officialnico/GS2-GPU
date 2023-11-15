@@ -6,8 +6,7 @@ module geo_utils
   implicit none
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
-  public :: geo_input_type, flux_surface_type
-  public :: mod2pi, sort, EQFILE_LENGTH
+  public :: geo_input_type, flux_surface_type, mod2pi, sort
 
   integer, parameter :: EQFILE_LENGTH = 80
 
@@ -139,9 +138,7 @@ module geo_utils
      procedure :: psi => psi_eqfile_cart, rpos => rpos_eqfile_cart, zpos => zpos_eqfile_cart
   end type abstract_eqfile_cart_geo_type
 
-  ! Define the procedure interfaces. Note we _could_ reuse
-  ! several of these rather defining an interface for each routine.
-  ! We don't do this at the moment for flexibility and clarity.
+  ! Define the procedure interfaces.
   interface
      real function rtheta_interface(self, r, theta)
        import

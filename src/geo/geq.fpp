@@ -10,7 +10,7 @@ module geq
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
   use netcdf_utils, only: netcdf_error
 # endif
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
   use splines, only: spline
   implicit none
 
