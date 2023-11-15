@@ -277,10 +277,9 @@ contains
     allocate(self%beta(nr), self%pressure(nr), self%rc(nr), self%diam(nr))
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
     allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2))
-    allocate(self%dbtm(nr, nt, 2), self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
+    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
     allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dtcart(nr, nt, 2))
-    allocate(self%dbtcart(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
-    allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2), self%dtbish(nr, nt, 2))
   end subroutine alloc_arrays
 
   !> FIXME : Add documentation
@@ -290,9 +289,9 @@ contains
     deallocate(self%eqpsi, self%psi_bar, self%fp, &
          self%qsf, self%beta, self%pressure, self%rc, self%diam)
     deallocate(self%R_psi, self%Z_psi, self%B_psi)
-    deallocate(self%drm, self%dzm, self%dbm, self%dbtm, self%dpm, self%dtm)
-    deallocate(self%dpcart, self%dbcart, self%dtcart, self%dbtcart, self%dtbish)
-    deallocate(self%dpbish, self%dbbish, self%dbtbish)
+    deallocate(self%drm, self%dzm, self%dbm, self%dpm, self%dtm)
+    deallocate(self%dpcart, self%dbcart, self%dtcart, self%dtbish)
+    deallocate(self%dpbish, self%dbbish)
   end subroutine dealloc_arrays
 
   !> FIXME : Add documentation
@@ -300,11 +299,10 @@ contains
     use constants, only: pi
     implicit none
     class(geq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1, eqth, eqbtor
+    real, dimension(self%nr, self%nt) :: eqpsi1, eqth
     integer j
 
     do j = 1, self%nt
-       eqbtor(:, j) = self%fp / self%R_psi(:, j)
        eqpsi1(:, j) = self%eqpsi
        eqth(:, j) = (j-1) * pi / real(self%nt-1)
     end do
@@ -313,7 +311,6 @@ contains
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(self%B_psi, self%dbm, 'E')
-    call self%derm(eqbtor, self%dbtm, 'E')
     call self%derm(eqpsi1, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
@@ -325,11 +322,6 @@ contains
     call self%eqdcart(self%dbm, self%dbcart)
     ! grad(B) in Bishop form
     call self%eqdbish(self%dbcart, self%dbbish)
-
-    ! grad(BT) in cartesian form
-    call self%eqdcart(self%dbtm, self%dbtcart)
-    ! grad(BT) in Bishop form
-    call self%eqdbish(self%dbtcart, self%dbtbish)
 
     ! grad(theta) in cartesian form
     call self%eqdcart(self%dtm, self%dtcart)
@@ -427,8 +419,6 @@ contains
     select case(char)
     case('B')
        dcart = self%dbcart
-    case('D')  ! diagnostic
-       dcart = self%dbtcart
     case('P')
        dcart = self%dpcart
     case('R')
@@ -479,8 +469,6 @@ contains
     select case(char)
     case('B')
        dbish = self%dbbish
-    case('D')  ! diagnostic
-       dbish = self%dbtbish
     case('P')
        dbish = self%dpbish
     case('R')

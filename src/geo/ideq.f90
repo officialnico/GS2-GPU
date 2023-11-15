@@ -234,10 +234,9 @@ contains
          self%beta(nr), self%pressure(nr), self%rc(nr), self%diam(nr))
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
     allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2), &
-         self%dbtm(nr, nt, 2), self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
+         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
     allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dtcart(nr, nt, 2))
     allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2), self%dtbish(nr, nt, 2))
-    allocate(self%dbtcart(nr, nt, 2), self%dbtbish(nr, nt, 2))
   end subroutine alloc_arrays
 
   !> FIXME : Add documentation
@@ -247,9 +246,9 @@ contains
     deallocate(self%eqpsi, self%psi_bar, self%fp, self%qsf, self%beta, &
          self%pressure, self%rc, self%diam)
     deallocate(self%R_psi, self%Z_psi, self%B_psi)
-    deallocate(self%drm, self%dzm, self%dbm, self%dbtm, self%dpm, self%dtm)
-    deallocate(self%dpcart, self%dbcart, self%dtcart, self%dbtcart)
-    deallocate(self%dpbish, self%dbbish, self%dtbish, self%dbtbish)
+    deallocate(self%drm, self%dzm, self%dbm, self%dpm, self%dtm)
+    deallocate(self%dpcart, self%dbcart, self%dtcart)
+    deallocate(self%dpbish, self%dbbish, self%dtbish)
   end subroutine dealloc_arrays
 
   !> FIXME : Add documentation
@@ -280,11 +279,6 @@ contains
     call self%eqdcart(self%dbm, self%dbcart)
     ! grad(B) in Bishop form
     call self%eqdbish(self%dbcart, self%dbbish)
-
-    ! grad(BT) in cartesian form
-    self%dbtcart = 0.
-    ! grad(BT) in Bishop form
-    self%dbtbish = 0.
 
     ! grad(theta) in cartesian form
     call self%eqdcart(self%dtm, self%dtcart)
@@ -383,8 +377,6 @@ contains
     select case(char)
     case('B')
        dcart = self%dbcart
-    case('D')  ! diagnostic
-       dcart = self%dbtcart
     case('P')
        dcart = self%dpcart
     case('R')
@@ -436,8 +428,6 @@ contains
     select case(char)
     case('B')
        dbish = self%dbbish
-    case('D')  ! diagnostic
-       dbish = self%dbtbish
     case('P')
        dbish = self%dpbish
     case('R')

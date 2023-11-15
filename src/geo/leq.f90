@@ -110,12 +110,10 @@ contains
     nr = self%nr ; nt = self%nt
     allocate(self%eqpsi(nr), self%pressure(nr))
     allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt))
-    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), self%dbtm(nr, -nt:nt, 2), &
+    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), &
          self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
-    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2), &
-         self%dbtcart(nr, -nt:nt,2))
-    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2), &
-         self%dbtbish(nr, -nt:nt,2))
+    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2))
+    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2))
   end subroutine alloc_arrays
 
   !> Deallocate internal module-level arrays
@@ -124,9 +122,9 @@ contains
     class(leq_type), intent(in out) :: self
     if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%pressure)
     if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
-    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)
-    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
-    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
+    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dpm, self%dtm)
+    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart)
+    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish)
   end subroutine dealloc_arrays
 
   !> Finalise leq module
@@ -142,7 +140,7 @@ contains
     use constants, only: pi
     implicit none
     class(leq_type), intent(in out) :: self
-    real, dimension(self%nr, -self%nt:self%nt) :: eqpsi1, eqth, eqbtor
+    real, dimension(self%nr, -self%nt:self%nt) :: eqpsi1, eqth
     real :: t, r, dr(3)
     integer :: i, j
 
@@ -162,7 +160,6 @@ contains
           self%Z_psi(i, j) = self%Zpos(r, t)
           eqth(i,j) = t
           eqpsi1(i,j) = 1 + dr(i)
-          eqbtor(i,j) = self%surf%Rgeo / self%R_psi(i,j)
        end do
     end do
 
@@ -177,7 +174,6 @@ contains
     ! is the same in all geometry modules.
     call self%derm(self%R_psi,  self%drm,  'E')
     call self%derm(self%Z_psi,  self%dzm,  'O')
-    call self%derm(eqbtor, self%dbtm, 'E')
     call self%derm(eqpsi1, self%dpm,  'E')
 
     ! below is actually grad(rho) instead of grad(psi),
@@ -186,11 +182,6 @@ contains
     call self%eqdcart(self%dpm, self%dpcart)
     ! grad(psi) in Bishop form
     call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(BT) in cartesian form
-    call self%eqdcart(self%dbtm, self%dbtcart)
-    ! grad(BT) in Bishop form
-    call self%eqdbish(self%dbtcart, self%dbtbish)
 
     ! grad(theta) in cartesian form
     call self%eqdcart(self%dtm, self%dtcart)
@@ -285,8 +276,6 @@ contains
     integer :: i
 
     select case(char)
-    case('D')  ! diagnostic
-       dcart = self%dbtcart
     case('P')
        dcart = self%dpcart
     case('R')
@@ -351,8 +340,6 @@ contains
     integer :: i
 
     select case(char)
-    case('D')  ! diagnostic
-       dbish = self%dbtbish
     case('P')
        dbish = self%dpbish
     case('R')

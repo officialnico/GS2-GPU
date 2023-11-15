@@ -88,8 +88,6 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: drm
      !> Vertical differences on theta, minor radius grids
      real, allocatable, dimension (:,:,:) :: dzm
-     !> Magnetic field magnitude differences on theta, minor radius grids
-     real, allocatable, dimension (:,:,:) :: dbtm
      !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
      real, allocatable, dimension (:,:,:) :: dpm
      !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
@@ -99,14 +97,10 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: dpcart
      !> Theta gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dtcart
-     !> Magnetic field magnitude gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
-     real, allocatable, dimension (:,:,:) :: dbtcart
      !> Minor radius gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dpbish
      !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dtbish
-     !> Magnetic field magnitude gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
-     real, allocatable, dimension (:,:,:) :: dbtbish
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(noargs_interface), deferred :: finalise, calculate_gradients, finish_setup

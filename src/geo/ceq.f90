@@ -205,10 +205,10 @@ contains
     allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
          self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbtm(nr, nt, 2), &
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), &
          self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
-    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbtcart(nr, nt, 2))
-    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
+    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
   end subroutine alloc_arrays
 
   !> Deallocate module-level arrays
@@ -218,9 +218,9 @@ contains
     if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%psi_bar, self%fp, &
          self%beta, self%pressure, self%rc, self%diam, self%qsf)
     if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
-    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)
-    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart, self%dbtcart)
-    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish, self%dbtbish)
+    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dpm, self%dtm)
+    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart)
+    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish)
   end subroutine dealloc_arrays
 
   !> Initialise CHEASE equilibrium module
@@ -230,11 +230,10 @@ contains
     use constants, only: pi
     implicit none
     class(ceq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1, eqth, eqbtor
+    real, dimension(self%nr, self%nt) :: eqpsi1, eqth
     integer :: j
 
     do j = 1, self%nt
-       eqbtor(:, j) = self%fp / self%R_psi(:, j)
        eqpsi1(:, j) = self%eqpsi
        eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
     end do
@@ -242,18 +241,12 @@ contains
     call self%derm(eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi,  self%dzm, 'O')
-    call self%derm(eqbtor, self%dbtm, 'E')
     call self%derm(eqpsi1, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)
     ! grad(psi) in Bishop form
     call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(BT) in cartesian form
-    call self%eqdcart(self%dbtm, self%dbtcart)
-    ! grad(BT) in Bishop form
-    call self%eqdbish(self%dbtcart, self%dbtbish)
 
     ! grad(theta) in cartesian form
     call self%eqdcart(self%dtm, self%dtcart)
@@ -374,8 +367,6 @@ contains
     integer :: i
 
     select case(char)
-    case('D')  ! diagnostic
-       dcart = self%dbtcart
     case('P')
        dcart = self%dpcart
     case('R')
@@ -432,8 +423,6 @@ contains
 
     select case(char)
     case('B')
-    case('D')  ! diagnostic
-       dbish = self%dbtbish
        call mp_abort('error: bishop == 0 not allowed with ceq. (2)',.true.)
     case('P')
        dbish = self%dpbish
