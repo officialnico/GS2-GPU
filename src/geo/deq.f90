@@ -365,7 +365,7 @@ contains
              end if
           end do
        end do
-    case('P')
+    case('E')
        do j =2, nh-1
           dfm (:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%eq_dZ
        end do

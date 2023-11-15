@@ -554,7 +554,7 @@ contains
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
     if (verbosity > 2) write(6,*) "efit_init: derm"
-    call self%derm(self%eq_psi, self%dpm, 'P')
+    call self%derm(self%eq_psi, self%dpm, 'E')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(eqth, self%dtm, 'T')
     if (verbosity > 2) write(6,*) "efit_init: finished"
@@ -626,7 +626,7 @@ contains
              end if
           end do
        end do
-    case('P')
+    case('E')
        do j = 2, nh-1
           dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%eq_dZ
        end do
