@@ -24,12 +24,7 @@ module ceq
      procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
-     procedure :: btori => btori
-     procedure :: dbtori => dbtori
-     procedure :: qfun => qfun
-     procedure :: pfun => pfun
      procedure :: dpfun => dpfun
-     procedure :: betafun => betafun
      procedure :: psi => psi
      procedure :: rfun => psi
      procedure :: gradient => gradient
@@ -684,43 +679,6 @@ contains
     rcenter = splint(rp, self%rcenter_spl)
   end function rcenter
 
-  !> \(\frac{dI}{d\psi}\) at the given normalised \(\psi\)
-  real function dbtori (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    dbtori = dsplint(pbar, self%btori_spl)/(self%psi_a - self%psi_0)
-  end function dbtori
-
-  !> FIXME : Add documentation
-  real function btori (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    btori = splint(pbar, self%btori_spl)
-  end function btori
-
-  !> FIXME : Add documentation
-  real function qfun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    qfun = splint(pbar, self%qsf_spl)
-  end function qfun
-
-  !> FIXME : Add documentation
-  real function pfun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    pfun = 0.5*self%beta_0*splint(pbar, self%pressure_spl)
-  end function pfun
-
   !> FIXME : Add documentation
   real function dpfun (self, pbar)
     use splines, only: dsplint
@@ -730,19 +688,6 @@ contains
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
     dpfun = dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0) * self%beta_0/2.
   end function dpfun
-
-  !> FIXME : Add documentation
-  real function betafun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    if (pbar == 0.) then
-       betafun = self%beta(1)
-       return
-    end if
-    betafun = splint(pbar, self%beta_spl)
-  end function betafun
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)

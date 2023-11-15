@@ -116,12 +116,7 @@ module eeq
      procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
-     procedure :: btori => btori
-     procedure :: dbtori => dbtori
-     procedure :: qfun => qfun
-     procedure :: pfun => pfun
      procedure :: dpfun => dpfun
-     procedure :: betafun => betafun
      procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
@@ -865,42 +860,6 @@ contains
   end function rcenter
 
   !> FIXME : Add documentation
-  real function btori (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    btori = splint(pbar, self%btori_spl)
-  end function btori
-
-  !> FIXME : Add documentation
-  real function dbtori (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a - self%psi_0)
-  end function dbtori
-
-  !> FIXME : Add documentation
-  real function qfun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    qfun = splint(pbar, self%qsf_spl)
-  end function qfun
-
-  !> FIXME : Add documentation
-  real function pfun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    pfun = 0.5 * self%beta_0 * splint(pbar, self%pressure_spl)
-  end function pfun
-
-  !> FIXME : Add documentation
   real function dpfun (self, pbar)
     use splines, only: dsplint
     implicit none
@@ -908,15 +867,6 @@ contains
     real, intent(in) :: pbar
     dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl)
   end function dpfun
-
-  !> FIXME : Add documentation
-  real function betafun (self, pbar)
-    use splines, only: splint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    betafun = splint(pbar, self%beta_spl)
-  end function betafun
 
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.

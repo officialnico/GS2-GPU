@@ -126,6 +126,9 @@ module geo_utils
      procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile
      procedure(splines_interface), deferred :: setup_splines, delete_splines
+     procedure :: btori => btori_eqfile, dbtori => dbtori_eqfile
+     procedure :: qfun => qfun_eqfile, betafun => betafun_eqfile
+     procedure :: pfun => pfun_eqfile
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -229,6 +232,52 @@ contains
     call self%calculate_gradients
     call self%setup_splines
   end subroutine finish_setup_eqfile
+
+  real function btori_eqfile (self, pbar) result(btori)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    btori = splint(pbar, self%btori_spl)
+  end function btori_eqfile
+
+  !> \(\frac{dI}{d\psi}\) at the given normalised \(\psi\)
+  real function dbtori_eqfile (self, pbar) result(dbtori)
+    use splines, only: dsplint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a-self%psi_0)
+  end function dbtori_eqfile
+
+  real function qfun_eqfile (self, pbar) result(qfun)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    qfun = splint(pbar, self%qsf_spl)
+  end function qfun_eqfile
+
+  real function pfun_eqfile (self, pbar) result(pfun)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    ! p_N would be B**2/mu_0 => p = beta/2 in our units
+    pfun = 0.5 * self%beta_0 * splint(pbar, self%pressure_spl)
+  end function pfun_eqfile
+
+  real function betafun_eqfile (self, pbar) result(betafun)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    if (pbar == 0.) then
+       betafun = self%beta_0
+       return
+    end if
+    betafun = splint(pbar, self%beta_spl)
+  end function betafun_eqfile
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)
