@@ -12,9 +12,9 @@ module deq
   type, extends(abstract_eqfile_cart_geo_type) :: deq_type
      private
      integer :: nw, nh, nwb, nhb, nbbbs, nrho
-     real :: dfit_dR, dfit_dZ
-     real, allocatable, dimension(:) :: thetab, r_bound, dfit_R, dfit_Z, rho_mid, psi_mid
-     real, allocatable, dimension (:,:) :: dfit_psi
+     real :: eq_dR, eq_dZ
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z, rho_mid, psi_mid
+     real, allocatable, dimension (:,:) :: eq_psi
      type(periodic_spline) :: rbound_spl
      type(spline) :: rho_spl
    contains
@@ -52,10 +52,10 @@ contains
   !> the axisymmetric magnetic field geometry on a rectangular
   !> domain defined by the coordinates (R,Z).
   !
-  !> dfit_R     R grid
-  !> dfit_Z     Z grid
+  !> eq_R     R grid
+  !> eq_Z     Z grid
   !> fp    F on psibar grid
-  !> dfit_psi   psi on (R,Z) grid
+  !> eq_psi   psi on (R,Z) grid
   !> R_mag        major radius of the magnetic axis
   !> Z_mag        elevation of the magnetic axis
   !> rwid       total width of the domain
@@ -101,8 +101,6 @@ contains
 
     ! Read the data
     read(5,*) self%nw, self%nh, self%nrho
-
-!    call alloc_module_arrays(nwb, nwb, nhb, nw, nh, nrho)
     call self%alloc_arrays
     allocate(spsi_bar(self%nw), sdfit_R(self%nw), sdfit_Z(self%nh), dummy(self%nw))
 
@@ -124,16 +122,16 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i) / float(self%nw)
-       self%dfit_R(i) = rwid * float(i) / float(self%nw)
+       self%eq_R(i) = rwid * float(i) / float(self%nw)
     enddo
 
     do j = 1, self%nh
-       self%dfit_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
+       self%eq_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
     enddo
 
     read(5,2020) (dummy(j), j = 1, self%nw)  ! pressure read
     call inter_cspl(self%nw, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
-    read(5,2020) ((self%dfit_psi(i,j) , i = 1, self%nw) , j = 1, self%nh)
+    read(5,2020) ((self%eq_psi(i,j) , i = 1, self%nw) , j = 1, self%nh)
 
     ! Only needed for irho = 4
     read (5,2020) (self%rho_mid(i), i = 1, self%nrho)
@@ -153,36 +151,36 @@ contains
     jmin = 1
     jmax = self%nh / 2
     do j = jmin, jmax
-       rbbbs(j) = (self%dfit_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%dfit_Z(j+self%nh/2) / delta_Z
+       rbbbs(j) = (self%eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = self%eq_Z(j+self%nh/2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 2
     do j = jmin, jmax
-       rbbbs(j) = (self%dfit_R(j-jmin+2)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%dfit_Z(self%nh) / delta_Z
+       rbbbs(j) = (self%eq_R(j-jmin+2)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = self%eq_Z(self%nh) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh - 1
     do j = jmin, jmax
-       rbbbs(j) = (self%dfit_R(self%nw)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%dfit_Z(jmax-j+2) / delta_Z
+       rbbbs(j) = (self%eq_R(self%nw)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = self%eq_Z(jmax-j+2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 1
     do j = jmin, jmax
-       rbbbs(j) = (self%dfit_R(jmax-j+2)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%dfit_Z(1) / delta_Z
+       rbbbs(j) = (self%eq_R(jmax-j+2)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = self%eq_Z(1) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh/2
     do j = jmin, jmax
-       rbbbs(j) = (self%dfit_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%dfit_Z(j-jmin+2) / delta_Z
+       rbbbs(j) = (self%eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = self%eq_Z(j-jmin+2) / delta_Z
     end do
 
     do j = 1, self%nbbbs-1
@@ -232,8 +230,8 @@ contains
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
 
-    self%dfit_R = self%dfit_R / self%aminor
-    self%dfit_Z = self%dfit_Z / self%aminor
+    self%eq_R = self%eq_R / self%aminor
+    self%eq_Z = self%eq_Z / self%aminor
 
     ! should rmaj be R_mag? use R_mag for now.
     rmaj = self%R_mag
@@ -256,10 +254,10 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
 
-    self%dfit_psi = self%dfit_psi / (self%B_T * self%aminor**2)
+    self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
 
-    self%dfit_dR = self%dfit_R(2) - self%dfit_R(1)
-    self%dfit_dZ = self%dfit_Z(2) - self%dfit_Z(1)
+    self%eq_dR = self%eq_R(2) - self%eq_R(1)
+    self%eq_dZ = self%eq_Z(2) - self%eq_Z(1)
 
     nthg = -1
     self%initialised = .true.
@@ -273,8 +271,8 @@ contains
     nw = self%nw ; nh = self%nh ; nrho = self%nrho
     allocate (self%rho_mid(nrho), self%psi_mid(nrho))
     allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
-    allocate (self%dfit_R(nw), self%dfit_Z(nh))
-    allocate (self%dfit_psi(nw, nh))
+    allocate (self%eq_R(nw), self%eq_Z(nh))
+    allocate (self%eq_psi(nw, nh))
     allocate (self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
   end subroutine alloc_arrays
 
@@ -284,7 +282,7 @@ contains
     class(deq_type), intent(in out) :: self
     if (allocated(self%rho_mid)) deallocate(self%rho_mid, self%psi_mid, self%beta)
     if (allocated(self%psi_bar)) deallocate(self%psi_bar, self%fp, self%qsf, self%pressure)
-    if (allocated(self%dfit_R)) deallocate(self%dfit_R, self%dfit_Z, self%dfit_psi)
+    if (allocated(self%eq_R)) deallocate(self%eq_R, self%eq_Z, self%eq_psi)
     if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
     if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_arrays
@@ -297,15 +295,15 @@ contains
     integer :: i, j
     do i = 1, self%nw
        do j = 1, self%nh
-          if (self%dfit_Z(j) == self%Z_mag .and. self%dfit_R(i) == self%R_mag) then
+          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
              eqth(i, j) = 0.  ! value should not matter
           else
-             eqth(i, j) = atan2( (self%dfit_Z(j) - self%Z_mag), (self%dfit_R(i) - self%R_mag))
+             eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), (self%eq_R(i) - self%R_mag))
           end if
        end do
     end do
 
-    call self%derm(self%dfit_psi, self%dpm, 'E')
+    call self%derm(self%eq_psi, self%dpm, 'E')
     call self%derm(eqth, self%dtm, 'T')
   end subroutine dfit_init
 
@@ -349,19 +347,19 @@ contains
     integer :: i, j, nw, nh
     nw = self%nw ; nh = self%nh
     i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%dfit_dR
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%eq_dR
 
     i = nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%dfit_dR
+    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%eq_dR
 
     j = 1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%dfit_dZ
+    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%eq_dZ
 
     j = nh
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%dfit_dZ
+    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%eq_dZ
 
     do i = 2, nw-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%dfit_dR
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%eq_dR
     end do
 
     select case (char)
@@ -369,15 +367,15 @@ contains
        do j = 2, nh-1
           do i = 1, nw
              if (f(i,j+1)-f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%dfit_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%eq_dZ
              else
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%dfit_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%eq_dZ
              end if
           end do
        end do
     case('P')
        do j =2, nh-1
-          dfm (:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%dfit_dZ
+          dfm (:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%eq_dZ
        end do
     end select
 
@@ -465,27 +463,27 @@ contains
     z_pos = self%Zpos(r, theta_in)
 
     ! find point on R mesh
-    if (r_pos >= self%dfit_R(self%nw) .or. r_pos <= self%dfit_R(1)) then
+    if (r_pos >= self%eq_R(self%nw) .or. r_pos <= self%eq_R(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'
-       write(*,*) r, theta_in, self%dfit_R(self%nw), r_pos
+       write(*,*) r, theta_in, self%eq_R(self%nw), r_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
     end if
 
     ! ensure point is on Z mesh
-    if (z_pos >= self%dfit_Z(self%nh) .or. z_pos <= self%dfit_Z(1)) then
+    if (z_pos >= self%eq_Z(self%nh) .or. z_pos <= self%eq_Z(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of Z domain'
-       write(*,*) r, theta_in, self%dfit_Z(1), self%dfit_Z(self%nh), z_pos
+       write(*,*) r, theta_in, self%eq_Z(1), self%eq_Z(self%nh), z_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
     end if
 
     istar = 0
     do i = 2, self%nw
        if (istar /= 0) cycle
-       if (r_pos < self%dfit_R(i)) then
-          dr = r_pos - self%dfit_R(i-1)
-          sr = self%dfit_R(i) - r_pos
+       if (r_pos < self%eq_R(i)) then
+          dr = r_pos - self%eq_R(i-1)
+          sr = self%eq_R(i) - r_pos
           istar = i-1
        end if
     end do
@@ -494,9 +492,9 @@ contains
     jstar = 0
     do j = 1, self%nh
        if (jstar /= 0) cycle
-       if (z_pos < self%dfit_Z(j)) then
-          dt = z_pos - self%dfit_Z(j-1)
-          st = self%dfit_Z(j) - z_pos
+       if (z_pos < self%eq_Z(j)) then
+          dt = z_pos - self%eq_Z(j-1)
+          st = self%eq_Z(j) - z_pos
           jstar = j-1
        end if
     end do
@@ -506,8 +504,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%dfit_R(istar+1) - self%dfit_R(istar)) * &
-         (self%dfit_Z(jstar+1) - self%dfit_Z(jstar)))
+    fstar = fstar / (abs(self%eq_R(istar+1) - self%eq_R(istar)) * &
+         (self%eq_Z(jstar+1) - self%eq_Z(jstar)))
   end subroutine eqitem
 
   !> FIXME : Add documentation
@@ -544,7 +542,7 @@ contains
     else if (r==1. .and. theta == 0.0) then
        psi = self%psi_a
     else
-       call self%eqitem(r, theta, self%dfit_psi, psi, '?')
+       call self%eqitem(r, theta, self%eq_psi, psi, '?')
     end if
   end function psi
 

@@ -109,9 +109,9 @@ module eeq
   type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
      integer :: nw, nh, nwb, nhb, nbbbs
-     real :: efit_dR, efit_dZ
-     real, allocatable, dimension(:) :: thetab, r_bound, efit_R, efit_Z
-     real, allocatable, dimension (:,:) :: efit_psi
+     real :: eq_dR, eq_dZ
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
+     real, allocatable, dimension (:,:) :: eq_psi
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: calculate_gradients => efit_init
@@ -156,10 +156,10 @@ contains
   !> the axisymmetric magnetic field geometry on a rectangular
   !> domain defined by the coordinates (R,Z).
   !>
-  !> efit_R     R grid
-  !> efit_Z     Z grid
+  !> eq_R     R grid
+  !> eq_Z     Z grid
   !> fp    F on psibar grid
-  !> efit_psi   psi on (R,Z) grid
+  !> eq_psi   psi on (R,Z) grid
   !> R_mag        major radius of the magnetic axis
   !> Z_mag        elevation of the magnetic axis
   !> rwid       total width of the domain
@@ -232,12 +232,12 @@ contains
 
     do i = 1, self%nwb
        self%psi_bar(i) = float(i-1) / float(self%nwb-1)
-       self%efit_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
+       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
     end do
 
     ! nb Zgrid is not necessarily UpDown symmetric
     do j = 1, self%nhb
-       self%efit_Z(j) = ((float(j-1) / float(self%nhb-1) ))*zhei+minval(zgrid)
+       self%eq_Z(j) = ((float(j-1) / float(self%nhb-1) ))*zhei+minval(zgrid)
     end do
 
     call inter_cspl(self%nw, spsi_bar, f, self%nwb, self%psi_bar, self%fp)
@@ -255,7 +255,7 @@ contains
 
     do j = 1, self%nhb
        do i = 1, self%nwb
-          self%efit_psi(i,j) = fitp_surf2(self%efit_R(i), self%efit_Z(j), self%nw, self%nh, &
+          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), self%nw, self%nh, &
                sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
        end do
     end do
@@ -309,8 +309,8 @@ contains
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    self%efit_R = self%efit_R / self%aminor
-    self%efit_Z = self%efit_Z / self%aminor
+    self%eq_R = self%eq_R / self%aminor
+    self%eq_Z = self%eq_Z / self%aminor
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
     rmaj = self%R_mag
@@ -329,9 +329,9 @@ contains
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
-    self%efit_psi = self%efit_psi / (self%B_T * self%aminor**2)
-    self%efit_dR = self%efit_R(2) - self%efit_R(1)
-    self%efit_dZ = self%efit_Z(2) - self%efit_Z(1)
+    self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
+    self%eq_dR = self%eq_R(2) - self%eq_R(1)
+    self%eq_dZ = self%eq_Z(2) - self%eq_Z(1)
     self%initialised = .true.
   end subroutine gs2din
 
@@ -340,10 +340,10 @@ contains
   !> domain defined by the coordinates (R,Z). It reads and stores
   !> the following quantities (among others).
   !>
-  !> - efit_R:     R grid
-  !> - efit_Z:     Z grid
+  !> - eq_R:     R grid
+  !> - eq_Z:     Z grid
   !> - fp:    F on psibar grid
-  !> - efit_psi:   psi on (R,Z) grid
+  !> - eq_psi:   psi on (R,Z) grid
   !> - R_mag:        major radius of the magnetic axis
   !> - Z_mag:        elevation of the magnetic axis
   !> - rwid:       total width of the domain
@@ -418,11 +418,11 @@ contains
 
     do i = 1, self%nwb
        self%psi_bar(i) = float(i-1) / float(self%nwb-1)
-       self%efit_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
+       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
     end do
 
     do j = 1, self%nhb
-       self%efit_Z(j) = ((float(j-1) / float(self%nhb-1) ) - 0.5)*zhei
+       self%eq_Z(j) = ((float(j-1) / float(self%nhb-1) ) - 0.5)*zhei
     end do
 
     read(5,2020) (dummy(j),   j = 1, self%nw)
@@ -443,7 +443,7 @@ contains
 
     do j = 1, self%nhb
        do i = 1, self%nwb
-          self%efit_psi(i,j) = fitp_surf2(self%efit_R(i), self%efit_Z(j), self%nw, self%nh, &
+          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), self%nw, self%nh, &
                sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
        end do
     end do
@@ -494,8 +494,8 @@ contains
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    self%efit_R = self%efit_R / self%aminor
-    self%efit_Z = self%efit_Z / self%aminor
+    self%eq_R = self%eq_R / self%aminor
+    self%eq_Z = self%eq_Z / self%aminor
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
     rmaj = self%R_mag
@@ -511,9 +511,9 @@ contains
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
-    self%efit_psi = self%efit_psi / (self%B_T * self%aminor**2)
-    self%efit_dR = self%efit_R(2) - self%efit_R(1)
-    self%efit_dZ = self%efit_Z(2) - self%efit_Z(1)
+    self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
+    self%eq_dR = self%eq_R(2) - self%eq_R(1)
+    self%eq_dZ = self%eq_Z(2) - self%eq_Z(1)
 
     if (.true.) then
        write (*,*) "Finished efitin... imported EFIT equilibrium"
@@ -537,8 +537,8 @@ contains
     integer :: nw, nh
     nw = self%nwb ; nh = self%nhb
     allocate(self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
-    allocate(self%efit_R(nw), self%efit_Z(nh))
-    allocate(self%efit_psi(nw, nh), self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
+    allocate(self%eq_R(nw), self%eq_Z(nh))
+    allocate(self%eq_psi(nw, nh), self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
   end subroutine alloc_arrays
 
   !> FIXME : Add documentation
@@ -547,7 +547,7 @@ contains
     class(eeq_base_type), intent(in out) :: self
     if (allocated(self%psi_bar)) deallocate(self%psi_bar, self%fp, self%qsf, &
          self%pressure, self%beta)
-    if (allocated(self%efit_R)) deallocate(self%efit_R, self%efit_Z, self%efit_psi)
+    if (allocated(self%eq_R)) deallocate(self%eq_R, self%eq_Z, self%eq_psi)
     if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
     if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_arrays
@@ -564,11 +564,11 @@ contains
     if (verbosity > 2) write(6,*) "efit_init: do i"
     do i = 1, self%nw
        do j = 1, self%nh
-          if (self%efit_Z(j) == self%Z_mag .and. self%efit_R(i) == self%R_mag) then
+          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
              eqth(i, j) = 0.  ! value should not matter
           else
-             eqth(i, j) = atan2( (self%efit_Z(j) - self%Z_mag), &
-                  (self%efit_R(i) - self%R_mag))
+             eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
+                  (self%eq_R(i) - self%R_mag))
           end if
        end do
     end do
@@ -577,7 +577,7 @@ contains
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
     if (verbosity > 2) write(6,*) "efit_init: derm"
-    call self%derm(self%efit_psi, self%dpm, 'P')
+    call self%derm(self%eq_psi, self%dpm, 'P')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(eqth, self%dtm, 'T')
     if (verbosity > 2) write(6,*) "efit_init: finished"
@@ -623,19 +623,19 @@ contains
     ! EFIT grid is equally spaced in R, Z -- this routine uses that fact and
     ! is therefore not completely general.  It is fine for EFIT output.
     i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%efit_dR
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%eq_dR
 
     i = nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%efit_dR
+    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%eq_dR
 
     j = 1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%efit_dZ
+    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%eq_dZ
 
     j = nh
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%efit_dZ
+    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%eq_dZ
 
     do i = 2, nw-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%efit_dR
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%eq_dR
     end do
 
     select case (char)
@@ -643,15 +643,15 @@ contains
        do j = 2, nh-1
           do i = 1, nw
              if(f(i,j+1)-f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%efit_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%eq_dZ
              else
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%efit_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%eq_dZ
              end if
           end do
        end do
     case('P')
        do j = 2, nh-1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%efit_dZ
+          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%eq_dZ
        end do
     end select
   end subroutine derm
@@ -775,27 +775,27 @@ contains
 
 ! find point on R mesh
 
-    if (r_pos >= self%efit_R(self%nw) .or. r_pos <= self%efit_R(1)) then
+    if (r_pos >= self%eq_R(self%nw) .or. r_pos <= self%eq_R(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'
-       write(*,*) r, theta_in, self%efit_R(self%nw), r_pos
+       write(*,*) r, theta_in, self%eq_R(self%nw), r_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
     end if
 
     ! ensure point is on Z mesh
-    if (z_pos >= self%efit_Z(self%nh) .or. z_pos <= self%efit_Z(1)) then
+    if (z_pos >= self%eq_Z(self%nh) .or. z_pos <= self%eq_Z(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of Z domain'
-       write(*,*) r, theta_in, self%efit_Z(1), self%efit_Z(self%nh), z_pos
+       write(*,*) r, theta_in, self%eq_Z(1), self%eq_Z(self%nh), z_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
     end if
 
     istar = 0
     do i = 2, self%nw
        if (istar /= 0) cycle
-       if (r_pos < self%efit_R(i)) then
-          dr = r_pos - self%efit_R(i-1)
-          sr = self%efit_R(i) - r_pos
+       if (r_pos < self%eq_R(i)) then
+          dr = r_pos - self%eq_R(i-1)
+          sr = self%eq_R(i) - r_pos
           istar = i-1
        end if
     end do
@@ -804,9 +804,9 @@ contains
     jstar = 0
     do j = 1, self%nh
        if (jstar /= 0) cycle
-       if (z_pos < self%efit_Z(j)) then
-          dt = z_pos - self%efit_Z(j-1)
-          st = self%efit_Z(j) - z_pos
+       if (z_pos < self%eq_Z(j)) then
+          dt = z_pos - self%eq_Z(j-1)
+          st = self%eq_Z(j) - z_pos
           jstar = j-1
        end if
     end do
@@ -816,8 +816,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%efit_R(istar+1)-self%efit_R(istar)) * &
-         (self%efit_Z(jstar+1)-self%efit_Z(jstar)))
+    fstar = fstar / (abs(self%eq_R(istar+1)-self%eq_R(istar)) * &
+         (self%eq_Z(jstar+1)-self%eq_Z(jstar)))
   end subroutine eqitem
 
   !> FIXME : Add documentation
@@ -854,7 +854,7 @@ contains
     else if (r==1. .and. theta == 0.0) then
        psi = self%psi_a
     else
-       call self%eqitem(r, theta, self%efit_psi, psi, '?')
+       call self%eqitem(r, theta, self%eq_psi, psi, '?')
     end if
   end function psi
 
