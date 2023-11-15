@@ -18,10 +18,10 @@ module ceq
      real :: R_mag, Z_mag, aminor
      real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
      real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     real, allocatable, dimension (:,:)   :: R_psi, Z_psi !, B_psi
-     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm!, dbm
-     real, allocatable, dimension (:,:,:) :: dpcart, dbcart, dtcart, dbtcart
-     real, allocatable, dimension (:,:,:) :: dpbish, dbbish, dtbish, dbtbish
+     real, allocatable, dimension (:,:)   :: R_psi, Z_psi
+     real, allocatable, dimension (:,:,:) :: drm, dzm, dbtm, dpm, dtm
+     real, allocatable, dimension (:,:,:) :: dpcart, dtcart, dbtcart
+     real, allocatable, dimension (:,:,:) :: dpbish, dtbish, dbtbish
      type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => ceqin
@@ -224,17 +224,11 @@ contains
     nr = self%nr ; nt = self%nt
     allocate(self%rho_d(nr), self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
          self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
-    ! rho_d = 0. ; eqpsi = 0. ; psi_bar = 0. ; fp = 0. ; beta = 0. ; pressure = 0.
-    ! rc = 0. ; diam = 0. ; qsf = 0.
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
-    ! R_psi = 0.  ; Z_psi = 0.
     allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbtm(nr, nt, 2), &
          self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
-    ! drm = 0. ; dzm = 0. ; dbtm = 0. ; dpm = 0. ; dtm = 0.
     allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbtcart(nr, nt, 2))
     allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbtbish(nr, nt, 2))
-    ! dpcart = 0. ; dtcart = 0. ; dbtcart = 0.
-    ! dpbish = 0. ; dtbish = 0. ; dbtbish = 0.
   end subroutine alloc_arrays
 
   !> Deallocate module-level arrays
@@ -400,8 +394,6 @@ contains
     integer :: i
 
     select case(char)
-    case('B')
-       dcart = self%dbcart
     case('D')  ! diagnostic
        dcart = self%dbtcart
     case('P')
