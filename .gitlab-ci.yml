@@ -202,6 +202,7 @@ onestep_standard_tests:
   variables:
     CASENAME: "standard_one_step_pp"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
+    EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
   script: *default_script
 
