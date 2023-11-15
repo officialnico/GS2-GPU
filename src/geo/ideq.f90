@@ -26,8 +26,6 @@ module ideq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: eqdcart => eqdcart
-     procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
   end type ideq_type
@@ -561,44 +559,6 @@ contains
     fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar))  * &
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
-
-  !> FIXME : Add documentation
-  pure subroutine eqdcart(self, dfm, dfcart)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, dimension (:,:,:), intent(in)  :: dfm
-    real, dimension (:,:,:), intent(out) :: dfcart
-    real, dimension (self%nr, self%nt) :: denom
-    integer :: i, j
-    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
-
-    do j = 1, self%nt
-       do i = 2, self%nr !Note this means we don't normalise i = 1 to denom?
-          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
-       end do
-    end do
-  end subroutine eqdcart
-
-  !> FIXME : Add documentation
-  pure subroutine eqdbish(self, dcart, dbish)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, dimension(:, :, :), intent (in) :: dcart
-    real, dimension(:, :, :), intent(out) :: dbish
-    real, dimension(size(dcart,1),size(dcart,2)) :: denom
-    integer :: i, j
-    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
-
-    do j = 1, self%nt
-       do i = 2, self%nr !Note this means we don't normalise i = 1 to denom?
-          dbish(i,j,:) = dbish(i,j,:) / denom(i,j)
-       end do
-    end do
-  end subroutine eqdbish
 
   !> FIXME : Add documentation
   !>

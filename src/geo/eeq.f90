@@ -118,8 +118,6 @@ module eeq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     !procedure :: eqdcart => eqdcart
-     !procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
   end type eeq_base_type

@@ -25,8 +25,6 @@ module ceq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: eqdcart => eqdcart
-     procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
      procedure :: set_ceq_from_chease => set_ceq_from_chease
@@ -543,62 +541,6 @@ contains
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
 
-  !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
-  !> w.r.t. (R,Z).
-  !> Note that `dfcart(1, :, :)` is not valid
-  pure subroutine eqdcart(self, dfm, dfcart)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
-    !> dfm(:,:,2) is deriv w.r.t. theta_index
-    real, dimension (:,:,:), intent(in)  :: dfm
-    !> dfcart(:,:,1) is deriv w.r.t. R;
-    !> dfcart(:,:,2) is deriv w.r.t. Z
-    real, dimension (:,:,:), intent(out) :: dfcart
-    real, dimension (self%nr, self%nt) :: denom
-    integer :: i, j
-    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
-
-    ! Inner loop skips first point because it's likely exactly on the
-    ! magnetic axis, which means the Jacobian is zero. Do we need
-    ! need a better way to either calculate dfcart there, or to ensure
-    ! we ignore it in other places?
-    do j = 1, self%nt
-       do i = 2, self%nr
-          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
-       end do
-    end do
-  end subroutine eqdcart
-
-  !> Convert gradients of a function f w.r.t. R,Z into bishop form
-  !> Note that `dbish(1, :, :)` is not valid
-  pure subroutine eqdbish(self, dcart, dbish)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    !> dcart(:,:,1) is gradient of f w.r.t. R;
-    !> dcart(:,:,2) is gradient of f w.r.t. Z
-    real, dimension(:, :, :), intent (in) :: dcart
-    !> dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|;
-    !> dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|.
-    !> Note that in the special case where f=psi:
-    !> dbish(:,:,1) is |grad psi|;
-    !> dbish(:,:,2) is 0
-    real, dimension(:, :, :), intent(out) :: dbish
-    real, dimension(size(dcart,1),size(dcart,2)) :: denom
-    integer :: i, j
-    ! denom is |grad psi|
-    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
-
-    do j = 1, self%nt
-       do i = 2, self%nr
-          dbish(i,j,:) = dbish(i,j,:)/ denom(i,j)
-       end do
-    end do
-  end subroutine eqdbish
 
   !> Return the diameter of the flux surface at a given major radius
   real function diameter (self, rp)

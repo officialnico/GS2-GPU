@@ -57,8 +57,6 @@ module leq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: eqdcart => eqdcart
-     procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
      procedure :: geo_Miller => geo_Miller
@@ -412,58 +410,6 @@ contains
          +f(istar    , jstar + 1)  * dt
     fstar = fstar / (mtheta(jstar+1)-mtheta(jstar))
   end function eqitem
-
-  !> Convert `dfm` from index-space derivative to derivative on
-  !> cylindrical coordinates
-  !>
-  !> - Gradient in the first coordinate is in `(:,:,1)`
-  !> - Gradient in the second coordinate is in `(:,:,2)`
-  pure subroutine eqdcart(self, dfm, dfcart)
-    implicit none
-    class(leq_type), intent(in) :: self
-    !> Index-space derivative
-    real, dimension(self%nr,-self%nt:self%nt,2), intent(in)  :: dfm
-    !> Cylindrical coordinates derivative
-    real, dimension(self%nr,-self%nt:self%nt,2), intent(out) :: dfcart
-    real, dimension(self%nr,-self%nt:self%nt) :: denom
-    integer :: i, j
-    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
-
-    ! FIXME: document why this is only on the range [2,nr], or
-    ! simplify. Likely copy-paste from geq etc. See ceq for note
-    do j = -self%nt, self%nt
-       do i = 2, self%nr
-          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
-       end do
-    end do
-  end subroutine eqdcart
-
-  !> Convert `dcart` from cylindrical coordinates derivative to
-  !> derivative on Bishop coordinates
-  !>
-  !> - Gradient in the first coordinate is in `(:,:,1)`
-  !> - Gradient in the second coordinate is in `(:,:,2)`
-  pure subroutine eqdbish(self, dcart, dbish)
-    implicit none
-    class(leq_type), intent(in) :: self
-    !> Cylindrical coordinates derivative
-    real, dimension(self%nr, -self%nt:self%nt, 2), intent(in) :: dcart
-    !> Bishop coordinates derivative
-    real, dimension(self%nr, -self%nt:self%nt, 2), intent(out) :: dbish
-    real, dimension(self%nr, -self%nt:self%nt) :: denom
-    integer :: i, j
-    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
-    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
-
-    do j = -self%nt, self%nt
-       do i = 2, self%nr
-          dbish(i,j,:) = dbish(i,j,:) / denom(i,j)
-       end do
-    end do
-  end subroutine eqdbish
 
   !> Return the inverse of the major radius at \((r, \theta)\)
   real function invR (self, r, theta)
