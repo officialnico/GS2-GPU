@@ -638,7 +638,7 @@ contains
     real, dimension(-ntm:), intent(in) :: rgrid, theta
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
-    real tmp(2), aa(1), daa(1), rpt(1)
+    real :: aa(1), daa(1), rpt(1)
     real, dimension(self%nr, self%nt, 2) :: dcart
     integer :: i
 
@@ -652,22 +652,17 @@ contains
     end select
 
     do i = -nth_used, -1
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), tmp(2), 'Z')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i, 2), 'Z')
        if (char == 'T' .and. .not. self%transp) then
-          grad(i,1) = -tmp(1)
-          grad(i,2) = -tmp(2)
-       else
-          grad(i,1) = tmp(1)
-          grad(i,2) = tmp(2)
+          grad(i, 1) = -grad(i, 1)
+          grad(i, 2) = -grad(i, 2)
        end if
     end do
 
     do i = 0, nth_used
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), tmp(2), 'Z')
-       grad(i,1) = tmp(1)
-       grad(i,2) = tmp(2)
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i, 2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi

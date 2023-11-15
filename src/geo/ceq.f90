@@ -379,6 +379,7 @@ contains
        call self%eqitem(rgrid(i), theta(i), dcart(:,:,1), grad(i,1), 'R')
        call self%eqitem(rgrid(i), theta(i), dcart(:,:,2), grad(i,2), 'Z')
     end do
+    !Note no special handling for theta unlike some others
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     if (char == 'R') then

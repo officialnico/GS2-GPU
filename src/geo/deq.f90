@@ -409,7 +409,7 @@ contains
     real, dimension(-ntm:,:), intent(out) :: grad
     character(len=1), intent(in) :: char
     real, intent(in) :: rp
-    real :: tmp(2), aa(1), daa(1), rpt(1)
+    real :: aa(1), daa(1), rpt(1)
     real, dimension(self%nw, self%nh, 2) ::  dbish
     integer :: i
     ! Other eq types precalculates this in the init stage, e.g. calling eqdcart etc.

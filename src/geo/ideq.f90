@@ -400,7 +400,6 @@ contains
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
     if (char == 'R') then
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
