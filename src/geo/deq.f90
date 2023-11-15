@@ -11,7 +11,7 @@ module deq
 
   type, extends(abstract_eqfile_cart_geo_type) :: deq_type
      private
-     integer :: nw, nh, nwb, nhb, nbbbs, nrho
+     integer :: nw, nh, nbbbs, nrho
      real :: eq_dR, eq_dZ
      real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z, rho_mid, psi_mid
      real, allocatable, dimension (:,:) :: eq_psi
@@ -74,7 +74,7 @@ contains
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy
     real :: p_0, rwid, zhei, bcentr
     real :: delta_R, delta_Z, lref, bref
-    integer :: i, j, jmin, jmax
+    integer :: i, j, jmin, jmax, nw_in, nh_in
     logical :: eqnorm_exists
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -100,9 +100,13 @@ contains
     open(unit = 5, file = self%filename, status='old', form='formatted')
 
     ! Read the data
-    read(5,*) self%nw, self%nh, self%nrho
+    read(5,*) nw_in, nh_in, self%nrho
+    ! Note here we don't allow for rescaling the final grids with big
+    ! unlike in eeq. This makes many of the spline interpolation calls
+    ! in this routine effectively just copies
+    self%nw = nw_in ; self%nh = nh_in
     call self%alloc_arrays
-    allocate(spsi_bar(self%nw), sdfit_R(self%nw), sdfit_Z(self%nh), dummy(self%nw))
+    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), dummy(nw_in))
 
     read(5,2020) rwid, zhei
     read(5,2020) self%R_mag, self%Z_mag
@@ -111,27 +115,29 @@ contains
     ! pbar is defined by
     ! pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
-    do i = 1, self%nw
-       spsi_bar(i) = float(i) / float(self%nw)
-       sdfit_R(i) = rwid * float(i) / float(self%nw)
+    do i = 1, nw_in
+       spsi_bar(i) = float(i) / float(nw_in)
+       sdfit_R(i) = rwid * float(i) / float(nw_in)
     end do
 
-    do j = 1, self%nh
-       sdfit_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
+    do j = 1, nh_in
+       sdfit_Z(j) = zhei*(float(j-1)/float(nh_in-1)-0.5)
     end do
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i) / float(self%nw)
        self%eq_R(i) = rwid * float(i) / float(self%nw)
-    enddo
+    end do
 
     do j = 1, self%nh
        self%eq_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
-    enddo
+    end do
 
-    read(5,2020) (dummy(j), j = 1, self%nw)  ! pressure read
-    call inter_cspl(self%nw, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
-    read(5,2020) ((self%eq_psi(i,j) , i = 1, self%nw) , j = 1, self%nh)
+    read(5,2020) (dummy(j), j = 1, nw_in)  ! pressure read
+    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
+    ! Note we read directly into the eq_psi array here so self%nw == nw_in etc.
+    ! has to be true for this to work. See efit_in for a more general approach.
+    read(5,2020) ((self%eq_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
     ! Only needed for irho = 4
     read (5,2020) (self%rho_mid(i), i = 1, self%nrho)

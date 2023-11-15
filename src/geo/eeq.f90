@@ -108,7 +108,7 @@ module eeq
 
   type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
-     integer :: nw, nh, nwb, nhb, nbbbs
+     integer :: nw, nh, nbbbs
      real :: eq_dR, eq_dZ
      real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
      real, allocatable, dimension (:,:) :: eq_psi
@@ -183,7 +183,7 @@ contains
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
-    integer :: i, j, ierr, big
+    integer :: i, j, ierr, big, nw_in, nh_in
     logical, parameter :: debug =.false.
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -204,12 +204,12 @@ contains
     if (debug) write(6,*) "gs2din: read_gs2d done, "
     if (debug) write(6,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
 
-    self%nw = nr ; self%nh = nz
-    self%nwb = self%nw * big
-    self%nhb = self%nh * big
+    nw_in = nr ; nh_in = nz
+    self%nw = nw_in * big
+    self%nh = nh_in * big
     call self%alloc_arrays()
-    allocate(spsi_bar(self%nw), sefit_R(self%nw), sefit_Z(self%nh))
-    allocate(sefit_psi(self%nw, self%nh))
+    allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in))
+    allocate(sefit_psi(nw_in, nh_in))
     rwid = maxval(rgrid) - minval(rgrid) ; zhei = maxval(zgrid) - minval(zgrid)
     rcentr = r0 ; rleft = minval(rgrid)
     self%R_mag = rmag ; self%Z_mag = zmag
@@ -223,49 +223,46 @@ contains
     ! pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     sefit_R = rgrid ; sefit_Z = zgrid
-    if (size(ps) /= self%nw) then
-       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',self%nw,')'
+    if (size(ps) /= nw_in) then
+       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',nw_in,')'
        write(6,*) 'gs2din: => should fix the GS2D output file and try again'
        call mp_abort('gs2din: => should fix the GS2D output file and try again')
     end if
     spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
 
-    do i = 1, self%nwb
-       self%psi_bar(i) = float(i-1) / float(self%nwb-1)
-       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
+    do i = 1, self%nw
+       self%psi_bar(i) = float(i-1) / float(self%nw-1)
+       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
     end do
 
     ! nb Zgrid is not necessarily UpDown symmetric
-    do j = 1, self%nhb
-       self%eq_Z(j) = ((float(j-1) / float(self%nhb-1) ))*zhei+minval(zgrid)
+    do j = 1, self%nh
+       self%eq_Z(j) = ((float(j-1) / float(self%nh-1) ))*zhei+minval(zgrid)
     end do
 
-    call inter_cspl(self%nw, spsi_bar, f, self%nwb, self%psi_bar, self%fp)
-    call inter_cspl(self%nw, spsi_bar, p, self%nwb, self%psi_bar, self%pressure)
+    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
+    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
     ! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
     sefit_psi = psi / twopi
 
-    allocate(zp(3*self%nw*self%nh), temp(self%nw+2*self%nh))
-    allocate(zx1(self%nh), zxm(self%nh), zy1(self%nw), zyn(self%nw))
+    allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
+    allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
 
     ! Setup 2D interpolation of psi(R, Z)
-    call fitp_surf1(self%nw, self%nh, sefit_R, sefit_Z, sefit_psi, &
-         self%nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
+    call fitp_surf1(nw_in, nh_in, sefit_R, sefit_Z, sefit_psi, &
+         nw_in, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
          255, zp, temp, 1., ierr)
 
-    do j = 1, self%nhb
-       do i = 1, self%nwb
-          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), self%nw, self%nh, &
-               sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
+    do j = 1, self%nh
+       do i = 1, self%nw
+          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+               sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
 
     deallocate(zp, temp)
 
-    call inter_cspl(self%nw, spsi_bar, q, self%nwb, self%psi_bar, self%qsf)
-
-    self%nw = self%nwb
-    self%nh = self%nhb
+    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
 
     self%nbbbs = size(rsep)
     allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
@@ -365,7 +362,7 @@ contains
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
-    integer :: i, j, init, ndum, ierr, big
+    integer :: i, j, init, ndum, ierr, big, nw_in, nh_in
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
@@ -385,17 +382,16 @@ contains
     open(unit=5, file = self%filename, status='old',form='formatted')
 
     ! Read the data
-    read(5,1000) char, char, char, char, char, i, self%nw, self%nh
+    read(5,1000) char, char, char, char, char, i, nw_in, nh_in
 
-    if (verbosity>1) write (*,*) 'EFIT dimensions are: ', self%nw, self%nh
+    if (verbosity>1) write (*,*) 'EFIT dimensions are: ', nw_in, nh_in
 
-    self%nwb = self%nw * big
-    self%nhb = self%nh * big
+    self%nw = nw_in * big
+    self%nh = nh_in * big
 
-!    call alloc_module_arrays(nwb, nwb, nhb, nw, nh)
     call self%alloc_arrays()
-    allocate(spsi_bar(self%nw), sefit_R(self%nw), sefit_Z(self%nh), dummy(self%nw))
-    allocate(sefit_psi(self%nw, self%nh))
+    allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
+    allocate(sefit_psi(nw_in, nh_in))
 
     read(5,2020) rwid, zhei, rcentr, rleft, xdum
     read(5,2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
@@ -407,54 +403,51 @@ contains
        read(5,2020) xdum,xdum,xdum,xdum,xdum
     end do
 
+    do i = 1, nw_in
+       spsi_bar(i) = float(i-1) / float(nw_in-1)
+       sefit_R(i) = rleft +rwid * float(i-1) / float(nw_in-1)
+    end do
+
+    do j = 1, nh_in
+       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5)*zhei
+    end do
+
     do i = 1, self%nw
-       spsi_bar(i) = float(i-1) / float(self%nw-1)
-       sefit_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
+       self%psi_bar(i) = float(i-1) / float(self%nw-1)
+       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
     end do
 
     do j = 1, self%nh
-       sefit_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
+       self%eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
-    do i = 1, self%nwb
-       self%psi_bar(i) = float(i-1) / float(self%nwb-1)
-       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nwb-1)
-    end do
+    read(5,2020) (dummy(j),   j = 1, nw_in)
+    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%fp)
+    read(5,2020) (dummy(j), j = 1, nw_in)
+    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
+    read(5,2020) (dummy(j),     j = 1, nw_in)
+    read(5,2020) (dummy(j),     j = 1 ,nw_in)
+    read(5,2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
-    do j = 1, self%nhb
-       self%eq_Z(j) = ((float(j-1) / float(self%nhb-1) ) - 0.5)*zhei
-    end do
+    allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
+    allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
 
-    read(5,2020) (dummy(j),   j = 1, self%nw)
-    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%fp)
-    read(5,2020) (dummy(j), j = 1, self%nw)
-    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%pressure)
-    read(5,2020) (dummy(j),     j = 1, self%nw)
-    read(5,2020) (dummy(j),     j = 1 ,self%nw)
-    read(5,2020) ((sefit_psi(i,j) , i = 1, self%nw) , j = 1, self%nh)
-
-
-    allocate(zp(3*self%nw*self%nh), temp(self%nw+2*self%nh))
-    allocate(zx1(self%nh), zxm(self%nh), zy1(self%nw), zyn(self%nw))
-
-    call fitp_surf1(self%nw, self%nh, sefit_R, sefit_Z, sefit_psi, &
-         self%nw, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
+    call fitp_surf1(nw_in, nh_in, sefit_R, sefit_Z, sefit_psi, &
+         nw_in, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
          255, zp, temp, 1., ierr)
 
-    do j = 1, self%nhb
-       do i = 1, self%nwb
-          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), self%nw, self%nh, &
-               sefit_R, sefit_Z, sefit_psi, self%nw, zp, 1.)
+    do j = 1, self%nh
+       do i = 1, self%nw
+          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+               sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
 
     deallocate(zp, temp)
 
-    read(5,2020) (dummy(j) ,   j = 1, self%nw)
-    call inter_cspl(self%nw, spsi_bar, dummy, self%nwb, self%psi_bar, self%qsf)
+    read(5,2020) (dummy(j) ,   j = 1, nw_in)
+    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
 
-    self%nw = self%nwb
-    self%nh = self%nhb
     read(5,2022) self%nbbbs, ndum
     allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
     allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
@@ -535,7 +528,7 @@ contains
     implicit none
     class(eeq_base_type), intent(in out) :: self
     integer :: nw, nh
-    nw = self%nwb ; nh = self%nhb
+    nw = self%nw ; nh = self%nh
     allocate(self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
     allocate(self%eq_R(nw), self%eq_Z(nh))
     allocate(self%eq_psi(nw, nh), self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
