@@ -39,10 +39,10 @@ module geq
      procedure :: rfun => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
-     procedure, private :: derm => derm
+     procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure, private :: eqdcart => eqdcart
-     procedure, private :: eqdbish => eqdbish
+     procedure :: eqdcart => eqdcart
+     procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
   end type geq_type

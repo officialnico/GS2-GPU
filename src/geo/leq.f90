@@ -55,16 +55,16 @@ module leq
      procedure :: rfun => rfun
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
-     procedure, private :: derm => derm
+     procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure, private :: eqdcart => eqdcart
-     procedure, private :: eqdbish => eqdbish
+     procedure :: eqdcart => eqdcart
+     procedure :: eqdbish => eqdbish
      procedure :: alloc_arrays => alloc_arrays
      procedure :: dealloc_arrays => dealloc_arrays
-     procedure, private :: geo_Miller => geo_Miller
-     procedure, private :: geo_global => geo_global
-     procedure, private :: geo_generalizedEllipticity => geo_generalizedEllipticity
-     procedure, private :: geo_FourierSeries => geo_FourierSeries
+     procedure :: geo_Miller => geo_Miller
+     procedure :: geo_global => geo_global
+     procedure :: geo_generalizedEllipticity => geo_generalizedEllipticity
+     procedure :: geo_FourierSeries => geo_FourierSeries
   end type leq_type
 
 contains
