@@ -13,11 +13,8 @@ module ideq
      private
      real, allocatable, dimension (:,:)   :: B_psi
      real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
-     character(len = EQFILE_LENGTH) :: filename
-     integer :: nr, nt
-     real, allocatable, dimension (:)     :: eqpsi, psi_bar, fp, qsf
-     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
+     real, allocatable, dimension(:) :: diam, rc
+     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => idfitin
      procedure :: calculate_gradients => idfit_init
@@ -214,7 +211,6 @@ contains
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, (self%nt-1)/2))
     ! need to define the rho_d grid (called diam)
     self%diam = 1. - self%R_psi(:,1)
-
 
     self%qsf = 0.
     self%fp = 0.

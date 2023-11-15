@@ -12,11 +12,8 @@ module ceq
 
   type, extends(abstract_eqfile_geo_type) :: ceq_type
      private
-     character(len = EQFILE_LENGTH) :: filename
-     integer :: nr, nt
-     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
-     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
+     real, allocatable, dimension(:) :: diam, rc
+     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => ceqin
      procedure :: calculate_gradients => ceq_init
@@ -216,7 +213,7 @@ contains
     class(ceq_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%rho_d(nr), self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
+    allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
          self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
     allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbtm(nr, nt, 2), &
@@ -229,7 +226,7 @@ contains
   pure subroutine dealloc_arrays(self)
     implicit none
     class(ceq_type), intent(in out) :: self
-    if (allocated(self%rho_d)) deallocate(self%rho_d, self%eqpsi, self%psi_bar, self%fp, &
+    if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%psi_bar, self%fp, &
          self%beta, self%pressure, self%rc, self%diam, self%qsf)
     if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
     if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dbtm, self%dpm, self%dtm)

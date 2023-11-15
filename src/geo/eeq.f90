@@ -113,12 +113,6 @@ module eeq
      real, allocatable, dimension(:) :: thetab, r_bound, efit_R, efit_Z
      real, allocatable, dimension (:,:) :: efit_psi
      type(periodic_spline) :: rbound_spl
-     character(len = EQFILE_LENGTH) :: filename
-     integer :: nr, nt
-     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
-     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     !     type(spline) :: diam_spl, rcenter_spl
-     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: calculate_gradients => efit_init
      procedure :: setup_splines => setup_splines

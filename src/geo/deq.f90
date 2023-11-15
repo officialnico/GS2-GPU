@@ -17,12 +17,6 @@ module deq
      real, allocatable, dimension (:,:) :: dfit_psi
      type(periodic_spline) :: rbound_spl
      type(spline) :: rho_spl
-     character(len = EQFILE_LENGTH) :: filename
-     integer :: nr, nt
-     real, allocatable, dimension (:)     :: rho_d, eqpsi, psi_bar, fp, qsf
-     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     !     type(spline) :: diam_spl, rcenter_spl
-     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: initialise => dfitin
      procedure :: calculate_gradients => dfit_init

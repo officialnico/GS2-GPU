@@ -22,11 +22,8 @@ module geq
      private
      real, allocatable, dimension (:,:)   :: B_psi
      real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
-     character(len = EQFILE_LENGTH) :: filename
-     integer :: nr, nt
-     real, allocatable, dimension (:)     :: eqpsi, psi_bar, fp, qsf
-     real, allocatable, dimension (:)     :: beta, pressure, diam, rc
-     type(spline) :: diam_spl, rcenter_spl, btori_spl, qsf_spl, pressure_spl, beta_spl
+     real, allocatable, dimension (:)     :: diam, rc
+     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => eqin
      procedure :: calculate_gradients => geq_init

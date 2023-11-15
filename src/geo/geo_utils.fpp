@@ -2,6 +2,7 @@
 !> Mainly to provide an abstract type used as a base for specific
 !> geometry implementations.
 module geo_utils
+  use splines, only: spline
   implicit none
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
@@ -73,6 +74,8 @@ module geo_utils
 
   type, abstract :: abstract_geo_type
      logical :: initialised = .false.
+     !> Typically the number of radial and theta grid points. Not used for cartesian like types (e.g. eeq)
+     integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0, R_mag, Z_mag, aminor
      !> 2D map of co-ordinates to R or Z
      real, allocatable, dimension (:,:)   :: R_psi, Z_psi
@@ -129,6 +132,9 @@ module geo_utils
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
+     character(len = EQFILE_LENGTH) :: filename
+     real, allocatable, dimension(:) :: eqpsi, psi_bar, fp, qsf, beta, pressure
+     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
    contains
      procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile

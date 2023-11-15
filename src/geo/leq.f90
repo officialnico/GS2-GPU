@@ -34,7 +34,6 @@ module leq
      real :: thetaShift
      type(flux_surface_type) :: surf
      ! Regular variables
-     integer :: nr, nt
      real, allocatable, dimension(:) :: eqpsi, pressure
    contains
      procedure :: initialise => leqin
