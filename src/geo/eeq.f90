@@ -94,7 +94,7 @@ end module gs2d
 !> The normalising field is set to the field on axis; the normalising length
 !> is set to the half-diameter of the LCFS.
 module eeq
-  use geo_utils, only: abstract_eqfile_cart_geo_type, mod2pi, EQFILE_LENGTH
+  use geo_utils, only: abstract_eqfile_cart_geo_type, EQFILE_LENGTH
 
   implicit none
 
