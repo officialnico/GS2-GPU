@@ -20,14 +20,8 @@ module ideq
      procedure :: calculate_gradients => idfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rpos => rpos
-     procedure :: zpos => zpos
-     procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
-     procedure :: dpfun => dpfun
-     procedure :: psi => psi
-     procedure :: rfun => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -453,8 +447,8 @@ contains
     end select
 
     do i = -nth_used, nth_used
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i,1), 'R')
-       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i,2), 'Z')
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,1), grad(i, 1), 'R')
+       call self%eqitem(rgrid(i), theta(i), dbish(:,:,2), grad(i, 2), 'Z')
     end do
 
     if (char == 'T') then
@@ -468,11 +462,11 @@ contains
     if (char == 'R') then
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i =-nth_used, nth_used
+       do i = -nth_used, nth_used
           grad(i,1) = grad(i,1)*daa(1) * 0.5 * self%beta_0
           grad(i,2) = grad(i,2)*daa(1) * 0.5 * self%beta_0
-       enddo
-    endif
+       end do
+    end if
   end subroutine bgradient
 
   !> FIXME : Add documentation
@@ -621,48 +615,6 @@ contains
   end subroutine eqdbish
 
   !> FIXME : Add documentation
-  real function invR (self, r, theta)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%Rpos(r, theta)
-  end function invR
-
-  !> FIXME : Add documentation
-  real function Rpos (self, r, theta)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    call self%eqitem(r, th, self%R_psi, Rpos, 'R')
-  end function Rpos
-
-  !> FIXME : Add documentation
-  real function Zpos (self, r, theta)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    call self%eqitem(r, th, self%Z_psi, Zpos, 'Z')
-  end function Zpos
-
-  !> FIXME : Add documentation
-  real function psi (self, r, theta)
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    if (r==0.) then
-       psi = self%psi_0
-    else if (r==1. .and. theta == 0.0) then
-       psi = self%psi_a
-    else
-       psi = r
-    end if
-  end function psi
-
-  !> FIXME : Add documentation
   !>
   !> Not really the diameter in this case.  Instead, return the
   !> normalized minor radius, measured inside the ring, in the plane of
@@ -683,14 +635,4 @@ contains
     real, intent(in) :: rp
     rcenter = splint(rp, self%rcenter_spl)
   end function rcenter
-
-  !> FIXME : Add documentation
-  real function dpfun (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0)
-  end function dpfun
 end module ideq

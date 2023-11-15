@@ -111,13 +111,9 @@ module eeq
      procedure :: calculate_gradients => efit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rpos => rpos
-     procedure :: zpos => zpos
-     procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: dpfun => dpfun
-     procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -802,44 +798,6 @@ contains
   end subroutine eqitem
 
   !> FIXME : Add documentation
-  real function invR (self, r, theta)
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%Rpos(r, theta)
-  end function invR
-
-  !> FIXME : Add documentation
-  real function Rpos (self, r, theta)
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    Rpos = self%R_mag + r * cos(theta)
-  end function Rpos
-
-  !> FIXME : Add documentation
-  real function Zpos (self, r, theta)
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    Zpos = self%Z_mag + r * sin(theta)
-  end function Zpos
-
-  !> FIXME : Add documentation
-  real function psi (self, r, theta)
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    if (r==0.) then
-       psi = self%psi_0
-    else if (r==1. .and. theta == 0.0) then
-       psi = self%psi_a
-    else
-       call self%eqitem(r, theta, self%eq_psi, psi, '?')
-    end if
-  end function psi
-
-  !> FIXME : Add documentation
   real function diameter (self, rp)
     use constants, only: pi
     implicit none
@@ -858,7 +816,7 @@ contains
          0.5 * (self%rfun(rp, 0.) - self%rfun(rp, pi))
   end function rcenter
 
-  !> FIXME : Add documentation
+  !> FIXME : Add documentation | Note this differs from all other types
   real function dpfun (self, pbar)
     use splines, only: dsplint
     implicit none

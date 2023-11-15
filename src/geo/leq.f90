@@ -708,7 +708,7 @@ contains
     end if
   end function psi
 
-  !> FIXME : Add documentation
+  !> FIXME : Add documentation | Should this be equivalent to psi as in others?
   real function rfun (self, r, theta)
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta

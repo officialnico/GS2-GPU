@@ -128,7 +128,9 @@ module geo_utils
      procedure(splines_interface), deferred :: setup_splines, delete_splines
      procedure :: btori => btori_eqfile, dbtori => dbtori_eqfile
      procedure :: qfun => qfun_eqfile, betafun => betafun_eqfile
-     procedure :: pfun => pfun_eqfile
+     procedure :: pfun => pfun_eqfile, dpfun => dpfun_eqfile
+     procedure :: psi => psi_eqfile, rfun => psi_eqfile
+     procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -139,6 +141,7 @@ module geo_utils
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent
+     procedure :: psi => psi_eqfile_cart, rpos => rpos_eqfile_cart, zpos => zpos_eqfile_cart
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces. Note we _could_ reuse
@@ -258,6 +261,28 @@ contains
     pfun = 0.5 * self%beta_0 * splint(pbar, self%pressure_spl)
   end function pfun_eqfile
 
+  real function dpfun_eqfile (self, pbar) result(dpfun)
+    use splines, only: dsplint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: pbar
+    ! p_N would be B**2/mu_0 => p = beta/2 in our units
+    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0)
+  end function dpfun_eqfile
+
+  real function psi_eqfile (self, r, theta) result(psi)
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    if (r==0.) then
+       psi = self%psi_0
+    else if (r==1. .and. theta == 0.0) then
+       psi = self%psi_a
+    else
+       psi = r
+    end if
+  end function psi_eqfile
+
   real function betafun_eqfile (self, pbar) result(betafun)
     use splines, only: splint
     implicit none
@@ -270,6 +295,31 @@ contains
     betafun = splint(pbar, self%beta_spl)
   end function betafun_eqfile
 
+  real function invR_eqfile (self, r, theta) result(invR)
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    invR = 1. / self%rpos(r, theta)
+  end function invR_eqfile
+
+  real function rpos_eqfile (self, r, theta) result(rpos)
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    real :: th
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%R_psi, rpos, 'R')
+  end function rpos_eqfile
+
+  real function zpos_eqfile (self, r, theta) result(zpos)
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    real :: th
+    th = mod2pi(theta)
+    call self%eqitem(r, th, self%Z_psi, zpos, 'Z')
+  end function zpos_eqfile
+
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.
   real function bound_eqfile_cart(self, theta) result(bound)
@@ -279,6 +329,33 @@ contains
     real, intent(in) :: theta
     bound = periodic_splint(theta, self%rbound_spl)
   end function bound_eqfile_cart
+
+  real function rpos_eqfile_cart (self, r, theta) result(rpos)
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    rpos = self%R_mag + r * cos(theta)
+  end function rpos_eqfile_cart
+
+  real function zpos_eqfile_cart (self, r, theta) result(zpos)
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    zpos = self%Z_mag + r * sin(theta)
+  end function zpos_eqfile_cart
+
+  real function psi_eqfile_cart (self, r, theta) result(psi)
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    if (r==0.) then
+       psi = self%psi_0
+    else if (r==1. .and. theta == 0.0) then
+       psi = self%psi_a
+    else
+       call self%eqitem(r, theta, self%eq_psi, psi, '?')
+    end if
+  end function psi_eqfile_cart
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)

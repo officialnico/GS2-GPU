@@ -19,13 +19,8 @@ module deq
      procedure :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rpos => rpos
-     procedure :: zpos => zpos
-     procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
-     procedure :: dpfun => dpfun
-     procedure :: psi => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: rhofun => rhofun
@@ -506,44 +501,6 @@ contains
   end subroutine eqitem
 
   !> FIXME : Add documentation
-  real function invR (self, r, theta)
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%Rpos(r, theta)
-  end function invR
-
-  !> FIXME : Add documentation
-  real function Rpos (self, r, theta)
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    Rpos = self%R_mag + r * cos(theta)
-  end function Rpos
-
-  !> FIXME : Add documentation
-  real function Zpos (self, r, theta)
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    Zpos = self%Z_mag + r * sin(theta)
-  end function Zpos
-
-  !> FIXME : Add documentation
-  real function psi (self, r, theta)
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    if (r==0.) then
-       psi = self%psi_0
-    else if (r==1. .and. theta == 0.0) then
-       psi = self%psi_a
-    else
-       call self%eqitem(r, theta, self%eq_psi, psi, '?')
-    end if
-  end function psi
-
-  !> FIXME : Add documentation
   real function diameter (self, rp)
     use constants, only: pi
     implicit none
@@ -559,15 +516,6 @@ contains
     real, intent (in) :: rp
     rcenter = self%R_mag !Historic fallback
   end function rcenter
-
-  !> FIXME : Add documentation
-  real function dpfun (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a - self%psi_0)
-  end function dpfun
 
   !> FIXME : Add documentation
   real function rhofun (self, pbar)

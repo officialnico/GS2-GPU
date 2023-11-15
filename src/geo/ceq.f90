@@ -19,14 +19,8 @@ module ceq
      procedure :: calculate_gradients => ceq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rpos => rpos
-     procedure :: zpos => zpos
-     procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
-     procedure :: dpfun => dpfun
-     procedure :: psi => psi
-     procedure :: rfun => psi
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -619,48 +613,6 @@ contains
     end do
   end subroutine eqdbish
 
-  !> Return the inverse of the major radius at \((r, \theta)\)
-  real function invR (self, r, theta)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%Rpos(r, theta)
-  end function invR
-
-  !> Return the major radius at \((r, \theta)\)
-  real function Rpos (self, r, theta)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    call self%eqitem(r, th, self%R_psi, Rpos, 'R')
-  end function Rpos
-
-  !> Return the vertical coordinate at \((r, \theta)\)
-  real function Zpos (self, r, theta)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    call self%eqitem(r, th, self%Z_psi, Zpos, 'Z')
-  end function Zpos
-
-  !> Return the flux surface label `psi`
-  real function psi (self, r, theta)
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    if (r==0.) then
-       psi = self%psi_0
-    else if (r==1. .and. theta == 0.0) then
-       psi = self%psi_a
-    else
-       psi = r
-    end if
-  end function psi
-
   !> Return the diameter of the flux surface at a given major radius
   real function diameter (self, rp)
     use splines, only: splint
@@ -678,16 +630,6 @@ contains
     real, intent(in) :: rp
     rcenter = splint(rp, self%rcenter_spl)
   end function rcenter
-
-  !> FIXME : Add documentation
-  real function dpfun (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: pbar
-    ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    dpfun = dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0) * self%beta_0/2.
-  end function dpfun
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
