@@ -432,9 +432,9 @@ contains
 
     select case(char)
     case('B')
-       call mp_abort('error: bishop = 1 not allowed with ceq. (2)',.true.)
     case('D')  ! diagnostic
        dbish = self%dbtbish
+       call mp_abort('error: bishop == 0 not allowed with ceq. (2)',.true.)
     case('P')
        dbish = self%dpbish
     case('R')
