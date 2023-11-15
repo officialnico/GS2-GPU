@@ -1,7 +1,7 @@
 !> FIXME : Add documentation
 module deq
   use geo_utils, only: abstract_eqfile_cart_geo_type, mod2pi, EQFILE_LENGTH
-  use splines, only: spline, periodic_spline
+  use splines, only: spline
 
   implicit none
 
@@ -11,11 +11,8 @@ module deq
 
   type, extends(abstract_eqfile_cart_geo_type) :: deq_type
      private
-     integer :: nw, nh, nbbbs, nrho
-     real :: eq_dR, eq_dZ
-     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z, rho_mid, psi_mid
-     real, allocatable, dimension (:,:) :: eq_psi
-     type(periodic_spline) :: rbound_spl
+     integer :: nrho
+     real, allocatable, dimension(:) :: rho_mid, psi_mid
      type(spline) :: rho_spl
    contains
      procedure :: initialise => dfitin

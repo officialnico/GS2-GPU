@@ -2,7 +2,7 @@
 !> Mainly to provide an abstract type used as a base for specific
 !> geometry implementations.
 module geo_utils
-  use splines, only: spline
+  use splines, only: spline, periodic_spline
   implicit none
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
@@ -129,6 +129,11 @@ module geo_utils
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
+     integer :: nw, nh, nbbbs
+     real :: eq_dR, eq_dZ
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
+     real, allocatable, dimension (:,:) :: eq_psi
+     type(periodic_spline) :: rbound_spl
    contains
      procedure(bound_interface), deferred :: bound
      procedure :: rfun, zbrent
