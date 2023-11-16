@@ -1989,17 +1989,13 @@ contains
   real function psi(r, thet)
     implicit none
     real, intent (in) :: r, thet
-    integer :: i
-    psi = invalidValue
     if (r == 0.) then
        psi = psi_0
-       return
     else if (r == 1. .and. thet == 0.) then
        psi = psi_a
-       return
+    else
+       psi = geom%psi(r, thet)
     end if
-
-    psi = geom%psi(r, thet)
   end function psi
 
   !> FIXME : Add documentation
