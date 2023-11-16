@@ -581,9 +581,9 @@ contains
           s_hat_new = s_hat
        case default
           if (iflux == 1) then
-             s_hat_new = s_hat_input
-          else
              s_hat_new = s_hat
+          else
+             s_hat_new = s_hat_input
           end if
        end select
 
