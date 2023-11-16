@@ -1164,6 +1164,7 @@ contains
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
       if (iflux == 0) then
+         ! Note here we have Bpolmag -> Bpolmag * abs(dpsidrp) and then we recalculate Bmod consistently
          do i = -nth, nth
             Bpolmag(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * invR(i) * abs(dpsidrp)
             Bmod(i) = sqrt( (bi * invR(i))**2 + bpolmag(i)**2)
