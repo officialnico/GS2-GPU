@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
-  use geometry, only: eikcoefs_output, eqinit, geofax, Hahm_Burrell, eikcoefs
+  use geometry, only: eikcoefs_output, eqinit, geofax, eikcoefs
   use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
@@ -361,5 +361,31 @@ program eiktest
   end if
 
   call finish_mp
+
+contains
+
+  !> FIXME : Add documentation
+  !!
+  !! @note Not used by GS2 (just eik/et)
+  subroutine Hahm_Burrell(i, a)
+    use geometry, only: geom
+    use geq, only: geq_Hahm_Burrell => Hahm_Burrell, geq_type
+    use peq, only: peq_Hahm_Burrell => Hahm_Burrell, peq_type
+    use ceq, only: ceq_Hahm_Burrell => Hahm_Burrell, ceq_type
+    use mp, only: mp_abort
+    implicit none
+    integer, intent(in) :: i
+    real, intent(in) :: a
+    select type(geom)
+    type is(geq_type)
+       call geq_Hahm_Burrell(geom, i, a)
+    type is(peq_type)
+       call peq_Hahm_Burrell(geom, i, a)
+    type is(ceq_type)
+       call ceq_Hahm_Burrell(geom, i, a)
+    class default
+       call mp_abort('Hahm Burrell not supported for this geometry type.', .true.)
+    end select
+  end subroutine Hahm_Burrell
 
 end program eiktest

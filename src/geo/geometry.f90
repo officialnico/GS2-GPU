@@ -114,7 +114,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
-  public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, Hahm_Burrell
+  public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, geom
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
@@ -2571,29 +2571,6 @@ contains
     real, intent(in) :: rp, theta
     rfun = geom%rfun(rp, theta)
   end function rfun
-
-  !> FIXME : Add documentation  
-  !!
-  !! @note Not used by GS2 (just eik/et)
-  subroutine Hahm_Burrell(i, a)   
-    use geq, only: geq_Hahm_Burrell => Hahm_Burrell, geq_type
-    use peq, only: peq_Hahm_Burrell => Hahm_Burrell, peq_type
-    use ceq, only: ceq_Hahm_Burrell => Hahm_Burrell, ceq_type
-    use mp, only: mp_abort
-    implicit none
-    integer, intent(in) :: i
-    real, intent(in) :: a
-    select type(geom)
-    type is(geq_type)
-       call geq_Hahm_Burrell(geom, i, a)
-    type is(peq_type)
-       call peq_Hahm_Burrell(geom, i, a)
-    type is(ceq_type)
-       call ceq_Hahm_Burrell(geom, i, a)
-    class default
-       call mp_abort('Hahm Burrell not supported for this geometry type.', .true.)
-    end select
-  end subroutine Hahm_Burrell
 
   !> Calculate the derivative of the flux label rho
   !! with respect to the internal flux label rp (the 
