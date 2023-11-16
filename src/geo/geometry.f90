@@ -1696,7 +1696,7 @@ contains
     integer, intent(in) :: fort11_unit
     real, parameter :: xerrbi = 1.e-4, xerrsec = 1.e-8
     integer, parameter :: nsolv = 1
-    real :: a, b, fval, soln
+    real :: a, b, fval
     integer :: ier
 
     ier = 123456 ! Default to indicating error
@@ -1704,29 +1704,27 @@ contains
 
     if (irho == 1) then
        fval = rho * rho * phi(b)
-       call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
+       call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
     else if (irho == 2) then
        fval = rho * diameter(b)
-       call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
+       call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
     else if (irho == 3) then
        fval = rho * psifun(b)
-       call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
+       call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
     else if (irho == 4) then
        fval = rho * rhofun(b)
-       call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
+       call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
     endif
 
     if (debug) then 
        write (*,*) "Values in root: "
        write (*,*) 'rho:  ', rho
        write (*,*) 'fval: ', fval
-       write (*,*) 'soln: ', soln
+       write (*,*) 'rpofrho: ', rpofrho
        write (*,*) 'rpmin: ', rpmin
        write (*,*) 'rpmax: ', rpmax
     end if
-
-    rpofrho = soln
-    if (ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=', rho
+    if (ier > 0) write(fort11_unit,*) 'error in rpofrho, rho=', rho, rpofrho, ier
   end function rpofrho
 
   !> Computes something like x cross y dot grad zeta.
@@ -1895,7 +1893,12 @@ contains
     dqdrhofun=shat*qfun(pbarofrho(rho, fort11_unit))/(rhoc)
   end function dqdrhofun
 
-  !> FIXME : Add documentation    
+  !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
+  !> We can then first bisect the bracket to narrow in on the solution.
+  !> Follow this we use the secant method to find the solution.
+  !> The input xerrbi influences the number of bisection iterations whilst
+  !> xerrsec is used to set the stopping tolerance on the secant method.
+  !> Note we do not check that abs(f(soln)-fval) is suitably small on exit.
   subroutine root(f, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     implicit none
     interface
@@ -1908,31 +1911,38 @@ contains
     integer, intent(in) :: nsolv, fort11_unit
     integer, intent(out) :: ier
     real :: a1, b1, f1, f2, f3, trial, aold
-    integer :: i,niter,isolv
-    
+    integer :: i, niter, isolv
+    logical :: skip_bisection
     ier = 0 ; a1 = a ; b1 = b
     f1 = f(a1) - fval ;  f2 = f(b1) - fval
-    if (xerrbi < 0.) goto 1000
-    if (f1 * f2 > 0.) then
-       write(fort11_unit,*) 'f1 and f2 have same sign in bisection routine root'
-       write(fort11_unit,*) 'a1,f1,b1,f2=', a1, f1, b1, f2
-       write(fort11_unit,*) 'fval=', fval
+    skip_bisection = xerrbi <= 0 !Could be xerrbi <= abs(b1 - a1)?
+    if (.not. skip_bisection .and. f1 * f2 > 0.) then
+       write(fort11_unit, *) 'f1 and f2 have same sign in bisection routine root'
+       write(fort11_unit, *) 'a1,f1,b1,f2=', a1, f1, b1, f2
+       write(fort11_unit, *) 'fval=', fval
        ier = 1
-       goto 1000
+       skip_bisection = .true.
     end if
-    niter = 1 + int(log(abs(b - a) / xerrbi) / log(2.))
-    do i = 1, niter
-       trial = 0.5 * (a1 + b1)
-       f3 = f(trial) - fval
-       if (f3 * f1 > 0.) then
-          a1 = trial
-          f1 = f3
-       else
-          b1 = trial
-          f2 = f3
-       end if
-    end do
-1000 continue
+
+    if (.not. skip_bisection) then
+       ! Presumably we require |b1 - a1| >= xerrbi here to avoid niter < 1?
+       niter = 1 + int(log(abs(b1 - a1) / xerrbi) / log(2.))
+       ! Repeatedly bisect between limits, swapping one limit
+       ! for the bisection point each iteration. Helps to narrow
+       ! down the bracketing region substantially.
+       do i = 1, niter
+          trial = 0.5 * (a1 + b1)
+          f3 = f(trial) - fval
+          if (f3 * f1 > 0.) then
+             a1 = trial
+             f1 = f3
+          else
+             b1 = trial
+             f2 = f3
+          end if
+       end do
+    end if
+    
     !Swap so |f1| < |f2|
     if( abs(f1) > abs(f2) ) then
        f3 = f1 ; f1 = f2 ; f2 = f3
@@ -1940,9 +1950,6 @@ contains
     end if
     !     start secant method
     isolv = 0
-    ! Note we hard code a limit of 10 attempts but
-    ! we don't set the error state if we haven't met
-    ! our convergence criterion by then.
     do i = 1, 10
        aold = a1
        f3 = f2 - f1
@@ -1951,10 +1958,14 @@ contains
        f2 = f1
        b1 = aold
        if (abs(a1 - b1) < xerrsec) isolv = isolv + 1
-       if (isolv >= nsolv) goto 9000
+       if (isolv >= nsolv) exit
        f1 = f(a1) - fval
     end do
-9000 soln = a1
+    soln = a1
+    ! Detect instances where we have not converged to a root and set ier
+    if (isolv < nsolv) ier = ier + 2
+    ! Detect instances where we have not converged to a solution
+    if (abs(f(soln) - fval) > xerrsec) ier = ier + 4
   end subroutine root
 
   !> FIXME : Add documentation    
