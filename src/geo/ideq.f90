@@ -1,7 +1,6 @@
 !> FIXME : Add documentation
 module ideq
   use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-  use splines, only: spline
 
   implicit none
 
@@ -13,8 +12,6 @@ module ideq
      private
      real, allocatable, dimension (:,:)   :: B_psi
      real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
-     real, allocatable, dimension(:) :: diam, rc
-     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => idfitin
      procedure :: calculate_gradients => idfit_init

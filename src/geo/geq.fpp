@@ -11,7 +11,6 @@ module geq
   use netcdf_utils, only: netcdf_error
 # endif
   use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-  use splines, only: spline
   implicit none
 
   private
@@ -22,8 +21,6 @@ module geq
      private
      real, allocatable, dimension (:,:)   :: B_psi
      real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
-     real, allocatable, dimension (:)     :: diam, rc
-     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => eqin
      procedure :: calculate_gradients => geq_init

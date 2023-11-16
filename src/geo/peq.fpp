@@ -11,7 +11,6 @@ module peq
   use netcdf_utils, only: netcdf_error
 # endif
   use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-  use splines, only: spline
   implicit none
 
   private
@@ -21,8 +20,6 @@ module peq
   type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
      private
      logical :: transp
-     real, allocatable, dimension (:)     :: diam, rc
-     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: calculate_gradients => peq_init
      procedure :: setup_splines => setup_splines

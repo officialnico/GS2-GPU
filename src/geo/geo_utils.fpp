@@ -114,8 +114,8 @@ module geo_utils
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
      character(len = EQFILE_LENGTH) :: filename
-     real, allocatable, dimension(:) :: eqpsi, psi_bar, fp, qsf, beta, pressure
-     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl
+     real, allocatable, dimension(:) :: eqpsi, psi_bar, fp, qsf, beta, pressure, diam, rc
+     type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl, diam_spl, rcenter_spl
    contains
      procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile

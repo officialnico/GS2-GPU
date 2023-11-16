@@ -2,7 +2,6 @@
 !> The CHEASE output file is read using the helper module read_chease.
 module ceq
   use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-  use splines, only: spline
 
   implicit none
 
@@ -12,8 +11,6 @@ module ceq
 
   type, extends(abstract_eqfile_geo_type) :: ceq_type
      private
-     real, allocatable, dimension(:) :: diam, rc
-     type(spline) :: diam_spl, rcenter_spl
    contains
      procedure :: initialise => ceqin
      procedure :: calculate_gradients => ceq_init
