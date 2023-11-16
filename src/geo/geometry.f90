@@ -158,9 +158,6 @@ module geometry
   !> debug is true if (verb >= 3)
   logical :: debug = .false.
 
-  !> Used to initialise values to indicate unset
-  real, parameter :: invalidValue = -24680.123579
-
   !> A type to hold a collection of geometrical quantities as calculated by
   !> [[eikcoefs]]
   type eikcoefs_output
@@ -1744,8 +1741,6 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i
-    btori = invalidValue
     pbar = 0.0
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
     btori = geom%btori(pbar)
@@ -1757,8 +1752,6 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i
-    dbtori = invalidValue
     pbar = 0.0
     if (iflux == 1) pbar = psifun(rpfun(r,thet))
     dbtori = geom%dbtori(pbar)
@@ -1822,17 +1815,7 @@ contains
   real function qfun(pbar)
     implicit none
     real, intent(in) :: pbar
-    integer :: i, initq = 1
-    qfun = invalidValue
-    if (eqinit == 1) initq = 1
-    if (dfit_eq) then
-       qfun = 0.
-    else if (idfit_eq) then
-       qfun = 0.
-    else
-       qfun = geom%qfun(pbar)
-    end if
-    initq = 0
+    qfun = geom%qfun(pbar)
   end function qfun
 
   !> FIXME : Add documentation
@@ -1840,8 +1823,6 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i
-    pfun = invalidValue
     pbar = 0.
     if (iflux == 1) pbar = psifun(psi(r, thet))
     pfun = geom%pfun(pbar)
@@ -1852,8 +1833,6 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i
-    dpfun = invalidValue
     pbar = 0.0
     if (iflux == 1) pbar = psifun(psi(r, thet))
     dpfun = geom%dpfun(pbar)
@@ -1864,8 +1843,6 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    integer :: i
-    beta_a_fun = invalidValue
     pbar = 0.
     if (iflux == 1) pbar = psifun(psi(r,thet))
     beta_a_fun = geom%betafun(pbar)
@@ -2074,7 +2051,6 @@ contains
   real function rcenter(rp)
     implicit none
     real, intent (in) :: rp
-    integer :: i
     rcenter = geom%rcenter(rp)
   end function rcenter
 
