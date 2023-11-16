@@ -1801,7 +1801,7 @@ contains
          gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
          grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     shat = eikcoefs_results%s_hat_new
-    drhodpsi = eikcoefs_results%drhodpsin
+    drhodpsi = eikcoefs_results%drhodpsi
     kxfac = eikcoefs_results%kxfac
     qval = eikcoefs_results%qsf
     surfarea = eikcoefs_results%surfarea

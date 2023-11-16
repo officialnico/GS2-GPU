@@ -42,7 +42,7 @@ program eiktest
   real, dimension(:), allocatable :: theta, bmag, aplot, aprime, bpol, cvdrift, grho
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
-  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsin, dbetadrho
+  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
   integer :: fort11_unit
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -201,7 +201,7 @@ program eiktest
   surfarea = eikcoefs_results%surfarea
   dvdrhon = eikcoefs_results%dvdrhon
   shat = eikcoefs_results%shat
-  drhodpsin = eikcoefs_results%drhodpsin
+  drhodpsi = eikcoefs_results%drhodpsi
 
   ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2
@@ -222,7 +222,7 @@ program eiktest
 
   write(21,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
 !CMR 14/01/05 change format to prevent line breaks with intel compiler and allow runngridgen to read the output files
-  write(21,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsin, rmaj, shat, kxfac, qsf
+  write(21,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsi, rmaj, shat, kxfac, qsf
 !CMR
   
   write(21,*) '    gbdrift     gradpar       grho    tgrid'
@@ -338,7 +338,7 @@ program eiktest
   open (unit=21,file='eik6.out',status='unknown')
 
   write (21,fmt="('# shape: torus')")
-  write (21,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsin
+  write (21,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsi
   write (21,fmt="('# theta1             R2                  Z3               alpha4      ', &
             &   '       Rprime5              Zprime6           alpha_prime7         bpol8')")
   do i=-ntgrid,ntgrid
@@ -352,7 +352,7 @@ program eiktest
      ncout = trim(out_stem)//"out.nc"
      call nc_grid_file_open(ncout, "w")
      call nc_write_grid_sizes(ntheta, ntgrid, nperiod)
-     call nc_write_grid_scalars(shat, drhodpsin, kxfac, qsf, rmaj)
+     call nc_write_grid_scalars(shat, drhodpsi, kxfac, qsf, rmaj)
      call nc_write_grids(ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
           gds2, gds21, gds22, grho, theta, &
           Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &

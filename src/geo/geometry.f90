@@ -166,7 +166,7 @@ module geometry
   type eikcoefs_output
      integer :: ntheta
      real :: s_hat_new
-     real :: drhodpsin
+     real :: drhodpsi
      real :: kxfac
      real :: qsf
      real :: surfarea
@@ -257,7 +257,7 @@ contains
     ! Set scalar outputs
     results%ntheta = ntheta_target
     results%s_hat_new = full_results%s_hat_new
-    results%drhodpsin = full_results%drhodpsin
+    results%drhodpsi = full_results%drhodpsi
     results%kxfac = full_results%kxfac
     results%qsf = full_results%qsf
     results%surfarea = full_results%surfarea
@@ -378,9 +378,9 @@ contains
          cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
-    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, drhodpsin
+    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, drhodpsi
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
-    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, s_hat_new
+    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, bi1, bi2, Ltot
     logical :: force_sym
@@ -505,10 +505,12 @@ contains
     ! ******************
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
 
+    drhodpsi = drhodrp / dpsidrp
+    dpsidrho = 1.0 / drhodpsi
+
     !
     !     compute derivatives of eikonal
     if (bishop /= 0) then
-       drhodpsi = drhodrp / dpsidrp
        allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
        da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
             trip(-ntgrid:ntgrid))
@@ -606,7 +608,7 @@ contains
           dp_new = dp
        end select
 
-       !Report on update dp
+       !Report on updated dp
        select case(bishop)
        case (2)
           write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
@@ -746,8 +748,6 @@ contains
     call gradstottgrid(rmajor, grads, gradstot)
 
     !     compute the magnitude squared of grad S
-    dpsidrho = dpsidrp / drhodrp
-    if( iflux == 1) drhodpsin = drhodrp / dpsidrp
     call dottgridf(gradstot, gradstot, gdsdum1)
 
     do i = -nth, nth
@@ -879,7 +879,7 @@ contains
     write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
 
-    kxfac = abs(qval/rhoc/drhodpsin)
+    kxfac = abs(qval / (rhoc * drhodpsi))
     if (eqinit >= 1) eqinit = 0
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
@@ -888,8 +888,8 @@ contains
        !RN> However, from GS2 convention, eventually kxfac = abs(kxfac). See get_grids in theta_grid.
        !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
        !RN> I just leave the sign here.
-       kxfac = - 1./drhodpsin
-       gds22 = grho**2/drhodpsin**2
+       kxfac = - 1 / drhodpsi
+       gds22 = grho**2 / drhodpsi**2
     end if
 
     !Close output files
@@ -927,7 +927,7 @@ contains
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
-    outputs%drhodpsin = drhodpsin
+    outputs%drhodpsi = drhodpsi
     outputs%kxfac = kxfac
     outputs%qsf = qval
     outputs%surfarea = surfarea
@@ -1178,7 +1178,6 @@ contains
       if (writelots) write(fort11_unit,*) 'q= ',qval
 
       if (iflux == 0) then
-         drhodpsin = drhodrp/dpsidrp
          do i = -nth, nth
             Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*invR(i)*abs(dpsidrp)
             Bmod(i) = sqrt( (bi*invR(i))**2 + bpolmag(i)**2)
