@@ -21,7 +21,6 @@ module peq
   type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
      private
      logical :: transp
-     real, allocatable, dimension(:) :: rho_b
      real, allocatable, dimension (:)     :: diam, rc
      type(spline) :: diam_spl, rcenter_spl
    contains
@@ -335,11 +334,6 @@ contains
     !     to be vacuum magnetic field on axis
     !     pressure(1:nr) == pressure profile on the radial grid,
     !     normalized to the value at the magnetic axis.
-    istatus = nf90_inq_varid (ncid, 'rho', id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='rho')
-    istatus = nf90_get_var (ncid, id, self%rho_b)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-
     istatus = nf90_inq_varid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
     istatus = nf90_get_var (ncid, id, self%eqpsi)
@@ -465,7 +459,7 @@ contains
     nr = self%nr ; nt = self%nt
 
     allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
-         self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr), self%rho_b(nr))
+         self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
     allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), &
          self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
@@ -478,7 +472,7 @@ contains
     implicit none
     class(peq_base_type), intent(in out) :: self
     if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%psi_bar, self%fp, &
-         self%beta, self%pressure, self%rc, self%diam, self%qsf, self%rho_b)
+         self%beta, self%pressure, self%rc, self%diam, self%qsf)
     if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
     if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dpm, self%dtm)
     if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart)
