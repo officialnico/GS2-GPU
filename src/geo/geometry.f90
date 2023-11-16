@@ -2169,24 +2169,23 @@ contains
     integer :: i
     real :: rold, told, rpos_old, zpos_old, rpos_new, zpos_new
     real :: r, thet, rpos_orig, zpos_orig
-        
-    ltheta(0)=0.
-    rold=rgrid(0) ; told=theta(0)
+    ltheta(0) = 0.
+    rold = rgrid(0) ; told = theta(0)
     rpos_orig = Rpos(rold, told) ; zpos_orig = Zpos(rold, told)
     rpos_new = rpos_orig ; zpos_new = zpos_orig
     do i = 1, nth
        rpos_old = rpos_new ; zpos_old = zpos_new
-       r=rgrid(i) ; thet=theta(i)
+       r = rgrid(i) ; thet = theta(i)
        rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
-       ltheta(i) = ltheta(i-1) + sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
+       ltheta(i) = ltheta(i-1) + sqrt((Rpos_new - Rpos_old)**2 + (Zpos_new - Zpos_old)**2)
     end do
 
     rpos_new = rpos_orig ; zpos_new = zpos_orig
     do i = -1, -nth, -1
        rpos_old = rpos_new ; zpos_old = zpos_new
-       r=rgrid(i) ; thet=theta(i)
+       r = rgrid(i) ; thet = theta(i)
        rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
-       ltheta(i) = ltheta(i+1) - sqrt((Rpos_new-Rpos_old)**2 + (Zpos_new-Zpos_old)**2)
+       ltheta(i) = ltheta(i+1) - sqrt((Rpos_new - Rpos_old)**2 + (Zpos_new - Zpos_old)**2)
     end do
   end subroutine loftheta
 
@@ -2200,16 +2199,13 @@ contains
     real, intent(in) :: ext
     integer, intent(in) :: n
     integer :: i
-
     ! Note here we're effectively assuming a uniformly (or symetric)
     ! spaced ltheta grid - we could probably use
     !(ltheta(-n) - ltheta(-n+1) + ltheta(n) - ltheta(n-1)) to avoid this
     dfdl(-n) = (f(n-1) + ext - f(-n+1)) / (2. * (ltheta(-n) - ltheta(-n+1)))
-
     do i = -n+1, n-1
-       dfdl(i) = (f(i+1) - f(i-1)) / (ltheta(i+1)-ltheta(i-1))
+       dfdl(i) = (f(i+1) - f(i-1)) / (ltheta(i+1) - ltheta(i-1))
     end do
-    
     dfdl(n) = dfdl(-n)
   end subroutine gradl
 
@@ -2226,13 +2222,13 @@ contains
     integer :: i
 
     do i = -nth, nth
-       magrp(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2)
+       magrp(i) = sqrt(rpgrad(i, 1)**2 + rpgrad(i, 2)**2)
     end do
     
     ! tvec is the tangent vector in the surface of the poloidal plane
     do i = -nth, nth
-       tvec(i,1) = rpgrad(i,2) / magrp(i)
-       tvec(i,2) = -rpgrad(i,1) / magrp(i)
+       tvec(i, 1) = rpgrad(i, 2) / magrp(i)
+       tvec(i, 2) = -rpgrad(i, 1) / magrp(i)
     end do
     
     ! need to find grad(R) and dot it with tvec.
@@ -2241,11 +2237,11 @@ contains
     ! with corrections for left-hand quadrants
     !
     do i = -nth, nth
-       tvec(i,1) = min(1., max(-1., tvec(i,1)))
-       if (tvec(i,2) > 0.) then
-          th_bish(i) = twopi-acos(max(min(tvec(i,1), 1.0), -1.0))
+       tvec(i, 1) = min(1., max(-1., tvec(i, 1)))
+       if (tvec(i, 2) > 0.) then
+          th_bish(i) = twopi - acos(max(min(tvec(i, 1), 1.0), -1.0))
        else               
-          th_bish(i) = acos(max(min(tvec(i,1), 1.0), -1.0))
+          th_bish(i) = acos(max(min(tvec(i, 1), 1.0), -1.0))
        end if
     end do
   end subroutine th_bishop
@@ -2259,7 +2255,7 @@ contains
     real, dimension (-ntgrid:)   , intent (out) :: Bpolmag
     integer :: i
     do i = -nth, nth
-       Bpolmag(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * invR(i)
+       Bpolmag(i) = sqrt(rpgrad(i, 1)**2 + rpgrad(i, 2)**2) * invR(i)
     end do
   end subroutine B_pol
 
@@ -2272,7 +2268,7 @@ contains
     real, intent(in) :: bi
     integer :: i
     do i = -nth, nth
-       Bmod(i) = sqrt((bi*invR(i))**2 + Bpolmag(i)**2)
+       Bmod(i) = sqrt((bi * invR(i))**2 + Bpolmag(i)**2)
     end do
   end subroutine B_mod
 
@@ -2292,7 +2288,7 @@ contains
     ! Note that we must properly account for discontinuities in u
     do i = -nth+1, nth-1
        if (th_bish(i+1)-th_bish(i-1) > pi) then
-          invRpol(i)  =(th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
+          invRpol(i) = (th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
        else if(th_bish(i+1)-th_bish(i-1) < -pi) then
           invRpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
        else
