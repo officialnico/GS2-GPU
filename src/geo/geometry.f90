@@ -1130,18 +1130,6 @@ contains
          rpgrad = crpgrad
       else
          call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-         !Following bits _could_ be calculated for all bishop
-         call th_bishop(crpgrad, th_bish, nth)
-         call periodic_copy(th_bish, 0., nperiod)
-         ! note that Bpolmag and Bmod are recalculated later if using Miller
-         call B_pol(invR, crpgrad, Bpolmag, nth)
-         call periodic_copy(Bpolmag, 0., nperiod)
-         call B_mod(invR, Bpolmag, Bmod, bi, nth)
-         call loftheta(rgrid, theta, ltheta)
-         Ltot = ltheta(nth) - ltheta(-nth)
-         call periodic_copy(ltheta, Ltot, nperiod)
-         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
-         call periodic_copy(invRpol, 0., nperiod)
       end if
 
       !     compute |grad rho|:
@@ -1163,14 +1151,19 @@ contains
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
-      if (iflux == 0) then
-         ! Note here we have Bpolmag -> Bpolmag * abs(dpsidrp) and then we recalculate Bmod consistently
-         do i = -nth, nth
-            Bpolmag(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * invR(i) * abs(dpsidrp)
-            Bmod(i) = sqrt( (bi * invR(i))**2 + bpolmag(i)**2)
-         end do
+      if (bishop > 0) then
+         !Following bits _could_ be calculated for all bishop
+         call th_bishop(crpgrad, th_bish, nth)
+         call periodic_copy(th_bish, 0., nperiod)
+         call B_pol(invR, crpgrad, Bpolmag, nth)
+         if (iflux == 0) Bpolmag = Bpolmag * dpsidrp
          call periodic_copy(Bpolmag, 0., nperiod)
-         call periodic_copy(Bmod, 0., nperiod)
+         call B_mod(invR, Bpolmag, Bmod, bi, nth)
+         call loftheta(rgrid, theta, ltheta)
+         Ltot = ltheta(nth) - ltheta(-nth)
+         call periodic_copy(ltheta, Ltot, nperiod)
+         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
+         call periodic_copy(invRpol, 0., nperiod)
       end if
     end subroutine initialise_geometry_and_get_bmod
      
