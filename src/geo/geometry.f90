@@ -1959,26 +1959,30 @@ contains
     if (abs(f1) > xerrsec) ier = ier + 2
   end subroutine root
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function phi(rp)
     use mp, only: mp_abort
     implicit none
     real, intent (in) :: rp
     integer, parameter :: nimax = 200
-    real :: pbar, pb(nimax), dpb
+    real :: pbar, pb(nimax), dpb, qi, qnext
     integer :: i
-      
-    pbar = psifun(rp)
-    do i=1,nimax
-       pb(i)=pbar*float(i-1)/float(nimax-1)
-    enddo
-    dpb=pbar/float(nimax-1)
 
-    phi=0.
-    do i=1,nimax-1 ! fixed by MB
-       phi=phi+0.5*dpb*(qfun(pb(i+1))+qfun(pb(i)))
-    enddo
-    phi=phi*(psi_a-psi_0)   ! fixed by MB
+    pbar = psifun(rp)
+    ! Construct a uniformly space grid from 0 to pbar
+    dpb = pbar / float(nimax-1)
+    do i = 1, nimax
+       pb(i) = dpbar * float(i-1)
+    end do
+
+    ! Integrate area under q(pb) curve from pb = 0 to pbar
+    phi = 0. ; qi = qfun(pb(1))
+    do i = 1, nimax - 1
+       qnext = qfun(pb(i+1))
+       phi = phi + 0.5 * dpb * (qnext + qi)
+       qi = qnext
+    end do
+    phi = phi * (psi_a - psi_0)
   end function phi
 
   !> FIXME : Add documentation
