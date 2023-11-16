@@ -1694,26 +1694,25 @@ contains
     implicit none
     real, intent(in) :: rho
     integer, intent(in) :: fort11_unit
-    real :: a, b, xerrbi, xerrsec, fval, soln
-    integer :: nsolv, ier
+    real, parameter :: xerrbi = 1.e-4, xerrsec = 1.e-8
+    integer, parameter :: nsolv = 1
+    real :: a, b, fval, soln
+    integer :: ier
 
     ier = 123456 ! Default to indicating error
-    a=rpmin
-    b=rpmax
-    xerrbi=1.e-4
-    xerrsec=1.00e-8
-    nsolv=1
-    if(irho == 1) then
-       fval=rho*rho*phi(b)
+    a = rpmin ; b = rpmax
+
+    if (irho == 1) then
+       fval = rho * rho * phi(b)
        call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
-    elseif(irho == 2) then
-       fval=rho*diameter(b)
+    else if (irho == 2) then
+       fval = rho * diameter(b)
        call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
-    elseif(irho == 3) then
-       fval=rho*psifun(b)
+    else if (irho == 3) then
+       fval = rho * psifun(b)
        call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
-    elseif(irho == 4) then
-       fval=rho*rhofun(b)
+    else if (irho == 4) then
+       fval = rho * rhofun(b)
        call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     endif
 
@@ -1726,8 +1725,8 @@ contains
        write (*,*) 'rpmax: ', rpmax
     end if
 
-    rpofrho=soln
-    if(ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=',rho
+    rpofrho = soln
+    if (ier > 0) write(fort11_unit,*) 'error in rpofrho,rho=', rho
   end function rpofrho
 
   !> Computes something like x cross y dot grad zeta.
@@ -1897,7 +1896,7 @@ contains
   end function dqdrhofun
 
   !> FIXME : Add documentation    
-  subroutine root(f,fval,a,b,xerrbi,xerrsec,nsolv,fort11_unit, ier,soln)
+  subroutine root(f, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
     implicit none
     interface
       real function f(x_)
@@ -1911,54 +1910,48 @@ contains
     real :: a1, b1, f1, f2, f3, trial, aold
     integer :: i,niter,isolv
     
-    ier=0
-    a1=a
-    b1=b
-    f1=f(a1)-fval
-    f2=f(b1)-fval
-    if(xerrbi < 0.) goto 1000
-    if(f1*f2 > 0.) then
-       write(fort11_unit,*) 'f1 and f2 have same sign in bisection routine'
-       write(fort11_unit,*) 'a1,f1,b1,f2=',a1,f1,b1,f2
-       write(fort11_unit,*) 'fval=',fval
-       ier=1
+    ier = 0 ; a1 = a ; b1 = b
+    f1 = f(a1) - fval ;  f2 = f(b1) - fval
+    if (xerrbi < 0.) goto 1000
+    if (f1 * f2 > 0.) then
+       write(fort11_unit,*) 'f1 and f2 have same sign in bisection routine root'
+       write(fort11_unit,*) 'a1,f1,b1,f2=', a1, f1, b1, f2
+       write(fort11_unit,*) 'fval=', fval
+       ier = 1
        goto 1000
-    endif
-    niter=int(log(abs(b-a)/xerrbi)/log(2.))+1
-    do i=1,niter
-       trial=0.5*(a1+b1)
-       f3=f(trial)-fval
-       if(f3*f1 > 0.) then
-          a1=trial
-          f1=f3
+    end if
+    niter = 1 + int(log(abs(b - a) / xerrbi) / log(2.))
+    do i = 1, niter
+       trial = 0.5 * (a1 + b1)
+       f3 = f(trial) - fval
+       if (f3 * f1 > 0.) then
+          a1 = trial
+          f1 = f3
        else
-          b1=trial
-          f2=f3
-       endif
-    enddo
- 1000 continue
+          b1 = trial
+          f2 = f3
+       end if
+    end do
+1000 continue
+    !Swap so |f1| < |f2|
     if( abs(f1) > abs(f2) ) then
-       f3=f1
-       f1=f2
-       f2=f3
-       aold=a1
-       a1=b1
-       b1=aold
-    endif
-!     start secant method
-    isolv=0
-    do i=1,10
-       aold=a1
-       f3=f2-f1
-       if (abs(f3) < 1.e-11)  f3=1.e-11
-       a1=a1-f1*(b1-a1)/f3
-       f2=f1
-       b1=aold
-       if(abs(a1-b1) < xerrsec) isolv=isolv+1
+       f3 = f1 ; f1 = f2 ; f2 = f3
+       aold = a1 ; a1 = b1 ; b1 = aold
+    end if
+    !     start secant method
+    isolv = 0
+    do i = 1, 10
+       aold = a1
+       f3 = f2 - f1
+       if (abs(f3) < 1.e-11)  f3 = 1.e-11
+       a1 = a1 - f1 * (b1 - a1) / f3
+       f2 = f1
+       b1 = aold
+       if (abs(a1 - b1) < xerrsec) isolv = isolv + 1
        if (isolv >= nsolv) goto 9000
-       f1=f(a1)-fval
-    enddo
-9000 soln=a1
+       f1 = f(a1) - fval
+    end do
+9000 soln = a1
   end subroutine root
 
   !> FIXME : Add documentation    
