@@ -1972,7 +1972,7 @@ contains
     ! Construct a uniformly space grid from 0 to pbar
     dpb = pbar / float(nimax-1)
     do i = 1, nimax
-       pb(i) = dpbar * float(i-1)
+       pb(i) = dpb * float(i-1)
     end do
 
     ! Integrate area under q(pb) curve from pb = 0 to pbar
