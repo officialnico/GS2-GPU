@@ -1171,16 +1171,16 @@ contains
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
       !     compute eikonal S
-      if (iflux == 0) qval=qfun(pbarofrho(rho, fort11_unit))
+      if (iflux == 0) qval = qfun(pbarofrho(rho, fort11_unit))
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
-      if (writelots) write(fort11_unit,*) 'q= ',qval
+      if (writelots) write(fort11_unit,*) 'q= ', qval
 
       if (iflux == 0) then
          do i = -nth, nth
-            Bpolmag(i) = sqrt(rpgrad(i,1)**2+rpgrad(i,2)**2)*invR(i)*abs(dpsidrp)
-            Bmod(i) = sqrt( (bi*invR(i))**2 + bpolmag(i)**2)
+            Bpolmag(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * invR(i) * abs(dpsidrp)
+            Bmod(i) = sqrt( (bi * invR(i))**2 + bpolmag(i)**2)
          end do
          call periodic_copy(Bpolmag, 0., nperiod)
          call periodic_copy(Bmod, 0., nperiod)
@@ -1439,99 +1439,99 @@ contains
     integer :: i, k, itot
 
     if (itor == 0) then
-       gbdrift = (-sin(theta)*gradstot(:,1)-cos(theta)*gradstot(:,2))/rmaj
-       gbdrift=2.*dpsidrho*gbdrift
+       gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) / rmaj
+       gbdrift = 2 * dpsidrho * gbdrift
 
-       gbdrift0=(-sin(theta)*gradrptot(:,1)-cos(theta)*gradrptot(:,2))/rmaj
-       gbdrift0=2.*dpsidrho*gbdrift0*dqdrp
+       gbdrift0 = (-sin(theta) * gradrptot(:,1) - cos(theta) * gradrptot(:,2)) / rmaj
+       gbdrift0 = 2 * dpsidrho * gbdrift0 * dqdrp
 
-       cvdrift=gbdrift
-       cvdrift0=gbdrift0      
+       cvdrift = gbdrift
+       cvdrift0 = gbdrift0
 
     else
-       char='B'
-       if(bishop >= 1) then
+       if (bishop >= 1) then
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
        else
+          char = 'B'
           call geom%gradient(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
-       endif
+       end if
 
-       do i=-nth,nth
-          bgradtot(i,1)=bgrad1(i,1)
-          bgradtot(i,2)=bgrad1(i,2)
-          bgradtot(i,3)=0.
-       enddo
+       do i = -nth, nth
+          bgradtot(i, 1) = bgrad1(i, 1)
+          bgradtot(i, 2) = bgrad1(i, 2)
+          bgradtot(i, 3)  =0.
+       end do
 
        !     create curvature
-       char='R'
        select case (bishop) 
        case (0) 
+          char='R'
           call geom%gradient(rgrid, theta, pgrad, char, rp, nth, ntgrid)
           do i = -nth, nth
-             pgradtot(i,1) = pgrad(i,1)
-             pgradtot(i,2) = pgrad(i,2)
-             pgradtot(i,3) = 0.
+             pgradtot(i, 1) = pgrad(i, 1)
+             pgradtot(i, 2) = pgrad(i, 2)
+             pgradtot(i, 3) = 0.
           end do
           ! Note here we have not filled the full theta domain unlike in the other
           ! bishop cases.
        case (1)
           ! When bishop = 1 dp_new should probably also be dpfun(rgrid(0), theta(0))
           ! so it's not clear we need this special case?
-          pgradtot = gradrptot*dpsidrho*drhodrp*dpfun(rgrid(0), theta(0))
+          pgradtot = gradrptot * dpsidrho * drhodrp * dpfun(rgrid(0), theta(0))
        case default
-          pgradtot = gradrptot*dpsidrho*drhodrp*dp_new
+          pgradtot = gradrptot * dpsidrho * drhodrp * dp_new
        end select
 
-       do i=-nth,nth
-          curve(i,1) = bgradtot(i,1)/bmod(i)+pgradtot(i,1)/bmod(i)**2
-          curve(i,2) = bgradtot(i,2)/bmod(i)+pgradtot(i,2)/bmod(i)**2
-          curve(i,3) = 0.
-       enddo
+       do i = -nth, nth
+          curve(i, 1) = bgradtot(i, 1) / bmod(i) + pgradtot(i, 1) / bmod(i)**2
+          curve(i, 2) = bgradtot(i, 2) / bmod(i) + pgradtot(i, 2) / bmod(i)**2
+          curve(i, 3) = 0.
+       end do
 
-       call crosstgrid(bvector,bgradtot,dummy1)
-       call dottgrid(dummy1,gradstot,gbdrift1)
-       call dottgrid(dummy1,gradrptot,gbdrift2)
-       call dottgrid(dummy1,gradthtot,gbdrift3)
-       call crosstgrid(bvector,curve,dummy)
-       call dottgrid(dummy,gradstot,cvdrift1)
-       call dottgrid(dummy,gradrptot,cvdrift2)
-       call dottgrid(dummy,gradthtot,cvdrift3)
+       call crosstgrid(bvector, bgradtot, dummy1)
+       call dottgrid(dummy1, gradstot, gbdrift1)
+       call dottgrid(dummy1, gradrptot, gbdrift2)
+       call dottgrid(dummy1, gradthtot, gbdrift3)
+       call crosstgrid(bvector, curve, dummy)
+       call dottgrid(dummy, gradstot, cvdrift1)
+       call dottgrid(dummy, gradrptot, cvdrift2)
+       call dottgrid(dummy, gradthtot, cvdrift3)
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
        ! Provided bmod is specified on [-ntgrid, ntgrid] we could replace
        ! the below nested loop with do i = -ntgrid, ntgrid....
-       do k=-nperiod+1,nperiod-1
-          do i=-nth,nth
-             itot=i+k*ntheta
-             gbdrift(itot) =2.*dpsidrho*gbdrift1(itot)/bmod(i)**3
-             gbdrift0(itot)=2.*dpsidrho*gbdrift2(itot)*dqdrp/bmod(i)**3
-             cvdrift(itot) =2.*dpsidrho*cvdrift1(itot)/bmod(i)**2
-             cvdrift0(itot)=2.*dpsidrho*cvdrift2(itot)*dqdrp/bmod(i)**2
-             ! below are (v_M . grad theta) terms
-             gbdrift_th(itot)=gbdrift3(itot)/bmod(i)**3
-             cvdrift_th(itot)=cvdrift3(itot)/bmod(i)**2 
-          enddo
-       enddo
-    endif
+       do k = -nperiod+1, nperiod-1
+          do i = -nth, nth
+             itot = i + k * ntheta
+             gbdrift(itot) = 2 * dpsidrho * gbdrift1(itot) / bmod(i)**3
+             gbdrift0(itot)= 2 * dpsidrho * gbdrift2(itot) * dqdrp / bmod(i)**3
+             cvdrift(itot) = 2 * dpsidrho * cvdrift1(itot) / bmod(i)**2
+             cvdrift0(itot)= 2 * dpsidrho * cvdrift2(itot) * dqdrp / bmod(i)**2
+             ! below are (v_M . grad theta) terms -- Not actually used
+             gbdrift_th(itot) = gbdrift3(itot) / bmod(i)**3
+             cvdrift_th(itot) = cvdrift3(itot) / bmod(i)**2 
+          end do
+       end do
+    end if
 
     ! coriolis drift term is -2*vpa*om_phi/Omega * (bhat x (zhat x bhat)) . grad (g+q<phi>F_0/T)
     ! here we calculate 2*(zhat . grad (alpha+q*theta0))/(B/Bref)
 
     ! this is the Zhat . grad(alpha) part of Zhat . grad(S)
     ! note that a factor of k_y = (n0/a) (drho/dpsiN) has been factored out
-    call dottgrid(gradztot,gradstot,cdrift1)
+    call dottgrid(gradztot, gradstot, cdrift1)
     ! this is the Zhat . grad(q) part of Zhat . grad(S)
     ! note that a factor of k_y * theta0 has been factored out
-    call dottgrid(gradztot,gradrptot,cdrift2)
+    call dottgrid(gradztot, gradrptot, cdrift2)
 
     ! factor of 4 (instead of 2) below because will later mutliply
     ! by wunits, which has a built-in factor of 1/2
-    do k=-nperiod+1,nperiod-1
-       do i=-nth,nth
-          itot=i+k*ntheta
+    do k = -nperiod+1, nperiod-1
+       do i = -nth, nth
+          itot = i + k * ntheta
           ! cdrift0 is part of coriolis drift dependent on theta0
-          cdrift(itot)  = -4.*dpsidrho*cdrift1(itot)/bmod(i)
-          cdrift0(itot) = -4.*dpsidrho*cdrift2(itot)*dqdrp/bmod(i)
+          cdrift(itot)  = -4 * dpsidrho * cdrift1(itot) / bmod(i)
+          cdrift0(itot) = -4 * dpsidrho * cdrift2(itot) * dqdrp / bmod(i)
        end do
     end do
 
@@ -1541,7 +1541,7 @@ contains
        call sym(gbdrift0, 1, ntgrid)
        call sym(cvdrift0, 1, ntgrid)
        ! should maybe add in cdrift, cdrift0, gbdrift_th, and cvdrift_th here -- MAB
-    endif
+    end if
   end subroutine drift
 
   !> Forces symmetry in theta in the passed array. If isign == 0 then
@@ -1606,7 +1606,7 @@ contains
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
     
     do i = -nth, nth
-       dsdthet(i) = -bi/trip(i)*invR(i)**2
+       dsdthet(i) = -bi * invR(i)**2 / trip(i)
     end do
     call periodic_copy(dsdthet, 0., nperiod)
 
@@ -1672,7 +1672,7 @@ contains
     implicit none
     real, intent (in) :: rp
     real :: pbar
-    integer :: i, initrho = 1
+    integer :: i
     pbar = psifun(rp)
     select type(geom)
     type is(deq_type)
