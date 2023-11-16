@@ -2012,17 +2012,6 @@ contains
     psi = geom%psi(r, thet)
   end function psi
 
-  !> FIXME : Add documentation    
-  pure logical function between(x,x1,x2)
-    implicit none
-    real, intent(in) :: x, x1, x2
-    if( ((x1 <= x).and.(x <= x2)) .or. ((x1 >= x).and.(x >= x2)) ) then
-       between = .true.
-    else
-       between = .false.
-    end if
-  end function between
-
   !> FIXME : Add documentation
   !>
   !> @note This routine is just used by eik, not GS2
