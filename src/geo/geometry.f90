@@ -1695,7 +1695,6 @@ contains
     real, intent(in) :: rho
     integer, intent(in) :: fort11_unit
     real, parameter :: xerrbi = 1.e-4, xerrsec = 1.e-8
-    integer, parameter :: nsolv = 1
     real :: a, b, fval
     integer :: ier
 
@@ -1704,16 +1703,16 @@ contains
 
     if (irho == 1) then
        fval = rho * rho * phi(b)
-       call root(phi, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
+       call root(phi, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
     else if (irho == 2) then
        fval = rho * diameter(b)
-       call root(diameter, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
+       call root(diameter, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
     else if (irho == 3) then
        fval = rho * psifun(b)
-       call root(psifun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
+       call root(psifun, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
     else if (irho == 4) then
        fval = rho * rhofun(b)
-       call root(rhofun, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, rpofrho)
+       call root(rhofun, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
     endif
 
     if (debug) then 
@@ -1895,11 +1894,10 @@ contains
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
   !> We can then first bisect the bracket to narrow in on the solution.
-  !> Follow this we use the secant method to find the solution.
+  !> Following this we use the secant method to find the solution.
   !> The input xerrbi influences the number of bisection iterations whilst
   !> xerrsec is used to set the stopping tolerance on the secant method.
-  !> Note we do not check that abs(f(soln)-fval) is suitably small on exit.
-  subroutine root(f, fval, a, b, xerrbi, xerrsec, nsolv, fort11_unit, ier, soln)
+  subroutine root(f, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, soln)
     implicit none
     interface
       real function f(x_)
@@ -1908,10 +1906,10 @@ contains
     end interface
     real, intent(in) :: fval, a, b, xerrbi, xerrsec
     real, intent(out) :: soln
-    integer, intent(in) :: nsolv, fort11_unit
+    integer, intent(in) :: fort11_unit
     integer, intent(out) :: ier
     real :: a1, b1, f1, f2, f3, trial, aold
-    integer :: i, niter, isolv
+    integer :: i, niter
     logical :: skip_bisection
     ier = 0 ; a1 = a ; b1 = b
     f1 = f(a1) - fval ;  f2 = f(b1) - fval
@@ -1949,23 +1947,16 @@ contains
        aold = a1 ; a1 = b1 ; b1 = aold
     end if
     !     start secant method
-    isolv = 0
     do i = 1, 10
-       aold = a1
-       f3 = f2 - f1
-       if (abs(f3) < 1.e-11)  f3 = 1.e-11
-       a1 = a1 - f1 * (b1 - a1) / f3
-       f2 = f1
-       b1 = aold
-       if (abs(a1 - b1) < xerrsec) isolv = isolv + 1
-       if (isolv >= nsolv) exit
-       f1 = f(a1) - fval
+       aold = a1 ; f3 = f2 - f1
+       if (abs(f3) < 1.e-11)  f3 = 1.e-11 !Should we exit here? Saying f2~f1
+       a1 = a1 - f1 * (b1 - a1) / f3 !Update guess for root.
+       f2 = f1 ; b1 = aold ; f1 = f(a1) - fval
+       if (abs(a1 - b1) < xerrsec) exit !Root found closely enough so exit
     end do
     soln = a1
-    ! Detect instances where we have not converged to a root and set ier
-    if (isolv < nsolv) ier = ier + 2
     ! Detect instances where we have not converged to a solution
-    if (abs(f(soln) - fval) > xerrsec) ier = ier + 4
+    if (abs(f1) > xerrsec) ier = ier + 2
   end subroutine root
 
   !> FIXME : Add documentation    
