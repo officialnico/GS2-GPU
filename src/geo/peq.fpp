@@ -277,7 +277,7 @@ contains
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
-       rmaj = self%R_mag
+       rmaj = self%R_mag / self%aminor
        B_T0 = self%B_T
        avgrmid = self%aminor
        nthg = self%nt
@@ -416,7 +416,9 @@ contains
     ! find rho_d
     rho_d = 0.5 * (self%R_psi(:, self%nt/2) - self%R_psi(:, 1)) / self%aminor
 
-    ! find magnetic axis
+    ! find magnetic axis -- Note currently we don't normalise these
+    ! whilst we _do_ for eqin (transp = .false.). They are not used
+    ! so this is OK for now.
     self%R_mag = self%R_psi(1, 1)
     self%Z_mag = self%Z_psi(1, 1)
 
