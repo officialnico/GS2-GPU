@@ -24,7 +24,7 @@ module leq
 
   private
 
-  public :: leq_type, dpdrhofun
+  public :: leq_type
 
   type, extends(abstract_geo_type) :: leq_type
      private
@@ -716,7 +716,7 @@ contains
   real function dpfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
-    dpfun = -1.
+    dpfun = 0
   end function dpfun
 
   !> FIXME : Add documentation
@@ -725,9 +725,4 @@ contains
     real, intent(in) :: pbar
     betafun = self%beta_0
   end function betafun
-
-  !> FIXME : Add documentation
-  real function dpdrhofun()
-    dpdrhofun = 0
-  end function dpdrhofun
 end module leq

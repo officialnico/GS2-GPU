@@ -339,7 +339,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
-    use leq, only: dpdrhofun
     use constants, only: twopi
     use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
@@ -551,12 +550,7 @@ contains
        c_bish = - c_bish * Bpolmag * rmajor
 
        ! find shat, pressure' and report them
-       if (iflux == 0) then
-          dp = dpdrhofun() * drhodpsi
-       else
-          dp = dpfun(rgrid(0), theta(0))
-       end if
-
+       dp = dpfun(rgrid(0), theta(0))
        di = dbtori(rgrid(0), theta(0))
 
        if (abs(qval) > epsilon(0.)) then
@@ -705,12 +699,7 @@ contains
        end if
 
        s_hat_new = shat
-
-       if (iflux == 0) then
-          dbetadrho = 2.*dpdrhofun()
-       else
-          dbetadrho = 2.*dpfun(rgrid(0),theta(0))/drhodrp
-       end if
+       dbetadrho = 2 * dpfun(rgrid(0), theta(0)) / drhodrp
 
        !
        !     compute gradient of S
