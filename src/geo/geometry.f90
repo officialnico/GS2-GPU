@@ -1940,6 +1940,9 @@ contains
     end if
     !     start secant method
     isolv = 0
+    ! Note we hard code a limit of 10 attempts but
+    ! we don't set the error state if we haven't met
+    ! our convergence criterion by then.
     do i = 1, 10
        aold = a1
        f3 = f2 - f1
