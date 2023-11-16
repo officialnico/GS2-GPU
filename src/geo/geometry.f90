@@ -166,7 +166,6 @@ module geometry
   type eikcoefs_output
      integer :: ntheta
      real :: s_hat_new
-     real :: beta_prime_new
      real :: drhodpsin
      real :: kxfac
      real :: qsf
@@ -258,7 +257,6 @@ contains
     ! Set scalar outputs
     results%ntheta = ntheta_target
     results%s_hat_new = full_results%s_hat_new
-    results%beta_prime_new = full_results%beta_prime_new
     results%drhodpsin = full_results%drhodpsin
     results%kxfac = full_results%kxfac
     results%qsf = full_results%qsf
@@ -382,7 +380,7 @@ contains
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
     real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, drhodpsin
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
-    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, beta_prime_new, s_hat_new
+    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, drhodpsi, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
     real :: bi, bi1, bi2, Ltot
     logical :: force_sym
@@ -602,7 +600,6 @@ contains
            dp_new = -alpha_input * drhodpsi / (qval**2 * rmaj)
        case (7)
           dp_new = dp * dp_mult
-          beta_prime_new = 2. * dp_new / drhodpsi ! Should we define this in all cases?
        case (8)
           dp_new = 0.5 * beta_prime_input * drhodpsi * dp_mult
        case default
@@ -930,7 +927,6 @@ contains
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
-    outputs%beta_prime_new = beta_prime_new
     outputs%drhodpsin = drhodpsin
     outputs%kxfac = kxfac
     outputs%qsf = qval

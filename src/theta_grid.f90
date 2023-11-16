@@ -1258,7 +1258,7 @@ contains
     integer, intent(in) :: report_unit
     real, intent(in) :: dbetadrho
     real :: beta_prime_new, shat, s_hat_new, rhoc
-    beta_prime_new = eikcoefs_results%beta_prime_new
+    beta_prime_new = eikcoefs_results%dbetadrho
     shat = eikcoefs_results%shat
     s_hat_new = eikcoefs_results%s_hat_new
     rhoc = eikcoefs_results%rhoc
