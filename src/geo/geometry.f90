@@ -1866,7 +1866,7 @@ contains
     implicit none
     real, intent (in) :: rho, shat
     integer, intent(in) :: fort11_unit
-    dqdrhofun=shat*qfun(pbarofrho(rho, fort11_unit))/(rhoc)
+    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / (rhoc)
   end function dqdrhofun
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
@@ -1947,7 +1947,7 @@ contains
 
     pbar = psifun(rp)
     ! Construct a uniformly space grid from 0 to pbar
-    dpb = pbar / float(nimax-1)
+    dpb = pbar / float(nimax - 1)
     do i = 1, nimax
        pb(i) = dpb * float(i-1)
     end do
@@ -2122,7 +2122,7 @@ contains
     real, dimension(-ntgrid:), intent (in out) :: gpar
     integer :: nth, j
     real :: arcfac
-    nth = ntheta/2
+    nth = ntheta / 2
     arcl(-nth) = 0.
     do j = -nth, nth-1
        arcl(j+1) = arcl(j) + 0.5 * (theta(j+1) - theta(j)) * (1. / gpar(j) + 1. / gpar(j+1))
@@ -2466,24 +2466,23 @@ contains
     real, intent(in) :: rp
     real, intent (out) :: drhodrp
     real :: rp1, rp2, rho1, rho2
-
-!     compute d rho / d rp
-    rp1=rp*(1.-delrho)
-    rp2=rp*(1.+delrho)
-    if(irho == 1) then
-       rho1=sqrt(abs(phi(rp1)/phi(rpmax)))
-       rho2=sqrt(abs(phi(rp2)/phi(rpmax)))
-    elseif(irho == 2) then
-       rho1=0.5*diameter(rp1)
-       rho2=0.5*diameter(rp2)
-    elseif(irho == 3) then
-       rho1=psifun(rp1)
-       rho2=psifun(rp2)
-    elseif(irho == 4) then
-       rho1=rhofun(rp1)
-       rho2=rhofun(rp2)
-    endif
-    drhodrp=(rho2-rho1)/(rp2-rp1)
+    !     compute d rho / d rp
+    rp1 = rp * (1 - delrho)
+    rp2 = rp * (1 + delrho)
+    if (irho == 1) then
+       rho1 = sqrt(abs(phi(rp1) / phi(rpmax)))
+       rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
+    else if (irho == 2) then
+       rho1 = 0.5 * diameter(rp1)
+       rho2 = 0.5 * diameter(rp2)
+    else if (irho == 3) then
+       rho1 = psifun(rp1)
+       rho2 = psifun(rp2)
+    else if (irho == 4) then
+       rho1 = rhofun(rp1)
+       rho2 = rhofun(rp2)
+    end if
+    drhodrp = (rho2 - rho1) / (rp2 - rp1)
   end subroutine drho_drp
 
   !> FIXME : Add documentation | Only used for writelots output and if irho=1
@@ -2493,12 +2492,12 @@ contains
     real, intent (out) :: drhodrhod
     real :: rp1, rp2,  rho1, rho2
     !     compute d rho / d rb
-    rp1=rp*(1.-delrho)
-    rp2=rp*(1.+delrho)
-    rho1=0.5*diameter(rp1)
-    rho2=0.5*diameter(rp2)
+    rp1 = rp * (1 - delrho)
+    rp2 = rp * (1 + delrho)
+    rho1 = 0.5 * diameter(rp1)
+    rho2 = 0.5 * diameter(rp2)
 
-    drhodrhod=drhodrp/((rho2-rho1)/(rp2-rp1))
+    drhodrhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
   end subroutine drho_drhod
 
   !> FIXME : Add documentation    
@@ -2506,17 +2505,16 @@ contains
     implicit none
     real, dimension(-nth:nth), intent(in) :: f, theta, jacob
     real, dimension(-nth:nth) :: delth
-
-    delth(-nth+1:nth-1) = 0.5*(theta(-nth+2:nth)-theta(-nth:nth-2))
-    delth(-nth) = 0.5*(theta(-nth+1)-theta(-nth))
-    delth(nth) = 0.5*(theta(nth)-theta(nth-1))
+    delth(-nth+1:nth-1) = 0.5*(theta(-nth+2:nth) - theta(-nth:nth-2))
+    delth(-nth) = 0.5*(theta(-nth+1) - theta(-nth))
+    delth(nth) = 0.5*(theta(nth) - theta(nth-1))
 
     ! We might want to write this to use trapezoidal_integration instead
     ! of this sum form. Currently only used in [[f_trap]], which itself
     ! is only used here for one piece of information written to screen.
     ! As it doesn't get into the simulated system we probably don't mind
     ! too much beyond readability concerns.
-    fluxavg = sum(f*jacob(-nth:nth)*delth)/sum(jacob(-nth:nth)*delth)
+    fluxavg = sum(f * jacob(-nth:nth) * delth) / sum(jacob(-nth:nth) * delth)
   end function fluxavg
 
   !> FIXME : Add documentation    
@@ -2528,9 +2526,9 @@ contains
     h = min(b_mag/maxval(b_mag),1.0)
     havg = fluxavg(h, theta, jacob)
     h2avg = fluxavg(h**2, theta, jacob)
-    ftu = 1.0 - h2avg/havg**2*(1.0-sqrt(1.0-havg)*(1.0+0.5*havg))
-    ftl = 1.0 - h2avg*fluxavg((1.0-sqrt(1.0-h)*(1.0+0.5*h))/h**2, theta, jacob)
-    f_trap = 0.75*ftu + 0.25*ftl 
+    ftu = 1.0 - (h2avg / havg**2) * (1.0 - sqrt(1.0 - havg) * (1.0 + 0.5 * havg))
+    ftl = 1.0 - h2avg * fluxavg((1.0 - sqrt(1.0 - h) * (1.0 + 0.5 * h)) / h**2, theta, jacob)
+    f_trap = 0.75 * ftu + 0.25 * ftl
   end function f_trap
 
   !> FIXME : Add documentation    
@@ -2561,19 +2559,19 @@ contains
 ! BD: bug??
 ! Is this correct for EFIT data?  Need to check
 !  
-    do i=-ntgrid,ntgrid
+    do i = -ntgrid, ntgrid
        Rplot(i) = Rpos(rgrid(i), theta(i))
        Zplot(i) = Zpos(rgrid(i), theta(i))
        aplot(i) = seik(i)
     end do
 
-    do i=-ntgrid,ntgrid
-       rplus  = rgrid(i)*(1.+delrho)
-       rminus = rgrid(i)*(1.-delrho)
-       dr = 2.*delrho*rgrid(i)
-       Rprime(i) = (Rpos(rplus, theta(i))-Rpos(rminus, theta(i)))/dr
-       Zprime(i) = (Zpos(rplus, theta(i))-Zpos(rminus, theta(i)))/dr
-       aprime(i) = grads(i,1)*dpsidrho
+    do i = -ntgrid, ntgrid
+       rplus  = rgrid(i) * (1 + delrho)
+       rminus = rgrid(i) * (1 - delrho)
+       dr = 2 * delrho * rgrid(i)
+       Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr
+       Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr
+       aprime(i) = grads(i,1) * dpsidrho
     end do
   end subroutine plotdata
 end module geometry
