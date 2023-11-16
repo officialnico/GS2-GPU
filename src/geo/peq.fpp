@@ -272,7 +272,6 @@ contains
     integer :: nchar
     ! what is the best way to handle the netcdf single/double problem?
     real, allocatable, dimension(:,:) :: work
-    real, allocatable, dimension(:) :: rho_d
     real :: f_N, psi_N
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -310,7 +309,6 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     call self%alloc_arrays()
-    allocate(rho_d(self%nr))
 
     !     netcdf read scalars: psi_0,psi_a,B_T
     !
@@ -412,9 +410,6 @@ contains
 
     ! find R_geo
     R_geo = 0.5 * (self%R_psi(self%nr, self%nt/2) + self%R_psi(self%nr, 1))
-
-    ! find rho_d
-    rho_d = 0.5 * (self%R_psi(:, self%nt/2) - self%R_psi(:, 1)) / self%aminor
 
     ! find magnetic axis -- Note currently we don't normalise these
     ! whilst we _do_ for eqin (transp = .false.). They are not used
