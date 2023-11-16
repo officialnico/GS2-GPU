@@ -27,7 +27,7 @@ contains
     call execute_command_line( &
          "THEVAL=$(ncdump -h "//trim(run_name)//".out.nc | "// &
          "grep UNLIM | awk -F '(' '{print $2}' | awk '{print $1}') ; "// &
-         "[[ ${THEVAL} == "//str_expect//" ]]", exitstat = exitstat)
+         "[ ${THEVAL} -eq "//str_expect//" ]", exitstat = exitstat)
     check = exitstat == 0
   end function check_number_of_time_points
   

@@ -6274,7 +6274,7 @@ contains
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
     id_message = get_option_with_default(identifier, '')
-    allocate(g_pass, mold = g_array)
+    allocate(g_pass(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     err = 0.0
 
