@@ -462,7 +462,7 @@ contains
           ! Locate the index of the maximum magnetic field in the range [-pi,pi)
           iBmax = -nth
           do i = -nth+1, nth-1
-             if (Bmod(iBmax)<Bmod(i)) then
+             if (Bmod(iBmax) < Bmod(i)) then
                 iBmax = i
              end if
           end do
@@ -515,9 +515,9 @@ contains
        da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
             trip(-ntgrid:ntgrid))
 
-       da_bish = 1/rmajor**2 + (bi/(Bpolmag*rmajor**2))**2
-       db_bish = bi/(Bpolmag*rmajor)**2
-       dc_bish = bi*(sin(th_bish) + rmajor * invRpol)/(-Bpolmag*rmajor**4)
+       da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
+       db_bish = bi / (Bpolmag * rmajor)**2
+       dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
 
        call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
        call periodic_copy(trip, 0., nperiod)
@@ -537,17 +537,17 @@ contains
        if (verb > 5) write(6,*) -1.0/(bpolmag(-nth:nth)*invRpol(-nth:nth))
        if (debug) write(6,*) "eikcoefs: end gradients"
 
-       da_bish = da_bish/trip
-       db_bish = db_bish/trip
-       dc_bish = dc_bish/trip
+       da_bish = da_bish / trip
+       db_bish = db_bish / trip
+       dc_bish = dc_bish / trip
 
        call integrate(da_bish, theta, a_bish, ntgrid)
        call integrate(db_bish, theta, b_bish, ntgrid)
        call integrate(dc_bish, theta, c_bish, ntgrid)
 
-       a_b = a_bish(nth)-a_bish(-nth)
-       b_b = b_bish(nth)-b_bish(-nth)
-       c_b = c_bish(nth)-c_bish(-nth)
+       a_b = a_bish(nth) - a_bish(-nth)
+       b_b = b_bish(nth) - b_bish(-nth)
+       c_b = c_bish(nth) - c_bish(-nth)
 
        a_bish = - a_bish * Bpolmag * rmajor
        b_bish = - b_bish * Bpolmag * rmajor
@@ -557,22 +557,20 @@ contains
        if (iflux == 0) then
           dp = dpdrhofun() * drhodpsi
        else
-          dp = dpfun(rgrid(0),theta(0))
+          dp = dpfun(rgrid(0), theta(0))
        end if
 
-       di = dbtori(rgrid(0),theta(0))
+       di = dbtori(rgrid(0), theta(0))
 
        if (abs(qval) > epsilon(0.)) then
           tmp = rho / (qval * twopi * drhodpsi)
-          s_hat = tmp*(a_b*di+ b_b*dp + c_b*2)
+          s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
           if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
           if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat
        else
           tmp = 1.
           s_hat = 0.
        end if
-
-       pressure = pfun(rgrid(0),theta(0))
 
        write(fort11_unit,*)
        write(fort11_unit,*) 'Quantity, equilibrium value, value used'
@@ -581,25 +579,22 @@ contains
        case (2)
           s_hat_new = s_hat_input
           dp_new = p_prime_input
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
           if (writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
        case (3)
+          pressure = pfun(rgrid(0), theta(0))
           s_hat_new = s_hat_input
           dp_new = -invLp_input*pressure*drhodpsi
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
           if (writelots) write(*,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
        case (4)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (5)
           s_hat_new = s_hat_input
           dp_new = -alpha_input/qval**2/rmaj*drhodpsi
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
                -qval**2*rmaj*dp_new/drhodpsi
           if (writelots) write(*,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
@@ -607,55 +602,56 @@ contains
        case (6)
           s_hat_new = s_hat
           dp_new = 0.5*beta_prime_input*drhodpsi
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (7)
           s_hat_new = s_hat
           dp_new = dp * dp_mult
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
-          beta_prime_new=2.*dp_new/drhodpsi
+          beta_prime_new = 2. * dp_new / drhodpsi
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (8)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi * dp_mult
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case (9)
           s_hat_new = s_hat_input
           dp_new = 0.5*beta_prime_input*drhodpsi
-          di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        case default
           if (iflux /= 1) then
              s_hat_new = s_hat_input
              dp_new = dp
-             di_new = (s_hat_new/tmp -2*c_b -dp_new*b_b) / a_b
           else
              s_hat_new = s_hat
              dp_new = dp
-             di_new = di
           end if
           write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
           if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
        end select
+
+       if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
+          ! This handles case default for iflux == 1
+          di_new = di
+       else
+          di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
+       end if
 
        write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
        if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
        write(fort11_unit,*)
 
        shat = s_hat_new
-       dqdrp = s_hat_new*qval/rho*drhodrp
-       dbetadrho = 2*dp_new/drhodpsi
+       dqdrp = s_hat_new * qval * drhodrp / rho
+       dbetadrho = 2 * dp_new / drhodpsi
 
        call gradl(ltheta, seik, dSdl, twopi * qval, nth)
        call periodic_copy(dSdl, 0., nperiod)
 
        ! here the coordinates are rho and l
-       grads(:,1) = a_bish*di_new + b_bish*dp_new + c_bish*2
+       grads(:,1) = a_bish * di_new + b_bish * dp_new + c_bish * 2
        grads(:,2) = dSdl
 
        ! obtain Z(theta)
@@ -2501,8 +2497,8 @@ contains
   end function rfun
 
   !> Calculate the derivative of the flux label rho
-  !! with respect to the internal flux label rp (the 
-  !! normalised poloidal flux)
+  !> with respect to the internal flux label rp (the
+  !> normalised poloidal flux)
   subroutine drho_drp(rp, drhodrp)
     implicit none
     real, intent(in) :: rp
@@ -2528,7 +2524,7 @@ contains
     drhodrp=(rho2-rho1)/(rp2-rp1)
   end subroutine drho_drp
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation | Only used for writelots output and if irho=1
   subroutine drho_drhod(rp, drhodrp, drhodrhod)
     implicit none
     real, intent (in) :: drhodrp, rp
