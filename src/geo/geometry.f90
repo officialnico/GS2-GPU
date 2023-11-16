@@ -575,61 +575,58 @@ contains
        write(fort11_unit,*)
        write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
+       ! Decide how we want to set s_hat_new
+       select case (bishop)
+       case (2, 3, 4, 5, 8, 9)
+          s_hat_new = s_hat_input
+       case (6, 7)
+          s_hat_new = s_hat
+       case default
+          if (iflux == 1) then
+             s_hat_new = s_hat_input
+          else
+             s_hat_new = s_hat
+          end if
+       end select
+
+       ! Decide how we want to set dp_new
        select case (bishop)
        case (2)
-          s_hat_new = s_hat_input
           dp_new = p_prime_input
+       case (3)
+          pressure = pfun(rgrid(0), theta(0))
+          dp_new = -invLp_input * pressure * drhodpsi
+       case (4, 6, 9)
+          dp_new = 0.5 * beta_prime_input * drhodpsi
+       case (5)
+           dp_new = -alpha_input * drhodpsi / (qval**2 * rmaj)
+       case (7)
+          dp_new = dp * dp_mult
+          beta_prime_new = 2. * dp_new / drhodpsi ! Should we define this in all cases?
+       case (8)
+          dp_new = 0.5 * beta_prime_input * drhodpsi * dp_mult
+       case default
+          dp_new = dp
+       end select
+
+       !Report on update dp
+       select case(bishop)
+       case (2)
           write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
           if (writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
        case (3)
-          pressure = pfun(rgrid(0), theta(0))
-          s_hat_new = s_hat_input
-          dp_new = -invLp_input*pressure*drhodpsi
-          write(fort11_unit,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
-          if (writelots) write(*,*) '1/L_p = ',-dp/drhodpsi/pressure,', ',-dp_new/drhodpsi/pressure
-       case (4)
-          s_hat_new = s_hat_input
-          dp_new = 0.5*beta_prime_input*drhodpsi
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
+               -dp_new / (drhodpsi *pressure)
+          if (writelots) write(*,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
+               -dp_new / (drhodpsi * pressure)
        case (5)
-          s_hat_new = s_hat_input
-          dp_new = -alpha_input/qval**2/rmaj*drhodpsi
-          write(fort11_unit,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
-               -qval**2*rmaj*dp_new/drhodpsi
-          if (writelots) write(*,*) 'alpha = ', -qval**2*rmaj*dp/drhodpsi,', ', &
-               -qval**2*rmaj*dp_new/drhodpsi
-       case (6)
-          s_hat_new = s_hat
-          dp_new = 0.5*beta_prime_input*drhodpsi
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-       case (7)
-          s_hat_new = s_hat
-          dp_new = dp * dp_mult
-          beta_prime_new = 2. * dp_new / drhodpsi
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-       case (8)
-          s_hat_new = s_hat_input
-          dp_new = 0.5*beta_prime_input*drhodpsi * dp_mult
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-       case (9)
-          s_hat_new = s_hat_input
-          dp_new = 0.5*beta_prime_input*drhodpsi
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
+               -qval**2 * rmaj * dp_new / drhodpsi
+          if (writelots) write(*,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
+               -qval**2 * rmaj * dp_new / drhodpsi
        case default
-          if (iflux /= 1) then
-             s_hat_new = s_hat_input
-             dp_new = dp
-          else
-             s_hat_new = s_hat
-             dp_new = dp
-          end if
-          write(fort11_unit,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2.*dp/drhodpsi,', ',2.*dp_new/drhodpsi
+          write(fort11_unit,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
+          if (writelots) write(*,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
        end select
 
        if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
