@@ -345,7 +345,7 @@ contains
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, outputs, job_id_in)
     use leq, only: dpdrhofun
-    use constants, only: pi
+    use constants, only: twopi
     use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
     use file_utils, only: finish_file_utils
@@ -563,7 +563,7 @@ contains
        di = dbtori(rgrid(0),theta(0))
 
        if (abs(qval) > epsilon(0.)) then
-          tmp = rho/qval/(2.*pi)/drhodpsi
+          tmp = rho / (qval * twopi * drhodpsi)
           s_hat = tmp*(a_b*di+ b_b*dp + c_b*2)
           if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
           if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat
@@ -651,7 +651,7 @@ contains
        dqdrp = s_hat_new*qval/rho*drhodrp
        dbetadrho = 2*dp_new/drhodpsi
 
-       call gradl(ltheta, seik, dSdl, 2*pi*qval, nth)
+       call gradl(ltheta, seik, dSdl, twopi * qval, nth)
        call periodic_copy(dSdl, 0., nperiod)
 
        ! here the coordinates are rho and l
@@ -733,7 +733,7 @@ contains
           do j = 1, 2
              do i = -nth, nth
                 itot = i + k * ntheta
-                dsdrptot = dsdrp(i) - k * 2 * pi * dqdrp
+                dsdrptot = dsdrp(i) - k * twopi * dqdrp
                 grads(itot, j) = rpgrad(i, j) * dsdrptot + thgrad(i, j) * dsdthet(i)
              end do
           end do
@@ -869,12 +869,12 @@ contains
 
     !     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
     call integrate(ds, theta, dummy, nth)
-    surfarea=2.*pi*(dummy(nth)-dummy(-nth))
+    surfarea = twopi * (dummy(nth) - dummy(-nth))
     if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
 
     !     compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, theta, dummy, nth)
-    dvdrhon=2.*pi*(dummy(nth)-dummy(-nth))
+    dvdrhon = twopi * (dummy(nth) - dummy(-nth))
 
     if (force_sym) then
        call sym(gds2, 0, ntgrid)
@@ -1095,7 +1095,7 @@ contains
          do i =-nth, nth-1
             rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
          end do
-         rbar = rbar / (2.*pi)
+         rbar = rbar / (twopi)
          write (*,*) 'r_bar = ',rbar
          write (*,*)
       end if
@@ -1104,7 +1104,7 @@ contains
 
       ! Not clear that we need this -- init_uniform_theta_grid
       ! already populates the full theta domain
-      call periodic_copy(theta, 2.*pi, nperiod)
+      call periodic_copy(theta, twopi, nperiod)
 
       if (writelots) then
          write(fort11_unit,*) 'drhodrp=',drhodrp
@@ -1604,7 +1604,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
-    use constants, only: pi
+    use constants, only: twopi
     implicit none
     real, dimension(-ntgrid:), intent(in) :: theta, invR
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
@@ -1625,14 +1625,14 @@ contains
     call integrate(dsdthet, theta, seik, ntgrid)
 
     if (iflux == 0) then
-       dpsidrp=-(seik(nth)-seik(-nth))/(2.*pi*qval)
-       do i=-nth,nth
-          seik(i)=seik(i)/dpsidrp
-          dsdthet(i)=dsdthet(i)/dpsidrp
+       dpsidrp = -(seik(nth) - seik(-nth)) / (twopi * qval)
+       do i = -nth, nth
+          seik(i) = seik(i) / dpsidrp
+          dsdthet(i) = dsdthet(i) / dpsidrp
        end do
     else
-       dpsidrp=1.
-       qval=-(seik(nth)-seik(-nth))/(2.*pi)
+       dpsidrp = 1.
+       qval = -(seik(nth) - seik(-nth)) / (twopi)
     end if
   end subroutine eikonal
 
@@ -2180,7 +2180,7 @@ contains
   !> theta grid, returned in arcl, which has gradpar = dg/dl  = constant.
   !> @note The input gradpar is modified on output.
   pure subroutine arclength (ntheta, nperiod, theta, gpar, arcl)
-    use constants, only: pi
+    use constants, only: twopi, pi
     implicit none
     integer, intent (in) :: ntheta, nperiod
     real, dimension(-ntgrid:), intent (out) :: arcl
@@ -2188,19 +2188,19 @@ contains
     real, dimension(-ntgrid:), intent (in out) :: gpar
     integer :: nth, j
     real :: arcfac
-    nth=ntheta/2
-    arcl(-nth)=0.
+    nth = ntheta/2
+    arcl(-nth) = 0.
     do j = -nth, nth-1
-       arcl(j+1) = arcl(j) + 0.5 * (theta(j+1)-theta(j)) * (1./gpar(j)+1./gpar(j+1))
+       arcl(j+1) = arcl(j) + 0.5 * (theta(j+1) - theta(j)) * (1. / gpar(j) + 1. / gpar(j+1))
     end do
     arcfac = 1. / arcl(nth)
     
     do j = -nth, nth
-       arcl(j) = arcl(j) * 2.*pi * arcfac - pi
+       arcl(j) = arcl(j) * twopi * arcfac - pi
     end do
     
-    call periodic_copy(arcl, 2.*pi, nperiod)
-    gpar = 2 * pi * arcfac
+    call periodic_copy(arcl, twopi, nperiod)
+    gpar = twopi * arcfac
   end subroutine arclength
 
   !> FIXME : Add documentation  
@@ -2258,7 +2258,7 @@ contains
   !> Finds the angle between the surface tangent vector in the poloidal plane
   !> and the direction of increasing major radius.
   pure subroutine th_bishop(rpgrad, th_bish, nth)
-    use constants, only: pi
+    use constants, only: twopi
     implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
@@ -2285,7 +2285,7 @@ contains
     do i = -nth, nth
        tvec(i,1) = min(1., max(-1., tvec(i,1)))
        if (tvec(i,2) > 0.) then
-          th_bish(i) = 2*pi-acos(max(min(tvec(i,1), 1.0), -1.0))
+          th_bish(i) = twopi-acos(max(min(tvec(i,1), 1.0), -1.0))
        else               
           th_bish(i) = acos(max(min(tvec(i,1), 1.0), -1.0))
        end if
@@ -2320,7 +2320,7 @@ contains
 
   !> FIXME : Add documentation    
   subroutine R_pol(theta, th_bish, ltheta, Rpol, nth)
-    use constants, only: pi
+    use constants, only: twopi, pi
     implicit none
     integer, intent (in) :: nth
     real, dimension(-ntgrid:), intent (in) :: th_bish, theta, ltheta
@@ -2333,36 +2333,34 @@ contains
 
     ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998)) 
     ! Note that we must properly account for discontinuities in u
-    do i=-nth+1,nth-1
-       if(th_bish(i+1)-th_bish(i-1) > pi) then
-          Rpol(i)=(th_bish(i+1)-th_bish(i-1)-2*pi)/(theta(i+1)-theta(i-1))
+    do i = -nth+1, nth-1
+       if (th_bish(i+1)-th_bish(i-1) > pi) then
+          Rpol(i)  =(th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
        else if(th_bish(i+1)-th_bish(i-1) < -pi) then
-          Rpol(i)=(th_bish(i+1)-th_bish(i-1)+2*pi)/(theta(i+1)-theta(i-1))
+          Rpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
        else
-          Rpol(i)=(th_bish(i+1)-th_bish(i-1))/(theta(i+1)-theta(i-1))
-       endif
-    enddo
+          Rpol(i) = (th_bish(i+1) - th_bish(i-1)) / (theta(i+1) - theta(i-1))
+       end if
+    end do
 
-    Rpol(nth)=(th_bish(-nth+1)-th_bish(nth-1))  &
-         /(theta(-nth+1)-theta(nth-1)+2*pi)
-
-    Rpol(-nth)=Rpol(nth)
+    Rpol(nth) = (th_bish(-nth+1) - th_bish(nth-1)) / (theta(-nth+1) - theta(nth-1) + twopi)
+    Rpol(-nth) = Rpol(nth)
 
     ! Calculate dtheta/dl (where l is the poloidal arc length)
-    dthdl(-nth) = (theta(nth-1) - theta(-nth+1) -2*pi) &
+    dthdl(-nth) = (theta(nth-1) - theta(-nth+1) - twopi) &
          /(ltheta(nth-1) - ltheta(-nth+1) - ltheta(nth) + ltheta(-nth))
 
     do i = -nth+1, nth-1
-       dthdl(i) = (theta(i+1)-theta(i-1))/(ltheta(i+1)-ltheta(i-1))
-    enddo
+       dthdl(i) = (theta(i+1) - theta(i-1)) / (ltheta(i+1) - ltheta(i-1))
+    end do
 
     dthdl(nth) = dthdl(-nth)
 
     ! invert to find Rpol
     ! (the radius of curvature of the poloidal magnetic field)
-    do i=-nth,nth
-       Rpol(i) = 1/(Rpol(i)*dthdl(i))
-    enddo
+    do i = -nth, nth
+       Rpol(i) = 1 / (Rpol(i) * dthdl(i))
+    end do
   end subroutine R_pol
 
   !> FIXME : Add documentation    
