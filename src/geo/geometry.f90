@@ -368,7 +368,7 @@ contains
     real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2, rgrid, bpolmag, invR
     real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dummy2, dsdl
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
-    real, allocatable, dimension(:)   :: th_bish, Rpol, ltheta, Zoftheta, dZdl, bmod
+    real, allocatable, dimension(:)   :: th_bish, invRpol, ltheta, Zoftheta, dZdl, bmod
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
     real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
@@ -517,7 +517,7 @@ contains
 
        da_bish = 1/rmajor**2 + (bi/(Bpolmag*rmajor**2))**2
        db_bish = bi/(Bpolmag*rmajor)**2
-       dc_bish = bi*(sin(th_bish) + rmajor/Rpol)/(-Bpolmag*rmajor**4)
+       dc_bish = bi*(sin(th_bish) + rmajor * invRpol)/(-Bpolmag*rmajor**4)
 
        call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
        call periodic_copy(trip, 0., nperiod)
@@ -534,7 +534,7 @@ contains
        if (verb > 5) write(6,*) thgrad(-nth:nth,1)
        if (verb > 5) write(6,*) thgrad(-nth:nth,2)
        if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
-       if (verb > 5) write(6,*) -Rpol(-nth:nth)/bpolmag(-nth:nth)
+       if (verb > 5) write(6,*) -1.0/(bpolmag(-nth:nth)*invRpol(-nth:nth))
        if (debug) write(6,*) "eikcoefs: end gradients"
 
        da_bish = da_bish/trip
@@ -806,7 +806,7 @@ contains
 
     !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-         dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, rmajor, dp_new, &
+         dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
          bi, force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, &
          cdrift, cdrift0)
 
@@ -1157,11 +1157,11 @@ contains
          ! Miller (local) equilibrium
          call B_pol(invR, crpgrad, Bpolmag, nth)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
-         call R_pol(theta, th_bish, ltheta, Rpol, nth)
+         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
 
          call periodic_copy(Bpolmag, 0., nperiod)
          call periodic_copy(th_bish, 0., nperiod)
-         call periodic_copy(Rpol, 0., nperiod)
+         call periodic_copy(invRpol, 0., nperiod)
          Ltot = ltheta(nth)-ltheta(-nth)
          call periodic_copy(ltheta, Ltot, nperiod)
       end if
@@ -1215,7 +1215,7 @@ contains
            gdsdum4    (-n:n), &  ! MAB
            gdsdum5    (-n:n), &  ! MAB
            th_bish    (-n:n), &
-           Rpol       (-n:n), &
+           invRpol    (-n:n), &
            invR       (-n:n), &
            ltheta     (-n:n), &
            rgrid      (-n:n), &
@@ -1282,7 +1282,7 @@ contains
            gdsdum4   , &  ! MAB
            gdsdum5   , &  ! MAB
            th_bish   , &
-           Rpol      , &
+           invRpol   , &
            invR      , &
            ltheta    , &
            rgrid     , &
@@ -1432,11 +1432,11 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, Rpol, th_bish, ltheta, theta, rmajor, dp_new, bi, &
+       dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, bi, &
        force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
        cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, Rpol, th_bish
+    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new, bi
@@ -1463,7 +1463,7 @@ contains
     else
        char='B'
        if(bishop >= 1) then
-          call bishop_gradB(Bmod, Bpolmag, Rpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
+          call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
        else
           call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
@@ -2318,33 +2318,32 @@ contains
     end do
   end subroutine B_mod
 
-  !> FIXME : Add documentation    
-  subroutine R_pol(theta, th_bish, ltheta, Rpol, nth)
+  !> General calculation of the poloidal magnetic field radius of curvature
+  !> (see section 2.3 of "GS2 analytic geometry specification") ! JRB
+  !> @Note we actually calculate 1/Rpol as this is what we actually use.
+  subroutine inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
     use constants, only: twopi, pi
     implicit none
     integer, intent (in) :: nth
     real, dimension(-ntgrid:), intent (in) :: th_bish, theta, ltheta
-    real, dimension(-ntgrid:), intent (out) :: Rpol
+    real, dimension(-ntgrid:), intent (out) :: invRpol
     real, dimension(-ntgrid:ntgrid) :: dthdl
     integer :: i
-
-! General calculation of the poloidal magnetic field radius of curvature
-! (see section 2.3 of "GS2 analytic geometry specification") ! JRB
 
     ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998)) 
     ! Note that we must properly account for discontinuities in u
     do i = -nth+1, nth-1
        if (th_bish(i+1)-th_bish(i-1) > pi) then
-          Rpol(i)  =(th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
+          invRpol(i)  =(th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
        else if(th_bish(i+1)-th_bish(i-1) < -pi) then
-          Rpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
+          invRpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
        else
-          Rpol(i) = (th_bish(i+1) - th_bish(i-1)) / (theta(i+1) - theta(i-1))
+          invRpol(i) = (th_bish(i+1) - th_bish(i-1)) / (theta(i+1) - theta(i-1))
        end if
     end do
 
-    Rpol(nth) = (th_bish(-nth+1) - th_bish(nth-1)) / (theta(-nth+1) - theta(nth-1) + twopi)
-    Rpol(-nth) = Rpol(nth)
+    invRpol(nth) = (th_bish(-nth+1) - th_bish(nth-1)) / (theta(-nth+1) - theta(nth-1) + twopi)
+    invRpol(-nth) = invRpol(nth)
 
     ! Calculate dtheta/dl (where l is the poloidal arc length)
     dthdl(-nth) = (theta(nth-1) - theta(-nth+1) - twopi) &
@@ -2356,12 +2355,12 @@ contains
 
     dthdl(nth) = dthdl(-nth)
 
-    ! invert to find Rpol
-    ! (the radius of curvature of the poloidal magnetic field)
+    ! Scale by dtdl to complete calculation of  1/Rpol
+    ! (the inverse radius of curvature of the poloidal magnetic field)
     do i = -nth, nth
-       Rpol(i) = 1 / (Rpol(i) * dthdl(i))
+       invRpol(i) = (invRpol(i) * dthdl(i))
     end do
-  end subroutine R_pol
+  end subroutine inv_Rpol
 
   !> FIXME : Add documentation    
   subroutine finish_geometry
@@ -2428,9 +2427,9 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation    
-  subroutine bishop_gradB(Bmod, Bpolmag, Rpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
+  subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
     implicit none
-    real, dimension(-ntgrid:), intent (in) :: Bmod, Bpolmag, Rpol
+    real, dimension(-ntgrid:), intent (in) :: Bmod, Bpolmag, invRpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, rmajor
     real, intent(in) :: dp_new, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
@@ -2440,9 +2439,9 @@ contains
     call gradl(ltheta, Bmod, dBdl, 0., nth)
     do i = -nth, nth
        bp = -Bpolmag(i)
-       gradB(i,1) = bp/Bmod(i) *(bp/Rpol(i) + dp_new*rmajor(i) &
-            - bi**2 * sin(th_bish(i)) / rmajor(i)**3 / bp)
-       gradB(i,2) = dBdl(i)
+       gradB(i, 1) = (bp / Bmod(i)) *(bp * invRpol(i) + dp_new * rmajor(i) &
+            - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp))
+       gradB(i, 2) = dBdl(i)
     end do
   end subroutine bishop_gradB
 
