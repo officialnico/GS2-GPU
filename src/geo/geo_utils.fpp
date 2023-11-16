@@ -106,7 +106,32 @@ module geo_utils
      procedure(rtheta_interface), deferred :: rpos, zpos, invr, psi, rfun
      procedure(rp_interface), deferred :: rcenter, diameter
      procedure(pbar_interface), deferred :: btori, dbtori, qfun, pfun, dpfun, betafun
-     procedure(gradient_interface), deferred :: gradient, bgradient
+     !> Calculate the derivative of rp w.r.t. R and Z. Parameters
+     !> are:
+     !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+     !>   - theta: grid of theta
+     !>   - gradf(:,1): deriv w.r.t. R as fn of theta
+     !>   - gradf(:,2): deriv w.r.t  Z as fn of theta
+     !>   - char: if char = 'R', return the gradient of pressure instead
+     !>   - rp: value of rp on the flux surface where we want the grad
+     !>   - nth: number of theta points
+     !>   - ntgrid: lower index of theta array is -ntgrid
+     procedure(gradient_interface), deferred :: gradient
+     !> Calculate the derivative of rp w.r.t. R and Z and return
+     !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
+     !> Parameters are:
+     !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
+     !>   - theta: grid of theta
+     !>   - gradf(:,1): |grad psi|
+     !>   - gradf(:,2): 0.0
+     !>   - char: if char = 'R', return |grad pressure| instead
+     !>   - char: if char = 'T', then return theta gradient in bishop form
+     !>    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
+     !>    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
+     !>   - rp: value of rp on the flux surface where we want the grad
+     !>   - nth: number of theta points
+     !>   - ntgrid: lower index of theta array is -ntgrid
+     procedure(gradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
      procedure :: eqdcart, eqdbish

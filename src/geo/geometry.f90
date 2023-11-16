@@ -1146,12 +1146,12 @@ contains
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
 
       if (bishop == 0) then
-         call grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+         call geom%gradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
          crpgrad = rpgrad
       else
-         call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+         call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
          call loftheta(rgrid, theta, ltheta)
-         call grad(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
+         call geom%gradient(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
          call th_bishop(crpgrad, th_bish, nth)
          ! note that Bpolmag and Bmod are recalculated later if using
          ! Miller (local) equilibrium
@@ -1465,7 +1465,7 @@ contains
        if(bishop >= 1) then
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
        else
-          call grad(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
+          call geom%gradient(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        endif
 
        do i=-nth,nth
@@ -1478,7 +1478,7 @@ contains
        char='R'
        select case (bishop) 
        case (0) 
-          call grad(rgrid, theta, pgrad, char, rp, nth, ntgrid)
+          call geom%gradient(rgrid, theta, pgrad, char, rp, nth, ntgrid)
           do i = -nth, nth
              pgradtot(i,1) = pgrad(i,1)
              pgradtot(i,2) = pgrad(i,2)
@@ -1593,9 +1593,9 @@ contains
     char='P'
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
-       call grad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+       call geom%gradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
     else
-       call bgrad(rgrid, theta, rpgrad, char, dum, nth, ntgrid)          
+       call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
     end if
 
     call thetagrad(rgrid, theta, thgrad)
@@ -1648,9 +1648,9 @@ contains
     char = 'T'
     if (bishop == 0) then
        if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.)
-       call grad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
+       call geom%gradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     else
-       call bgrad(rgrid, theta, thgrad, char, dum, nth, ntgrid)
+       call geom%bgradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     end if
 
     call periodic_copy(thgrad(:, 1), 0., nperiod)
@@ -2477,50 +2477,6 @@ contains
        call mp_abort('Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.', .true.)
     end if
   end subroutine check
-
-  !> Calculate the derivative of rp w.r.t. R and Z. Parameters
-  !> are:
-  !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-  !>   - theta: grid of theta
-  !>   - gradf(:,1): deriv w.r.t. R as fn of theta
-  !>   - gradf(:,2): deriv w.r.t  Z as fn of theta
-  !>   - char: if char = 'R', return the gradient of pressure instead
-  !>   - rp: value of rp on the flux surface where we want the grad
-  !>   - nth: number of theta points
-  !>   - ntgrid: lower index of theta array is -ntgrid
-  subroutine grad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     implicit none
-     integer, intent(in) :: nth, ntgrid
-     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
-     real, dimension(-ntgrid:,:), intent(out) :: gradf
-     character(1), intent(in) :: char
-     real, intent(in) :: rp
-     call geom%gradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-   end subroutine grad
-
-   !> Calculate the derivative of rp w.r.t. R and Z and return
-   !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
-   !> Parameters are:
-   !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-   !>   - theta: grid of theta
-   !>   - gradf(:,1): |grad psi|
-   !>   - gradf(:,2): 0.0
-   !>   - char: if char = 'R', return |grad pressure| instead
-   !>   - char: if char = 'T', then return theta gradient in bishop form
-   !>    - gradf(:,1): (dtheta/dZ d rp/dR - dtheta/dR drp/dZ)/ |grad rp|
-   !>    - gradf(:,2): (dtheta/dR d rp/dR + dtheta/dZ drp/dZ)/ |grad rp|
-   !>   - rp: value of rp on the flux surface where we want the grad
-   !>   - nth: number of theta points
-   !>   - ntgrid: lower index of theta array is -ntgrid
-   subroutine bgrad(rgrid, theta, gradf, char, rp, nth, ntgrid)
-     implicit none
-     integer, intent(in) :: nth, ntgrid
-     real, dimension(-ntgrid:), intent(in) :: rgrid, theta
-     real, dimension(-ntgrid:,:), intent(out) :: gradf
-     character(1), intent(in) :: char
-     real, intent(in) :: rp
-     call geom%bgradient(rgrid, theta, gradf, char, rp, nth, ntgrid)
-   end subroutine bgrad
 
   !> Calculate rgrid for the case of eeq and deq: 
   !> in this case, rgrid is the distance to the magnetic
