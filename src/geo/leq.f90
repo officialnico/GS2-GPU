@@ -671,6 +671,8 @@ contains
   end function diameter
 
   !> Return the major radius of the centre of the flux surface
+  !> @Note rcenter for other geo types returns the major radius of the LCFS
+  !> which is named R_geo in geometry. We do store R_geo here so could return that?
   real function rcenter(self, rp)
     class(leq_type), intent(in) :: self
     real, intent(in) :: rp

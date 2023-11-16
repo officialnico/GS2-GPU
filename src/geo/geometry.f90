@@ -661,7 +661,7 @@ contains
        rp2 = rp + delrp
 
        ! Note for iflux == 0 we need to ensure qval is set before
-       !calling seikon.
+       !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
        if (iflux == 0) then
           dqdrho = dqdrhofun(rho, shat, fort11_unit)
           qval1 = qval - dqdrho * delrho
@@ -1023,6 +1023,9 @@ contains
       rpmin = psi_0
       rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
+      ! Because irho==2 if iflux==0 and diameter is effectively analytic
+      ! one would expect rpofrho(rho) == rho in this case. So here we
+      ! effectively just have an optimisation (I think)
       if (iflux == 1) then
          rp = rpofrho(rho, fort11_unit)
       else
@@ -1098,7 +1101,6 @@ contains
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor)
       call periodic_copy(rmajor, 0., nperiod)
-      ! Could we just do invR = 1.0/rmajor?
       call invRtgrid(rgrid, theta, invR)
       call periodic_copy(invR, 0., nperiod)
 
@@ -1137,7 +1139,7 @@ contains
          call periodic_copy(Bpolmag, 0., nperiod)
          call periodic_copy(th_bish, 0., nperiod)
          call periodic_copy(invRpol, 0., nperiod)
-         Ltot = ltheta(nth)-ltheta(-nth)
+         Ltot = ltheta(nth) - ltheta(-nth)
          call periodic_copy(ltheta, Ltot, nperiod)
       end if
 
@@ -1153,7 +1155,7 @@ contains
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
-      call thetagrad(rgrid,theta, thgrad)
+      call thetagrad(rgrid, theta, thgrad)
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
       !     compute eikonal S
