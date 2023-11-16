@@ -1122,29 +1122,27 @@ contains
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
 
-      if (bishop == 0) then
-         call geom%gradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-         crpgrad = rpgrad
-      else
-         call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
-         call loftheta(rgrid, theta, ltheta)
-         call geom%gradient(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
-         call th_bishop(crpgrad, th_bish, nth)
-         ! note that Bpolmag and Bmod are recalculated later if using
-         ! Miller (local) equilibrium
-         call B_pol(invR, crpgrad, Bpolmag, nth)
-         call B_mod(invR, Bpolmag, Bmod, bi, nth)
-         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
-
-         call periodic_copy(Bpolmag, 0., nperiod)
-         call periodic_copy(th_bish, 0., nperiod)
-         call periodic_copy(invRpol, 0., nperiod)
-         Ltot = ltheta(nth) - ltheta(-nth)
-         call periodic_copy(ltheta, Ltot, nperiod)
-      end if
-
+      call geom%gradient(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
+
+      if (bishop == 0) then
+         rpgrad = crpgrad
+      else
+         call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+         !Following bits _could_ be calculated for all bishop
+         call th_bishop(crpgrad, th_bish, nth)
+         call periodic_copy(th_bish, 0., nperiod)
+         ! note that Bpolmag and Bmod are recalculated later if using Miller
+         call B_pol(invR, crpgrad, Bpolmag, nth)
+         call periodic_copy(Bpolmag, 0., nperiod)
+         call B_mod(invR, Bpolmag, Bmod, bi, nth)
+         call loftheta(rgrid, theta, ltheta)
+         Ltot = ltheta(nth) - ltheta(-nth)
+         call periodic_copy(ltheta, Ltot, nperiod)
+         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
+         call periodic_copy(invRpol, 0., nperiod)
+      end if
 
       !     compute |grad rho|:
       do i = -nth, nth
