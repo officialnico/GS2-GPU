@@ -2095,23 +2095,6 @@ contains
     d = rcenter(rp) - rcenter(psi_a)
   end subroutine geofax
 
-  !> FIXME : Add documentation    
-  real function rmagaxis()
-    use mp, only: mp_abort
-    if(iflux == 1) then
-       rmagaxis=rmaj
-    else
-       call mp_abort( &
-            'ERROR: This formula for rmagaxis is wrong: &
-            & the position of the magnetic axis is undefined &
-            & in local (Miller) geometry', .true.)
-      ! EGH This is wrong! When iflux=0, r_geo
-      ! is I_N=I/a^2 Ba where I = RB_t
-      ! As far as I can tell this formula is not used
-      ! anywhere so no harm done.
-    endif
-  end function rmagaxis
-
   !> FIXME : Add documentation
   real function rcenter(rp)
     implicit none
