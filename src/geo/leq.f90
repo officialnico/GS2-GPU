@@ -161,7 +161,9 @@ contains
        end do
     end do
 
+    !Note pressure and eqpsi are usually set in the leqin equivalent
     do i = 1, self%nr
+       ! Why do we set pressure to -dr here?
        self%pressure(i) = -dr(i)
     end do
 
@@ -331,10 +333,8 @@ contains
     integer :: i
 
     select case(char)
-    case('P')
+    case('P', 'R')
        dbish = self%dpbish
-    case('R')
-       dbish = self%dpbish  ! dpcart is correct for 'R' -- never reached: other calculation done instead
     case('T')
        dbish = self%dtbish
     end select

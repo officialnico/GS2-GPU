@@ -342,11 +342,9 @@ contains
     !> Lower index of theta array
     integer, intent(in) :: ntm
     !> Select field to take gradient of:
-    !>   - 'D': Bt
     !>   - 'P': psi
     !>   - 'R': pressure
     !>   - 'T': theta
-    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
     !> Minor radius grid of flux surface (?)
     real, intent(in) :: rgrid(-ntm:)
@@ -397,11 +395,9 @@ contains
     !> Lower index of theta array
     integer, intent(in) :: ntm
     !> Select field to take gradient of:
-    !>   - 'D': Bt
     !>   - 'P': psi
     !>   - 'R': pressure
     !>   - 'T': theta
-    !>   - 'B': for debugging with `bishop==0` only
     character(1), intent(in) :: char
     !> Minor radius grid of flux surface (?)
     real, intent(in) :: rgrid(-ntm:)
@@ -418,10 +414,8 @@ contains
     select case(char)
     case('B')
        call mp_abort('error: bishop == 0 not allowed with ceq. (2)',.true.)
-    case('P')
+    case('P', 'R')
        dbish = self%dpbish
-    case('R')
-       dbish = self%dpbish  ! dpcart is correct for 'R'
     case('T')
        dbish = self%dtbish
     end select

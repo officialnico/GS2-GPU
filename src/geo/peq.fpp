@@ -675,10 +675,8 @@ contains
     integer :: i
 
     select case(char)
-    case('P')
+    case('P', 'R')
        dbish = self%dpbish
-    case('R')
-       dbish = self%dpbish  ! dpcart is correct for 'R'
     case('T')
        dbish = self%dtbish
     end select
