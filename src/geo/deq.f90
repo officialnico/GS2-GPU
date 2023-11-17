@@ -26,8 +26,8 @@ module deq
      procedure :: rhofun => rhofun
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays
+     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type deq_type
 
 contains
@@ -89,6 +89,7 @@ contains
     ! unlike in eeq. This makes many of the spline interpolation calls
     ! in this routine effectively just copies
     self%nw = nw_in ; self%nh = nh_in
+    self%nr = self%nw ; self%nt = self%nh
     call self%alloc_arrays
     allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), dummy(nw_in))
 
@@ -255,27 +256,22 @@ contains
 
   end subroutine dfitin
 
-  pure subroutine alloc_arrays(self)
+  pure subroutine alloc_special_arrays(self)
     class(deq_type), intent(in out) :: self
     integer :: nw, nh, nrho
     nw = self%nw ; nh = self%nh ; nrho = self%nrho
     allocate (self%rho_mid(nrho), self%psi_mid(nrho))
-    allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
-    allocate (self%eq_R(nw), self%eq_Z(nh))
-    allocate (self%eq_psi(nw, nh))
-    allocate (self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
-  end subroutine alloc_arrays
+    allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%beta(nw))
+    allocate (self%eq_R(nw), self%eq_Z(nh), self%eq_psi(nw, nh))
+  end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
-  pure subroutine dealloc_arrays(self)
+  pure subroutine dealloc_special_arrays(self)
     implicit none
     class(deq_type), intent(in out) :: self
-    if (allocated(self%rho_mid)) deallocate(self%rho_mid, self%psi_mid, self%beta)
-    if (allocated(self%psi_bar)) deallocate(self%psi_bar, self%fp, self%qsf, self%pressure)
-    if (allocated(self%eq_R)) deallocate(self%eq_R, self%eq_Z, self%eq_psi)
-    if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
-    if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
-  end subroutine dealloc_arrays
+    deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z, self%eq_psi)
+    deallocate(self%thetab, self%r_bound)
+  end subroutine dealloc_special_arrays
 
   !> FIXME : Add documentation
   subroutine dfit_init(self)

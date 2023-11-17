@@ -118,8 +118,8 @@ module eeq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays
+     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type eeq_base_type
 
   type, extends(eeq_base_type) :: eeq_type
@@ -187,8 +187,8 @@ contains
     if (debug) write(6,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
 
     nw_in = nr ; nh_in = nz
-    self%nw = nw_in * big
-    self%nh = nh_in * big
+    self%nw = nw_in * big ; self%nr = self%nw
+    self%nh = nh_in * big ; self%nt = self%nh
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in))
     allocate(sefit_psi(nw_in, nh_in))
@@ -368,8 +368,8 @@ contains
 
     if (verbosity>1) write (*,*) 'EFIT dimensions are: ', nw_in, nh_in
 
-    self%nw = nw_in * big
-    self%nh = nh_in * big
+    self%nw = nw_in * big ; self%nr = self%nw
+    self%nh = nh_in * big ; self%nt = self%nh
 
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
@@ -505,27 +505,22 @@ contains
 2022 format (2i5)
   end subroutine efitin
 
-  !> FIXME : Add documentation
-  pure subroutine alloc_arrays(self)
-    implicit none
+  pure subroutine alloc_special_arrays(self)
     class(eeq_base_type), intent(in out) :: self
     integer :: nw, nh
     nw = self%nw ; nh = self%nh
-    allocate(self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%pressure(nw), self%beta(nw))
-    allocate(self%eq_R(nw), self%eq_Z(nh))
-    allocate(self%eq_psi(nw, nh), self%dpm(nw, nh, 2), self%dtm(nw, nh, 2))
-  end subroutine alloc_arrays
+    allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%beta(nw))
+    allocate (self%eq_R(nw), self%eq_Z(nh), self%eq_psi(nw, nh))
+  end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
-  pure subroutine dealloc_arrays(self)
+  pure subroutine dealloc_special_arrays(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    if (allocated(self%psi_bar)) deallocate(self%psi_bar, self%fp, self%qsf, &
-         self%pressure, self%beta)
-    if (allocated(self%eq_R)) deallocate(self%eq_R, self%eq_Z, self%eq_psi)
-    if (allocated(self%dpm)) deallocate(self%dpm, self%dtm)
-    if (allocated(self%thetab)) deallocate(self%thetab, self%r_bound)
-  end subroutine dealloc_arrays
+    deallocate (self%psi_bar, self%fp, self%qsf, self%beta)
+    deallocate(self%eq_R, self%eq_Z, self%eq_psi)
+    deallocate(self%thetab, self%r_bound)
+  end subroutine dealloc_special_arrays
 
   !> Calculate the following arrays:
   !> - eqth, which is theta on an R,Z grid

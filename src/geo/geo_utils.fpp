@@ -135,7 +135,10 @@ module geo_utils
      !>   - ntgrid: lower index of theta array is -ntgrid
      procedure(gradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
-     procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
+     procedure :: alloc_common_arrays, dealloc_common_arrays
+     procedure :: alloc_arrays, dealloc_arrays
+     procedure(alloc_arrays_interface), deferred :: alloc_special_arrays
+     procedure(alloc_arrays_interface), deferred :: dealloc_special_arrays
      procedure :: eqdcart, eqdbish
   end type abstract_geo_type
 
@@ -289,6 +292,34 @@ contains
        end do
     end do
   end subroutine eqdbish
+
+  pure subroutine alloc_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    call self%alloc_common_arrays
+    call self%alloc_special_arrays
+  end subroutine alloc_arrays
+
+  pure subroutine dealloc_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    call self%dealloc_common_arrays
+    call self%dealloc_special_arrays
+  end subroutine dealloc_arrays
+
+  pure subroutine alloc_common_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    integer :: nr, nt
+    nr = self%nr ; nt = self%nt
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
+    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dpcart(nr, nt, 2))
+    allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
+    allocate(self%eqpsi(nr), self%pressure(nr))
+  end subroutine alloc_common_arrays
+
+  pure subroutine dealloc_common_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
+    deallocate(self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
+  end subroutine dealloc_common_arrays
 
   subroutine finalise_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

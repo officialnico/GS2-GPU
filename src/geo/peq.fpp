@@ -28,8 +28,8 @@ module peq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays
+     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type peq_base_type
 
   type, extends(peq_base_type) :: peq_type
@@ -446,33 +446,22 @@ contains
 # endif
   end subroutine teqin
 
-  !> FIXME : Add documentation
-  pure subroutine alloc_arrays(self)
+  !> Allocate module-level arrays
+  pure subroutine alloc_special_arrays(self)
     implicit none
     class(peq_base_type), intent(in out) :: self
-    integer :: nr, nt
-    nr = self%nr ; nt = self%nt
+    integer :: nr
+    nr = self%nr
+    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr))
+    allocate(self%rc(nr), self%diam(nr))
+  end subroutine alloc_special_arrays
 
-    allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%beta(nr), &
-         self%pressure(nr), self%rc(nr), self%diam(nr), self%qsf(nr))
-    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), &
-         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
-    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2))
-    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
-  end subroutine alloc_arrays
-
-  !> FIXME : Add documentation
-  pure subroutine dealloc_arrays(self)
+  !> Deallocate module-level arrays
+  pure subroutine dealloc_special_arrays(self)
     implicit none
     class(peq_base_type), intent(in out) :: self
-    if (allocated(self%eqpsi)) deallocate(self%eqpsi, self%psi_bar, self%fp, &
-         self%beta, self%pressure, self%rc, self%diam, self%qsf)
-    if (allocated(self%R_psi)) deallocate(self%R_psi, self%Z_psi)
-    if (allocated(self%drm)) deallocate(self%drm, self%dzm, self%dpm, self%dtm)
-    if (allocated(self%dpcart)) deallocate(self%dpcart, self%dtcart)
-    if (allocated(self%dpbish)) deallocate(self%dpbish, self%dtbish)
-  end subroutine dealloc_arrays
+    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
+  end subroutine dealloc_special_arrays
 
   !> FIXME : Add documentation
   subroutine peq_init(self)

@@ -21,8 +21,8 @@ module ideq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays
+     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type ideq_type
 
 contains
@@ -221,31 +221,23 @@ contains
   end subroutine idfitin
 
   !> FIXME : Add documentation
-  pure subroutine alloc_arrays(self)
+  pure subroutine alloc_special_arrays(self)
     implicit none
-    class(ideq_type), intent(in out) :: self
+    class(ideq_type), intent (in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%eqpsi(nr), self%psi_bar(nr), self%fp(nr), self%qsf(nr), &
-         self%beta(nr), self%pressure(nr), self%rc(nr), self%diam(nr))
-    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2), &
-         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2))
-    allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dtcart(nr, nt, 2))
-    allocate(self%dpbish(nr, nt, 2), self%dbbish(nr, nt, 2), self%dtbish(nr, nt, 2))
-  end subroutine alloc_arrays
+    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr))
+    allocate(self%rc(nr), self%diam(nr), self%dbbish(nr, nt, 2))
+    allocate(self%B_psi(nr, nt), self%dbm(nr, nt, 2), self%dbcart(nr, nt, 2))
+  end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
-  pure subroutine dealloc_arrays(self)
+  pure subroutine dealloc_special_arrays(self)
     implicit none
     class(ideq_type), intent(in out) :: self
-    deallocate(self%eqpsi, self%psi_bar, self%fp, self%qsf, self%beta, &
-         self%pressure, self%rc, self%diam)
-    deallocate(self%R_psi, self%Z_psi, self%B_psi)
-    deallocate(self%drm, self%dzm, self%dbm, self%dpm, self%dtm)
-    deallocate(self%dpcart, self%dbcart, self%dtcart)
-    deallocate(self%dpbish, self%dbbish, self%dtbish)
-  end subroutine dealloc_arrays
+    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
+    deallocate(self%B_psi, self%dbm, self%dbcart, self%dbbish)
+  end subroutine dealloc_special_arrays
 
   !> FIXME : Add documentation
   subroutine idfit_init(self)
