@@ -55,8 +55,8 @@ module leq
      procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_special_arrays => alloc_special_arrays
-     procedure :: dealloc_special_arrays => dealloc_special_arrays
+     procedure :: alloc_arrays => alloc_arrays
+     procedure :: dealloc_arrays => dealloc_arrays
      procedure :: geo_Miller => geo_Miller
      procedure :: geo_global => geo_global
      procedure :: geo_generalizedEllipticity => geo_generalizedEllipticity
@@ -97,16 +97,26 @@ contains
   end subroutine leqin
 
   !> Allocate internal module-level arrays
-  pure subroutine alloc_special_arrays(self)
+  pure subroutine alloc_arrays(self)
     implicit none
     class(leq_type), intent(in out) :: self
-  end subroutine alloc_special_arrays
+    integer :: nr, nt
+    nr = self%nr ; nt = self%nt
+    allocate(self%eqpsi(nr), self%pressure(nr))
+    allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt))
+    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), &
+         self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
+    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2))
+    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2))
+  end subroutine alloc_arrays
 
   !> Deallocate internal module-level arrays
-  pure subroutine dealloc_special_arrays(self)
+  pure subroutine dealloc_arrays(self)
     implicit none
     class(leq_type), intent(in out) :: self
-  end subroutine dealloc_special_arrays
+    deallocate(self%eqpsi, self%pressure, self%R_psi, self%Z_psi, self%dpbish, self%dtbish)
+    deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart)
+  end subroutine dealloc_arrays
 
   !> Finalise leq module
   pure subroutine leq_finish(self)

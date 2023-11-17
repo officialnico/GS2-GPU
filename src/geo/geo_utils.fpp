@@ -135,10 +135,7 @@ module geo_utils
      !>   - ntgrid: lower index of theta array is -ntgrid
      procedure(gradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
-     procedure :: alloc_common_arrays, dealloc_common_arrays
-     procedure :: alloc_arrays, dealloc_arrays
-     procedure(alloc_arrays_interface), deferred :: alloc_special_arrays
-     procedure(alloc_arrays_interface), deferred :: dealloc_special_arrays
+     procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
      procedure :: eqdcart, eqdbish
   end type abstract_geo_type
 
@@ -156,6 +153,11 @@ module geo_utils
      procedure :: diameter => diameter_eqfile, rcenter => rcenter_eqfile
      procedure :: psi => psi_eqfile, rfun => psi_eqfile
      procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
+     procedure :: alloc_common_arrays, dealloc_common_arrays
+     procedure :: alloc_arrays => alloc_arrays_eqfile
+     procedure :: dealloc_arrays => dealloc_arrays_eqfile
+     procedure(alloc_eqfile_arrays_interface), deferred :: alloc_special_arrays
+     procedure(alloc_eqfile_arrays_interface), deferred :: dealloc_special_arrays
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -212,6 +214,11 @@ module geo_utils
        import
        class(abstract_geo_type), intent(in out) :: self
      end subroutine alloc_arrays_interface
+
+     pure subroutine alloc_eqfile_arrays_interface(self)
+       import
+       class(abstract_eqfile_geo_type), intent(in out) :: self
+     end subroutine alloc_eqfile_arrays_interface
 
      subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
           B_T0, avgrmid, nthg)
@@ -293,20 +300,20 @@ contains
     end do
   end subroutine eqdbish
 
-  pure subroutine alloc_arrays(self)
-    class(abstract_geo_type), intent(in out) :: self
+  pure subroutine alloc_arrays_eqfile(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
     call self%alloc_common_arrays
     call self%alloc_special_arrays
-  end subroutine alloc_arrays
+  end subroutine alloc_arrays_eqfile
 
-  pure subroutine dealloc_arrays(self)
-    class(abstract_geo_type), intent(in out) :: self
+  pure subroutine dealloc_arrays_eqfile(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
     call self%dealloc_common_arrays
     call self%dealloc_special_arrays
-  end subroutine dealloc_arrays
+  end subroutine dealloc_arrays_eqfile
 
   pure subroutine alloc_common_arrays(self)
-    class(abstract_geo_type), intent(in out) :: self
+    class(abstract_eqfile_geo_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
@@ -316,7 +323,7 @@ contains
   end subroutine alloc_common_arrays
 
   pure subroutine dealloc_common_arrays(self)
-    class(abstract_geo_type), intent(in out) :: self
+    class(abstract_eqfile_geo_type), intent(in out) :: self
     deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
     deallocate(self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
   end subroutine dealloc_common_arrays
