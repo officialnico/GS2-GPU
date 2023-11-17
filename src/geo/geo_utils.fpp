@@ -100,6 +100,8 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: dpbish
      !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dtbish
+     !> Equilibrium psi (not normalised) and pressure grids
+     real, allocatable, dimension(:) :: eqpsi, pressure
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(noargs_interface), deferred :: finalise, calculate_gradients, finish_setup
@@ -139,7 +141,7 @@ module geo_utils
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
      character(len = EQFILE_LENGTH) :: filename
-     real, allocatable, dimension(:) :: eqpsi, psi_bar, fp, qsf, beta, pressure, diam, rc
+     real, allocatable, dimension(:) :: psi_bar, fp, qsf, beta, diam, rc
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl, diam_spl, rcenter_spl
    contains
      procedure :: finalise => finalise_eqfile

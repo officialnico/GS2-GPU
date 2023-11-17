@@ -33,8 +33,6 @@ module leq
      !> Masters thesis or section 2.4 of "GS2 analytic geometry specification")
      real :: thetaShift
      type(flux_surface_type) :: surf
-     ! Regular variables
-     real, allocatable, dimension(:) :: eqpsi, pressure
    contains
      procedure :: initialise => leqin
      procedure :: calculate_gradients => leq_init
