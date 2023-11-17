@@ -24,8 +24,6 @@ module peq
      procedure :: calculate_gradients => peq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -478,7 +476,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine peq_init(self)
-    use constants, only: pi
+    use constants, only: twopi, pi
     implicit none
     class(peq_base_type), intent(in out) :: self
     real, dimension(self%nr, self%nt) :: eqpsi1, eqth
@@ -490,11 +488,11 @@ contains
 
     if (self%transp) then
        do j = 1, self%nt
-          eqth(:, j) = (j-1) * 2.*pi / float(self%nt-1) - pi
+          eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
        end do
     else
        do j = 1, self%nt
-          eqth(:, j) = (j-1) *pi / float(self%nt-1)
+          eqth(:, j) = (j-1) * pi / float(self%nt - 1)
        end do
     end if
 
@@ -838,24 +836,6 @@ contains
             (mtheta(jstar+1) - mtheta(jstar)))
     end if
   end function eqitem
-
-  !> FIXME : Add documentation
-  real function diameter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(peq_base_type), intent(in) :: self
-    real, intent(in) :: rp
-    diameter = splint(rp, self%diam_spl)
-  end function diameter
-
-  !> FIXME : Add documentation
-  real function rcenter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(peq_base_type), intent(in) :: self
-    real, intent(in) :: rp
-    rcenter = splint(rp, self%rcenter_spl)
-  end function rcenter
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)

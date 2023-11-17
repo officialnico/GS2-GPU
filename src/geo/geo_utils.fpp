@@ -148,6 +148,7 @@ module geo_utils
      procedure :: btori => btori_eqfile, dbtori => dbtori_eqfile
      procedure :: qfun => qfun_eqfile, betafun => betafun_eqfile
      procedure :: pfun => pfun_eqfile, dpfun => dpfun_eqfile
+     procedure :: diameter => diameter_eqfile, rcenter => rcenter_eqfile
      procedure :: psi => psi_eqfile, rfun => psi_eqfile
      procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
   end type abstract_eqfile_geo_type
@@ -342,6 +343,24 @@ contains
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
     dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0)
   end function dpfun_eqfile
+
+  !> Return the diameter of the flux surface at a given major radius
+  real function diameter_eqfile (self, rp) result(diameter)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: rp
+    diameter = splint(rp, self%diam_spl)
+  end function diameter_eqfile
+
+  !> Return the major radius of the centre of a given flux surface
+  real function rcenter_eqfile (self, rp) result(rcenter)
+    use splines, only: splint
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: rp
+    rcenter = splint(rp, self%rcenter_spl)
+  end function rcenter_eqfile
 
   real function psi_eqfile (self, r, theta) result(psi)
     implicit none

@@ -26,8 +26,6 @@ module geq
      procedure :: calculate_gradients => geq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -590,24 +588,6 @@ contains
     fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
-
-  !> FIXME : Add documentation
-  real function diameter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(geq_type), intent(in) :: self
-    real, intent(in) :: rp
-    diameter = splint(rp, self%diam_spl)
-  end function diameter
-
-  !> FIXME : Add documentation
-  real function rcenter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(geq_type), intent(in) :: self
-    real, intent(in) :: rp
-    rcenter = splint(rp, self%rcenter_spl)
-  end function rcenter
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)

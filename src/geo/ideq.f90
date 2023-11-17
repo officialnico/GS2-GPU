@@ -17,8 +17,6 @@ module ideq
      procedure :: calculate_gradients => idfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -194,6 +192,9 @@ contains
     self%B_psi = self%B_psi/B_T0
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, (self%nt-1)/2))
     ! need to define the rho_d grid (called diam)
+    !> Not really the diameter in this case.  Instead, return the
+    !> normalized minor radius, measured inside the ring, in the plane of
+    !> the ring, starting at the ring and going inward.
     self%diam = 1. - self%R_psi(:,1)
 
     self%qsf = 0.
@@ -554,26 +555,4 @@ contains
     fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar))  * &
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
-
-  !> FIXME : Add documentation
-  !>
-  !> Not really the diameter in this case.  Instead, return the
-  !> normalized minor radius, measured inside the ring, in the plane of
-  !> the ring, starting at the ring and going inward.
-  real function diameter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent(in) :: rp
-    diameter = splint(rp, self%diam_spl)
-  end function diameter
-
-  !> FIXME : Add documentation
-  real function rcenter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(ideq_type), intent(in) :: self
-    real, intent(in) :: rp
-    rcenter = splint(rp, self%rcenter_spl)
-  end function rcenter
 end module ideq

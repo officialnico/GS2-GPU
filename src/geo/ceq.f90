@@ -16,8 +16,6 @@ module ceq
      procedure :: calculate_gradients => ceq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: gradient => gradient
      procedure :: bgradient => bgradient
      procedure :: derm => derm
@@ -531,25 +529,6 @@ contains
     fstar = fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
-
-
-  !> Return the diameter of the flux surface at a given major radius
-  real function diameter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: rp
-    diameter = splint(rp, self%diam_spl)
-  end function diameter
-
-  !> Return the major radius of the centre of a given flux surface
-  real function rcenter (self, rp)
-    use splines, only: splint
-    implicit none
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: rp
-    rcenter = splint(rp, self%rcenter_spl)
-  end function rcenter
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
