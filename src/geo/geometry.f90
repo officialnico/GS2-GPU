@@ -114,7 +114,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
-  public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, eqinit, geom
+  public :: qfun, rpofrho, rcenter, finish_geometry, verb, debug, big, geom
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
@@ -137,7 +137,7 @@ module geometry
 
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
-  integer :: eqinit = 1, big = 0
+  integer :: big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
@@ -866,7 +866,6 @@ contains
     call close_output_file(fort25_unit)
 
     kxfac = abs(qval / (rhoc * drhodpsi))
-    if (eqinit >= 1) eqinit = 0
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)

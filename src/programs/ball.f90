@@ -8,7 +8,7 @@ program ball
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, alpha_input, dp_mult
-  use geometry, only: deltam, deltan, deltampri, deltanpri, eqinit
+  use geometry, only: deltam, deltan, deltampri, deltanpri
   implicit none
 
   real, dimension(:), pointer :: psi
@@ -63,10 +63,7 @@ program ball
 
   delrho = 0.01
 
-  eqinit = 1       ! Mike K. codes do not have this variable.
-
   diffscheme=0.33; nbeta = 1; beta_p1 = 0.; beta_p2 = 0.
-
       
 !     read in data
   open(10,file='eik.in')

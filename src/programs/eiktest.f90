@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
-  use geometry, only: eikcoefs_output, eqinit, geofax, eikcoefs
+  use geometry, only: eikcoefs_output, geofax, eikcoefs
   use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
@@ -100,8 +100,6 @@ program eiktest
   irho = 2 ;      isym = 0
 
   delrho = 0.01
-
-  eqinit = 1       ! Mike K. codes do not have this variable.
 
   no_end_point = .false.
 
