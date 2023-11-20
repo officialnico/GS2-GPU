@@ -378,7 +378,7 @@ contains
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
-    real :: bi, bi1, bi2, Ltot
+    real :: bi, bi1, bi2
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -959,7 +959,7 @@ contains
       use eeq, only: eeq_verbosity => verbosity
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
-      real :: avgrmid
+      real :: avgrmid, Ltot
       integer :: ntheta_out
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
