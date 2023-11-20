@@ -374,7 +374,7 @@ contains
          cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
          cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
-    real :: shat, dbetadrho, kxfac, dvdrhon, surfarea, drhodpsi
+    real :: shat, dbetadrho, kxfac, drhodpsi
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, s_hat_new
     real :: qval, qval1, qval2, delrp, dum
@@ -845,12 +845,12 @@ contains
 
     !     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
     call integrate(ds, theta, dummy, nth)
-    surfarea = twopi * (dummy(nth) - dummy(-nth))
-    if (writelots) write (fort11_unit,*) 'surfarea=', surfarea
+    outputs%surfarea = twopi * (dummy(nth) - dummy(-nth))
+    if (writelots) write (fort11_unit,*) 'surfarea=', outputs%surfarea
 
     !     compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, theta, dummy, nth)
-    dvdrhon = twopi * (dummy(nth) - dummy(-nth))
+    outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
 
     if (force_sym) then
        call sym(gds2, 0, ntgrid)
@@ -915,8 +915,6 @@ contains
     outputs%drhodpsi = drhodpsi
     outputs%kxfac = kxfac
     outputs%qsf = qval
-    outputs%surfarea = surfarea
-    outputs%dvdrhon = dvdrhon
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
     outputs%rhoc = rhoc
