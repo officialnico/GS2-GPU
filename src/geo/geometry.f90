@@ -680,11 +680,11 @@ contains
        call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
 
        do i = -nth, nth
-          dsdrp(i) = (seik2(i) - seik1(i)) / (2.*delrp)
+          dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
        end do
 
        if (iflux == 1) then
-          dqdrho = (qval2 - qval1) / (2. * delrho)
+          dqdrho = (qval2 - qval1) / (2 * delrho)
           shat = dqdrho * rho / qval
        end if
        dqdrp = dqdrho * drhodrp
@@ -791,7 +791,7 @@ contains
        bmag = Bmod
     else
        do i = -nth, nth
-          bmag(i)= 1./(1.+rgrid(i)*cos(theta(i))/rmaj)
+          bmag(i)= 1 / (1 + rgrid(i) * cos(theta(i)) / rmaj)
        end do
        call periodic_copy(bmag, 0., nperiod)
     end if
@@ -800,10 +800,10 @@ contains
 
     !     compute the gradparallel coefficient
     if (dfit_eq) then
-       gradpar = trip/bmag
+       gradpar = trip / bmag
     else
        do i = -nth, nth
-          gradpar(i) = -bi/(rmajor(i)**2*bmag(i)*dsdthet(i))
+          gradpar(i) = -bi / (rmajor(i)**2 * bmag(i) * dsdthet(i))
        end do
        call periodic_copy(gradpar, 0., nperiod)
     end if
@@ -1022,7 +1022,7 @@ contains
 
       rpmin = psi_0
       rpmax = psi_a
-      if (debug) write(6,*) "eikcoefs: rpmin,rpmax=",rpmin,rpmax
+      if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Because irho==2 if iflux==0 and diameter is effectively analytic
       ! one would expect rpofrho(rho) == rho in this case. So here we
       ! effectively just have an optimisation (I think)
@@ -1849,7 +1849,7 @@ contains
     implicit none
     real, intent (in) :: rho, shat
     integer, intent(in) :: fort11_unit
-    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / (rhoc)
+    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / rhoc !Should this be 1/rho?
   end function dqdrhofun
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
