@@ -5,15 +5,14 @@
 !> iflux :: chooses mode of operation.
 !>          case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
 !>                       iflux = 0 forces local_eq = .true. and irho = 2
-!>          case (1)  :: use numerical equilibrium.  5 choices:
+!>          case (1)  :: use numerical equilibrium.  6 choices:
 !>             ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
 !>             transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
 !>             gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
 !>             chs_eq = .true. ::  Use CHEASE generated equilibrium
-!> -------------------> [note: if either of the above == .true.,
-!>                      set eqfile = input file name]
 !>             efit_eq = .true. :: use EFIT  equilibrium
 !>             dfit_eq = .true. :: use dipole equilibrium
+!> -------------------> [note: if any of the above are true set eqfile = input file name]
 !> irho :: choose flux surface label
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
@@ -26,8 +25,9 @@
 !> Bishop formalism [C. M. Bishop, et al., NF, Vol. 24, 1579 (1984).]
 !>
 !> bishop :: uses Bishop relations to generate coefficients.
-!>        case(0) :: do not use Bishop relations
+!>        case(0) :: do not use Bishop relations -- primarily for testing
 !>        case(1) :: use Bishop relations with actual equilibrium shat, p'
+!>        case(2) :: use Bishop relations with new shat, and p' from p_prime_input
 !>        case(3) :: use Bishop relations with new shat, L_p from below
 !> s_hat_input :: new magnetic shear, rho/q*dq/drho
 !> invLp_input :: new -1/pressure * d pressure/d rho
@@ -100,13 +100,11 @@
 !> isym :: 1 -> assume up-down symmetric equilibrium.
 !> writelots :: .true. for more output
 !>
-!>
 !>  Use:
 !> Include this module, set input variables appropriately and call eikcoefs.
 !>
 !> I do not recommend calling other routines, but a few are available for
 !> diagnostic purposes.
-!>
 module geometry
   use geo_utils, only: abstract_geo_type, EQFILE_LENGTH
   implicit none
