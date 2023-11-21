@@ -2432,7 +2432,7 @@ contains
     ! is only used here for one piece of information written to screen.
     ! As it doesn't get into the simulated system we probably don't mind
     ! too much beyond readability concerns.
-    fluxavg = sum(f * jacob(-nth:nth) * delth) / sum(jacob(-nth:nth) * delth)
+    fluxavg = sum(f * jacob * delth) / sum(jacob * delth)
   end function fluxavg
 
   !> FIXME : Add documentation    
@@ -2449,7 +2449,7 @@ contains
     f_trap = 0.75 * ftu + 0.25 * ftl
   end function f_trap
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine plotdata (rgrid, seik, grads, dpsidrho, theta, &
        rplot, zplot, aplot, rprime, zprime, aprime)
     implicit none
@@ -2459,24 +2459,24 @@ contains
     real, intent (in) :: dpsidrho
     real :: rplus, rminus, dr
     integer :: i
-!
-! At the present flux surface, calculate these three functions 
-! as a function of theta, together with their derivates with 
-! respect to rho: 
-! 
-! R, Z, alpha-phi
-!
-! Call these variables
-!
-! Rplot, Zplot, aplot
-!
-! and their derivatives:
-!
-! Rprime, Zprime, aprime
-!    
-! BD: bug??
-! Is this correct for EFIT data?  Need to check
-!  
+    !
+    ! At the present flux surface, calculate these three functions
+    ! as a function of theta, together with their derivates with
+    ! respect to rho:
+    !
+    ! R, Z, alpha-phi
+    !
+    ! Call these variables
+    !
+    ! Rplot, Zplot, aplot
+    !
+    ! and their derivatives:
+    !
+    ! Rprime, Zprime, aprime
+    !
+    ! BD: bug??
+    ! Is this correct for EFIT data?  Need to check
+    !
     do i = -ntgrid, ntgrid
        Rplot(i) = Rpos(rgrid(i), theta(i))
        Zplot(i) = Zpos(rgrid(i), theta(i))
@@ -2489,7 +2489,7 @@ contains
        dr = 2 * delrho * rgrid(i)
        Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr
        Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr
-       aprime(i) = grads(i,1) * dpsidrho
+       aprime(i) = grads(i, 1) * dpsidrho
     end do
   end subroutine plotdata
 end module geometry
