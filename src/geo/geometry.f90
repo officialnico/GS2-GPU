@@ -108,7 +108,7 @@
 !> diagnostic purposes.
 !>
 module geometry
-  use geo_utils, only: abstract_geo_type
+  use geo_utils, only: abstract_geo_type, EQFILE_LENGTH
   implicit none
 
   private
@@ -124,7 +124,7 @@ module geometry
   public :: eikcoefs_output, run_eikcoefs_and_resample, get_theta_eqarc
 
   class(abstract_geo_type), allocatable :: geom
-
+  ! Start of inputs
   integer :: geotype, mMode, nMode
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
@@ -133,8 +133,8 @@ module geometry
   integer :: nperiod, itor, iflux, irho, isym, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc
-  character(len=800) :: eqfile, eqnormfile
-
+  character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
+  ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
   integer :: big = 0

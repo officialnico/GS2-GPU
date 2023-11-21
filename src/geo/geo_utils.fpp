@@ -8,7 +8,7 @@ module geo_utils
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
   public :: geo_input_type, flux_surface_type, mod2pi, sort
 
-  integer, parameter :: EQFILE_LENGTH = 80
+  integer, parameter :: EQFILE_LENGTH = 800
 
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.

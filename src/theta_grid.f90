@@ -1070,7 +1070,7 @@ end module theta_grid_salpha
 module theta_grid_eik
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use geometry, only: eikcoefs_output
-  
+  use geo_utils, only: EQFILE_LENGTH
   implicit none
 
   private
@@ -1127,10 +1127,10 @@ module theta_grid_eik
      !> Use EFIT equilibrium (EFIT, codes with eqdsk format)
      logical :: efit_eq = .false.
      !> Name of file with numerical equilibrium data (if required)
-     character(len = 800) :: eqfile = "default_unset_value"
+     character(len = EQFILE_LENGTH) :: eqfile = "default_unset_value"
      !> Name of file with numerical equilibrium normalization data (if required)
      !> currently, only used for dipole equilibrium (deq)
-     character(len = 800) :: eqnormfile = "default_unset_value"
+     character(len = EQFILE_LENGTH) :: eqnormfile = "default_unset_value"
      !> Change field-line coordinate. Recommended value: F
      !> @note We recommend `.false.` but default to `.true.`. We should consider
      !> changing the default.
@@ -1921,7 +1921,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 800) :: eqfile, eqnormfile
+    character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, s_hat_input
