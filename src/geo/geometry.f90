@@ -701,12 +701,12 @@ contains
        ! note that coordinates are R and Z (not rho and l, as in bishop case)
        ! Note we don't use dsdthet1/2 (dummy2 above)
        do k = -nperiod+1, nperiod-1
-          do j = 1, 2
-             do i = -nth, nth
-                itot = i + k * ntheta
-                dsdrptot = dsdrp(i) - k * twopi * dqdrp
-                grads(itot, j) = rpgrad(i, j) * dsdrptot + thgrad(i, j) * dsdthet(i)
-             end do
+          do i = -nth, nth
+             itot = i + k * ntheta
+             ! By calling periodic_copy(dsdrp, twopi * dqdrp) we should
+             ! be able to use dsdrp directly here?
+             dsdrptot = dsdrp(i) - k * twopi * dqdrp
+             grads(itot, :) = rpgrad(i, :) * dsdrptot + thgrad(i, :) * dsdthet(i)
           end do
        end do
        ! gradztot(:,1) is grad Z . Rhat
