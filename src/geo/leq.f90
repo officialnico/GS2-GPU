@@ -160,7 +160,7 @@ contains
        self%pressure(i) = -dr(i)
     end do
 
-    self%eqpsi = eqpsi1(:,1)
+    self%eqpsi = eqpsi1(:, 0)
 
     call self%derm(eqth,   self%dtm,  'T')
     ! char arguments E and O are redundant, but are retained so that `derm` interface
