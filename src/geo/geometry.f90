@@ -348,8 +348,8 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id
     ! Local variables:
-    real, allocatable, dimension(:)   :: dsdrp, seik, seik1, seik2, rgrid, bpolmag, invR
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dummy2, dsdl
+    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dsdl
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
     real, allocatable, dimension(:)   :: th_bish, invRpol, ltheta, Zoftheta, dZdl, bmod
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
@@ -363,10 +363,9 @@ contains
          cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, gds23, gds24, gds24_noq
     real :: shat, dbetadrho, kxfac, drhodpsi
-    real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
-    real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, s_hat_new
-    real :: qval, qval1, qval2, delrp, dum
-    real :: bi, bi1, bi2
+    real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
+    real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
+    real :: qval, dum, bi
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -643,73 +642,7 @@ contains
        ! gradztot(:,3) is grad Z . phihat
        gradztot(:,3) = 0.0
     else
-       !     rp derivative
-       delrp = delrho / drhodrp
-       rp1 = rp - delrp
-       rp2 = rp + delrp
-
-       ! Note for iflux == 0 we need to ensure qval is set before
-       !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
-       if (iflux == 0) then
-          dqdrho = dqdrhofun(rho, shat, fort11_unit)
-          qval1 = qval - dqdrho * delrho
-          qval2 = qval + dqdrho * delrho
-       end if
-
-       ! Calculate modified btori -- note we use the fact that rgrid == rp in
-       ! seikon to avoid having to form rgrid1/rgrid2 here.
-       bi1 = btori(rp1, theta(0))
-       bi2 = btori(rp2, theta(0))
-
-       ! Note seikon sets rgrid = rp. This is only the same as the regular
-       ! rgrid for equilibrium types other than efit or dfit. For those cases
-       ! this _might_ not do what is expected.
-       call seikon(rp1, theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
-       call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
-
-       do i = -nth, nth
-          dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
-       end do
-
-       if (iflux == 1) then
-          dqdrho = (qval2 - qval1) / (2 * delrho)
-          shat = dqdrho * rho / qval
-       end if
-       dqdrp = dqdrho * drhodrp
-
-       if (writelots) then
-          write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
-          write (fort11_unit,*) 's_hat= ',shat
-          write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
-          do i = -nth, nth
-             write (fort11_unit,*) i, rgrid(i), rp1, rp2
-          end do
-       end if
-
-       s_hat_new = shat
-       dbetadrho = 2 * dpfun(rgrid(0), theta(0)) / drhodrp
-
-       !
-       !     compute gradient of S
-
-       ! this is really gradient of alpha
-       ! note that coordinates are R and Z (not rho and l, as in bishop case)
-       ! Note we don't use dsdthet1/2 (dummy2 above)
-       do k = -nperiod+1, nperiod-1
-          do i = -nth, nth
-             itot = i + k * ntheta
-             ! By calling periodic_copy(dsdrp, twopi * dqdrp) we should
-             ! be able to use dsdrp directly here?
-             dsdrptot = dsdrp(i) - k * twopi * dqdrp
-             grads(itot, :) = rpgrad(i, :) * dsdrptot + thgrad(i, :) * dsdthet(i)
-          end do
-       end do
-       ! gradztot(:,1) is grad Z . Rhat
-       gradztot(:,1) = 0.
-       ! gradztot(:,2) is grad Z . Zhat
-       gradztot(:,2) = 1.
-       ! gradztot(:,3) is grad Z . phihat
-       gradztot(:,3) = 0.
+       call bishop_large_aspect_ratio_approximation
     end if
 
     if (writelots) then
@@ -978,7 +911,7 @@ contains
       
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-      if (.not. allocated(dsdrp)) call alloc_local_arrays(ntgrid)
+      if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
 
       ! Calculate grad(psi), grad(BT) and grad(theta) for the
       ! specific geometry class we're using.
@@ -1147,16 +1080,87 @@ contains
          call periodic_copy(invRpol, 0., nperiod)
       end if
     end subroutine initialise_geometry_and_get_bmod
-     
+
+    subroutine bishop_large_aspect_ratio_approximation
+      real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot
+      real, dimension(:), allocatable :: seik1, seik2, dummy2, dsdrp
+      !     rp derivative
+      delrp = delrho / drhodrp
+      rp1 = rp - delrp
+      rp2 = rp + delrp
+
+      ! Note for iflux == 0 we need to ensure qval is set before
+      !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
+      if (iflux == 0) then
+         dqdrho = dqdrhofun(rho, shat, fort11_unit)
+         qval1 = qval - dqdrho * delrho
+         qval2 = qval + dqdrho * delrho
+      end if
+
+      ! Calculate modified btori -- note we use the fact that rgrid == rp in
+      ! seikon to avoid having to form rgrid1/rgrid2 here.
+      bi1 = btori(rp1, theta(0))
+      bi2 = btori(rp2, theta(0))
+
+      allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dummy2(-ntgrid:ntgrid))
+      allocate(dsdrp(-nth:nth))
+      ! Note seikon sets rgrid = rp. This is only the same as the regular
+      ! rgrid for equilibrium types other than efit or dfit. For those cases
+      ! this _might_ not do what is expected.
+      call seikon(rp1, theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
+      call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
+
+      do i = -nth, nth
+         dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
+      end do
+
+      if (iflux == 1) then
+         dqdrho = (qval2 - qval1) / (2 * delrho)
+         shat = dqdrho * rho / qval
+      end if
+      dqdrp = dqdrho * drhodrp ! Output
+
+      if (writelots) then
+         write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
+         write (fort11_unit,*) 's_hat= ',shat
+         write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
+         do i = -nth, nth
+            write (fort11_unit,*) i, rgrid(i), rp1, rp2
+         end do
+      end if
+
+      s_hat_new = shat ! Output
+      dbetadrho = 2 * dpfun(rgrid(0), theta(0)) / drhodrp ! Output
+
+      !
+      !     compute gradient of S
+
+      ! this is really gradient of alpha
+      ! note that coordinates are R and Z (not rho and l, as in bishop case)
+      ! Note we don't use dsdthet1/2 (dummy2 above)
+      do k = -nperiod+1, nperiod-1
+         do i = -nth, nth
+            itot = i + k * ntheta
+            ! By calling periodic_copy(dsdrp, twopi * dqdrp) we should
+            ! be able to use dsdrp directly here?
+            dsdrptot = dsdrp(i) - k * twopi * dqdrp
+            grads(itot, :) = rpgrad(i, :) * dsdrptot + thgrad(i, :) * dsdthet(i)  ! Output
+         end do
+      end do
+      ! gradztot(:,1) is grad Z . Rhat ! Output
+      gradztot(:,1) = 0.
+      ! gradztot(:,2) is grad Z . Zhat ! Output
+      gradztot(:,2) = 1.
+      ! gradztot(:,3) is grad Z . phihat ! Output
+      gradztot(:,3) = 0.
+    end subroutine bishop_large_aspect_ratio_approximation
+
     !> FIXME : Add documentation
     subroutine alloc_local_arrays(n)
       implicit none
       integer, intent(in) :: n
 
-      allocate(dsdrp  (-n:n), &
-           seik       (-n:n), &
-           seik1      (-n:n), &
-           seik2      (-n:n), &
+      allocate(seik   (-n:n), &
            dsdthet    (-n:n), &
            gdsdum1    (-n:n), &
            gdsdum2    (-n:n), &
@@ -1169,7 +1173,6 @@ contains
            ltheta     (-n:n), &
            rgrid      (-n:n), &
            dummy      (-n:n), &
-           dummy2     (-n:n), &
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
            dSdl       (-n:n), &
@@ -1218,10 +1221,7 @@ contains
     subroutine dealloc_local_arrays
       implicit none
       
-      deallocate(dsdrp     , &
-           seik      , &
-           seik1     , &
-           seik2     , &
+      deallocate(seik, &
            dsdthet   , &
            gdsdum1   , &
            gdsdum2   , &
@@ -1234,7 +1234,6 @@ contains
            ltheta    , &
            rgrid     , &
            dummy     , &
-           dummy2    , &
            Bpolmag   , &
            Bmod      , &
            dSdl      , &
