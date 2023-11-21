@@ -2337,70 +2337,26 @@ contains
     end do
   end subroutine bishop_gradB
 
-  !> FIXME : Add documentation    
+  !> Perform minor checks on consistency of flags
   subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, iflux)
     use mp, only: mp_abort
     implicit none
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq
     integer, intent(in) :: iflux
-
-    if (iflux /= 0 .and. iflux /= 1) then
+    integer :: nflag_set
+    if (iflux /= 0 .and. iflux /= 1) &
        call mp_abort('Can only choose iflux = 0 or iflux = 1', .true.)
-    end if
 
-    if (.not. any([geq, ceq, eeq, peq, leq, deq, ideq])) then
+    nflag_set = count([geq, ceq, eeq, peq, leq, deq, ideq])
+    if (nflag_set == 0) then
        call mp_abort('Must set at least one equilibrium flag to true', .true.)
-    end if
-    
-    if (ceq .and. (geq .or. eeq .or. peq .or.  leq .or. deq .or. ideq)) then
-      call mp_abort('Choosing chs_eq = .true. and any of gen_eq, dfit_eq, &
-      & efit_eq, ppl_eq, local_eq is not permitted', .true.)
-    end if
-
-    if (geq .and. deq) then
-       call mp_abort('Choosing gen_eq = .true. AND dfit_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (geq .and. eeq) then
-       call mp_abort('Choosing gen_eq = .true. AND efit_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (geq .and. peq) then
-       call mp_abort('Choosing gen_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (geq .and. leq) then
-       call mp_abort('Choosing gen_eq = .true. AND local_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (eeq .and. deq) then
-       call mp_abort('Choosing efit_eq = .true. AND dfit_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (eeq .and. leq) then
-       call mp_abort('Choosing efit_eq = .true. AND local_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (eeq .and. peq) then
-       call mp_abort('Choosing efit_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (deq .and. leq) then
-       call mp_abort('Choosing dfit_eq = .true. AND local_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (deq .and. peq) then
-       call mp_abort('Choosing dfit_eq = .true. AND ppl_eq = .true. is not permitted.', .true.)
-    end if
-
-    if (peq .and. leq) then
-       call mp_abort('Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.', .true.)
+    else if (nflag_set > 1) then
+       call mp_abort('More than one equilibrium flag to true, not allowed', .true.)
     end if
   end subroutine check
 
-  !> Calculate rgrid for the case of eeq and deq: 
-  !> in this case, rgrid is the distance to the magnetic
-  !> axis as a function of theta.
+  !> Calculate rgrid for the case of eeq and deq: in this case, rgrid
+  !> is the distance to the magnetic axis as a function of theta.
   subroutine rtg(rgrid, rp, theta)
     use mp, only: mp_abort
     implicit none
