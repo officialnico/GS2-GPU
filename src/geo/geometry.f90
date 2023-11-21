@@ -202,8 +202,6 @@ module geometry
      real, dimension(:), allocatable :: gds24
      !> gds24_noq :: gds24/dqdrp
      real, dimension(:), allocatable :: gds24_noq
-     !> jacob :: Jacobian (not actually used externally currently)
-     real, dimension(:), allocatable :: jacob
      !> rplot :: R(theta) - major radius on theta grid
      real, dimension(:), allocatable :: rplot
      !> zplot :: Z(theta) - height on theta grid
@@ -293,7 +291,6 @@ contains
     call resample( full_results%theta, full_results%gds23, results%theta, results%gds23)
     call resample( full_results%theta, full_results%gds24, results%theta, results%gds24)
     call resample( full_results%theta, full_results%gds24_noq, results%theta, results%gds24_noq)
-    call resample( full_results%theta, full_results%jacob, results%theta, results%jacob)
     call resample( full_results%theta, full_results%rplot, results%theta, results%rplot)
     call resample( full_results%theta, full_results%zplot, results%theta, results%zplot)
     call resample( full_results%theta, full_results%aplot, results%theta, results%aplot)
@@ -358,12 +355,12 @@ contains
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
     real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
-    real, allocatable, dimension(:) :: da_bish, db_bish, dc_bish, trip
+    real, allocatable, dimension(:) :: da_bish, db_bish, dc_bish, trip, jacob
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, &
-         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22, jacob, &
+         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, gds23, gds24, gds24_noq
     real :: shat, dbetadrho, kxfac, drhodpsi
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
@@ -890,7 +887,6 @@ contains
     outputs%gds23 = gds23
     outputs%gds24 = gds24
     outputs%gds24_noq = gds24_noq
-    outputs%jacob = jacob
     outputs%rplot = rplot
     outputs%zplot = zplot
     outputs%aplot = aplot
