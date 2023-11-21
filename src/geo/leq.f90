@@ -135,9 +135,7 @@ contains
     real :: t, r, dr(3)
     integer :: i, j
 
-    dr(1) = -self%surf%dr
-    dr(2) = 0.
-    dr(3) = self%surf%dr
+    dr = [-self%surf%dr, 0., self%surf%dr]
 
     ! All calculation must be extended over the full [-pi,pi] range in order to
     ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
@@ -149,8 +147,8 @@ contains
           t = (j) * pi / real(self%nt)
           self%R_psi(i, j) = self%Rpos(r, t)
           self%Z_psi(i, j) = self%Zpos(r, t)
-          eqth(i,j) = t
-          eqpsi1(i,j) = 1 + dr(i)
+          eqth(i, j) = t
+          eqpsi1(i, j) = 1 + dr(i)
        end do
     end do
 
@@ -162,11 +160,11 @@ contains
 
     self%eqpsi = eqpsi1(:, 0)
 
-    call self%derm(eqth,   self%dtm,  'T')
+    call self%derm(eqth, self%dtm, 'T')
     ! char arguments E and O are redundant, but are retained so that `derm` interface
     ! is the same in all geometry modules.
-    call self%derm(self%R_psi,  self%drm,  'E')
-    call self%derm(self%Z_psi,  self%dzm,  'O')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(eqpsi1, self%dpm,  'E')
 
     ! below is actually grad(rho) instead of grad(psi),
@@ -207,8 +205,7 @@ contains
     !>   "T" denotes theta which trivially increases in theta at \(\pm \pi\)
     character(1), intent(in) :: char
     integer :: i, j, nr, nt
-    nr = self%nr
-    nt = self%nt
+    nr = self%nr ; nt = self%nt
     ! Use second-order one-sided finite-differences for extreme radial points.
     i=1
     dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
