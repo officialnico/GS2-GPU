@@ -137,8 +137,7 @@ contains
   !> FIXME : Add documentation  
   subroutine gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
        theta, bset, bmag, gradpar, gbdrift, gbdrift0, cvdrift, &
-       cvdrift0, cdrift, cdrift0, gbdrift_th, cvdrift_th, &
-       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+       cvdrift0, cdrift, cdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     use gridgen4mod, only: gridgen4_2
     use constants, only: pi
@@ -150,7 +149,7 @@ contains
     real, dimension (nbset), intent (in out) :: bset
     real, dimension (-ntgrid:ntgrid), intent (in out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     integer :: ntheta_old, ntgrid_old, nbset_old
     real, dimension (-ntgrid:ntgrid) :: thetasave
@@ -231,8 +230,6 @@ if (debug) write(6,*) 'gridgen_get_grids: call regrid'
     call regrid (ntgrid_old, thetasave, cvdrift0, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, cdrift, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, cdrift0, ntgrid, theta)
-    call regrid (ntgrid_old, thetasave, gbdrift_th, ntgrid, theta)
-    call regrid (ntgrid_old, thetasave, cvdrift_th, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, gds2, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, gds21, ntgrid, theta)
     call regrid (ntgrid_old, thetasave, gds22, ntgrid, theta)
@@ -773,7 +770,7 @@ contains
   !> FIXME : Add documentation  
   subroutine salpha_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-       gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi, kxfac, &
        qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
     use constants, only: pi
@@ -788,7 +785,7 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     character (8), intent(out) :: shape
@@ -919,16 +916,12 @@ contains
     if(eps>epsilon(0.0))then
        gds23 = -0.5*epsl*shat*theta*(1.+2.*eps*cos(theta))/eps
        gds24_noq = 0.5*epsl*(1.+eps*cos(theta))/eps
-       ! MB: NEED TO INCLUDE SHIFT BELOW
-       cvdrift_th = -0.25*(cos(theta))*epsl**2/eps
     else
        write(error_unit(),'("Warning : Some lowflow related geometrical terms are forced to zero in cases with eps=0.")')
        gds23 = 0.
        gds24_noq = 0.
-       cvdrift_th = 0.
     endif
     gds24 = shat*gds24_noq
-    gbdrift_th = cvdrift_th
 
     if (model_switch /= model_alpha1) then
        bset = bmag(-ntheta/2:0)
@@ -937,7 +930,7 @@ contains
        call gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     end if
 
@@ -1739,7 +1732,7 @@ contains
   !> FIXME : Add documentation  
   subroutine eik_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag,&
        gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-       gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, &
        grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, shat, drhodpsi,&
        kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
     use theta_grid_gridgen, only: theta_grid_gridgen_init, gridgen_get_grids
@@ -1751,7 +1744,7 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     logical, intent (in) :: gb_to_cv
@@ -1769,8 +1762,6 @@ contains
     gbdrift0(-ntgrid:ntgrid) = eikcoefs_results%gbdrift0(-ntgrid:ntgrid)
     cdrift(-ntgrid:ntgrid) = eikcoefs_results%cdrift(-ntgrid:ntgrid)
     cdrift0(-ntgrid:ntgrid) = eikcoefs_results%cdrift0(-ntgrid:ntgrid)
-    gbdrift_th(-ntgrid:ntgrid) = eikcoefs_results%gbdrift_th(-ntgrid:ntgrid)
-    cvdrift_th(-ntgrid:ntgrid) = eikcoefs_results%cvdrift_th(-ntgrid:ntgrid)
     gds2(-ntgrid:ntgrid) = eikcoefs_results%gds2(-ntgrid:ntgrid)
     gds21(-ntgrid:ntgrid) = eikcoefs_results%gds21(-ntgrid:ntgrid)
     gds22(-ntgrid:ntgrid) = eikcoefs_results%gds22(-ntgrid:ntgrid)
@@ -1789,7 +1780,6 @@ contains
     if (gb_to_cv) then
        gbdrift(-ntgrid:ntgrid) = cvdrift(-ntgrid:ntgrid)
        gbdrift0(-ntgrid:ntgrid) = cvdrift0(-ntgrid:ntgrid)
-       gbdrift_th(-ntgrid:ntgrid) = cvdrift_th(-ntgrid:ntgrid)
     end if
 
     call debug_message(verb, 'eik_get_grids: call theta_grid_gridgen_init')
@@ -1798,7 +1788,7 @@ contains
     call gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
          theta, bset, bmag, &
          gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, &
          grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
     shat = eikcoefs_results%s_hat_new
     drhodpsi = eikcoefs_results%drhodpsi
@@ -2331,7 +2321,7 @@ contains
   !> FIXME : Add documentation
   subroutine file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-       gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
     use file_utils, only: get_unused_unit
@@ -2345,7 +2335,7 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     logical, intent (in) :: gb_to_cv
@@ -2399,7 +2389,6 @@ contains
 
     ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
-    gbdrift_th = 0. ; cvdrift_th = 0.
 
     ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
     ! set coriolis drift to zero
@@ -2414,7 +2403,6 @@ contains
        do i =-ntgrid,ntgrid
           gbdrift(i) = cvdrift(i)
           gbdrift0(i) = cvdrift0(i)
-          gbdrift_th(i) = cvdrift_th(i)
        end do
     end if
 
@@ -2465,7 +2453,7 @@ contains
   !> FIXME : Add documentation
   subroutine file_nc_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-       gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+       gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
        Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
        shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
     use constants, only: pi
@@ -2481,7 +2469,7 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real, dimension (-ntgrid:ntgrid), intent (out) :: &
          bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-         gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+         gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     real :: rmaj
@@ -2509,7 +2497,6 @@ contains
 
     ! TMP UNTIL WORK OUT HOW TO GET FROM FILE
     gds23 = 0. ; gds24 = 0. ; gds24_noq = 0.
-    gbdrift_th = 0. ; cvdrift_th = 0.
 
     ! TMP UNTIL FIGURE OUT HOW TO WORK WITH FILE -- MAB
     ! set coriolis drift to zero
@@ -2518,7 +2505,6 @@ contains
     if (gb_to_cv) then
        gbdrift = cvdrift
        gbdrift0 = cvdrift0
-       gbdrift_th = cvdrift_th
     end if
 
     ! Possibly crude approximations for file
@@ -2659,7 +2645,7 @@ module theta_grid
   public :: theta, theta2, delthet, delthet2
   public :: bset, bmag, gradpar, itor_over_B, IoB, kxfac, qval, grho
   public :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
-  public :: gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
+  public :: gds2, gds21, gds22, gds23, gds24, gds24_noq
   public :: bmin, bmax, eps_trapped, shat, drhodpsi, jacob
   public :: ntheta, ntgrid, nperiod, nbset, shape, gb_to_cv, surfarea, dvdrhon
   public :: Rplot, Zplot, aplot, Rprime, Zprime, aprime, Bpol, rhoc
@@ -2674,7 +2660,7 @@ module theta_grid
   real, dimension (:), allocatable :: bmag, gradpar
   real, dimension (:), allocatable :: itor_over_B, IoB
   real, dimension (:), allocatable :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
-  real, dimension (:), allocatable :: gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq
+  real, dimension (:), allocatable :: gds2, gds21, gds22, gds23, gds24, gds24_noq
   real, dimension (:), allocatable :: grho, jacob
   real, dimension (:), allocatable :: Rplot, Zplot, aplot, Bpol
   real, dimension (:), allocatable :: Rprime, Zprime, aprime
@@ -2918,8 +2904,6 @@ contains
     call broadcast (cvdrift0)
     call broadcast (cdrift)
     call broadcast (cdrift0)
-    call broadcast (gbdrift_th)
-    call broadcast (cvdrift_th)
     call broadcast (gds2)
     call broadcast (gds21)
     call broadcast (gds22)
@@ -2992,8 +2976,6 @@ contains
     if (.not. allocated(cvdrift0)) allocate (cvdrift0(-ntgrid:ntgrid))
     if (.not. allocated(cdrift)) allocate (cdrift(-ntgrid:ntgrid))
     if (.not. allocated(cdrift0)) allocate (cdrift0(-ntgrid:ntgrid))
-    if (.not. allocated(gbdrift_th)) allocate (gbdrift_th(-ntgrid:ntgrid))
-    if (.not. allocated(cvdrift_th)) allocate (cvdrift_th(-ntgrid:ntgrid))
     if (.not. allocated(gds2)) allocate (gds2(-ntgrid:ntgrid))
     if (.not. allocated(gds21)) allocate (gds21(-ntgrid:ntgrid))
     if (.not. allocated(gds22)) allocate (gds22(-ntgrid:ntgrid))
@@ -3026,8 +3008,6 @@ contains
     if(allocated(cvdrift0)) deallocate (cvdrift0)
     if(allocated(cdrift)) deallocate (cdrift)
     if(allocated(cdrift0)) deallocate (cdrift0)
-    if(allocated(gbdrift_th)) deallocate (gbdrift_th)
-    if(allocated(cvdrift_th)) deallocate (cvdrift_th)
     if(allocated(gds2)) deallocate (gds2)
     if(allocated(gds21)) deallocate (gds21)
     if(allocated(gds22)) deallocate (gds22)
@@ -3100,12 +3080,6 @@ contains
 
        eik_save = cdrift0(-ntgrid:ntgrid); deallocate (cdrift0)
        allocate (cdrift0(-ntgrid:ntgrid)); cdrift0 = eik_save
-
-       eik_save = gbdrift_th(-ntgrid:ntgrid); deallocate (gbdrift_th)
-       allocate (gbdrift_th(-ntgrid:ntgrid)); gbdrift_th = eik_save
-
-       eik_save = cvdrift_th(-ntgrid:ntgrid); deallocate (cvdrift_th)
-       allocate (cvdrift_th(-ntgrid:ntgrid)); cvdrift_th = eik_save
 
        eik_save = gds2(-ntgrid:ntgrid); deallocate (gds2)
        allocate (gds2(-ntgrid:ntgrid)); gds2 = eik_save
@@ -3246,7 +3220,7 @@ if (debug) write(6,*) 'get_grids: call eik_get_grids'
        call eik_get_grids (nperiod, ntheta, ntgrid, nbset, &
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
        shape = 'torus   '
@@ -3255,14 +3229,14 @@ if (debug) write(6,*) 'get_grids: call salpha_get_grids'
        call salpha_get_grids (nperiod, ntheta, ntgrid, nbset, &
             theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, shape, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
     case (eqopt_file)
 if (debug) write(6,*) 'get_grids: call file_get_grids'
        call file_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
        shape = 'torus   '
@@ -3270,7 +3244,7 @@ if (debug) write(6,*) 'get_grids: call file_get_grids'
 if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
        call file_nc_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag, &
             gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
-            gbdrift_th, cvdrift_th, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
+            gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
             Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
             shat, drhodpsi, kxfac, qval, gb_to_cv, Bpol, surfarea, dvdrhon, rhoc)
        shape = 'torus   '

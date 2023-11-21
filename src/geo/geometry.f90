@@ -192,10 +192,6 @@ module geometry
      real, dimension(:), allocatable :: cvdrift0
      !> gbdrift0 :: part of total grad B drift operator proportional to theta_0
      real, dimension(:), allocatable :: gbdrift0
-     !> cvdrift_th :: curvature drift . grad theta
-     real, dimension(:), allocatable :: cvdrift_th
-     !> gbdrift_th :: grad B drift . grad theta
-     real, dimension(:), allocatable :: gbdrift_th
      !> gds2 :: part of grad_perp**2 operator independent of theta_0
      real, dimension(:), allocatable :: gds2
      !> gds21 :: part of grad_perp**2 operator proportional to theta_0
@@ -293,8 +289,6 @@ contains
     call resample( full_results%theta, full_results%cdrift0, results%theta, results%cdrift0)
     call resample( full_results%theta, full_results%cvdrift0, results%theta, results%cvdrift0)
     call resample( full_results%theta, full_results%gbdrift0, results%theta, results%gbdrift0)
-    call resample( full_results%theta, full_results%cvdrift_th, results%theta, results%cvdrift_th)
-    call resample( full_results%theta, full_results%gbdrift_th, results%theta, results%gbdrift_th)
     call resample( full_results%theta, full_results%gds2, results%theta, results%gds2)
     call resample( full_results%theta, full_results%gds21, results%theta, results%gds21)
     call resample( full_results%theta, full_results%gds22, results%theta, results%gds22)
@@ -371,9 +365,8 @@ contains
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, &
-         cvdrift, cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22, jacob, &
-         Rplot, Zplot, Rprime, Zprime, aplot, aprime, &
-         cdrift, cdrift0, gds23, gds24, gds24_noq, gbdrift_th, cvdrift_th
+         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22, jacob, &
+         Rplot, Zplot, Rprime, Zprime, aplot, aprime, gds23, gds24, gds24_noq
     real :: shat, dbetadrho, kxfac, drhodpsi
     real :: rho, rp, rp1, rp2, drhodrp, dqdrho, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, dsdrptot, s_hat_new
@@ -783,8 +776,7 @@ contains
     !     compute curvature, grad b, and coriolis drift terms
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
          dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
-         bi, force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, &
-         cdrift, cdrift0)
+         bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
 
     !     compute the magnetic field along theta
     if (itor /= 0) then
@@ -894,8 +886,6 @@ contains
     outputs%cdrift0 = cdrift0
     outputs%cvdrift0 = cvdrift0
     outputs%gbdrift0 = gbdrift0
-    outputs%cvdrift_th = cvdrift_th
-    outputs%gbdrift_th = gbdrift_th
     outputs%gds2 = gds2
     outputs%gds21 = gds21
     outputs%gds22 = gds22
@@ -1215,8 +1205,6 @@ contains
          gbdrift0   (-n:n), &
          cdrift    (-n:n), &
          cdrift0    (-n:n), &
-         gbdrift_th (-n:n), &
-         cvdrift_th (-n:n), &
          gds2       (-n:n), &
          gds21      (-n:n), &
          gds22      (-n:n), &
@@ -1283,8 +1271,6 @@ contains
          gbdrift0   , &
          cdrift     , &
          cdrift0    , &
-         gbdrift_th , &
-         cvdrift_th , &
          gds2       , &
          gds21      , &
          gds22      , &
@@ -1397,16 +1383,15 @@ contains
 
   !> FIXME : Add documentation    
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, bi, &
-       force_sym, gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, &
-       cdrift0)
+       dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
+       bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
     real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new, bi
     logical, intent(in) :: force_sym
-    real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, gbdrift_th, cvdrift, cvdrift0, cvdrift_th, cdrift, cdrift0
+    real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
@@ -1484,9 +1469,6 @@ contains
              gbdrift0(itot)= 2 * dpsidrho * gbdrift2(itot) * dqdrp / bmod(i)**3
              cvdrift(itot) = 2 * dpsidrho * cvdrift1(itot) / bmod(i)**2
              cvdrift0(itot)= 2 * dpsidrho * cvdrift2(itot) * dqdrp / bmod(i)**2
-             ! below are (v_M . grad theta) terms -- Not actually used
-             gbdrift_th(itot) = gbdrift3(itot) / bmod(i)**3
-             cvdrift_th(itot) = cvdrift3(itot) / bmod(i)**2 
           end do
        end do
     end if
@@ -1517,7 +1499,7 @@ contains
        call sym(cvdrift, 0, ntgrid)
        call sym(gbdrift0, 1, ntgrid)
        call sym(cvdrift0, 1, ntgrid)
-       ! should maybe add in cdrift, cdrift0, gbdrift_th, and cvdrift_th here -- MAB
+       ! should maybe add in cdrift and cdrift0 here -- MAB
     end if
   end subroutine drift
 

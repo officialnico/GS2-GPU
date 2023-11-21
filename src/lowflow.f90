@@ -58,7 +58,7 @@ contains
     use constants, only: zi
     use species, only: spec, nspec
     use theta_grid, only: theta, ntgrid, delthet, gradpar, bmag, shat
-    use theta_grid, only: gds23, gds24, gds24_noq, cvdrift_th, gbdrift_th
+    use theta_grid, only: gds23, gds24, gds24_noq
     use le_grids, only: energy, al, negrid, nlambda, forbid, init_map
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
