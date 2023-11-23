@@ -486,7 +486,6 @@ contains
 
   !> FIXME : Add documentation
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use constants, only: pi
     use mp, only: mp_abort
     implicit none
     class(geq_type), intent(in) :: self
@@ -553,9 +552,7 @@ contains
     if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
 
     ! get thet on theta mesh
-    do j = 1, self%nt
-       mtheta(j) = (j-1) * pi / real(self%nt-1)
-    end do
+    mtheta = self%eqth(1, :)
 
     ! note that theta(1)=0 for gen_eq theta
     jstar = -1

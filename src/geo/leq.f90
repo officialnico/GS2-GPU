@@ -348,7 +348,6 @@ contains
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use constants, only: pi
     implicit none
     class(leq_type), intent(in) :: self
     real, intent(in) :: r_in !Ignored
@@ -375,7 +374,7 @@ contains
 
     ! get theta points on the local theta mesh
     ! Note: mtheta must be the same points as the `t` variable in leq_init
-    mtheta = [( real(j)*pi/real(self%nt), j=-self%nt,self%nt)]
+    mtheta = self%eqth(1, :)
 
     ! note that theta(1)=0 for local_eq theta
     jstar = -self%nt-1

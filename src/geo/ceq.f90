@@ -434,7 +434,6 @@ contains
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use mp, only: mp_abort
-    use constants, only: pi
     class(ceq_type), intent(in) :: self
     real, intent(in) :: r_in, theta_in
     real, dimension(:,:), intent(in) :: f
@@ -494,9 +493,7 @@ contains
     thet = mod2pi(theta_in)
 
     ! get thet on theta mesh
-    do j = 1, self%nt
-       mtheta(j) = (j-1) * 2. * pi / real(self%nt-1) - pi
-    end do
+    mtheta = self%eqth(1, :)
 
     ! note that theta(1)=0 for gen_eq theta
     jstar = -1
