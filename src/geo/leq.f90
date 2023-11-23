@@ -69,11 +69,15 @@ contains
   subroutine leqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
     use geo_utils, only: geo_input_type
+    use constants, only: pi
     implicit none
     class(leq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
+    real, dimension(3) :: dr
+    integer :: i, j
+    real :: r, t
     if (inputs%surf%geoType > 4 .or. inputs%surf%geoType < 0) &
        call mp_abort("ERROR: invalid analytic geometry specification", .true.)
 
@@ -85,6 +89,21 @@ contains
        self%nt = self%surf%nt
        call self%alloc_arrays()
     end if
+
+    dr = [-self%surf%dr, 0., self%surf%dr]
+
+    do j = -self%nt, self%nt
+       do i = 1, self%nr
+          r = self%surf%r + dr(i)
+          t = (j) * pi / real(self%nt)
+          self%R_psi(i, j) = self%Rpos(r, t)
+          self%Z_psi(i, j) = self%Zpos(r, t)
+       end do
+    end do
+
+    ! Why do we set pressure to -dr here?
+    self%pressure = -dr
+    self%eqpsi = 1 + dr
 
     !Set outputs
     psi_0_out = 0.0
@@ -132,33 +151,12 @@ contains
     implicit none
     class(leq_type), intent(in out) :: self
     real, dimension(self%nr, -self%nt:self%nt) :: eqpsi1, eqth
-    real :: t, r, dr(3)
-    integer :: i, j
+    integer :: j
 
-    dr = [-self%surf%dr, 0., self%surf%dr]
-
-    ! All calculation must be extended over the full [-pi,pi] range in order to
-    ! support up-down asymmetric geometries (see section 3.2.2 of Ball MIT
-    ! Masters thesis or section 2.2 of "GS2 analytic geometry specification")
-    !
     do j = -self%nt, self%nt
-       do i = 1, self%nr
-          r = self%surf%r + dr(i)
-          t = (j) * pi / real(self%nt)
-          self%R_psi(i, j) = self%Rpos(r, t)
-          self%Z_psi(i, j) = self%Zpos(r, t)
-          eqth(i, j) = t
-          eqpsi1(i, j) = 1 + dr(i)
-       end do
+       eqth(:, j) = j * pi / real(self%nt)
+       eqpsi1(:, j) = self%eqpsi
     end do
-
-    !Note pressure and eqpsi are usually set in the leqin equivalent
-    do i = 1, self%nr
-       ! Why do we set pressure to -dr here?
-       self%pressure(i) = -dr(i)
-    end do
-
-    self%eqpsi = eqpsi1(:, 0)
 
     call self%derm(eqth, self%dtm, 'T')
     ! char arguments E and O are redundant, but are retained so that `derm` interface
