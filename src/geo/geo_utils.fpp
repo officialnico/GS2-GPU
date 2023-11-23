@@ -162,7 +162,6 @@ module geo_utils
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
      integer :: nw, nh, nbbbs
-     real :: eq_dR, eq_dZ
      real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
      real, allocatable, dimension (:,:) :: eq_psi
      type(periodic_spline) :: rbound_spl

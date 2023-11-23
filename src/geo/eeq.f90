@@ -309,8 +309,6 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-    self%eq_dR = self%eq_R(2) - self%eq_R(1)
-    self%eq_dZ = self%eq_Z(2) - self%eq_Z(1)
     self%initialised = .true.
   end subroutine gs2din
 
@@ -487,8 +485,6 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-    self%eq_dR = self%eq_R(2) - self%eq_R(1)
-    self%eq_dZ = self%eq_Z(2) - self%eq_Z(1)
 
     if (.true.) then
        write (*,*) "Finished efitin... imported EFIT equilibrium"
@@ -529,7 +525,7 @@ contains
   subroutine efit_init(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    real, dimension(self%nw, self%nh) :: eqth
+    real, dimension(self%nw, self%nh) :: eqth, R_psi, Z_psi
     integer :: i, j
     if (verbosity > 2) write(6,*) "efit_init: do i"
     do i = 1, self%nw
@@ -541,6 +537,8 @@ contains
                   (self%eq_R(i) - self%R_mag))
           end if
        end do
+       R_psi(i, :) = self%eq_R(i)
+       Z_psi(i, :) = self%eq_Z
     end do
 
     ! dpm(:,:,1) is d psi / d R
@@ -550,6 +548,19 @@ contains
     call self%derm(self%eq_psi, self%dpm, 'E')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(eqth, self%dtm, 'T')
+    call self%derm(R_psi, self%drm, 'E')
+    call self%derm(Z_psi, self%dzm, 'O')
+
+    ! grad(psi) in cartesian form
+    call self%eqdcart(self%dpm, self%dpcart)
+    ! grad(psi) in Bishop form
+    call self%eqdbish(self%dpcart, self%dpbish)
+
+    ! grad(theta) in cartesian form
+    call self%eqdcart(self%dtm, self%dtcart)
+    ! grad(theta) in Bishop form
+    call self%eqdbish(self%dtcart, self%dtbish)
+
     if (verbosity > 2) write(6,*) "efit_init: finished"
   end subroutine efit_init
 
@@ -589,23 +600,20 @@ contains
     character(1), intent(in) :: char
     integer :: i, j, nw, nh
     nw = self%nw ; nh = self%nh
-
-    ! EFIT grid is equally spaced in R, Z -- this routine uses that fact and
-    ! is therefore not completely general.  It is fine for EFIT output.
     i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:)) / self%eq_dR
+    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
 
     i = nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:)) / self%eq_dR
+    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
 
     j = 1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2)) / self%eq_dZ
+    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))
 
     j = nh
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2)) / self%eq_dZ
+    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))
 
     do i = 2, nw-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:)) / self%eq_dR
+       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
     end do
 
     select case (char)
@@ -613,15 +621,15 @@ contains
        do j = 2, nh-1
           do i = 1, nw
              if(f(i,j+1)-f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi) / self%eq_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi)
              else
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)) / self%eq_dZ
+                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1))
              end if
           end do
        end do
-    case('E')
+    case('E','O')
        do j = 2, nh-1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1)) / self%eq_dZ
+          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
        end do
     end select
   end subroutine derm
@@ -647,12 +655,19 @@ contains
     real, dimension(-ntm:,:), intent(out) :: grad
     real, intent(in) :: rp
     real :: aa(1), daa(1), rpt(1)
+    real, dimension(self%nw, self%nh, 2) :: dcart
     integer :: i
 
-    grad = 0.
+    select case(char)
+    case('P', 'R')
+       dcart = self%dpcart
+    case('T')
+       dcart = self%dtcart
+    end select
+
     do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), self%dpm(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), self%dpm(:,:,2), 'Z')
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
     end do
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
@@ -694,16 +709,13 @@ contains
     real :: aa(1), daa(1), rpt(1)
     real, dimension(self%nw, self%nh, 2) ::  dbish
     integer :: i
-    ! Other eq types precalculates this in the init stage, e.g. calling eqdcart etc.
-    dbish(:,:,1) = sqrt(self%dpm(:,:,1)**2 + self%dpm(:,:,2)**2)
-    dbish(:,:,2) = 0.
 
-    if (char == 'T') then  ! the order of the next two statements matters
-       dbish(:,:,2) = (self%dtm(:,:,2) * self%dpm(:,:,1) - &
-            self%dtm(:,:,1) * self%dpm(:,:,2)) / dbish(:,:,1)
-       dbish(:,:,1) = (self%dtm(:,:,1) * self%dpm(:,:,1) + &
-            self%dtm(:,:,2) * self%dpm(:,:,2)) / dbish(:,:,1)
-    end if
+    select case(char)
+    case('P', 'R')
+       dbish = self%dpbish
+    case('T')
+       dbish = self%dtbish
+    end select
 
     do i = -nth_used, nth_used
        grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
