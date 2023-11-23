@@ -309,6 +309,17 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
+    do i = 1, self%nw
+       do j = 1, self%nh
+          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+             self%eqth(i, j) = 0.  ! value should not matter
+          else
+             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
+                  (self%eq_R(i) - self%R_mag))
+          end if
+       end do
+    end do
+
     self%initialised = .true.
   end subroutine gs2din
 
@@ -491,6 +502,17 @@ contains
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
 
+    do i = 1, self%nw
+       do j = 1, self%nh
+          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+             self%eqth(i, j) = 0.  ! value should not matter
+          else
+             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
+                  (self%eq_R(i) - self%R_mag))
+          end if
+       end do
+    end do
+
     if (.true.) then
        write (*,*) "Finished efitin... imported EFIT equilibrium"
        write (*,*) 'Some important quantities:'
@@ -530,27 +552,14 @@ contains
   subroutine efit_init(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    real, dimension(self%nw, self%nh) :: eqth
-    integer :: i, j
     if (verbosity > 2) write(6,*) "efit_init: do i"
-    do i = 1, self%nw
-       do j = 1, self%nh
-          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
-             eqth(i, j) = 0.  ! value should not matter
-          else
-             eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
-                  (self%eq_R(i) - self%R_mag))
-          end if
-       end do
-    end do
-
     ! dpm(:,:,1) is d psi / d R
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
     if (verbosity > 2) write(6,*) "efit_init: derm"
     call self%derm(self%eq_psi, self%dpm, 'E')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
 

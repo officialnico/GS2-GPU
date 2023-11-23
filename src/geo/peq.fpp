@@ -240,6 +240,9 @@ contains
     nthg = self%nt
     self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1) * pi / float(self%nt - 1)
+    end do
 
     self%transp = .false.
     self%initialised = .true.
@@ -253,7 +256,7 @@ contains
   !> coordinates
   subroutine teqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
-    use constants, only: pi
+    use constants, only: pi, twopi
     use geo_utils, only: geo_input_type
     implicit none
     class(teq_type), intent(in out) :: self
@@ -438,6 +441,9 @@ contains
     nthg = self%nt/2
     self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
+    end do
 
     self%transp = .true.
     self%initialised = .true.
@@ -468,24 +474,14 @@ contains
     use constants, only: twopi, pi
     implicit none
     class(peq_base_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1, eqth
+    real, dimension(self%nr, self%nt) :: eqpsi1
     integer :: i, j
 
     do j = 1, self%nt
        eqpsi1(:, j) = self%eqpsi
     end do
 
-    if (self%transp) then
-       do j = 1, self%nt
-          eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
-       end do
-    else
-       do j = 1, self%nt
-          eqth(:, j) = (j-1) * pi / float(self%nt - 1)
-       end do
-    end if
-
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(eqpsi1, self%dpm, 'E')

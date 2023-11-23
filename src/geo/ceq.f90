@@ -49,12 +49,14 @@ contains
   subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use read_chease, only: read_infile, finish
     use geo_utils, only: geo_input_type
+    use constants, only: pi
     implicit none
     class(ceq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
     real :: f_N, psi_N
+    integer :: j
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
@@ -76,6 +78,10 @@ contains
     !
     !     Normalize, rename quantities
     !
+
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
+    end do
 
     avgrmid = self%aminor
     ! rmaj changes depending on iflux.. FIX!!
@@ -213,15 +219,14 @@ contains
     use constants, only: pi
     implicit none
     class(ceq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1, eqth
+    real, dimension(self%nr, self%nt) :: eqpsi1
     integer :: j
 
     do j = 1, self%nt
        eqpsi1(:, j) = self%eqpsi
-       eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
     end do
 
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi,  self%dzm, 'O')
     call self%derm(eqpsi1, self%dpm, 'E')

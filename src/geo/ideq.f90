@@ -208,6 +208,10 @@ contains
 
     nthg = self%nt
 
+    do j = 1, self%nt
+       self%eqth(:,j) = (j-1) * pi / float(self%nt-1)
+    end do
+
     ! recover some memory:
     do i = 1, d%nr
        deallocate (d%grid(i)%R)
@@ -244,15 +248,14 @@ contains
     use constants, only: pi
     implicit none
     class(ideq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1, eqth
+    real, dimension(self%nr, self%nt) :: eqpsi1
     integer :: j
 
     do j = 1, self%nt
        eqpsi1(:,j) = self%eqpsi
-       eqth(:,j) = (j-1) * pi / float(self%nt-1)
     end do
 
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(self%B_psi, self%dbm, 'E')

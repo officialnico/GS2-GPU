@@ -93,9 +93,10 @@ contains
     dr = [-self%surf%dr, 0., self%surf%dr]
 
     do j = -self%nt, self%nt
+       t = (j) * pi / real(self%nt)
+       self%eqth(:, j) = t
        do i = 1, self%nr
           r = self%surf%r + dr(i)
-          t = (j) * pi / real(self%nt)
           self%R_psi(i, j) = self%Rpos(r, t)
           self%Z_psi(i, j) = self%Zpos(r, t)
        end do
@@ -122,7 +123,7 @@ contains
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
     allocate(self%eqpsi(nr), self%pressure(nr))
-    allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt))
+    allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt), self%eqth(nr, -nt:nt))
     allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), &
          self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
     allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2))
@@ -134,7 +135,7 @@ contains
     implicit none
     class(leq_type), intent(in out) :: self
     deallocate(self%eqpsi, self%pressure, self%R_psi, self%Z_psi, self%dpbish, self%dtbish)
-    deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart)
+    deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart, self%eqth)
   end subroutine dealloc_arrays
 
   !> Finalise leq module
@@ -154,11 +155,10 @@ contains
     integer :: j
 
     do j = -self%nt, self%nt
-       eqth(:, j) = j * pi / real(self%nt)
        eqpsi1(:, j) = self%eqpsi
     end do
 
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     ! char arguments E and O are redundant, but are retained so that `derm` interface
     ! is the same in all geometry modules.
     call self%derm(self%R_psi, self%drm, 'E')
@@ -232,8 +232,11 @@ contains
     ! `T` flag to denotes trivial derivative when f=theta,
     ! where care is needed at end points.
     if (char .eq. 'T') then
-       dfm(:,-nt,2) = f(:,-nt+1) + pi
-       dfm(:,nt,2) = pi - f(:,nt-1)
+       j=-nt
+       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
+
+       j=nt
+       dfm(:,j,2) = 0.5*(2.*pi + f(:,-nt+1) - f(:,j-1))
     end if
   end subroutine derm
 

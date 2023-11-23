@@ -41,6 +41,7 @@ contains
   !! coordinates
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use geo_utils, only: geo_input_type
+    use constants, only: pi
 # ifndef NETCDF
     use mp, only: mp_abort
 # endif
@@ -51,8 +52,7 @@ contains
     integer, intent(out) :: nthg
     real :: I_0
     real, dimension(:), allocatable :: rho_d
-    integer :: istatus
-    integer :: ncid, id
+    integer :: istatus, ncid, id, j
     ! what is the best way to handle the netcdf single/double problem?
     real :: f_N, psi_N
 
@@ -235,6 +235,10 @@ contains
     !     Normalize, rename quantities
     !
 
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1) * pi / real(self%nt-1)
+    end do
+
     avgrmid = self%aminor
     rmaj = self%R_mag / self%aminor   ! used to reference the grid
     B_T0 = self%B_T
@@ -285,11 +289,10 @@ contains
     implicit none
     class(geq_type), intent(in out) :: self
     real, dimension(self%nr, self%nt) :: eqpsi1, eqth
-    integer j
+    integer :: j
 
     do j = 1, self%nt
        eqpsi1(:, j) = self%eqpsi
-       eqth(:, j) = (j-1) * pi / real(self%nt-1)
     end do
 
     call self%derm(eqth, self%dtm, 'T')

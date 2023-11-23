@@ -252,6 +252,16 @@ contains
 
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
 
+    do i = 1, self%nw
+       do j = 1, self%nh
+          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+             self%eqth(i, j) = 0.  ! value should not matter
+          else
+             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), (self%eq_R(i) - self%R_mag))
+          end if
+       end do
+    end do
+
     nthg = -1
     self%initialised = .true.
 2020 format (5e16.8)
@@ -279,20 +289,8 @@ contains
   subroutine dfit_init(self)
     implicit none
     class(deq_type), intent(in out) :: self
-    real, dimension(self%nw, self%nh) :: eqth
-    integer :: i, j
-    do i = 1, self%nw
-       do j = 1, self%nh
-          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
-             eqth(i, j) = 0.  ! value should not matter
-          else
-             eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), (self%eq_R(i) - self%R_mag))
-          end if
-       end do
-    end do
-
     call self%derm(self%eq_psi, self%dpm, 'E')
-    call self%derm(eqth, self%dtm, 'T')
+    call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
 
