@@ -470,6 +470,11 @@ contains
     self%eq_R = self%eq_R / self%aminor
     self%eq_Z = self%eq_Z / self%aminor
 
+    do i = 1, self%nw
+       self%R_psi(i, :) = self%eq_R(i)
+       self%Z_psi(i, :) = self%eq_Z
+    end do
+
     ! should rmaj be R_mag or rcentr? use R_mag for now.
     rmaj = self%R_mag
     B_T0 = abs(bcentr)
@@ -525,7 +530,7 @@ contains
   subroutine efit_init(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    real, dimension(self%nw, self%nh) :: eqth, R_psi, Z_psi
+    real, dimension(self%nw, self%nh) :: eqth
     integer :: i, j
     if (verbosity > 2) write(6,*) "efit_init: do i"
     do i = 1, self%nw
@@ -537,8 +542,6 @@ contains
                   (self%eq_R(i) - self%R_mag))
           end if
        end do
-       R_psi(i, :) = self%eq_R(i)
-       Z_psi(i, :) = self%eq_Z
     end do
 
     ! dpm(:,:,1) is d psi / d R
@@ -548,8 +551,8 @@ contains
     call self%derm(self%eq_psi, self%dpm, 'E')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(eqth, self%dtm, 'T')
-    call self%derm(R_psi, self%drm, 'E')
-    call self%derm(Z_psi, self%dzm, 'O')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi, self%dzm, 'O')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)
