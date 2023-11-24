@@ -1156,6 +1156,7 @@ module theta_grid_eik
      !> -  1: rho == sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
      !> -  2: rho == midplane diameter/LCFS diameter - Recommended
      !> -  3: rho == poloidal flux/poloidal flux of LCFS
+     !> -  4: rho == rho_mid (vacuum ring dipole, `dfit_eq = T`, only)
      !>
      !> NB For consistency fprim, tprim, shat, uprim, g_exb etc
      !>  *must be computed using same radial variable*,

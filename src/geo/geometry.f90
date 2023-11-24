@@ -17,6 +17,7 @@
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
 !>         case (3) :: poloidal flux/(poloidal flux of LCFS)
+!>         case (4) :: rho_mid? Only used for the vacuum ring dipole, dfit_eq = T
 !>
 !> equal_arc :: .true. makes grad_par coefficient a constant.
 !>
