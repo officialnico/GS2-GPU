@@ -309,6 +309,7 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
+    self%eqpsi_2d = self%eq_psi
     do i = 1, self%nw
        do j = 1, self%nh
           if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
