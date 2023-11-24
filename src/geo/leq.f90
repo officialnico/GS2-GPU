@@ -92,19 +92,20 @@ contains
 
     dr = [-self%surf%dr, 0., self%surf%dr]
 
+    ! Why do we set pressure to -dr here?
+    self%pressure = -dr
+    self%eqpsi = 1 + dr
+
     do j = -self%nt, self%nt
        t = (j) * pi / real(self%nt)
        self%eqth(:, j) = t
+       self%eqpsi_2d(:, j) = self%eqpsi
        do i = 1, self%nr
           r = self%surf%r + dr(i)
           self%R_psi(i, j) = self%Rpos(r, t)
           self%Z_psi(i, j) = self%Zpos(r, t)
        end do
     end do
-
-    ! Why do we set pressure to -dr here?
-    self%pressure = -dr
-    self%eqpsi = 1 + dr
 
     !Set outputs
     psi_0_out = 0.0
@@ -122,7 +123,7 @@ contains
     class(leq_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%eqpsi(nr), self%pressure(nr))
+    allocate(self%eqpsi(nr), self%pressure(nr), self%eqpsi_2d(nr, -nt:nt))
     allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt), self%eqth(nr, -nt:nt))
     allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), &
          self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
@@ -136,6 +137,7 @@ contains
     class(leq_type), intent(in out) :: self
     deallocate(self%eqpsi, self%pressure, self%R_psi, self%Z_psi, self%dpbish, self%dtbish)
     deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart, self%eqth)
+    deallocate(self%eqpsi_2d)
   end subroutine dealloc_arrays
 
   !> Finalise leq module
@@ -151,19 +153,10 @@ contains
     use constants, only: pi
     implicit none
     class(leq_type), intent(in out) :: self
-    real, dimension(self%nr, -self%nt:self%nt) :: eqpsi1, eqth
-    integer :: j
-
-    do j = -self%nt, self%nt
-       eqpsi1(:, j) = self%eqpsi
-    end do
-
     call self%derm(self%eqth, self%dtm, 'T')
-    ! char arguments E and O are redundant, but are retained so that `derm` interface
-    ! is the same in all geometry modules.
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
-    call self%derm(eqpsi1, self%dpm,  'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
 
     ! below is actually grad(rho) instead of grad(psi),
     ! and 'cartesian' refers to (R,Z) coordinates -- MAB

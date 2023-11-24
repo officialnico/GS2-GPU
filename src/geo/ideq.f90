@@ -209,7 +209,8 @@ contains
     nthg = self%nt
 
     do j = 1, self%nt
-       self%eqth(:,j) = (j-1) * pi / float(self%nt-1)
+       self%eqth(:, j) = (j-1) * pi / float(self%nt-1)
+       self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
     ! recover some memory:
@@ -248,18 +249,11 @@ contains
     use constants, only: pi
     implicit none
     class(ideq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1
-    integer :: j
-
-    do j = 1, self%nt
-       eqpsi1(:,j) = self%eqpsi
-    end do
-
     call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(self%B_psi, self%dbm, 'E')
-    call self%derm(eqpsi1, self%dpm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)

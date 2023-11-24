@@ -235,10 +235,6 @@ contains
     !     Normalize, rename quantities
     !
 
-    do j = 1, self%nt
-       self%eqth(:, j) = (j-1) * pi / real(self%nt-1)
-    end do
-
     avgrmid = self%aminor
     rmaj = self%R_mag / self%aminor   ! used to reference the grid
     B_T0 = self%B_T
@@ -249,6 +245,11 @@ contains
     psi_a_out = self%psi_a
     psi_0_out = self%psi_0
     self%eqpsi = self%eqpsi / psi_N
+
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1) * pi / real(self%nt-1)
+       self%eqpsi_2d(:, j) = self%eqpsi
+    end do
 
     f_N = B_T0 * avgrmid
     self%fp = self%fp / f_N
@@ -288,18 +289,11 @@ contains
     use constants, only: pi
     implicit none
     class(geq_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1
-    integer :: j
-
-    do j = 1, self%nt
-       eqpsi1(:, j) = self%eqpsi
-    end do
-
     call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
     call self%derm(self%B_psi, self%dbm, 'E')
-    call self%derm(eqpsi1, self%dpm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)

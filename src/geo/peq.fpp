@@ -242,6 +242,7 @@ contains
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
     do j = 1, self%nt
        self%eqth(:, j) = (j-1) * pi / float(self%nt - 1)
+       self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
     self%transp = .false.
@@ -443,6 +444,7 @@ contains
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
     do j = 1, self%nt
        self%eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
+       self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
     self%transp = .true.
@@ -474,17 +476,10 @@ contains
     use constants, only: twopi, pi
     implicit none
     class(peq_base_type), intent(in out) :: self
-    real, dimension(self%nr, self%nt) :: eqpsi1
-    integer :: i, j
-
-    do j = 1, self%nt
-       eqpsi1(:, j) = self%eqpsi
-    end do
-
     call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
-    call self%derm(eqpsi1, self%dpm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
 
     ! grad(psi) in cartesian form
     call self%eqdcart(self%dpm, self%dpcart)

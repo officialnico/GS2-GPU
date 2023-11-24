@@ -501,7 +501,7 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-
+    self%eqpsi_2d = self%eq_psi
     do i = 1, self%nw
        do j = 1, self%nh
           if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
@@ -540,7 +540,7 @@ contains
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    deallocate (self%psi_bar, self%fp, self%qsf, self%beta)
+    deallocate(self%psi_bar, self%fp, self%qsf, self%beta)
     deallocate(self%eq_R, self%eq_Z, self%eq_psi)
     deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
@@ -557,7 +557,7 @@ contains
     ! dpm(:,:,2) is d psi / d Z
     ! Both on an R,Z grid
     if (verbosity > 2) write(6,*) "efit_init: derm"
-    call self%derm(self%eq_psi, self%dpm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
     if (verbosity > 2) write(6,*) "efit_init: tderm"
     call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')

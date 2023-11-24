@@ -251,7 +251,7 @@ contains
     self%pressure = self%pressure / p_0
 
     self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-
+    self%eqpsi_2d = self%eq_psi
     do i = 1, self%nw
        do j = 1, self%nh
           if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
@@ -289,7 +289,7 @@ contains
   subroutine dfit_init(self)
     implicit none
     class(deq_type), intent(in out) :: self
-    call self%derm(self%eq_psi, self%dpm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
     call self%derm(self%eqth, self%dtm, 'T')
     call self%derm(self%R_psi, self%drm, 'E')
     call self%derm(self%Z_psi, self%dzm, 'O')
