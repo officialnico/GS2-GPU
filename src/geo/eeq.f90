@@ -141,7 +141,7 @@ contains
   !> eq_R     R grid
   !> eq_Z     Z grid
   !> fp    F on psibar grid
-  !> eq_psi   psi on (R,Z) grid
+  !> eqpsi_2d   psi on (R,Z) grid
   !> R_mag        major radius of the magnetic axis
   !> Z_mag        elevation of the magnetic axis
   !> rwid       total width of the domain
@@ -237,7 +237,7 @@ contains
 
     do j = 1, self%nh
        do i = 1, self%nw
-          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+          self%eqpsi_2d(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
                sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
@@ -308,8 +308,7 @@ contains
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
-    self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-    self%eqpsi_2d = self%eq_psi
+    self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
     do i = 1, self%nw
        do j = 1, self%nh
           if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
@@ -332,7 +331,7 @@ contains
   !> - eq_R:     R grid
   !> - eq_Z:     Z grid
   !> - fp:    F on psibar grid
-  !> - eq_psi:   psi on (R,Z) grid
+  !> - eqpsi_2d:   psi on (R,Z) grid
   !> - R_mag:        major radius of the magnetic axis
   !> - Z_mag:        elevation of the magnetic axis
   !> - rwid:       total width of the domain
@@ -430,7 +429,7 @@ contains
 
     do j = 1, self%nh
        do i = 1, self%nw
-          self%eq_psi(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+          self%eqpsi_2d(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
                sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
@@ -501,8 +500,8 @@ contains
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / p_0
-    self%eq_psi = self%eq_psi / (self%B_T * self%aminor**2)
-    self%eqpsi_2d = self%eq_psi
+    self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
+
     do i = 1, self%nw
        do j = 1, self%nh
           if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
@@ -534,7 +533,7 @@ contains
     integer :: nw, nh
     nw = self%nw ; nh = self%nh
     allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%beta(nw))
-    allocate (self%eq_R(nw), self%eq_Z(nh), self%eq_psi(nw, nh))
+    allocate (self%eq_R(nw), self%eq_Z(nh))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
@@ -542,7 +541,7 @@ contains
     implicit none
     class(eeq_base_type), intent(in out) :: self
     deallocate(self%psi_bar, self%fp, self%qsf, self%beta)
-    deallocate(self%eq_R, self%eq_Z, self%eq_psi)
+    deallocate(self%eq_R, self%eq_Z)
     deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
