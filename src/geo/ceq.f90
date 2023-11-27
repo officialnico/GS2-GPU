@@ -15,8 +15,6 @@ module ceq
      procedure :: initialise => ceqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: gradient => gradient
-     procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
@@ -296,110 +294,6 @@ contains
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
     end do
   end subroutine derm
-
-  !> Calculate the derivative of a selected field w.r.t. R and Z
-  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(ceq_type), intent(in) :: self
-    !> Number of theta points
-    integer, intent(in) :: nth_used
-    !> Lower index of theta array
-    integer, intent(in) :: ntm
-    !> Select field to take gradient of:
-    !>   - 'P': psi
-    !>   - 'R': pressure
-    !>   - 'T': theta
-    character(1), intent(in) :: char
-    !> Minor radius grid of flux surface (?)
-    real, intent(in) :: rgrid(-ntm:)
-    !> Theta grid
-    real, intent(in) :: theta(-ntm:)
-    !> grad(:,1): derivative w.r.t. R as function of theta
-    !> grad(:,2): derivative w.r.t  Z as function of theta
-    real, intent(out) :: grad(-ntm:,:)
-    !> Radius for taking pressure derivative (FIXME: double-check)
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nr, self%nt, 2) :: dcart
-    integer :: i
-
-    select case(char)
-    case('P', 'R')
-       dcart = self%dpcart
-    case('T')
-       dcart = self%dtcart
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-    end do
-    !Note no special handling for theta unlike some others
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
-       end do
-    end if
-  end subroutine gradient
-
-  !> Calculate the derivative of a selected field w.r.t. the Bishop
-  !> coordinate system
-  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use mp, only: mp_abort
-    use splines, only: inter_d_cspl
-    implicit none
-    class(ceq_type), intent(in) :: self
-    !> Number of theta points
-    integer, intent(in) :: nth_used
-    !> Lower index of theta array
-    integer, intent(in) :: ntm
-    !> Select field to take gradient of:
-    !>   - 'P': psi
-    !>   - 'R': pressure
-    !>   - 'T': theta
-    character(1), intent(in) :: char
-    !> Minor radius grid of flux surface (?)
-    real, intent(in) :: rgrid(-ntm:)
-    !> Theta grid
-    real, intent(in) :: theta(-ntm:)
-    !> Computed derivative, second dimension is the Bishop coordinate
-    real, intent(out) :: grad(-ntm:,:)
-    !> Radius for taking pressure derivative (?)
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nr, self%nt, 2) ::  dbish
-    integer :: i
-
-    select case(char)
-    case('B')
-       call mp_abort('error: bishop == 0 not allowed with ceq. (2)',.true.)
-    case('P', 'R')
-       dbish = self%dpbish
-    case('T')
-       dbish = self%dtbish
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
-       end do
-    end if
-  end subroutine bgradient
 
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)

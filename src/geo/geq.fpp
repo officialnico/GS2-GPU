@@ -23,8 +23,6 @@ module geq
      procedure :: initialise => eqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: gradient => gradient
-     procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
@@ -352,100 +350,6 @@ contains
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
     end do
   end subroutine derm
-
-  !> FIXME : Add documentation
-  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(geq_type), intent(in) :: self
-    integer, intent (in) :: nth_used, ntm
-    character(1), intent (in) :: char
-    real, dimension (-ntm:), intent (in)  :: rgrid, theta
-    real, dimension (-ntm:,:), intent (out) :: grad
-    real, intent(in) :: rp
-    real, dimension(self%nr, self%nt, 2) :: dcart
-    real, dimension (1) :: aa, daa, rpt
-    integer :: i
-
-    select case(char)
-    case('B')
-       dcart = self%dbcart
-    case('P', 'R')
-       dcart = self%dpcart
-    case('T')
-       dcart = self%dtcart
-    end select
-
-    do i = -nth_used, -1
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-       if(char == 'T') then
-          grad(i,1) = -grad(i, 1)
-          grad(i,2) = -grad(i, 2)
-       end if
-    end do
-
-    do i = 0, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5 * self%beta_0
-          grad(i,2)=grad(i,2)*daa(1) * 0.5 * self%beta_0
-       end do
-    end if
-  end subroutine gradient
-
-  !> FIXME : Add documentation
-  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(geq_type), intent(in) :: self
-    integer, intent (in) :: nth_used, ntm
-    character(1), intent (in) :: char
-    real, dimension (-ntm:), intent (in)  ::  rgrid, theta
-    real, dimension (-ntm:,:), intent (out) :: grad
-    real, intent(in) :: rp
-    real, dimension (1) :: aa, daa, rpt
-    real, dimension(self%nr, self%nt, 2) ::  dbish
-    integer :: i
-
-    select case(char)
-    case('B')
-       dbish = self%dbbish
-    case('P', 'R')
-       dbish = self%dpbish
-    case('T')
-       dbish = self%dtbish
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
-    end do
-
-    if (char == 'T') then
-       where (theta(-nth_used:nth_used) < 0.0)
-          grad(-nth_used:nth_used,1) = -grad(-nth_used:nth_used,1)
-          grad(-nth_used:nth_used,2) = -grad(-nth_used:nth_used,2)
-       end where
-    end if
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5 * self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5 * self%beta_0
-       end do
-    end if
-  end subroutine bgradient
 
   !> FIXME : Add documentation
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)

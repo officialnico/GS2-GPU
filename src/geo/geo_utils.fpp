@@ -124,13 +124,13 @@ module geo_utils
      !> are:
      !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
      !>   - theta: grid of theta
-     !>   - gradf(:,1): deriv w.r.t. R as fn of theta
-     !>   - gradf(:,2): deriv w.r.t  Z as fn of theta
+     !>   - grad(:,1): deriv w.r.t. R as fn of theta
+     !>   - grad(:,2): deriv w.r.t  Z as fn of theta
      !>   - char: if char = 'R', return the gradient of pressure instead
      !>   - rp: value of rp on the flux surface where we want the grad
      !>   - nth: number of theta points
-     !>   - ntgrid: lower index of theta array is -ntgrid
-     procedure(gradient_interface), deferred :: gradient
+     !>   - ntm: lower index of theta array is -ntgrid
+     procedure :: gradient
      !> Calculate the derivative of rp w.r.t. R and Z and return
      !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
      !> Parameters are:
@@ -145,11 +145,11 @@ module geo_utils
      !>   - rp: value of rp on the flux surface where we want the grad
      !>   - nth: number of theta points
      !>   - ntgrid: lower index of theta array is -ntgrid
-     procedure(gradient_interface), deferred :: bgradient
+     procedure :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure(derm_interface), deferred :: derm
      procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
-     procedure :: calculate_gradients
+     procedure :: calculate_gradients, gradient_work
      procedure :: eqdcart, eqdbish
   end type abstract_geo_type
 
@@ -202,16 +202,6 @@ module geo_utils
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: pbar
      end function pbar_interface
-
-     subroutine gradient_interface(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, dimension(-ntm:), intent(in) :: rgrid, theta
-       real, dimension(-ntm:, :), intent(out) :: grad
-       character(len=1), intent(in) :: char
-       real, intent(in) :: rp
-       integer, intent(in) :: nth_used, ntm
-     end subroutine gradient_interface
 
      real function eqitem_interface(self, r_in, theta_in, f, char) result(fstar)
        import
@@ -346,6 +336,84 @@ contains
        end do
     end do
   end subroutine eqdbish
+
+  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    integer, intent (in) :: nth_used, ntm
+    character(1), intent (in) :: char
+    real, dimension (-ntm:), intent (in)  :: rgrid, theta
+    real, dimension (-ntm:,:), intent (out) :: grad
+    real, intent(in) :: rp
+    real, dimension(:, :, :), allocatable :: dcart
+    select case(char)
+    case('B')
+       dcart = self%dbcart
+    case('P', 'R')
+       dcart = self%dpcart
+    case('T')
+       dcart = self%dtcart
+    end select
+
+    call self%gradient_work(rgrid, theta, dcart, grad, char, rp, nth_used, ntm)
+  end subroutine gradient
+
+  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    integer, intent (in) :: nth_used, ntm
+    character(1), intent (in) :: char
+    real, dimension (-ntm:), intent (in)  :: rgrid, theta
+    real, dimension (-ntm:,:), intent (out) :: grad
+    real, intent(in) :: rp
+    real, dimension(:, :, :), allocatable :: dbish
+    select case(char)
+    case('B')
+       dbish = self%dbbish
+    case('P', 'R')
+       dbish = self%dpbish
+    case('T')
+       dbish = self%dtbish
+    end select
+
+    call self%gradient_work(rgrid, theta, dbish, grad, char, rp, nth_used, ntm)
+  end subroutine bgradient
+
+  subroutine gradient_work(self, rgrid, theta, darr, grad, char, rp, nth_used, ntm)
+    use splines, only: inter_d_cspl
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    integer, intent (in) :: nth_used, ntm
+    character(1), intent (in) :: char
+    real, dimension (-ntm:), intent (in)  :: rgrid, theta
+    real, dimension (:, :, :), intent (in) :: darr
+    real, dimension (-ntm:,:), intent (out) :: grad
+    real, intent(in) :: rp
+    real, dimension(:, :, :), allocatable :: dcart
+    real, dimension (1) :: aa, daa, rpt
+    integer :: i
+    do i = -nth_used, nth_used
+       grad(i, 1) = self%eqitem(rgrid(i), theta(i), darr(:,:,1), 'R')
+       grad(i, 2) = self%eqitem(rgrid(i), theta(i), darr(:,:,2), 'Z')
+    end do
+
+    if(char == 'T' .and. .not. self%has_full_theta_range) then
+       where (theta(-nth_used:nth_used) < 0.0)
+          grad(-nth_used:nth_used, 1) = -grad(-nth_used:nth_used, 1)
+          grad(-nth_used:nth_used, 2) = -grad(-nth_used:nth_used, 2)
+       end where
+    end if
+
+    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
+    if (char == 'R') then
+       rpt(1) = rp
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       do i = -nth_used, nth_used
+          grad(i, 1) = grad(i, 1) * daa(1) * 0.5 * self%beta_0
+          grad(i, 2) = grad(i, 2) * daa(1) * 0.5 * self%beta_0
+       end do
+    end if
+  end subroutine gradient_work
 
   pure subroutine alloc_arrays_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

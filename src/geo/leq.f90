@@ -50,8 +50,6 @@ module leq
      procedure :: betafun => betafun
      procedure :: psi => psi
      procedure :: rfun => rfun
-     procedure :: gradient => gradient
-     procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_arrays => alloc_arrays
@@ -210,112 +208,6 @@ contains
        dfm(:,j,2) = 0.5*(2.*pi + f(:,-nt+1) - f(:,j-1))
     end if
   end subroutine derm
-
-  !> Calculate the derivative of \(r_\psi\) w.r.t. R and Z
-  !>
-  !> \(r_\psi\) is the "minor radius flux function"
-  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(leq_type), intent(in) :: self
-    !> Number of theta points
-    integer, intent(in) :: nth_used
-    !> Lower index of theta array is -ntm
-    integer, intent(in) :: ntm
-    !> If char = 'R', return the gradient of pressure instead.
-    !> Note that this is useless here!
-    character(1), intent(in) :: char
-    !> Theta grid and rgrid (unused)
-    real, dimension(-ntm:), intent(in) :: rgrid, theta
-    !> grad(:,1): derivative w.r.t. R as function of theta
-    !> grad(:,2): derivative w.r.t  Z as function of theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    !> Value of psi/(a^2 B_a) on the flux surface where we want the gradient.
-    !> Note: never used!
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nr, -self%nt:self%nt, 2) :: dcart
-    integer :: i
-
-    select case(char)
-    case('P', 'R')
-       dcart = self%dpcart
-    case('T')
-       dcart = self%dtcart  ! Never reached: bgradient always used
-    end select
-
-    do i = -nth_used, -1
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-       if (char == 'T') then
-          grad(i, 1) = -grad(i, 1)
-          grad(i, 2) = -grad(i, 2)
-       end if
-    end do
-
-    do i = 0, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
-       end do
-    end if
-  end subroutine gradient
-
-  !> Calculate the derivative of \(r_\psi\) in the Bishop coordinate system.
-  !> If `char=='T'`, calculate the gradient of \(\theta\) instead
-  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(leq_type), intent(in) :: self
-    !> Number of theta points
-    integer, intent(in) :: nth_used
-    !> Lower index of theta array is -ntm
-    integer, intent(in) :: ntm
-    !> If char = 'R', return the gradient of pressure instead.
-    !> Note that this is useless here!
-    character(1), intent(in) :: char
-    !> Theta grid and rgrid (unused)
-    real, dimension(-ntm:), intent(in) :: theta, rgrid
-    !> grad(:,1): derivative w.r.t. R as function of theta
-    !> grad(:,2): derivative w.r.t  Z as function of theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    !> Value of psi/(a^2 B_a) on the flux surface where we want the gradient.
-    !> Note: never used!
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nr, -self%nt:self%nt, 2) ::  dbish
-    integer :: i
-
-    select case(char)
-    case('P', 'R')
-       dbish = self%dpbish
-    case('T')
-       dbish = self%dtbish
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad(i,1) = grad(i,1)*daa(1) * 0.5*self%beta_0
-          grad(i,2) = grad(i,2)*daa(1) * 0.5*self%beta_0
-       enddo
-    endif
-  end subroutine bgradient
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
