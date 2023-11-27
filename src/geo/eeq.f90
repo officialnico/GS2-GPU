@@ -113,8 +113,6 @@ module eeq
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: dpfun => dpfun
-     procedure :: gradient => gradient
-     procedure :: bgradient => bgradient
      procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
@@ -619,108 +617,6 @@ contains
        end do
     end select
   end subroutine derm
-
-  !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z. Parameters
-  !> are:
-  !> - rgrid: distance to mag axis as a fn of theta
-  !> - theta: grid of theta
-  !> - grad(:,1): deriv w.r.t. R as fn of theta
-  !> - grad(:,2): deriv w.r.t  Z as fn of theta
-  !> - char: if char = 'R', return the gradient of pressure instead
-  !> - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !> - nth: number of theta points
-  !> - ntm: lower index of theta array is -ntm
-  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    ! It may be clearer if we use our spline/periodic_spline wrappers?
-    use splines, only: inter_d_cspl
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    integer, intent(in) :: nth_used, ntm
-    character(len=1), intent(in) ::  char
-    real, dimension(-ntm:), intent(in) :: rgrid, theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nw, self%nh, 2) :: dcart
-    integer :: i
-
-    select case(char)
-    case('P', 'R')
-       dcart = self%dpcart
-    case('T')
-       dcart = self%dtcart
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dcart(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dcart(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       ! This returns d (pressure/pressure(1)) / d psibar
-       ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
-       ! multiply by beta_0 to get d (pressure) / d (psi)
-       ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       grad = grad*daa(1) * 0.5 * self%beta_0
-    end if
-  end subroutine gradient
-
-  !> Calculate the derivative of psi/(a^2 B_a) w.r.t. R and Z and return
-  !> the modulus sqrt(dpsi/dR ^ 2 + dpsi/dZ^2). I.e. return |grad psi|.
-  !> Parameters are:
-  !> - rgrid: distance to mag axis as a fn of theta
-  !> - theta: grid of theta
-  !> - grad(:,1): |grad psi|
-  !> - grad(:,2): 0.0
-  !> - char: if char = 'R', return |grad pressure| instead
-  !> - char: if char = 'T', then return theta gradient in bishop form
-  !>  - grad(:,1): (dtheta/dZ d psi/dR - dtheta/dR dpsi/dZ)/ |grad psi|
-  !>  - grad(:,2): (dtheta/dR d psi/dR + dtheta/dZ dpsi/dZ)/ |grad psi|
-  !> - rp: value of psi/(a^2 B_a) on the flux surface where we want the grad
-  !> - nth: number of theta points
-  !> - ntm: lower index of theta array is -ntm
-  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    ! It may be clearer if we use our spline/periodic_spline wrappers?
-    use splines, only: inter_d_cspl
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    integer, intent(in) :: nth_used, ntm
-    character(len=1), intent(in) :: char
-    real, dimension(-ntm:), intent(in) :: rgrid, theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    real, dimension(self%nw, self%nh, 2) ::  dbish
-    integer :: i
-
-    select case(char)
-    case('P', 'R')
-       dbish = self%dpbish
-    case('T')
-       dbish = self%dtbish
-    end select
-
-    do i = -nth_used, nth_used
-       grad(i, 1) = self%eqitem(rgrid(i), theta(i), dbish(:,:,1), 'R')
-       grad(i, 2) = self%eqitem(rgrid(i), theta(i), dbish(:,:,2), 'Z')
-    end do
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
-       rpt(1) = rp
-       ! This returns d (pressure/pressure(1)) / d psibar
-       ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
-       ! multiply by beta_0 to get d (pressure) / d (psi)
-       ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
-       do i = -nth_used, nth_used
-          grad = grad*daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
-       end do
-    end if
-  end subroutine bgradient
 
   !> fstar is f(R,Z) interpolated at the values (r,thetain). The parameter
   !> r is the distance to the magnetic axis.
