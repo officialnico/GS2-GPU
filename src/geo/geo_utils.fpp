@@ -599,20 +599,15 @@ contains
        dfm(i,:,1) = 0.5 * (f(i+1,:) - f(i-1,:))
     end do
 
-    select case (char)
-    case ('T')
-       do j = 2, nh-1
-          dfm(:,j,2) = 0.5 * (f(:, j+1) - f(:, j-1))
-       end do
+    do j = 2, nh-1
+       dfm(:,j,2) = 0.5 * (f(:, j+1) - f(:, j-1))
+    end do
 
+    if (char == 'T') then
        where(dfm(:, :, 2) > pi * 0.5)
           dfm(:, :, 2) = dfm(:, :, 2) - pi
        end where
-    case('E','O')
-       do j = 2, nh-1
-          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j-1))
-       end do
-    end select
+    end if
   end subroutine derm_cart
 
   !> Find the value of the major radius on the plasma boundary
