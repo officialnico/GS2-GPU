@@ -319,7 +319,7 @@ contains
           end if
        end do
     end do
-
+    self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine gs2din
@@ -522,7 +522,7 @@ contains
        write (*,*) 'B_T0', self%B_T
        write (*,*) 'beta', self%beta_0
     end if
-
+    self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)

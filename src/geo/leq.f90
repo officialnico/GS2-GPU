@@ -114,6 +114,7 @@ contains
     avgrmid = 1.0
     rmaj = self%surf%Rmaj
     nthg = self%nt * 2 !Output is equivalent to ntheta_input
+    self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine leqin

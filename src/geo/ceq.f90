@@ -119,6 +119,7 @@ contains
     self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
 
+    self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine ceqin

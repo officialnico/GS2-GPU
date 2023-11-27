@@ -245,6 +245,7 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
+    self%B_psi = 0.0
     self%transp = .false.
     self%initialised = .true.
     self%has_full_theta_range = .false.
@@ -448,6 +449,7 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
+    self%B_psi = 0.0
     self%transp = .true.
     self%initialised = .true.
     self%has_full_theta_range = .true.
