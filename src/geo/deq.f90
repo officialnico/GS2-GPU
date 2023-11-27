@@ -21,7 +21,6 @@ module deq
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: rhofun => rhofun
-     procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type deq_type
@@ -308,69 +307,6 @@ contains
     call delete_periodic_spline(self%rbound_spl)
     call delete_spline(self%rho_spl)
   end subroutine delete_splines
-
-  !> FIXME : Add documentation
-  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use mp, only: mp_abort
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: r_in, theta_in
-    real, dimension(:, :), intent(in) :: f
-    character(1), intent(in) :: char
-    integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr, r
-    real :: r_pos, z_pos
-    !Copy input r to avoid any modification
-    r = r_in
-
-    r_pos = self%Rpos(r, theta_in)
-    z_pos = self%Zpos(r, theta_in)
-
-    ! find point on R mesh
-    if (r_pos >= self%eq_R(self%nw) .or. r_pos <= self%eq_R(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of R domain'
-       write(*,*) r, theta_in, self%eq_R(self%nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
-    end if
-
-    ! ensure point is on Z mesh
-    if (z_pos >= self%eq_Z(self%nh) .or. z_pos <= self%eq_Z(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of Z domain'
-       write(*,*) r, theta_in, self%eq_Z(1), self%eq_Z(self%nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
-    end if
-
-    istar = 0
-    do i = 2, self%nw
-       if (istar /= 0) cycle
-       if (r_pos < self%eq_R(i)) then
-          dr = r_pos - self%eq_R(i-1)
-          sr = self%eq_R(i) - r_pos
-          istar = i-1
-       end if
-    end do
-
-    ! Now do Z direction
-    jstar = 0
-    do j = 1, self%nh
-       if (jstar /= 0) cycle
-       if (z_pos < self%eq_Z(j)) then
-          dt = z_pos - self%eq_Z(j-1)
-          st = self%eq_Z(j) - z_pos
-          jstar = j-1
-       end if
-    end do
-
-    ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%eq_R(istar+1) - self%eq_R(istar)) * &
-         (self%eq_Z(jstar+1) - self%eq_Z(jstar)))
-  end function eqitem
 
   !> FIXME : Add documentation
   real function diameter (self, rp)
