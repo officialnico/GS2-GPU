@@ -557,67 +557,40 @@ contains
     ! Now do theta direction
     thet = mod2pi(theta_in)
     mtheta = self%eqth(1, :)
+    tps = 1.
+    tp = thet
 
-    ! assume up-down symmetry
     if (.not. self%transp) then
+       ! assume up-down symmetry
        tp = abs(thet)
-       tps = 1.
        if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
-
-       ! note that theta(1)=0 for gen_eq theta
-       jstar = -1
-       do j = 1, self%nt
-          if (jstar /= -1) cycle
-          if (tp < mtheta(j)) then
-             dt = tp - mtheta(j-1)
-             st = mtheta(j) - tp
-             jstar = j-1
-          end if
-       end do
-
-       ! treat theta = pi separately
-       if (jstar == -1) then
-          jstar = self%nt - 1
-          dt = mtheta(jstar+1) - mtheta(jstar)
-          st = 0.
-       end if
-
-       ! use opposite area stencil to interpolate
-       fstar=f(istar    , jstar    ) * sr * st &
-            +f(istar + 1, jstar    ) * dr * st &
-            +f(istar    , jstar + 1) * sr * dt &
-            +f(istar + 1, jstar + 1) * dr * dt
-       fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
-            (mtheta(jstar+1) - mtheta(jstar)))
-
-    else
-
-       ! note that theta(1)=0 for gen_eq theta
-       jstar = -1
-       do j = 1, self%nt
-          if (jstar /= -1) cycle
-          if (thet < mtheta(j)) then
-             dt = thet - mtheta(j-1)
-             st = mtheta(j) - thet
-             jstar = j-1
-          end if
-       end do
-
-       ! treat pi separately
-       if (jstar == -1) then
-          jstar = self%nt - 1
-          dt = mtheta(jstar+1) - mtheta(jstar)
-          st = 0.
-       end if
-
-       ! use opposite area stencil to interpolate
-       fstar=f(istar    , jstar    ) * sr * st &
-            +f(istar + 1, jstar    ) * dr * st &
-            +f(istar    , jstar + 1) * sr * dt &
-            +f(istar + 1, jstar + 1) * dr * dt
-       fstar=fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
-            (mtheta(jstar+1) - mtheta(jstar)))
     end if
+
+    ! note that theta(1)=0 for gen_eq theta
+    jstar = -1
+    do j = 1, self%nt
+       if (jstar /= -1) cycle
+       if (tp < mtheta(j)) then
+          dt = tp - mtheta(j-1)
+          st = mtheta(j) - tp
+          jstar = j-1
+       end if
+    end do
+
+    ! treat theta = pi separately
+    if (jstar == -1) then
+       jstar = self%nt - 1
+       dt = mtheta(jstar+1) - mtheta(jstar)
+       st = 0.
+    end if
+
+    ! use opposite area stencil to interpolate
+    fstar=f(istar    , jstar    ) * sr * st &
+         +f(istar + 1, jstar    ) * dr * st &
+         +f(istar    , jstar + 1) * sr * dt &
+         +f(istar + 1, jstar + 1) * dr * dt
+    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
+         (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem
 
   !> FIXME : Add documentation
