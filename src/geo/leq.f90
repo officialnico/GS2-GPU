@@ -126,10 +126,10 @@ contains
     nr = self%nr ; nt = self%nt
     allocate(self%eqpsi(nr), self%pressure(nr), self%eqpsi_2d(nr, -nt:nt))
     allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt), self%eqth(nr, -nt:nt))
-    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), &
-         self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2))
-    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2))
-    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2))
+    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), self%dbm(nr, -nt:nt, 2), &
+         self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2), self%B_psi(nr, -nt:nt))
+    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2), self%dbcart(nr, -nt:nt, 2))
+    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2), self%dbbish(nr, -nt:nt, 2))
   end subroutine alloc_arrays
 
   !> Deallocate internal module-level arrays
@@ -138,7 +138,7 @@ contains
     class(leq_type), intent(in out) :: self
     deallocate(self%eqpsi, self%pressure, self%R_psi, self%Z_psi, self%dpbish, self%dtbish)
     deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart, self%eqth)
-    deallocate(self%eqpsi_2d)
+    deallocate(self%eqpsi_2d, self%B_psi, self%dbm, self%dbcart, self%dbbish)
   end subroutine dealloc_arrays
 
   !> Finalise leq module
