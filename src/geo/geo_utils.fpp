@@ -77,12 +77,12 @@ module geo_utils
      !> Does this implementation have the full or half theta grid? If only half
      !> then we assume up-down symmetry and use this to set gradients etc.
      logical :: has_full_theta_range = .false.
-     !> Typically the number of radial and theta grid points. Not used
-     !> for cartesian like types (e.g. eeq)
+     !> Typically the number of radial and theta grid points.
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0, R_mag, Z_mag, aminor
      !> 2D map of co-ordinates to R or Z
      real, allocatable, dimension(:,:) :: R_psi, Z_psi
+     real, allocatable, dimension(:,:) :: B_psi
      !> 2D maps of theta and eqpsi
      real, allocatable, dimension(:,:) :: eqth, eqpsi_2d
      ! The following quantities represent changes between adjacent grid
@@ -97,15 +97,21 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: dpm
      !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
      real, allocatable, dimension (:,:,:) :: dtm
+     !> Magnetic field differences on theta, minor radius grids
+     real, allocatable, dimension (:,:,:) :: dbm
      !> Minor radius gradient in cylindrical coordinates \((\hat{e}_R,
      !> \hat{e}_Z, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dpcart
      !> Theta gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dtcart
+     !> B gradient in cylindrical coordinates \((\hat{e}_R, \hat{e}_Z, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dbcart
      !> Minor radius gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dpbish
      !> Theta gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dtbish
+     !> B gradient in Bishop coordinates \((\hat{e}_{r_\psi}, \hat{e}_l, \hat{e}_\zeta)\)
+     real, allocatable, dimension (:,:,:) :: dbbish
      !> Equilibrium psi (not normalised) and pressure grids
      real, allocatable, dimension(:) :: eqpsi, pressure
    contains
@@ -321,8 +327,10 @@ contains
     class(abstract_eqfile_geo_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
-    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dpcart(nr, nt, 2))
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
+    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dbm(nr, nt, 2))
+    allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dbbish(nr, nt, 2))
     allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
     allocate(self%eqpsi(nr), self%pressure(nr), self%eqth(nr, nt), self%eqpsi_2d(nr, nt))
   end subroutine alloc_common_arrays
@@ -331,7 +339,7 @@ contains
     class(abstract_eqfile_geo_type), intent(in out) :: self
     deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
     deallocate(self%eqth, self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
-    deallocate(self%eqpsi_2d)
+    deallocate(self%eqpsi_2d, self%dbm, self%dbcart, self%dbbish, self%B_psi)
   end subroutine dealloc_common_arrays
 
   subroutine finalise_eqfile(self)

@@ -19,8 +19,6 @@ module geq
 
   type, extends(abstract_eqfile_geo_type) :: geq_type
      private
-     real, allocatable, dimension (:,:)   :: B_psi
-     real, allocatable, dimension (:,:,:) :: dbm, dbcart, dbbish
    contains
      procedure :: initialise => eqin
      procedure :: calculate_gradients => geq_init
@@ -274,7 +272,6 @@ contains
     nr = self%nr ; nt = self%nt
     allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr))
     allocate(self%rc(nr), self%diam(nr), self%dbbish(nr, nt, 2))
-    allocate(self%B_psi(nr, nt), self%dbm(nr, nt, 2), self%dbcart(nr, nt, 2))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
@@ -282,7 +279,6 @@ contains
     implicit none
     class(geq_type), intent(in out) :: self
     deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
-    deallocate(self%B_psi, self%dbm, self%dbcart, self%dbbish)
   end subroutine dealloc_special_arrays
 
   !> FIXME : Add documentation
