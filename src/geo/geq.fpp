@@ -23,8 +23,6 @@ module geq
      procedure :: initialise => eqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: alloc_special_arrays => alloc_special_arrays
-     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type geq_type
 
 contains
@@ -258,18 +256,6 @@ contains
     self%initialised = .true.
     self%has_full_theta_range = .false.
   end subroutine eqin
-
-  !> FIXME : Add documentation
-  pure subroutine alloc_special_arrays(self)
-    implicit none
-    class(geq_type), intent (in out) :: self
-  end subroutine alloc_special_arrays
-
-  !> FIXME : Add documentation
-  pure subroutine dealloc_special_arrays(self)
-    implicit none
-    class(geq_type), intent(in out) :: self
-  end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self)
     use splines, only: new_spline

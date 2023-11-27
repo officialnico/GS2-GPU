@@ -15,8 +15,6 @@ module ceq
      procedure :: initialise => ceqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: alloc_special_arrays => alloc_special_arrays
-     procedure :: dealloc_special_arrays => dealloc_special_arrays
      procedure :: set_ceq_from_chease => set_ceq_from_chease
   end type ceq_type
 
@@ -192,18 +190,6 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
   end subroutine set_ceq_from_chease
-
-  !> Allocate module-level arrays
-  pure subroutine alloc_special_arrays(self)
-    implicit none
-    class(ceq_type), intent(in out) :: self
-  end subroutine alloc_special_arrays
-
-  !> Deallocate module-level arrays
-  pure subroutine dealloc_special_arrays(self)
-    implicit none
-    class(ceq_type), intent(in out) :: self
-  end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self) !Identical to geq
     use splines, only: new_spline

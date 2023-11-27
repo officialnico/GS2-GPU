@@ -171,8 +171,8 @@ module geo_utils
      procedure :: alloc_arrays => alloc_arrays_eqfile
      procedure :: dealloc_arrays => dealloc_arrays_eqfile
      procedure :: derm => derm_eqfile, eqitem => eqitem_eqfile
-     procedure(alloc_eqfile_arrays_interface), deferred :: alloc_special_arrays
-     procedure(alloc_eqfile_arrays_interface), deferred :: dealloc_special_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays_eqfile_null
+     procedure :: dealloc_special_arrays => dealloc_special_arrays_eqfile_null
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -598,6 +598,14 @@ contains
     call self%dealloc_common_arrays
     call self%dealloc_special_arrays
   end subroutine dealloc_arrays_eqfile
+
+  pure subroutine alloc_special_arrays_eqfile_null(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+  end subroutine alloc_special_arrays_eqfile_null
+
+  pure subroutine dealloc_special_arrays_eqfile_null(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+  end subroutine dealloc_special_arrays_eqfile_null
 
   pure subroutine alloc_common_arrays(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

@@ -23,8 +23,6 @@ module peq
    contains
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: alloc_special_arrays => alloc_special_arrays
-     procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type peq_base_type
 
   type, extends(peq_base_type) :: peq_type
@@ -452,18 +450,6 @@ contains
     call mp_abort('error: peq teqin is called without netcdf',.true.)
 # endif
   end subroutine teqin
-
-  !> Allocate module-level arrays
-  pure subroutine alloc_special_arrays(self)
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-  end subroutine alloc_special_arrays
-
-  !> Deallocate module-level arrays
-  pure subroutine dealloc_special_arrays(self)
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-  end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self)
     use splines, only: new_spline
