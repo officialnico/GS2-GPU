@@ -113,7 +113,6 @@ module eeq
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: dpfun => dpfun
-     procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -571,52 +570,6 @@ contains
     call delete_spline(self%beta_spl)
     call delete_periodic_spline(self%rbound_spl)
   end subroutine delete_splines
-
-  !> Calculate the derivative of f w.r.t. R, Z
-  !> - dfm(:,:,1) is deriv w.r.t. R
-  !> - def(:,:,2) is deriv w.r.t. Z
-  pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    character(1), intent(in) :: char
-    integer :: i, j, nw, nh
-    nw = self%nw ; nh = self%nh
-    i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
-
-    i = nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-
-    j = 1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))
-
-    j = nh
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))
-
-    do i = 2, nw-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
-    end do
-
-    select case (char)
-    case ('T')
-       do j = 2, nh-1
-          do i = 1, nw
-             if(f(i,j+1)-f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi)
-             else
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1))
-             end if
-          end do
-       end do
-    case('E','O')
-       do j = 2, nh-1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
-       end do
-    end select
-  end subroutine derm
 
   !> fstar is f(R,Z) interpolated at the values (r,thetain). The parameter
   !> r is the distance to the magnetic axis.

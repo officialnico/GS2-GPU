@@ -181,6 +181,7 @@ module geo_utils
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent
      procedure :: psi => psi_eqfile_cart, rpos => rpos_eqfile_cart, zpos => zpos_eqfile_cart
+     procedure :: derm => derm_cart
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces.
@@ -569,6 +570,52 @@ contains
     th = mod2pi(theta)
     zpos = self%eqitem(r, th, self%Z_psi, 'Z')
   end function zpos_eqfile
+
+  !> Calculate the derivative of f w.r.t. R, Z
+  !> - dfm(:,:,1) is deriv w.r.t. R
+  !> - def(:,:,2) is deriv w.r.t. Z
+  pure subroutine derm_cart(self, f, dfm, char)
+    use constants, only: twopi, pi
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, dimension(:,:), intent(in) :: f
+    real, dimension(:,:,:), intent(out) :: dfm
+    character(1), intent(in) :: char
+    integer :: i, j, nw, nh
+    nw = self%nw ; nh = self%nh
+    i = 1
+    dfm(i,:,1) = -0.5 * (3 * f(i,:) - 4 * f(i+1,:) + f(i+2,:))
+
+    i = nw
+    dfm(i,:,1) = 0.5 * (3 * f(i,:) - 4 * f(i-1,:) + f(i-2,:))
+
+    j = 1
+    dfm(:,j,2) = -0.5 * (3 * f(:,j) - 4 * f(:,j+1) + f(:,j+2))
+
+    j = nh
+    dfm(:,j,2) = 0.5 * (3 * f(:,j)-4 * f(:,j-1) + f(:,j-2))
+
+    do i = 2, nw-1
+       dfm(i,:,1) = 0.5 * (f(i+1,:) - f(i-1,:))
+    end do
+
+    select case (char)
+    case ('T')
+       do j = 2, nh-1
+          do i = 1, nw
+             if(f(i,j+1) - f(i,j-1) > pi) then
+                dfm(i,j,2) = 0.5 * (f(i,j+1) - f(i,j-1) - twopi)
+             else
+                dfm(i,j,2) = 0.5 * (f(i,j+1) - f(i,j-1))
+             end if
+          end do
+       end do
+    case('E','O')
+       do j = 2, nh-1
+          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j-1))
+       end do
+    end select
+  end subroutine derm_cart
 
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.

@@ -21,7 +21,6 @@ module deq
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: rhofun => rhofun
-     procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -309,53 +308,6 @@ contains
     call delete_periodic_spline(self%rbound_spl)
     call delete_spline(self%rho_spl)
   end subroutine delete_splines
-
-  !> FIXME : Add documentation
-  !> DFIT grid is equally spaced in R, Z -- this routine uses that fact and
-  !> is therefore not completely general.  It is fine for DFIT output.
-  pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    character(len=1), intent(in) :: char
-    integer :: i, j, nw, nh
-    nw = self%nw ; nh = self%nh
-    i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
-
-    i = nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-
-    j = 1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))
-
-    j = nh
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))
-
-    do i = 2, nw-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
-    end do
-
-    select case (char)
-    case ('T')
-       do j = 2, nh-1
-          do i = 1, nw
-             if (f(i,j+1)-f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1)-2.*pi)
-             else
-                dfm(i,j,2) = 0.5*(f(i,j+1)-f(i,j-1))
-             end if
-          end do
-       end do
-    case('E','O')
-       do j =2, nh-1
-          dfm (:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
-       end do
-    end select
-
-  end subroutine derm
 
   !> FIXME : Add documentation
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
