@@ -15,7 +15,6 @@ module ceq
      procedure :: initialise => ceqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -235,65 +234,6 @@ contains
     call delete_spline(self%pressure_spl)
     call delete_spline(self%beta_spl)
   end subroutine delete_splines
-
-  !> Calculate the derivative of f w.r.t to the radial
-  !> and poloidal indexes (i.e. calculate the finite
-  !> differences without dividing by
-  !> delta psi and delta theta).
-  !> - dfm(:,:,1) is the psi derivative
-  !> - dfm(:,:,2) is the theta derivative
-  !> - char specifies the periodicity in theta
-  !>   - 'E', 'O' mean continuous at theta = +/- pi
-  !>   - 'T' means a jump of 2 pi at theta = +/- pi
-  pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi
-    implicit none
-    class(ceq_type), intent(in) :: self
-    character(1), intent(in) :: char
-    real, intent(in) :: f(:,:)
-    real, intent(out) :: dfm(:,:,:)
-    integer :: i, j, nr, nt
-    nr = self%nr
-    nt = self%nt
-
-    i = 1
-    ! Radial derivative
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
-
-    i = nr
-    ! Radial derivative
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-
-    select case (char)
-    case ('E')
-       j = 1
-       ! theta derivative, periodic
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-
-       j = nt
-       dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
-    case ('O')
-       j = 1
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-
-       j = nt
-       dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
-    case ('T')
-       j = 1
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
-
-       j = nt
-       dfm(:,j,2) = 0.5*(2.*pi + f(:,2) - f(:,j-1))
-    end select
-
-    do i = 2, nr-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
-    end do
-
-    do j = 2, nt-1
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
-    end do
-  end subroutine derm
 
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)

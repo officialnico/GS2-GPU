@@ -23,7 +23,6 @@ module peq
    contains
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -495,82 +494,6 @@ contains
     call delete_spline(self%pressure_spl)
     call delete_spline(self%beta_spl)
   end subroutine delete_splines
-
-  !> FIXME : Add documentation
-  pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi
-    implicit none
-    class(peq_base_type), intent(in) :: self
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    character(1), intent(in) :: char
-    integer :: i, j, nr, nt
-    nr = self%nr
-    nt = self%nt
-
-    i = 1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
-
-    i = nr
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-
-    if (.not. self%transp) then
-       ! assume up-down symmetry for now:
-
-       select case (char)
-       case ('E')
-          j=1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j+1))
-
-          j=nt
-          dfm(:,j,2) = -0.5*(f(:,j-1)-f(:,j-1))
-       case ('O')
-          j=1
-          dfm(:,j,2) = 0.5*(f(:,j+1)+f(:,j+1))
-
-          j=nt
-          dfm(:,j,2) = -0.5*(f(:,j-1)+f(:,j-1))
-       case ('T')
-          j=1
-          dfm(:,j,2) = f(:,j+1)
-
-          j=nt
-          dfm(:,j,2) = pi - f(:,j-1)
-       end select
-
-    else
-
-       select case (char)
-       case ('E')
-          j=1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-
-          j=nt
-          dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
-       case ('O')
-          j=1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1))
-
-          j=nt
-          dfm(:,j,2) = 0.5*(f(:,2)-f(:,j-1))
-       case ('T')
-          j=1
-          dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
-
-          j=nt
-          dfm(:,j,2) = 0.5*(2.*pi + f(:,2) - f(:,j-1))
-       end select
-
-    end if
-
-    do i = 2, nr-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
-    end do
-
-    do j = 2, nt-1
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
-    end do
-  end subroutine derm
 
   !> FIXME : Add documentation
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)

@@ -170,6 +170,7 @@ module geo_utils
      procedure :: alloc_common_arrays, dealloc_common_arrays
      procedure :: alloc_arrays => alloc_arrays_eqfile
      procedure :: dealloc_arrays => dealloc_arrays_eqfile
+     procedure :: derm => derm_eqfile
      procedure(alloc_eqfile_arrays_interface), deferred :: alloc_special_arrays
      procedure(alloc_eqfile_arrays_interface), deferred :: dealloc_special_arrays
   end type abstract_eqfile_geo_type
@@ -415,6 +416,80 @@ contains
        end do
     end if
   end subroutine gradient_work
+
+  !> Calculate the derivative of f w.r.t to the radial
+  !> and poloidal indexes (i.e. calculate the finite
+  !> differences without dividing by
+  !> delta psi and delta theta).
+  !> - dfm(:,:,1) is the psi derivative
+  !> - dfm(:,:,2) is the theta derivative
+  !> - char specifies the periodicity in theta
+  !>   - 'E', 'O' mean continuous at theta = +/- pi
+  !>   - 'T' means a jump of 2 pi at theta = +/- pi
+  pure subroutine derm_eqfile(self, f, dfm, char)
+    use constants, only: pi, twopi
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, dimension(:,:), intent(in) :: f
+    real, dimension(:,:,:), intent(out) :: dfm
+    character(1), intent(in) :: char
+    integer :: i, j, nr, nt
+    nr = self%nr ; nt = self%nt
+
+    i = 1
+    dfm(i,:,1) = -0.5 * (3 * f(i,:) - 4 * f(i+1,:) + f(i+2,:))
+
+    i = nr
+    dfm(i,:,1) = 0.5 * (3 * f(i,:) - 4 * f(i-1,:) + f(i-2,:))
+
+    do i = 2, nr-1
+       dfm(i,:,1) = 0.5 * (f(i+1,:) - f(i-1,:))
+    end do
+
+    do j = 2, nt-1
+       dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j-1))
+    end do
+
+    if (self%has_full_theta_range) then
+       select case (char)
+       case ('E', 'O')
+          j = 1
+          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1))
+
+          j = nt
+          dfm(:,j,2) = 0.5 * (f(:,2) - f(:,j-1))
+       case ('T')
+          j = 1
+          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1) + twopi)
+
+          j = nt
+          dfm(:,j,2) = 0.5 * (twopi + f(:,2) - f(:,j-1))
+       end select
+
+    else
+       ! assume up-down symmetry for now:
+       select case (char)
+       case ('E')
+          j = 1
+          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j+1))
+
+          j = nt
+          dfm(:,j,2) = -0.5 * (f(:,j-1) - f(:,j-1))
+       case ('O')
+          j = 1
+          dfm(:,j,2) = 0.5 * (f(:,j+1) + f(:,j+1))
+
+          j = nt
+          dfm(:,j,2) = -0.5 * (f(:,j-1) + f(:,j-1))
+       case ('T')
+          j = 1
+          dfm(:,j,2) = f(:,j+1)
+
+          j = nt
+          dfm(:,j,2) = pi - f(:,j-1)
+       end select
+    end if
+  end subroutine derm_eqfile
 
   pure subroutine alloc_arrays_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
