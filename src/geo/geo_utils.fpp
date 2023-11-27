@@ -458,7 +458,7 @@ contains
        j = nt
        dfm(:,j,2) = 0.5 * (f(:,2) - f(:,j-1))
        if (char == 'T') then
-          dfm(:,-nt,2) = dfm(:,-nt,2) + pi
+          dfm(:,1,2) = dfm(:,1,2) + pi
           dfm(:,nt,2) = dfm(:,nt,2) + pi
        end if
 
