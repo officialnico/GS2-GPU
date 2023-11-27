@@ -15,7 +15,6 @@ module ceq
      procedure :: initialise => ceqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
      procedure :: set_ceq_from_chease => set_ceq_from_chease
@@ -234,99 +233,6 @@ contains
     call delete_spline(self%pressure_spl)
     call delete_spline(self%beta_spl)
   end subroutine delete_splines
-
-  !> Calculates fstar which is f interpolated at the location (r,theta).
-  !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
-  !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
-  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use mp, only: mp_abort
-    class(ceq_type), intent(in) :: self
-    real, intent(in) :: r_in, theta_in
-    real, dimension(:,:), intent(in) :: f
-    character(len = 1), intent(in) :: char
-    integer :: i, j, istar, jstar
-    real :: thet, sign, r
-    real :: st, dt, sr, dr
-    real, dimension(size(f,2)) :: mtheta
-
-    r = r_in
-
-    ! check for axis evaluation
-    if (r == self%eqpsi(1)) then
-       write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, self%eqpsi(1)
-       call mp_abort('no evaluation at axis allowed in eqitem')
-    end if
-
-    ! allow psi(r) to be a decreasing function
-    sign = 1.
-    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
-
-    if (r < sign * self%eqpsi(1)) then
-       write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r, sign, self%eqpsi(1)
-       call mp_abort('r < Psi_0 in eqitem')
-    endif
-
-    ! find r on psi mesh
-
-    ! disallow evaluations on or outside the surface for now
-    if (r >= self%eqpsi(self%nr)) then
-       write(*,*) 'No evaluation of eqitem allowed on or outside surface'
-       write(*,*) '(Could this be relaxed a bit?)'
-       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
-       call mp_abort('No evaluation of eqitem allowed on or outside surface')
-    endif
-
-    istar = 0
-    do i = 2, self%nr
-       if (r < sign * self%eqpsi(i)) then
-          dr = r - sign * self%eqpsi(i-1)
-          sr = sign * self%eqpsi(i) - r
-          istar = i-1
-          exit
-       end if
-    end do
-
-    ! no gradients available at axis, so do not get too close
-    if (istar == 1) then
-       write(*,*) 'Too close to axis in eqitem'
-       write(*,*) r, theta_in, self%eqpsi(1), self%eqpsi(2)
-       call mp_abort('Too close to axis in eqitem')
-    endif
-
-    ! Now do theta direction
-    thet = mod2pi(theta_in)
-
-    ! get thet on theta mesh
-    mtheta = self%eqth(1, :)
-
-    ! note that theta(1)=0 for gen_eq theta
-    jstar = -1
-    do j = 1, self%nt
-       if (jstar /= -1) cycle
-       if (thet < mtheta(j)) then
-          dt = thet - mtheta(j-1)
-          st = mtheta(j) - thet
-          jstar = j-1
-       end if
-    end do
-
-    ! treat pi separately
-    if (jstar == -1) then
-       jstar = self%nt-1
-       dt = mtheta(jstar+1) - mtheta(jstar)
-       st = 0.
-    end if
-
-    ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
-         (mtheta(jstar+1) - mtheta(jstar)))
-  end function eqitem
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)

@@ -170,7 +170,7 @@ module geo_utils
      procedure :: alloc_common_arrays, dealloc_common_arrays
      procedure :: alloc_arrays => alloc_arrays_eqfile
      procedure :: dealloc_arrays => dealloc_arrays_eqfile
-     procedure :: derm => derm_eqfile
+     procedure :: derm => derm_eqfile, eqitem => eqitem_eqfile
      procedure(alloc_eqfile_arrays_interface), deferred :: alloc_special_arrays
      procedure(alloc_eqfile_arrays_interface), deferred :: dealloc_special_arrays
   end type abstract_eqfile_geo_type
@@ -487,6 +487,106 @@ contains
     end if
   end subroutine derm_eqfile
 
+  !> Calculates fstar which is f interpolated at the location (r,theta).
+  !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
+  !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
+  real function eqitem_eqfile(self, r_in, theta_in, f, char) result(fstar)
+    use mp, only: mp_abort
+    implicit none
+    class(abstract_eqfile_geo_type), intent(in) :: self
+    real, intent(in) :: r_in, theta_in
+    real, dimension(:,:), intent(in) :: f
+    character(1), intent(in) :: char
+    integer :: i, j, istar, jstar
+    real :: thet, sign, tp, tps
+    real :: st, dt, sr, dr, r
+    real, dimension(size(f,2)) :: mtheta
+    !Copy input r to avoid any modification
+    r = r_in
+
+    ! check for axis evaluation
+    if (r == self%eqpsi(1)) then
+       write(*,*) 'no evaluation at axis allowed in eqitem'
+       write(*,*) r, theta_in, self%eqpsi(1)
+       call mp_abort('no evaluation at axis allowed in eqitem')
+    end if
+
+    ! allow psi(r) to be a decreasing function
+    sign = 1.
+    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
+
+    if (r < sign * self%eqpsi(1)) then
+       write(*,*) 'r < Psi_0 in eqitem'
+       write(*,*) r, sign, self%eqpsi(1)
+       call mp_abort('r < Psi_0 in eqitem')
+    end if
+
+    ! find r on psi mesh
+
+    ! disallow evaluations on or outside the surface for now
+    if (r >= self%eqpsi(self%nr)) then
+       write(*,*) 'No evaluation of eqitem allowed on or outside surface'
+       write(*,*) '(Could this be relaxed a bit?)'
+       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
+       call mp_abort('No evaluation of eqitem allowed on or outside surface')
+    end if
+
+    istar = 0
+    do i = 2, self%nr
+       if (r < sign * self%eqpsi(i)) then
+          dr = r - sign * self%eqpsi(i-1)
+          sr = sign * self%eqpsi(i) - r
+          istar = i-1
+          exit
+       end if
+    end do
+
+    ! no gradients available at axis, so do not get too close
+    if (istar == 1) then
+       write(*,*) 'Too close to axis in eqitem'
+       write(*,*) r, theta_in, self%eqpsi(1), self%eqpsi(2)
+       call mp_abort('Too close to axis in eqitem')
+    end if
+
+    ! Now do theta direction
+    thet = mod2pi(theta_in)
+    mtheta = self%eqth(1, :)
+    tps = 1.
+    tp = thet
+
+    if (.not. self%has_full_theta_range) then
+       ! assume up-down symmetry
+       tp = abs(thet)
+       if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
+    end if
+
+    ! note that theta(1)=0 for gen_eq theta
+    jstar = -1
+    do j = 1, self%nt
+       if (jstar /= -1) cycle
+       if (tp < mtheta(j)) then
+          dt = tp - mtheta(j-1)
+          st = mtheta(j) - tp
+          jstar = j-1
+       end if
+    end do
+
+    ! treat theta = pi separately
+    if (jstar == -1) then
+       jstar = self%nt - 1
+       dt = mtheta(jstar+1) - mtheta(jstar)
+       st = 0.
+    end if
+
+    ! use opposite area stencil to interpolate
+    fstar=f(istar    , jstar    ) * sr * st &
+         +f(istar + 1, jstar    ) * dr * st &
+         +f(istar    , jstar + 1) * sr * dt &
+         +f(istar + 1, jstar + 1) * dr * dt
+    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
+         (mtheta(jstar+1) - mtheta(jstar)))
+  end function eqitem_eqfile
+
   pure subroutine alloc_arrays_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
     call self%alloc_common_arrays
@@ -680,7 +780,6 @@ contains
        end where
     end if
   end subroutine derm_cart
-
 
   !> fstar is f(R,Z) interpolated at the values (r,thetain). The parameter
   !> r is the distance to the magnetic axis.

@@ -23,7 +23,6 @@ module geq
      procedure :: initialise => eqin
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
-     procedure :: eqitem => eqitem
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type geq_type
@@ -300,103 +299,6 @@ contains
     call delete_spline(self%pressure_spl)
     call delete_spline(self%beta_spl)
   end subroutine delete_splines
-
-  !> FIXME : Add documentation
-  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use mp, only: mp_abort
-    implicit none
-    class(geq_type), intent(in) :: self
-    real, intent(in) :: r_in
-    real, intent(in) :: theta_in
-    real, dimension(:,:), intent(in) :: f
-    character(len = 1), intent(in) :: char
-    integer :: i, j, istar, jstar
-    real :: thet, sign, tp, tps, r
-    real :: st, dt, sr, dr, rt
-    real, dimension(size(f,2)) :: mtheta
-
-    !Copy input r to avoid any modification
-    r = r_in
-
-    ! check for axis evaluation
-    if (r == self%eqpsi(1)) then
-       write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, self%eqpsi(1)
-       call mp_abort('no evaluation at axis allowed in eqitem')
-    end if
-
-    ! allow psi(r) to be a decreasing function
-    sign = 1.
-    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
-
-    if (r < sign*self%eqpsi(1)) then
-       write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r, sign, self%eqpsi(1)
-       call mp_abort('r < Psi_0 in eqitem')
-    end if
-
-    ! find r on psi mesh
-
-    ! disallow evaluations outside the plasma surface for now
-    if (r == self%eqpsi(self%nr)) then
-       rt = 0.9999999999*r
-       if (rt > self%eqpsi(self%nr)) rt = 1.0000000001*r
-       r = rt
-    end if
-
-    if (r >= self%eqpsi(self%nr)) then
-       write(*,*) 'No evaluation of eqitem allowed outside surface'
-       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
-       call mp_abort('No evaluation of eqitem allowed outside surface')
-    end if
-
-    istar = 0
-    do i = 2, self%nr
-       if (r < sign*self%eqpsi(i)) then
-          dr = r - sign*self%eqpsi(i-1)
-          sr = sign*self%eqpsi(i) - r
-          istar = i-1
-          exit
-       end if
-    end do
-
-    ! Now do theta direction
-    thet = mod2pi(theta_in)
-
-    ! assume up-down symmetry
-    tp = abs(thet)
-    tps = 1.
-    if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
-
-    ! get thet on theta mesh
-    mtheta = self%eqth(1, :)
-
-    ! note that theta(1)=0 for gen_eq theta
-    jstar = -1
-    do j = 1, self%nt
-       if (jstar /= -1) cycle
-       if (tp < mtheta(j)) then
-          dt = tp - mtheta(j-1)
-          st = mtheta(j) - tp
-          jstar = j-1
-       end if
-    end do
-
-    ! treat theta = pi separately
-    if (jstar == -1) then
-       jstar = self%nt-1
-       dt = mtheta(jstar+1) - mtheta(jstar)
-       st = 0.
-    end if
-
-    ! use opposite area stencil to interpolate
-    fstar = f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
-         (mtheta(jstar+1) - mtheta(jstar)))
-  end function eqitem
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
