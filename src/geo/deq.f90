@@ -261,6 +261,7 @@ contains
     end do
 
     nthg = -1
+    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
     self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
@@ -387,8 +388,8 @@ contains
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
-       grad = grad * daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
+       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       grad = grad * daa(1) * 0.5 * self%beta_0
     end if
   end subroutine gradient
 
@@ -421,7 +422,7 @@ contains
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     if (char == 'R') then
        rpt(1) = rp
-       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
+       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        grad = grad * daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
     end if
   end subroutine bgradient

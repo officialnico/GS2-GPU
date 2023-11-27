@@ -318,6 +318,7 @@ contains
           end if
        end do
     end do
+    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
     self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
@@ -521,6 +522,9 @@ contains
        write (*,*) 'B_T0', self%B_T
        write (*,*) 'beta', self%beta_0
     end if
+
+    ! To allow consistency with other impls in gradient etc.
+    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
     self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
@@ -659,8 +663,8 @@ contains
        ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
        ! multiply by beta_0 to get d (pressure) / d (psi)
        ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
-       grad = grad*daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
+       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       grad = grad*daa(1) * 0.5 * self%beta_0
     end if
   end subroutine gradient
 
@@ -711,7 +715,7 @@ contains
        ! multiply by psi_N to get d (pressure/pressure(1)) / d (psi/ a^2 B_a)
        ! multiply by beta_0 to get d (pressure) / d (psi)
        ! However, I think there is a problem because dpm is in units of a^2 B_a ?
-       call inter_d_cspl(self%nw, self%psi_bar, self%pressure, 1, rpt, aa, daa)
+       call inter_d_cspl(self%nw, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        do i = -nth_used, nth_used
           grad = grad*daa(1) * 0.5 * self%beta_0 / (self%psi_a - self%psi_0)
        end do
