@@ -460,7 +460,7 @@ contains
        if (char == 'T') then
           dfm(:,-nt,2) = dfm(:,-nt,2) + pi
           dfm(:,nt,2) = dfm(:,nt,2) + pi
-       end select
+       end if
 
     else
        ! assume up-down symmetry for now:
