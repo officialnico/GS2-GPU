@@ -609,6 +609,7 @@ contains
     allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dbbish(nr, nt, 2))
     allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
     allocate(self%eqpsi(nr), self%pressure(nr), self%eqth(nr, nt), self%eqpsi_2d(nr, nt))
+    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr), self%rc(nr), self%diam(nr))
   end subroutine alloc_common_arrays
 
   pure subroutine dealloc_common_arrays(self)
@@ -616,6 +617,7 @@ contains
     deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
     deallocate(self%eqth, self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
     deallocate(self%eqpsi_2d, self%dbm, self%dbcart, self%dbbish, self%B_psi)
+    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
   end subroutine dealloc_common_arrays
 
   subroutine finalise_eqfile(self)

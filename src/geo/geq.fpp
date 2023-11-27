@@ -263,17 +263,12 @@ contains
   pure subroutine alloc_special_arrays(self)
     implicit none
     class(geq_type), intent (in out) :: self
-    integer :: nr, nt
-    nr = self%nr ; nt = self%nt
-    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr))
-    allocate(self%rc(nr), self%diam(nr), self%dbbish(nr, nt, 2))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(geq_type), intent(in out) :: self
-    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
   end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self)

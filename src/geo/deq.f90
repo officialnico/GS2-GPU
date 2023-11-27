@@ -269,17 +269,14 @@ contains
     class(deq_type), intent(in out) :: self
     integer :: nw, nh, nrho
     nw = self%nw ; nh = self%nh ; nrho = self%nrho
-    allocate (self%rho_mid(nrho), self%psi_mid(nrho))
-    allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%beta(nw))
-    allocate (self%eq_R(nw), self%eq_Z(nh))
+    allocate (self%rho_mid(nrho), self%psi_mid(nrho), self%eq_R(nw), self%eq_Z(nh))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(deq_type), intent(in out) :: self
-    deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z)
-    deallocate(self%thetab, self%r_bound)
+    deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z, self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self)

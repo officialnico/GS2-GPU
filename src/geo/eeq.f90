@@ -531,19 +531,14 @@ contains
 
   pure subroutine alloc_special_arrays(self)
     class(eeq_base_type), intent(in out) :: self
-    integer :: nw, nh
-    nw = self%nw ; nh = self%nh
-    allocate (self%psi_bar(nw), self%fp(nw), self%qsf(nw), self%beta(nw))
-    allocate (self%eq_R(nw), self%eq_Z(nh))
+    allocate (self%eq_R(self%nw), self%eq_Z(self%nh))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    deallocate(self%psi_bar, self%fp, self%qsf, self%beta)
-    deallocate(self%eq_R, self%eq_Z)
-    deallocate(self%thetab, self%r_bound)
+    deallocate(self%eq_R, self%eq_Z, self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
   subroutine setup_splines(self)
