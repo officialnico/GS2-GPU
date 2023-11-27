@@ -177,7 +177,6 @@ module geo_utils
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
      integer :: nw, nh, nbbbs
      real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
-     real, allocatable, dimension (:,:) :: eq_psi
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent
@@ -536,7 +535,7 @@ contains
     else if (r==1. .and. theta == 0.0) then
        psi = self%psi_a
     else
-       psi = self%eqitem(r, theta, self%eq_psi, '?')
+       psi = self%eqitem(r, theta, self%eqpsi_2d, '?')
     end if
   end function psi_eqfile_cart
 
