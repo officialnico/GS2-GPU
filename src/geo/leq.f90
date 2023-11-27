@@ -81,14 +81,13 @@ contains
     if (.not. self%initialised) then
        self%surf = inputs%surf
        self%beta_0 = 1.
-       self%thetaShift = inputs%thShift ! Should this always be updated?
        self%nr = 3
        self%nt = self%surf%nt
        call self%alloc_arrays()
     end if
 
     dr = [-self%surf%dr, 0., self%surf%dr]
-
+    self%thetaShift = inputs%thShift ! Always update this
     ! Why do we set pressure to -dr here?
     self%pressure = -dr
     self%eqpsi = 1 + dr
