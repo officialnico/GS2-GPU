@@ -35,7 +35,6 @@ module leq
      type(flux_surface_type) :: surf
    contains
      procedure :: initialise => leqin
-     procedure :: calculate_gradients => leq_init
      procedure :: finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
      procedure :: rpos => rpos
@@ -149,28 +148,6 @@ contains
     self%initialised = .false.
     call self%dealloc_arrays
   end subroutine leq_finish
-
-  !> Initialise leq module
-  subroutine leq_init(self)
-    implicit none
-    class(leq_type), intent(in out) :: self
-    call self%derm(self%eqth, self%dtm, 'T')
-    call self%derm(self%R_psi, self%drm, 'E')
-    call self%derm(self%Z_psi, self%dzm, 'O')
-    call self%derm(self%eqpsi_2d, self%dpm, 'E')
-
-    ! below is actually grad(rho) instead of grad(psi),
-    ! and 'cartesian' refers to (R,Z) coordinates -- MAB
-    ! grad(psi) in cartesian form
-    call self%eqdcart(self%dpm, self%dpcart)
-    ! grad(psi) in Bishop form
-    call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(theta) in cartesian form
-    call self%eqdcart(self%dtm, self%dtcart)
-    ! grad(theta) in Bishop form
-    call self%eqdbish(self%dtcart, self%dtbish)
-  end subroutine leq_init
 
   !> Finish the leq setup
   subroutine leq_finish_setup(self)

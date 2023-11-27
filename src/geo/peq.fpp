@@ -21,7 +21,6 @@ module peq
      private
      logical :: transp
    contains
-     procedure :: calculate_gradients => peq_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: gradient => gradient
@@ -474,26 +473,6 @@ contains
     class(peq_base_type), intent(in out) :: self
     deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
   end subroutine dealloc_special_arrays
-
-  !> FIXME : Add documentation
-  subroutine peq_init(self)
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-    call self%derm(self%eqth, self%dtm, 'T')
-    call self%derm(self%R_psi, self%drm, 'E')
-    call self%derm(self%Z_psi, self%dzm, 'O')
-    call self%derm(self%eqpsi_2d, self%dpm, 'E')
-
-    ! grad(psi) in cartesian form
-    call self%eqdcart(self%dpm, self%dpcart)
-    ! grad(psi) in Bishop form
-    call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(theta) in cartesian form
-    call self%eqdcart(self%dtm, self%dtcart)
-    ! grad(theta) in Bishop form
-    call self%eqdbish(self%dtcart, self%dtbish)
-  end subroutine peq_init
 
   subroutine setup_splines(self)
     use splines, only: new_spline

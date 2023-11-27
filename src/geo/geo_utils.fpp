@@ -116,7 +116,7 @@ module geo_utils
      real, allocatable, dimension(:) :: eqpsi, pressure
    contains
      procedure(initialise_interface), deferred :: initialise
-     procedure(noargs_interface), deferred :: finalise, calculate_gradients, finish_setup
+     procedure(noargs_interface), deferred :: finalise, finish_setup
      procedure(rtheta_interface), deferred :: rpos, zpos, invr, psi, rfun
      procedure(rp_interface), deferred :: rcenter, diameter
      procedure(pbar_interface), deferred :: btori, dbtori, qfun, pfun, dpfun, betafun
@@ -147,7 +147,9 @@ module geo_utils
      !>   - ntgrid: lower index of theta array is -ntgrid
      procedure(gradient_interface), deferred :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
+     procedure(derm_interface), deferred :: derm
      procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
+     procedure :: calculate_gradients
      procedure :: eqdcart, eqdbish
   end type abstract_geo_type
 
@@ -212,7 +214,6 @@ module geo_utils
        integer, intent(in) :: nth_used, ntm
      end subroutine gradient_interface
 
-     ! It might make sense to convert this to a function?
      real function eqitem_interface(self, r_in, theta_in, f, char) result(fstar)
        import
        class(abstract_geo_type), intent(in) :: self
@@ -220,6 +221,14 @@ module geo_utils
        real, dimension(:, :), intent(in) :: f
        character(len=1), intent(in) :: char
      end function eqitem_interface
+
+     pure subroutine derm_interface(self, f, dfm, char)
+       import
+       class(abstract_geo_type), intent(in) :: self
+       real, dimension(:, :), intent(in) :: f
+       real, dimension(:, :, :), intent(out) :: dfm
+       character(len=1), intent(in) :: char
+     end subroutine derm_interface
 
      pure subroutine alloc_arrays_interface(self)
        import
@@ -253,6 +262,34 @@ module geo_utils
   end interface
 
 contains
+
+  !> Given theta, R, Z, B and psi on 2D grids calculate the index space
+  !> derivatives in the two grid dimensions and use these to find gradients
+  !> in cartesian and Bishop space.
+  pure subroutine calculate_gradients(self)
+    implicit none
+    class(abstract_geo_type), intent(in out) :: self
+    call self%derm(self%eqth, self%dtm, 'T')
+    call self%derm(self%R_psi, self%drm, 'E')
+    call self%derm(self%Z_psi, self%dzm, 'O')
+    call self%derm(self%B_psi, self%dbm, 'E')
+    call self%derm(self%eqpsi_2d, self%dpm, 'E')
+
+    ! grad(psi) in cartesian form
+    call self%eqdcart(self%dpm, self%dpcart)
+    ! grad(psi) in Bishop form
+    call self%eqdbish(self%dpcart, self%dpbish)
+
+    ! grad(B) in cartesian form
+    call self%eqdcart(self%dbm, self%dbcart)
+    ! grad(B) in Bishop form
+    call self%eqdbish(self%dbcart, self%dbbish)
+
+    ! grad(theta) in cartesian form
+    call self%eqdcart(self%dtm, self%dtcart)
+    ! grad(theta) in Bishop form
+    call self%eqdbish(self%dtcart, self%dtbish)
+  end subroutine calculate_gradients
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
   !> w.r.t. (R,Z).

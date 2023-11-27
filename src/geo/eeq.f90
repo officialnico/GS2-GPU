@@ -108,7 +108,6 @@ module eeq
   type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
    contains
-     procedure :: calculate_gradients => efit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rcenter => rcenter
@@ -546,37 +545,6 @@ contains
     deallocate(self%eq_R, self%eq_Z)
     deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
-
-  !> Calculate the following arrays:
-  !> - eqth, which is theta on an R,Z grid
-  !> - dpm, which is (d psi / d R) and (d psi / d Z) on an R,Z grid
-  !> - dtm, which is (d theta / d R) and (d theta / d Z) on an R,Z grid
-  subroutine efit_init(self)
-    implicit none
-    class(eeq_base_type), intent(in out) :: self
-    if (verbosity > 2) write(6,*) "efit_init: do i"
-    ! dpm(:,:,1) is d psi / d R
-    ! dpm(:,:,2) is d psi / d Z
-    ! Both on an R,Z grid
-    if (verbosity > 2) write(6,*) "efit_init: derm"
-    call self%derm(self%eqpsi_2d, self%dpm, 'E')
-    if (verbosity > 2) write(6,*) "efit_init: tderm"
-    call self%derm(self%eqth, self%dtm, 'T')
-    call self%derm(self%R_psi, self%drm, 'E')
-    call self%derm(self%Z_psi, self%dzm, 'O')
-
-    ! grad(psi) in cartesian form
-    call self%eqdcart(self%dpm, self%dpcart)
-    ! grad(psi) in Bishop form
-    call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(theta) in cartesian form
-    call self%eqdcart(self%dtm, self%dtcart)
-    ! grad(theta) in Bishop form
-    call self%eqdbish(self%dtcart, self%dtbish)
-
-    if (verbosity > 2) write(6,*) "efit_init: finished"
-  end subroutine efit_init
 
   subroutine setup_splines(self)
     use splines, only: new_spline, new_periodic_spline

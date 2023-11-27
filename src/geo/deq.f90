@@ -16,7 +16,6 @@ module deq
      type(spline) :: rho_spl
    contains
      procedure :: initialise => dfitin
-     procedure :: calculate_gradients => dfit_init
      procedure :: setup_splines => setup_splines
      procedure :: delete_splines => delete_splines
      procedure :: rcenter => rcenter
@@ -285,27 +284,6 @@ contains
     deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z)
     deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
-
-  !> FIXME : Add documentation
-  subroutine dfit_init(self)
-    implicit none
-    class(deq_type), intent(in out) :: self
-    call self%derm(self%eqpsi_2d, self%dpm, 'E')
-    call self%derm(self%eqth, self%dtm, 'T')
-    call self%derm(self%R_psi, self%drm, 'E')
-    call self%derm(self%Z_psi, self%dzm, 'O')
-
-    ! grad(psi) in cartesian form
-    call self%eqdcart(self%dpm, self%dpcart)
-    ! grad(psi) in Bishop form
-    call self%eqdbish(self%dpcart, self%dpbish)
-
-    ! grad(theta) in cartesian form
-    call self%eqdcart(self%dtm, self%dtcart)
-    ! grad(theta) in Bishop form
-    call self%eqdbish(self%dtcart, self%dtbish)
-  end subroutine dfit_init
-
 
   subroutine setup_splines(self)
     use splines, only: new_spline, new_periodic_spline
