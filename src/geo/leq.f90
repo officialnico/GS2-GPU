@@ -157,6 +157,7 @@ contains
 
   !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
   !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
+  !> This is the same as derm_eqfile other than the lower nt bound is -nt here rather than 1
   pure subroutine derm(self, f, dfm, char)
     use constants, only: pi
     implicit none
@@ -198,16 +199,12 @@ contains
     ! (iii) equispaced grid in theta, and
     !  (iv) -nt and +nt correspond to -pi, +pi and are at the same place
     dfm(:,-nt,2) = 0.5*(f(:,-nt+1)-f(:,nt-1))
-    dfm(:,nt,2) = dfm(:,-nt,2)
-
+    dfm(:, nt,2) = dfm(:,-nt,2)
     ! `T` flag to denotes trivial derivative when f=theta,
     ! where care is needed at end points.
     if (char .eq. 'T') then
-       j=-nt
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,nt-1)+2.*pi)
-
-       j=nt
-       dfm(:,j,2) = 0.5*(2.*pi + f(:,-nt+1) - f(:,j-1))
+       dfm(:,-nt,2) = dfm(:,-nt,2) + pi
+       dfm(:,nt,2) = dfm(:,nt,2) + pi
     end if
   end subroutine derm
 

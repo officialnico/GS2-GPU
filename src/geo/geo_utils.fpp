@@ -450,20 +450,16 @@ contains
        dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j-1))
     end do
 
+    ! Handle periodic boundary
     if (self%has_full_theta_range) then
-       select case (char)
-       case ('E', 'O')
-          j = 1
-          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1))
+       j = 1
+       dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1))
 
-          j = nt
-          dfm(:,j,2) = 0.5 * (f(:,2) - f(:,j-1))
-       case ('T')
-          j = 1
-          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1) + twopi)
-
-          j = nt
-          dfm(:,j,2) = 0.5 * (twopi + f(:,2) - f(:,j-1))
+       j = nt
+       dfm(:,j,2) = 0.5 * (f(:,2) - f(:,j-1))
+       if (char == 'T') then
+          dfm(:,-nt,2) = dfm(:,-nt,2) + pi
+          dfm(:,nt,2) = dfm(:,nt,2) + pi
        end select
 
     else
@@ -471,22 +467,22 @@ contains
        select case (char)
        case ('E')
           j = 1
-          dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j+1))
+          dfm(:,j,2) = 0.0
 
           j = nt
-          dfm(:,j,2) = -0.5 * (f(:,j-1) - f(:,j-1))
+          dfm(:,j,2) = 0.0
        case ('O')
-          j = 1
-          dfm(:,j,2) = 0.5 * (f(:,j+1) + f(:,j+1))
-
-          j = nt
-          dfm(:,j,2) = -0.5 * (f(:,j-1) + f(:,j-1))
-       case ('T')
           j = 1
           dfm(:,j,2) = f(:,j+1)
 
           j = nt
-          dfm(:,j,2) = pi - f(:,j-1)
+          dfm(:,j,2) = -f(:,j-1)
+       case ('T')
+          j = 1
+          dfm(:,j,2) = f(:,j+1) !f(:,j+1) - f(:,j)
+
+          j = nt
+          dfm(:,j,2) = pi - f(:,j-1) !f(:, j) - f(:, j-1)
        end select
     end if
   end subroutine derm_eqfile
@@ -678,7 +674,7 @@ contains
        dfm(:,j,2) = 0.5 * (f(:, j+1) - f(:, j-1))
     end do
 
-    if (char == 'T') then
+    if (char == 'T') then !Could a similar approach be ported to derm_eqfile?
        where(dfm(:, :, 2) > pi * 0.5)
           dfm(:, :, 2) = dfm(:, :, 2) - pi
        end where
