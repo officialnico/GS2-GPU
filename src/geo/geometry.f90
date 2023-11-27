@@ -943,12 +943,11 @@ contains
       ! effectively just have an optimisation (I think)
       if (iflux == 1) then
          rp = rpofrho(rho, fort11_unit)
+         R_geo = rcenter(rpmax)
       else
          rp = rho
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
-
-      if (iflux == 1) R_geo = rcenter(rpmax)
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
       if (efit_eq .or. dfit_eq) then
