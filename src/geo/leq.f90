@@ -115,6 +115,7 @@ contains
     rmaj = self%surf%Rmaj
     nthg = self%nt * 2 !Output is equivalent to ntheta_input
     self%initialised = .true.
+    self%has_full_theta_range = .true.
   end subroutine leqin
 
   !> Allocate internal module-level arrays
@@ -150,7 +151,6 @@ contains
 
   !> Initialise leq module
   subroutine leq_init(self)
-    use constants, only: pi
     implicit none
     class(leq_type), intent(in out) :: self
     call self%derm(self%eqth, self%dtm, 'T')

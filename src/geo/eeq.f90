@@ -321,6 +321,7 @@ contains
     end do
 
     self%initialised = .true.
+    self%has_full_theta_range = .true.
   end subroutine gs2din
 
   !> This subroutine reads an EFIT output file containing
@@ -523,6 +524,7 @@ contains
     end if
 
     self%initialised = .true.
+    self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)
 2020 format (5e16.9)
 2022 format (2i5)

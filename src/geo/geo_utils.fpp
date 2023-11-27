@@ -72,7 +72,11 @@ module geo_utils
   end type geo_input_type
 
   type, abstract :: abstract_geo_type
+     !> Has this instance been initialised
      logical :: initialised = .false.
+     !> Does this implementation have the full or half theta grid? If only half
+     !> then we assume up-down symmetry and use this to set gradients etc.
+     logical :: has_full_theta_range = .false.
      !> Typically the number of radial and theta grid points. Not used
      !> for cartesian like types (e.g. eeq)
      integer :: nr, nt

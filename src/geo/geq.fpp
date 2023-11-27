@@ -263,6 +263,7 @@ contains
 #endif
 
     self%initialised = .true.
+    self%has_full_theta_range = .false.
   end subroutine eqin
 
   !> FIXME : Add documentation
@@ -286,7 +287,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine geq_init(self)
-    use constants, only: pi
     implicit none
     class(geq_type), intent(in out) :: self
     call self%derm(self%eqth, self%dtm, 'T')

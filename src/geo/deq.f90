@@ -263,6 +263,7 @@ contains
 
     nthg = -1
     self%initialised = .true.
+    self%has_full_theta_range = .true.
 2020 format (5e16.8)
 
   end subroutine dfitin

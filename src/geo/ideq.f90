@@ -223,6 +223,7 @@ contains
     deallocate (d%grid)
 
     self%initialised = .true.
+    self%has_full_theta_range = .false.
   end subroutine idfitin
 
   !> FIXME : Add documentation
@@ -246,7 +247,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine idfit_init(self)
-    use constants, only: pi
     implicit none
     class(ideq_type), intent(in out) :: self
     call self%derm(self%eqth, self%dtm, 'T')

@@ -120,6 +120,7 @@ contains
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
 
     self%initialised = .true.
+    self%has_full_theta_range = .true.
   end subroutine ceqin
 
   !> Set the ceq module-level variables from the read_chease module
@@ -217,7 +218,6 @@ contains
   !>
   !> Assumes data has already been read in
   pure subroutine ceq_init(self)
-    use constants, only: pi
     implicit none
     class(ceq_type), intent(in out) :: self
     call self%derm(self%eqth, self%dtm, 'T')

@@ -247,6 +247,7 @@ contains
 
     self%transp = .false.
     self%initialised = .true.
+    self%has_full_theta_range = .false.
 # else
     call mp_abort('error: peq eqin is called without netcdf',.true.)
 # endif
@@ -449,6 +450,7 @@ contains
 
     self%transp = .true.
     self%initialised = .true.
+    self%has_full_theta_range = .true.
 # else
     call mp_abort('error: peq teqin is called without netcdf',.true.)
 # endif
@@ -473,7 +475,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine peq_init(self)
-    use constants, only: twopi, pi
     implicit none
     class(peq_base_type), intent(in out) :: self
     call self%derm(self%eqth, self%dtm, 'T')
