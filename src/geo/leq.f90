@@ -81,7 +81,7 @@ contains
     if (.not. self%initialised) then
        self%surf = inputs%surf
        self%beta_0 = 1.
-       self%thetaShift = inputs%thShift
+       self%thetaShift = inputs%thShift ! Should this always be updated?
        self%nr = 3
        self%nt = self%surf%nt
        call self%alloc_arrays()
@@ -110,6 +110,9 @@ contains
     B_T0 = -1.0
     avgrmid = 1.0
     rmaj = self%surf%Rmaj
+    self%psi_0 = psi_0_out ; self%psi_a = psi_a_out
+    self%B_T = B_T0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
+    self%aminor = avgrmid
     nthg = self%nt * 2 !Output is equivalent to ntheta_input
     self%B_psi = 0.0
     self%initialised = .true.
