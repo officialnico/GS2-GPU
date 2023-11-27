@@ -575,7 +575,7 @@ contains
   !> - dfm(:,:,1) is deriv w.r.t. R
   !> - def(:,:,2) is deriv w.r.t. Z
   pure subroutine derm_cart(self, f, dfm, char)
-    use constants, only: twopi, pi
+    use constants, only: pi
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
@@ -602,14 +602,12 @@ contains
     select case (char)
     case ('T')
        do j = 2, nh-1
-          do i = 1, nw
-             if(f(i,j+1) - f(i,j-1) > pi) then
-                dfm(i,j,2) = 0.5 * (f(i,j+1) - f(i,j-1) - twopi)
-             else
-                dfm(i,j,2) = 0.5 * (f(i,j+1) - f(i,j-1))
-             end if
-          end do
+          dfm(:,j,2) = 0.5 * (f(:, j+1) - f(:, j-1))
        end do
+
+       where(dfm(:, :, 2) > pi * 0.5)
+          dfm(:, :, 2) = dfm(:, :, 2) - pi
+       end where
     case('E','O')
        do j = 2, nh-1
           dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,j-1))
