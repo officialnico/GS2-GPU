@@ -149,7 +149,6 @@ module geo_utils
      !>   - ntgrid: lower index of theta array is -ntgrid
      procedure :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
-     procedure(derm_interface), deferred :: derm
      procedure :: calculate_gradients, gradient_work
      procedure :: eqdcart, eqdbish
      procedure :: alloc_common_arrays, dealloc_common_arrays
@@ -157,6 +156,7 @@ module geo_utils
      procedure :: dealloc_arrays => dealloc_arrays
      procedure :: alloc_special_arrays => alloc_special_arrays_null
      procedure :: dealloc_special_arrays => dealloc_special_arrays_null
+     procedure :: derm => derm
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
@@ -175,7 +175,7 @@ module geo_utils
      procedure :: diameter => diameter_eqfile, rcenter => rcenter_eqfile
      procedure :: psi => psi_eqfile, rfun => psi_eqfile
      procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
-     procedure :: derm => derm_eqfile, eqitem => eqitem_eqfile
+     procedure :: eqitem => eqitem_eqfile
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -464,10 +464,10 @@ contains
   !> - char specifies the periodicity in theta
   !>   - 'E', 'O' mean continuous at theta = +/- pi
   !>   - 'T' means a jump of 2 pi at theta = +/- pi
-  pure subroutine derm_eqfile(self, f, dfm, char)
+  pure subroutine derm(self, f, dfm, char)
     use constants, only: pi, twopi
     implicit none
-    class(abstract_eqfile_geo_type), intent(in) :: self
+    class(abstract_geo_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
     real, dimension(:,:,:), intent(out) :: dfm
     character(1), intent(in) :: char
@@ -490,11 +490,13 @@ contains
 
     ! Handle periodic boundary
     if (self%has_full_theta_range) then
-       j = 1
-       dfm(:,j,2) = 0.5 * (f(:,j+1) - f(:,nt-1))
-
-       j = nt
-       dfm(:,j,2) = 0.5 * (f(:,2) - f(:,j-1))
+       ! Compute df/dtheta at -pi,+pi assuming
+       !   (i) periodicity in theta,
+       !  (ii) endpoints at -pi,+pi
+       ! (iii) equispaced grid in theta, and
+       !  (iv) 1 and nt correspond to -pi, +pi and are at the same place
+       dfm(:,1,2) = 0.5 * (f(:,2) - f(:,nt-1))
+       dfm(:,nt,2) = dfm(:, 1, 2)
        if (char == 'T') then
           dfm(:,1,2) = dfm(:,1,2) + pi
           dfm(:,nt,2) = dfm(:,nt,2) + pi
@@ -523,7 +525,7 @@ contains
           dfm(:,j,2) = pi - f(:,j-1) !f(:, j) - f(:, j-1)
        end select
     end if
-  end subroutine derm_eqfile
+  end subroutine derm
 
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)

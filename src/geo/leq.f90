@@ -50,7 +50,6 @@ module leq
      procedure :: betafun => betafun
      procedure :: psi => psi
      procedure :: rfun => rfun
-     procedure :: derm => derm
      procedure :: eqitem => eqitem
      procedure :: geo_Miller => geo_Miller
      procedure :: geo_global => geo_global
@@ -129,58 +128,6 @@ contains
     class(leq_type), intent(in out) :: self
     call self%calculate_gradients
   end subroutine leq_finish_setup
-
-  !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
-  !> assuming periodicity in theta, `f(:,1) = f(:,nt)`.
-  pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi
-    implicit none
-    class(leq_type), intent(in) :: self
-    !> 2D array to be differentiated, indices radius, theta
-    !> @note Theta grid end points assumed to be \[\pm \pi\]
-    real, dimension(:,:), intent(in) :: f
-    !> Derivatives of f:
-    !>   dfm(nr,1:nt,1) = df/dr
-    !>   dfm(nr,1:nt,2) = df/dtheta
-    real, dimension(:,:,:), intent(out) :: dfm
-    !> Specifies symmetry constraint at end of grid
-    !>   "O" is odd in theta at \(\pm \pi\) (deprecated)
-    !>   "E" is even in theta at \(\pm \pi\) (deprecated)
-    !>   "T" denotes theta which trivially increases in theta at \(\pm \pi\)
-    character(1), intent(in) :: char
-    integer :: i, j, nr, nt
-    nr = self%nr ; nt = self%nt
-    ! Use second-order one-sided finite-differences for extreme radial points.
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))
-
-    i=nr
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))
-
-    ! Compute df/dr
-    do i = 2, nr-1
-       dfm(i,:,1) = 0.5*(f(i+1,:)-f(i-1,:))
-    end do
-
-    ! Compute df/dtheta (except at endpoints -pi,pi)
-    do j = 2, nt-1
-       dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
-    end do
-
-    ! Compute df/dtheta at -pi,+pi assuming
-    !   (i) periodicity in theta,
-    !  (ii) endpoints at -pi,+pi
-    ! (iii) equispaced grid in theta, and
-    !  (iv) -1 and nt correspond to -pi, +pi and are at the same place
-    dfm(:, 1,2) = 0.5*(f(:,2)-f(:,nt-1))
-    dfm(:, nt,2) = dfm(:,1,2)
-    ! `T` flag to denotes trivial derivative when f=theta,
-    ! where care is needed at end points.
-    if (char .eq. 'T') then
-       dfm(:,1,2) = dfm(:,1,2) + pi
-       dfm(:,nt,2) = dfm(:,nt,2) + pi
-    end if
-  end subroutine derm
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
