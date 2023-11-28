@@ -5,84 +5,82 @@ module gs2d
   public :: write_gs2d, read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
   public :: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
 
-  real, dimension(:), allocatable :: ps,amin_gs2d,q,f,p,pp
-  real, dimension(:), allocatable :: rsep,zsep,rgrid,zgrid
+  real, dimension(:), allocatable :: ps, amin_gs2d, q, f, p, pp
+  real, dimension(:), allocatable :: rsep, zsep, rgrid, zgrid
   real, dimension(:,:), allocatable :: psi
-  real :: r0,a,rmag,zmag
-  real :: psmin,psip,b0,ippsi
-  integer :: nsurf,nsep,nr,nz
+  real :: r0, a, rmag, zmag, psmin, psip, b0, ippsi
+  integer :: nsurf, nsep, nr, nz
 
 contains
 
   !> FIXME : Add documentation
   subroutine read_gs2d(filename)
     implicit none
-!CMR, 2/3/2006: lengthen the string filename to 80
-    character(len=80), intent(in) :: filename
-    character(len=80) :: line
-    integer :: i
-    open(1,file=trim(filename),status='unknown')
-    do i=1,7
-       read(1,fmt='(a80)') line
-    enddo
-    read(1,*) r0,a,rmag,zmag
-    read(1,fmt='(a80)') line ; read(1,*) psmin,psip,b0,ippsi
-    read(1,fmt='(a80)') line ; read(1,*) nsurf
+    character(len = *), intent(in) :: filename
+    character(len = 80) :: line
+    integer :: i, unit
+    open(newunit = unit, file = trim(filename) , status = 'unknown')
+    do i = 1, 7
+       read(unit, fmt='(a80)') line
+    end do
+    read(unit, *) r0,a,rmag,zmag
+    read(unit, fmt='(a80)') line ; read(unit, *) psmin, psip, b0, ippsi
+    read(unit, fmt='(a80)') line ; read(unit, *) nsurf
     allocate(ps(nsurf),amin_gs2d(nsurf),q(nsurf),f(nsurf),p(nsurf),pp(nsurf))
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') ps
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') amin_gs2d
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') q
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') f
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') p
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') pp
-    read(1,fmt='(T22,I6)') nsep
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') ps
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') amin_gs2d
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') q
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') f
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') p
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') pp
+    read(unit, fmt='(T22,I6)') nsep
     allocate(rsep(nsep),zsep(nsep))
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') rsep
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') zsep
-    read(1,fmt='(a80)') line ; read(1,*) nr,nz
-    allocate(rgrid(nr),zgrid(nz),psi(nr,nz))
-    read(1,fmt='(a80)') line ; read(1,*) rgrid
-    read(1,fmt='(a80)') line ; read(1,*) zgrid
-
-    read(1,fmt='(a80)') line ; read(1,fmt='(1p,8e16.8)') psi
-    close(1)
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') rsep
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') zsep
+    read(unit, fmt='(a80)') line ; read(unit, *) nr,nz
+    allocate(rgrid(nr), zgrid(nz), psi(nr, nz))
+    read(unit, fmt='(a80)') line ; read(unit, *) rgrid
+    read(unit, fmt='(a80)') line ; read(unit, *) zgrid
+    read(unit, fmt='(a80)') line ; read(unit, fmt='(1p,8e16.8)') psi
+    close(unit)
   end subroutine read_gs2d
 
   !> FIXME : Add documentation
   subroutine write_gs2d(filename)
     implicit none
-    character(len=40), intent(in) :: filename
-    open(1,file=filename,status='unknown')
-    write(1,fmt='("GS2 input file",T30,"Produced by GS2D at:",a40)') ' '
-    write(1,fmt='(A80/,"GS2D Equilibrium Boundary description:",3(/A80))') repeat('-',80),' ',' ',repeat('-',80)
-    write(1,fmt='(T2,"r0",T15,"a",T27,"rmag",T39,"zmag (m)"/1p,4e16.8)') r0,a,rmag,zmag
-    write(1,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
-    write(1,fmt='("nfs"/I6)') nsurf
-    write(1,fmt='("Psi on 1d grid (for FS quantities) (T)")')
-    write(1,fmt='(1p,8e16.8)') ps
-    write(1,fmt='("amin_gs2d (m)")')
-    write(1,fmt='(1p,8e16.8)') amin_gs2d
-    write(1,fmt='("q")')
-    write(1,fmt='(1p,8e16.8)') q
-    write(1,fmt='("f =r B_phi (Tm)")')
-    write(1,fmt='(1p,8e16.8)') f
-    write(1,fmt='("p (Pa)")')
-    write(1,fmt='(1p,8e16.8)') p
-    write(1,fmt='("dp/dpsi (Pa/Wb)")')
-    write(1,fmt='(1p,8e16.8)') pp
-    write(1,fmt='("No of points on LCFS=",I6)') nsep
-    write(1,fmt='("r(j) (m) on LCFS")')
-    write(1,fmt='(1p,8e16.8)') rsep
-    write(1,fmt='("z(j) (m) on LCFS")')
-    write(1,fmt='(1p,8e16.8)') zsep
-    write(1,fmt='("NR",T14,"NZ"/2I6)') NR, NZ
-    write(1,fmt='("rgrid (m)")')
-    write(1,fmt='(1p,8e16.8)') rgrid
-    write(1,fmt='("zgrid (m)")')
-    write(1,fmt='(1p,8e16.8)') zgrid
-    write(1,fmt='("Psi on grid (Wb) : NB Br=(1/2pi r)*dpsi/dz")')
-    write(1,fmt='(1p,8e16.8)') psi
-    close(1)
+    character(len = *), intent(in) :: filename
+    integer :: unit
+    open(newunit = unit, file = filename, status = 'unknown')
+    write(unit, fmt='("GS2 input file",T30,"Produced by GS2D at:",a40)') ' '
+    write(unit, fmt='(A80/,"GS2D Equilibrium Boundary description:",3(/A80))') repeat('-',80),' ',' ',repeat('-',80)
+    write(unit, fmt='(T2,"r0",T15,"a",T27,"rmag",T39,"zmag (m)"/1p,4e16.8)') r0,a,rmag,zmag
+    write(unit, fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
+    write(unit, fmt='("nfs"/I6)') nsurf
+    write(unit, fmt='("Psi on 1d grid (for FS quantities) (T)")')
+    write(unit, fmt='(1p,8e16.8)') ps
+    write(unit, fmt='("amin_gs2d (m)")')
+    write(unit, fmt='(1p,8e16.8)') amin_gs2d
+    write(unit, fmt='("q")')
+    write(unit, fmt='(1p,8e16.8)') q
+    write(unit, fmt='("f =r B_phi (Tm)")')
+    write(unit, fmt='(1p,8e16.8)') f
+    write(unit, fmt='("p (Pa)")')
+    write(unit, fmt='(1p,8e16.8)') p
+    write(unit, fmt='("dp/dpsi (Pa/Wb)")')
+    write(unit, fmt='(1p,8e16.8)') pp
+    write(unit, fmt='("No of points on LCFS=",I6)') nsep
+    write(unit, fmt='("r(j) (m) on LCFS")')
+    write(unit, fmt='(1p,8e16.8)') rsep
+    write(unit, fmt='("z(j) (m) on LCFS")')
+    write(unit, fmt='(1p,8e16.8)') zsep
+    write(unit, fmt='("NR",T14,"NZ"/2I6)') NR, NZ
+    write(unit, fmt='("rgrid (m)")')
+    write(unit, fmt='(1p,8e16.8)') rgrid
+    write(unit, fmt='("zgrid (m)")')
+    write(unit, fmt='(1p,8e16.8)') zgrid
+    write(unit, fmt='("Psi on grid (Wb) : NB Br=(1/2pi r)*dpsi/dz")')
+    write(unit, fmt='(1p,8e16.8)') psi
+    close(unit)
   end subroutine write_gs2d
 end module gs2d
 
