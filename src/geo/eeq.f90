@@ -315,7 +315,7 @@ contains
        end do
     end do
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%B_psi = 0.0
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine gs2din
@@ -521,7 +521,7 @@ contains
 
     ! To allow consistency with other impls in gradient etc.
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%B_psi = 0.0
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)

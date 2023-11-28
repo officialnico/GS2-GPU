@@ -258,7 +258,7 @@ contains
 
     nthg = -1
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%B_psi = 0.0
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
 2020 format (5e16.8)
