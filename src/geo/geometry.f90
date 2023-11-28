@@ -1374,7 +1374,97 @@ contains
     end if
   end function invRfun
 
-  !> FIXME : Add documentation    
+  !> Returns the diameter of the surface labelled by rp.
+  !> @note This is not defined for dfit_eq = T
+  real function diameter(rp)
+    implicit none
+    real, intent(in) :: rp
+    integer :: i
+    if (rp <= rpmin .and. .not. efit_eq) then
+       diameter = 0.
+       return
+    end if
+    diameter = geom%diameter(rp)
+  end function diameter
+
+  !> FIXME : Add documentation
+  real function btori(r, thet)
+    implicit none
+    real, intent (in) :: r, thet
+    real :: pbar
+    pbar = psifun(psi(r, thet))
+    btori = geom%btori(pbar)
+  end function btori
+
+  !> FIXME : Add documentation
+  !> returns dI/dpsi
+  real function dbtori(r, thet)
+    implicit none
+    real, intent (in) :: r, thet
+    real :: pbar
+    pbar = psifun(psi(r, thet))
+    dbtori = geom%dbtori(pbar)
+  end function dbtori
+
+  !> FIXME : Add documentation
+  !> Only used with undocumented `irho = 4` option
+  real function rhofun (rp)
+    use deq, only: deq_type
+    implicit none
+    real, intent (in) :: rp
+    real :: pbar
+    integer :: i
+    pbar = psifun(rp)
+    select type(geom)
+    type is(deq_type)
+       rhofun = geom%rhofun(pbar)
+    class default
+       rhofun = 0.
+    end select
+  end function rhofun
+  
+  !> FIXME : Add documentation
+  real function qfun(pbar)
+    implicit none
+    real, intent(in) :: pbar
+    qfun = geom%qfun(pbar)
+  end function qfun
+
+  !> FIXME : Add documentation
+  real function pfun(r, thet)
+    implicit none
+    real, intent (in) :: r, thet
+    real :: pbar
+    pbar = psifun(psi(r, thet))
+    pfun = geom%pfun(pbar)
+  end function pfun
+
+  !> FIXME : Add documentation
+  real function dpfun(r, thet)
+    implicit none
+    real, intent (in) :: r, thet
+    real :: pbar
+    pbar = psifun(psi(r, thet))
+    dpfun = geom%dpfun(pbar)
+  end function dpfun
+
+  !> FIXME : Add documentation
+  real function beta_a_fun(r,thet)
+    implicit none
+    real, intent (in) :: r, thet
+    real :: pbar
+    pbar = psifun(psi(r, thet))
+    beta_a_fun = geom%betafun(pbar)
+  end function beta_a_fun
+
+  !> Calculates the normalised radial coordinate
+  pure real function psifun (rp)
+    implicit none
+    real, intent (in) :: rp
+    psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
+  end function psifun
+
+  !> FIXME : Add documentation
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
        dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
        bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
@@ -1597,43 +1687,6 @@ contains
     call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
 
-  !> Returns the diameter of the surface labelled by rp.
-  !> @note This is not defined for dfit_eq = T
-  real function diameter(rp)
-    implicit none
-    real, intent(in) :: rp
-    integer :: i
-    if (rp <= rpmin .and. .not. efit_eq) then
-       diameter = 0.
-       return
-    end if
-    diameter = geom%diameter(rp)
-  end function diameter
-
-  !> Calculates the normalised radial coordinate
-  pure real function psifun (rp)
-    implicit none
-    real, intent (in) :: rp
-    psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
-  end function psifun
-
-  !> FIXME : Add documentation
-  !> Only used with undocumented `irho = 4` option
-  real function rhofun (rp)
-    use deq, only: deq_type
-    implicit none
-    real, intent (in) :: rp
-    real :: pbar
-    integer :: i
-    pbar = psifun(rp)
-    select type(geom)
-    type is(deq_type)
-       rhofun = geom%rhofun(pbar)
-    class default
-       rhofun = 0.
-    end select
-  end function rhofun
-
   !> FIXME : Add documentation    
   real function rpofrho(rho, fort11_unit)
     implicit none
@@ -1683,25 +1736,6 @@ contains
        val(i) = (x(i,1)*y(i,2)-x(i,2)*y(i,1)) * invR(i)
     end do
   end subroutine tripprod2dtgrid
-
-  !> FIXME : Add documentation
-  real function btori(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
-    btori = geom%btori(pbar)
-  end function btori
-
-  !> FIXME : Add documentation
-  !> returns dI/dpsi
-  real function dbtori(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
-    dbtori = geom%dbtori(pbar)
-  end function dbtori
 
   !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
   !> ends of the grid (usually +/- pi) storing the cumulative integral
@@ -1756,40 +1790,6 @@ contains
        Zoftheta(i) = Zpos(rgrid(i), theta(i))
     end do
   end subroutine Ztgrid
-
-  !> FIXME : Add documentation
-  real function qfun(pbar)
-    implicit none
-    real, intent(in) :: pbar
-    qfun = geom%qfun(pbar)
-  end function qfun
-
-  !> FIXME : Add documentation
-  real function pfun(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
-    pfun = geom%pfun(pbar)
-  end function pfun
-
-  !> FIXME : Add documentation
-  real function dpfun(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
-    dpfun = geom%dpfun(pbar)
-  end function dpfun
-
-  !> FIXME : Add documentation
-  real function beta_a_fun(r,thet)
-    implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
-    beta_a_fun = geom%betafun(pbar)
-  end function beta_a_fun
 
   !> FIXME : Add documentation    
   real function pbarofrho(rho, fort11_unit)
