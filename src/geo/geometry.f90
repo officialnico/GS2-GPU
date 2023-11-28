@@ -1635,13 +1635,6 @@ contains
   end function rhofun
 
   !> FIXME : Add documentation    
-  real function rpfun(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    rpfun = psi(r, thet)
-  end function rpfun
-
-  !> FIXME : Add documentation    
   real function rpofrho(rho, fort11_unit)
     implicit none
     real, intent(in) :: rho
@@ -1697,7 +1690,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     pbar = 0.0
-    if (iflux == 1) pbar = psifun(rpfun(r,thet))
+    if (iflux == 1) pbar = psifun(psi(r,thet))
     btori = geom%btori(pbar)
   end function btori
 
@@ -1708,7 +1701,7 @@ contains
     real, intent (in) :: r, thet
     real :: pbar
     pbar = 0.0
-    if (iflux == 1) pbar = psifun(rpfun(r,thet))
+    if (iflux == 1) pbar = psifun(psi(r,thet))
     dbtori = geom%dbtori(pbar)
   end function dbtori
 
