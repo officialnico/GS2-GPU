@@ -185,7 +185,7 @@ module geo_utils
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent
      procedure :: psi => psi_eqfile_cart, rpos => rpos_eqfile_cart, zpos => zpos_eqfile_cart
-     procedure :: derm => derm_cart, eqitem => eqitem_cart
+     procedure :: derm => derm_cart, eqitem => eqitem_cart, diameter => diameter_eqfile_cart
   end type abstract_eqfile_cart_geo_type
 
   ! Define the procedure interfaces.
@@ -920,6 +920,14 @@ contains
        psi = self%eqitem(r, theta, self%eqpsi_2d, '?')
     end if
   end function psi_eqfile_cart
+
+  real function diameter_eqfile_cart (self, rp) result(diameter)
+    use constants, only: pi
+    implicit none
+    class(abstract_eqfile_cart_geo_type), intent(in) :: self
+    real, intent (in) :: rp
+    diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
+  end function diameter_eqfile_cart
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)

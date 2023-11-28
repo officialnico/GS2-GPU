@@ -111,7 +111,6 @@ module eeq
      procedure :: setup_special_splines => setup_special_splines
      procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: dpfun => dpfun
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -556,15 +555,6 @@ contains
     class(eeq_base_type), intent(in out) :: self
     call delete_periodic_spline(self%rbound_spl)
   end subroutine delete_special_splines
-
-  !> FIXME : Add documentation
-  real function diameter (self, rp)
-    use constants, only: pi
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent (in) :: rp
-    diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
-  end function diameter
 
   !> FIXME : Add documentation
   real function rcenter (self, rp)

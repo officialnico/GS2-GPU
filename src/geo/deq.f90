@@ -19,7 +19,6 @@ module deq
      procedure :: setup_special_splines => setup_special_splines
      procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
      procedure :: rhofun => rhofun
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
@@ -296,15 +295,6 @@ contains
     call delete_periodic_spline(self%rbound_spl)
     call delete_spline(self%rho_spl)
   end subroutine delete_special_splines
-
-  !> FIXME : Add documentation
-  real function diameter (self, rp)
-    use constants, only: pi
-    implicit none
-    class(deq_type), intent(in) :: self
-    real, intent (in) :: rp
-    diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
-  end function diameter
 
   !> FIXME : Add documentation   | Not implemented
   real function rcenter (self, rp)
