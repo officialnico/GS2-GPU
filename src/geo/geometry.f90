@@ -375,7 +375,6 @@ contains
     logical :: bMaxShift
     real :: a_b, b_b, c_b
     real :: s_hat, dp, di, pressure, tmp
-    character(1) :: char
     !> For outputting geom values
     integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit
 
@@ -870,6 +869,7 @@ contains
       type(geo_input_type) :: inputs
       real :: avgrmid, Ltot, rbar
       integer :: ntheta_out
+      character(1) :: char
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
@@ -1574,9 +1574,8 @@ contains
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real :: dum
-    character(1) :: char
+    character(1), parameter :: char = 'P'
     rgrid = rp
-    char='P'
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
        call geom%gradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
@@ -1629,9 +1628,7 @@ contains
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
-    character(1) :: char
-
-    char = 'T'
+    character(1), parameter :: char = 'T'
     if (bishop == 0) then
        if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.) !Could move this to subroutine check?
        call geom%gradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
