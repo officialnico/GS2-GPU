@@ -360,9 +360,8 @@ contains
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
-    real, allocatable, dimension(:) :: grho, bmag, gradpar, &
-         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22, &
-         Rplot, Zplot, Rprime, Zprime, aplot, aprime, gds23, gds24, gds24_noq
+    real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
+         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22
     real :: shat, dbetadrho, kxfac, drhodpsi
     real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
@@ -742,8 +741,13 @@ contains
     ! (although it's possible there could still be some interaction, given that one of the
     ! outputs of the below 'aplot' is given by `seik` which is evaluated on the original
     ! grid rather than the "new" one defined below).
+    ! @note Check if restriction on cartesian geo types still holds.
+    allocate(outputs%rplot(-ntgrid:ntgrid), outputs%rprime(-ntgrid:ntgrid))
+    allocate(outputs%zplot(-ntgrid:ntgrid), outputs%zprime(-ntgrid:ntgrid))
+    allocate(outputs%aplot(-ntgrid:ntgrid), outputs%aprime(-ntgrid:ntgrid))
     call plotdata (rgrid, seik, grads, dpsidrho, theta, &
-         rplot, zplot, aplot, rprime, zprime, aprime)
+         outputs%rplot, outputs%zplot, outputs%aplot, &
+         outputs%rprime, outputs%zprime, outputs%aprime)
 
     ! In the lines below we redefine theta to be theta', and
     ! gradpar to be gradpar'. This means that the values of
@@ -821,12 +825,6 @@ contains
     outputs%gds23 = gds23
     outputs%gds24 = gds24
     outputs%gds24_noq = gds24_noq
-    outputs%rplot = rplot
-    outputs%zplot = zplot
-    outputs%aplot = aplot
-    outputs%rprime = rprime
-    outputs%zprime = zprime
-    outputs%aprime = aprime
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
@@ -1213,13 +1211,7 @@ contains
          gds23      (-n:n), &  ! MAB
          gds24      (-n:n), &  ! MAB
          gds24_noq  (-n:n), &  ! MAB
-         jacob      (-n:n), &
-         Rplot      (-n:n), &
-         Zplot      (-n:n), &
-         aplot      (-n:n), &
-         Rprime     (-n:n), &
-         Zprime     (-n:n), &
-         aprime     (-n:n))
+         jacob      (-n:n))
     end subroutine alloc_local_arrays
 
     !> FIXME : Add documentation      
@@ -1275,13 +1267,7 @@ contains
          gds23      , &  ! MAB
          gds24      , &  ! MAB
          gds24_noq  , &  ! MAB
-         jacob      , &
-         Rplot      , &
-         Zplot      , &
-         aplot      , &
-         Rprime     , &
-         Zprime     , &
-         aprime)
+         jacob)
     end subroutine dealloc_local_arrays
 
   end subroutine eikcoefs
