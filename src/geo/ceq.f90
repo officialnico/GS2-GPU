@@ -37,7 +37,7 @@ contains
   subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use read_chease, only: read_infile, finish
     use geo_utils, only: geo_input_type
-    use constants, only: pi
+    use constants, only: pi, twopi
     implicit none
     class(ceq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
@@ -85,7 +85,7 @@ contains
     self%eqpsi = self%eqpsi / psi_N
 
     do j = 1, self%nt
-       self%eqth(:, j) = (j-1)*2.*pi / real(self%nt-1) - pi
+       self%eqth(:, j) = (j-1) * twopi / real(self%nt-1) - pi
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 

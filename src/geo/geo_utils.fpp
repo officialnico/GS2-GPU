@@ -114,6 +114,8 @@ module geo_utils
      real, allocatable, dimension (:,:,:) :: dbbish
      !> Equilibrium psi (not normalised) and pressure grids
      real, allocatable, dimension(:) :: eqpsi, pressure
+     !> Normalised psi, fp, q, beta, diameter and R_centre values on grid
+     real, allocatable, dimension(:) :: psi_bar, fp, qsf, beta, diam, rc
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(noargs_interface), deferred :: finalise, finish_setup
@@ -148,14 +150,17 @@ module geo_utils
      procedure :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure(derm_interface), deferred :: derm
-     procedure(alloc_arrays_interface), deferred :: alloc_arrays, dealloc_arrays
      procedure :: calculate_gradients, gradient_work
      procedure :: eqdcart, eqdbish
+     procedure :: alloc_common_arrays, dealloc_common_arrays
+     procedure :: alloc_arrays => alloc_arrays
+     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_special_arrays => alloc_special_arrays_null
+     procedure :: dealloc_special_arrays => dealloc_special_arrays_null
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
      character(len = EQFILE_LENGTH) :: filename
-     real, allocatable, dimension(:) :: psi_bar, fp, qsf, beta, diam, rc
      type(spline) :: btori_spl, qsf_spl, pressure_spl, beta_spl, diam_spl, rcenter_spl
    contains
      procedure :: finalise => finalise_eqfile
@@ -170,12 +175,7 @@ module geo_utils
      procedure :: diameter => diameter_eqfile, rcenter => rcenter_eqfile
      procedure :: psi => psi_eqfile, rfun => psi_eqfile
      procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
-     procedure :: alloc_common_arrays, dealloc_common_arrays
-     procedure :: alloc_arrays => alloc_arrays_eqfile
-     procedure :: dealloc_arrays => dealloc_arrays_eqfile
      procedure :: derm => derm_eqfile, eqitem => eqitem_eqfile
-     procedure :: alloc_special_arrays => alloc_special_arrays_eqfile_null
-     procedure :: dealloc_special_arrays => dealloc_special_arrays_eqfile_null
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
@@ -250,6 +250,47 @@ module geo_utils
   end interface
 
 contains
+
+  pure subroutine alloc_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    call self%alloc_common_arrays
+    call self%alloc_special_arrays
+  end subroutine alloc_arrays
+
+  pure subroutine dealloc_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    call self%dealloc_common_arrays
+    call self%dealloc_special_arrays
+  end subroutine dealloc_arrays
+
+  pure subroutine alloc_special_arrays_null(self)
+    class(abstract_geo_type), intent(in out) :: self
+  end subroutine alloc_special_arrays_null
+
+  pure subroutine dealloc_special_arrays_null(self)
+    class(abstract_geo_type), intent(in out) :: self
+  end subroutine dealloc_special_arrays_null
+
+  pure subroutine alloc_common_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    integer :: nr, nt
+    nr = self%nr ; nt = self%nt
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
+    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dbm(nr, nt, 2))
+    allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dbbish(nr, nt, 2))
+    allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
+    allocate(self%eqpsi(nr), self%pressure(nr), self%eqth(nr, nt), self%eqpsi_2d(nr, nt))
+    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr), self%rc(nr), self%diam(nr))
+  end subroutine alloc_common_arrays
+
+  pure subroutine dealloc_common_arrays(self)
+    class(abstract_geo_type), intent(in out) :: self
+    deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
+    deallocate(self%eqth, self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
+    deallocate(self%eqpsi_2d, self%dbm, self%dbcart, self%dbbish, self%B_psi)
+    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
+  end subroutine dealloc_common_arrays
 
   !> Given theta, R, Z, B and psi on 2D grids calculate the index space
   !> derivatives in the two grid dimensions and use these to find gradients
@@ -584,18 +625,6 @@ contains
          (mtheta(jstar+1) - mtheta(jstar)))
   end function eqitem_eqfile
 
-  pure subroutine alloc_arrays_eqfile(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-    call self%alloc_common_arrays
-    call self%alloc_special_arrays
-  end subroutine alloc_arrays_eqfile
-
-  pure subroutine dealloc_arrays_eqfile(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-    call self%dealloc_common_arrays
-    call self%dealloc_special_arrays
-  end subroutine dealloc_arrays_eqfile
-
   subroutine setup_splines_eqfile(self)
     use splines, only: new_spline
     class(abstract_eqfile_geo_type), intent(in out) :: self
@@ -627,35 +656,6 @@ contains
   subroutine delete_special_splines_eqfile_null(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
   end subroutine delete_special_splines_eqfile_null
-
-  pure subroutine alloc_special_arrays_eqfile_null(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-  end subroutine alloc_special_arrays_eqfile_null
-
-  pure subroutine dealloc_special_arrays_eqfile_null(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-  end subroutine dealloc_special_arrays_eqfile_null
-
-  pure subroutine alloc_common_arrays(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-    integer :: nr, nt
-    nr = self%nr ; nt = self%nt
-    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
-    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dbm(nr, nt, 2))
-    allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dbbish(nr, nt, 2))
-    allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
-    allocate(self%eqpsi(nr), self%pressure(nr), self%eqth(nr, nt), self%eqpsi_2d(nr, nt))
-    allocate(self%psi_bar(nr), self%fp(nr), self%qsf(nr), self%beta(nr), self%rc(nr), self%diam(nr))
-  end subroutine alloc_common_arrays
-
-  pure subroutine dealloc_common_arrays(self)
-    class(abstract_eqfile_geo_type), intent(in out) :: self
-    deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
-    deallocate(self%eqth, self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
-    deallocate(self%eqpsi_2d, self%dbm, self%dbcart, self%dbbish, self%B_psi)
-    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
-  end subroutine dealloc_common_arrays
 
   subroutine finalise_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

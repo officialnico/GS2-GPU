@@ -52,8 +52,6 @@ module leq
      procedure :: rfun => rfun
      procedure :: derm => derm
      procedure :: eqitem => eqitem
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
      procedure :: geo_Miller => geo_Miller
      procedure :: geo_global => geo_global
      procedure :: geo_generalizedEllipticity => geo_generalizedEllipticity
@@ -117,29 +115,6 @@ contains
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine leqin
-
-  !> Allocate internal module-level arrays
-  pure subroutine alloc_arrays(self)
-    implicit none
-    class(leq_type), intent(in out) :: self
-    integer :: nr, nt
-    nr = self%nr ; nt = self%nt
-    allocate(self%eqpsi(nr), self%pressure(nr), self%eqpsi_2d(nr, nt))
-    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%eqth(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2), &
-         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%B_psi(nr, nt))
-    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbcart(nr, nt, 2))
-    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbbish(nr, nt, 2))
-  end subroutine alloc_arrays
-
-  !> Deallocate internal module-level arrays
-  pure subroutine dealloc_arrays(self)
-    implicit none
-    class(leq_type), intent(in out) :: self
-    deallocate(self%eqpsi, self%pressure, self%R_psi, self%Z_psi, self%dpbish, self%dtbish)
-    deallocate(self%drm, self%dzm, self%dpm, self%dtm, self%dpcart, self%dtcart, self%eqth)
-    deallocate(self%eqpsi_2d, self%B_psi, self%dbm, self%dbcart, self%dbbish)
-  end subroutine dealloc_arrays
 
   !> Finalise leq module
   pure subroutine leq_finish(self)
