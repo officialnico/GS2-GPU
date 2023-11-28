@@ -361,8 +361,8 @@ contains
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
-         cvdrift, cvdrift0, gbdrift, gbdrift0, cdrift, cdrift0, gds2, gds21, gds22
     real :: shat, dbetadrho, kxfac, drhodpsi
+         gds2, gds21, gds22
     real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
     real :: qval, dum, bi, pbar
@@ -702,9 +702,13 @@ contains
     call bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
 
     !     compute curvature, grad b, and coriolis drift terms
+    allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
+    allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
+    allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
          dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
-         bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
+         bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
+         outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
     if (itor /= 0) then
@@ -813,12 +817,6 @@ contains
     outputs%bmag = bmag
     outputs%gradpar = gradpar
     outputs%grho = grho
-    outputs%cdrift = cdrift
-    outputs%cvdrift = cvdrift
-    outputs%gbdrift = gbdrift
-    outputs%cdrift0 = cdrift0
-    outputs%cvdrift0 = cvdrift0
-    outputs%gbdrift0 = gbdrift0
     outputs%gds2 = gds2
     outputs%gds21 = gds21
     outputs%gds22 = gds22
@@ -1199,12 +1197,6 @@ contains
     allocate(grho   (-n:n), &
          bmag       (-n:n), &
          gradpar    (-n:n), &
-         cvdrift    (-n:n), &
-         cvdrift0   (-n:n), &
-         gbdrift    (-n:n), &
-         gbdrift0   (-n:n), &
-         cdrift    (-n:n), &
-         cdrift0    (-n:n), &
          gds2       (-n:n), &
          gds21      (-n:n), &
          gds22      (-n:n), &
@@ -1255,12 +1247,6 @@ contains
          theta      , &
          bmag       , &
          gradpar    , &
-         cvdrift    , &
-         cvdrift0   , &
-         gbdrift    , &
-         gbdrift0   , &
-         cdrift     , &
-         cdrift0    , &
          gds2       , &
          gds21      , &
          gds22      , &
