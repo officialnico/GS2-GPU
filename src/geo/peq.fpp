@@ -20,9 +20,6 @@ module peq
   type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
      private
      logical :: transp
-   contains
-     procedure :: setup_splines => setup_splines
-     procedure :: delete_splines => delete_splines
   end type peq_base_type
 
   type, extends(peq_base_type) :: peq_type
@@ -450,30 +447,6 @@ contains
     call mp_abort('error: peq teqin is called without netcdf',.true.)
 # endif
   end subroutine teqin
-
-  subroutine setup_splines(self)
-    use splines, only: new_spline
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
-    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
-    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
-  end subroutine setup_splines
-
-  subroutine delete_splines(self)
-    use splines, only: delete_spline
-    implicit none
-    class(peq_base_type), intent(in out) :: self
-    call delete_spline(self%diam_spl)
-    call delete_spline(self%rcenter_spl)
-    call delete_spline(self%btori_spl)
-    call delete_spline(self%qsf_spl)
-    call delete_spline(self%pressure_spl)
-    call delete_spline(self%beta_spl)
-  end subroutine delete_splines
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)

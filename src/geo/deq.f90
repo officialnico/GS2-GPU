@@ -16,8 +16,8 @@ module deq
      type(spline) :: rho_spl
    contains
      procedure :: initialise => dfitin
-     procedure :: setup_splines => setup_splines
-     procedure :: delete_splines => delete_splines
+     procedure :: setup_special_splines => setup_special_splines
+     procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: rhofun => rhofun
@@ -279,31 +279,23 @@ contains
     deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z, self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
-  subroutine setup_splines(self)
+  subroutine setup_special_splines(self)
     use splines, only: new_spline, new_periodic_spline
     use constants, only: twopi
     implicit none
     class(deq_type), intent(in out) :: self
-    call new_spline(self%nw, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nw, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nw, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nw, self%psi_bar, self%beta, self%beta_spl)
     call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
     call new_spline(self%nrho, self%psi_mid, self%rho_mid, self%rho_spl)
-  end subroutine setup_splines
+  end subroutine setup_special_splines
 
-  subroutine delete_splines(self)
+  subroutine delete_special_splines(self)
     use splines, only: delete_spline, delete_periodic_spline
     implicit none
     class(deq_type), intent(in out) :: self
-    call delete_spline(self%btori_spl)
-    call delete_spline(self%qsf_spl)
-    call delete_spline(self%pressure_spl)
-    call delete_spline(self%beta_spl)
     call delete_periodic_spline(self%rbound_spl)
     call delete_spline(self%rho_spl)
-  end subroutine delete_splines
+  end subroutine delete_special_splines
 
   !> FIXME : Add documentation
   real function diameter (self, rp)

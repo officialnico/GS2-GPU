@@ -160,7 +160,10 @@ module geo_utils
    contains
      procedure :: finalise => finalise_eqfile
      procedure :: finish_setup => finish_setup_eqfile
-     procedure(splines_interface), deferred :: setup_splines, delete_splines
+     procedure :: setup_special_splines => setup_special_splines_eqfile_null
+     procedure :: delete_special_splines => delete_special_splines_eqfile_null
+     procedure :: setup_splines => setup_splines_eqfile
+     procedure :: delete_splines => delete_splines_eqfile
      procedure :: btori => btori_eqfile, dbtori => dbtori_eqfile
      procedure :: qfun => qfun_eqfile, betafun => betafun_eqfile
      procedure :: pfun => pfun_eqfile, dpfun => dpfun_eqfile
@@ -244,12 +247,6 @@ module geo_utils
        import
        class(abstract_geo_type), intent(in out) :: self
      end subroutine noargs_interface
-
-     ! Additional interfaces for eqfile variant
-     subroutine splines_interface(self)
-       import
-       class(abstract_eqfile_geo_type), intent(in out) :: self
-     end subroutine splines_interface
   end interface
 
 contains
@@ -598,6 +595,38 @@ contains
     call self%dealloc_common_arrays
     call self%dealloc_special_arrays
   end subroutine dealloc_arrays_eqfile
+
+  subroutine setup_splines_eqfile(self)
+    use splines, only: new_spline
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
+    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
+    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
+    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    call self%setup_special_splines
+  end subroutine setup_splines_eqfile
+
+  subroutine delete_splines_eqfile(self)
+    use splines, only: delete_spline
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+    call delete_spline(self%diam_spl)
+    call delete_spline(self%rcenter_spl)
+    call delete_spline(self%btori_spl)
+    call delete_spline(self%qsf_spl)
+    call delete_spline(self%pressure_spl)
+    call delete_spline(self%beta_spl)
+    call self%delete_special_splines
+  end subroutine delete_splines_eqfile
+
+  subroutine setup_special_splines_eqfile_null(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+  end subroutine setup_special_splines_eqfile_null
+
+  subroutine delete_special_splines_eqfile_null(self)
+    class(abstract_eqfile_geo_type), intent(in out) :: self
+  end subroutine delete_special_splines_eqfile_null
 
   pure subroutine alloc_special_arrays_eqfile_null(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self

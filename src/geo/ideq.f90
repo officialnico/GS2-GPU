@@ -12,8 +12,6 @@ module ideq
      private
    contains
      procedure :: initialise => idfitin
-     procedure :: setup_splines => setup_splines
-     procedure :: delete_splines => delete_splines
   end type ideq_type
 
 contains
@@ -216,28 +214,4 @@ contains
     self%initialised = .true.
     self%has_full_theta_range = .false.
   end subroutine idfitin
-
-  subroutine setup_splines(self)
-    use splines, only: new_spline
-    implicit none
-    class(ideq_type), intent(in out) :: self
-    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
-    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
-    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
-  end subroutine setup_splines
-
-  subroutine delete_splines(self)
-    use splines, only: delete_spline
-    implicit none
-    class(ideq_type), intent(in out) :: self
-    call delete_spline(self%diam_spl)
-    call delete_spline(self%rcenter_spl)
-    call delete_spline(self%btori_spl)
-    call delete_spline(self%qsf_spl)
-    call delete_spline(self%pressure_spl)
-    call delete_spline(self%beta_spl)
-  end subroutine delete_splines
 end module ideq

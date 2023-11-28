@@ -13,8 +13,6 @@ module ceq
      private
    contains
      procedure :: initialise => ceqin
-     procedure :: setup_splines => setup_splines
-     procedure :: delete_splines => delete_splines
      procedure :: set_ceq_from_chease => set_ceq_from_chease
   end type ceq_type
 
@@ -190,30 +188,6 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
   end subroutine set_ceq_from_chease
-
-  subroutine setup_splines(self) !Identical to geq
-    use splines, only: new_spline
-    implicit none
-    class(ceq_type), intent(in out) :: self
-    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
-    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
-    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
-  end subroutine setup_splines
-
-  subroutine delete_splines(self) !Identical to geq
-    use splines, only: delete_spline
-    implicit none
-    class(ceq_type), intent(in out) :: self
-    call delete_spline(self%diam_spl)
-    call delete_spline(self%rcenter_spl)
-    call delete_spline(self%btori_spl)
-    call delete_spline(self%qsf_spl)
-    call delete_spline(self%pressure_spl)
-    call delete_spline(self%beta_spl)
-  end subroutine delete_splines
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
