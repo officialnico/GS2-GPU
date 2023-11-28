@@ -930,7 +930,7 @@ contains
          if (iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
          if (iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
       end if
-
+      ! Note, in some places we use rho and in others rhoc but these are always equal
       rho = rhoc
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
@@ -1674,7 +1674,7 @@ contains
     
     char = 'T'
     if (bishop == 0) then
-       if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.)
+       if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.) !Could move this to subroutine check?
        call geom%gradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     else
        call geom%bgradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
@@ -1878,7 +1878,6 @@ contains
 
   !> FIXME : Add documentation
   real function phi(rp)
-    use mp, only: mp_abort
     implicit none
     real, intent (in) :: rp
     integer, parameter :: nimax = 200
@@ -2330,7 +2329,6 @@ contains
   !> Calculate rgrid for the case of eeq and deq: in this case, rgrid
   !> is the distance to the magnetic axis as a function of theta.
   subroutine rtg(rgrid, rp, theta)
-    use mp, only: mp_abort
     implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
