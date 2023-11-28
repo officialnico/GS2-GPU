@@ -516,7 +516,7 @@ contains
   real function dbtori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
-    dbtori = 1.
+    dbtori = 0
   end function dbtori
 
   !> FIXME : Add documentation
