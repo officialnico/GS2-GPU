@@ -898,10 +898,10 @@ contains
          inputs%eqnormfile = eqnormfile
       end if
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
-      
+
       ! Handle possible ntheta_out < 0?
       if (ntheta_out > 0) ntheta_input = ntheta_out
-      
+
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
@@ -934,7 +934,7 @@ contains
       ! effectively just have an optimisation (I think)
       if (iflux == 1) then
          rp = rpofrho(rho, fort11_unit)
-         R_geo = rcenter(rpmax)
+         R_geo = rcenter(rpmax) !Only used for writelots/checks
       else
          rp = rho
       end if
@@ -1193,10 +1193,10 @@ contains
          jacob      (-n:n))
     end subroutine alloc_local_arrays
 
-    !> FIXME : Add documentation      
+    !> FIXME : Add documentation
     subroutine dealloc_local_arrays
       implicit none
-      
+
       deallocate(seik, &
            dsdthet   , &
            gdsdum1   , &
@@ -1245,7 +1245,7 @@ contains
 
   end subroutine eikcoefs
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: invR
@@ -1260,7 +1260,7 @@ contains
     end do
   end subroutine bvectortgrid
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   pure subroutine gradstottgrid (rmajor, grads, gradstot)
     real, dimension(-ntgrid:), intent (in) :: rmajor
     real, dimension(-ntgrid:, :), intent (in) :: grads
@@ -1382,7 +1382,7 @@ contains
        rhofun = 0.
     end select
   end function rhofun
-  
+
   !> FIXME : Add documentation
   real function qfun(pbar)
     implicit none
@@ -1468,8 +1468,8 @@ contains
        end do
 
        !     create curvature
-       select case (bishop) 
-       case (0) 
+       select case (bishop)
+       case (0)
           char='R'
           call geom%gradient(rgrid, theta, pgrad, char, rp, nth, ntgrid)
           do i = -nth, nth
@@ -1574,7 +1574,7 @@ contains
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real :: dum
-    character(1) :: char    
+    character(1) :: char
     rgrid = rp
     char='P'
     ! Note we only call this routine when bishop == 0
@@ -1588,7 +1588,7 @@ contains
     call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
     use constants, only: twopi
     implicit none
@@ -1602,7 +1602,7 @@ contains
     integer :: i
 
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
-    
+
     do i = -nth, nth
        dsdthet(i) = -bi * invR(i)**2 / trip(i)
     end do
@@ -1622,7 +1622,7 @@ contains
     end if
   end subroutine eikonal
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine thetagrad(rgrid, theta, thgrad)
     use mp, only: mp_abort
     implicit none
@@ -1630,7 +1630,7 @@ contains
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
     character(1) :: char
-    
+
     char = 'T'
     if (bishop == 0) then
        if (efit_eq .or. dfit_eq) call mp_abort('error in thetagrad, bishop==0 and either efit_eq or dfit_eq are true',.true.) !Could move this to subroutine check?
@@ -1643,7 +1643,7 @@ contains
     call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function rpofrho(rho, fort11_unit)
     implicit none
     real, intent(in) :: rho
@@ -1669,7 +1669,7 @@ contains
        call root(rhofun, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
     endif
 
-    if (debug) then 
+    if (debug) then
        write (*,*) "Values in root: "
        write (*,*) 'rho:  ', rho
        write (*,*) 'fval: ', fval
@@ -1747,7 +1747,7 @@ contains
     end do
   end subroutine Ztgrid
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function pbarofrho(rho, fort11_unit)
     implicit none
     real, intent (in) :: rho
@@ -1760,7 +1760,7 @@ contains
     end if
   end function pbarofrho
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   real function dqdrhofun(rho, shat, fort11_unit)
     implicit none
     real, intent (in) :: rho, shat
@@ -1816,7 +1816,7 @@ contains
           end if
        end do
     end if
-    
+
     !Swap so |f1| < |f2|
     if( abs(f1) > abs(f2) ) then
        f3 = f1 ; f1 = f2 ; f2 = f3
@@ -1930,7 +1930,7 @@ contains
     enddo
     a = (Rpos(rgrid(0), theta(0))-Rpos(rgrid(nth), theta(nth)))
     e = (hmaxu-hmaxl)/a
-    ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)    
+    ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)
     rmid=(Routr-Rinnr)/2. ! midplane minor radius of this surface
     ! Using only the upper triangularity:
     ! wasn't properly normalized before 29 Feb 08, and don't use asin:
@@ -2020,16 +2020,16 @@ contains
        arcl(j+1) = arcl(j) + 0.5 * (theta(j+1) - theta(j)) * (1. / gpar(j) + 1. / gpar(j+1))
     end do
     arcfac = 1. / arcl(nth)
-    
+
     do j = -nth, nth
        arcl(j) = arcl(j) * twopi * arcfac - pi
     end do
-    
+
     call periodic_copy(arcl, twopi, nperiod)
     gpar = twopi * arcfac
   end subroutine arclength
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine loftheta(rgrid, theta, ltheta)
     implicit none
     real, dimension (-ntgrid:), intent(in) :: rgrid, theta
@@ -2092,13 +2092,13 @@ contains
     do i = -nth, nth
        magrp(i) = sqrt(rpgrad(i, 1)**2 + rpgrad(i, 2)**2)
     end do
-    
+
     ! tvec is the tangent vector in the surface of the poloidal plane
     do i = -nth, nth
        tvec(i, 1) = rpgrad(i, 2) / magrp(i)
        tvec(i, 2) = -rpgrad(i, 1) / magrp(i)
     end do
-    
+
     ! need to find grad(R) and dot it with tvec.
     ! but grad(R) is simple -- it is just (1,0)
     ! so simply return acos(tvec(:,1))
@@ -2108,13 +2108,13 @@ contains
        tvec(i, 1) = min(1., max(-1., tvec(i, 1)))
        if (tvec(i, 2) > 0.) then
           th_bish(i) = twopi - acos(max(min(tvec(i, 1), 1.0), -1.0))
-       else               
+       else
           th_bish(i) = acos(max(min(tvec(i, 1), 1.0), -1.0))
        end if
     end do
   end subroutine th_bishop
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine B_pol(invR, rpgrad, Bpolmag, nth)
     implicit none
     integer, intent (in) :: nth
@@ -2127,7 +2127,7 @@ contains
     end do
   end subroutine B_pol
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine B_mod(invR, Bpolmag, Bmod, bi, nth)
     implicit none
     integer, intent (in) :: nth
@@ -2152,7 +2152,7 @@ contains
     real, dimension(-ntgrid:ntgrid) :: dthdl
     integer :: i
 
-    ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998)) 
+    ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998))
     ! Note that we must properly account for discontinuities in u
     do i = -nth+1, nth-1
        if (th_bish(i+1)-th_bish(i-1) > pi) then
@@ -2184,7 +2184,7 @@ contains
     end do
   end subroutine inv_Rpol
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine finish_geometry
     implicit none
     if (allocated(geom)) then
@@ -2248,7 +2248,7 @@ contains
     end do
   end subroutine periodic_copy
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: Bmod, Bpolmag, invRpol
@@ -2257,7 +2257,7 @@ contains
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real, dimension(-ntgrid:ntgrid) :: dBdl
     real :: bp
-    integer :: i 
+    integer :: i
     call gradl(ltheta, Bmod, dBdl, 0., nth)
     do i = -nth, nth
        bp = -Bpolmag(i)
@@ -2347,7 +2347,7 @@ contains
     drhodrhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
   end subroutine drho_drhod
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   pure real function fluxavg(f, theta, jacob)
     implicit none
     real, dimension(-nth:nth), intent(in) :: f, theta, jacob
@@ -2364,7 +2364,7 @@ contains
     fluxavg = sum(f * jacob * delth) / sum(jacob * delth)
   end function fluxavg
 
-  !> FIXME : Add documentation    
+  !> FIXME : Add documentation
   pure real function f_trap(b_mag, theta, jacob)
     implicit none
     real, dimension(-nth:nth), intent (in) :: b_mag, theta, jacob
