@@ -371,16 +371,14 @@ contains
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
-    integer :: iBmax
+    integer :: iBmax, i
     logical :: bMaxShift
     real :: a_b, b_b, c_b
-    real :: s_hat, dp, di, pressure, tmp, rbar
+    real :: s_hat, dp, di, pressure, tmp
     character(1) :: char
-    integer :: i, j, k, itot
-    integer :: fort25_unit !For outputting geom values
-    integer :: fort78_unit !For outputting geom values
-    integer :: fort99_unit !For outputting geom values
-    integer :: fort11_unit !For outputting geom values
+    !> For outputting geom values
+    integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit
+
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -870,14 +868,13 @@ contains
       use eeq, only: eeq_verbosity => verbosity
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
-      real :: avgrmid, Ltot
+      real :: avgrmid, Ltot, rbar
       integer :: ntheta_out
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
 
-      select case (iflux)
-      case (0)
+      if (iflux == 0) then
          inputs%surf%geoType = geoType
          inputs%surf%mMode = mMode ; inputs%surf%nMode = nMode
          inputs%surf%rmaj = rmaj ; inputs%surf%Rgeo = R_geo ; inputs%surf%r = rhoc
@@ -1080,9 +1077,9 @@ contains
     end subroutine initialise_geometry_and_get_bmod
 
     subroutine bishop_large_aspect_ratio_approximation
-      real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot
-      real :: pbar_1, pbar_2
+      real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot, pbar_1, pbar_2
       real, dimension(:), allocatable :: seik1, seik2, dummy2, dsdrp
+      integer :: itot, k
       !     rp derivative
       delrp = delrho / drhodrp
       rp1 = rp - delrp
