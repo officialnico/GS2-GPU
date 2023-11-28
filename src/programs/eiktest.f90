@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
-  use geometry, only: eikcoefs_output, geofax, eikcoefs
+  use geometry, only: eikcoefs_output, geofax, eikcoefs, pbarfun
   use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
@@ -25,7 +25,7 @@ program eiktest
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
   real :: rhocm, rhocp
-  real :: bbar, rmin, rmax
+  real :: bbar, rmin, rmax, pbar
   real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
@@ -250,7 +250,8 @@ program eiktest
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
-     bb=beta_a_fun(rfun(rpofrho(rhoc, fort11_unit),0.),0.)
+     pbar = pbarfun(rfun(rpofrho(rhoc, fort11_unit),0.),0.)
+     bb=beta_a_fun(pbar)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
         write(21,1000) -dbetadrho
@@ -260,6 +261,7 @@ program eiktest
   end if
 
   write(11,*) 'dV/drhon= ',dvdrhon
+  pbar = pbarofrho(rhoc, fort11_unit)
   if (.not. dipole) then
      write (11,*)
      write (11,*) 'The following q and shat values'
@@ -268,7 +270,7 @@ program eiktest
      write (11,*) 'They should match the ones above' !EGH
      q=qfun(0.)
      write(11,*) 'q_0= ',q
-     q=qfun(pbarofrho(rhoc, fort11_unit))
+     q=qfun(pbar)
      write(11,*) 'rho= ',rhoc,' q(rho)= ',q
   !      write(*,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
@@ -288,7 +290,7 @@ program eiktest
         if (dipole) then
            shat = 0.
         else
-           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbarofrho(rhoc, fort11_unit))/delrho
+           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbar)/delrho
         endif
      else
         rkpri=akappri
@@ -296,7 +298,7 @@ program eiktest
         rdpri=shift
      endif
   
-     qq=qfun(pbarofrho(rhoc, fort11_unit))
+     qq=qfun(pbar)
      write(11,*) 'shat= ',shat
      write(11,*) 'qinp= ',qq
      write(11,*) 'shift= ',rdpri

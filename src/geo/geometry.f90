@@ -113,7 +113,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
-  public :: qfun, rpofrho, finish_geometry, verb, debug, big, geom
+  public :: qfun, rpofrho, finish_geometry, verb, debug, big, pbarfun, geom
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
@@ -366,7 +366,7 @@ contains
     real :: shat, dbetadrho, kxfac, drhodpsi
     real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
-    real :: qval, dum, bi
+    real :: qval, dum, bi, pbar
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -538,8 +538,8 @@ contains
        c_bish = - c_bish * Bpolmag * rmajor
 
        ! find shat, pressure' and report them
-       dp = dpfun(rgrid(0), theta(0))
-       di = dbtori(rgrid(0), theta(0))
+       dp = dpfun(pbar)
+       di = dbtori(pbar)
 
        if (abs(qval) > epsilon(0.)) then
           tmp = rho / (qval * twopi * drhodpsi)
@@ -573,7 +573,7 @@ contains
        case (2)
           dp_new = p_prime_input
        case (3)
-          pressure = pfun(rgrid(0), theta(0))
+          pressure = pfun(pbar)
           dp_new = -invLp_input * pressure * drhodpsi
        case (4, 6, 9)
           dp_new = 0.5 * beta_prime_input * drhodpsi
@@ -955,11 +955,14 @@ contains
       else
          rgrid = rp
       end if
+      pbar = pbarfun(rgrid(0), theta(0))
 
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
          write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(rgrid(0), 0.)
+         ! Is the following btori call always using something equivalent to pbar, i.e.
+         ! is theta(0) == 0. in all cases?
+         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbarfun(rgrid(0), 0.))
       end if
 
       if (iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
@@ -1019,7 +1022,7 @@ contains
       call periodic_copy(invR, 0., nperiod)
 
       ! Get the toroidal field function (i.e. fp = R B_T)
-      bi = btori(rgrid(0),theta(0))
+      bi = btori(pbar)
 
       !     compute gradient of rp
       char = 'P'
@@ -1083,6 +1086,7 @@ contains
 
     subroutine bishop_large_aspect_ratio_approximation
       real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot
+      real :: pbar_1, pbar_2
       real, dimension(:), allocatable :: seik1, seik2, dummy2, dsdrp
       !     rp derivative
       delrp = delrho / drhodrp
@@ -1097,10 +1101,11 @@ contains
          qval2 = qval + dqdrho * delrho
       end if
 
+      pbar_1 = pbarfun(rp1, theta(0)) ; pbar_2 = pbarfun(rp2, theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
       ! seikon to avoid having to form rgrid1/rgrid2 here.
-      bi1 = btori(rp1, theta(0))
-      bi2 = btori(rp2, theta(0))
+      bi1 = btori(pbar_1)
+      bi2 = btori(pbar_2)
 
       allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dummy2(-ntgrid:ntgrid))
       allocate(dsdrp(-nth:nth))
@@ -1130,7 +1135,7 @@ contains
       end if
 
       s_hat_new = shat ! Output
-      dbetadrho = 2 * dpfun(rgrid(0), theta(0)) / drhodrp ! Output
+      dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
 
       !
       !     compute gradient of S
@@ -1382,27 +1387,23 @@ contains
     integer :: i
     if (rp <= rpmin .and. .not. efit_eq) then
        diameter = 0.
-       return
+    else
+       diameter = geom%diameter(rp)
     end if
-    diameter = geom%diameter(rp)
   end function diameter
 
   !> FIXME : Add documentation
-  real function btori(r, thet)
+  real function btori(pbar)
     implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
+    real, intent (in) :: pbar
     btori = geom%btori(pbar)
   end function btori
 
   !> FIXME : Add documentation
   !> returns dI/dpsi
-  real function dbtori(r, thet)
+  real function dbtori(pbar)
     implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
+    real, intent (in) :: pbar
     dbtori = geom%dbtori(pbar)
   end function dbtori
 
@@ -1431,29 +1432,23 @@ contains
   end function qfun
 
   !> FIXME : Add documentation
-  real function pfun(r, thet)
+  real function pfun(pbar)
     implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
+    real, intent (in) :: pbar
     pfun = geom%pfun(pbar)
   end function pfun
 
   !> FIXME : Add documentation
-  real function dpfun(r, thet)
+  real function dpfun(pbar)
     implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
+    real, intent (in) :: pbar
     dpfun = geom%dpfun(pbar)
   end function dpfun
 
   !> FIXME : Add documentation
-  real function beta_a_fun(r,thet)
+  real function beta_a_fun(pbar)
     implicit none
-    real, intent (in) :: r, thet
-    real :: pbar
-    pbar = psifun(psi(r, thet))
+    real, intent (in) :: pbar
     beta_a_fun = geom%betafun(pbar)
   end function beta_a_fun
 
@@ -1463,6 +1458,12 @@ contains
     real, intent (in) :: rp
     psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
   end function psifun
+
+  real function pbarfun(r, theta)
+    implicit none
+    real, intent(in) :: r, theta
+    pbarfun = psifun(psi(r, theta))
+  end function pbarfun
 
   !> FIXME : Add documentation
   subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
@@ -1519,10 +1520,6 @@ contains
           end do
           ! Note here we have not filled the full theta domain unlike in the other
           ! bishop cases.
-       case (1)
-          ! When bishop = 1 dp_new should probably also be dpfun(rgrid(0), theta(0))
-          ! so it's not clear we need this special case?
-          pgradtot = gradrptot * dpsidrho * drhodrp * dpfun(rgrid(0), theta(0))
        case default
           pgradtot = gradrptot * dpsidrho * drhodrp * dp_new
        end select
