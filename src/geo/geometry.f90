@@ -1689,8 +1689,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    pbar = 0.0
-    if (iflux == 1) pbar = psifun(psi(r,thet))
+    pbar = psifun(psi(r, thet))
     btori = geom%btori(pbar)
   end function btori
 
@@ -1700,8 +1699,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    pbar = 0.0
-    if (iflux == 1) pbar = psifun(psi(r,thet))
+    pbar = psifun(psi(r, thet))
     dbtori = geom%dbtori(pbar)
   end function dbtori
 
@@ -1771,8 +1769,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    pbar = 0.
-    if (iflux == 1) pbar = psifun(psi(r, thet))
+    pbar = psifun(psi(r, thet))
     pfun = geom%pfun(pbar)
   end function pfun
 
@@ -1781,8 +1778,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    pbar = 0.0
-    if (iflux == 1) pbar = psifun(psi(r, thet))
+    pbar = psifun(psi(r, thet))
     dpfun = geom%dpfun(pbar)
   end function dpfun
 
@@ -1791,8 +1787,7 @@ contains
     implicit none
     real, intent (in) :: r, thet
     real :: pbar
-    pbar = 0.
-    if (iflux == 1) pbar = psifun(psi(r,thet))
+    pbar = psifun(psi(r, thet))
     beta_a_fun = geom%betafun(pbar)
   end function beta_a_fun
 
