@@ -109,7 +109,7 @@ module eeq
      procedure :: setup_special_splines => setup_special_splines
      procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
-     procedure :: dpfun => dpfun
+     procedure :: dpfun => dpfun !Concerning that this is different?
      procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type eeq_base_type

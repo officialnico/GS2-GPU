@@ -214,24 +214,6 @@ module geo_utils
        character(len=1), intent(in) :: char
      end function eqitem_interface
 
-     pure subroutine derm_interface(self, f, dfm, char)
-       import
-       class(abstract_geo_type), intent(in) :: self
-       real, dimension(:, :), intent(in) :: f
-       real, dimension(:, :, :), intent(out) :: dfm
-       character(len=1), intent(in) :: char
-     end subroutine derm_interface
-
-     pure subroutine alloc_arrays_interface(self)
-       import
-       class(abstract_geo_type), intent(in out) :: self
-     end subroutine alloc_arrays_interface
-
-     pure subroutine alloc_eqfile_arrays_interface(self)
-       import
-       class(abstract_eqfile_geo_type), intent(in out) :: self
-     end subroutine alloc_eqfile_arrays_interface
-
      subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
           B_T0, avgrmid, nthg)
        import
@@ -443,7 +425,8 @@ contains
     end if
 
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-    if (char == 'R') then
+    ! Could use self%dpfun if took pbar rather than rp?
+    if (char == 'R') then !Only actually used if bishop == 0
        rpt(1) = rp
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
        do i = -nth_used, nth_used
