@@ -361,8 +361,8 @@ contains
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
-    real :: shat, dbetadrho, kxfac, drhodpsi
          gds2, gds21, gds22
+    real :: shat, dbetadrho, drhodpsi
     real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
     real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
     real :: qval, dum, bi, pbar
@@ -794,7 +794,7 @@ contains
     write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
 
-    kxfac = abs(qval / (rhoc * drhodpsi))
+    outputs%kxfac = abs(qval / (rhoc * drhodpsi))
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
@@ -802,7 +802,7 @@ contains
        !RN> However, from GS2 convention, eventually kxfac = abs(kxfac). See get_grids in theta_grid.
        !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
        !RN> I just leave the sign here.
-       kxfac = - 1 / drhodpsi
+       outputs%kxfac = - 1 / drhodpsi
        gds22 = grho**2 / drhodpsi**2
     end if
 
@@ -827,7 +827,6 @@ contains
 
     outputs%s_hat_new = s_hat_new
     outputs%drhodpsi = drhodpsi
-    outputs%kxfac = kxfac
     outputs%qsf = qval
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
