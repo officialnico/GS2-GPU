@@ -400,7 +400,7 @@ contains
     debug = (verb > 2)
 
     if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
-    if (local_eq .and. iflux == 1) then
+    if (local_eq .and. iflux /= 0) then
        write (*,*) 'Forcing iflux = 0 as local_eq is true'
        iflux = 0
     end if
@@ -412,7 +412,7 @@ contains
        irho = 2
        if (bishop == 0) then
           write(*,*) 'Forcing bishop = 1'
-          bishop = 1
+          bishop = 1 !Not clear that this is a good choice for Miller
        end if
     end if
 
@@ -436,7 +436,7 @@ contains
        ! is necessary to correctly calculate bounce points
        bMaxShift = .false.
        ! if using Miller local equilibrium
-       if (iflux /= 1) then
+       if (local_eq) then
 
           ! Locate the index of the maximum magnetic field in the range [-pi,pi)
           iBmax = -nth
@@ -884,7 +884,7 @@ contains
          inputs%surf%delnp = deltanpri ; inputs%surf%thm = thetam
          inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
          inputs%surf%nt = ntheta_input / 2 ; inputs%thShift = thetaShift
-      case (1)
+      else
          if (big <= 0 ) then
             if (dfit_eq) then
                big = 1
@@ -895,8 +895,8 @@ contains
          eeq_verbosity = verb
          inputs%eqfile = eqfile
          inputs%big = big
-         if (idfit_eq) inputs%eqnormfile = eqnormfile
-      end select
+         inputs%eqnormfile = eqnormfile
+      end if
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
       
       ! Handle possible ntheta_out < 0?
@@ -910,7 +910,7 @@ contains
       ! specific geometry class we're using.
       call geom%finish_setup
 
-      if (debug) writelots=.true.
+      if (debug) writelots = .true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
       if (writelots) then
          write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
@@ -927,8 +927,7 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
-      rpmin = psi_0
-      rpmax = psi_a
+      rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Because irho==2 if iflux==0 and diameter is effectively analytic
       ! one would expect rpofrho(rho) == rho in this case. So here we
@@ -947,7 +946,9 @@ contains
       else
          rgrid = rp
       end if
+
       pbar = pbarfun(rgrid(0), theta(0))
+      call drho_drp(rp, drhodrp)
 
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
@@ -982,16 +983,10 @@ contains
          do i =-nth, nth-1
             rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
          end do
-         rbar = rbar / (twopi)
+         rbar = rbar / twopi
          write (*,*) 'r_bar = ',rbar
          write (*,*)
       end if
-
-      call drho_drp(rp, drhodrp)
-
-      ! Not clear that we need this -- init_uniform_theta_grid
-      ! already populates the full theta domain
-      call periodic_copy(theta, twopi, nperiod)
 
       if (writelots) then
          write(fort11_unit,*) 'drhodrp=',drhodrp
@@ -1000,10 +995,6 @@ contains
             write(fort11_unit,*) 'drho_drhod=',drhodrhod
          end if
       end if
-
-      !
-      ! should test whether this is a new equilibrium
-      !
 
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq
 
