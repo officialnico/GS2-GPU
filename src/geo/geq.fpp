@@ -10,9 +10,8 @@ module geq
   use netcdf, only: nf90_inq_varid, nf90_inquire_variable
   use netcdf_utils, only: netcdf_error
 # endif
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
+  use geo_utils, only: abstract_eqfile_geo_type
   implicit none
-
   private
 
   public :: Hahm_Burrell, geq_type
@@ -25,9 +24,8 @@ module geq
 
 contains
 
-  !> This subroutine reads a generic NetCDF equilibrium file
-  !! containing the axisymmetric magnetic field geometry in flux
-  !! coordinates
+  !> This subroutine reads a generic NetCDF equilibrium file containing
+  !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use geo_utils, only: geo_input_type
     use constants, only: pi

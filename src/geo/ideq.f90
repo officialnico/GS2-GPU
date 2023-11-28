@@ -1,9 +1,7 @@
 !> FIXME : Add documentation
 module ideq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-
+  use geo_utils, only: abstract_eqfile_geo_type
   implicit none
-
   private
 
   public :: ideq_type

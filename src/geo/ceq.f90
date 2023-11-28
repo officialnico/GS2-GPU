@@ -1,10 +1,8 @@
 !> Reads in the geometry using a CHEASE output file.
 !> The CHEASE output file is read using the helper module read_chease.
 module ceq
-  use geo_utils, only: abstract_eqfile_geo_type, mod2pi
-
+  use geo_utils, only: abstract_eqfile_geo_type
   implicit none
-
   public :: Hahm_Burrell, ceq_type
 
   private
@@ -16,7 +14,6 @@ module ceq
      procedure :: set_ceq_from_chease => set_ceq_from_chease
   end type ceq_type
 
-  logical, parameter :: debug = .true.
   logical :: skip_file_read = .false.
 contains
 
@@ -48,6 +45,7 @@ contains
     integer, intent(out) :: nthg
     real :: f_N, psi_N
     integer :: j
+    logical, parameter :: debug = .true.
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
