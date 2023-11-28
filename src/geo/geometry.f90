@@ -1914,13 +1914,7 @@ contains
   real function psi(r, thet)
     implicit none
     real, intent (in) :: r, thet
-    if (r == 0.) then
-       psi = psi_0
-    else if (r == 1. .and. thet == 0.) then
-       psi = psi_a
-    else
-       psi = geom%psi(r, thet)
-    end if
+    psi = geom%psi(r, thet)
   end function psi
 
   !> FIXME : Add documentation
