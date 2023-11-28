@@ -66,7 +66,7 @@ contains
   subroutine leqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use mp, only: mp_abort
     use geo_utils, only: geo_input_type
-    use constants, only: pi
+    use constants, only: twopi, pi
     implicit none
     class(leq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
@@ -82,7 +82,7 @@ contains
        self%surf = inputs%surf
        self%beta_0 = 1.
        self%nr = 3
-       self%nt = self%surf%nt
+       self%nt = self%surf%nt * 2 + 1
        call self%alloc_arrays()
     end if
 
@@ -92,8 +92,8 @@ contains
     self%pressure = -dr
     self%eqpsi = 1 + dr
 
-    do j = -self%nt, self%nt
-       t = (j) * pi / real(self%nt)
+    do j = 1, self%nt
+       t = (j - 1) * twopi / real(self%nt - 1) - pi
        self%eqth(:, j) = t
        self%eqpsi_2d(:, j) = self%eqpsi
        do i = 1, self%nr
@@ -112,7 +112,7 @@ contains
     self%psi_0 = psi_0_out ; self%psi_a = psi_a_out
     self%B_T = B_T0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
     self%aminor = avgrmid
-    nthg = self%nt * 2 !Output is equivalent to ntheta_input
+    nthg = self%nt - 1 !Output is equivalent to ntheta_input
     self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
@@ -124,12 +124,12 @@ contains
     class(leq_type), intent(in out) :: self
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
-    allocate(self%eqpsi(nr), self%pressure(nr), self%eqpsi_2d(nr, -nt:nt))
-    allocate(self%R_psi(nr, -nt:nt), self%Z_psi(nr, -nt:nt), self%eqth(nr, -nt:nt))
-    allocate(self%drm(nr, -nt:nt, 2), self%dzm(nr, -nt:nt, 2), self%dbm(nr, -nt:nt, 2), &
-         self%dpm(nr, -nt:nt, 2), self%dtm(nr, -nt:nt, 2), self%B_psi(nr, -nt:nt))
-    allocate(self%dpcart(nr, -nt:nt, 2), self%dtcart(nr, -nt:nt, 2), self%dbcart(nr, -nt:nt, 2))
-    allocate(self%dpbish(nr, -nt:nt, 2), self%dtbish(nr, -nt:nt, 2), self%dbbish(nr, -nt:nt, 2))
+    allocate(self%eqpsi(nr), self%pressure(nr), self%eqpsi_2d(nr, nt))
+    allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%eqth(nr, nt))
+    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2), self%dbm(nr, nt, 2), &
+         self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%B_psi(nr, nt))
+    allocate(self%dpcart(nr, nt, 2), self%dtcart(nr, nt, 2), self%dbcart(nr, nt, 2))
+    allocate(self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2), self%dbbish(nr, nt, 2))
   end subroutine alloc_arrays
 
   !> Deallocate internal module-level arrays
@@ -156,19 +156,18 @@ contains
   end subroutine leq_finish_setup
 
   !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
-  !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
-  !> This is the same as derm_eqfile other than the lower nt bound is -nt here rather than 1
+  !> assuming periodicity in theta, `f(:,1) = f(:,nt)`.
   pure subroutine derm(self, f, dfm, char)
     use constants, only: pi
     implicit none
     class(leq_type), intent(in) :: self
     !> 2D array to be differentiated, indices radius, theta
     !> @note Theta grid end points assumed to be \[\pm \pi\]
-    real, dimension(:,:), intent(in) :: f(:,-self%nt:)
+    real, dimension(:,:), intent(in) :: f
     !> Derivatives of f:
-    !>   dfm(nr,-nt:nt,1) = df/dr
-    !>   dfm(nr,-nt:nt,2) = df/dtheta
-    real, dimension(:,:,:), intent(out) :: dfm(:,-self%nt:,:)
+    !>   dfm(nr,1:nt,1) = df/dr
+    !>   dfm(nr,1:nt,2) = df/dtheta
+    real, dimension(:,:,:), intent(out) :: dfm
     !> Specifies symmetry constraint at end of grid
     !>   "O" is odd in theta at \(\pm \pi\) (deprecated)
     !>   "E" is even in theta at \(\pm \pi\) (deprecated)
@@ -189,7 +188,7 @@ contains
     end do
 
     ! Compute df/dtheta (except at endpoints -pi,pi)
-    do j = -nt+1, nt-1
+    do j = 2, nt-1
        dfm(:,j,2) = 0.5*(f(:,j+1)-f(:,j-1))
     end do
 
@@ -197,13 +196,13 @@ contains
     !   (i) periodicity in theta,
     !  (ii) endpoints at -pi,+pi
     ! (iii) equispaced grid in theta, and
-    !  (iv) -nt and +nt correspond to -pi, +pi and are at the same place
-    dfm(:,-nt,2) = 0.5*(f(:,-nt+1)-f(:,nt-1))
-    dfm(:, nt,2) = dfm(:,-nt,2)
+    !  (iv) -1 and nt correspond to -pi, +pi and are at the same place
+    dfm(:, 1,2) = 0.5*(f(:,2)-f(:,nt-1))
+    dfm(:, nt,2) = dfm(:,1,2)
     ! `T` flag to denotes trivial derivative when f=theta,
     ! where care is needed at end points.
     if (char .eq. 'T') then
-       dfm(:,-nt,2) = dfm(:,-nt,2) + pi
+       dfm(:,1,2) = dfm(:,1,2) + pi
        dfm(:,nt,2) = dfm(:,nt,2) + pi
     end if
   end subroutine derm
@@ -216,7 +215,7 @@ contains
     !> Desired theta location
     real, intent(in) :: theta_in
     !> Array to interpolate
-    real, dimension(:,-self%nt:), intent(in) :: f
+    real, dimension(:, :), intent(in) :: f
     !> FIXME: Unused
     character(1), intent(in) :: char
     !> Internal loop variable
@@ -230,7 +229,7 @@ contains
     !> linear interpolation weights
     real :: st, dt
     !> Internal theta grid
-    real, dimension(-self%nt:self%nt) :: mtheta
+    real, dimension(1:self%nt) :: mtheta
 
     tp = mod2pi(theta_in)
 
@@ -239,19 +238,19 @@ contains
     mtheta = self%eqth(1, :)
 
     ! note that theta(1)=0 for local_eq theta
-    jstar = -self%nt-1
-    do j = -self%nt, self%nt
+    jstar = -1
+    do j = 1, self%nt
        if (tp < mtheta(j)) then
           dt = tp - mtheta(j-1)
           st = mtheta(j) - tp
           jstar = j-1
           exit
        end if
-       if(jstar /= -self%nt-1) write(*,*) 'exit error j'
+       if(jstar /= -1) write(*,*) 'exit error j'
     end do
 
     ! treat theta = pi separately
-    if (jstar == -self%nt-1) then
+    if (jstar == -1) then
        jstar = self%nt-1
        dt = mtheta(jstar+1) - mtheta(jstar)
        st = 0.
