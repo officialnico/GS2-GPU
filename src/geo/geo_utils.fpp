@@ -119,7 +119,7 @@ module geo_utils
    contains
      procedure(initialise_interface), deferred :: initialise
      procedure(noargs_interface), deferred :: finalise, finish_setup
-     procedure(rtheta_interface), deferred :: rpos, zpos, invr, psi, rfun
+     procedure(rtheta_interface), deferred :: rpos, zpos, psi, rfun
      procedure(rp_interface), deferred :: rcenter, diameter
      procedure(pbar_interface), deferred :: btori, dbtori, qfun, pfun, dpfun, betafun
      !> Calculate the derivative of rp w.r.t. R and Z. Parameters
@@ -150,13 +150,11 @@ module geo_utils
      procedure :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure :: calculate_gradients, gradient_work
-     procedure :: eqdcart, eqdbish
+     procedure :: eqdcart, eqdbish, invR, derm
      procedure :: alloc_common_arrays, dealloc_common_arrays
-     procedure :: alloc_arrays => alloc_arrays
-     procedure :: dealloc_arrays => dealloc_arrays
+     procedure :: alloc_arrays, dealloc_arrays
      procedure :: alloc_special_arrays => alloc_special_arrays_null
      procedure :: dealloc_special_arrays => dealloc_special_arrays_null
-     procedure :: derm => derm
   end type abstract_geo_type
 
   type, abstract, extends(abstract_geo_type) :: abstract_eqfile_geo_type
@@ -174,7 +172,7 @@ module geo_utils
      procedure :: pfun => pfun_eqfile, dpfun => dpfun_eqfile
      procedure :: diameter => diameter_eqfile, rcenter => rcenter_eqfile
      procedure :: psi => psi_eqfile, rfun => psi_eqfile
-     procedure :: invR => invR_eqfile, rpos => rpos_eqfile, zpos => zpos_eqfile
+     procedure :: rpos => rpos_eqfile, zpos => zpos_eqfile
      procedure :: eqitem => eqitem_eqfile
   end type abstract_eqfile_geo_type
 
@@ -527,6 +525,13 @@ contains
     end if
   end subroutine derm
 
+  real function invR (self, r, theta)
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    invR = 1. / self%rpos(r, theta)
+  end function invR
+
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
@@ -757,13 +762,6 @@ contains
     end if
     betafun = splint(pbar, self%beta_spl)
   end function betafun_eqfile
-
-  real function invR_eqfile (self, r, theta) result(invR)
-    implicit none
-    class(abstract_eqfile_geo_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%rpos(r, theta)
-  end function invR_eqfile
 
   real function rpos_eqfile (self, r, theta) result(rpos)
     implicit none

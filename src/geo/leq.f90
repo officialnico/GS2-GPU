@@ -39,7 +39,6 @@ module leq
      procedure :: finalise => leq_finish
      procedure :: rpos => rpos
      procedure :: zpos => zpos
-     procedure :: invr => invr
      procedure :: rcenter => rcenter
      procedure :: diameter => diameter
      procedure :: btori => btori
@@ -183,13 +182,6 @@ contains
          +f(istar    , jstar + 1)  * dt
     fstar = fstar / (mtheta(jstar+1)-mtheta(jstar))
   end function eqitem
-
-  !> Return the inverse of the major radius at \((r, \theta)\)
-  real function invR (self, r, theta)
-    class(leq_type), intent(in) :: self
-    real, intent (in) :: r, theta
-    invR = 1. / self%Rpos(r, theta)
-  end function invR
 
   !> Return the major radius at \((r, \theta)\)
   real function Rpos (self, r, theta)
