@@ -128,7 +128,6 @@ module geometry
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
   real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-
   integer :: nperiod, itor, iflux, irho, isym, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc
@@ -362,10 +361,8 @@ contains
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
          gds2, gds21, gds22
-    real :: shat, dbetadrho, drhodpsi
-    real :: rho, rp, drhodrp, drhodrhod, B_T0, dp_new, di_new
-    real :: dpsidrp, dpsidrho, dqdrp, s_hat_new
-    real :: qval, dum, bi, pbar
+    real :: shat, dbetadrho,dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
+    real :: rho, rp, pbar, drhodrp, drhodrhod,  drhodpsi, dpsidrp, dpsidrho
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -1527,7 +1524,7 @@ contains
 
   !> Forces symmetry in theta in the passed array. If isign == 0 then
   !> `a(+/- theta)` is replaced by the average of `a(+/-theta)`, otherwise
-  !> `a(+/- theta)` is replace by `+/- (a(theta)-a(-theta))`.
+  !> `a(+/- theta)` is replaced by `+/- (a(theta)-a(-theta))`.
   pure subroutine sym(a, isign, ntgrid)
     implicit none
     integer, intent(in) :: isign, ntgrid
@@ -1547,7 +1544,7 @@ contains
     end if
   end subroutine sym
 
-  !> FIXME: Add documentation
+  !> FIXME: Add documentation. Only used for bishop == 0 testing
   subroutine seikon(rp, theta, invR, qval, bi, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta, invR
@@ -2387,8 +2384,8 @@ contains
     do i = -ntgrid, ntgrid
        Rplot(i) = Rpos(rgrid(i), theta(i))
        Zplot(i) = Zpos(rgrid(i), theta(i))
-       aplot(i) = seik(i)
     end do
+    aplot = seik
 
     do i = -ntgrid, ntgrid
        rplus  = rgrid(i) * (1 + delrho)
