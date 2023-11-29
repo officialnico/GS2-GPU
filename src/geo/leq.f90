@@ -123,7 +123,7 @@ contains
   end subroutine leq_finish
 
   !> Finish the leq setup
-  subroutine leq_finish_setup(self)
+  pure subroutine leq_finish_setup(self)
     class(leq_type), intent(in out) :: self
     call self%calculate_gradients
   end subroutine leq_finish_setup
@@ -184,7 +184,7 @@ contains
   end function eqitem
 
   !> Return the major radius at \((r, \theta)\)
-  real function Rpos (self, r, theta)
+  pure real function Rpos (self, r, theta)
     implicit none
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
@@ -205,7 +205,7 @@ contains
   end function Rpos
 
   !> Return the axial coordinate at \((r, \theta)\)
-  real function Zpos (self, r, theta)
+  pure real function Zpos (self, r, theta)
     implicit none
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
@@ -385,7 +385,7 @@ contains
   end subroutine geo_FourierSeries
 
   !> FIXME : Add documentation
-  real function psi (self, r, theta)
+  pure real function psi (self, r, theta)
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
     if (r==0.) then
@@ -398,14 +398,14 @@ contains
   end function psi
 
   !> FIXME : Add documentation | Should this be equivalent to psi as in others?
-  real function rfun (self, r, theta)
+  pure real function rfun (self, r, theta)
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
     rfun = r
   end function rfun
 
   !> FIXME : Add documentation
-  real function diameter (self, rp)
+  pure real function diameter (self, rp)
     class(leq_type), intent(in) :: self
     real, intent(in) :: rp
     diameter = 2. * rp
@@ -414,7 +414,7 @@ contains
   !> Return the major radius of the centre of the flux surface
   !> @Note rcenter for other geo types returns the major radius of the LCFS
   !> which is named R_geo in geometry. We do store R_geo here so could return that?
-  real function rcenter(self, rp)
+  pure real function rcenter(self, rp)
     class(leq_type), intent(in) :: self
     real, intent(in) :: rp
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
@@ -428,42 +428,42 @@ contains
   end function rcenter
 
   !> FIXME : Add documentation
-  real function dbtori (self, pbar)
+  pure real function dbtori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     dbtori = 0
   end function dbtori
 
   !> FIXME : Add documentation
-  real function btori (self, pbar)
+  pure real function btori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     btori = self%surf%Rgeo
   end function btori
 
   !> FIXME : Add documentation
-  real function qfun (self, pbar)
+  pure real function qfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     qfun = self%surf%q
   end function qfun
 
   !> FIXME : Add documentation
-  real function pfun (self, pbar)
+  pure real function pfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     pfun = 0.5 * self%beta_0
   end function pfun
 
   !> FIXME : Add documentation
-  real function dpfun (self, pbar)
+  pure real function dpfun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     dpfun = 0
   end function dpfun
 
   !> FIXME : Add documentation
-  real function betafun (self, pbar)
+  pure real function betafun (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
     betafun = self%beta_0
