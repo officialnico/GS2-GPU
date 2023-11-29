@@ -898,6 +898,8 @@ contains
          inputs%eqnormfile = eqnormfile
       end if
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
+      rpmin = psi_0 ; rpmax = psi_a
+      if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
 
       ! Handle possible ntheta_out < 0?
       if (ntheta_out > 0) ntheta_input = ntheta_out
@@ -927,8 +929,6 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
-      rpmin = psi_0 ; rpmax = psi_a
-      if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Because irho==2 if iflux==0 and diameter is effectively analytic
       ! one would expect rpofrho(rho) == rho in this case. So here we
       ! effectively just have an optimisation (I think)
@@ -1339,7 +1339,6 @@ contains
   end function invRfun
 
   !> Returns the diameter of the surface labelled by rp.
-  !> @note This is not defined for dfit_eq = T
   real function diameter(rp)
     implicit none
     real, intent(in) :: rp
