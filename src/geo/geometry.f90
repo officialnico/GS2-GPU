@@ -1366,7 +1366,7 @@ contains
   end function dbtori
 
   !> FIXME : Add documentation
-  !> Only used with undocumented `irho = 4` option
+  !> Only used with undocumented `irho = 4` option. Ideally would update to take pbar
   real function rhofun (rp)
     implicit none
     real, intent (in) :: rp
@@ -1453,27 +1453,18 @@ contains
           call geom%gradient(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
        end if
 
-       do i = -nth, nth
-          bgradtot(i, 1) = bgrad1(i, 1)
-          bgradtot(i, 2) = bgrad1(i, 2)
-          bgradtot(i, 3)  =0.
-       end do
+       bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
+       bgradtot(-nth:nth, 3) = 0.0
 
        !     create curvature
-       select case (bishop)
-       case (0)
+       if (bishop == 0) then
           char='R'
           call geom%gradient(rgrid, theta, pgrad, char, rp, nth, ntgrid)
-          do i = -nth, nth
-             pgradtot(i, 1) = pgrad(i, 1)
-             pgradtot(i, 2) = pgrad(i, 2)
-             pgradtot(i, 3) = 0.
-          end do
-          ! Note here we have not filled the full theta domain unlike in the other
-          ! bishop cases.
-       case default
+          pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
+          pgradtot(-nth:nth, 3) = 0.0
+       else
           pgradtot = gradrptot * dpsidrho * drhodrp * dp_new
-       end select
+       end if
 
        do i = -nth, nth
           curve(i, 1) = bgradtot(i, 1) / bmod(i) + pgradtot(i, 1) / bmod(i)**2
