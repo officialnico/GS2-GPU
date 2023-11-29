@@ -19,7 +19,7 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type
+  use geo_utils, only: abstract_geo_type, flux_surface_type, mod2pi
   implicit none
 
   private
@@ -403,30 +403,6 @@ contains
     real, intent (in) :: r, theta
     rfun = r
   end function rfun
-
-  !> Put `theta` into the range `[-pi, pi]`
-  !>
-  !> This version also sets `theta == +(-)pi +(-) theta_tol` to be
-  !> exactly `+(-)pi`, where `theta_tol == 1.e-6`
-  !>
-  !> General purpose, could be moved into utils? Could also drop the
-  !> tolerance?
-  !>
-  !> @note Currently different to the form in geo_utils
-  pure real function mod2pi (theta)
-    use constants, only: pi
-    real, intent(in) :: theta
-    real, parameter :: theta_tol = 1.e-6
-    if(theta <= pi .and. theta >= -pi) then
-      mod2pi = theta
-    else if(theta - theta_tol <= pi .and. theta >= -pi) then
-      mod2pi = pi
-    else if(theta <= pi .and. theta + theta_tol >= -pi) then
-      mod2pi = -pi
-    else
-      mod2pi = modulo(theta + pi, 2.*pi) - pi
-    end if
-  end function mod2pi
 
   !> FIXME : Add documentation
   real function diameter (self, rp)
