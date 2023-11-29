@@ -515,7 +515,7 @@ contains
     invR = 1. / self%rpos(r, theta)
   end function invR
 
-  real function rhofun_null (self, pbar) result(rhofun)
+  real function rhofun_null (self, pbar) result(rhofun) !Can't be pure as deq variant isnt
     implicit none
     class(abstract_geo_type), intent(in) :: self
     real, intent (in) :: pbar
@@ -728,7 +728,7 @@ contains
     rcenter = splint(rp, self%rcenter_spl)
   end function rcenter_eqfile
 
-  real function psi_eqfile (self, r, theta) result(psi)
+  real function psi_eqfile (self, r, theta) result(psi) !Can't mark pure as eqfile_cart variant is not pure
     implicit none
     class(abstract_eqfile_geo_type), intent(in) :: self
     real, intent (in) :: r, theta
@@ -748,9 +748,9 @@ contains
     real, intent(in) :: pbar
     if (pbar == 0.) then
        betafun = self%beta_0
-       return
+    else
+       betafun = splint(pbar, self%beta_spl)
     end if
-    betafun = splint(pbar, self%beta_spl)
   end function betafun_eqfile
 
   real function rpos_eqfile (self, r, theta) result(rpos)
@@ -884,14 +884,14 @@ contains
     bound = periodic_splint(theta, self%rbound_spl)
   end function bound_eqfile_cart
 
-  real function rpos_eqfile_cart (self, r, theta) result(rpos)
+  pure real function rpos_eqfile_cart (self, r, theta) result(rpos)
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, intent (in) :: r, theta
     rpos = self%R_mag + r * cos(theta)
   end function rpos_eqfile_cart
 
-  real function zpos_eqfile_cart (self, r, theta) result(zpos)
+  pure real function zpos_eqfile_cart (self, r, theta) result(zpos)
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, intent (in) :: r, theta
@@ -943,9 +943,9 @@ contains
   !> FIXME : Add documentation
   !>
   !> @note Could we use the sorting module here?
-  subroutine sort(a, b, c, d)
+  pure subroutine sort(a, b, c, d)
     real, dimension(:), intent(in out) :: a, b, c, d
-    real tmp
+    real :: tmp
     integer :: i, j, jmax
     jmax = size(a)
     do j = 1, jmax
