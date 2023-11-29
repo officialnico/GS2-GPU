@@ -150,7 +150,7 @@ module geo_utils
      procedure :: bgradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure :: calculate_gradients, gradient_work
-     procedure :: eqdcart, eqdbish, invR, derm
+     procedure :: eqdcart, eqdbish, invR, derm, rhofun => rhofun_null
      procedure :: alloc_common_arrays, dealloc_common_arrays
      procedure :: alloc_arrays, dealloc_arrays
      procedure :: alloc_special_arrays => alloc_special_arrays_null
@@ -514,6 +514,13 @@ contains
     real, intent (in) :: r, theta
     invR = 1. / self%rpos(r, theta)
   end function invR
+
+  real function rhofun_null (self, pbar) result(rhofun)
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    real, intent (in) :: pbar
+    rhofun = 0.
+  end function rhofun_null
 
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)

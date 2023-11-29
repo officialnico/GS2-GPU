@@ -1369,18 +1369,11 @@ contains
   !> FIXME : Add documentation
   !> Only used with undocumented `irho = 4` option
   real function rhofun (rp)
-    use deq, only: deq_type
     implicit none
     real, intent (in) :: rp
     real :: pbar
-    integer :: i
     pbar = psifun(rp)
-    select type(geom)
-    type is(deq_type)
-       rhofun = geom%rhofun(pbar)
-    class default
-       rhofun = 0.
-    end select
+    rhofun = geom%rhofun(pbar)
   end function rhofun
 
   !> FIXME : Add documentation
