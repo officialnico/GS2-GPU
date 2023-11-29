@@ -1243,7 +1243,7 @@ contains
   end subroutine eikcoefs
 
   !> FIXME : Add documentation
-  subroutine bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
+  pure subroutine bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: invR
     real, dimension(-ntgrid:,:), intent (in) :: rpgrad
@@ -1399,6 +1399,26 @@ contains
     real, intent (in) :: pbar
     beta_a_fun = geom%betafun(pbar)
   end function beta_a_fun
+
+  real function rfun(rp, theta)
+    implicit none
+    real, intent(in) :: rp, theta
+    rfun = geom%rfun(rp, theta)
+  end function rfun
+
+  !> FIXME : Add documentation
+  real function psi(r, thet)
+    implicit none
+    real, intent (in) :: r, thet
+    psi = geom%psi(r, thet)
+  end function psi
+
+  !> FIXME : Add documentation
+  real function rcenter(rp)
+    implicit none
+    real, intent (in) :: rp
+    rcenter = geom%rcenter(rp)
+  end function rcenter
 
   !> Calculates the normalised radial coordinate
   pure real function psifun (rp)
@@ -1568,7 +1588,7 @@ contains
   end subroutine seikon
 
   !> FIXME : Add documentation
-  subroutine eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
+  pure subroutine eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
     use constants, only: twopi
     implicit none
     real, dimension(-ntgrid:), intent(in) :: theta, invR
@@ -1656,7 +1676,7 @@ contains
   end function rpofrho
 
   !> Computes something like x cross y dot grad zeta.
-  subroutine tripprod2dtgrid(x, y, invR, val)
+  pure subroutine tripprod2dtgrid(x, y, invR, val)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: invR
     real, dimension(-ntgrid:), intent (out) :: val
@@ -1836,13 +1856,6 @@ contains
   end function phi
 
   !> FIXME : Add documentation
-  real function psi(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    psi = geom%psi(r, thet)
-  end function psi
-
-  !> FIXME : Add documentation
   !>
   !> @note This routine is just used by eik, not GS2
   subroutine geofax(rho, theta, t, e, d, fort11_unit)
@@ -1913,13 +1926,6 @@ contains
     t = (rcenter(rp)-rmaxu)/rmid
     d = rcenter(rp) - rcenter(psi_a)
   end subroutine geofax
-
-  !> FIXME : Add documentation
-  real function rcenter(rp)
-    implicit none
-    real, intent (in) :: rp
-    rcenter = geom%rcenter(rp)
-  end function rcenter
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
   !> such that gradpar is constant and theta_eqarc is a theta grid with uniform arc length.
@@ -2090,7 +2096,7 @@ contains
   end subroutine th_bishop
 
   !> FIXME : Add documentation
-  subroutine B_pol(invR, rpgrad, Bpolmag, nth)
+  pure subroutine B_pol(invR, rpgrad, Bpolmag, nth)
     implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: invR
@@ -2103,7 +2109,7 @@ contains
   end subroutine B_pol
 
   !> FIXME : Add documentation
-  subroutine B_mod(invR, Bpolmag, Bmod, bi, nth)
+  pure subroutine B_mod(invR, Bpolmag, Bmod, bi, nth)
     implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: invR, Bpolmag
@@ -2118,7 +2124,7 @@ contains
   !> General calculation of the poloidal magnetic field radius of curvature
   !> (see section 2.3 of "GS2 analytic geometry specification") ! JRB
   !> @Note we actually calculate 1/Rpol as this is what we actually use.
-  subroutine inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
+  pure subroutine inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
     use constants, only: twopi, pi
     implicit none
     integer, intent (in) :: nth
@@ -2224,7 +2230,7 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation
-  subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
+  pure subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: Bmod, Bpolmag, invRpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, rmajor
@@ -2273,12 +2279,6 @@ contains
     end do
     call periodic_copy(rgrid, 0.0, nperiod)
   end subroutine rtg
-
-  real function rfun(rp, theta)
-    implicit none
-    real, intent(in) :: rp, theta
-    rfun = geom%rfun(rp, theta)
-  end function rfun
 
   !> Calculate the derivative of the flux label rho
   !> with respect to the internal flux label rp (the
