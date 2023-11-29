@@ -1594,10 +1594,8 @@ contains
 
     if (iflux == 0) then
        dpsidrp = -(seik(nth) - seik(-nth)) / (twopi * qval)
-       do i = -nth, nth
-          seik(i) = seik(i) / dpsidrp
-          dsdthet(i) = dsdthet(i) / dpsidrp
-       end do
+       seik = seik / dpsidrp
+       dsdthet = dsdthet / dpsidrp
     else
        dpsidrp = 1.
        qval = -(seik(nth) - seik(-nth)) / (twopi)
