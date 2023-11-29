@@ -1448,7 +1448,6 @@ contains
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
     real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3, cdrift1, cdrift2
-    real :: dum
     character(1) :: char
     integer :: i, k, itot
 
@@ -1467,7 +1466,7 @@ contains
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
        else
           char = 'B'
-          call geom%gradient(rgrid, theta, bgrad1, char, dum, nth, ntgrid)
+          call geom%gradient(rgrid, theta, bgrad1, char, rp, nth, ntgrid)
        end if
 
        bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
@@ -1573,14 +1572,13 @@ contains
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
-    real :: dum
     character(1), parameter :: char = 'P'
     rgrid = rp
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
-       call geom%gradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+       call geom%gradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
     else
-       call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+       call geom%bgradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
     end if
 
     call thetagrad(rgrid, theta, thgrad)
