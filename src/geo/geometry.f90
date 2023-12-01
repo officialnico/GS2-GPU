@@ -871,7 +871,6 @@ contains
 
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
-      use eeq, only: eeq_verbosity => verbosity
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
       real :: avgrmid, Ltot, rbar
@@ -899,7 +898,6 @@ contains
                big = 8
             end if
          end if
-         eeq_verbosity = verb
          inputs%eqfile = eqfile
          inputs%big = big
          inputs%eqnormfile = eqnormfile

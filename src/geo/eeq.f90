@@ -99,9 +99,6 @@ module eeq
   private
 
   public :: eeq_type, gs2d_type
-  public :: verbosity  !Should this be replaced by usage of runtime_test:verbosity?
-
-  integer :: verbosity = 0  !Should this be replaced by usage of runtime_test:verbosity?
 
   type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
@@ -361,16 +358,11 @@ contains
     nthg = -1
     big = inputs%big
     ! Need to generalize initialization condition if equilibrium changes
-    if (verbosity>2) write (*,*) 'Starting efitin'
     self%filename = trim(adjustl(inputs%eqfile))
-    if (verbosity>1) write (*,*) 'Opening file ', self%filename
     open(unit=5, file = self%filename, status='old',form='formatted')
 
     ! Read the data
     read(5,1000) char, char, char, char, char, i, nw_in, nh_in
-
-    if (verbosity>1) write (*,*) 'EFIT dimensions are: ', nw_in, nh_in
-
     self%nw = nw_in * big ; self%nr = self%nw
     self%nh = nh_in * big ; self%nt = self%nh
 
