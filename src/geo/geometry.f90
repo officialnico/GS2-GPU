@@ -373,7 +373,8 @@ contains
     real :: a_b, b_b, c_b
     real :: s_hat, dp, di, pressure, tmp
     !> For outputting geom values
-    integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit
+    integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit, bishop_unit
+    logical, parameter :: save_bishop = .true.
 
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
@@ -635,6 +636,21 @@ contains
        gradztot(:,2) = dZdl
        ! gradztot(:,3) is grad Z . phihat
        gradztot(:,3) = 0.0
+
+       if (save_bishop) then
+          call open_output_file(bishop_unit, '.bishop')
+          write(bishop_unit, fmt="('#di, di_new = ',F12.7,' ',F12.7)") di, di_new
+          write(bishop_unit, fmt="('#dp, dp_new = ',F12.7,' ',F12.7)") dp, dp_new
+          write(bishop_unit, fmt="('#bi =', F12.7)") bi
+          write(bishop_unit, fmt="('#drdpsi =', F12.7)") drhodpsi
+          write(bishop_unit, fmt="('#a_b (fp)=', F20.10, ' ,b_b (pp)=', F20.10,' ,c_b  =', F20.10,' ,s_hat =', F20.10)") a_b*di, b_b*dp, c_b, s_hat
+          write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
+          do i =-ntgrid,ntgrid
+             write(bishop_unit, '( 10(2X, F25.17) )') theta(i), a_bish(i), b_bish(i), &
+                  c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
+          enddo
+          call close_output_file(bishop_unit)
+       end if
     else
        call bishop_large_aspect_ratio_approximation
     end if
