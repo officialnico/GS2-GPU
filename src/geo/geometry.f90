@@ -667,10 +667,7 @@ contains
     !     compute the magnitude squared of grad S
     call dottgridf(gradstot, gradstot, gdsdum1)
 
-    do i = -nth, nth
-       gradrptot(i, 1) = rpgrad(i, 1)
-       gradrptot(i, 2) = rpgrad(i, 2)
-    end do
+    gradrptot(-nth:nth, 1:2) = rpgrad(-nth:nth, :)
     call periodic_copy(gradrptot(:, 1), 0., nperiod)
     call periodic_copy(gradrptot(:, 2), 0., nperiod)
     gradrptot(:, 3) = 0.
@@ -691,10 +688,7 @@ contains
     ! gradthtot is grad theta
     ! since ballooning, theta goes from -ntheta*nperiod -> ntheta*nperiod,
     ! but grad theta is periodic in theta
-    do i = -nth, nth
-       gradthtot(i, 1) = thgrad(i, 1)
-       gradthtot(i, 2) = thgrad(i, 2)
-    end do
+    gradthtot(-nth:nth, 1:2) = thgrid(-nth:nth, :)
     call periodic_copy(gradthtot(:, 1), 0., nperiod)
     call periodic_copy(gradthtot(:, 2), 0., nperiod)
     gradthtot(:, 3) = 0.
@@ -914,7 +908,9 @@ contains
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
 
-      ! Handle possible ntheta_out < 0?
+      ! Handle possible ntheta_out < 0? Not clear that we need to listen to what
+      ! theta grid size an equilibrium type uses given that we always use interpolation
+      ! to evaluate geometrical quantities on our theta grid?
       if (ntheta_out > 0) ntheta_input = ntheta_out
 
       call init_uniform_theta_grid(ntheta_input, theta)
