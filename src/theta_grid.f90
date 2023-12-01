@@ -1091,6 +1091,7 @@ module theta_grid_eik
   
   logical :: exist, initialized = .false.
   type(eikcoefs_output) :: eikcoefs_results
+  integer :: ntheta_geometry
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_eik_config_type
@@ -1152,7 +1153,6 @@ module theta_grid_eik
      !>
      !> -  0: Use analytic parameterization of local toroidal MHD equilibrium (Miller).
      !> -  1: Read equilibrium data from output of MHD Grad Shafranov solver
-     !> -  2: Running inside a transport code without numerical equilibrium
      !>
      integer :: iflux = 0
      !> Used with [[theta_grid_eik_knobs:bishop]] == 3: controls pressure length
@@ -1187,10 +1187,6 @@ module theta_grid_eik
      integer :: ntheta_geometry = -1
      !> Use Menard-style NetCDF equilibrium (JSOLVER)
      logical :: ppl_eq = .false.
-     !> Used by [[eiktest]]
-     real :: rmax = 1.0
-     !> Used by [[eiktest]]
-     real :: rmin = 1e-3
      !> Used to overrides s_hat prescribed by the numerical
      !> equilibrium, but _only_ if bishop=2,3,4,5,8, or 9.
      !> @note This gets a "smart" default.
@@ -1214,12 +1210,10 @@ contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: alpha_input, beta_prime_input, invLp_input, s_hat_input
-    use geometry, only: delrho, dp_mult, rmin, rmax
+    use geometry, only: delrho, dp_mult
     use geometry, only: bishop, iflux, irho, itor, isym
-    use geometry, only: eqfile
-    use geometry, only: eqnormfile
-    !  use geometry, only: idfit_eq
-    use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq
+    use geometry, only: eqfile, eqnormfile
+    use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc
     implicit none
     integer, intent(in) :: unit
@@ -1233,7 +1227,7 @@ contains
     write (unit, fmt="(' efit_eq =  ',L1)") efit_eq
     write (unit, fmt="(' gen_eq =   ',L1)") gen_eq
     write (unit, fmt="(' dfit_eq =  ',L1)") dfit_eq
-!       write (unit, fmt="(' idfit_eq = ',L1)") idfit_eq
+    write (unit, fmt="(' idfit_eq = ',L1)") idfit_eq
     write (unit, fmt="(' local_eq =  ',L1)") local_eq
     write (unit, fmt="(' transp_eq =  ',L1)") transp_eq
     write (unit, fmt="(' gs2d_eq =  ',L1)") gs2d_eq
@@ -1246,8 +1240,6 @@ contains
     write (unit, fmt="(' beta_prime_input =  ',e13.6)") beta_prime_input
     write (unit, fmt="(' dp_mult =  ',e13.6)") dp_mult
     write (unit, fmt="(' delrho =  ',e13.6)") delrho
-    write (unit, fmt="(' rmin =  ',e13.6)") rmin
-    write (unit, fmt="(' rmax =  ',e13.6)") rmax
     write (unit, fmt="(' isym =  ',i1)") isym
     write (unit, fmt="(' writelots =  ',L1)") writelots
     write (unit, fmt="(' eqfile = ',a)") '"'//trim(eqfile)//'"'
@@ -1665,7 +1657,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: nperiod_geo => nperiod, ntheta_geometry
+    use geometry, only: nperiod_geo => nperiod
     use geometry, only: eikcoefs, itor, delrho, rhoc
     use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: run_eikcoefs_and_resample
@@ -1827,7 +1819,7 @@ contains
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult, s_hat_input
     use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
     use geometry, only: deltampri, deltanpri, thetam, thetan, qinp, rmaj, r_geo
-    use geometry, only: delrho, rmin, rmax, ntheta_geometry, isym, in_nt, writelots
+    use geometry, only: delrho, isym, writelots
     use theta_grid_params, only: nperiod_in => nperiod
     use theta_grid_params, only: rhoc_in => rhoc
     use theta_grid_params, only: rmaj_in => rmaj, r_geo_in => r_geo
@@ -1842,8 +1834,6 @@ contains
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
-
-    in_nt = .false.
     
     ! Copy some values from theta_grid_params into this module
     nperiod = nperiod_in  
@@ -1898,8 +1888,6 @@ contains
     local_eq = theta_grid_eik_config%local_eq
     ntheta_geometry = theta_grid_eik_config%ntheta_geometry
     ppl_eq = theta_grid_eik_config%ppl_eq
-    rmax = theta_grid_eik_config%rmax
-    rmin = theta_grid_eik_config%rmin
     s_hat_input = theta_grid_eik_config%s_hat_input
     transp_eq = theta_grid_eik_config%transp_eq
     writelots = theta_grid_eik_config%writelots
@@ -1943,15 +1931,13 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 800) :: eqfile
-    character(len = 800) :: eqnormfile
+    character(len = 800) :: eqfile, eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
     logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
-    real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, rmax, rmin, s_hat_input
+    real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, s_hat_input
 
-    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
-         rmax, rmin, s_hat_input, transp_eq, writelots, &
-         eqnormfile
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, eqnormfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
+         s_hat_input, transp_eq, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1979,8 +1965,6 @@ contains
     local_eq = self%local_eq
     ntheta_geometry = self%ntheta_geometry
     ppl_eq = self%ppl_eq
-    rmax = self%rmax
-    rmin = self%rmin
     s_hat_input = self%s_hat_input
     transp_eq = self%transp_eq
     writelots = self%writelots
@@ -2012,8 +1996,6 @@ contains
     self%local_eq = local_eq
     self%ntheta_geometry = ntheta_geometry
     self%ppl_eq = ppl_eq
-    self%rmax = rmax
-    self%rmin = rmin
     self%s_hat_input = s_hat_input
     self%transp_eq = transp_eq
     self%writelots = writelots
@@ -2056,8 +2038,6 @@ contains
     call self%write_key_val("local_eq", self%local_eq, unit_internal)
     call self%write_key_val("ntheta_geometry", self%ntheta_geometry, unit_internal)
     call self%write_key_val("ppl_eq", self%ppl_eq, unit_internal)
-    call self%write_key_val("rmax", self%rmax, unit_internal)
-    call self%write_key_val("rmin", self%rmin, unit_internal)
     call self%write_key_val("s_hat_input", self%s_hat_input, unit_internal)
     call self%write_key_val("transp_eq", self%transp_eq, unit_internal)
     call self%write_key_val("writelots", self%writelots, unit_internal)
@@ -2102,8 +2082,6 @@ contains
     call broadcast(self%local_eq)
     call broadcast(self%ntheta_geometry)
     call broadcast(self%ppl_eq)
-    call broadcast(self%rmax)
-    call broadcast(self%rmin)
     call broadcast(self%s_hat_input)
     call broadcast(self%transp_eq)
     call broadcast(self%writelots)

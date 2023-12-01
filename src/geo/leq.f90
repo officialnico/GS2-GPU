@@ -1,37 +1,37 @@
 !> Analytic local equilibria via generalised forms of the Miller model
-!!
-!! Justin Ball's MIT Masters thesis and/or ["GS2 analytic geometry
-!! specification"](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
-!! provide a good overview of how this module works.
-!!
-!! There are four equilibrium models in this module:
-!!
-!! 1. generalised Miller
-!! 2. global MHD
-!! 3. generalised elongation
-!! 4. Fourier
-!!
-!! These can be chosen via the `geoType` input parameter (`0-4`,
-!! respectively)
-!!
-!! All of these models allow you to specify the amplitudes of two
-!! shaping modes, along with their phases and radial derivatives. The
-!! generalised elongation and Fourier models also allow you to specify
-!! the exact mode numbers.
+!>
+!> Justin Ball's MIT Masters thesis and/or ["GS2 analytic geometry
+!> specification"](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
+!> provide a good overview of how this module works.
+!>
+!> There are four equilibrium models in this module:
+!>
+!> 1. generalised Miller
+!> 2. global MHD
+!> 3. generalised elongation
+!> 4. Fourier
+!>
+!> These can be chosen via the `geoType` input parameter (`0-4`,
+!> respectively)
+!>
+!> All of these models allow you to specify the amplitudes of two
+!> shaping modes, along with their phases and radial derivatives. The
+!> generalised elongation and Fourier models also allow you to specify
+!> the exact mode numbers.
 module leq
   implicit none
 
   private
   
-  public :: leq_init, leqin, gradient, eqitem, bgradient, leq_finish
+  public :: leq_init, leqin, gradient, bgradient, leq_finish
   public :: invR, Rpos, Zpos, diameter, btori, dbtori, qfun, pfun
   public :: dpfun, betafun, psi, rcenter, dpdrhofun
 
   public :: leq_testing_type
 
   !> Number of radial grid points
-  !!
-  !! Unconditionally always set to 3?
+  !>
+  !> Unconditionally always set to 3?
   integer :: nr
   !> Number of theta grid points
   integer :: nt
@@ -135,13 +135,14 @@ module leq
     procedure, nopass :: alloc_arrays
     procedure, nopass :: dealloc_arrays    
     procedure, nopass :: set_surf
+    procedure, nopass :: eqitem
   end type leq_testing_type
 
 contains
   
   !> Set module-level `surf` and associated `thetaShift` and `beta_0`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_surf(Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, &
        delm, deln, delmp, delnp, thm, thn, q, shat, nt, geoType, &
        mMode, nMode, thetaShift_in, beta_0_in)
@@ -156,8 +157,8 @@ contains
   end subroutine set_surf
 
   !> Set module-level `nt`, `nr`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_ntnr(ntheta, nradius)
     integer, intent(in) :: ntheta, nradius
     nt = ntheta
@@ -165,32 +166,32 @@ contains
   end subroutine set_ntnr
 
   !> Set module-level `drm`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_drm(drm_in)
     real, dimension(nr,-nt:nt,2), intent(in) :: drm_in
     drm = drm_in
   end subroutine set_drm
 
   !> Set module-level `dzm`
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_dzm(dzm_in)
     real, dimension(nr,-nt:nt,2), intent(in) :: dzm_in
     dzm = dzm_in
   end subroutine set_dzm
 
   !> Set module-level dpcart
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_dpcart(dpcart_in)
     real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
     dpcart = dpcart_in
   end subroutine set_dpcart
 
   !> Set module-level dpcart, dbtcart and dtcart
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_cart_arrays(dpcart_in, dbtcart_in, dtcart_in)
     real, dimension(nr,-nt:nt,2), intent(in) :: dpcart_in
     real, dimension(nr,-nt:nt,2), intent(in) :: dbtcart_in
@@ -201,8 +202,8 @@ contains
   end subroutine set_cart_arrays
 
   !> Set module-level dpbish, dbtbish and dtbish
-  !! PURELY FOR TESTING
-  !! FIXME: Remove when we have more control over module-level variables for testing
+  !> PURELY FOR TESTING
+  !> FIXME: Remove when we have more control over module-level variables for testing
   subroutine set_bish_arrays(dpbish_in, dbtbish_in, dtbish_in)
     real, dimension(nr,-nt:nt,2), intent(in) :: dpbish_in
     real, dimension(nr,-nt:nt,2), intent(in) :: dbtbish_in
@@ -213,10 +214,6 @@ contains
   end subroutine set_bish_arrays
 
   !> Set module-level parameters and initialise the leq module
-  !!
-  !! Note: in contrast to the other geometry modules, this also calls
-  !! `leq_init`, whereas others have separate `Xeqin` and `Xeq_init`
-  !! procedures
   subroutine leqin(geoType, Rmaj, Rgeo, r, dr, aSurf, sHorz, sVert, mMode, nMode, &
        delm, deln, delmp, delnp, thm, thn, q, shat, nt_used, thShift)
     implicit none
@@ -252,12 +249,11 @@ contains
     nt = nt_used
     if(.not.allocated(beta)) call alloc_arrays(3, nt)
     surf%nt = nt
-    call leq_init
   end subroutine leqin
 
   !> Allocate internal module-level arrays
-  !!
-  !! Note that this doesn't use the module-level `nr`, `nt`
+  !>
+  !> Note that this doesn't use the module-level `nr`, `nt`
   subroutine alloc_arrays(nr, nt)
     implicit none
     !> Number of radial points
@@ -354,7 +350,7 @@ contains
 
   !> `derm` computes the index-space derivatives of `f` in radius and theta directions,
   !> assuming periodicity in theta, `f(:,-nt) = f(:,nt)`.
-  subroutine derm(f, dfm, char)
+  pure subroutine derm(f, dfm, char)
     use constants, only: pi
     implicit none
     !> 2D array to be differentiated, indices radius, theta
@@ -406,8 +402,8 @@ contains
   end subroutine derm
 
   !> Calculate the derivative of \(r_\psi\) w.r.t. R and Z
-  !!
-  !! \(r_\psi\) is the "minor radius flux function"
+  !>
+  !> \(r_\psi\) is the "minor radius flux function"
   subroutine gradient(theta, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
     implicit none
@@ -587,16 +583,15 @@ contains
 
   !> Convert `dfm` from index-space derivative to derivative on
   !> cylindrical coordinates
-  !!
-  !! - Gradient in the first coordinate is in `(:,:,1)`
-  !! - Gradient in the second coordinate is in `(:,:,2)`
-  subroutine eqdcart(dfm, dfcart)
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
+  pure subroutine eqdcart(dfm, dfcart)
     !> Index-space derivative
     real, dimension(nr,-nt:nt,2), intent(in)  :: dfm
     !> Cylindrical coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(out) :: dfcart
     real, dimension(nr,-nt:nt) :: denom
-
     integer :: i, j
       
     denom(:,:) = drm(:,:,1)*dzm(:,:,2) - drm(:,:,2)*dzm(:,:,1)
@@ -617,16 +612,15 @@ contains
 
   !> Convert `dcart` from cylindrical coordinates derivative to
   !> derivative on Bishop coordinates
-  !!
-  !! - Gradient in the first coordinate is in `(:,:,1)`
-  !! - Gradient in the second coordinate is in `(:,:,2)`
-  subroutine eqdbish(dcart, dbish)
+  !>
+  !> - Gradient in the first coordinate is in `(:,:,1)`
+  !> - Gradient in the second coordinate is in `(:,:,2)`
+  pure subroutine eqdbish(dcart, dbish)
     !> Cylindrical coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(in) :: dcart
     !> Bishop coordinates derivative
     real, dimension(nr,-nt:nt,2), intent(out) :: dbish
     real, dimension(nr,-nt:nt) :: denom
-
     integer :: i, j
 
     denom(:,:) = sqrt(dpcart(:,:,1)**2 + dpcart(:,:,2)**2)
@@ -644,19 +638,13 @@ contains
   end subroutine eqdbish
 
   !> Return the inverse of the major radius at \((r, \theta)\)
-  function invR (r, theta)
-    implicit none
+  real function invR (r, theta)
     real, intent (in) :: r, theta
-    real :: invR
-    
     invR=1./Rpos(r, theta)
   end function invR
 
   !> Return the major radius of the centre of the flux surface
-  function rcenter()
-    implicit none
-    real :: rcenter
-    
+  pure real function rcenter()
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
@@ -668,10 +656,10 @@ contains
   end function rcenter
 
   !> Return the major radius at \((r, \theta)\)
-  function Rpos (r, theta)
+  real function Rpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: Rpos, dummy
+    real :: dummy
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
@@ -690,10 +678,10 @@ contains
   end function Rpos
 
   !> Return the axial coordinate at \((r, \theta)\)
-  function Zpos (r, theta)
+  real function Zpos (r, theta)
     implicit none
     real, intent (in) :: r, theta
-    real :: dummy, Zpos
+    real :: dummy
 
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
@@ -713,10 +701,10 @@ contains
 
   !> Calculate the cylindrical \((R, Z)$$ at $$(r, \theta)\) for the
   !> generalised Miller model
-  !!
-  !! See section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
-  !! "GS2 analytic geometry specification"
-  subroutine geo_Miller(r, theta, Rpos, Zpos)
+  !>
+  !> See section 3.2.1 of Ball MIT Masters thesis or section 2.1.1 of
+  !> "GS2 analytic geometry specification"
+  pure subroutine geo_Miller(r, theta, Rpos, Zpos)
     implicit none
     real, intent(in) :: r, theta
     real, intent(out) :: Rpos, Zpos
@@ -766,9 +754,9 @@ contains
 
   !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
   !> global MHD model
-  !!
-  !! See section 2.1.2 of "GS2 analytic geometry specification"
-  subroutine geo_global(r, theta, Rpos, Zpos)
+  !>
+  !> See section 2.1.2 of "GS2 analytic geometry specification"
+  pure subroutine geo_global(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -806,10 +794,10 @@ contains
 
   !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
   !> generalised elongation model
-  !!
-  !! See section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
-  !! "GS2 analytic geometry specification"
-  subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+  !>
+  !> See section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
+  !> "GS2 analytic geometry specification"
+  pure subroutine geo_generalizedEllipticity(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -840,10 +828,10 @@ contains
 
   !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
   !> Fourier model
-  !!
-  !! See section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
-  !! "GS2 analytic geometry specification"
-  subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
+  !>
+  !> See section 5.1.1 of Ball Oxford PhD thesis or section 2.1.4 of
+  !> "GS2 analytic geometry specification"
+  pure subroutine geo_FourierSeries(r, theta, Rpos, Zpos)
     implicit none
     real, intent (in) :: r, theta
     real, intent (out) :: Rpos, Zpos
@@ -867,25 +855,21 @@ contains
   end subroutine geo_FourierSeries
 
   !> FIXME : Add documentation  
-  function psi (r)
-    implicit none
+  pure real function psi (r)
     real, intent (in) :: r
-    real :: psi
-
     psi = r - surf%r
   end function psi
 
   !> Put `theta` into the range `[-pi, pi]`
-  !!
-  !! This version also sets `theta == +(-)pi +(-) theta_tol` to be
-  !! exactly `+(-)pi`, where `theta_tol == 1.e-6`
-  !!
-  !! General purpose, could be moved into utils? Could also drop the
-  !! tolerance?
-  function mod2pi (theta)
+  !>
+  !> This version also sets `theta == +(-)pi +(-) theta_tol` to be
+  !> exactly `+(-)pi`, where `theta_tol == 1.e-6`
+  !>
+  !> General purpose, could be moved into utils? Could also drop the
+  !> tolerance?
+  pure real function mod2pi (theta)
     use constants, only: pi
     real, intent(in) :: theta
-    real :: mod2pi
     real, parameter :: theta_tol = 1.e-6
     if(theta <= pi .and. theta >= -pi) then
       mod2pi = theta
@@ -899,60 +883,43 @@ contains
   end function mod2pi
 
   !> FIXME : Add documentation  
-  function diameter (rp)
-    implicit none
+  pure real function diameter (rp)
     real, intent(in) :: rp
-    real :: diameter
-
     diameter = 2.*rp
   end function diameter
 
   !> FIXME : Add documentation  
-  function dbtori ()
-    implicit none
-    real :: dbtori
+  pure real function dbtori ()
     dbtori = 1.
   end function dbtori
 
   !> FIXME : Add documentation  
-  function btori ()
-    implicit none
-    real :: btori
+  pure real function btori ()
     btori = surf%Rgeo
   end function btori
 
   !> FIXME : Add documentation  
-  function qfun ()
-    implicit none
-    real :: qfun
+  pure real function qfun ()
     qfun = surf%q
   end function qfun
 
   !> FIXME : Add documentation
-  function pfun ()
-    implicit none
-    real :: pfun
+  pure real function pfun ()
     pfun = 0.5*beta_0
   end function pfun
 
   !> FIXME : Add documentation  
-  function dpfun ()
-    implicit none
-    real :: dpfun    
+  pure real function dpfun ()
     dpfun = -1.
   end function dpfun
 
   !> FIXME : Add documentation  
-  function dpdrhofun()
-    implicit none
-    real :: dpdrhofun
+  pure real function dpdrhofun()
     dpdrhofun = 0 ! surf%pp
   end function dpdrhofun
 
   !> FIXME : Add documentation  
-  function betafun ()
-    implicit none
-    real :: betafun
+  pure real function betafun ()
     betafun = beta_0
   end function betafun
 end module leq

@@ -17,7 +17,7 @@ module geq
   private
 
   public :: B_psi 
-  public :: geq_init, eqin, gradient, eqitem, bgradient, Hahm_Burrell, geq_finish
+  public :: geq_init, eqin, gradient, bgradient, Hahm_Burrell, geq_finish
 
   public :: invR,     initialize_invR
   public :: Rpos
@@ -61,13 +61,12 @@ contains
   !! containing the axisymmetric magnetic field geometry in flux 
   !! coordinates
   subroutine eqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, &
-       avgrmid, initeq, in_nt, nthg) 
+       avgrmid, initeq, nthg) 
     implicit none
     character (len=80), intent(in) :: eqfile
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    logical, intent(in) :: in_nt
     integer :: istatus
     integer :: ncid, id
     integer :: nchar
@@ -83,13 +82,9 @@ contains
        nthg = nt
        return
     endif
-    if (.not.in_nt) then
 
-       nchar=index(eqfile,' ')-1
-       filename=eqfile(1:nchar)
-    else
-       filename='dskeq.cdf'
-    endif
+    nchar=index(eqfile,' ')-1
+    filename=eqfile(1:nchar)
 
 # ifdef NETCDF
     !     netcdf open file         
