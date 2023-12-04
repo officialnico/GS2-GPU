@@ -344,7 +344,7 @@ contains
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
-    integer :: i, j, init, ndum, ierr, big, nw_in, nh_in
+    integer :: i, j, ndum, ierr, big, nw_in, nh_in
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a

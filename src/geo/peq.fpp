@@ -45,13 +45,9 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
-    real :: d, R_geo
-    integer :: istatus
-    integer :: ncid, id, i, j
-    integer :: nchar, i_sym
-    integer nz1, nz2
+    real :: d, R_geo, f_N, psi_N
+    integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2
     real, allocatable, dimension(:) :: work
-    real :: f_N, psi_N
     !     read the data
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -255,13 +251,9 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
-    real :: R_geo
-    integer :: istatus
-    integer :: ncid, id, i, j
-    integer :: nchar
-    ! what is the best way to handle the netcdf single/double problem?
+    real :: R_geo, f_N, psi_N
+    integer :: istatus, ncid, id, i, j
     real, allocatable, dimension(:,:) :: work
-    real :: f_N, psi_N
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
