@@ -684,7 +684,7 @@ contains
     ! gradthtot is grad theta
     ! since ballooning, theta goes from -ntheta*nperiod -> ntheta*nperiod,
     ! but grad theta is periodic in theta
-    gradthtot(-nth:nth, 1:2) = thgrid(-nth:nth, :)
+    gradthtot(-nth:nth, 1:2) = thgrad(-nth:nth, :)
     call periodic_copy(gradthtot(:, 1), 0., nperiod)
     call periodic_copy(gradthtot(:, 2), 0., nperiod)
     gradthtot(:, 3) = 0.
