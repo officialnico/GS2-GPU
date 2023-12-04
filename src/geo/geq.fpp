@@ -1,14 +1,11 @@
 !> FIXME : Add documentation
 module geq
 # ifdef NETCDF
-  use netcdf, only: NF90_FLOAT, NF90_DOUBLE
-  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR
-  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close
-  use netcdf, only: nf90_def_dim, nf90_def_var, nf90_enddef
-  use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
-  use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
-  use netcdf, only: nf90_inq_varid, nf90_inquire_variable
+  use netcdf, only: NF90_NOWRITE, NF90_NOERR, nf90_open, nf90_close, nf90_get_var
+  use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, nf90_inq_varid
   use netcdf_utils, only: netcdf_error
+# else
+  use mp, only: mp_abort
 # endif
   use geo_utils, only: abstract_eqfile_geo_type
   implicit none
@@ -29,9 +26,6 @@ contains
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use geo_utils, only: geo_input_type
     use constants, only: pi
-# ifndef NETCDF
-    use mp, only: mp_abort
-# endif
     implicit none
     class(geq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
