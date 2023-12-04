@@ -31,11 +31,8 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
-    real :: I_0
-    real, dimension(:), allocatable :: rho_d
-    integer :: istatus, ncid, id, j
-    ! what is the best way to handle the netcdf single/double problem?
     real :: f_N, psi_N
+    integer :: istatus, ncid, id, j
 
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -74,7 +71,6 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
     call self%alloc_arrays()
-    allocate(rho_d(self%nr))
 
     !     netcdf read scalars: psi_0,psi_a,B_T,I_0
     !
@@ -100,11 +96,6 @@ contains
     istatus = nf90_get_var (ncid, id, self%B_T)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
     self%B_T = self%B_T * 1.e-4  ! cgs to MKS
-
-    istatus = nf90_inq_varid (ncid, 'I_0', id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='I_0')
-    istatus = nf90_get_var (ncid, id, I_0)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     !     netcdf read scalars: R_mag,Z_mag,aminor
     !
@@ -145,12 +136,6 @@ contains
     !     to be vacuum magnetic field on axis
     !     pressure(1:nr) == pressure profile on the radial grid,
     !     normalized to the value at the magnetic axis.
-
-    istatus = nf90_inq_varid (ncid, 'rho', id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='rho')
-    istatus = nf90_get_var (ncid, id, rho_d)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-
     istatus = nf90_inq_varid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
     istatus = nf90_get_var (ncid, id, self%eqpsi)
@@ -215,7 +200,6 @@ contains
     !
     !     Normalize, rename quantities
     !
-
     avgrmid = self%aminor
     rmaj = self%R_mag / self%aminor   ! used to reference the grid
     B_T0 = self%B_T
@@ -239,12 +223,11 @@ contains
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
 
     nthg = self%nt
+    self%initialised = .true.
+    self%has_full_theta_range = .false.
 # else
     call mp_abort('error: geq eqin is called without netcdf',.true.)
 #endif
-
-    self%initialised = .true.
-    self%has_full_theta_range = .false.
   end subroutine eqin
 
   !> FIXME : Add documentation
