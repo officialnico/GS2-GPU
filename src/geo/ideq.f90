@@ -46,7 +46,7 @@ contains
     real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
     integer, intent (out) :: nthg
     real :: xdum, I_ring, dpsidr, dpsidz, psi_N
-    integer :: i, j, idum, jj, jmax
+    integer :: i, j, idum, jj, jmax, funit
     character (200) :: line
     logical, dimension(:), allocatable :: has_duplicate_point
     if (self%initialised) then
@@ -64,17 +64,17 @@ contains
 
     self%filename = trim(adjustl(inputs%eqfile))
 
-    open(unit = 5, file = self%filename, status = 'old', form = 'formatted')
+    open(newunit = funit, file = self%filename, status = 'old', form = 'formatted')
 
     ! Read the data
 
-    read (5, fmt="(a)") line
-    read (5, fmt="(a)") line
-    read (5,*) self%R_mag, self%Z_mag, I_ring
-    read (5, fmt="(a)") line
-    read (5, *) self%nr
-    read (5, fmt="(a)") line
-    read (5, fmt="(a)") line
+    read (funit, fmt="(a)") line
+    read (funit, fmt="(a)") line
+    read (funit,*) self%R_mag, self%Z_mag, I_ring
+    read (funit, fmt="(a)") line
+    read (funit, *) self%nr
+    read (funit, fmt="(a)") line
+    read (funit, fmt="(a)") line
 
     d%nr = self%nr
     allocate (d%pbar     (d%nr))
@@ -85,7 +85,7 @@ contains
 
     ! Read in each surface
     do i = 1, d%nr
-       read(5,*) idum, d%pbar(i), d%psi(i), d%pressure(i), xdum, d%volume(i), d%grid(i)%nt
+       read(funit,*) idum, d%pbar(i), d%psi(i), d%pressure(i), xdum, d%volume(i), d%grid(i)%nt
        d%grid(i)%nt = d%grid(i)%nt-1
        jmax = d%grid(i)%nt
        allocate (d%grid(i)%R     (jmax))
@@ -93,14 +93,15 @@ contains
        allocate (d%grid(i)%B     (jmax))
        allocate (d%grid(i)%theta (jmax))
        do j = 1, jmax
-          read (5,*) d%grid(i)%R(j), d%grid(i)%Z(j), dpsidR, dpsidZ
+          read (funit,*) d%grid(i)%R(j), d%grid(i)%Z(j), dpsidR, dpsidZ
           ! make B:
           d%grid(i)%B(j) = sqrt(dpsidR**2 + dpsidZ**2) / (d%grid(i)%R(j)*twopi)
           d%grid(i)%theta(j) = atan2 (d%grid(i)%Z(j) - self%Z_mag, &
                (d%grid(i)%R(j) - self%R_mag))
        end do
-       read (5,*) xdum, xdum, xdum, xdum
+       read (funit,*) xdum, xdum, xdum, xdum
     end do
+    close(funit)
 
     ! different from tokamak case here, psi_0 is the value of psi on
     ! the innermost flux surface that is kept in equilibrium and psi_a
