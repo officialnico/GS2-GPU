@@ -344,7 +344,7 @@ contains
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
-    integer :: i, j, ndum, ierr, big, nw_in, nh_in
+    integer :: i, j, ndum, ierr, big, nw_in, nh_in, funit
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
@@ -359,10 +359,10 @@ contains
     big = inputs%big
     ! Need to generalize initialization condition if equilibrium changes
     self%filename = trim(adjustl(inputs%eqfile))
-    open(unit=5, file = self%filename, status='old',form='formatted')
+    open(newunit = funit,  file = self%filename, status='old',form='formatted')
 
     ! Read the data
-    read(5,1000) char, char, char, char, char, i, nw_in, nh_in
+    read(funit, 1000) char, char, char, char, char, i, nw_in, nh_in
     self%nw = nw_in * big ; self%nr = self%nw
     self%nh = nh_in * big ; self%nt = self%nh
 
@@ -370,14 +370,14 @@ contains
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
     allocate(sefit_psi(nw_in, nh_in))
 
-    read(5,2020) rwid, zhei, rcentr, rleft, xdum
-    read(5,2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
+    read(funit, 2020) rwid, zhei, rcentr, rleft, xdum
+    read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
 
     ! pbar is defined by
     ! pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     do i = 1, 2
-       read(5,2020) xdum,xdum,xdum,xdum,xdum
+       read(funit, 2020) xdum,xdum,xdum,xdum,xdum
     end do
 
     do i = 1, nw_in
@@ -398,13 +398,13 @@ contains
        self%eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
-    read(5,2020) (dummy(j),   j = 1, nw_in)
+    read(funit, 2020) (dummy(j),   j = 1, nw_in)
     call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%fp)
-    read(5,2020) (dummy(j), j = 1, nw_in)
+    read(funit, 2020) (dummy(j), j = 1, nw_in)
     call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
-    read(5,2020) (dummy(j),     j = 1, nw_in)
-    read(5,2020) (dummy(j),     j = 1 ,nw_in)
-    read(5,2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
+    read(funit, 2020) (dummy(j),     j = 1, nw_in)
+    read(funit, 2020) (dummy(j),     j = 1 ,nw_in)
+    read(funit, 2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
     allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
@@ -422,14 +422,14 @@ contains
 
     deallocate(zp, temp)
 
-    read(5,2020) (dummy(j) ,   j = 1, nw_in)
+    read(funit, 2020) (dummy(j) ,   j = 1, nw_in)
     call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
 
-    read(5,2022) self%nbbbs, ndum
+    read(funit, 2022) self%nbbbs, ndum
     allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
     allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
-    read(5,2020) (rbbbs(i), zbbbs(i) , i = 1, self%nbbbs)
-    close(5)
+    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, self%nbbbs)
+    close(funit)
 
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
