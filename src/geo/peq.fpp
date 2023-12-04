@@ -14,17 +14,12 @@ module peq
 
   public :: Hahm_Burrell, peq_type, teq_type
 
-  type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
-     private
-     logical :: transp
-  end type peq_base_type
-
-  type, extends(peq_base_type) :: peq_type
+  type, extends(abstract_eqfile_geo_type) :: peq_type
    contains
      procedure :: initialise => eqin
   end type peq_type
 
-  type, extends(peq_base_type) :: teq_type
+  type, extends(abstract_eqfile_geo_type) :: teq_type
    contains
      procedure :: initialise => teqin
   end type teq_type
@@ -227,7 +222,6 @@ contains
     end do
 
     self%B_psi = 0.0
-    self%transp = .false.
     self%initialised = .true.
     self%has_full_theta_range = .false.
 # else
@@ -426,7 +420,6 @@ contains
     end do
 
     self%B_psi = 0.0
-    self%transp = .true.
     self%initialised = .true.
     self%has_full_theta_range = .true.
 # else
