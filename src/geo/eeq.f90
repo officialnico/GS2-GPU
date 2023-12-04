@@ -107,7 +107,6 @@ module eeq
      procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
      procedure :: dpfun => dpfun !Concerning that this is different?
-     procedure :: alloc_special_arrays => alloc_special_arrays
      procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type eeq_base_type
 
@@ -151,10 +150,10 @@ contains
     integer, intent(out) :: nthg
     real :: p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
-    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
+    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, eq_R, eq_Z
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
-    integer :: i, j, ierr, big, nw_in, nh_in
+    integer :: i, j, ierr, big, nw_in, nh_in, nbbbs
     logical, parameter :: debug =.false.
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -181,6 +180,7 @@ contains
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in))
     allocate(sefit_psi(nw_in, nh_in))
+    allocate(eq_R(self%nw), eq_Z(self%nh))
     rwid = maxval(rgrid) - minval(rgrid) ; zhei = maxval(zgrid) - minval(zgrid)
     rcentr = r0 ; rleft = minval(rgrid)
     self%R_mag = rmag ; self%Z_mag = zmag
@@ -203,12 +203,12 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
-       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
+       eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
     end do
 
     ! nb Zgrid is not necessarily UpDown symmetric
     do j = 1, self%nh
-       self%eq_Z(j) = ((float(j-1) / float(self%nh-1) ))*zhei+minval(zgrid)
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) ))*zhei+minval(zgrid)
     end do
 
     call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
@@ -226,7 +226,7 @@ contains
 
     do j = 1, self%nh
        do i = 1, self%nw
-          self%eqpsi_2d(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+          self%eqpsi_2d(i,j) = fitp_surf2(eq_R(i), eq_Z(j), nw_in, nh_in, &
                sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
@@ -235,9 +235,9 @@ contains
 
     call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
 
-    self%nbbbs = size(rsep)
-    allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
-    allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
+    nbbbs = size(rsep)
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     rbbbs = rsep ; zbbbs = zsep
 
     ! get r_boundary(theta)
@@ -252,14 +252,14 @@ contains
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
-    if (self%thetab(self%nbbbs-1) == self%thetab(self%nbbbs)) then
-       self%thetab(self%nbbbs) = self%thetab(self%nbbbs) - twopi
+    if (self%thetab(nbbbs-1) == self%thetab(nbbbs)) then
+       self%thetab(nbbbs) = self%thetab(nbbbs) - twopi
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
     ! It isn't likely that a duplicate point would exist near theta = 0,
     ! so I am not allowing this possibility for now.
-    do i = 1, self%nbbbs-1
+    do i = 1, nbbbs-1
        if (self%thetab(i+1) == self%thetab(i)) then
           ! put in kluge for duplicate points, which happens near theta=0:
           self%thetab(i+1) = self%thetab(i+1)+1.e-8
@@ -277,8 +277,8 @@ contains
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    self%eq_R = self%eq_R / self%aminor
-    self%eq_Z = self%eq_Z / self%aminor
+    eq_R = eq_R / self%aminor
+    eq_Z = eq_Z / self%aminor
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
     rmaj = self%R_mag
@@ -300,11 +300,11 @@ contains
     self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
     do i = 1, self%nw
        do j = 1, self%nh
-          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+          if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
-             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
-                  (self%eq_R(i) - self%R_mag))
+             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), &
+                  (eq_R(i) - self%R_mag))
           end if
        end do
     end do
@@ -339,12 +339,12 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
     integer, intent(out) :: nthg
     real :: xdum, p_0, rwid, rleft, zhei, rcentr, bcentr
-    real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy
+    real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy, eq_R, eq_Z
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
-    integer :: i, j, ndum, ierr, big, nw_in, nh_in, funit
+    integer :: i, j, ndum, ierr, big, nw_in, nh_in, funit, nbbbs
     if (self%initialised) then
        psi_0_out = self%psi_0
        psi_a_out = self%psi_a
@@ -369,6 +369,7 @@ contains
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
     allocate(sefit_psi(nw_in, nh_in))
+    allocate(eq_R(self%nw), eq_Z(self%nh))
 
     read(funit, 2020) rwid, zhei, rcentr, rleft, xdum
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
@@ -391,11 +392,11 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
-       self%eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
+       eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
     end do
 
     do j = 1, self%nh
-       self%eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
     read(funit, 2020) (dummy(j),   j = 1, nw_in)
@@ -415,7 +416,7 @@ contains
 
     do j = 1, self%nh
        do i = 1, self%nw
-          self%eqpsi_2d(i,j) = fitp_surf2(self%eq_R(i), self%eq_Z(j), nw_in, nh_in, &
+          self%eqpsi_2d(i,j) = fitp_surf2(eq_R(i), eq_Z(j), nw_in, nh_in, &
                sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do
@@ -425,10 +426,10 @@ contains
     read(funit, 2020) (dummy(j) ,   j = 1, nw_in)
     call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
 
-    read(funit, 2022) self%nbbbs, ndum
-    allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
-    allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
-    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, self%nbbbs)
+    read(funit, 2022) nbbbs, ndum
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
+    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
     close(funit)
 
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
@@ -442,14 +443,14 @@ contains
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
-    if (self%thetab(self%nbbbs-1) == self%thetab(self%nbbbs)) then
-       self%thetab(self%nbbbs) = self%thetab(self%nbbbs) - twopi
+    if (self%thetab(nbbbs-1) == self%thetab(nbbbs)) then
+       self%thetab(nbbbs) = self%thetab(nbbbs) - twopi
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
     ! It isn't likely that a duplicate point would exist near theta = 0,
     ! so I am not allowing this possibility for now.
-    do i = 1, self%nbbbs-1
+    do i = 1, nbbbs-1
        if (self%thetab(i+1) == self%thetab(i)) then
           ! put in kluge for duplicate points, which happens near theta=0:
           self%thetab(i+1) = self%thetab(i+1) +  1.e-8
@@ -464,12 +465,12 @@ contains
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    self%eq_R = self%eq_R / self%aminor
-    self%eq_Z = self%eq_Z / self%aminor
+    eq_R = eq_R / self%aminor
+    eq_Z = eq_Z / self%aminor
 
     do i = 1, self%nw
-       self%R_psi(i, :) = self%eq_R(i)
-       self%Z_psi(i, :) = self%eq_Z
+       self%R_psi(i, :) = eq_R(i)
+       self%Z_psi(i, :) = eq_Z
     end do
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
@@ -490,11 +491,11 @@ contains
 
     do i = 1, self%nw
        do j = 1, self%nh
-          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+          if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
-             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), &
-                  (self%eq_R(i) - self%R_mag))
+             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), &
+                  (eq_R(i) - self%R_mag))
           end if
        end do
     end do
@@ -518,16 +519,11 @@ contains
 2022 format (2i5)
   end subroutine efitin
 
-  pure subroutine alloc_special_arrays(self)
-    class(eeq_base_type), intent(in out) :: self
-    allocate (self%eq_R(self%nw), self%eq_Z(self%nh))
-  end subroutine alloc_special_arrays
-
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    deallocate(self%eq_R, self%eq_Z, self%thetab, self%r_bound)
+    deallocate(self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
   subroutine setup_special_splines(self)
@@ -535,7 +531,7 @@ contains
     use constants, only: twopi
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
+    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
   end subroutine setup_special_splines
 

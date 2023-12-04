@@ -177,8 +177,8 @@ module geo_utils
   end type abstract_eqfile_geo_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
-     integer :: nw, nh, nbbbs
-     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
+     integer :: nw, nh
+     real, allocatable, dimension(:) :: thetab, r_bound
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent
@@ -829,27 +829,27 @@ contains
     z_pos = self%Zpos(r, theta_in)
 
     ! find point on R mesh
-    if (r_pos >= self%eq_R(self%nw) .or. r_pos <= self%eq_R(1)) then
+    if (r_pos >= self%R_psi(self%nw, 1) .or. r_pos <= self%R_psi(1, 1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'
-       write(*,*) r, theta_in, self%eq_R(self%nw), r_pos
+       write(*,*) r, theta_in, self%R_psi(self%nw, 1), r_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
     end if
 
     ! ensure point is on Z mesh
-    if (z_pos >= self%eq_Z(self%nh) .or. z_pos <= self%eq_Z(1)) then
+    if (z_pos >= self%Z_psi(1, self%nh) .or. z_pos <= self%Z_psi(1, 1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of Z domain'
-       write(*,*) r, theta_in, self%eq_Z(1), self%eq_Z(self%nh), z_pos
+       write(*,*) r, theta_in, self%Z_psi(1, 1), self%Z_psi(1, self%nh), z_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
     end if
 
     istar = 0
     do i = 2, self%nw
        if (istar /= 0) cycle
-       if (r_pos < self%eq_R(i)) then
-          dr = r_pos - self%eq_R(i-1)
-          sr = self%eq_R(i) - r_pos
+       if (r_pos < self%R_psi(i, 1)) then
+          dr = r_pos - self%R_psi(i-1, 1)
+          sr = self%R_psi(i, 1) - r_pos
           istar = i-1
        end if
     end do
@@ -858,9 +858,9 @@ contains
     jstar = 0
     do j = 1, self%nh
        if (jstar /= 0) cycle
-       if (z_pos < self%eq_Z(j)) then
-          dt = z_pos - self%eq_Z(j-1)
-          st = self%eq_Z(j) - z_pos
+       if (z_pos < self%Z_psi(1, j)) then
+          dt = z_pos - self%Z_psi(1, j-1)
+          st = self%Z_psi(1, j) - z_pos
           jstar = j-1
        end if
     end do
@@ -870,8 +870,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%eq_R(istar+1)-self%eq_R(istar)) * &
-         (self%eq_Z(jstar+1)-self%eq_Z(jstar)))
+    fstar = fstar / (abs(self%R_psi(istar+1, 1)-self%R_psi(istar, 1)) * &
+         (self%Z_psi(1, jstar+1)-self%Z_psi(1, jstar)))
   end function eqitem_cart
 
   !> Find the value of the major radius on the plasma boundary

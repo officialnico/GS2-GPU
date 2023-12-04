@@ -49,10 +49,9 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
     integer, intent(out) :: nthg
-    real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy
-    real :: p_0, rwid, zhei, bcentr
-    real :: delta_R, delta_Z, lref, bref
-    integer :: i, j, jmin, jmax, nw_in, nh_in
+    real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy, eq_R, eq_Z
+    real :: p_0, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
+    integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs
     logical :: eqnorm_exists
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -69,16 +68,16 @@ contains
     ! read eqnorm file if exists
     inquire(file = trim(inputs%eqnormfile), exist = eqnorm_exists)
     if (eqnorm_exists) then
-       open(unit=5, file = trim(inputs%eqnormfile), status='old', form='formatted')
-       read(5,*) lref, bref
-       close(5)
+       open(newunit = funit, file = trim(inputs%eqnormfile), status='old', form='formatted')
+       read(funit, *) lref, bref
+       close(funit)
     end if
 
     self%filename = trim(adjustl(inputs%eqfile))
-    open(unit = 5, file = self%filename, status='old', form='formatted')
+    open(newunit = funit, file = self%filename, status='old', form='formatted')
 
     ! Read the data
-    read(5,*) nw_in, nh_in, self%nrho
+    read(funit, *) nw_in, nh_in, self%nrho
     ! Note here we don't allow for rescaling the final grids with big
     ! unlike in eeq. This makes many of the spline interpolation calls
     ! in this routine effectively just copies
@@ -86,10 +85,10 @@ contains
     self%nr = self%nw ; self%nt = self%nh
     call self%alloc_arrays
     allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), dummy(nw_in))
-
-    read(5,2020) rwid, zhei
-    read(5,2020) self%R_mag, self%Z_mag
-    read(5,2020) self%psi_0, self%psi_a, bcentr
+    allocate(eq_R(nw_in), eq_Z(nh_in))
+    read(funit, 2020) rwid, zhei
+    read(funit, 2020) self%R_mag, self%Z_mag
+    read(funit, 2020) self%psi_0, self%psi_a, bcentr
 
     ! pbar is defined by
     ! pbar = (psi-psi_0)/(psi_a-psi_0)
@@ -105,70 +104,66 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i) / float(self%nw)
-       self%eq_R(i) = rwid * float(i) / float(self%nw)
+       eq_R(i) = rwid * float(i) / float(self%nw)
     end do
 
     do j = 1, self%nh
-       self%eq_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
+       eq_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
     end do
 
-    read(5,2020) (dummy(j), j = 1, nw_in)  ! pressure read
+    read(funit, 2020) (dummy(j), j = 1, nw_in)  ! pressure read
     call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
     ! Note we read directly into the eqpsi_2d array here so self%nw == nw_in etc.
     ! has to be true for this to work. See efit_in for a more general approach.
-    read(5,2020) ((self%eqpsi_2d(i,j) , i = 1, nw_in) , j = 1, nh_in)
+    read(funit, 2020) ((self%eqpsi_2d(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
     ! Only needed for irho = 4
-    read (5,2020) (self%rho_mid(i), i = 1, self%nrho)
-    read (5,2020) (self%psi_mid(i), i = 1, self%nrho)
-
-    close(5)
-
-    self%fp = 0.
-    self%qsf = 0.
-    self%nbbbs = 2*(self%nw+self%nh)-5
+    read (funit, 2020) (self%rho_mid(i), i = 1, self%nrho)
+    read (funit, 2020) (self%psi_mid(i), i = 1, self%nrho)
+    close(funit)
 
     ! stay away from edge of box
     delta_R = 1.02 ; delta_Z = 1.02
 
-    allocate(rbbbs(self%nbbbs), zbbbs(self%nbbbs))
-    allocate(self%thetab(self%nbbbs), self%r_bound(self%nbbbs))
+    nbbbs = 2*(self%nw+self%nh)-5
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     jmin = 1
     jmax = self%nh / 2
     do j = jmin, jmax
-       rbbbs(j) = (self%eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%eq_Z(j+self%nh/2) / delta_Z
+       rbbbs(j) = (eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = eq_Z(j+self%nh/2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 2
     do j = jmin, jmax
-       rbbbs(j) = (self%eq_R(j-jmin+2)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%eq_Z(self%nh) / delta_Z
+       rbbbs(j) = (eq_R(j-jmin+2)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = eq_Z(self%nh) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh - 1
     do j = jmin, jmax
-       rbbbs(j) = (self%eq_R(self%nw)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%eq_Z(jmax-j+2) / delta_Z
+       rbbbs(j) = (eq_R(self%nw)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = eq_Z(jmax-j+2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 1
     do j = jmin, jmax
-       rbbbs(j) = (self%eq_R(jmax-j+2)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%eq_Z(1) / delta_Z
+       rbbbs(j) = (eq_R(jmax-j+2)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = eq_Z(1) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh/2
     do j = jmin, jmax
-       rbbbs(j) = (self%eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = self%eq_Z(j-jmin+2) / delta_Z
+       rbbbs(j) = (eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
+       zbbbs(j) = eq_Z(j-jmin+2) / delta_Z
     end do
 
-    do j = 1, self%nbbbs-1
+    do j = 1, nbbbs-1
        if ((rbbbs(j) == rbbbs(j+1)) .and. (zbbbs(j) == zbbbs(j+1))) then
           write(*,*) 'duplicates: ',rbbbs(j),zbbbs(j)
        end if
@@ -186,14 +181,14 @@ contains
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
-    if (self%thetab(self%nbbbs-1) == self%thetab(self%nbbbs)) then
-       self%thetab(self%nbbbs) = self%thetab(self%nbbbs) - twopi
+    if (self%thetab(nbbbs-1) == self%thetab(nbbbs)) then
+       self%thetab(nbbbs) = self%thetab(nbbbs) - twopi
        call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
     end if
 
     ! It isn't likely that a duplicate point would exist near theta = 0,
     ! so I am not allowing this possibility for now.
-    do i = 1, self%nbbbs-1
+    do i = 1, nbbbs-1
        if (self%thetab(i) == self%thetab(i+1)) then
           write(*,*) 'Duplicates near theta = 0 not allowed.'
           write(*,*) i, i+1, ' Stopping.'
@@ -202,6 +197,8 @@ contains
     end do
     deallocate (rbbbs, zbbbs)
 
+    self%fp = 0. ; self%qsf = 0.
+    
     if (lref /= 0.) then
        self%aminor = lref
        write(6,*) 'aminor = ', self%aminor, lref
@@ -215,12 +212,12 @@ contains
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
 
-    self%eq_R = self%eq_R / self%aminor
-    self%eq_Z = self%eq_Z / self%aminor
+    eq_R = eq_R / self%aminor
+    eq_Z = eq_Z / self%aminor
 
     do i = 1, self%nw
-       self%R_psi(i, :) = self%eq_R(i)
-       self%Z_psi(i, :) = self%eq_Z
+       self%R_psi(i, :) = eq_R(i)
+       self%Z_psi(i, :) = eq_Z
     end do
 
     ! should rmaj be R_mag? use R_mag for now.
@@ -247,10 +244,10 @@ contains
     self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
     do i = 1, self%nw
        do j = 1, self%nh
-          if (self%eq_Z(j) == self%Z_mag .and. self%eq_R(i) == self%R_mag) then
+          if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
-             self%eqth(i, j) = atan2( (self%eq_Z(j) - self%Z_mag), (self%eq_R(i) - self%R_mag))
+             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), (eq_R(i) - self%R_mag))
           end if
        end do
     end do
@@ -266,16 +263,14 @@ contains
 
   pure subroutine alloc_special_arrays(self)
     class(deq_type), intent(in out) :: self
-    integer :: nw, nh, nrho
-    nw = self%nw ; nh = self%nh ; nrho = self%nrho
-    allocate (self%rho_mid(nrho), self%psi_mid(nrho), self%eq_R(nw), self%eq_Z(nh))
+    allocate (self%rho_mid(self%nrho), self%psi_mid(self%nrho))
   end subroutine alloc_special_arrays
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(deq_type), intent(in out) :: self
-    deallocate(self%rho_mid, self%psi_mid, self%eq_R, self%eq_Z, self%thetab, self%r_bound)
+    deallocate(self%rho_mid, self%psi_mid, self%thetab, self%r_bound)
   end subroutine dealloc_special_arrays
 
   subroutine setup_special_splines(self)
@@ -283,7 +278,7 @@ contains
     use constants, only: twopi
     implicit none
     class(deq_type), intent(in out) :: self
-    call new_periodic_spline(self%nbbbs, self%thetab, self%r_bound, twopi, &
+    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
     call new_spline(self%nrho, self%psi_mid, self%rho_mid, self%rho_spl)
   end subroutine setup_special_splines
