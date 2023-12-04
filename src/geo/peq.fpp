@@ -81,6 +81,10 @@ contains
     istatus = nf90_get_var (ncid, id, i_sym, start=[8])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
+    if (i_sym == 0) then
+       write(*,*) 'Up-down asymmetries not yet handled correctly.'
+    end if
+
     !     netcdf read scalar: nt
     !
     !     nt == number of theta grid points in theta eq grid
@@ -142,10 +146,6 @@ contains
     istatus = nf90_get_var (ncid, id, work, count = [nz1*nz2])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    if (i_sym == 0) then
-       write(*,*) 'Up-down asymmetries not yet handled correctly.'
-    end if
-
     do j = 1, self%nt
        do i = 1, self%nr
           self%R_psi(i,j) = work(3+j-1+nz1*(i-1))
@@ -157,16 +157,11 @@ contains
     istatus = nf90_get_var (ncid, id, work, count=[nz1, nz2]) !Should this be nz1*nz2?
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    if (i_sym == 0) then
-       write(*,*) 'Up-down asymmetries not yet handled correctly.'
-    end if
-
     do j = 1, self%nt
        do i = 1, self%nr
           self%Z_psi(i,j) = work(3+j-1+nz1*(i-1))
        end do
     end do
-
 
     !     assign scalars: R_mag, Z_mag, aminor
     !
@@ -192,7 +187,6 @@ contains
 
     istatus = nf90_close(ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
-
     deallocate(work)
 
     !
