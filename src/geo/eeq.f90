@@ -552,8 +552,7 @@ contains
     implicit none
     class(eeq_base_type), intent(in) :: self
     real, intent (in) :: rp
-    rcenter = self%R_mag + &
-         0.5 * (self%rfun(rp, 0.) - self%rfun(rp, pi))
+    rcenter = self%R_mag + 0.5 * (self%rfun(rp, 0.) - self%rfun(rp, pi))
   end function rcenter
 
   !> FIXME : Add documentation | Note this differs from all other types
@@ -575,13 +574,11 @@ contains
     real, intent(out) :: a
     real :: r1, r2
     integer, parameter :: nz = 5, half_nz = int(nz/2.0), invalidPoint = -nz
-    integer :: index
     real, dimension(nz) :: rtmp, ztmp
-    integer i, j, i1, n
+    integer :: i, j, i1, n, k, index
     type (spline) :: spl
-!CMR, 28/10/08: add code to avoid duplicate points in 5 point spline
-!               to determine r2 on inboard mid-plane
-    integer :: k
+    !CMR, 28/10/08: add code to avoid duplicate points in 5 point spline
+    !               to determine r2 on inboard mid-plane
     logical, parameter :: debug=.false.
 
     k = 0
@@ -591,32 +588,32 @@ contains
     if (debug) write(6,fmt='("r=",10f8.4)') r
     if (debug) write(6,fmt='("z=",10f8.4)') z
 
-    if(n < nz) then
+    if (n < nz) then
        write(*,*) 'nbbbs < nz -- very strange.  Stopping.'
        write(*,*) 'Look in eeq.f90.'
 !      call mp_abort('nbbbs < nz -- very strange.  Stopping : Look in eeq.f90')
-    endif
+    end if
 
     j = 0
-    do i = half_nz+1,1,-1
+    do i = half_nz + 1, 1, -1
        j = j + 1
        ztmp(j) = z(i)
        rtmp(j) = r(i)
-    enddo
+    end do
 
-    if(r(1) == r(n) .and. z(1) == z(n)) then
+    if (r(1) == r(n) .and. z(1) == z(n)) then
        do i = n-1, n-half_nz, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
-       enddo
+       end do
     else
        do i = n, n-half_nz+1, -1
           j = j + 1
           ztmp(j) = z(i)
           rtmp(j) = r(i)
-       enddo
-    endif
+       end do
+    end if
 
     if (debug) write(6,fmt='("rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("ztmp=",5f8.4)') ztmp
@@ -626,7 +623,7 @@ contains
     r1 = splint(Z_mag, spl)
     call delete_spline(spl)
 
-! find point near magnetic axis elevation on low field side
+    ! find point near magnetic axis elevation on low field side
 
     ! Initialise i1 to some invalid value so we can check if an appropriate
     ! point is not found.
@@ -635,38 +632,38 @@ contains
     ! Note there appears to be an assumption here about the order
     ! of z which may not be true
     do i = nz, n
-       if(z(i)-Z_mag > 0.) then
+       if (z(i) - Z_mag > 0.) then
           i1 = i - 1
           exit
-       endif
-    enddo
+       end if
+    end do
 
     if (i1 == invalidPoint) then
        write(*, '("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")')
        call mp_abort("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")
-    endif
+    end if
 
-!CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
-!               to determine r2 on inboard mid-plane
+    !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
+    !               to determine r2 on inboard mid-plane
     do i = 1, nz
        index = i1 - half_nz + i - 1 + k
        rtmp(i) = r(index)
        ztmp(i) = z(index)
-       if ( i.gt.1 ) then
+       if ( i > 1 ) then
           ! If we find a duplicate point then we increase the
           ! duplicate point counter in k, used to offset index and
           ! store the next value instead Note, here we assume we can't
           ! get three duplicate values. A better approach may be to
           ! instead use a while loop where we keep going until we've
           ! found enough points.
-          if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 .lt. 1.0e-7) then
-             k=k+1
+          if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
+             k = k + 1
              if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
              rtmp(i) = r(index + 1)
              ztmp(i) = z(index + 1)
-          endif
-       endif
-    enddo
+          end if
+       end if
+    end do
 
     if (debug) write(6,fmt='("a_minor: rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("a_minor: ztmp=",5f8.4)') ztmp
@@ -676,9 +673,8 @@ contains
     r2 = splint(Z_mag, spl)
     call delete_spline(spl)
 
-    a = (r2 - r1)/2.
+    a = (r2 - r1) / 2.
     if (debug) write(6,*) "a_minor: r1,r2=",r1,r2
     if (debug) write(6,*) "a_minor: a=",a
-
   end subroutine a_minor
 end module eeq
