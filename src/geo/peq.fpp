@@ -27,7 +27,7 @@ module peq
 contains
 
   !> This subroutine reads a generic NetCDF equilibrium file containing
-  !>  the axisymmetric magnetic field geometry in flux coordinates
+  !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
     use constants, only: pi
     use geo_utils, only: geo_input_type
@@ -36,7 +36,7 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
-    real :: d, R_geo, f_N, psi_N
+    real :: R_geo, f_N, psi_N
     integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2
     real, allocatable, dimension(:) :: work
     !     read the data
@@ -50,10 +50,9 @@ contains
        return
     end if
 
-# ifdef NETCDF
     self%filename = trim(adjustl(inputs%eqfile))
 
-    !     netcdf open file
+# ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -81,9 +80,7 @@ contains
     istatus = nf90_get_var (ncid, id, i_sym, start=[8])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    if (i_sym == 0) then
-       write(*,*) 'Up-down asymmetries not yet handled correctly.'
-    end if
+    if (i_sym == 0) write(*,*) 'Up-down asymmetries not yet handled correctly.'
 
     !     netcdf read scalar: nt
     !
@@ -124,17 +121,6 @@ contains
     istatus = nf90_get_var (ncid, id, self%eqpsi, count = [self%nr])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    !     assign scalars: psi_0, psi_a, B_T
-    !
-    !     psi_0 == value of psi at the magnetic axis
-    !     psi_a == value of psi at the boundary of the plasma
-    !     B_T == vacuum toroidal magnetic field at R_center
-    !
-    self%psi_0 = self%eqpsi(1)
-    self%psi_a = self%eqpsi(self%nr)
-
-    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
-
     !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
     !     R_psi(1:nr, 1:nt) -- transpose of Menard's storage ...
     !     Z_psi(1:nr, 1:nt)
@@ -163,36 +149,32 @@ contains
        end do
     end do
 
-    !     assign scalars: R_mag, Z_mag, aminor
-    !
-    !     R_mag == R position of magnetic axis
-    !     Z_mag == Z position of magnetic axis
-    !     aminor    == half diameter of last flux surface at elevation of Z_mag
-
-    d = self%R_psi(self%nr, 1) - self%R_psi(self%nr, self%nt)
-    R_geo = (self%R_psi(self%nr, 1) + self%R_psi(self%nr, self%nt))/2.
-    self%aminor = d/2.
-
-    self%B_T = self%fp(self%nr) / R_geo
-
-    self%R_psi = self%R_psi / self%aminor
-    self%Z_psi = self%Z_psi / self%aminor
-
-    self%R_mag = self%R_psi(1,1)
-    self%Z_mag = self%Z_psi(1,1)
-
-    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
-    self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / self%pressure(1)
-
     istatus = nf90_close(ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
     deallocate(work)
 
+    !     assign scalars: psi_0, psi_a, B_T, R_mag, Z_mag, aminor
     !
-    !     Normalize, rename quantities
-    !
+    !     psi_0 == value of psi at the magnetic axis
+    !     psi_a == value of psi at the boundary of the plasma
+    !     B_T == vacuum toroidal magnetic field at R_center
+    !     R_mag == R position of magnetic axis
+    !     Z_mag == Z position of magnetic axis
+    !     aminor    == half diameter of last flux surface at elevation of Z_mag
+    self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
+    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
+    R_geo = (self%R_psi(self%nr, 1) + self%R_psi(self%nr, self%nt))/2.
+    self%aminor = (self%R_psi(self%nr, 1) - self%R_psi(self%nr, self%nt))/2.
+    self%B_T = self%fp(self%nr) / R_geo
+    self%R_psi = self%R_psi / self%aminor
+    self%Z_psi = self%Z_psi / self%aminor
+    self%R_mag = self%R_psi(1,1)
+    self%Z_mag = self%Z_psi(1,1)
+    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
+    self%beta_0 = self%beta(1)
+    self%pressure = self%pressure / self%pressure(1)
 
+    !     Normalize, rename quantities
     avgrmid = self%aminor
     rmaj = self%R_mag
     B_T0 = abs(self%B_T)
@@ -247,11 +229,9 @@ contains
        return
     end if
 
-    !     read the data
     self%filename = trim(adjustl(inputs%eqfile))
 
 # ifdef NETCDF
-    !     netcdf open file
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -303,24 +283,16 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
     istatus = nf90_get_var (ncid, id, self%eqpsi)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%eqpsi = abs(self%eqpsi)
-
-    self%psi_0 = self%eqpsi(1)
-    self%psi_a = self%eqpsi(self%nr)
-
-    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
 
     istatus = nf90_inq_varid (ncid, 'g', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='g')
     istatus = nf90_get_var (ncid, id, self%fp)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%fp = abs(self%fp)
 
     istatus = nf90_inq_varid (ncid, 'q', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='q')
     istatus = nf90_get_var (ncid, id, self%qsf)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%qsf = abs(self%qsf)
 
     istatus = nf90_inq_varid (ncid, 'p', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='p')
@@ -331,7 +303,6 @@ contains
     !     eq_Rpsi(1:nr, 1:nt)
     !     eq_Zpsi(1:nr, 1:nt)
     !     eq_Bpsi(1:nr, 1:nt)
-
     allocate(work(self%nt, self%nr))
 
     istatus = nf90_inq_varid (ncid, 'R', id)
@@ -361,6 +332,12 @@ contains
 
     deallocate(work)
 
+    self%eqpsi = abs(self%eqpsi)
+    self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
+    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
+    self%fp = abs(self%fp)
+    self%qsf = abs(self%qsf)
+
     ! mildly gimpy at the moment, because the TRANSP output does not
     ! regularly include the point at theta=0.
 
@@ -371,21 +348,17 @@ contains
     R_geo = 0.5 * (self%R_psi(self%nr, self%nt/2) + self%R_psi(self%nr, 1))
 
     ! find magnetic axis -- Note currently we don't normalise these
-    ! whilst we _do_ for eqin (transp = .false.). They are not used
-    ! so this is OK for now.
+    ! whilst we _do_ for eqin. They are not used so this is OK for now.
     self%R_mag = self%R_psi(1, 1)
     self%Z_mag = self%Z_psi(1, 1)
 
     ! Find normalizing magnetic field
     self%B_T = self%fp(self%nr) / R_geo
 
-    !
     !     Normalize, rename quantities
-    !
     R_geo = R_geo / self%aminor
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
-
     self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet?
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
