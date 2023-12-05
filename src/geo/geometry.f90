@@ -953,14 +953,6 @@ contains
       pbar = pbarfun(rgrid(0), theta(0))
       call drho_drp(rp, drhodrp)
 
-      if (writelots) then
-         write(fort11_unit,*) 'rp of rho = ',rp
-         write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-         ! Is the following btori call always using something equivalent to pbar, i.e.
-         ! is theta(0) == 0. in all cases?
-         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbarfun(rgrid(0), 0.))
-      end if
-
       if (iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
          write(6,*)
          write(6,*) 'Warning: the center of the LCFS is outboard of the '
@@ -969,6 +961,12 @@ contains
       end if
 
       if (writelots) then
+         write(fort11_unit,*) 'rp of rho = ',rp
+         write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
+         ! Is the following btori call always using something equivalent to pbar, i.e.
+         ! is theta(0) == 0. in all cases?
+         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbarfun(rgrid(0), 0.))
+
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
@@ -989,9 +987,7 @@ contains
          rbar = rbar / twopi
          write (*,*) 'r_bar = ',rbar
          write (*,*)
-      end if
 
-      if (writelots) then
          write(fort11_unit,*) 'drhodrp=',drhodrp
          if (irho == 1) then
             call drho_drhod(rp, drhodrp, drhodrhod)
