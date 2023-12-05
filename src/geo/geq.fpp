@@ -44,11 +44,9 @@ contains
        return
     end if
 
-    !     read the data
     self%filename = trim(adjustl(inputs%eqfile))
 
 # ifdef NETCDF
-    !     netcdf open file
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -57,14 +55,12 @@ contains
     !     nr == number of radial grid points in radial eq grid
     istatus = nf90_inq_dimid (ncid, 'psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='psi')
-
     istatus = nf90_inquire_dimension (ncid, id, len = self%nr)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
     !     netcdf read scalar: nt
     !
     !     nt == number of theta grid points in theta eq grid
-
     istatus = nf90_inq_dimid (ncid, 'theta', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='theta')
     istatus = nf90_inquire_dimension (ncid, id, len = self%nt)
@@ -78,48 +74,40 @@ contains
     !     psi_a == value of psi at the boundary of the plasma
     !     B_T == vacuum toroidal magnetic field at R_center
     !     I_0 == total plasma current
-
     istatus = nf90_inq_varid (ncid, 'psi_0', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi_0')
     istatus = nf90_get_var (ncid, id, self%psi_0)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%psi_0 = self%psi_0 * 1.e-8
 
     istatus = nf90_inq_varid (ncid, 'psi_a', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi_a')
     istatus = nf90_get_var (ncid, id, self%psi_a)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%psi_a = self%psi_a * 1.e-8
 
     istatus = nf90_inq_varid (ncid, 'B_T', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='B_T')
     istatus = nf90_get_var (ncid, id, self%B_T)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%B_T = self%B_T * 1.e-4  ! cgs to MKS
 
     !     netcdf read scalars: R_mag,Z_mag,aminor
     !
     !     R_mag == R position of magnetic axis
     !     Z_mag == Z position of magnetic axis
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
-
     istatus = nf90_inq_varid (ncid, 'Rmag', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Rmag')
     istatus = nf90_get_var (ncid, id, self%R_mag)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%R_mag = self%R_mag / 100.
 
     istatus = nf90_inq_varid (ncid, 'Zmag', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Zmag')
     istatus = nf90_get_var (ncid, id, self%Z_mag)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%Z_mag = self%Z_mag / 100.
 
     istatus = nf90_inq_varid (ncid, 'a', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='a')
     istatus = nf90_get_var (ncid, id, self%aminor)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%aminor = self%aminor / 100.
 
     !     netcdf read vectors: rho_d,eqpsi,psi_bar,fp,qsf,beta,pressure
     !
@@ -140,7 +128,6 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psi')
     istatus = nf90_get_var (ncid, id, self%eqpsi)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%eqpsi = self%eqpsi * 1.e-8
 
     istatus = nf90_inq_varid (ncid, 'psibar', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psibar')
@@ -151,7 +138,6 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='fp')
     istatus = nf90_get_var (ncid, id, self%fp)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%fp = self%fp * 1.e-6
 
     istatus = nf90_inq_varid (ncid, 'q', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='q')
@@ -163,8 +149,6 @@ contains
     istatus = nf90_get_var (ncid, id, self%beta)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    self%beta_0 = self%beta(1)
-
     istatus = nf90_inq_varid (ncid, 'pressure', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='pressure')
     istatus = nf90_get_var (ncid, id, self%pressure)
@@ -175,35 +159,43 @@ contains
     !     eq_Zpsi(1:nr, 1:nt)
     !     eq_Bpsi(1:nr, 1:nt)
     !
-
     istatus = nf90_inq_varid (ncid, 'R_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='R_psi')
     istatus = nf90_get_var (ncid, id, self%R_psi, count = [self%nr, self%nt])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%R_psi = self%R_psi / (100. * self%aminor)
 
     istatus = nf90_inq_varid (ncid, 'Z_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Z_psi')
     istatus = nf90_get_var (ncid, id, self%Z_psi, count = [self%nr, self%nt])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%Z_psi = self%Z_psi / (100. * self%aminor)
 
     istatus = nf90_inq_varid (ncid, 'B_psi', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='B_psi')
     istatus = nf90_get_var (ncid, id, self%B_psi, count = [self%nr, self%nt])
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
-    self%B_psi = self%B_psi * 1.e-4 / self%B_T
 
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
 
-    !
+    ! Convert units
+    self%psi_0 = self%psi_0 * 1.e-8
+    self%psi_a = self%psi_a * 1.e-8
+    self%eqpsi = self%eqpsi * 1.e-8
+    self%B_T = self%B_T * 1.e-4  ! cgs to MKS
+    self%B_psi = self%B_psi * 1.e-4 / self%B_T
+    self%R_mag = self%R_mag / 100.
+    self%Z_mag = self%Z_mag / 100.
+    self%R_psi = self%R_psi / self%aminor
+    self%Z_psi = self%Z_psi / self%aminor
+    self%aminor = self%aminor / 100.
+    self%fp = self%fp * 1.e-6
+
     !     Normalize, rename quantities
-    !
     avgrmid = self%aminor
     rmaj = self%R_mag / self%aminor   ! used to reference the grid
     B_T0 = self%B_T
 
+    self%beta_0 = self%beta(1)
     psi_N = B_T0 * avgrmid**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
