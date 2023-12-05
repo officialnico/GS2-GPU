@@ -436,7 +436,7 @@ contains
   pure real function btori (self, pbar)
     class(leq_type), intent(in) :: self
     real, intent(in) :: pbar
-    btori = self%surf%Rgeo
+    btori = self%surf%R_geo
   end function btori
 
   !> FIXME : Add documentation

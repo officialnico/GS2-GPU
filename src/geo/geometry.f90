@@ -879,7 +879,7 @@ contains
       if (iflux == 0) then
          inputs%surf%geoType = geoType
          inputs%surf%mMode = mMode ; inputs%surf%nMode = nMode
-         inputs%surf%rmaj = rmaj ; inputs%surf%Rgeo = R_geo ; inputs%surf%r = rhoc
+         inputs%surf%rmaj = rmaj ; inputs%surf%R_geo = R_geo ; inputs%surf%r = rhoc
          inputs%surf%dr = delrho ; inputs%surf%aSurf = aSurf ; inputs%surf%sHorz = shift
          inputs%surf%sVert = shiftVert ; inputs%surf%delm = deltam
          inputs%surf%deln = deltan ; inputs%surf%delmp = deltampri

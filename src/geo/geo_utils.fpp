@@ -16,7 +16,7 @@ module geo_utils
      !> Flux surface major radius, \(R_{0N}\), input variable: `Rmaj`
      real :: Rmaj
      !> Location of reference magnetic field, \(R_{geoN}\), input variable: `R_geo`
-     real :: Rgeo
+     real :: R_geo
      !> Minor radius, \(r_{\psi N}\), input variable: `rhoc`
      real :: r
      !> Step size for radial derivatives, \(\Delta r_{\psi N}\), input variable: `delrho`
