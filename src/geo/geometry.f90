@@ -113,7 +113,7 @@ module geometry
   private
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
-  public :: qfun, rpofrho, finish_geometry, verb, debug, big, pbarfun, geom
+  public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input

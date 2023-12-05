@@ -1651,9 +1651,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: nperiod_geo => nperiod
+    use geometry, only: nperiod_geo => nperiod, verb_geo => verb
     use geometry, only: eikcoefs, itor, delrho, rhoc
-    use geometry, only: debug_geo => debug, verb_geo => verb
     use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
@@ -1663,16 +1662,9 @@ contains
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
     real :: rhoc_save
-    !CMR nov04: adding following debug switch
-    logical :: debug=.true.
     integer, parameter :: verb = 3
     character(4) :: ntheta_char
-
-    debug = (verbosity() > 2)
-    debug_geo = debug
     verb_geo = verbosity()
-
-    !CMR
 
     if (initialized) return
     initialized = .true.
