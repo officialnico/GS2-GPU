@@ -166,6 +166,7 @@ contains
     R_geo = (self%R_psi(self%nr, 1) + self%R_psi(self%nr, self%nt))/2.
     self%aminor = (self%R_psi(self%nr, 1) - self%R_psi(self%nr, self%nt))/2.
     self%B_T = self%fp(self%nr) / R_geo
+    self%B_psi = 0.0
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
     self%R_mag = self%R_psi(1,1)
@@ -173,7 +174,6 @@ contains
     self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
-    self%B_psi = 0.0
 
     !     Normalize, rename quantities
     psi_N = abs(self%B_T) * self%aminor**2

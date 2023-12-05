@@ -189,18 +189,12 @@ contains
     self%Z_psi = self%Z_psi / self%aminor
     self%aminor = self%aminor / 100.
     self%fp = self%fp * 1.e-6
+    self%beta_0 = self%beta(1)
 
     !     Normalize, rename quantities
-    avgrmid = self%aminor
-    rmaj = self%R_mag / self%aminor   ! used to reference the grid
-    B_T0 = self%B_T
-
-    self%beta_0 = self%beta(1)
-    psi_N = B_T0 * avgrmid**2
+    psi_N = self%B_T * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
-    psi_a_out = self%psi_a
-    psi_0_out = self%psi_0
     self%eqpsi = self%eqpsi / psi_N
 
     do j = 1, self%nt
@@ -208,13 +202,16 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
-    f_N = B_T0 * avgrmid
+    f_N = self%B_T * self%aminor
     self%fp = self%fp / f_N
 
     self%diam = self%R_psi(:, 1) - self%R_psi(:, self%nt)
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
 
-    nthg = self%nt
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
+    avgrmid = self%aminor ; nthg = self%nt
+
     self%initialised = .true.
     self%has_full_theta_range = .false.
 # else

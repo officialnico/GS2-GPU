@@ -99,17 +99,15 @@ contains
        end do
     end do
 
+    self%psi_0 = 0 ; self%psi_a = 1.0
+    self%B_T = -1.0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
+    self%aminor = 1.0
+
     !Set outputs
-    psi_0_out = 0.0
-    psi_a_out = 1.0
-    B_T0 = -1.0
-    avgrmid = 1.0
-    rmaj = self%surf%Rmaj
-    self%psi_0 = psi_0_out ; self%psi_a = psi_a_out
-    self%B_T = B_T0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
-    self%aminor = avgrmid
-    nthg = self%nt - 1 !Output is equivalent to ntheta_input
-    self%B_psi = 0.0
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = self%B_T
+    avgrmid = self%aminor ; nthg = self%nt - 1
+
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine leqin

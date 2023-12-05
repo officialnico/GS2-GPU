@@ -64,24 +64,17 @@ contains
        call self%set_ceq_from_chease
        call finish
     end if
-    !
+
+    self%B_psi = 0.0
+
     !     Normalize, rename quantities
-    !
-
-    avgrmid = self%aminor
-    ! rmaj changes depending on iflux.. FIX!!
-    ! see geometr... for Miller is the rgeo for the flux surface of
-    ! interest... rgeo is rgeo of LCFS... check!!!
-    ! actually when iflux = 1, it is the major radius of the magnetic axis,
-    ! so below is OK.
-    rmaj = self%R_mag
-    B_T0 = abs(self%B_T)
-
-    psi_N = B_T0 * avgrmid**2
+    ! rmaj changes depending on iflux.. FIX!!  see geometr... for
+    ! Miller is the rgeo for the flux surface of interest... rgeo is
+    ! rgeo of LCFS... check!!!  actually when iflux = 1, it is the
+    ! major radius of the magnetic axis, so below is OK.
+    psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
-    psi_a_out = self%psi_a
-    psi_0_out = self%psi_0
     self%eqpsi = self%eqpsi / psi_N
 
     do j = 1, self%nt
@@ -89,10 +82,15 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
-    f_N = B_T0*avgrmid
+    f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    nthg = self%nt
+    self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
+    self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
+
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
+    avgrmid = self%aminor ; nthg = self%nt
 
     if (debug) then
        write (*,*) "Finished ceqin... imported CHEASE equilibrium"
@@ -105,10 +103,6 @@ contains
        write (*,*) 'beta', self%beta_0
     end if
 
-    self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
-    self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
-
-    self%B_psi = 0.0
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine ceqin
@@ -125,7 +119,7 @@ contains
     use read_chease, only: r_chease, z_chease
     implicit none
     class(ceq_type), intent(in out) :: self
-    real :: d, R_geo
+    real :: R_geo
     integer :: i, j
 
     !     nr == number of actual grid points in radial array
@@ -142,7 +136,6 @@ contains
     !     fp(1:nr) == the function that satisfies
     !              B = fp grad zeta + grad zeta x grad psi
     self%fp = f_chease
-
     self%qsf = q_chease
 
     !     pressure(1:nr) == pressure profile on the radial grid,
@@ -151,8 +144,7 @@ contains
 
     !     psi_0 == value of psi at the magnetic axis
     !     psi_a == value of psi at the boundary of the plasma
-    self%psi_0 = self%eqpsi(1)
-    self%psi_a = self%eqpsi(self%nr)
+    self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
     self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
 
     do j = 1, self%nt
@@ -168,12 +160,9 @@ contains
     end do
 
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
-    d = self%R_psi(self%nr, self%nt/2+1) - self%R_psi(self%nr, 1)
     R_geo = (self%R_psi(self%nr, self%nt/2+1) + self%R_psi(self%nr, 1))/2.
-    self%aminor = d/2.
-
+    self%aminor = (self%R_psi(self%nr, self%nt/2+1) - self%R_psi(self%nr, 1))/2.
     self%B_T = self%fp(self%nr)/R_geo
-
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
 
@@ -181,7 +170,6 @@ contains
     !     Z_mag == Z position of magnetic axis
     self%R_mag = self%R_psi(1,1)
     self%Z_mag = self%Z_psi(1,1)
-
     self%beta = 8. * pi * 1.e-7 * self%pressure / b0exp_chease**2  !not correct definition yet
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)

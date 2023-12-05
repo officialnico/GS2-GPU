@@ -54,7 +54,7 @@ contains
        psi_a_out = self%psi_a
        rmaj = self%R_mag
        B_T0 = self%B_T
-       avgrmid = self%aminor
+       avgrmid = -1 !< Historically no value given
        nthg = self%nt
        return
     end if
@@ -160,30 +160,27 @@ contains
        call delete_periodic_spline (d%grid(i)%spl)
     end do
 
-    rmaj = 1.
-    avgrmid = -1.0 !< Historically no value given
-
     ! B at center of ring is mu_0 I / (2 a)
     self%B_T = 4.*pi*1.e-7*I_ring*0.5 / self%R_mag
 
     write(*,*) 'B_T0 = ',self%B_T
-    B_T0 = self%B_T
-
     psi_N = self%B_T * self%R_mag**2
-    ! Why do we only normalise the outputs and not the stored values?
-    psi_a_out = self%psi_a / psi_N
-    psi_0_out = self%psi_0 / psi_N
     self%eqpsi = d%psi / psi_N
 
     self%R_psi = self%R_psi / self%R_mag
     self%Z_psi = self%Z_psi / self%R_mag
-    self%B_psi = self%B_psi/B_T0
+    self%B_psi = self%B_psi / B_T0
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, (self%nt-1)/2))
     ! need to define the rho_d grid (called diam)
     !> Not really the diameter in this case.  Instead, return the
     !> normalized minor radius, measured inside the ring, in the plane of
     !> the ring, starting at the ring and going inward.
     self%diam = 1. - self%R_psi(:,1)
+
+    do j = 1, self%nt
+       self%eqth(:, j) = (j-1) * pi / float(self%nt-1)
+       self%eqpsi_2d(:, j) = self%eqpsi
+    end do
 
     self%qsf = 0.
     self%fp = 0.
@@ -194,12 +191,10 @@ contains
     self%pressure= 0.
     self%beta_0 = self%beta(1)
 
-    nthg = self%nt
-
-    do j = 1, self%nt
-       self%eqth(:, j) = (j-1) * pi / float(self%nt-1)
-       self%eqpsi_2d(:, j) = self%eqpsi
-    end do
+    ! Why do we only normalise the outputs and not the stored values?
+    psi_a_out = self%psi_a / psi_N ; psi_0_out = self%psi_0 / psi_N
+    rmaj = 1.0 ; B_T0 = self%B_T
+    avgrmid = -1.0 ; nthg = self%nt
 
     ! recover some memory:
     do i = 1, d%nr

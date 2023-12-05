@@ -273,20 +273,17 @@ contains
     if (debug) write(6,*) "gs2din:  aminor=", self%aminor
     deallocate (rbbbs, zbbbs)
 
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
+
     ! Normalise
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    eq_R = eq_R / self%aminor
-    eq_Z = eq_Z / self%aminor
+    eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
 
-    ! should rmaj be R_mag or rcentr? use R_mag for now.
-    rmaj = self%R_mag
-    B_T0 = abs(bcentr)
-    self%B_T = B_T0
+    self%B_T = abs(bcentr)
     self%psi_a = self%psi_a / (B_T0*self%aminor**2)
     self%psi_0 = self%psi_0 / (B_T0*self%aminor**2)
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
     if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", self%B_T, self%aminor, &
          self%psi_0, self%psi_a
 
@@ -309,7 +306,11 @@ contains
        end do
     end do
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
+
+    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
+    avgrmid = self%aminor ; nthg = -1
+
     self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine gs2din
@@ -355,7 +356,6 @@ contains
        return
     end if
 
-    nthg = -1
     big = inputs%big
     ! Need to generalize initialization condition if equilibrium changes
     self%filename = trim(adjustl(inputs%eqfile))
@@ -457,11 +457,11 @@ contains
        end if
     end do
 
-    call a_minor(rbbbs, zbbbs, self%Z_mag, avgrmid)
-    self%aminor = avgrmid
+    call a_minor(rbbbs, zbbbs, self%Z_mag, self%aminor)
 
     deallocate (rbbbs, zbbbs)
 
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
@@ -474,12 +474,9 @@ contains
     end do
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
-    rmaj = self%R_mag
-    B_T0 = abs(bcentr)
-    self%B_T = B_T0
+    self%B_T = abs(bcentr)
     self%psi_a = self%psi_a / (self%B_T * self%aminor**2)
     self%psi_0 = self%psi_0 / (self%B_T * self%aminor**2)
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
 
     p_0 = self%pressure(1)
     self%fp = self%fp / (self%B_T * self%aminor)
@@ -511,7 +508,11 @@ contains
 
     ! To allow consistency with other impls in gradient etc.
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
+
+    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
+    avgrmid = self%aminor ; nthg = -1
+
     self%initialised = .true.
     self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)
