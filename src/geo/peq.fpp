@@ -173,23 +173,17 @@ contains
     self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
+    self%B_psi = 0.0
 
     !     Normalize, rename quantities
-    avgrmid = self%aminor
-    rmaj = self%R_mag
-    B_T0 = abs(self%B_T)
-
-    psi_N = B_T0 * avgrmid**2
+    psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
-    psi_a_out = self%psi_a
-    psi_0_out = self%psi_0
     self%eqpsi = self%eqpsi / psi_N
 
-    f_N = B_T0 * avgrmid
+    f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    nthg = self%nt
     self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
     do j = 1, self%nt
@@ -197,7 +191,10 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
-    self%B_psi = 0.0
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
+    avgrmid = self%aminor ; nthg = self%nt
+
     self%initialised = .true.
     self%has_full_theta_range = .false.
 # else
@@ -217,7 +214,7 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
     real :: R_geo, f_N, psi_N
-    integer :: istatus, ncid, id, i, j
+    integer :: istatus, ncid, id, j
     real, allocatable, dimension(:,:) :: work
     if (self%initialised) then
        psi_0_out = self%psi_0
@@ -235,17 +232,12 @@ contains
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
-    !     netcdf read scalar: nr
-    !
     !     nr == number of radial grid points in radial eq grid
-
     istatus = nf90_inq_varid (ncid, 'ns', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='ns')
     istatus = nf90_get_var (ncid, id, self%nr)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    !     netcdf read scalar: nt
-    !
     !     nt == number of theta grid points in theta eq grid
     istatus = nf90_inq_varid (ncid, 'nt1', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='nt1')
@@ -253,16 +245,6 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
     call self%alloc_arrays()
-
-    !     netcdf read scalars: psi_0,psi_a,B_T
-    !
-    !     psi_0 == value of psi at the magnetic axis
-    !     psi_a == value of psi at the boundary of the plasma
-    !     B_T == vacuum toroidal magnetic field at R_center
-
-    !       id = ncvid (ncid, 'B_T', ifail)
-    !       call ncvgt1 (ncid, id, start, work1, ifail)
-    !       B_T = work1*1.e-4  ! cgs to MKS
 
     !     netcdf read vectors: eqpsi,fp,qsf,beta,pressure
     !
@@ -299,33 +281,22 @@ contains
     istatus = nf90_get_var (ncid, id, self%pressure)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
-    !     eq_Rpsi(1:nr, 1:nt)
-    !     eq_Zpsi(1:nr, 1:nt)
-    !     eq_Bpsi(1:nr, 1:nt)
     allocate(work(self%nt, self%nr))
 
+    !     netcdf read 2d field: R_psi and Z_psi
     istatus = nf90_inq_varid (ncid, 'R', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='R')
     istatus = nf90_get_var (ncid, id, work)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    do j = 1, self%nt
-       do i = 1, self%nr
-          self%R_psi(i, j) = work(j, i)
-       end do
-    end do
+    self%R_psi = transpose(work)
 
     istatus = nf90_inq_varid (ncid, 'Z', id)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='Z')
     istatus = nf90_get_var (ncid, id, work)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-    do j = 1, self%nt
-       do i = 1, self%nr
-          self%Z_psi(i, j) = work(j, i)
-       end do
-    end do
+    self%Z_psi = transpose(work)
 
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
@@ -356,29 +327,21 @@ contains
     self%B_T = self%fp(self%nr) / R_geo
 
     !     Normalize, rename quantities
-    R_geo = R_geo / self%aminor
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
     self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet?
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
+    self%B_psi = 0.0
 
-    avgrmid = self%aminor
-    rmaj = self%R_mag / self%aminor   ! used to reference the grid
-    B_T0 = abs(self%B_T)
-
-    psi_N = B_T0 * avgrmid**2
+    psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
-    psi_a_out = self%psi_a
-    psi_0_out = self%psi_0
     self%eqpsi = self%eqpsi / psi_N
 
-    f_N = B_T0*avgrmid
+    f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    !CMR 28/6/2011: why divide the number of theta points by two here?
-    nthg = self%nt/2
     self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
     do j = 1, self%nt
@@ -386,7 +349,11 @@ contains
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
-    self%B_psi = 0.0
+    !CMR 28/6/2011: why divide the number of theta points by two here?
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag / self%aminor ; B_T0 = abs(self%B_T)
+    avgrmid = self%aminor ; nthg = self%nt/2
+
     self%initialised = .true.
     self%has_full_theta_range = .true.
 # else
