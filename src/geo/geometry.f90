@@ -1681,11 +1681,11 @@ contains
     implicit none
     real, dimension(-ntgrid:), intent (in) :: invR
     real, dimension(-ntgrid:), intent (out) :: val
-    real, dimension(-ntgrid:, :), intent(in) :: x, y
+    real, dimension(-ntgrid:, :), intent (in) :: x, y
     integer :: i
     ! factor of 1/R from grad zeta
-    do i =-nth, nth
-       val(i) = (x(i,1)*y(i,2)-x(i,2)*y(i,1)) * invR(i)
+    do i = -nth, nth
+       val(i) = (x(i, 1) * y(i, 2) - x(i, 2) * y(i, 1)) * invR(i)
     end do
   end subroutine tripprod2dtgrid
 
@@ -1699,10 +1699,10 @@ contains
     integer :: i
     ans = 0.
     do i = 1, n
-       ans(i) = ans(i-1) + 0.5 * (grid(i)-grid(i-1)) * (arg(i)+arg(i-1))
+       ans(i) = ans(i-1) + 0.5 * (grid(i) - grid(i-1)) * (arg(i) + arg(i-1))
     end do
     do i = -1, -n, -1
-       ans(i) = ans(i+1) + 0.5 * (grid(i)-grid(i+1)) * (arg(i)+arg(i+1))
+       ans(i) = ans(i+1) + 0.5 * (grid(i) - grid(i+1)) * (arg(i) + arg(i+1))
     end do
   end subroutine integrate
 
@@ -1748,12 +1748,7 @@ contains
     implicit none
     real, intent (in) :: rho
     integer, intent(in) :: fort11_unit
-    if (local_eq) then
-       !     punt for now; not used
-       pbarofrho = 0.
-    else
-       pbarofrho = psifun(rpofrho(rho, fort11_unit))
-    end if
+    pbarofrho = psifun(rpofrho(rho, fort11_unit))
   end function pbarofrho
 
   !> FIXME : Add documentation
