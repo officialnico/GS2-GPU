@@ -158,7 +158,7 @@ contains
     integer :: i
 
     geom%nr = nradius ; geom%nt = ntheta ; geom%has_full_theta_range = .true.
-    call geom%alloc_arrays
+    call geom%alloc_arrays()
     geom%eqpsi = [0, 1, 2]
     do i = 1, ntheta
        geom%eqth(:, i) = (i-1) * twopi / real(geom%nt-1) - pi
@@ -179,6 +179,7 @@ contains
 
     actual = geom%eqitem(psi, theta_outside_negative, array, '?')
     @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
+    call geom%dealloc_arrays()
 
   end subroutine test_eqitem
 
@@ -245,103 +246,97 @@ contains
 
 !   end subroutine test_ceq_init
 
-!   @test
-!   subroutine test_gradient()
-!     use constants, only : pi
-!     use ceq, only : ceq_testing_type, gradient
-!     type(ceq_testing_type) :: ceq_privates
+  @test
+  subroutine test_gradient()
+    integer, parameter :: nradius = npsi_test, ntheta = ntheta_test
+    integer, parameter :: ntheta_half = (ntheta -1 )/ 2
+    real, dimension(npsi_test, ntheta_test, 2) :: dpcart, dtcart
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i - 1)*twopi/real(ntheta-1) - pi, i=1,ntheta)], psi = 1.0
+    real, dimension(ntheta, 2) :: expected, grad_result
 
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 2
+    dpcart(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpcart(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dtcart = 0.
 
-!     real, dimension(npsi_test, ntheta_test, 2) :: dpcart, dbtcart, dtcart
-!     integer :: i
-!     real, dimension(-ntheta:ntheta), parameter :: psi = 1.
-!     real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
-!     real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
+    geom%nr = nradius ; geom%nt = ntheta
+    call geom%alloc_arrays()
+    geom%has_full_theta_range = .true.
+    do i = 1, nradius
+       geom%eqth(i, :) = theta
+    end do
+    geom%dpcart = dpcart ; geom%dtcart = dtcart
+    geom%eqpsi = [0, 1, 2]
+    geom%pressure = [3., 6., 9.] ; geom%beta_0 = 1.0
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call geom%gradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
 
-!     call set_ceq_test_data()
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call geom%gradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+    call geom%dealloc_arrays()
+  end subroutine test_gradient
 
-!     dpcart(:, :, 1) = reshape([&
-!            0., -2., -1.,&
-!            0., 0., 0., &
-!            0., 2., 1., &
-!            0., 0., 0., &
-!            0., -2., -1.], shape=[npsi_test, ntheta_test])
-!     dpcart(:, :, 2) = reshape([&
-!            0., 0., 0.,&
-!            0., -2., -1., &
-!            0., 0., 0., &
-!            0., 2., 1., &
-!            0., 0., 0.], shape=[npsi_test, ntheta_test])
-!     dbtcart = 0.
-!     dtcart = 0.
+  @test
+  subroutine test_bgradient()
+    integer, parameter :: nradius = npsi_test, ntheta = ntheta_test
+    integer, parameter :: ntheta_half = (ntheta -1 )/ 2
+    real, dimension(npsi_test, ntheta_test, 2) :: dpbish, dbtbish, dtbish
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i - 1)*twopi/real(ntheta-1) - pi, i=1,ntheta)], psi = 1.0
+    real, dimension(ntheta, 2) :: expected, grad_result
+    dpbish(:, :, 1) = reshape([&
+           0., -2., -1.,&
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0., &
+           0., -2., -1.], shape=[npsi_test, ntheta_test])
+    dpbish(:, :, 2) = reshape([&
+           0., 0., 0.,&
+           0., -2., -1., &
+           0., 0., 0., &
+           0., 2., 1., &
+           0., 0., 0.], shape=[npsi_test, ntheta_test])
+    dtbish = 0.
 
-!     call ceq_privates%set_cart_arrays(dpcart, dbtcart, dtcart)
-!     call ceq_privates%set_eqpsi([0., 1., 2.])
+    geom%nr = nradius ; geom%nt = ntheta
+    call geom%alloc_arrays()
+    geom%has_full_theta_range = .true.
+    do i = 1, nradius
+       geom%eqth(i, :) = theta
+    end do
+    geom%dpbish = dpbish ; geom%dtbish = dtbish
+    geom%eqpsi = [0, 1, 2]
+    geom%pressure = [3., 6., 9.] ; geom%beta_0 = 1.0
 
-!     expected(:, 1) = [-2., 0., 2., 0., -2.]
-!     expected(:, 2) = [0., -2., 0., 2., 0.]
-!     call gradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
-!     @assertEqual(expected, grad_result, tolerance=value_tolerance)
+    expected(:, 1) = [-2., 0., 2., 0., -2.]
+    expected(:, 2) = [0., -2., 0., 2., 0.]
+    call geom%bgradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
 
-!     expected(:, 1) = [-3., 0., 3., 0., -3.]
-!     expected(:, 2) = [0., -3., 0., 3., 0.]
-!     call gradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
-!     ! 'R' is derivative of pressure, and involves a separate
-!     ! interpolation, hence reduced tolerance
-!     @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
-
-!   end subroutine test_gradient
-
-!   @test
-!   subroutine test_bgradient()
-!     use constants, only : pi
-!     use ceq, only : ceq_testing_type, bgradient
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 2
-
-!     real, dimension(npsi_test, ntheta_test, 2) :: dpbish, dbtbish, dtbish
-!     integer :: i
-!     real, dimension(-ntheta:ntheta), parameter :: psi = 1.
-!     real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/(2*real(ntheta-1)), i=-ntheta,ntheta)]
-!     real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
-
-!     call set_ceq_test_data()
-
-!     dpbish(:, :, 1) = reshape([&
-!            0., -2., -1.,&
-!            0., 0., 0., &
-!            0., 2., 1., &
-!            0., 0., 0., &
-!            0., -2., -1.], shape=[npsi_test, ntheta_test])
-!     dpbish(:, :, 2) = reshape([&
-!            0., 0., 0.,&
-!            0., -2., -1., &
-!            0., 0., 0., &
-!            0., 2., 1., &
-!            0., 0., 0.], shape=[npsi_test, ntheta_test])
-!     dbtbish = 0.
-!     dtbish = 0.
-
-!     call ceq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
-!     call ceq_privates%set_eqpsi([0., 1., 2.])
-
-!     expected(:, 1) = [-2., 0., 2., 0., -2.]
-!     expected(:, 2) = [0., -2., 0., 2., 0.]
-!     call bgradient(psi, theta, grad_result, 'P', 0.5, ntheta, ntheta)
-!     @assertEqual(expected, grad_result, tolerance=value_tolerance)
-
-!     expected(:, 1) = [-3., 0., 3., 0., -3.]
-!     expected(:, 2) = [0., -3., 0., 3., 0.]
-!     call bgradient(psi, theta, grad_result, 'R', 0.5, ntheta, ntheta)
-!     ! 'R' is derivative of pressure, and involves a separate
-!     ! interpolation, hence reduced tolerance
-!     @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
-
-!   end subroutine test_bgradient
+    expected(:, 1) = [-3., 0., 3., 0., -3.]
+    expected(:, 2) = [0., -3., 0., 3., 0.]
+    call geom%bgradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
+    ! 'R' is derivative of pressure, and involves a separate
+    ! interpolation, hence reduced tolerance
+    @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
+    call geom%dealloc_arrays
+  end subroutine test_bgradient
 
 !   @test
 !   subroutine test_initialize_invR
