@@ -27,7 +27,6 @@ module leq
   public :: leq_type
 
   type, extends(abstract_geo_type) :: leq_type
-     private
      !> Used to translate definition of the poloidal angle such that the location
      !> of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
      !> Masters thesis or section 2.4 of "GS2 analytic geometry specification")
