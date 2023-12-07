@@ -339,13 +339,6 @@ contains
   end subroutine test_bgradient
 
 !   @test
-!   subroutine test_initialize_invR
-!     use ceq, only : initialize_invR
-!     @assertEqual(1, initialize_invR(0))
-!     @assertEqual(1, initialize_invR(1))
-!   end subroutine test_initialize_invR
-
-!   @test
 !   subroutine test_invR
 !     use constants, only : pi
 !     use ceq, only : initialize_invR, invR, ceq_testing_type
@@ -611,13 +604,6 @@ contains
 !   end subroutine test_btori
 
 !   @test
-!   subroutine test_initialize_dbtori
-!     use ceq, only : initialize_dbtori
-!     @assertEqual(1, initialize_dbtori(0))
-!     @assertEqual(1, initialize_dbtori(1))
-!   end subroutine test_initialize_dbtori
-
-!   @test
 !   subroutine test_dbtori
 !     use ceq, only : initialize_dbtori, dbtori
 !     integer :: i
@@ -629,13 +615,6 @@ contains
 !     @assertEqual(-2., dbtori(0.75))
 
 !   end subroutine test_dbtori
-
-!   @test
-!   subroutine test_initialize_q
-!     use ceq, only : initialize_q
-!     @assertEqual(1, initialize_q(0))
-!     @assertEqual(1, initialize_q(1))
-!   end subroutine test_initialize_q
 
 !   @test
 !   subroutine test_qfun
@@ -650,13 +629,6 @@ contains
 !   end subroutine test_qfun
 
 !   @test
-!   subroutine test_initialize_pressure
-!     use ceq, only : initialize_pressure
-!     @assertEqual(1, initialize_pressure(0))
-!     @assertEqual(1, initialize_pressure(1))
-!   end subroutine test_initialize_pressure
-
-!   @test
 !   subroutine test_pfun
 !     use ceq, only : initialize_pressure, pfun
 !     integer :: i
@@ -667,13 +639,6 @@ contains
 !     @assertEqual(2.25, pfun(0.25), tolerance=spline_tolerance)
 !     @assertEqual(3.75, pfun(0.75), tolerance=spline_tolerance)
 !   end subroutine test_pfun
-
-!   @test
-!   subroutine test_initialize_dpressure
-!     use ceq, only : initialize_dpressure
-!     @assertEqual(1, initialize_dpressure(0))
-!     @assertEqual(1, initialize_dpressure(1))
-!   end subroutine test_initialize_dpressure
 
 !   @test
 !   subroutine test_dpfun
@@ -688,13 +653,6 @@ contains
 !   end subroutine test_dpfun
 
 !   @test
-!   subroutine test_initialize_beta
-!     use ceq, only : initialize_beta
-!     @assertEqual(1, initialize_beta(0))
-!     @assertEqual(1, initialize_beta(1))
-!   end subroutine test_initialize_beta
-
-!   @test
 !   subroutine test_betafun
 !     use ceq, only : initialize_beta, betafun
 !     integer :: i
@@ -705,13 +663,6 @@ contains
 !     @assertEqual(4.5, betafun(0.25), tolerance=spline_tolerance)
 !     @assertEqual(7.5, betafun(0.75), tolerance=spline_tolerance)
 !   end subroutine test_betafun
-
-!   @test
-!   subroutine test_initialize_psi
-!     use ceq, only : initialize_psi
-!     @assertEqual(1, initialize_psi(0))
-!     @assertEqual(1, initialize_psi(1))
-!   end subroutine test_initialize_psi
 
 !   @test
 !   subroutine test_psi
