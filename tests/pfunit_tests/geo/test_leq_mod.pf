@@ -36,132 +36,115 @@ contains
     @assertEqual(twopi, geom%diameter(pi), tolerance=value_tolerance)
   end subroutine test_diameter
 
-  ! @test
-  ! subroutine test_eqitem()
-  !   use constants, only : pi
-  !   use leq, only : leq_testing_type
-  !   type(leq_testing_type) :: leq_privates
+  @test
+  subroutine test_eqitem()
+    use constants, only: twopi
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta_half = 4, ntheta = 2 * ntheta_half + 1
+    integer, parameter :: total_size(2) = [nradius, ntheta]
+    real, dimension(nradius, ntheta) :: array
+    real, parameter :: theta_zero = 0.0
+    real, parameter :: expected_zero = theta_zero
+    real, parameter :: theta_inside = 1.3
+    real, parameter :: expected_inside = theta_inside
+    real, parameter :: theta_inside_negative = -2.6
+    real, parameter :: expected_inside_negative = theta_inside_negative
+    real, parameter :: theta_outside = 1.3 + pi
+    real, parameter :: expected_outside = modulo(theta_outside + pi, twopi) - pi
+    real, parameter :: theta_outside_negative = -(2.6 + pi)
+    real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, twopi) - pi
+    real :: actual
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i - 1)*twopi/real(ntheta-1) - pi, i=1,ntheta)]
+    geom%nr = nradius ; geom%nt = ntheta
+    call geom%alloc_arrays()
+    geom%has_full_theta_range = .true.
+    do i = 1, nradius
+       geom%eqth(i, :) = theta
+       array(i, :) = theta
+    end do
 
-  !   integer, parameter :: nradius = 3
-  !   integer, parameter :: ntheta = 4
-  !   integer, parameter :: total_ntheta = 2*ntheta + 1
-  !   integer, parameter :: total_size(2) = [nradius, total_ntheta]
+    actual = geom%eqitem(1.0, theta_zero, array, 'A')
+    @assertEqual(expected_zero, actual, tolerance=value_tolerance)
 
-  !   real, dimension(nradius, -ntheta:ntheta) :: array
+    actual = geom%eqitem(1.0, theta_inside, array, 'A')
+    @assertEqual(expected_inside, actual, tolerance=value_tolerance)
 
-  !   real, parameter :: theta_zero = 0.0
-  !   real, parameter :: expected_zero = theta_zero
-  !   real, parameter :: theta_inside = 1.3
-  !   real, parameter :: expected_inside = theta_inside
-  !   real, parameter :: theta_inside_negative = -2.6
-  !   real, parameter :: expected_inside_negative = theta_inside_negative
-  !   real, parameter :: theta_outside = 1.3 + pi
-  !   real, parameter :: expected_outside = modulo(theta_outside + pi, 2.*pi) - pi
-  !   real, parameter :: theta_outside_negative = -(2.6 + pi)
-  !   real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, 2.*pi) - pi
+    actual = geom%eqitem(1.0, theta_inside_negative, array, 'A')
+    @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
 
-  !   real :: actual
+    actual = geom%eqitem(1.0, theta_outside, array, 'A')
+    @assertEqual(expected_outside, actual, tolerance=value_tolerance)
 
-  !   integer :: i, j
+    actual = geom%eqitem(1.0, theta_outside_negative, array, 'A')
+    @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
+    call geom%dealloc_arrays()
+  end subroutine test_eqitem
 
-  !   call leq_privates%set_ntnr(ntheta, nradius)
+  @test
+  subroutine test_gradient()
+    use constants, only: twopi
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta_half = 4, ntheta = 2 * ntheta_half + 1
+    real, dimension(nradius, ntheta, 2) :: dpcart
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i - 1)*twopi/real(ntheta-1) - pi, i=1,ntheta)], radius = 1.0
+    real, dimension(ntheta, 2) :: expected, grad_result
 
-  !   array = reshape([([(real(j) * pi / real(ntheta), &
-  !        i=1, nradius)], j=-ntheta, ntheta)], total_size)
+    dpcart(:,:,1) = 4.
+    dpcart(:,:,2) = 8.
 
-  !   call leq_privates%eqitem(theta_zero, array, actual, 'A')
-  !   @assertEqual(expected_zero, actual, tolerance=value_tolerance)
+    expected = dpcart(2,:,:)
 
-  !   call leq_privates%eqitem(theta_inside, array, actual, 'A')
-  !   @assertEqual(expected_inside, actual, tolerance=value_tolerance)
+    geom%nr = nradius ; geom%nt = ntheta
+    call geom%alloc_arrays()
+    geom%has_full_theta_range = .true.
+    do i = 1, nradius
+       geom%eqth(i, :) = theta
+    end do
+    geom%dpcart = dpcart
+    ! Note only need to test 'P' as other values for char don't make
+    ! sense for leq
+    call geom%gradient(radius, theta, grad_result, 'P', -1., ntheta_half, ntheta_half)
+    @assertEqual(expected, grad_result, tolerance=value_tolerance)
+    call geom%dealloc_arrays()
+  end subroutine test_gradient
 
-  !   call leq_privates%eqitem(theta_inside_negative, array, actual, 'A')
-  !   @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
+  @test
+  subroutine test_bgradient()
+    use constants, only: twopi
+    integer, parameter :: nradius = 3
+    integer, parameter :: ntheta_half = 4, ntheta = 2 * ntheta_half + 1
+    real, dimension(nradius, ntheta, 2) :: dpbish, dtbish, dbtbish
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i - 1)*twopi/real(ntheta-1) - pi, i=1,ntheta)], radius = 1.0
+    real, dimension(ntheta, 2) :: expected_P, expected_T
+    real, dimension(ntheta, 2) :: grad_P_result, grad_T_result
 
-  !   call leq_privates%eqitem(theta_outside, array, actual, 'A')
-  !   @assertEqual(expected_outside, actual, tolerance=value_tolerance)
+    dpbish(:,:,1) = 4.
+    dpbish(:,:,2) = 8.
+    dtbish(:,:,1) = 16.
+    dtbish(:,:,2) = 32.
 
-  !   call leq_privates%eqitem(theta_outside_negative, array, actual, 'A')
-  !   @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
+    expected_T = dtbish(2,:,:)
+    expected_P = dpbish(2,:,:)
+    geom%nr = nradius ; geom%nt = ntheta
+    call geom%alloc_arrays()
+    geom%has_full_theta_range = .true.
+    do i = 1, nradius
+       geom%eqth(i, :) = theta
+    end do
+    geom%dpbish = dpbish ; geom%dtbish = dtbish
 
-  !   call leq_privates%dealloc_arrays()
+    ! Note only need to test 'P' and 'T' as other values for char
+    ! don't make sense for leq
+    call geom%bgradient(radius, theta, grad_P_result, 'P', -1., ntheta_half, ntheta_half)
+    call geom%bgradient(radius, theta, grad_T_result, 'T', -1., ntheta_half, ntheta_half)
 
-  ! end subroutine test_eqitem
-
-  ! @test
-  ! subroutine test_gradient()
-  !   use constants, only : pi
-  !   use leq, only : leq_testing_type, gradient
-  !   type(leq_testing_type) :: leq_privates
-
-  !   integer, parameter :: nradius = 3
-  !   integer, parameter :: ntheta = 4
-
-  !   real, dimension(nradius, -ntheta:ntheta, 2) :: dpcart
-  !   integer :: i
-  !   real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/real(ntheta-1), i=-ntheta,ntheta)]
-  !   real, dimension(-ntheta:ntheta, 2) :: expected, grad_result
-
-  !   call leq_privates%set_ntnr(ntheta, nradius)
-  !   call leq_privates%alloc_arrays(nradius, ntheta)
-
-  !   dpcart(:,:,1) = 4.
-  !   dpcart(:,:,2) = 8.
-
-  !   expected = dpcart(2,:,:)
-
-  !   call leq_privates%set_dpcart(dpcart)
-
-  !   ! Note only need to test 'P' as other values for char don't make
-  !   ! sense for leq
-  !   call gradient(theta, grad_result, 'P', -1., ntheta, ntheta)
-
-  !   call leq_privates%dealloc_arrays()
-
-  !   @assertEqual(expected, grad_result, tolerance=value_tolerance)
-
-  ! end subroutine test_gradient
-
-  ! @test
-  ! subroutine test_bgradient()
-  !   use constants, only : pi
-  !   use leq, only : leq_testing_type, bgradient
-  !   type(leq_testing_type) :: leq_privates
-
-  !   integer, parameter :: nradius = 3
-  !   integer, parameter :: ntheta = 4
-
-  !   real, dimension(nradius, -ntheta:ntheta, 2) :: dpbish, dtbish, dbtbish
-  !   integer :: i
-  !   real, dimension(-ntheta:ntheta), parameter :: theta = [(real(i)*pi/real(ntheta-1), i=-ntheta,ntheta)]
-  !   real, dimension(-ntheta:ntheta, 2) :: expected_P, expected_T
-  !   real, dimension(-ntheta:ntheta, 2) :: grad_P_result, grad_T_result
-
-  !   call leq_privates%set_ntnr(ntheta, nradius)
-  !   call leq_privates%alloc_arrays(nradius, ntheta)
-
-  !   dpbish(:,:,1) = 4.
-  !   dpbish(:,:,2) = 8.
-  !   dtbish(:,:,1) = 16.
-  !   dtbish(:,:,2) = 32.
-  !   dbtbish = 0.
-
-  !   expected_T = dtbish(2,:,:)
-  !   expected_P = dpbish(2,:,:)
-
-  !   call leq_privates%set_bish_arrays(dpbish, dbtbish, dtbish)
-
-  !   ! Note only need to test 'P' and 'T' as other values for char
-  !   ! don't make sense for leq
-  !   call bgradient(theta, grad_P_result, 'P', -1., ntheta, ntheta)
-  !   call bgradient(theta, grad_T_result, 'T', -1., ntheta, ntheta)
-
-  !   call leq_privates%dealloc_arrays()
-
-  !   @assertEqual(expected_P, grad_P_result, tolerance=value_tolerance)
-  !   @assertEqual(expected_T, grad_T_result, tolerance=value_tolerance)
-
-  ! end subroutine test_bgradient
+    @assertEqual(expected_P, grad_P_result, tolerance=value_tolerance)
+    @assertEqual(expected_T, grad_T_result, tolerance=value_tolerance)
+    call geom%dealloc_arrays()
+  end subroutine test_bgradient
 
   @test
   subroutine test_generalised_Miller_Rpos_circle()
@@ -185,9 +168,7 @@ contains
        )
     geom%thetaShift = 0.
     R_answer = [ (geom%Rpos(minor_radius, theta(i)), i=1, ntheta) ]
-
     @assertEqual(R_expected, R_answer, tolerance=1.e-12)
-
   end subroutine test_generalised_Miller_Rpos_circle
 
   @test
