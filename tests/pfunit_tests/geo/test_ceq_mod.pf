@@ -13,30 +13,66 @@ module test_ceq_mod
   integer, parameter :: ntheta_test = nchi_test + 1
 
   integer :: i
-  real, dimension(ntheta_test), parameter :: theta = [(real(i - 1)*twopi/real(ntheta_test-1) - pi, i=1,ntheta_test)], psi = 1.0
+  real, dimension(ntheta_test), parameter :: theta = [(real(i - 1)*twopi/real(ntheta_test-1) - pi, i=1,ntheta_test)], psi = 2.5
 
   type(ceq_type) :: geom
 contains
 
   subroutine setup
-    integer :: i
+    use ceq, only: chease_chi_index
+    integer :: i, j
+    real, dimension(:, :), allocatable :: r_chease, z_chease
+    real, parameter :: theta_grid_spacing = 2 * pi / nchi_test
+    real :: R_geo, f_N, psi_N
     geom%nr = npsi_test ; geom%nt = ntheta_test
     call geom%alloc_arrays()
     geom%has_full_theta_range = .true.
     do i = 1, npsi_test
        geom%eqth(i, :) = theta
     end do
-    geom%eqpsi = [0, 1, 2]
-    geom%psi_bar = geom%eqpsi / geom%eqpsi(npsi_test)
-    geom%pressure = [3., 6., 9.] ; geom%beta_0 = 1.0
-    geom%beta = geom%pressure
+    geom%eqpsi = [1, 2, 3]
+    geom%psi_bar = (geom%eqpsi - geom%eqpsi(1)) / (geom%eqpsi(npsi_test) - geom%eqpsi(1))
+    geom%pressure = [3., 6., 9.]
+    geom%beta = geom%pressure ; geom%beta_0 = geom%beta(1)
+    geom%pressure = geom%pressure / geom%pressure(1)
     geom%fp = [0.5, 0., -0.5] ; geom%qsf = [4, 9, 16]
-!     r_chease = reshape([([(i*i*cos(j * theta_grid_spacing) + 10, &
-!                        i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
-!                         shape=shape(r_chease))
-!     z_chease = reshape([([(i*i*sin(j * theta_grid_spacing) - 1e-3, &
-!                        i=0, npsi_chease-1)], j=0, nchi_chease-1)], &
-!                         shape=shape(z_chease))
+    geom%psi_0 = geom%eqpsi(1) ; geom%psi_a = geom%eqpsi(npsi_test)
+    allocate(r_chease(npsi_test, nchi_test))
+    allocate(z_chease(npsi_test, nchi_test))
+    r_chease = reshape([([(i*i*cos(j * theta_grid_spacing) + 10, &
+                       i=0, npsi_test-1)], j=0, nchi_test-1)], &
+                        shape=shape(r_chease))
+    z_chease = reshape([([(i*i*sin(j * theta_grid_spacing) - 1e-3, &
+                       i=0, npsi_test-1)], j=0, nchi_test-1)], &
+                            shape=shape(z_chease))
+
+    do j = 1, geom%nt
+      do i = 1, geom%nr
+        geom%R_psi(i, j) = r_chease(i, chease_chi_index(nchi_test, j))
+      end do
+    end do
+
+    do j = 1, geom%nt
+      do i = 1, geom%nr
+        geom%Z_psi(i,j) = z_chease(i, chease_chi_index(nchi_test, j))
+      end do
+    end do
+    R_geo = (geom%R_psi(geom%nr, geom%nt/2+1) + geom%R_psi(geom%nr, 1))/2.
+    geom%aminor = (geom%R_psi(geom%nr, geom%nt/2+1) - geom%R_psi(geom%nr, 1))/2.
+    geom%B_T = geom%fp(geom%nr)/R_geo
+    geom%R_psi = geom%R_psi / geom%aminor
+    geom%Z_psi = geom%Z_psi / geom%aminor
+
+    psi_N = abs(geom%B_T) * geom%aminor**2
+    geom%psi_a = geom%psi_a / psi_N
+    geom%psi_0 = geom%psi_0 / psi_N
+    geom%eqpsi = geom%eqpsi / psi_N
+    f_N = abs(geom%B_T) * geom%aminor
+    geom%fp = geom%fp / f_N
+
+
+    geom%diam = abs(geom%R_psi(:, geom%nt/2 + 1) - geom%R_psi(:, 1))
+    geom%rc = 0.5*(geom%R_psi(:, 1) + geom%R_psi(:, geom%nt/2 + 1))
     call geom%setup_splines
   end subroutine setup
 
@@ -156,8 +192,7 @@ contains
   ! Also, how to check failures? Robust runner?
   @test
   subroutine test_eqitem()
-    integer, parameter :: nradius = 3
-    integer, parameter :: ntheta = 5
+    integer, parameter :: nradius = npsi_test, ntheta = ntheta_test
     integer, parameter :: total_size(2) = [nradius, ntheta]
     real, dimension(nradius, ntheta) :: array
     real, parameter :: theta_zero = 0.0
@@ -170,18 +205,12 @@ contains
     real, parameter :: expected_outside = modulo(theta_outside + pi, 2.*pi) - pi
     real, parameter :: theta_outside_negative = -(2.6 + pi)
     real, parameter :: expected_outside_negative = modulo(theta_outside_negative + pi, 2.*pi) - pi
-    real, parameter :: psi = 1.
+    real, parameter :: psi = 2.5
     real :: actual
-    integer :: i
+    integer :: i, j
+    call setup
 
-    geom%nr = nradius ; geom%nt = ntheta ; geom%has_full_theta_range = .true.
-    call geom%alloc_arrays()
-    geom%eqpsi = [0, 1, 2]
-    do i = 1, ntheta
-       geom%eqth(:, i) = (i-1) * twopi / real(geom%nt-1) - pi
-       array(:, i) = geom%eqth(:, i)
-    end do
-
+    array = geom%eqth
     actual = geom%eqitem(psi, theta_zero, array, '?')
     @assertEqual(expected_zero, actual, tolerance=value_tolerance)
 
@@ -196,8 +225,7 @@ contains
 
     actual = geom%eqitem(psi, theta_outside_negative, array, '?')
     @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
-    call geom%dealloc_arrays()
-
+    call teardown
   end subroutine test_eqitem
 
 !   @test
@@ -293,13 +321,13 @@ contains
 
     expected(:, 1) = [-3., 0., 3., 0., -3.]
     expected(:, 2) = [0., -3., 0., 3., 0.]
+    expected = expected * abs(geom%B_T) * geom%aminor**2 ! Scale by psi_N
     call geom%gradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
     ! 'R' is derivative of pressure, and involves a separate
     ! interpolation, hence reduced tolerance
     @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
     call teardown
   end subroutine test_gradient
-
   @test
   subroutine test_bgradient()
     integer, parameter :: nradius = npsi_test, ntheta = ntheta_test
@@ -330,6 +358,7 @@ contains
 
     expected(:, 1) = [-3., 0., 3., 0., -3.]
     expected(:, 2) = [0., -3., 0., 3., 0.]
+    expected = expected * abs(geom%B_T) * geom%aminor**2 ! Scale by psi_N
     call geom%bgradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
     ! 'R' is derivative of pressure, and involves a separate
     ! interpolation, hence reduced tolerance
@@ -337,307 +366,92 @@ contains
     call teardown
   end subroutine test_bgradient
 
-  ! @test
-  ! subroutine test_invR
-  !   integer, parameter :: nradius = 3
-  !   integer, parameter :: ntheta = 5
-  !   integer, parameter :: total_size(2) = [nradius, ntheta]
-  !   real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-  !   real, dimension(nradius, ntheta) :: R_psi
-  !   integer :: i, j
-
-  !   R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
-  !        i=1, nradius)], j=0, ntheta-1)], total_size)
-  !   call setup
-  !   geom%R_psi = R_psi
-  !   call geom%setup_splines
-  !   @assertEqual(0.25, geom%invR(2., 0.), tolerance=value_tolerance)
-  !   @assertEqual(-0.25, geom%invR(2., pi), tolerance=value_tolerance)
-  !   call teardown
-  ! end subroutine test_invR
-
-!   @test
-!   subroutine test_Rpos
-!     use constants, only : pi
-!     use ceq, only : Rpos, ceq_testing_type
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: R_psi
-
-!     integer :: i, j
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi), &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     @assertEqual(4.0, Rpos(2., 0.), tolerance=value_tolerance)
-!     @assertEqual(-4.0, Rpos(2., pi), tolerance=value_tolerance)
-!     @assertEqual(4.0, Rpos(2., 2*pi), tolerance=value_tolerance)
-!     @assertEqual(0.0, Rpos(2., pi/2), tolerance=value_tolerance)
-!     @assertEqual(0.0, Rpos(2., -pi/2), tolerance=value_tolerance)
-
-!   end subroutine test_Rpos
-
-!   @test
-!   subroutine test_Zpos
-!     use constants, only : pi
-!     use ceq, only : Zpos, ceq_testing_type
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: Z_psi
-
-!     integer :: i, j
-
-!     Z_psi = reshape([([(i*i*sin(j * theta_grid_spacing - pi), &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_Z_psi(Z_psi)
-
-!     @assertEqual(0.0, Zpos(2., 0.), tolerance=value_tolerance)
-!     @assertEqual(0.0, Zpos(2., pi), tolerance=value_tolerance)
-!     @assertEqual(0.0, Zpos(2., 2*pi), tolerance=value_tolerance)
-!     @assertEqual(4.0, Zpos(2., pi/2), tolerance=value_tolerance)
-!     @assertEqual(-4.0, Zpos(2., -pi/2), tolerance=value_tolerance)
-
-!   end subroutine test_Zpos
-
-!   @test
-!   subroutine test_rcenter
-!     use constants, only : pi
-!     use ceq, only : rcenter, ceq_testing_type, initialize_rcenter
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: R_psi
-
-!     integer :: i, j
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     i = initialize_rcenter(1)
-!     @assertEqual(1., rcenter(1.))
-!     @assertEqual(4., rcenter(2.))
-
-!   end subroutine test_rcenter
-
-!   @test
-!   subroutine test_initialize_rcenter
-!     use constants, only : pi
-!     use ceq, only : initialize_rcenter, rcenter, ceq_testing_type
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: R_psi
-
-!     integer :: i, j
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     @assertEqual(4., rcenter(2.))
-!     @assertEqual(1, initialize_rcenter(0))
-!     @assertEqual(4., rcenter(2.))
-!     @assertEqual(1, initialize_rcenter(1))
-!     @assertEqual(4., rcenter(2.))
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + 2*i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     @assertEqual(4., rcenter(2.))
-!     @assertEqual(1, initialize_rcenter(0))
-!     @assertEqual(4., rcenter(2.))
-!     @assertEqual(1, initialize_rcenter(1))
-!     @assertEqual(8., rcenter(2.))
-
-!   end subroutine test_initialize_rcenter
-
-!   @test
-!   subroutine test_diameter
-!     use constants, only : pi
-!     use ceq, only : initialize_diameter, diameter, ceq_testing_type
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: R_psi
-
-!     integer :: i, j
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     i = initialize_diameter(1)
-!     @assertEqual(2., diameter(1.))
-!     @assertEqual(8., diameter(2.))
-
-!   end subroutine test_diameter
-
-!   @test
-!   subroutine test_initialize_diameter
-!     use constants, only : pi
-!     use ceq, only : initialize_diameter, diameter, ceq_testing_type
-
-!     type(ceq_testing_type) :: ceq_privates
-
-!     integer, parameter :: nradius = 3
-!     integer, parameter :: ntheta = 5
-!     integer, parameter :: total_size(2) = [nradius, ntheta]
-!     real, parameter :: theta_grid_spacing = 2 * pi / (ntheta - 1)
-
-!     real, dimension(nradius, ntheta) :: R_psi
-
-!     integer :: i, j
-
-!     R_psi = reshape([([(i*i*cos(j * theta_grid_spacing - pi) + i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-
-!     call ceq_privates%set_nrnt(nradius, ntheta)
-!     call ceq_privates%alloc_arrays(nradius, ntheta)
-
-!     call ceq_privates%set_eqpsi([1., 2., 3.])
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     @assertEqual(2., diameter(1.))
-!     @assertEqual(1, initialize_diameter(0))
-!     @assertEqual(2., diameter(1.))
-!     @assertEqual(1, initialize_diameter(1))
-!     @assertEqual(2., diameter(1.))
-
-!     R_psi = reshape([([(2*i*i*cos(j * theta_grid_spacing - pi) + i*i, &
-!          i=1, nradius)], j=0, ntheta-1)], total_size)
-!     call ceq_privates%set_R_psi(R_psi)
-
-!     @assertEqual(2., diameter(1.))
-!     @assertEqual(1, initialize_diameter(0))
-!     @assertEqual(2., diameter(1.))
-!     @assertEqual(1, initialize_diameter(1))
-!     @assertEqual(4., diameter(1.))
-
-!   end subroutine test_initialize_diameter
-
-!   @test
-!   subroutine test_initialize_btori
-!     use ceq, only : initialize_btori
-!     @assertEqual(1, initialize_btori(0))
-!     @assertEqual(1, initialize_btori(1))
-!   end subroutine test_initialize_btori
-
-!   @test
-!   subroutine test_btori
-!     use ceq, only : initialize_btori, btori
-!     integer :: i
-
-!     call initialise_ceq_with_test_data()
-
-!     i = initialize_btori(1)
-!     @assertEqual(1.25, btori(0.25))
-!     @assertEqual(-1.25, btori(0.75))
-
-!   end subroutine test_btori
-
-!   @test
-!   subroutine test_dbtori
-!     use ceq, only : initialize_dbtori, dbtori
-!     integer :: i
-
-!     call initialise_ceq_with_test_data()
-
-!     i = initialize_dbtori(1)
-!     @assertEqual(-2., dbtori(0.25))
-!     @assertEqual(-2., dbtori(0.75))
-
-!   end subroutine test_dbtori
-
-!   @test
-!   subroutine test_qfun
-!     use ceq, only : initialize_q, qfun
-!     integer :: i
-
-!     call initialise_ceq_with_test_data()
-
-!     i = initialize_q(1)
-!     @assertEqual(6.25, qfun(0.25), tolerance=spline_tolerance)
-!     @assertEqual(12.25, qfun(0.75), tolerance=spline_tolerance)
-!   end subroutine test_qfun
-
-!   @test
-!   subroutine test_pfun
-!     use ceq, only : initialize_pressure, pfun
-!     integer :: i
-
-!     call initialise_ceq_with_test_data()
-
-!     i = initialize_pressure(1)
-!     @assertEqual(2.25, pfun(0.25), tolerance=spline_tolerance)
-!     @assertEqual(3.75, pfun(0.75), tolerance=spline_tolerance)
-!   end subroutine test_pfun
-
-!   @test
-!   subroutine test_dpfun
-!     use ceq, only : initialize_dpressure, dpfun
-!     integer :: i
-
-!     call initialise_ceq_with_test_data()
-
-!     i = initialize_dpressure(1)
-!     @assertEqual(1.2, dpfun(0.25), tolerance=spline_tolerance)
-!     @assertEqual(1.2, dpfun(0.75), tolerance=spline_tolerance)
-!   end subroutine test_dpfun
+  @test
+  subroutine test_invR
+    call setup
+    @assertEqual(geom%aminor/11.0, geom%invR(geom%eqpsi(2), 0.), tolerance=value_tolerance)
+    @assertEqual(geom%aminor/9.0, geom%invR(geom%eqpsi(2), pi), tolerance=value_tolerance)
+    call teardown
+  end subroutine test_invR
+
+  @test
+  subroutine test_Rpos
+    call setup
+    @assertEqual(11.0/geom%aminor, geom%Rpos(geom%eqpsi(2), 0.), tolerance=value_tolerance)
+    @assertEqual(9.0/geom%aminor, geom%Rpos(geom%eqpsi(2), pi), tolerance=value_tolerance)
+    @assertEqual(11.0/geom%aminor, geom%Rpos(geom%eqpsi(2), twopi), tolerance=value_tolerance)
+    @assertEqual(10.0/geom%aminor, geom%Rpos(geom%eqpsi(2), pi/2), tolerance=value_tolerance)
+    @assertEqual(10.0/geom%aminor, geom%Rpos(geom%eqpsi(2), -pi/2), tolerance=value_tolerance)
+    call teardown
+  end subroutine test_Rpos
+
+  @test
+  subroutine test_Zpos
+    call setup
+    @assertEqual(-1e-3/geom%aminor, geom%Zpos(geom%eqpsi(2), 0.), tolerance=value_tolerance)
+    @assertEqual(-1e-3/geom%aminor, geom%Zpos(geom%eqpsi(2), pi), tolerance=value_tolerance)
+    @assertEqual(-1e-3/geom%aminor, geom%Zpos(geom%eqpsi(2), twopi), tolerance=value_tolerance)
+    @assertEqual((1.0-1e-3)/geom%aminor, geom%Zpos(geom%eqpsi(2), pi/2), tolerance=value_tolerance)
+    @assertEqual((-1.0-1e-3)/geom%aminor, geom%Zpos(geom%eqpsi(2), -pi/2), tolerance=value_tolerance)
+    call teardown
+  end subroutine test_Zpos
+
+  @test
+  subroutine test_rcenter
+    call setup
+    @assertEqual(10./geom%aminor, geom%rcenter(geom%eqpsi(1)))
+    @assertEqual(10./geom%aminor, geom%rcenter(geom%eqpsi(2)))
+    call teardown
+  end subroutine test_rcenter
+
+  @test
+  subroutine test_diameter
+    call setup
+    @assertEqual(0., geom%diameter(geom%eqpsi(1)))
+    @assertEqual(2/geom%aminor, geom%diameter(geom%eqpsi(2)))
+    @assertEqual(8/geom%aminor, geom%diameter(geom%eqpsi(3)))
+    call teardown
+  end subroutine test_diameter
+
+  @test
+  subroutine test_btori
+    call setup
+    @assertEqual(1.25, geom%btori(0.25))
+    @assertEqual(-1.25, geom%btori(0.75))
+    call teardown
+  end subroutine test_btori
+
+  @test
+  subroutine test_dbtori
+    call setup
+    @assertEqual(-2., geom%dbtori(0.25))
+    @assertEqual(-2., geom%dbtori(0.75))
+    call teardown
+  end subroutine test_dbtori
+
+  @test
+  subroutine test_qfun
+    call setup
+    @assertEqual(6.25, geom%qfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(12.25, geom%qfun(0.75), tolerance=spline_tolerance)
+    call teardown
+  end subroutine test_qfun
+
+  @test
+  subroutine test_pfun
+    call setup
+    @assertEqual(2.25, geom%pfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(3.75, geom%pfun(0.75), tolerance=spline_tolerance)
+    call teardown
+  end subroutine test_pfun
+
+  @test
+  subroutine test_dpfun
+    call setup
+    @assertEqual(1.2, geom%dpfun(0.25), tolerance=spline_tolerance)
+    @assertEqual(1.2, geom%dpfun(0.75), tolerance=spline_tolerance)
+    call teardown
+  end subroutine test_dpfun
 
   @test
   subroutine test_betafun
@@ -650,7 +464,7 @@ contains
   @test
   subroutine test_psi
     @assertEqual(-1., geom%psi(-1., 0.))
-    @assertEqual(0., geom%psi(0., 0.))
+    @assertEqual(geom%psi_0, geom%psi(0., 0.))
     @assertEqual(1.5, geom%psi(1.5, 0.))
   end subroutine test_psi
 
