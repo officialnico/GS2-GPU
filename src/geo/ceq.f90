@@ -3,7 +3,7 @@
 module ceq
   use geo_utils, only: abstract_eqfile_geo_type
   implicit none
-  public :: Hahm_Burrell, ceq_type
+  public :: Hahm_Burrell, ceq_type, chease_chi_index
 
   private
 
