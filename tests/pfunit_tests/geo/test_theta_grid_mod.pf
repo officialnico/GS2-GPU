@@ -72,7 +72,7 @@ contains
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
     use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
-    use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
+    use theta_grid, only: cdrift, cdrift0, gradpar
     use theta_grid, only: init_theta_grid
     use theta_grid_eik, only : theta_grid_eik_config_type, set_theta_grid_eik_config
 
@@ -160,19 +160,6 @@ contains
          -0.052170112612113, -0.039309266171068, -0.026233846079253, &
          -0.013137057168350, 0.000000000000000 ]
 
-    real, parameter :: expected_gbdrift_th(grid_size) = [ &
-         0.725220155673837, 0.722582308223791, 0.715898919777876, &
-         0.703893736167028, 0.686940486411945, 0.664631557119939, &
-         0.636297104618051, 0.601966129763346, 0.560470980850574, &
-         0.453808442455313, 0.312534121452727, 0.144067100891776, &
-         -0.038854531879270, -0.213934280110688, -0.355795949892385, &
-         -0.447522027446162, -0.479076602158770, -0.447522027446161, &
-         -0.355795949892384, -0.213934280110687, -0.038854531879267, &
-         0.144067100891775, 0.312534121452727, 0.453808442455313, &
-         0.560470980850573, 0.601966129763346, 0.636297104618051, &
-         0.664631557119938, 0.686940486411944, 0.703893736167028, &
-         0.715898919777877, 0.722582308223792, 0.725220155673837 ]
-
     real, parameter :: expected_cvdrift(grid_size) = [ -0.673036466796932, &
          -0.631588446606282, -0.589736714506845, -0.546956675636817, &
          -0.503115854789239, -0.457086814279026, -0.407967673072361, &
@@ -198,19 +185,6 @@ contains
          -0.089375421888048, -0.077415763467363, -0.064884373161780, &
          -0.052170112612113, -0.039309266171068, -0.026233846079253, &
          -0.013137057168350, 0.000000000000000 ]
-
-    real, parameter :: expected_cvdrift_th(grid_size) = [ &
-         0.652794200779459, 0.649795245690404, 0.642197862177360, &
-         0.628553263082856, 0.609292558525231, 0.583965771251703, &
-         0.551835890251033, 0.512973896904331, 0.466114730095461, &
-         0.346268174331950, 0.188752999859390, 0.002307070657799, &
-         -0.198664847910037, -0.389536667123131, -0.543047855297961, &
-         -0.641710998730533, -0.675534592255627, -0.641710998730532, &
-         -0.543047855297959, -0.389536667123131, -0.198664847910034, &
-         0.002307070657798, 0.188752999859390, 0.346268174331950, &
-         0.466114730095461, 0.512973896904331, 0.551835890251033, &
-         0.583965771251702, 0.609292558525231, 0.628553263082856, &
-         0.642197862177361, 0.649795245690405, 0.652794200779459 ]
 
     real, parameter :: expected_cdrift(grid_size) = [ -5.070251644654714, &
          -4.763528678660835, -4.458582685912707, -4.152171534555102, &
@@ -444,10 +418,8 @@ contains
     @assertEqual(cdrift, expected_cdrift, tolerance=tolerance, message="cdrift")
     @assertEqual(gbdrift, expected_gbdrift, tolerance=tolerance, message="gbdrift")
     @assertEqual(gbdrift0, expected_gbdrift0, tolerance=tolerance, message="gbdrift0")
-    @assertEqual(gbdrift_th, expected_gbdrift_th, tolerance=tolerance, message="gbdrift_th")
     @assertEqual(cvdrift, expected_cvdrift, tolerance=tolerance, message="cvdrift")
     @assertEqual(cvdrift0, expected_cvdrift0, tolerance=tolerance, message="cvdrift0")
-    @assertEqual(cvdrift_th, expected_cvdrift_th, tolerance=tolerance, message="cvdrift_th")
     @assertEqual(gds2, expected_gds2, tolerance=tolerance, message="gds2")
     @assertEqual(gds21, expected_gds21, tolerance=tolerance, message="gds21")
     @assertEqual(gds22, expected_gds22, tolerance=tolerance, message="gds22")
@@ -465,13 +437,12 @@ contains
 
   end subroutine test_miller_eikcoefs
 
-
   @test(npes=[1])
   subroutine test_miller_run_eikcoefs_and_resample(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
     use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
-    use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
+    use theta_grid, only: cdrift, cdrift0, gradpar
     use theta_grid, only: init_theta_grid
     use theta_grid_eik, only : theta_grid_eik_config_type, set_theta_grid_eik_config
 
@@ -559,19 +530,6 @@ contains
          -0.065678165878488,        -0.052794819941443,        -0.039773888547063, &
          -0.026541498767907,        -0.013290467603785,         0.000000000000000  &
          ]
-    real, parameter :: expected_gbdrift_th(grid_size) = [ &
-         0.720604904284430,         0.717967754815162,         0.711288751322508, &
-         0.699293266756835,         0.682360559121118,         0.660090269533385, &
-         0.631825860918540,         0.597623788013828,         0.556369465357435, &
-         0.450889841085442,         0.311904014018794,         0.145165035646851, &
-         -0.037435859232375,        -0.212335195207890,        -0.353613222424278, &
-         -0.444736203439494,        -0.476050871364781,        -0.444736203439495, &
-         -0.353613222424277,        -0.212335195207890,        -0.037435859232378, &
-         0.145165035646852,         0.311904014018794,         0.450889841085443, &
-         0.556369465357435,         0.597623788013828,         0.631825860918540, &
-         0.660090269533384,         0.682360559121118,         0.699293266756835, &
-         0.711288751322507,         0.717967754815162,         0.720604904284430  &
-         ]
     real, parameter :: expected_cvdrift(grid_size) = [ &
          -0.676882713999950,        -0.634700274581383,        -0.591722378091575, &
          -0.547295971971412,        -0.501333247298532,        -0.452699771488400, &
@@ -597,19 +555,6 @@ contains
          -0.102254383144126,        -0.090554862792941,        -0.078394029123232, &
          -0.065678165878488,        -0.052794819941443,        -0.039773888547063, &
          -0.026541498767907,        -0.013290467603785,         0.000000000000000  &
-         ]
-    real, parameter :: expected_cvdrift_th(grid_size) = [ &
-         0.648638683866598,         0.645642604550265,         0.638055278680223, &
-         0.624430469475458,         0.605204597095425,         0.579935210630144, &
-         0.547898966661512,         0.509194430581446,         0.462609985468054, &
-         0.344030453576158,         0.188908269446487,         0.004308218860371, &
-         -0.196224214322395,        -0.386811578108399,        -0.539663069309802, &
-         -0.637678282995798,        -0.671247440170906,        -0.637678282995800, &
-         -0.539663069309801,        -0.386811578108399,        -0.196224214322399, &
-         0.004308218860373,         0.188908269446487,         0.344030453576159, &
-         0.462609985468053,         0.509194430581446,         0.547898966661512, &
-         0.579935210630143,         0.605204597095425,         0.624430469475458, &
-         0.638055278680222,         0.645642604550264,         0.648638683866598  &
          ]
     real, parameter :: expected_cdrift(grid_size) = [ &
          -5.111299250203933,        -4.800897659221627,        -4.489568751610113, &
@@ -845,10 +790,8 @@ contains
     @assertEqual(cdrift, expected_cdrift, tolerance=tolerance, message="cdrift")
     @assertEqual(gbdrift, expected_gbdrift, tolerance=tolerance, message="gbdrift")
     @assertEqual(gbdrift0, expected_gbdrift0, tolerance=tolerance, message="gbdrift0")
-    @assertEqual(gbdrift_th, expected_gbdrift_th, tolerance=tolerance, message="gbdrift_th")
     @assertEqual(cvdrift, expected_cvdrift, tolerance=tolerance, message="cvdrift")
     @assertEqual(cvdrift0, expected_cvdrift0, tolerance=tolerance, message="cvdrift0")
-    @assertEqual(cvdrift_th, expected_cvdrift_th, tolerance=tolerance, message="cvdrift_th")
     @assertEqual(gds2, expected_gds2, tolerance=tolerance, message="gds2")
     @assertEqual(gds21, expected_gds21, tolerance=tolerance, message="gds21")
     @assertEqual(gds22, expected_gds22, tolerance=tolerance, message="gds22")
@@ -873,7 +816,7 @@ contains
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
     use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
-    use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
+    use theta_grid, only: cdrift, cdrift0, gradpar
     implicit none
     character(len=*), intent(in) :: name
     logical, intent(in), optional :: raw_format_in
@@ -890,10 +833,8 @@ contains
     call write_data( lun, "gradpar", gradpar, raw_format)    
     call write_data( lun, "gbdrift", gbdrift, raw_format)        
     call write_data( lun, "gbdrift0", gbdrift0, raw_format)
-    call write_data( lun, "gbdrift_th", gbdrift_th, raw_format)    
     call write_data( lun, "cvdrift", cvdrift, raw_format)    
     call write_data( lun, "cvdrift0", cvdrift0, raw_format)    
-    call write_data( lun, "cvdrift_th", cvdrift_th, raw_format)
     call write_data( lun, "cdrift", cdrift, raw_format)
     call write_data( lun, "cdrift0", cdrift0, raw_format)        
     call write_data( lun, "gds2", gds2, raw_format)
@@ -1066,7 +1007,7 @@ contains
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, gds22, gds23
     use theta_grid, only: gds24, gds24_noq, jacob, rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime, bpol, gbdrift0, cvdrift0, theta
-    use theta_grid, only: cdrift, cdrift0, cvdrift_th, gbdrift_th, gradpar
+    use theta_grid, only: cdrift, cdrift0, gradpar
     use theta_grid, only: init_theta_grid
     use theta_grid_eik, only : theta_grid_eik_config_type, set_theta_grid_eik_config
 
@@ -1152,19 +1093,6 @@ contains
          -0.044834952696395,        -0.036264700700122,        -0.028203731994669, &
          -0.020621371456505,        -0.013582867068647,         0.000000257028565  &
          ]
-    real, parameter :: expected_gbdrift_th(grid_size) = [ &
-         0.907003698670253,         0.863382596267501,         0.811191887061259, &
-         0.741680004127977,         0.660952369616681,         0.573833336906399, &
-         0.481649733397362,         0.391851700688723,         0.305097214150081, &
-         0.221162866568686,         0.098980106783292,         0.019012549817923, &
-         -0.147146129848576,        -0.337111906194008,        -0.528210554481973, &
-         -0.695922011982496,        -0.830659303137318,        -0.695677637496245, &
-         -0.527660019425184,        -0.337024185722775,        -0.147442530841283, &
-         0.019048893208573,         0.098806374762908,         0.221192489600002, &
-         0.305083009528055,         0.391832136951986,         0.481636083455938, &
-         0.573814850434628,         0.660939117356068,         0.741673642914732, &
-         0.811188652536614,         0.863380491158916,         0.907003698670253  &
-         ]
     real, parameter :: expected_cvdrift(grid_size) = [ &
          -0.685854890295745,        -0.635755208484782,        -0.603799171907473, &
          -0.564779619784079,        -0.518229242714781,        -0.463490994762827, &
@@ -1190,19 +1118,6 @@ contains
          -0.073045360147452,        -0.063757827244253,        -0.054251244435657, &
          -0.044834952696395,        -0.036264700700122,        -0.028203731994669, &
          -0.020621371456505,        -0.013582867068647,         0.000000257028565  &
-         ]
-    real, parameter :: expected_cvdrift_th(grid_size) = [ &
-         0.831841656345370,         0.789980522417841,         0.739843028047641, &
-         0.672920764370822,         0.594910378247058,         0.510271653940377, &
-         0.419993368788398,         0.331088058101943,         0.243784960391062, &
-         0.157193238723324,         0.026305264019754,        -0.063136694704286, &
-         -0.257829097165853,        -0.487907154265205,        -0.722908137207181, &
-         -0.930152277382653,        -1.096276712532900,        -0.929840661109774, &
-         -0.722643542363216,        -0.488041485688488,        -0.257921883541253, &
-         -0.063039631995602,         0.026161977674274,         0.157210037654495, &
-         0.243771325940662,         0.331070246027363,         0.419979351245031, &
-         0.510253792098625,         0.594897680834645,         0.672914624375311, &
-         0.739839983531362,         0.789978564140553,         0.831841656345370  &
          ]
     real, parameter :: expected_cdrift(grid_size) = [ &
          -5.168907457735621,        -5.082956036837571,        -5.008754571558137, &
@@ -1439,10 +1354,8 @@ contains
     @assertEqual(cdrift, expected_cdrift, tolerance=tolerance, message="cdrift")
     @assertEqual(gbdrift, expected_gbdrift, tolerance=tolerance, message="gbdrift")
     @assertEqual(gbdrift0, expected_gbdrift0, tolerance=tolerance, message="gbdrift0")
-    @assertEqual(gbdrift_th, expected_gbdrift_th, tolerance=tolerance, message="gbdrift_th")
     @assertEqual(cvdrift, expected_cvdrift, tolerance=tolerance, message="cvdrift")
     @assertEqual(cvdrift0, expected_cvdrift0, tolerance=tolerance, message="cvdrift0")
-    @assertEqual(cvdrift_th, expected_cvdrift_th, tolerance=tolerance, message="cvdrift_th")
     @assertEqual(gds2, expected_gds2, tolerance=tolerance, message="gds2")
     @assertEqual(gds21, expected_gds21, tolerance=tolerance, message="gds21")
     @assertEqual(gds22, expected_gds22, tolerance=tolerance, message="gds22")
@@ -1457,7 +1370,5 @@ contains
     @assertEqual(zprime, expected_zprime, tolerance=tolerance, message="zprime")
     @assertEqual(aprime, expected_aprime, tolerance=tolerance, message="aprime")
     @assertEqual(bpol, expected_bpol, tolerance=tolerance, message="bpol")
-
   end subroutine test_efit_eikcoefs
-
 end module test_theta_grid_mod
