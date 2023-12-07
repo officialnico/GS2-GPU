@@ -106,7 +106,6 @@ module eeq
      procedure :: setup_special_splines => setup_special_splines
      procedure :: delete_special_splines => delete_special_splines
      procedure :: rcenter => rcenter
-     procedure :: dpfun => dpfun !Concerning that this is different?
      procedure :: dealloc_special_arrays => dealloc_special_arrays
   end type eeq_base_type
 
@@ -551,15 +550,6 @@ contains
     real, intent (in) :: rp
     rcenter = self%R_mag + 0.5 * (self%rfun(rp, 0.) - self%rfun(rp, pi))
   end function rcenter
-
-  !> FIXME : Add documentation | Note this differs from all other types
-  real function dpfun (self, pbar)
-    use splines, only: dsplint
-    implicit none
-    class(eeq_base_type), intent(in) :: self
-    real, intent(in) :: pbar
-    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl)
-  end function dpfun
 
   !> FIXME : Add documentation
   subroutine a_minor(r, z, Z_mag, a)
