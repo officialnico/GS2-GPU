@@ -1,7 +1,7 @@
 !> Reads in the geometry using a CHEASE output file.
 !> The CHEASE output file is read using the helper module read_chease.
 module ceq
-  use geo_utils, only: abstract_eqfile_geo_type
+  use geo_utils, only: abstract_eqfile_geo_type, geo_input_type
   implicit none
   public :: Hahm_Burrell, ceq_type, chease_chi_index
 
@@ -10,8 +10,7 @@ module ceq
   type, extends(abstract_eqfile_geo_type) :: ceq_type
      private
    contains
-     procedure :: initialise => ceqin
-     procedure :: set_ceq_from_chease => set_ceq_from_chease
+     procedure :: initialise => ceqin, read_and_set, set_ceq_from_chease
   end type ceq_type
 
   logical :: skip_file_read = .false.
@@ -35,24 +34,26 @@ contains
 
   !> FIXME : Add documentation
   subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    use read_chease, only: read_infile, finish
-    use geo_utils, only: geo_input_type
-    use constants, only: pi, twopi
     implicit none
     class(ceq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
+    if (.not. self%initialised) call self%read_and_set(inputs)
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
+    avgrmid = self%aminor ; nthg = self%nt
+  end subroutine ceqin
+
+  subroutine read_and_set(self, inputs)
+    use read_chease, only: read_infile, finish
+    use constants, only: pi, twopi
+    implicit none
+    class(ceq_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
     real :: f_N, psi_N
     integer :: j
     logical, parameter :: debug = .true.
-    if (self%initialised) then
-       psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-       rmaj = self%R_mag ; B_T0 = abs(self%B_T)
-       avgrmid = self%aminor ; nthg = self%nt
-       return
-    end if
-
     self%filename = trim(adjustl(inputs%eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
        write (*,*)  'Reading CHEASE input file: ', trim(self%filename)
@@ -81,28 +82,23 @@ contains
 
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
-
     self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
-
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
-    avgrmid = self%aminor ; nthg = self%nt
 
     if (debug) then
        write (*,*) "Finished ceqin... imported CHEASE equilibrium"
        write (*,*) 'Some important quantities:'
        write (*,*) "aminor", self%aminor
        write (*,*) 'R_mag', self%R_mag
-       write (*,*) 'B_T0', B_T0
-       write (*,*) 'f_N', f_N
-       write (*,*) 'nthg', nthg
+       write (*,*) 'B_T0', abs(self%B_T)
+       write (*,*) 'f_N', abs(self%B_T) * self%aminor
+       write (*,*) 'nthg', self%nt
        write (*,*) 'beta', self%beta_0
     end if
 
     self%initialised = .true.
     self%has_full_theta_range = .true.
-  end subroutine ceqin
+  end subroutine read_and_set
 
   !> Set the ceq module-level variables from the read_chease module
   !> variables.
