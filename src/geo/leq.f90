@@ -157,14 +157,13 @@ contains
 
     ! note that theta(1)=0 for local_eq theta
     jstar = -1
-    do j = 1, self%nt
+    do j = 2, self%nt
        if (tp < mtheta(j)) then
           dt = tp - mtheta(j-1)
           st = mtheta(j) - tp
           jstar = j-1
           exit
        end if
-       if(jstar /= -1) write(*,*) 'exit error j'
     end do
 
     ! treat theta = pi separately
