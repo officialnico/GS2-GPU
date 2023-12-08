@@ -301,8 +301,7 @@ contains
   end subroutine calculate_gradients
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
-  !> w.r.t. (R,Z).
-  !> Note that `dfcart(1, :, :)` is not valid
+  !> w.r.t. (R,Z). Note that `dfcart(1, :, :)` is not valid
   pure subroutine eqdcart(self, dfm, dfcart)
     implicit none
     class(abstract_geo_type), intent(in) :: self
@@ -329,7 +328,7 @@ contains
     end do
   end subroutine eqdcart
 
-  !> Convert gradients of a function f w.r.t. R,Z into bishop form
+  !> Convert gradients of a function f w.r.t. R,Z into bishop form.
   !> Note that `dbish(1, :, :)` is not valid
   pure subroutine eqdbish(self, dcart, dbish)
     implicit none
@@ -482,28 +481,18 @@ contains
           dfm(:,1,2) = dfm(:,1,2) + pi
           dfm(:,nt,2) = dfm(:,nt,2) + pi
        end if
-
     else
        ! assume up-down symmetry for now:
        select case (char)
        case ('E')
-          j = 1
-          dfm(:,j,2) = 0.0
-
-          j = nt
-          dfm(:,j,2) = 0.0
+          dfm(:,1,2) = 0.0
+          dfm(:,nt,2) = 0.0
        case ('O')
-          j = 1
-          dfm(:,j,2) = f(:,j+1)
-
-          j = nt
-          dfm(:,j,2) = -f(:,j-1)
+          dfm(:,1,2) = f(:,2)
+          dfm(:,nt,2) = -f(:,nt-1)
        case ('T')
-          j = 1
-          dfm(:,j,2) = f(:,j+1) !f(:,j+1) - f(:,j)
-
-          j = nt
-          dfm(:,j,2) = pi - f(:,j-1) !f(:, j) - f(:, j-1)
+          dfm(:,1,2) = f(:,2) !f(:,j+1) - f(:,j) -- assumes f(:,1) = 0
+          dfm(:,nt,2) = pi - f(:,nt-1) !f(:, j) - f(:, j-1)  -- assumes f(:,nt) = pi
        end select
     end if
   end subroutine derm
