@@ -80,9 +80,8 @@ module geo_utils
      !> Typically the number of radial and theta grid points.
      integer :: nr, nt
      real :: psi_0, psi_a, B_T, beta_0, R_mag, Z_mag, aminor
-     !> 2D map of co-ordinates to R or Z
-     real, allocatable, dimension(:,:) :: R_psi, Z_psi
-     real, allocatable, dimension(:,:) :: B_psi
+     !> 2D map of co-ordinates to R, Z or B
+     real, allocatable, dimension(:,:) :: R_psi, Z_psi, B_psi
      !> 2D maps of theta and eqpsi
      real, allocatable, dimension(:,:) :: eqth, eqpsi_2d
      ! The following quantities represent changes between adjacent grid
@@ -351,7 +350,7 @@ contains
 
     do j = 1, size(dcart, 2)
        do i = 2, size(dcart, 1)
-          dbish(i,j,:) = dbish(i,j,:)/ denom(i,j)
+          dbish(i,j,:) = dbish(i,j,:) / denom(i,j)
        end do
     end do
   end subroutine eqdbish
@@ -523,8 +522,7 @@ contains
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: thet, sign, tp, tps
-    real :: st, dt, sr, dr, r
+    real :: thet, sign, tp, tps, st, dt, sr, dr, r
     real, dimension(size(f,2)) :: mtheta
     !Copy input r to avoid any modification
     r = r_in
@@ -560,9 +558,9 @@ contains
     istar = 0
     do i = 2, self%nr
        if (r < sign * self%eqpsi(i)) then
-          dr = r - sign * self%eqpsi(i-1)
+          dr = r - sign * self%eqpsi(i - 1)
           sr = sign * self%eqpsi(i) - r
-          istar = i-1
+          istar = i - 1
           exit
        end if
     end do
@@ -588,9 +586,9 @@ contains
     jstar = -1
     do j = 2, self%nt
        if (tp < mtheta(j)) then
-          dt = tp - mtheta(j-1)
+          dt = tp - mtheta(j - 1)
           st = mtheta(j) - tp
-          jstar = j-1
+          jstar = j - 1
           exit
        end if
     end do
@@ -598,7 +596,7 @@ contains
     ! treat theta = pi separately
     if (jstar == -1) then
        jstar = self%nt - 1
-       dt = mtheta(jstar+1) - mtheta(jstar)
+       dt = mtheta(jstar + 1) - mtheta(jstar)
        st = 0.
     end if
 
@@ -607,8 +605,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar * tps / (abs(self%eqpsi(istar+1) - self%eqpsi(istar)) * &
-         (mtheta(jstar+1) - mtheta(jstar)))
+    fstar = fstar * tps / (abs(self%eqpsi(istar + 1) - self%eqpsi(istar)) * &
+         (mtheta(jstar + 1) - mtheta(jstar)))
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
@@ -758,7 +756,7 @@ contains
 
   !> Calculate the derivative of f w.r.t. R, Z
   !> - dfm(:,:,1) is deriv w.r.t. R
-  !> - def(:,:,2) is deriv w.r.t. Z
+  !> - dfm(:,:,2) is deriv w.r.t. Z
   pure subroutine derm_cart(self, f, dfm, char)
     use constants, only: pi
     implicit none
@@ -808,10 +806,8 @@ contains
     real :: st, dt, sr, dr, r, thet
     real :: r_pos, z_pos
     !Copy input r to avoid any modification
-    r = r_in
-    thet = mod2pi(theta_in)
-    r_pos = self%Rpos(r, thet)
-    z_pos = self%Zpos(r, thet)
+    r = r_in ; thet = mod2pi(theta_in)
+    r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
 
     ! find point on R mesh
     if (r_pos >= self%R_psi(self%nw, 1) .or. r_pos <= self%R_psi(1, 1)) then
@@ -855,8 +851,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%R_psi(istar+1, 1)-self%R_psi(istar, 1)) * &
-         (self%Z_psi(1, jstar+1)-self%Z_psi(1, jstar)))
+    fstar = fstar / (abs(self%R_psi(istar + 1, 1) - self%R_psi(istar, 1)) * &
+         (self%Z_psi(1, jstar + 1) - self%Z_psi(1, jstar)))
   end function eqitem_cart
 
   !> Find the value of the major radius on the plasma boundary
@@ -1082,5 +1078,4 @@ contains
     call mp_abort('zbrent exceeding maximum iterations.',.true.)
     zbrent = b
   end function zbrent
-
 end module geo_utils

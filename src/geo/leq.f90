@@ -33,24 +33,15 @@ module leq
      real :: thetaShift
      type(flux_surface_type) :: surf
    contains
-     procedure :: initialise => leqin
-     procedure :: finish_setup => leq_finish_setup
+     procedure :: initialise => leqin, finish_setup => leq_finish_setup
      procedure :: finalise => leq_finish
-     procedure :: rpos => rpos
-     procedure :: zpos => zpos
-     procedure :: rcenter => rcenter
-     procedure :: diameter => diameter
-     procedure :: btori => btori
-     procedure :: dbtori => dbtori
-     procedure :: qfun => qfun
-     procedure :: pfun => pfun
-     procedure :: dpfun => dpfun
-     procedure :: betafun => betafun
-     procedure :: psi => psi
-     procedure :: rfun => rfun
+     procedure :: rpos => rpos, zpos => zpos
+     procedure :: rcenter => rcenter, diameter => diameter
+     procedure :: btori => btori, dbtori => dbtori, qfun => qfun
+     procedure :: pfun => pfun, dpfun => dpfun, betafun => betafun
+     procedure :: psi => psi, rfun => rfun
      procedure :: eqitem => eqitem
-     procedure :: geo_Miller => geo_Miller
-     procedure :: geo_global => geo_global
+     procedure :: geo_Miller => geo_Miller, geo_global => geo_global
      procedure :: geo_generalizedEllipticity => geo_generalizedEllipticity
      procedure :: geo_FourierSeries => geo_FourierSeries
   end type leq_type

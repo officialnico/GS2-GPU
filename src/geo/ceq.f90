@@ -58,7 +58,7 @@ contains
 
     self%filename = trim(adjustl(inputs%eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
-       write (*,*)  'Reading CHEASE input file: ', self%filename
+       write (*,*)  'Reading CHEASE input file: ', trim(self%filename)
        !    Read the data
        call read_infile(self%filename)
        call self%set_ceq_from_chease
