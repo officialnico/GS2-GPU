@@ -125,42 +125,42 @@ contains
     ! stay away from edge of box
     delta_R = 1.02 ; delta_Z = 1.02
 
-    nbbbs = 2*(self%nw+self%nh)-5
+    nbbbs = 2 * (self%nw + self%nh) - 5
     allocate(rbbbs(nbbbs), zbbbs(nbbbs))
     allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     jmin = 1
     jmax = self%nh / 2
     do j = jmin, jmax
-       rbbbs(j) = (eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = eq_Z(j+self%nh/2) / delta_Z
+       rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = eq_Z(j + self%nh / 2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 2
     do j = jmin, jmax
-       rbbbs(j) = (eq_R(j-jmin+2)-0.5*rwid) / delta_R + 0.5*rwid
+       rbbbs(j) = (eq_R(j - jmin + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(self%nh) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh - 1
     do j = jmin, jmax
-       rbbbs(j) = (eq_R(self%nw)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = eq_Z(jmax-j+2) / delta_Z
+       rbbbs(j) = (eq_R(self%nw) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = eq_Z(jmax - j + 2) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nw - 1
     do j = jmin, jmax
-       rbbbs(j) = (eq_R(jmax-j+2)-0.5*rwid) / delta_R + 0.5*rwid
+       rbbbs(j) = (eq_R(jmax - j + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(1) / delta_Z
     end do
 
     jmin = jmax + 1
     jmax = jmax + self%nh/2
     do j = jmin, jmax
-       rbbbs(j) = (eq_R(1)-0.5*rwid) / delta_R + 0.5*rwid
-       zbbbs(j) = eq_Z(j-jmin+2) / delta_Z
+       rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = eq_Z(j - jmin + 2) / delta_Z
     end do
 
     do j = 1, nbbbs-1
@@ -257,7 +257,6 @@ contains
     self%initialised = .true.
     self%has_full_theta_range = .true.
 2020 format (5e16.8)
-
   end subroutine dfitin
 
   pure subroutine alloc_special_arrays(self)
