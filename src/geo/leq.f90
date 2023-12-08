@@ -19,7 +19,7 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type
+  use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type
   implicit none
 
   private
@@ -33,47 +33,46 @@ module leq
      real :: thetaShift
      type(flux_surface_type) :: surf
    contains
-     procedure :: initialise => leqin, finish_setup => leq_finish_setup
-     procedure :: finalise => leq_finish
-     procedure :: rpos => rpos, zpos => zpos
-     procedure :: rcenter => rcenter, diameter => diameter
-     procedure :: btori => btori, dbtori => dbtori, qfun => qfun
-     procedure :: pfun => pfun, dpfun => dpfun, betafun => betafun
-     procedure :: psi => psi, rfun => rfun
-     procedure :: eqitem => eqitem
-     procedure :: geo_Miller => geo_Miller, geo_global => geo_global
-     procedure :: geo_generalizedEllipticity => geo_generalizedEllipticity
-     procedure :: geo_FourierSeries => geo_FourierSeries
+     procedure :: initialise => leqin, finish_setup, finalise, read_and_set
+     procedure :: rpos, zpos, rcenter, diameter, btori, dbtori, qfun
+     procedure :: pfun, dpfun, betafun, psi, rfun, eqitem
+     procedure :: geo_Miller, geo_global, geo_generalizedEllipticity, geo_FourierSeries
   end type leq_type
 
 contains
 
   !> Set module-level parameters and initialise the leq module
   subroutine leqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    use mp, only: mp_abort
-    use geo_utils, only: geo_input_type
-    use constants, only: twopi, pi
     implicit none
     class(leq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
+    if (.not. self%initialised) call self%read_and_set(inputs)
+    !Set outputs
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = self%B_T
+    avgrmid = self%aminor ; nthg = self%nt - 1
+  end subroutine leqin
+
+  subroutine read_and_set(self, inputs)
+    use mp, only: mp_abort
+    use constants, only: twopi, pi
+    implicit none
+    class(leq_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
     real, dimension(3) :: dr
     integer :: i, j
     real :: r, t
     if (inputs%surf%geoType > 4 .or. inputs%surf%geoType < 0) &
        call mp_abort("ERROR: invalid analytic geometry specification", .true.)
 
-    if (.not. self%initialised) then
-       self%surf = inputs%surf
-       self%beta_0 = 1.
-       self%nr = 3
-       self%nt = self%surf%nt * 2 + 1
-       call self%alloc_arrays()
-    end if
-
+    self%surf = inputs%surf ;  self%thetaShift = inputs%thShift
+    self%beta_0 = 1.
+    self%nr = 3
+    self%nt = self%surf%nt * 2 + 1
+    call self%alloc_arrays()
     dr = [-self%surf%dr, 0., self%surf%dr]
-    self%thetaShift = inputs%thShift ! Always update this
     ! Why do we set pressure to -dr here?
     self%pressure = -dr
     self%eqpsi = 1 + dr
@@ -92,29 +91,23 @@ contains
     self%psi_0 = 0 ; self%psi_a = 1.0
     self%B_T = -1.0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
     self%aminor = 1.0
-
-    !Set outputs
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = self%B_T
-    avgrmid = self%aminor ; nthg = self%nt - 1
-
     self%initialised = .true.
     self%has_full_theta_range = .true.
-  end subroutine leqin
+  end subroutine read_and_set
 
   !> Finalise leq module
-  pure subroutine leq_finish(self)
+  pure subroutine finalise(self)
     implicit none
     class(leq_type), intent(in out) :: self
     self%initialised = .false.
     call self%dealloc_arrays
-  end subroutine leq_finish
+  end subroutine finalise
 
   !> Finish the leq setup
-  pure subroutine leq_finish_setup(self)
+  pure subroutine finish_setup(self)
     class(leq_type), intent(in out) :: self
     call self%calculate_gradients
-  end subroutine leq_finish_setup
+  end subroutine finish_setup
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)

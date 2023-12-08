@@ -448,7 +448,7 @@ contains
           if (iBmax/=-nth .and. thetaShift==0.0) then
              bMaxShift = .true.
              thetaShift = theta(iBmax)-theta(-nth)
-
+             call geom%finalise
              write(*,*) "Bmax is not located at +pi or -pi, translating theta by", &
                   thetaShift," so that it is..."
           end if
