@@ -514,6 +514,8 @@ contains
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
+  !> First we find the radial and theta indices bounding our requested point and we
+  !> then interpolate within the bound rectangle.
   real function eqitem_eqfile(self, r_in, theta_in, f, char) result(fstar)
     use mp, only: mp_abort
     implicit none
@@ -555,6 +557,7 @@ contains
        call mp_abort('No evaluation of eqitem allowed on or outside surface')
     end if
 
+    ! istar will be the lower radial index bounding the requested radius
     istar = 0
     do i = 2, self%nr
        if (r < sign * self%eqpsi(i)) then
@@ -573,10 +576,8 @@ contains
     end if
 
     ! Now do theta direction
-    thet = mod2pi(theta_in)
-    mtheta = self%eqth(1, :)
-    tps = 1.
-    tp = thet
+    thet = mod2pi(theta_in) ; mtheta = self%eqth(1, :)
+    tps = 1. ; tp = thet
 
     if (.not. self%has_full_theta_range) then
        ! assume up-down symmetry
@@ -584,7 +585,7 @@ contains
        if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
     end if
 
-    ! note that theta(1)=0 for gen_eq theta
+    ! jstar will be the lower theta index bounding the requested theta
     jstar = -1
     do j = 2, self%nt
        if (tp < mtheta(j)) then
@@ -835,22 +836,22 @@ contains
 
     istar = 0
     do i = 2, self%nw
-       if (istar /= 0) cycle
        if (r_pos < self%R_psi(i, 1)) then
           dr = r_pos - self%R_psi(i-1, 1)
           sr = self%R_psi(i, 1) - r_pos
           istar = i-1
+          exit
        end if
     end do
 
     ! Now do Z direction
     jstar = 0
-    do j = 1, self%nh
-       if (jstar /= 0) cycle
+    do j = 2, self%nh
        if (z_pos < self%Z_psi(1, j)) then
           dt = z_pos - self%Z_psi(1, j-1)
           st = self%Z_psi(1, j) - z_pos
           jstar = j-1
+          exit
        end if
     end do
 
