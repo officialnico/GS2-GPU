@@ -586,7 +586,7 @@ contains
 
     ! note that theta(1)=0 for gen_eq theta
     jstar = -1
-    do j = 1, self%nt
+    do j = 2, self%nt
        if (tp < mtheta(j)) then
           dt = tp - mtheta(j-1)
           st = mtheta(j) - tp
