@@ -29,9 +29,7 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
-    if (.not. self%initialised) then
-       call self%read_and_set(inputs)
-    end if
+    if (.not. self%initialised) call self%read_and_set(inputs)
     psi_a_out = self%psi_a ; psi_0_out = self%psi_0
     rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
     avgrmid = self%aminor ; nthg = self%nt

@@ -103,10 +103,9 @@ module eeq
   type, abstract, extends(abstract_eqfile_cart_geo_type) :: eeq_base_type
      private
    contains
-     procedure :: setup_special_splines => setup_special_splines
-     procedure :: delete_special_splines => delete_special_splines
+     procedure :: setup_special_splines, delete_special_splines
      procedure :: initialise => initialise, read_and_set => read_and_set_null
-     procedure :: rcenter => rcenter, dealloc_special_arrays => dealloc_special_arrays
+     procedure :: rcenter, dealloc_special_arrays
   end type eeq_base_type
 
   type, extends(eeq_base_type) :: eeq_type
@@ -127,9 +126,7 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
     integer, intent(out) :: nthg
-    if (.not. self%initialised) then
-       call self%read_and_set(inputs)
-    end if
+    if (.not. self%initialised) call self%read_and_set(inputs)
     psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
     rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
     avgrmid = self%aminor ; nthg = -1
