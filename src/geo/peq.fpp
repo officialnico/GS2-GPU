@@ -41,12 +41,9 @@ contains
     real, allocatable, dimension(:) :: work
     !     read the data
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag
-       B_T0 = self%B_T
-       avgrmid = self%aminor
-       nthg = self%nt
+       psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+       rmaj = self%R_mag ; B_T0 = abs(self%B_T)
+       avgrmid = self%aminor ; nthg = self%nt
        return
     end if
 
@@ -217,12 +214,9 @@ contains
     integer :: istatus, ncid, id, j
     real, allocatable, dimension(:,:) :: work
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag / self%aminor
-       B_T0 = self%B_T
-       avgrmid = self%aminor
-       nthg = self%nt
+       psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+       rmaj = self%R_mag / self%aminor ; B_T0 = abs(self%B_T)
+       avgrmid = self%aminor ; nthg = self%nt/2
        return
     end if
 

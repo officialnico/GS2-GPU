@@ -47,12 +47,9 @@ contains
     integer :: j
     logical, parameter :: debug = .true.
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag
-       B_T0 = self%B_T
-       avgrmid = self%aminor
-       nthg = self%nt
+       psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+       rmaj = self%R_mag ; B_T0 = abs(self%B_T)
+       avgrmid = self%aminor ; nthg = self%nt
        return
     end if
 

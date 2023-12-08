@@ -155,16 +155,12 @@ contains
     integer :: i, j, ierr, big, nw_in, nh_in, nbbbs
     logical, parameter :: debug =.false.
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag
-       B_T0 = self%B_T
-       avgrmid = self%aminor
-       nthg = -1
+       psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+       rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
+       avgrmid = self%aminor ; nthg = -1
        return
     end if
 
-    nthg = -1
     big = inputs%big
     self%filename = trim(adjustl(inputs%eqfile))
     if (debug) write(6,*) "gs2din: filename=",self%filename
@@ -346,12 +342,9 @@ contains
     character(10) ::  char
     integer :: i, j, ndum, ierr, big, nw_in, nh_in, funit, nbbbs
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag
-       B_T0 = self%B_T
-       avgrmid = self%aminor
-       nthg = -1
+       psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+       rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
+       avgrmid = self%aminor ; nthg = -1
        return
     end if
 

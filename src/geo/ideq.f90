@@ -50,12 +50,10 @@ contains
     character (200) :: line
     logical, dimension(:), allocatable :: has_duplicate_point
     if (self%initialised) then
-       psi_0_out = self%psi_0
-       psi_a_out = self%psi_a
-       rmaj = self%R_mag
-       B_T0 = self%B_T
-       avgrmid = -1 !< Historically no value given
-       nthg = self%nt
+       ! Why do we only normalise the outputs and not the stored values?
+       psi_a_out = self%psi_a / psi_N ; psi_0_out = self%psi_0 / psi_N
+       rmaj = 1.0 ; B_T0 = self%B_T
+       avgrmid = -1.0 ; nthg = self%nt
        return
     end if
 
