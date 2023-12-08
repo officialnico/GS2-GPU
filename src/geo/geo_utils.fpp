@@ -189,25 +189,25 @@ module geo_utils
   ! Define the procedure interfaces.
   interface
      real function rtheta_interface(self, r, theta)
-       import
+       import abstract_geo_type
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: r, theta
      end function rtheta_interface
 
      real function rp_interface(self, rp)
-       import
+       import abstract_geo_type
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: rp
      end function rp_interface
 
      real function pbar_interface(self, pbar)
-       import
+       import abstract_geo_type
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: pbar
      end function pbar_interface
 
      real function eqitem_interface(self, r_in, theta_in, f, char) result(fstar)
-       import
+       import abstract_geo_type
        class(abstract_geo_type), intent(in) :: self
        real, intent(in) :: r_in, theta_in
        real, dimension(:, :), intent(in) :: f
@@ -216,7 +216,7 @@ module geo_utils
 
      subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
           B_T0, avgrmid, nthg)
-       import
+       import abstract_geo_type, geo_input_type
        class(abstract_geo_type), intent(in out) :: self
        type(geo_input_type), intent(in) :: inputs
        real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
@@ -224,7 +224,7 @@ module geo_utils
      end subroutine initialise_interface
 
      subroutine noargs_interface(self)
-       import
+       import abstract_geo_type
        class(abstract_geo_type), intent(in out) :: self
      end subroutine noargs_interface
   end interface
