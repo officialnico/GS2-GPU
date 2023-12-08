@@ -409,7 +409,7 @@ contains
     real, dimension (-ntm:,:), intent (out) :: grad
     real, intent(in) :: rp
     real, dimension(:, :, :), allocatable :: dcart
-    real, dimension (1) :: aa, daa, rpt
+    real, dimension (1) :: p_eqpsi, dp_deqpsi
     integer :: i
     do i = -nth_used, nth_used
        grad(i, 1) = self%eqitem(rgrid(i), theta(i), darr(:,:,1), 'R')
@@ -426,11 +426,10 @@ contains
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     ! Could use self%dpfun if took pbar rather than rp?
     if (char == 'R') then !Only actually used if bishop == 0
-       rpt(1) = rp
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, rpt, aa, daa)
+       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, [rp], p_eqpsi, dp_deqpsi)
        do i = -nth_used, nth_used
-          grad(i, 1) = grad(i, 1) * daa(1) * 0.5 * self%beta_0
-          grad(i, 2) = grad(i, 2) * daa(1) * 0.5 * self%beta_0
+          grad(i, 1) = grad(i, 1) * dp_deqpsi(1) * 0.5 * self%beta_0
+          grad(i, 2) = grad(i, 2) * dp_deqpsi(1) * 0.5 * self%beta_0
        end do
     end if
   end subroutine gradient_work
