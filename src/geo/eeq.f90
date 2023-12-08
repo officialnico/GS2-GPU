@@ -92,7 +92,7 @@ end module gs2d
 !> The normalising field is set to the field on axis; the normalising length
 !> is set to the half-diameter of the LCFS.
 module eeq
-  use geo_utils, only: abstract_eqfile_cart_geo_type
+  use geo_utils, only: abstract_eqfile_cart_geo_type, geo_input_type
 
   implicit none
 
@@ -105,21 +105,40 @@ module eeq
    contains
      procedure :: setup_special_splines => setup_special_splines
      procedure :: delete_special_splines => delete_special_splines
-     procedure :: rcenter => rcenter
-     procedure :: dealloc_special_arrays => dealloc_special_arrays
+     procedure :: initialise => initialise, read_and_set => read_and_set_null
+     procedure :: rcenter => rcenter, dealloc_special_arrays => dealloc_special_arrays
   end type eeq_base_type
 
   type, extends(eeq_base_type) :: eeq_type
    contains
-     procedure :: initialise => efitin
+     procedure :: read_and_set => efit_read_and_set
   end type eeq_type
 
   type, extends(eeq_base_type) :: gs2d_type
    contains
-     procedure :: initialise => gs2din
+     procedure :: read_and_set => gs2d_read_and_set
   end type gs2d_type
 
 contains
+
+  subroutine initialise(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+    implicit none
+    class(eeq_base_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
+    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
+    integer, intent(out) :: nthg
+    if (.not. self%initialised) then
+       call self%read_and_set(inputs)
+    end if
+    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
+    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
+    avgrmid = self%aminor ; nthg = -1
+  end subroutine initialise
+
+  subroutine read_and_set_null(self, inputs)
+    class(eeq_base_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
+  end subroutine read_and_set_null
 
   !> This subroutine reads a GS2D output file containing
   !> the axisymmetric magnetic field geometry on a rectangular
@@ -134,7 +153,7 @@ contains
   !> rwid       total width of the domain
   !> rleft      position of leftmost point of domain
   !> zhei       total height of domain
-  subroutine gs2din(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+  subroutine gs2d_read_and_set(self, inputs)
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: pi, twopi
@@ -145,24 +164,15 @@ contains
     implicit none
     class(gs2d_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(out) :: nthg
     real :: p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, eq_R, eq_Z
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
-    integer :: i, j, ierr, big, nw_in, nh_in, nbbbs
+    integer :: i, j, ierr, nw_in, nh_in, nbbbs, big
     logical, parameter :: debug =.false.
-    if (self%initialised) then
-       psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-       rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-       avgrmid = self%aminor ; nthg = -1
-       return
-    end if
-
-    big = inputs%big
     self%filename = trim(adjustl(inputs%eqfile))
+    big = inputs%big
     if (debug) write(6,*) "gs2din: filename=",self%filename
     ! read GS2D datafile
     call read_gs2d(self%filename)
@@ -263,8 +273,7 @@ contains
 
     if (debug) write(6,*) "gs2din:  rbbbs=",rbbbs
     if (debug) write(6,*) "gs2din:  zbbbs=",zbbbs
-    call a_minor(rbbbs, zbbbs, self%Z_mag, avgrmid)
-    self%aminor = avgrmid
+    call a_minor(rbbbs, zbbbs, self%Z_mag, self%aminor)
     if (debug) write(6,*) "gs2din:  aminor=", self%aminor
     deallocate (rbbbs, zbbbs)
 
@@ -277,8 +286,8 @@ contains
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
 
     self%B_T = abs(bcentr)
-    self%psi_a = self%psi_a / (B_T0*self%aminor**2)
-    self%psi_0 = self%psi_0 / (B_T0*self%aminor**2)
+    self%psi_a = self%psi_a / (self%B_T*self%aminor**2)
+    self%psi_0 = self%psi_0 / (self%B_T*self%aminor**2)
     if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", self%B_T, self%aminor, &
          self%psi_0, self%psi_a
 
@@ -301,14 +310,9 @@ contains
        end do
     end do
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-    avgrmid = self%aminor ; nthg = -1
-
     self%initialised = .true.
     self%has_full_theta_range = .true.
-  end subroutine gs2din
+  end subroutine gs2d_read_and_set
 
   !> This subroutine reads an EFIT output file containing
   !> the axisymmetric magnetic field geometry on a rectangular
@@ -324,36 +328,24 @@ contains
   !> - rwid:       total width of the domain
   !> - rleft:      position of leftmost point of domain
   !> - zhei:       total height of domain
-  subroutine efitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+  subroutine efit_read_and_set(self, inputs)
     use constants, only: pi, twopi
     ! It may be clearer if we use our spline/periodic_spline wrappers?
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
-    use geo_utils, only: sort, geo_input_type
+    use geo_utils, only: sort
     implicit none
     class(eeq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(out) :: nthg
     real :: xdum, p_0, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy, eq_R, eq_Z
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
-    integer :: i, j, ndum, ierr, big, nw_in, nh_in, funit, nbbbs
-    if (self%initialised) then
-       psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-       rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-       avgrmid = self%aminor ; nthg = -1
-       return
-    end if
-
-    big = inputs%big
-    ! Need to generalize initialization condition if equilibrium changes
+    integer :: i, j, ndum, ierr, nw_in, nh_in, funit, nbbbs, big
     self%filename = trim(adjustl(inputs%eqfile))
+    big = inputs%big
     open(newunit = funit,  file = self%filename, status='old',form='formatted')
-
-    ! Read the data
     read(funit, 1000) char, char, char, char, char, i, nw_in, nh_in
     self%nw = nw_in * big ; self%nr = self%nw
     self%nh = nh_in * big ; self%nt = self%nh
@@ -500,17 +492,12 @@ contains
 
     ! To allow consistency with other impls in gradient etc.
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-    avgrmid = self%aminor ; nthg = -1
-
     self%initialised = .true.
     self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)
 2020 format (5e16.9)
 2022 format (2i5)
-  end subroutine efitin
+  end subroutine efit_read_and_set
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)

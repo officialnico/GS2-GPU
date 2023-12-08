@@ -7,7 +7,7 @@ module geq
 # else
   use mp, only: mp_abort
 # endif
-  use geo_utils, only: abstract_eqfile_geo_type
+  use geo_utils, only: abstract_eqfile_geo_type, geo_input_type
   implicit none
   private
 
@@ -16,7 +16,7 @@ module geq
   type, extends(abstract_eqfile_geo_type) :: geq_type
      private
    contains
-     procedure :: initialise => eqin
+     procedure :: initialise => eqin, read_and_set
   end type geq_type
 
 contains
@@ -24,25 +24,27 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    use geo_utils, only: geo_input_type
-    use constants, only: pi
     implicit none
     class(geq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(out) :: nthg
+    if (.not. self%initialised) then
+       call self%read_and_set(inputs)
+    end if
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
+    avgrmid = self%aminor ; nthg = self%nt
+  end subroutine eqin
+
+  subroutine read_and_set(self, inputs)
+    use constants, only: pi
+    implicit none
+    class(geq_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
     real :: f_N, psi_N
     integer :: istatus, ncid, id, j
-
-    if (self%initialised) then
-       psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-       rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
-       avgrmid = self%aminor ; nthg = self%nt
-       return
-    end if
-
     self%filename = trim(adjustl(inputs%eqfile))
-
 # ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
@@ -205,16 +207,12 @@ contains
     self%diam = self%R_psi(:, 1) - self%R_psi(:, self%nt)
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
 
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
-    avgrmid = self%aminor ; nthg = self%nt
-
     self%initialised = .true.
     self%has_full_theta_range = .false.
 # else
     call mp_abort('error: geq eqin is called without netcdf',.true.)
 #endif
-  end subroutine eqin
+  end subroutine read_and_set
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
