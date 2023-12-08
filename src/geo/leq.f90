@@ -19,7 +19,7 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type, mod2pi
+  use geo_utils, only: abstract_geo_type, flux_surface_type
   implicit none
 
   private
@@ -127,6 +127,7 @@ contains
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
+    use geo_utils, only: mod2pi
     implicit none
     class(leq_type), intent(in) :: self
     real, intent(in) :: r_in !Ignored

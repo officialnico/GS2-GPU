@@ -746,18 +746,14 @@ contains
     implicit none
     class(abstract_eqfile_geo_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    rpos = self%eqitem(r, th, self%R_psi, 'R')
+    rpos = self%eqitem(r, theta, self%R_psi, 'R')
   end function rpos_eqfile
 
   real function zpos_eqfile (self, r, theta) result(zpos)
     implicit none
     class(abstract_eqfile_geo_type), intent(in) :: self
     real, intent (in) :: r, theta
-    real :: th
-    th = mod2pi(theta)
-    zpos = self%eqitem(r, th, self%Z_psi, 'Z')
+    zpos = self%eqitem(r, theta, self%Z_psi, 'Z')
   end function zpos_eqfile
 
   !> Calculate the derivative of f w.r.t. R, Z
@@ -809,13 +805,13 @@ contains
     real, dimension(:, :), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr, r
+    real :: st, dt, sr, dr, r, thet
     real :: r_pos, z_pos
     !Copy input r to avoid any modification
     r = r_in
-
-    r_pos = self%Rpos(r, theta_in)
-    z_pos = self%Zpos(r, theta_in)
+    thet = mod2pi(theta_in)
+    r_pos = self%Rpos(r, thet)
+    z_pos = self%Zpos(r, thet)
 
     ! find point on R mesh
     if (r_pos >= self%R_psi(self%nw, 1) .or. r_pos <= self%R_psi(1, 1)) then
@@ -910,7 +906,7 @@ contains
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)
-    use constants, only: pi
+    use constants, only: pi, twopi
     implicit none
     real, intent(in) :: theta
     real :: th
@@ -921,8 +917,8 @@ contains
        th = theta
        out = .true.
        do while(out)
-          if (th > pi) th = th - 2.*pi
-          if (th <-pi) th = th + 2.*pi
+          if (th > pi) th = th - twopi
+          if (th <-pi) th = th + twopi
           if (th <= pi .and. th >= -pi) out = .false.
        end do
        mod2pi = th
