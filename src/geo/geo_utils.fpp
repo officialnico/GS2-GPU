@@ -587,11 +587,11 @@ contains
     ! note that theta(1)=0 for gen_eq theta
     jstar = -1
     do j = 1, self%nt
-       if (jstar /= -1) cycle
        if (tp < mtheta(j)) then
           dt = tp - mtheta(j-1)
           st = mtheta(j) - tp
           jstar = j-1
+          exit
        end if
     end do
 
