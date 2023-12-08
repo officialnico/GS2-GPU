@@ -951,7 +951,7 @@ contains
       end if
 
       pbar = pbarfun(rgrid(0), theta(0))
-      call drho_drp(rp, drhodrp)
+      drhodrp = drho_drp(rp)
 
       if (iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
          write(6,*)
@@ -990,7 +990,7 @@ contains
 
          write(fort11_unit,*) 'drhodrp=',drhodrp
          if (irho == 1) then
-            call drho_drhod(rp, drhodrp, drhodrhod)
+            drhodrhod = drho_drhod(rp, drhodrp)
             write(fort11_unit,*) 'drho_drhod=',drhodrhod
          end if
       end if
@@ -1860,49 +1860,42 @@ contains
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
     integer, intent(in) :: fort11_unit
-    real :: a, b, aa, bb
     real, dimension(-ntgrid:ntgrid) :: rgrid
-    real :: rp, hmaxu, hmaxl, rmaxu, rmaxl
-    real :: rmid, Rlo, Rhi, Rinnr, Routr
+    real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
     integer :: i
     logical, save :: first=.true.
-    if(first)then
+    if (first) then
        write(*,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
-       first=.false.
-    endif
+       first = .false.
+    end if
     rp = rpofrho(rho, fort11_unit)
 
-    if(efit_eq .or. dfit_eq .or. gs2d_eq) then
+    if (efit_eq .or. dfit_eq .or. gs2d_eq) then
        call rtg(rgrid, rp, theta)
     else
        rgrid = rp
-    endif
+    end if
 
     ! do not treat up-down asymmetry completely for now
-    hmaxu = -1.e6
-    hmaxl = 1.e6
-    rmaxu = 0.
-    rmaxl = 0.
+    hmaxu = -1.e6 ; hmaxl = 1.e6
+    rmaxu = 0. ; rmaxl = 0.
 
-    do i=0,nth
+    do i = 0, nth
        a = Rpos(rgrid(i), theta(i))
        b = Zpos(rgrid(i), theta(i))
 
        aa = Rpos(rgrid(-i), theta(-i))
        bb = Zpos(rgrid(-i), theta(-i))
 
-       if(hmaxu < b ) then
-          hmaxu = b
-          rmaxu = a
-       endif
+       if (hmaxu < b ) then
+          hmaxu = b ; rmaxu = a
+       end if
 
-       if(hmaxl > bb ) then
-          hmaxl = bb
-          rmaxl = aa
-       endif
+       if (hmaxl > bb ) then
+          hmaxl = bb ; rmaxl = aa
+       end if
 
-       Rlo = min(a,aa)
-       Rhi = max(a,aa)
+       Rlo = min(a, aa) ; Rhi = max(a, aa)
        !<DD>WARNING : Rinnr has not been defined on first loop through
        if (Rinnr > Rlo) then
           Rinnr = Rlo
@@ -1910,16 +1903,16 @@ contains
        !<DD>WARNING : Routr has not been defined on first loop through
        if (Routr < Rhi) then
           Routr = Rhi
-       endif
-    enddo
-    a = (Rpos(rgrid(0), theta(0))-Rpos(rgrid(nth), theta(nth)))
-    e = (hmaxu-hmaxl)/a
+       end if
+    end do
+    a = (Rpos(rgrid(0), theta(0)) - Rpos(rgrid(nth), theta(nth)))
+    e = (hmaxu - hmaxl) / a
     ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)
-    rmid=(Routr-Rinnr)/2. ! midplane minor radius of this surface
+    rmid=(Routr - Rinnr) / 2. ! midplane minor radius of this surface
     ! Using only the upper triangularity:
     ! wasn't properly normalized before 29 Feb 08, and don't use asin:
     !    t = asin(rcenter(rp)-rmax)
-    t = (rcenter(rp)-rmaxu)/rmid
+    t = (rcenter(rp) - rmaxu) / rmid
     d = rcenter(rp) - rcenter(psi_a)
   end subroutine geofax
 
@@ -2279,44 +2272,34 @@ contains
   !> Calculate the derivative of the flux label rho
   !> with respect to the internal flux label rp (the
   !> normalised poloidal flux)
-  subroutine drho_drp(rp, drhodrp)
+  real function drho_drp(rp)
     implicit none
     real, intent(in) :: rp
-    real, intent (out) :: drhodrp
     real :: rp1, rp2, rho1, rho2
     !     compute d rho / d rp
-    rp1 = rp * (1 - delrho)
-    rp2 = rp * (1 + delrho)
+    rp1 = rp * (1 - delrho) ; rp2 = rp * (1 + delrho)
     if (irho == 1) then
-       rho1 = sqrt(abs(phi(rp1) / phi(rpmax)))
-       rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
+       rho1 = sqrt(abs(phi(rp1) / phi(rpmax))) ; rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
     else if (irho == 2) then
-       rho1 = 0.5 * diameter(rp1)
-       rho2 = 0.5 * diameter(rp2)
+       rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
     else if (irho == 3) then
-       rho1 = psifun(rp1)
-       rho2 = psifun(rp2)
+       rho1 = psifun(rp1) ; rho2 = psifun(rp2)
     else if (irho == 4) then
-       rho1 = rhofun(rp1)
-       rho2 = rhofun(rp2)
+       rho1 = rhofun(rp1) ; rho2 = rhofun(rp2)
     end if
-    drhodrp = (rho2 - rho1) / (rp2 - rp1)
-  end subroutine drho_drp
+    drho_drp = (rho2 - rho1) / (rp2 - rp1)
+  end function drho_drp
 
   !> FIXME : Add documentation | Only used for writelots output and if irho=1
-  subroutine drho_drhod(rp, drhodrp, drhodrhod)
+  real function drho_drhod(rp, drhodrp)
     implicit none
     real, intent (in) :: drhodrp, rp
-    real, intent (out) :: drhodrhod
     real :: rp1, rp2,  rho1, rho2
     !     compute d rho / d rb
-    rp1 = rp * (1 - delrho)
-    rp2 = rp * (1 + delrho)
-    rho1 = 0.5 * diameter(rp1)
-    rho2 = 0.5 * diameter(rp2)
-
-    drhodrhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
-  end subroutine drho_drhod
+    rp1 = rp * (1 - delrho) ; rp2 = rp * (1 + delrho)
+    rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
+    drho_drhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
+  end function drho_drhod
 
   !> FIXME : Add documentation
   pure real function fluxavg(f, theta, jacob)
