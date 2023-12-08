@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 module ideq
-  use geo_utils, only: abstract_eqfile_geo_type
+  use geo_utils, only: abstract_eqfile_geo_type, geo_input_type
   implicit none
   private
 
@@ -9,17 +9,28 @@ module ideq
   type, extends(abstract_eqfile_geo_type) :: ideq_type
      private
    contains
-     procedure :: initialise => idfitin
+     procedure :: initialise => idfitin, read_and_set
   end type ideq_type
 
 contains
+  subroutine idfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+    class(ideq_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
+    real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
+    integer, intent (out) :: nthg
+    if (.not. self%initialised) call self%read_and_set(inputs)
+    ! Why do we only normalise the outputs and not the stored values?
+    psi_a_out = self%psi_a / (self%B_T * self%R_mag**2) ; psi_0_out = self%psi_0 / (self%B_T * self%R_mag**2)
+    rmaj = 1.0 ; B_T0 = self%B_T
+    avgrmid = -1.0 ; nthg = self%nt
+  end subroutine idfitin
 
   !> FIXME : Add documentation
-  subroutine idfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+  subroutine read_and_set(self, inputs)
     use constants, only: twopi, pi
     use splines, only: new_periodic_spline, delete_periodic_spline, &
          periodic_splint, periodic_spline
-    use geo_utils, only: sort, geo_input_type
+    use geo_utils, only: sort
     implicit none
     class(ideq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
@@ -43,19 +54,10 @@ contains
        type (grid_type), dimension (:), allocatable :: grid
     end type eq_type
     type (eq_type) :: d
-    real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
-    integer, intent (out) :: nthg
     real :: xdum, I_ring, dpsidr, dpsidz, psi_N
     integer :: i, j, idum, jj, jmax, funit
     character (200) :: line
     logical, dimension(:), allocatable :: has_duplicate_point
-    if (self%initialised) then
-       ! Why do we only normalise the outputs and not the stored values?
-       psi_a_out = self%psi_a / psi_N ; psi_0_out = self%psi_0 / psi_N
-       rmaj = 1.0 ; B_T0 = self%B_T
-       avgrmid = -1.0 ; nthg = self%nt
-       return
-    end if
 
     ! Need to generalize initialization condition if equilibrium changes
     self%nt = size(inputs%theta)
@@ -167,7 +169,7 @@ contains
 
     self%R_psi = self%R_psi / self%R_mag
     self%Z_psi = self%Z_psi / self%R_mag
-    self%B_psi = self%B_psi / B_T0
+    self%B_psi = self%B_psi / self%B_T
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, (self%nt-1)/2))
     ! need to define the rho_d grid (called diam)
     !> Not really the diameter in this case.  Instead, return the
@@ -188,12 +190,6 @@ contains
     self%beta = 0.
     self%pressure= 0.
     self%beta_0 = self%beta(1)
-
-    ! Why do we only normalise the outputs and not the stored values?
-    psi_a_out = self%psi_a / psi_N ; psi_0_out = self%psi_0 / psi_N
-    rmaj = 1.0 ; B_T0 = self%B_T
-    avgrmid = -1.0 ; nthg = self%nt
-
     ! recover some memory:
     do i = 1, d%nr
        deallocate (d%grid(i)%R)
@@ -205,5 +201,5 @@ contains
 
     self%initialised = .true.
     self%has_full_theta_range = .false.
-  end subroutine idfitin
+  end subroutine read_and_set
 end module ideq
