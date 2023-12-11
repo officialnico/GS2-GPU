@@ -19,8 +19,7 @@ contains
     real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
     integer, intent (out) :: nthg
     if (.not. self%initialised) call self%read_and_set(inputs)
-    ! Why do we only normalise the outputs and not the stored values?
-    psi_a_out = self%psi_a / (self%B_T * self%R_mag**2) ; psi_0_out = self%psi_0 / (self%B_T * self%R_mag**2)
+    psi_a_out = self%psi_a ; psi_0_out
     rmaj = 1.0 ; B_T0 = self%B_T
     avgrmid = -1.0 ; nthg = self%nt
   end subroutine idfitin
@@ -164,9 +163,11 @@ contains
     self%B_T = 4.*pi*1.e-7*I_ring*0.5 / self%R_mag
 
     write(*,*) 'B_T0 = ',self%B_T
-    psi_N = self%B_T * self%R_mag**2
+    self%aminor = self%R_mag
+    psi_N = self%B_T * self%aminor**2
     self%eqpsi = d%psi / psi_N
-
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
     self%R_psi = self%R_psi / self%R_mag
     self%Z_psi = self%Z_psi / self%R_mag
     self%B_psi = self%B_psi / self%B_T
