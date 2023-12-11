@@ -812,34 +812,37 @@ contains
     real, dimension(:, :), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr, r, thet
-    real :: r_pos, z_pos
+    real :: st, dt, sr, dr, r, thet, r_pos, z_pos
+    real, dimension(size(f, 1)) :: dim_1
+    real, dimension(size(f, 2)) :: dim_2
+    dim_1 = self%R_psi(:, 1) ; dim_2 = self%R_psi(1, :)
+
     !Copy input r to avoid any modification
     r = r_in ; thet = mod2pi(theta_in)
     r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
 
-    ! find point on R mesh
-    if (r_pos >= self%R_psi(self%nw, 1) .or. r_pos <= self%R_psi(1, 1)) then
+    ! ensure point is on R mesh
+    if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of R domain'
-       write(*,*) r, theta_in, self%R_psi(self%nw, 1), r_pos
+       write(*,*) r, theta_in, dim_1(self%nw), r_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
     end if
 
     ! ensure point is on Z mesh
-    if (z_pos >= self%Z_psi(1, self%nh) .or. z_pos <= self%Z_psi(1, 1)) then
+    if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
        write(*,*) 'No evaluation of eqitem allowed outside'
        write(*,*) 'or on edge of Z domain'
-       write(*,*) r, theta_in, self%Z_psi(1, 1), self%Z_psi(1, self%nh), z_pos
+       write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
     end if
 
     istar = 0
     do i = 2, self%nw
-       if (r_pos < self%R_psi(i, 1)) then
-          dr = r_pos - self%R_psi(i-1, 1)
-          sr = self%R_psi(i, 1) - r_pos
-          istar = i-1
+       if (r_pos < dim_1(i)) then
+          dr = r_pos - dim_1(i - 1)
+          sr = dim_1(i) - r_pos
+          istar = i - 1
           exit
        end if
     end do
@@ -847,10 +850,10 @@ contains
     ! Now do Z direction
     jstar = 0
     do j = 2, self%nh
-       if (z_pos < self%Z_psi(1, j)) then
-          dt = z_pos - self%Z_psi(1, j-1)
-          st = self%Z_psi(1, j) - z_pos
-          jstar = j-1
+       if (z_pos < dim_2(j)) then
+          dt = z_pos - dim_2(j - 1)
+          st = dim_2(j) - z_pos
+          jstar = j - 1
           exit
        end if
     end do
@@ -860,8 +863,8 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(self%R_psi(istar + 1, 1) - self%R_psi(istar, 1)) * &
-         (self%Z_psi(1, jstar + 1) - self%Z_psi(1, jstar)))
+    fstar = fstar / (abs(dim_1(istar + 1) - dim_1(istar)) * &
+         (dim_2(jstar + 1) - dim_2(jstar)))
   end function eqitem_cart
 
   !> Find the value of the major radius on the plasma boundary
