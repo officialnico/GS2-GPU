@@ -560,39 +560,24 @@ contains
 
     ! find r on psi mesh
     ! istar will be the lower radial index bounding the requested radius
-    istar = 0
-    do i = 2, self%nr
-       if (r < dim_1(i)) then
-          dr = r - dim_1(i - 1)
-          sr = dim_1(i) - r
-          istar = i - 1
-          exit
-       end if
-    end do
+    istar = find_lower_bound(r, dim_1, 0)
+    dr = r - dim_1(istar) ; sr = dim_1(istar + 1) - r
 
     ! no gradients available at axis, so do not get too close
-    if (istar == 1) then
+    if (istar == 1) then ! Could this just make "axis evaluation" check dim_1(2)?
        write(*,*) r, theta_in, dim_1(1), dim_1(2)
        call mp_abort('Too close to axis in eqitem', .true.)
     end if
 
     ! Now do theta direction
     ! jstar will be the lower theta index bounding the requested theta
-    jstar = -1
-    do j = 2, self%nt
-       if (thet < mtheta(j)) then
-          dt = thet - mtheta(j - 1)
-          st = mtheta(j) - thet
-          jstar = j - 1
-          exit
-       end if
-    end do
-
-    ! treat theta = pi separately
-    if (jstar == -1) then
+    jstar = find_lower_bound(thet, mtheta, 0)
+    if (jstar /= 0) then
+       dt = thet - mtheta(jstar) ; st = mtheta(jstar + 1) - thet
+    else
+       ! treat theta = pi separately
        jstar = self%nt - 1
-       dt = mtheta(jstar + 1) - mtheta(jstar)
-       st = 0.
+       dt = mtheta(jstar + 1) - mtheta(jstar) ; st = 0.
     end if
 
     ! use opposite area stencil to interpolate
@@ -819,26 +804,11 @@ contains
        call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
     end if
 
-    istar = 0
-    do i = 2, self%nw
-       if (r_pos < dim_1(i)) then
-          dr = r_pos - dim_1(i - 1)
-          sr = dim_1(i) - r_pos
-          istar = i - 1
-          exit
-       end if
-    end do
+    istar = find_lower_bound(r_pos, dim_1, 0)
+    dr = r_pos - dim_1(istar) ; sr = dim_1(istar + 1) - r_pos
 
-    ! Now do Z direction
-    jstar = 0
-    do j = 2, self%nh
-       if (z_pos < dim_2(j)) then
-          dt = z_pos - dim_2(j - 1)
-          st = dim_2(j) - z_pos
-          jstar = j - 1
-          exit
-       end if
-    end do
+    jstar = find_lower_bound(z_pos, dim_2, 0)
+    dt = z_pos - dim_2(jstar) ; st = dim_2(jstar + 1) - z_pos
 
     ! use opposite area stencil to interpolate
     fstar=f(istar    , jstar    ) * sr * st &
@@ -848,6 +818,21 @@ contains
     fstar = fstar / (abs(dim_1(istar + 1) - dim_1(istar)) * &
          (dim_2(jstar + 1) - dim_2(jstar)))
   end function eqitem_cart
+
+  pure integer function find_lower_bound(val, array, default) result(bound)
+    real, intent(in) :: val
+    real, dimension(:), intent(in) :: array
+    integer, intent(in) :: default
+    integer :: limit, ind
+    limit = size(array)
+    bound = default
+    do ind = 2, limit
+       if (val < array(ind)) then
+          bound = ind - 1
+          exit
+       end if
+    end do
+  end function find_lower_bound
 
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.
