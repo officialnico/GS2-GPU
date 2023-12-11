@@ -801,7 +801,7 @@ contains
     real :: st, dt, sr, dr, r, thet, r_pos, z_pos
     real, dimension(size(f, 1)) :: dim_1
     real, dimension(size(f, 2)) :: dim_2
-    dim_1 = self%R_psi(:, 1) ; dim_2 = self%R_psi(1, :)
+    dim_1 = self%R_psi(:, 1) ; dim_2 = self%Z_psi(1, :)
 
     !Copy input r to avoid any modification
     r = r_in ; thet = mod2pi(theta_in)
