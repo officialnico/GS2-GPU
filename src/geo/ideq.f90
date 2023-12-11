@@ -20,8 +20,8 @@ contains
     integer, intent (out) :: nthg
     if (.not. self%initialised) call self%read_and_set(inputs)
     psi_a_out = self%psi_a ; psi_0_out
-    rmaj = 1.0 ; B_T0 = self%B_T
-    avgrmid = -1.0 ; nthg = self%nt
+    rmaj = self%R_mag ; B_T0 = self%B_T
+    avgrmid = self%aminor ; nthg = self%nt
   end subroutine idfitin
 
   !> FIXME : Add documentation
@@ -170,6 +170,7 @@ contains
     self%psi_0 = self%psi_0 / psi_N
     self%R_psi = self%R_psi / self%R_mag
     self%Z_psi = self%Z_psi / self%R_mag
+    self%R_mag = self%R_mag / self%aminor !Normalised to itself
     self%B_psi = self%B_psi / self%B_T
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, (self%nt-1)/2))
     ! need to define the rho_d grid (called diam)
