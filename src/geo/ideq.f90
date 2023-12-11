@@ -19,7 +19,7 @@ contains
     real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
     integer, intent (out) :: nthg
     if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
     rmaj = self%R_mag ; B_T0 = self%B_T
     avgrmid = self%aminor ; nthg = self%nt
   end subroutine idfitin
