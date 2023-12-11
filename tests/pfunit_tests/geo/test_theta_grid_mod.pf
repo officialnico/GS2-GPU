@@ -1,9 +1,26 @@
 module test_theta_grid_mod
+  use theta_grid_params, only : theta_grid_parameters_config_type
   use PFUNIT_MOD
   implicit none
 
   integer, parameter :: grid_size = 33
   real, parameter :: tolerance = 1.0e-9
+  type(theta_grid_parameters_config_type) :: theta_grid_params_config = &
+       theta_grid_parameters_config_type( &
+       rhoc = 0.28877366171282209, &
+       qinp = 2.1141399689990714, &
+       shat = 0.28528707850004253, &
+       rmaj = 4.0290413411315864, &
+       r_geo = 3.7037019408376142, &
+       akappa = 1.4251250154536228, &
+       akappri = -0.31983736119476358, &
+       tri = 1.6569129718903225E-003, &
+       tripri = 8.4063006762328751E-002, &
+       shift = -0.27886453432060698, &
+       nperiod = 1, &
+       ntheta = 32 &
+       )
+
 
 contains
 
@@ -13,30 +30,13 @@ contains
     use constants, only : run_name_size
     use mp, only : init_mp
     use theta_grid, only : theta_grid_config_type, set_theta_grid_config, init_theta_grid
-    use theta_grid_params, only : theta_grid_parameters_config_type, set_theta_grid_params_config
-
+    use theta_grid_params, only : set_theta_grid_params_config
     class (MpiTestMethod), intent(inout) :: this
-
-    type(theta_grid_parameters_config_type) :: theta_grid_params_config
     type(theta_grid_config_type) :: theta_grid_config
     integer :: mp_comm
     mp_comm = this%getMpiCommunicator()
     call init_mp(mp_comm)
 
-    theta_grid_params_config = theta_grid_parameters_config_type( &
-         rhoc = 0.28877366171282209, &
-         qinp = 2.1141399689990714, &
-         shat = 0.28528707850004253, &
-         rmaj = 4.0290413411315864, &
-         r_geo = 3.7037019408376142, &
-         akappa = 1.4251250154536228, &
-         akappri = -0.31983736119476358, &
-         tri = 1.6569129718903225E-003, &
-         tripri = 8.4063006762328751E-002, &
-         shift = -0.27886453432060698, &
-         nperiod = 1, &
-         ntheta = 32 &
-         )
     call theta_grid_params_config%setup("theta_grid_params", requires_index=.false.)
     call set_theta_grid_params_config(theta_grid_params_config)
 
@@ -878,10 +878,10 @@ contains
   subroutine test_chease_eikcoefs(this)
     use theta_grid, only: bmag, grho, gbdrift, cvdrift, gds2, gds21, theta, init_theta_grid
     use theta_grid_eik, only : theta_grid_eik_config_type, set_theta_grid_eik_config
-
+    use theta_grid_params, only: set_theta_grid_params_config
     class(MPITestMethod), intent(inout) :: this
     type(theta_grid_eik_config_type) :: theta_grid_eik_config
-
+    type(theta_grid_parameters_config_type) :: theta_grid_params_local_config
     real, parameter :: expected_bmag(grid_size) = [&
          0.983743493637289, 0.982723754410017, 0.980091133028256, &
          0.975324478978899, 0.969256717116923, 0.961065591850085, &
@@ -974,6 +974,11 @@ contains
          2.501262674394712, 2.718641394191132, 2.915559514708378 &
          ]
 
+
+    theta_grid_params_local_config = theta_grid_params_config
+    theta_grid_params_local_config%ntheta = 200
+    call theta_grid_params_config%setup("theta_grid_params", requires_index=.false.)
+    call set_theta_grid_params_config(theta_grid_params_local_config)
     theta_grid_eik_config  = theta_grid_eik_config_type( &
          itor = 1, &
          iflux = 1, &
