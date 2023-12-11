@@ -264,6 +264,11 @@ contains
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
 
+    do i = 1, self%nw
+       self%R_psi(i, :) = eq_R(i)
+       self%Z_psi(i, :) = eq_Z
+    end do
+
     self%B_T = abs(bcentr)
     psi_N = self%B_T * self%aminor**2
     self%psi_a = self%psi_a / psi_N
