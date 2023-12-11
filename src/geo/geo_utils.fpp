@@ -532,42 +532,43 @@ contains
     integer :: i, j, istar, jstar
     real :: thet, sign, tp, tps, st, dt, sr, dr, r
     real, dimension(size(f,2)) :: mtheta
-    !Copy input r to avoid any modification
-    r = r_in
-
-    ! check for axis evaluation
-    if (r == self%eqpsi(1)) then
-       write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, self%eqpsi(1)
-       call mp_abort('no evaluation at axis allowed in eqitem')
-    end if
-
+    real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
     sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
+    dim_1 = sign * self%eqpsi
 
-    if (r < sign * self%eqpsi(1)) then
+    !Copy input r to avoid any modification
+    r = r_in ; thet = mod2pi(theta_in)
+
+    ! check for axis evaluation
+    if (r == dim_1(1)) then
+       write(*,*) 'no evaluation at axis allowed in eqitem'
+       write(*,*) r, theta_in, dim_1(1)
+       call mp_abort('no evaluation at axis allowed in eqitem')
+    end if
+
+    if (r < dim_1(1)) then
        write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r, sign, self%eqpsi(1)
+       write(*,*) r, sign, dim_1(1)
        call mp_abort('r < Psi_0 in eqitem')
     end if
 
-    ! find r on psi mesh
-
     ! disallow evaluations on or outside the surface for now
-    if (r >= self%eqpsi(self%nr)) then
+    if (r >= dim_1(self%nr)) then
        write(*,*) 'No evaluation of eqitem allowed on or outside surface'
        write(*,*) '(Could this be relaxed a bit?)'
-       write(*,*) r, theta_in, self%eqpsi(self%nr), sign
+       write(*,*) r, theta_in, dim_1(self%nr), sign
        call mp_abort('No evaluation of eqitem allowed on or outside surface')
     end if
 
+    ! find r on psi mesh
     ! istar will be the lower radial index bounding the requested radius
     istar = 0
     do i = 2, self%nr
-       if (r < sign * self%eqpsi(i)) then
-          dr = r - sign * self%eqpsi(i - 1)
-          sr = sign * self%eqpsi(i) - r
+       if (r < dim_1(i)) then
+          dr = r - dim_1(i - 1)
+          sr = dim_1(i) - r
           istar = i - 1
           exit
        end if
@@ -576,12 +577,12 @@ contains
     ! no gradients available at axis, so do not get too close
     if (istar == 1) then
        write(*,*) 'Too close to axis in eqitem'
-       write(*,*) r, theta_in, self%eqpsi(1), self%eqpsi(2)
+       write(*,*) r, theta_in, dim_1(1), dim_1(2)
        call mp_abort('Too close to axis in eqitem')
     end if
 
     ! Now do theta direction
-    thet = mod2pi(theta_in) ; mtheta = self%eqth(1, :)
+    mtheta = self%eqth(1, :)
     tps = 1. ; tp = thet
 
     if (.not. self%has_full_theta_range) then
@@ -613,7 +614,7 @@ contains
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
          +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar * tps / (abs(self%eqpsi(istar + 1) - self%eqpsi(istar)) * &
+    fstar = fstar * tps / (abs(dim_1(istar + 1) - dim_1(istar)) * &
          (mtheta(jstar + 1) - mtheta(jstar)))
   end function eqitem_eqfile
 
