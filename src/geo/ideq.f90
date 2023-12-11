@@ -29,18 +29,17 @@ contains
        real, dimension (:), allocatable :: Z
        real, dimension (:), allocatable :: B
        real, dimension (:), allocatable :: theta
-       type (periodic_spline) :: spl
     end type grid_type
 
     !> FIXME : Add documentation
     type :: eq_type
        integer :: nr
        real, dimension (:), allocatable :: pbar
-       real, dimension (:), allocatable :: psi
        real, dimension (:), allocatable :: pressure
        real, dimension (:), allocatable :: volume
        type (grid_type), dimension (:), allocatable :: grid
     end type eq_type
+    type (periodic_spline) :: spl
     type (eq_type) :: d
     real :: xdum, I_ring, dpsidr, dpsidz, psi_N
     integer :: i, j, idum, jj, jmax, funit
@@ -55,7 +54,6 @@ contains
     open(newunit = funit, file = self%filename, status = 'old', form = 'formatted')
 
     ! Read the data
-
     read (funit, fmt="(a)") line
     read (funit, fmt="(a)") line
     read (funit,*) self%R_mag, self%Z_mag, I_ring
@@ -63,17 +61,17 @@ contains
     read (funit, *) self%nr
     read (funit, fmt="(a)") line
     read (funit, fmt="(a)") line
+    call self%alloc_arrays
 
     d%nr = self%nr
     allocate (d%pbar     (d%nr))
-    allocate (d%psi      (d%nr))
     allocate (d%pressure (d%nr))
     allocate (d%volume   (d%nr))
     allocate (d%grid     (d%nr))
 
     ! Read in each surface
     do i = 1, d%nr
-       read(funit,*) idum, d%pbar(i), d%psi(i), d%pressure(i), xdum, d%volume(i), d%grid(i)%nt
+       read(funit,*) idum, d%pbar(i), self%eqpsi(i), d%pressure(i), xdum, d%volume(i), d%grid(i)%nt
        d%grid(i)%nt = d%grid(i)%nt-1
        jmax = d%grid(i)%nt
        allocate (d%grid(i)%R     (jmax))
@@ -94,24 +92,19 @@ contains
     ! different from tokamak case here, psi_0 is the value of psi on
     ! the innermost flux surface that is kept in equilibrium and psi_a
     ! is the last flux surface kept.
-    self%psi_0 = d%psi(1)
-    self%psi_a = d%psi(d%nr)
+    self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(d%nr)
 
     do i = 1, d%nr
        call sort (d%grid(i)%theta, d%grid(i)%R, d%grid(i)%Z, d%grid(i)%B)
     end do
 
     ! Spline the data onto a regular grid for later use.
-
     !     R_psi(1:nr, 1:nt)
     !     Z_psi(1:nr, 1:nt)
     !     B_psi(1:nr, 1:nt)
     !
     ! nt determined from input file by user
-
     ! need to define our theta grid.  still not right
-    call self%alloc_arrays
-
     allocate(has_duplicate_point(d%nr))
 
     ! Need to determine if we have a duplicate grid point as the spline routines
@@ -123,30 +116,33 @@ contains
 
     do i = 1, d%nr
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%R(:), &
-            twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
+            twopi, spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%R_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
+          self%R_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
-       call delete_periodic_spline (d%grid(i)%spl)
+       call delete_periodic_spline (spl)
     end do
 
     do i = 1, d%nr
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%Z(:), &
-            twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
+            twopi, spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%Z_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
+          self%Z_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
-       call delete_periodic_spline (d%grid(i)%spl)
+       call delete_periodic_spline (spl)
     end do
 
     do i = 1, d%nr
        call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%B(:), &
-            twopi, d%grid(i)%spl, drop_last_point = has_duplicate_point(i))
+            twopi, spl, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
-          self%B_psi (i, jj) = periodic_splint (inputs%theta(jj), d%grid(i)%spl)
+          self%B_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
-       call delete_periodic_spline (d%grid(i)%spl)
+       call delete_periodic_spline (spl)
     end do
+
+    ! recover some memory:
+    deallocate (d%grid, d%pbar, d%pressure, d%volume)
 
     ! B at center of ring is mu_0 I / (2 a)
     self%B_T = 4.*pi*1.e-7*I_ring*0.5 / self%R_mag
@@ -154,7 +150,7 @@ contains
     write(*,*) 'B_T0 = ',self%B_T
     self%aminor = self%R_mag
     psi_N = self%B_T * self%aminor**2
-    self%eqpsi = d%psi / psi_N
+    self%eqpsi = self%eqpsi / psi_N
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
     self%R_psi = self%R_psi / self%R_mag
@@ -181,14 +177,6 @@ contains
     self%beta = 0.
     self%pressure= 0.
     self%beta_0 = self%beta(1)
-    ! recover some memory:
-    do i = 1, d%nr
-       deallocate (d%grid(i)%R)
-       deallocate (d%grid(i)%Z)
-       deallocate (d%grid(i)%B)
-       deallocate (d%grid(i)%theta)
-    end do
-    deallocate (d%grid)
     self%has_full_theta_range = .false.
   end subroutine read_and_set
 end module ideq
