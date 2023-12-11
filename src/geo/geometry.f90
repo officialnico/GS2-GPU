@@ -1754,7 +1754,7 @@ contains
     implicit none
     real, intent (in) :: rho, shat
     integer, intent(in) :: fort11_unit
-    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / rhoc !Should this be 1/rho?
+    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / rho
   end function dqdrhofun
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
