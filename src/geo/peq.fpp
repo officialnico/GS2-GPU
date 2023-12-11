@@ -16,30 +16,18 @@ module peq
 
   type, extends(abstract_eqfile_geo_type) :: peq_type
    contains
-     procedure :: initialise => eqin, read_and_set => read_and_set_peq
+     procedure :: read_and_set => read_and_set_peq
   end type peq_type
 
   type, extends(abstract_eqfile_geo_type) :: teq_type
    contains
-     procedure :: initialise => teqin, read_and_set => read_and_set_teq
+     procedure :: read_and_set => read_and_set_teq
   end type teq_type
 
 contains
 
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
-  subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(peq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
-    avgrmid = self%aminor ; nthg = self%nt
-  end subroutine eqin
-
   subroutine read_and_set_peq(self, inputs)
     use constants, only: pi
     implicit none
@@ -188,7 +176,6 @@ contains
        self%eqth(:, j) = (j-1) * pi / float(self%nt - 1)
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
-    self%initialised = .true.
     self%has_full_theta_range = .false.
 # else
     call mp_abort('error: peq eqin is called without netcdf',.true.)
@@ -198,19 +185,6 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
-  subroutine teqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    use constants, only: pi, twopi
-    implicit none
-    class(teq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
-    avgrmid = self%aminor ; nthg = self%nt/2 !CMR 28/6/2011: why divide the number of theta points by two here?
-  end subroutine teqin
-
   subroutine read_and_set_teq(self, inputs)
     use constants, only: pi, twopi
     implicit none
@@ -338,7 +312,6 @@ contains
        self%eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
-    self%initialised = .true.
     self%has_full_theta_range = .true.
 # else
     call mp_abort('error: peq teqin is called without netcdf',.true.)

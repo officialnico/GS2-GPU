@@ -116,7 +116,8 @@ module geo_utils
      !> Normalised psi, fp, q, beta, diameter and R_centre values on grid
      real, allocatable, dimension(:) :: psi_bar, fp, qsf, beta, diam, rc
    contains
-     procedure(initialise_interface), deferred :: initialise
+     procedure :: initialise
+     procedure(read_and_set_interface), deferred :: read_and_set
      procedure(noargs_interface), deferred :: finalise, finish_setup
      procedure(rtheta_interface), deferred :: rpos, zpos, psi, rfun
      procedure(rp_interface), deferred :: rcenter, diameter
@@ -213,14 +214,11 @@ module geo_utils
        character(len=1), intent(in) :: char
      end function eqitem_interface
 
-     subroutine initialise_interface(self, inputs, psi_0_out, psi_a_out, rmaj, &
-          B_T0, avgrmid, nthg)
+     subroutine read_and_set_interface(self, inputs)
        import abstract_geo_type, geo_input_type
        class(abstract_geo_type), intent(in out) :: self
        type(geo_input_type), intent(in) :: inputs
-       real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-       integer, intent(out) :: nthg
-     end subroutine initialise_interface
+     end subroutine read_and_set_interface
 
      subroutine noargs_interface(self)
        import abstract_geo_type
@@ -229,6 +227,16 @@ module geo_utils
   end interface
 
 contains
+
+  subroutine initialise(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid)
+    class(abstract_geo_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
+    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
+    if (.not. self%initialised) call self%read_and_set(inputs)
+    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
+    rmaj = self%R_mag ; B_T0 = abs(self%B_T) ; avgrmid = self%aminor
+    self%initialised = .true.
+  end subroutine initialise
 
   pure subroutine alloc_arrays(self)
     class(abstract_geo_type), intent(in out) :: self

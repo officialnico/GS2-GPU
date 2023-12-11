@@ -870,7 +870,6 @@ contains
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
       real :: avgrmid, Ltot, rbar
-      integer :: ntheta_out
       character(1) :: char
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -898,7 +897,7 @@ contains
          inputs%big = big
          inputs%eqnormfile = eqnormfile
       end if
-      call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
+      call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid)
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       call init_uniform_theta_grid(ntheta_input, theta)

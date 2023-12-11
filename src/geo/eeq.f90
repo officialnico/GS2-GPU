@@ -104,7 +104,6 @@ module eeq
      private
    contains
      procedure :: setup_special_splines, delete_special_splines
-     procedure :: initialise => initialise, read_and_set => read_and_set_null
      procedure :: rcenter, dealloc_special_arrays
   end type eeq_base_type
 
@@ -119,23 +118,6 @@ module eeq
   end type gs2d_type
 
 contains
-
-  subroutine initialise(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(eeq_base_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-    avgrmid = self%aminor ; nthg = -1
-  end subroutine initialise
-
-  subroutine read_and_set_null(self, inputs)
-    class(eeq_base_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-  end subroutine read_and_set_null
 
   !> This subroutine reads a GS2D output file containing
   !> the axisymmetric magnetic field geometry on a rectangular
@@ -307,7 +289,6 @@ contains
        end do
     end do
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine gs2d_read_and_set
 
@@ -489,7 +470,6 @@ contains
 
     ! To allow consistency with other impls in gradient etc.
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%initialised = .true.
     self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)
 2020 format (5e16.9)

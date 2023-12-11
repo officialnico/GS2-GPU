@@ -10,7 +10,7 @@ module ceq
   type, extends(abstract_eqfile_geo_type) :: ceq_type
      private
    contains
-     procedure :: initialise => ceqin, read_and_set, set_ceq_from_chease
+     procedure :: read_and_set, set_ceq_from_chease
   end type ceq_type
 
   logical :: skip_file_read = .false.
@@ -31,19 +31,6 @@ contains
        chease_chi_index = itheta + nchi/2
     end if
   end function chease_chi_index
-
-  !> FIXME : Add documentation
-  subroutine ceqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(ceq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
-    avgrmid = self%aminor ; nthg = self%nt
-  end subroutine ceqin
 
   subroutine read_and_set(self, inputs)
     use read_chease, only: read_infile, finish
@@ -95,8 +82,6 @@ contains
        write (*,*) 'nthg', self%nt
        write (*,*) 'beta', self%beta_0
     end if
-
-    self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine read_and_set
 

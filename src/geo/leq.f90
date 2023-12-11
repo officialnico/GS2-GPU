@@ -33,7 +33,7 @@ module leq
      real :: thetaShift
      type(flux_surface_type) :: surf
    contains
-     procedure :: initialise => leqin, finish_setup, finalise, read_and_set
+     procedure :: finish_setup, finalise, read_and_set
      procedure :: rpos, zpos, rcenter, diameter, btori, dbtori, qfun
      procedure :: pfun, dpfun, betafun, psi, rfun, eqitem
      procedure :: geo_Miller, geo_global, geo_generalizedEllipticity, geo_FourierSeries
@@ -42,19 +42,6 @@ module leq
 contains
 
   !> Set module-level parameters and initialise the leq module
-  subroutine leqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(leq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    !Set outputs
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = self%B_T
-    avgrmid = self%aminor ; nthg = self%nt - 1
-  end subroutine leqin
-
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
     use constants, only: twopi, pi
@@ -91,7 +78,6 @@ contains
     self%psi_0 = 0 ; self%psi_a = 1.0
     self%B_T = -1.0 ; self%R_mag = self%surf%Rmaj ; self%Z_mag = 0.0
     self%aminor = 1.0
-    self%initialised = .true.
     self%has_full_theta_range = .true.
   end subroutine read_and_set
 

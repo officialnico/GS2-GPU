@@ -15,8 +15,7 @@ module deq
      real, allocatable, dimension(:) :: rho_mid, psi_mid
      type(spline) :: rho_spl
    contains
-     procedure :: initialise => dfitin, read_and_set
-     procedure :: setup_special_splines, delete_special_splines
+     procedure :: read_and_set, setup_special_splines, delete_special_splines
      procedure :: rcenter, rhofun, alloc_special_arrays, dealloc_special_arrays
   end type deq_type
 
@@ -35,18 +34,6 @@ contains
   !> rwid       total width of the domain
   !> rleft      position of leftmost point of domain
   !> zhei       total height of domain
-  subroutine dfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(deq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, B_T0, avgrmid, rmaj
-    integer, intent(out) :: nthg
-    if (self%initialised) call self%read_and_set(inputs)
-    psi_0_out = self%psi_0 ; psi_a_out = self%psi_a
-    rmaj = self%R_mag ; B_T0 = self%B_T  ! should rmaj be R_mag? use R_mag for now.
-    avgrmid = self%aminor ; nthg = -1
-  end subroutine dfitin
-
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
     use constants, only: pi, twopi
@@ -245,7 +232,6 @@ contains
     end do
 
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%initialised = .true.
     self%has_full_theta_range = .true.
 2020 format (5e16.8)
   end subroutine read_and_set

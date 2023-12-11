@@ -9,21 +9,10 @@ module ideq
   type, extends(abstract_eqfile_geo_type) :: ideq_type
      private
    contains
-     procedure :: initialise => idfitin, read_and_set
+     procedure :: read_and_set
   end type ideq_type
 
 contains
-  subroutine idfitin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    class(ideq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent (out) :: rmaj, avgrmid, psi_a_out, psi_0_out, B_T0
-    integer, intent (out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = self%B_T
-    avgrmid = self%aminor ; nthg = self%nt
-  end subroutine idfitin
-
   !> FIXME : Add documentation
   subroutine read_and_set(self, inputs)
     use constants, only: twopi, pi
@@ -200,8 +189,6 @@ contains
        deallocate (d%grid(i)%theta)
     end do
     deallocate (d%grid)
-
-    self%initialised = .true.
     self%has_full_theta_range = .false.
   end subroutine read_and_set
 end module ideq

@@ -16,25 +16,13 @@ module geq
   type, extends(abstract_eqfile_geo_type) :: geq_type
      private
    contains
-     procedure :: initialise => eqin, read_and_set
+     procedure :: read_and_set
   end type geq_type
 
 contains
 
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
-  subroutine eqin(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
-    implicit none
-    class(geq_type), intent(in out) :: self
-    type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-    if (.not. self%initialised) call self%read_and_set(inputs)
-    psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag ; B_T0 = self%B_T
-    avgrmid = self%aminor ; nthg = self%nt
-  end subroutine eqin
-
   subroutine read_and_set(self, inputs)
     use constants, only: pi
     implicit none
@@ -205,8 +193,6 @@ contains
 
     self%diam = self%R_psi(:, 1) - self%R_psi(:, self%nt)
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
-
-    self%initialised = .true.
     self%has_full_theta_range = .false.
 # else
     call mp_abort('error: geq eqin is called without netcdf',.true.)
