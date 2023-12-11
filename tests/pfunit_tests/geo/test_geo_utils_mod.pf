@@ -8,7 +8,7 @@ module test_geo_utils_mod
 
   type, extends(abstract_geo_type) :: base_geo_test_type
    contains
-     procedure :: initialise => null_init, finalise => null_noargs
+     procedure :: read_and_set => read_and_set_null, finalise => null_noargs
      procedure :: finish_setup => null_noargs, rpos => null_rtheta
      procedure :: zpos => null_rtheta, psi => null_rtheta, rfun => null_rtheta
      procedure :: rcenter => null_rp, diameter => null_rp
@@ -18,13 +18,11 @@ module test_geo_utils_mod
   end type base_geo_test_type
 
 contains
-  subroutine null_init(self, inputs, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, nthg)
+  subroutine read_and_set_null(self, inputs)
     use geo_utils, only: geo_input_type
     class(base_geo_test_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    integer, intent(out) :: nthg
-  end subroutine null_init
+  end subroutine read_and_set_null
 
   subroutine null_noargs(self)
     class(base_geo_test_type), intent(in out) :: self
