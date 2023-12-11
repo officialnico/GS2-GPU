@@ -901,12 +901,6 @@ contains
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid, ntheta_out)
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
-
-      ! Handle possible ntheta_out < 0? Not clear that we need to listen to what
-      ! theta grid size an equilibrium type uses given that we always use interpolation
-      ! to evaluate geometrical quantities on our theta grid?
-      if (ntheta_out > 0) ntheta_input = ntheta_out
-
       call init_uniform_theta_grid(ntheta_input, theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
@@ -930,13 +924,13 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
-      ! Because irho==2 if iflux==0 and diameter is effectively analytic
-      ! one would expect rpofrho(rho) == rho in this case. So here we
-      ! effectively just have an optimisation (I think)
       if (iflux == 1) then
          rp = rpofrho(rhoc, fort11_unit)
          R_geo = rcenter(rpmax) !Only used for writelots/checks
       else
+         ! Because irho==2 if iflux/=0 and diameter is effectively analytic
+         ! one would expect rpofrho(rho) == rho in this case. So here we
+         ! effectively just have an optimisation (I think)
          rp = rhoc
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
