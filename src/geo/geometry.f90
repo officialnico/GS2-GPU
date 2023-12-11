@@ -362,7 +362,7 @@ contains
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
          gds2, gds21, gds22
     real :: shat, dbetadrho,dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
-    real :: rho, rp, pbar, drhodrp, drhodrhod,  drhodpsi, dpsidrp, dpsidrho
+    real :: rp, pbar, drhodrp, drhodrhod,  drhodpsi, dpsidrp, dpsidrho
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -532,10 +532,10 @@ contains
        di = dbtori(pbar)
 
        if (abs(qval) > epsilon(0.)) then
-          tmp = rho / (qval * twopi * drhodpsi)
+          tmp = rhoc / (qval * twopi * drhodpsi)
           s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
           if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
-          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rho, drhodpsi, s_hat
+          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rhoc, drhodpsi, s_hat
        else
           tmp = 1.
           s_hat = 0.
@@ -609,7 +609,7 @@ contains
        write(fort11_unit,*)
 
        shat = s_hat_new
-       dqdrp = s_hat_new * qval * drhodrp / rho
+       dqdrp = s_hat_new * qval * drhodrp / rhoc
        dbetadrho = 2 * dp_new / drhodpsi
 
        call gradl(ltheta, seik, dSdl, twopi * qval, nth)
@@ -693,10 +693,10 @@ contains
     call dottgridf(gradrptot, gradthtot, gdsdum4)
     ! calculate grad alpha dot grad theta
     call dottgridf(gradstot, gradthtot, gdsdum5)
-    gds23 = (gdsdum4*gds2 - gdsdum5*gdsdum2*dpsidrho**2)/bmod**2
-    gds24_noq = (gdsdum4*gdsdum2 - gdsdum5*gdsdum3)*(dpsidrho/bmod)**2
-    gds24 = gds24_noq*dqdrp
-    gds24_noq = gds24_noq*qval/rhoc
+    gds23 = (gdsdum4 * gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
+    gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
+    gds24 = gds24_noq * dqdrp
+    gds24_noq = gds24_noq * qval / rhoc
 
     !     compute magnetic field
     call bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
@@ -927,8 +927,6 @@ contains
          if (iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
          if (iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
       end if
-      ! Note, in some places we use rho and in others rhoc but these are always equal
-      rho = rhoc
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
@@ -936,10 +934,10 @@ contains
       ! one would expect rpofrho(rho) == rho in this case. So here we
       ! effectively just have an optimisation (I think)
       if (iflux == 1) then
-         rp = rpofrho(rho, fort11_unit)
+         rp = rpofrho(rhoc, fort11_unit)
          R_geo = rcenter(rpmax) !Only used for writelots/checks
       else
-         rp = rho
+         rp = rhoc
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
@@ -1044,7 +1042,7 @@ contains
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
       !     compute eikonal S
-      if (iflux == 0) qval = qfun(pbarofrho(rho, fort11_unit))
+      if (iflux == 0) qval = qfun(pbarofrho(rhoc, fort11_unit))
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
@@ -1078,7 +1076,7 @@ contains
       ! Note for iflux == 0 we need to ensure qval is set before
       !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
       if (iflux == 0) then
-         dqdrho = dqdrhofun(rho, shat, fort11_unit)
+         dqdrho = dqdrhofun(rhoc, shat, fort11_unit)
          qval1 = qval - dqdrho * delrho
          qval2 = qval + dqdrho * delrho
       end if
@@ -1103,7 +1101,7 @@ contains
 
       if (iflux == 1) then
          dqdrho = (qval2 - qval1) / (2 * delrho)
-         shat = dqdrho * rho / qval
+         shat = dqdrho * rhoc / qval
       end if
       dqdrp = dqdrho * drhodrp ! Output
 
