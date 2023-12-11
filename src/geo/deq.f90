@@ -11,12 +11,11 @@ module deq
 
   type, extends(abstract_eqfile_cart_geo_type) :: deq_type
      private
-     integer :: nrho
      real, allocatable, dimension(:) :: rho_mid, psi_mid
      type(spline) :: rho_spl
    contains
      procedure :: read_and_set, setup_special_splines, delete_special_splines
-     procedure :: rcenter, rhofun, alloc_special_arrays, dealloc_special_arrays
+     procedure :: rcenter, rhofun, dealloc_special_arrays
   end type deq_type
 
 contains
@@ -44,7 +43,7 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy, eq_R, eq_Z
     real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
-    integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs
+    integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
     ! Need to generalize initialization condition if equilibrium changes
     lref = 0. ; bref = 0.
@@ -60,13 +59,14 @@ contains
     open(newunit = funit, file = self%filename, status='old', form='formatted')
 
     ! Read the data
-    read(funit, *) nw_in, nh_in, self%nrho
+    read(funit, *) nw_in, nh_in, nrho
     ! Note here we don't allow for rescaling the final grids with big
     ! unlike in eeq. This makes many of the spline interpolation calls
     ! in this routine effectively just copies
     self%nw = nw_in ; self%nh = nh_in
     self%nr = self%nw ; self%nt = self%nh
     call self%alloc_arrays
+    allocate (self%rho_mid(nrho), self%psi_mid(nrho))
     allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), dummy(nw_in))
     allocate(eq_R(nw_in), eq_Z(nh_in))
     read(funit, 2020) rwid, zhei
@@ -100,8 +100,8 @@ contains
     read(funit, 2020) ((self%eqpsi_2d(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
     ! Only needed for irho = 4
-    read (funit, 2020) (self%rho_mid(i), i = 1, self%nrho)
-    read (funit, 2020) (self%psi_mid(i), i = 1, self%nrho)
+    read (funit, 2020) (self%rho_mid(i), i = 1, nrho)
+    read (funit, 2020) (self%psi_mid(i), i = 1, nrho)
     close(funit)
 
     ! stay away from edge of box
@@ -232,11 +232,6 @@ contains
 2020 format (5e16.8)
   end subroutine read_and_set
 
-  pure subroutine alloc_special_arrays(self)
-    class(deq_type), intent(in out) :: self
-    allocate (self%rho_mid(self%nrho), self%psi_mid(self%nrho))
-  end subroutine alloc_special_arrays
-
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
     implicit none
@@ -251,7 +246,7 @@ contains
     class(deq_type), intent(in out) :: self
     call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
-    call new_spline(self%nrho, self%psi_mid, self%rho_mid, self%rho_spl)
+    call new_spline(size(self%psi_mid), self%psi_mid, self%rho_mid, self%rho_spl)
   end subroutine setup_special_splines
 
   subroutine delete_special_splines(self)
