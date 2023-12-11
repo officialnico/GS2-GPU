@@ -73,16 +73,15 @@ contains
     read(funit, 2020) self%R_mag, self%Z_mag
     read(funit, 2020) self%psi_0, self%psi_a, bcentr
 
-    ! pbar is defined by
-    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     do i = 1, nw_in
-       spsi_bar(i) = float(i) / float(nw_in)
+       spsi_bar(i) = float(i) / float(nw_in) !Note this isn't 0 at i = 1
        sdfit_R(i) = rwid * float(i) / float(nw_in)
     end do
 
     do j = 1, nh_in
-       sdfit_Z(j) = zhei*(float(j-1)/float(nh_in-1)-0.5)
+       sdfit_Z(j) = (float(j-1) / float(nh_in-1) - 0.5) * zhei
     end do
 
     do i = 1, self%nw
@@ -91,7 +90,7 @@ contains
     end do
 
     do j = 1, self%nh
-       eq_Z(j) = zhei*(float(j-1)/float(self%nh-1)-0.5)
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
     read(funit, 2020) (dummy(j), j = 1, nw_in)  ! pressure read
@@ -140,7 +139,7 @@ contains
     end do
 
     jmin = jmax + 1
-    jmax = jmax + self%nh/2
+    jmax = jmax + self%nh / 2
     do j = jmin, jmax
        rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(j - jmin + 2) / delta_Z
@@ -191,10 +190,8 @@ contains
     end if
 
     self%r_bound = self%r_bound / self%aminor
-
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-
     eq_R = eq_R / self%aminor
     eq_Z = eq_Z / self%aminor
 

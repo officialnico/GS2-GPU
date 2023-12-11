@@ -187,12 +187,12 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
-       eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
+       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
     end do
 
     ! nb Zgrid is not necessarily UpDown symmetric
     do j = 1, self%nh
-       eq_Z(j) = ((float(j-1) / float(self%nh-1) ))*zhei+minval(zgrid)
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) )) * zhei + minval(zgrid)
     end do
 
     call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
@@ -256,9 +256,8 @@ contains
     if (debug) write(6,*) "gs2din:  aminor=", self%aminor
     deallocate (rbbbs, zbbbs)
 
-    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
-
     ! Normalise
+    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
@@ -278,7 +277,6 @@ contains
     self%fp = self%fp / f_N
     if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", self%B_T, self%aminor, &
          self%psi_0, self%psi_a
-
     ! MKS: beta = 2 mu_0 p / B**2
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
@@ -342,8 +340,7 @@ contains
     read(funit, 2020) rwid, zhei, rcentr, rleft, xdum
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
 
-    ! pbar is defined by
-    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     do i = 1, 2
        read(funit, 2020) xdum,xdum,xdum,xdum,xdum
@@ -355,7 +352,7 @@ contains
     end do
 
     do j = 1, nh_in
-       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5)*zhei
+       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5) * zhei
     end do
 
     do i = 1, self%nw
@@ -364,7 +361,7 @@ contains
     end do
 
     do j = 1, self%nh
-       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5) * zhei
     end do
 
     read(funit, 2020) (dummy(j),   j = 1, nw_in)
@@ -433,15 +430,13 @@ contains
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    eq_R = eq_R / self%aminor
-    eq_Z = eq_Z / self%aminor
+    eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
 
     do i = 1, self%nw
        self%R_psi(i, :) = eq_R(i)
        self%Z_psi(i, :) = eq_Z
     end do
 
-    ! should rmaj be R_mag or rcentr? use R_mag for now.
     self%B_T = abs(bcentr)
     psi_N = self%B_T * self%aminor**2
     self%psi_a = self%psi_a / psi_N
@@ -449,7 +444,6 @@ contains
     self%eqpsi_2d = self%eqpsi_2d / psi_N
     f_N = self%B_T * self%aminor
     self%fp = self%fp / f_N
-
     ! MKS: beta = 2 mu_0 p / B**2
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
@@ -465,6 +459,8 @@ contains
           end if
        end do
     end do
+    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
+    self%has_full_theta_range = .true.
 
     if (.true.) then
        write (*,*) "Finished efitin... imported EFIT equilibrium"
@@ -474,10 +470,6 @@ contains
        write (*,*) 'B_T0', self%B_T
        write (*,*) 'beta', self%beta_0
     end if
-
-    ! To allow consistency with other impls in gradient etc.
-    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%has_full_theta_range = .true.
 1000 format(5(a10),i2,i4,i4)
 2020 format (5e16.9)
 2022 format (2i5)
