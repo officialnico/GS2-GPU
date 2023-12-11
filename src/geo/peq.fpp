@@ -207,7 +207,7 @@ contains
     integer, intent(out) :: nthg
     if (.not. self%initialised) call self%read_and_set(inputs)
     psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag / self%aminor ; B_T0 = abs(self%B_T)
+    rmaj = self%R_mag ; B_T0 = abs(self%B_T)
     avgrmid = self%aminor ; nthg = self%nt/2 !CMR 28/6/2011: why divide the number of theta points by two here?
   end subroutine teqin
 
@@ -311,17 +311,14 @@ contains
     ! find R_geo
     R_geo = 0.5 * (self%R_psi(self%nr, self%nt/2) + self%R_psi(self%nr, 1))
 
-    ! find magnetic axis -- Note currently we don't normalise these
-    ! whilst we _do_ for eqin. They are not used so this is OK for now.
-    self%R_mag = self%R_psi(1, 1)
-    self%Z_mag = self%Z_psi(1, 1)
-
     ! Find normalizing magnetic field
     self%B_T = self%fp(self%nr) / R_geo
 
     !     Normalize, rename quantities
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
+    self%R_mag = self%R_psi(1, 1)
+    self%Z_mag = self%Z_psi(1, 1)
     self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet?
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)

@@ -31,7 +31,7 @@ contains
     integer, intent(out) :: nthg
     if (.not. self%initialised) call self%read_and_set(inputs)
     psi_a_out = self%psi_a ; psi_0_out = self%psi_0
-    rmaj = self%R_mag / self%aminor ; B_T0 = self%B_T
+    rmaj = self%R_mag ; B_T0 = self%B_T
     avgrmid = self%aminor ; nthg = self%nt
   end subroutine eqin
 
@@ -180,11 +180,12 @@ contains
     self%eqpsi = self%eqpsi * 1.e-8
     self%B_T = self%B_T * 1.e-4  ! cgs to MKS
     self%B_psi = self%B_psi * 1.e-4 / self%B_T
-    self%R_mag = self%R_mag / 100.
-    self%Z_mag = self%Z_mag / 100.
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
+    self%R_mag = self%R_mag / self%aminor
+    self%Z_mag = self%Z_mag / self%aminor
     self%aminor = self%aminor / 100.
+
     self%fp = self%fp * 1.e-6
     self%beta_0 = self%beta(1)
 
