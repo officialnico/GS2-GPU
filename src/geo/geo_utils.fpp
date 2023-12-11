@@ -530,36 +530,32 @@ contains
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: thet, sign, tp, tps, st, dt, sr, dr, r
+    real :: thet, sign, tps, st, dt, sr, dr, r
     real, dimension(size(f,2)) :: mtheta
     real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
     sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
-    dim_1 = sign * self%eqpsi
+    dim_1 = sign * self%eqpsi ; mtheta = self%eqth(1, :)
 
     !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in)
+    r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
 
-    ! check for axis evaluation
-    if (r == dim_1(1)) then
-       write(*,*) 'no evaluation at axis allowed in eqitem'
-       write(*,*) r, theta_in, dim_1(1)
-       call mp_abort('no evaluation at axis allowed in eqitem')
+    if (.not. self%has_full_theta_range) then ! assume up-down symmetry
+       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = thet / abs(thet)
+       thet = abs(thet)
     end if
 
-    if (r < dim_1(1)) then
-       write(*,*) 'r < Psi_0 in eqitem'
-       write(*,*) r, sign, dim_1(1)
-       call mp_abort('r < Psi_0 in eqitem')
+    ! check for axis evaluation
+    if (r <= dim_1(1)) then
+       write(*,*) r, theta_in, sign, dim_1(1)
+       call mp_abort('no evaluation at or inside axis allowed in eqitem', .true.)
     end if
 
     ! disallow evaluations on or outside the surface for now
     if (r >= dim_1(self%nr)) then
-       write(*,*) 'No evaluation of eqitem allowed on or outside surface'
-       write(*,*) '(Could this be relaxed a bit?)'
        write(*,*) r, theta_in, dim_1(self%nr), sign
-       call mp_abort('No evaluation of eqitem allowed on or outside surface')
+       call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
     end if
 
     ! find r on psi mesh
@@ -576,27 +572,17 @@ contains
 
     ! no gradients available at axis, so do not get too close
     if (istar == 1) then
-       write(*,*) 'Too close to axis in eqitem'
        write(*,*) r, theta_in, dim_1(1), dim_1(2)
-       call mp_abort('Too close to axis in eqitem')
+       call mp_abort('Too close to axis in eqitem', .true.)
     end if
 
     ! Now do theta direction
-    mtheta = self%eqth(1, :)
-    tps = 1. ; tp = thet
-
-    if (.not. self%has_full_theta_range) then
-       ! assume up-down symmetry
-       tp = abs(thet)
-       if (char == 'Z' .and. tp >= 1.e-10) tps = thet / tp
-    end if
-
     ! jstar will be the lower theta index bounding the requested theta
     jstar = -1
     do j = 2, self%nt
-       if (tp < mtheta(j)) then
-          dt = tp - mtheta(j - 1)
-          st = mtheta(j) - tp
+       if (thet < mtheta(j)) then
+          dt = thet - mtheta(j - 1)
+          st = mtheta(j) - thet
           jstar = j - 1
           exit
        end if
@@ -823,18 +809,14 @@ contains
 
     ! ensure point is on R mesh
     if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of R domain'
        write(*,*) r, theta_in, dim_1(self%nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
+       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
     end if
 
     ! ensure point is on Z mesh
     if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of Z domain'
        write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
+       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
     end if
 
     istar = 0
