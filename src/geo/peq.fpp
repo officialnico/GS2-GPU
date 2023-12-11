@@ -166,12 +166,11 @@ contains
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
     self%eqpsi = self%eqpsi / psi_N
-
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
-    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
+    self%diam = abs(self%R_psi(:, self%nt) - self%R_psi(:, 1))
+    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
     do j = 1, self%nt
        self%eqth(:, j) = (j-1) * pi / float(self%nt - 1)
        self%eqpsi_2d(:, j) = self%eqpsi
@@ -302,7 +301,6 @@ contains
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
     self%eqpsi = self%eqpsi / psi_N
-
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
