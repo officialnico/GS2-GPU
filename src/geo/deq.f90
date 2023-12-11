@@ -43,7 +43,7 @@ contains
     class(deq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy, eq_R, eq_Z
-    real :: p_0, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
+    real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs
     logical :: eqnorm_exists
     ! Need to generalize initialization condition if equilibrium changes
@@ -209,18 +209,17 @@ contains
     else
        self%B_T = abs(bcentr)
     end if
-    self%psi_a = self%psi_a / (self%B_T * self%aminor**2)
-    self%psi_0 = self%psi_0 / (self%B_T * self%aminor**2)
-    p_0 = self%pressure(1)
-
-    ! Pointless as fp == 0 here
-    self%fp = self%fp / (self%B_T * self%aminor)
+    psi_N = self%B_T * self%aminor**2
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    self%eqpsi_2d = self%eqpsi_2d / psi_N
+    f_N = self%B_T * self%aminor
+    self%fp = self%fp / f_N
     ! MKS: beta = 2 mu_0 p / B**2
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / p_0
+    self%pressure = self%pressure / self%pressure(1)
 
-    self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
     do i = 1, self%nw
        do j = 1, self%nh
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then

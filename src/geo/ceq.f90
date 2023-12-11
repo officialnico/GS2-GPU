@@ -50,27 +50,22 @@ contains
        call finish
     end if
 
-    self%B_psi = 0.0
-
     !     Normalize, rename quantities
-    ! rmaj changes depending on iflux.. FIX!!  see geometr... for
-    ! Miller is the rgeo for the flux surface of interest... rgeo is
-    ! rgeo of LCFS... check!!!  actually when iflux = 1, it is the
-    ! major radius of the magnetic axis, so below is OK.
     psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
     self%eqpsi = self%eqpsi / psi_N
+    f_N = abs(self%B_T) * self%aminor
+    self%fp = self%fp / f_N
 
     do j = 1, self%nt
        self%eqth(:, j) = (j-1) * twopi / real(self%nt-1) - pi
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
 
-    f_N = abs(self%B_T) * self%aminor
-    self%fp = self%fp / f_N
     self%diam = abs(self%R_psi(:, self%nt/2 + 1) - self%R_psi(:, 1))
     self%rc = 0.5*(self%R_psi(:, 1) + self%R_psi(:, self%nt/2 + 1))
+    self%has_full_theta_range = .true.
 
     if (debug) then
        write (*,*) "Finished ceqin... imported CHEASE equilibrium"
@@ -82,7 +77,6 @@ contains
        write (*,*) 'nthg', self%nt
        write (*,*) 'beta', self%beta_0
     end if
-    self%has_full_theta_range = .true.
   end subroutine read_and_set
 
   !> Set the ceq module-level variables from the read_chease module
@@ -143,6 +137,7 @@ contains
     self%B_T = self%fp(self%nr)/R_geo
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
+    self%B_psi = 0.0
 
     !     R_mag == R position of magnetic axis
     !     Z_mag == Z position of magnetic axis

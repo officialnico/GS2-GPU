@@ -28,6 +28,7 @@ contains
     implicit none
     class(geq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
+    real, parameter :: psi_scale = 1.0e-8, b_scale = 1.0e-4, l_scale = 1.0e-2
     real :: f_N, psi_N
     integer :: istatus, ncid, id, j
     self%filename = trim(adjustl(inputs%eqfile))
@@ -163,18 +164,18 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
 
     ! Convert units
-    self%psi_0 = self%psi_0 * 1.e-8
-    self%psi_a = self%psi_a * 1.e-8
-    self%eqpsi = self%eqpsi * 1.e-8
-    self%B_T = self%B_T * 1.e-4  ! cgs to MKS
-    self%B_psi = self%B_psi * 1.e-4 / self%B_T
+    self%psi_0 = self%psi_0 * psi_scale
+    self%psi_a = self%psi_a * psi_scale
+    self%eqpsi = self%eqpsi * psi_scale
+    self%B_T = self%B_T * b_scale  ! cgs to MKS
+    self%B_psi = self%B_psi * b_scale / self%B_T
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    self%aminor = self%aminor / 100.
+    self%aminor = self%aminor * l_scale
 
-    self%fp = self%fp * 1.e-6
+    self%fp = self%fp * b_scale * l_scale
     self%beta_0 = self%beta(1)
 
     !     Normalize, rename quantities
@@ -182,14 +183,13 @@ contains
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
     self%eqpsi = self%eqpsi / psi_N
+    f_N = self%B_T * self%aminor
+    self%fp = self%fp / f_N
 
     do j = 1, self%nt
        self%eqth(:, j) = (j-1) * pi / real(self%nt-1)
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
-
-    f_N = self%B_T * self%aminor
-    self%fp = self%fp / f_N
 
     self%diam = self%R_psi(:, 1) - self%R_psi(:, self%nt)
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))

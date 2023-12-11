@@ -143,7 +143,7 @@ contains
     implicit none
     class(gs2d_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: p_0, rwid, rleft, zhei, rcentr, bcentr
+    real :: psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, eq_R, eq_Z
     real, dimension(:, :), allocatable :: sefit_psi
@@ -265,19 +265,20 @@ contains
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
 
     self%B_T = abs(bcentr)
-    self%psi_a = self%psi_a / (self%B_T*self%aminor**2)
-    self%psi_0 = self%psi_0 / (self%B_T*self%aminor**2)
+    psi_N = self%B_T * self%aminor**2
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    self%eqpsi_2d = self%eqpsi_2d / psi_N
+    f_N = self%B_T * self%aminor
+    self%fp = self%fp / f_N
     if (debug) write(6,*) "gs2din: B_T0, aminor, psi_0, psi_a=", self%B_T, self%aminor, &
          self%psi_0, self%psi_a
 
-    p_0 = self%pressure(1)
-    self%fp = self%fp / (self%B_T * self%aminor)
     ! MKS: beta = 2 mu_0 p / B**2
-
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / p_0
-    self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
+    self%pressure = self%pressure / self%pressure(1)
+
     do i = 1, self%nw
        do j = 1, self%nh
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
@@ -314,7 +315,7 @@ contains
     implicit none
     class(eeq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: xdum, p_0, rwid, rleft, zhei, rcentr, bcentr
+    real :: xdum, psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy, eq_R, eq_Z
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
     real, dimension(:, :), allocatable :: sefit_psi
@@ -437,16 +438,17 @@ contains
 
     ! should rmaj be R_mag or rcentr? use R_mag for now.
     self%B_T = abs(bcentr)
-    self%psi_a = self%psi_a / (self%B_T * self%aminor**2)
-    self%psi_0 = self%psi_0 / (self%B_T * self%aminor**2)
+    psi_N = self%B_T * self%aminor**2
+    self%psi_a = self%psi_a / psi_N
+    self%psi_0 = self%psi_0 / psi_N
+    self%eqpsi_2d = self%eqpsi_2d / psi_N
+    f_N = self%B_T * self%aminor
+    self%fp = self%fp / f_N
 
-    p_0 = self%pressure(1)
-    self%fp = self%fp / (self%B_T * self%aminor)
     ! MKS: beta = 2 mu_0 p / B**2
     self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / p_0
-    self%eqpsi_2d = self%eqpsi_2d / (self%B_T * self%aminor**2)
+    self%pressure = self%pressure / self%pressure(1)
 
     do i = 1, self%nw
        do j = 1, self%nh
