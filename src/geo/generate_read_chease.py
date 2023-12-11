@@ -24,19 +24,13 @@ module_string = """
 {header}
 module read_chease
   implicit none
-
   private
-
   public :: read_infile, finish
   integer, public :: npsi_chease, nchi_chease
 {declarations}
-
   logical, parameter :: debug = .true.
-
 contains
-
 {read_infile}
-
 {finish}
 end module read_chease
 """
@@ -49,7 +43,6 @@ subroutine read_infile(filename)
   character(len=*), intent(in) :: filename
   integer :: infile
   open(newunit = infile, file = filename)
-
   read(infile, *) ; read(infile, *) npsi_chease ; read(infile, *) ; read(infile, *) nchi_chease
   if (debug) write(*, *) npsi_chease, "<---npsi_chease"
   if (debug) write(*, *) nchi_chease, "<---nchi_chease"
@@ -71,12 +64,10 @@ end subroutine read_infile
     two_d_shape = "npsi_chease, nchi_chease"
 
     zero_d_read = read_var
-    one_d_read = allocate_var + ' ; ' + read_var.lstrip()
-    two_d_read = allocate_var + ' ; ' + read_var.lstrip()
+    two_d_read = one_d_read = allocate_var + ' ; ' + read_var.lstrip()
 
     zero_d_reads = "\n".join([zero_d_read.format(
-        read = read_statement,
-        var = var).rstrip() for var in zero_d]).rstrip()
+        read = read_statement, var = var).rstrip() for var in zero_d]).rstrip()
 
     # Need some special handling as the first two are
     # psi_chease and chi_chease with size npsi_chease and
@@ -94,8 +85,7 @@ end subroutine read_infile
         shape = two_d_shape).rstrip() for var in two_d])
 
     return read_infile_string.format(
-        zero_d_read = zero_d_reads,
-        one_d_read = one_d_reads,
+        zero_d_read = zero_d_reads, one_d_read = one_d_reads,
         two_d_read = two_d_reads).strip()
 
 def generate_finish(zero_d, one_d, two_d):

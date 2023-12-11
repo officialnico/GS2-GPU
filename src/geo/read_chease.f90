@@ -13,9 +13,7 @@
 !>    $ python generate_read_chease.py read_chease.f90
 module read_chease
   implicit none
-
   private
-
   public :: read_infile, finish
   integer, public :: npsi_chease, nchi_chease
   real, public :: r0exp_chease
@@ -68,18 +66,14 @@ module read_chease
   real, dimension(:, :), allocatable, public :: jacobian_chease
   real, dimension(:, :), allocatable, public :: r_chease
   real, dimension(:, :), allocatable, public :: z_chease
-
   logical, parameter :: debug = .true.
-
 contains
-
 !> Open and read chease file named "filename". Populates module level variables with the output.
 subroutine read_infile(filename)
   implicit none
   character(len=*), intent(in) :: filename
   integer :: infile
   open(newunit = infile, file = filename)
-
   read(infile, *) ; read(infile, *) npsi_chease ; read(infile, *) ; read(infile, *) nchi_chease
   if (debug) write(*, *) npsi_chease, "<---npsi_chease"
   if (debug) write(*, *) nchi_chease, "<---nchi_chease"
@@ -139,7 +133,6 @@ subroutine read_infile(filename)
 
   close(unit = infile)
 end subroutine read_infile
-
 !> Deallocate any module level arrays which have been allocated
 subroutine finish
   implicit none
