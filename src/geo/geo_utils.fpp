@@ -580,13 +580,7 @@ contains
        dt = mtheta(jstar + 1) - mtheta(jstar) ; st = 0.
     end if
 
-    ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar * tps / (abs(dim_1(istar + 1) - dim_1(istar)) * &
-         (mtheta(jstar + 1) - mtheta(jstar)))
+    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, sr, st, dr, dt)
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
@@ -810,13 +804,7 @@ contains
     jstar = find_lower_bound(z_pos, dim_2, 0)
     dt = z_pos - dim_2(jstar) ; st = dim_2(jstar + 1) - z_pos
 
-    ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar / (abs(dim_1(istar + 1) - dim_1(istar)) * &
-         (dim_2(jstar + 1) - dim_2(jstar)))
+    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, sr, st, dr, dt)
   end function eqitem_cart
 
   pure integer function find_lower_bound(val, array, default) result(bound)
@@ -824,8 +812,7 @@ contains
     real, dimension(:), intent(in) :: array
     integer, intent(in) :: default
     integer :: limit, ind
-    limit = size(array)
-    bound = default
+    limit = size(array) ; bound = default
     do ind = 2, limit
        if (val < array(ind)) then
           bound = ind - 1
@@ -833,6 +820,22 @@ contains
        end if
     end do
   end function find_lower_bound
+
+  !> use opposite area stencil to interpolate to point bound by [istar,istar+1]
+  !> and [jstar, jstar + 1].
+  pure real function bilinear_interpolate(f, dim_1, dim_2, istar, jstar, &
+       sr, st, dr, dt) result(fstar)
+    real, dimension(:, :), intent(in) :: f
+    real, dimension(:), intent(in) :: dim_1, dim_2
+    integer, intent(in) :: istar, jstar
+    real, intent(in) :: sr, st, dr, dt
+    fstar = f(istar    , jstar    ) * sr * st &
+         +f(istar + 1, jstar    ) * dr * st &
+         +f(istar    , jstar + 1) * sr * dt &
+         +f(istar + 1, jstar + 1) * dr * dt
+    fstar = fstar / (abs(dim_1(istar + 1) - dim_1(istar)) * &
+         (dim_2(jstar + 1) - dim_2(jstar)))
+  end function bilinear_interpolate
 
   !> Find the value of the major radius on the plasma boundary
   !> at given geometric theta.
