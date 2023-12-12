@@ -369,7 +369,6 @@ contains
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
     integer :: iBmax, i
-    logical :: bMaxShift
     real :: a_b, b_b, c_b
     real :: s_hat, dp, di, pressure, tmp
     !> For outputting geom values
@@ -417,36 +416,25 @@ contains
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, iflux)
 
-    if (.not. allocated(geom)) call allocate_geom
-
     thetaShift = 0.0
-    bMaxShift = .true.
-    do while (bMaxShift)
-       call initialise_geometry_and_get_bmod
+    if (.not. allocated(geom)) call allocate_geom
+    call initialise_geometry_and_get_bmod
 
-       ! Start theta shift calc. This is used to modify the definition
-       ! of theta such that the maxiumum magnetic field is at pi. This
-       ! is necessary to correctly calculate bounce points
-       bMaxShift = .false.
-       ! if using Miller local equilibrium
-       if (local_eq) then
-          ! Locate the index of the maximum magnetic field in the range [-pi,pi)
-          iBmax = maxloc(Bmod(-nth:nth-1), dim = 1) - (nth + 1)
+    ! Start theta shift calc. This is used to modify the definition of
+    ! theta such that the maxiumum magnetic field is at pi. This is
+    ! necessary to correctly calculate bounce points. Can only shift with local_eq
+    if (local_eq) then
+       ! Locate the index of the maximum magnetic field in the range [-pi,pi)
+       iBmax = maxloc(Bmod(-nth:nth-1), dim = 1) - (nth + 1)
 
-          ! If it is not at plus or minus pi and theta has never been
-          ! shifted, then shift theta. The condition thetaShift==0.0
-          ! limits the loop to at most execute twice and is necessary
-          ! to prevent an infinite loop if the field is double peaked
-          if (iBmax /= -nth .and. thetaShift==0.0) then
-             bMaxShift = .true.
-             thetaShift = theta(iBmax) - theta(-nth)
-             call geom%finalise !Clean up geometry to allow reinitialisation
-             write(*,*) "Bmax is not located at +pi or -pi, translating theta by", &
-                  thetaShift," so that it is..."
-          end if
+       ! If max is not at -pi and theta then shift theta.
+       if (iBmax /= -nth) then
+          thetaShift = theta(iBmax) - theta(-nth)
+          call geom%finalise !Clean up geometry to allow reinitialisation
+          write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
+          call initialise_geometry_and_get_bmod
        end if
-    end do
-    ! End theta shift calc
+    end if
 
     ! Make sure full Bmod array set
     call periodic_copy(Bmod, 0., nperiod)
