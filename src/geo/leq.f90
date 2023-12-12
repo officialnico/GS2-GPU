@@ -96,7 +96,7 @@ contains
   end subroutine finish_setup
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
-  real function eqitem(self, r_in, theta_in, f, char) result(fstar)
+  pure real function eqitem(self, r_in, theta_in, f, char) result(fstar)
     use geo_utils, only: mod2pi, find_lower_bound, bilinear_interpolate
     implicit none
     class(leq_type), intent(in) :: self
