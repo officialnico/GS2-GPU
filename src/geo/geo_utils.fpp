@@ -535,7 +535,7 @@ contains
     end if
 
     ! check for axis evaluation, no gradients available at axis, so do not get too close
-    if (r <= dim_1(2)) then
+    if (r < dim_1(2)) then
        write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
        call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
     end if
