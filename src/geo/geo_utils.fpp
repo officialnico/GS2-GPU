@@ -561,7 +561,6 @@ contains
     ! find r on psi mesh
     ! istar will be the lower radial index bounding the requested radius
     istar = find_lower_bound(r, dim_1, 0)
-    dr = r - dim_1(istar) ; sr = dim_1(istar + 1) - r
 
     ! no gradients available at axis, so do not get too close
     if (istar == 1) then ! Could this just make "axis evaluation" check dim_1(2)?
@@ -572,9 +571,8 @@ contains
     ! Now do theta direction
     ! jstar will be the lower theta index bounding the requested theta
     jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-    dt = thet - mtheta(jstar) ; st = mtheta(jstar + 1) - thet
 
-    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, sr, st, dr, dt)
+    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
@@ -793,12 +791,8 @@ contains
     end if
 
     istar = find_lower_bound(r_pos, dim_1, 0)
-    dr = r_pos - dim_1(istar) ; sr = dim_1(istar + 1) - r_pos
-
     jstar = find_lower_bound(z_pos, dim_2, 0)
-    dt = z_pos - dim_2(jstar) ; st = dim_2(jstar + 1) - z_pos
-
-    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, sr, st, dr, dt)
+    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
   end function eqitem_cart
 
   pure integer function find_lower_bound(val, array, default) result(bound)
@@ -818,11 +812,14 @@ contains
   !> use opposite area stencil to interpolate to point bound by [istar,istar+1]
   !> and [jstar, jstar + 1].
   pure real function bilinear_interpolate(f, dim_1, dim_2, istar, jstar, &
-       sr, st, dr, dt) result(fstar)
+       d1, d2) result(fstar)
     real, dimension(:, :), intent(in) :: f
     real, dimension(:), intent(in) :: dim_1, dim_2
     integer, intent(in) :: istar, jstar
-    real, intent(in) :: sr, st, dr, dt
+    real, intent(in) :: d1, d2
+    real :: sr, st, dr, dt
+    dr = d1 - dim_1(istar) ; sr = dim_1(istar + 1) - d1
+    dt = d2 - dim_2(jstar) ; st = dim_2(jstar + 1) - d2
     fstar = f(istar    , jstar    ) * sr * st &
          +f(istar + 1, jstar    ) * dr * st &
          +f(istar    , jstar + 1) * sr * dt &
