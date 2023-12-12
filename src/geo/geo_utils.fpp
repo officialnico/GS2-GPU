@@ -423,8 +423,7 @@ contains
     if (char == 'R') then !Only actually used if bishop == 0
        call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, [rp], p_eqpsi, dp_deqpsi)
        do i = -nth_used, nth_used
-          grad(i, 1) = grad(i, 1) * dp_deqpsi(1) * 0.5 * self%beta_0
-          grad(i, 2) = grad(i, 2) * dp_deqpsi(1) * 0.5 * self%beta_0
+          grad(i, 1:2) = grad(i, 1:2) * dp_deqpsi(1) * 0.5 * self%beta_0
        end do
     end if
   end subroutine gradient_work
@@ -610,7 +609,7 @@ contains
     implicit none
     class(abstract_eqfile_geo_type), intent(in) :: self
     real, intent(in) :: pbar
-    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a-self%psi_0)
+    dbtori = dsplint(pbar, self%btori_spl) / (self%psi_a - self%psi_0)
   end function dbtori_eqfile
 
   real function qfun_eqfile (self, pbar) result(qfun)
@@ -636,7 +635,7 @@ contains
     class(abstract_eqfile_geo_type), intent(in) :: self
     real, intent(in) :: pbar
     ! p_N would be B**2/mu_0 => p = beta/2 in our units
-    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a-self%psi_0)
+    dpfun = 0.5 * self%beta_0 * dsplint(pbar, self%pressure_spl) / (self%psi_a - self%psi_0)
   end function dpfun_eqfile
 
   !> Return the diameter of the flux surface at a given major radius
