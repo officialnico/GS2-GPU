@@ -357,10 +357,9 @@ contains
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
+    rcenter = self%surf%Rmaj
     if (self%surf%geoType == 1) then
-       rcenter = self%surf%Rmaj+(1-(self%surf%r/self%surf%aSurf)**2)*self%surf%sHorz
-    else
-       rcenter = self%surf%Rmaj
+       rcenter = rcenter + (1 - (self%surf%r / self%surf%aSurf)**2) * self%surf%sHorz
     end if
   end function rcenter
 
