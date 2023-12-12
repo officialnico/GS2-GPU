@@ -320,20 +320,13 @@ contains
     !> dfcart(:,:,2) is deriv w.r.t. Z
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (size(dfm, 1), size(dfm, 2)) :: denom
-    integer :: i, j
     denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
     dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
     dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
-
-    ! Inner loop skips first point because it's likely exactly on the
-    ! magnetic axis, which means the Jacobian is zero. Do we need
-    ! need a better way to either calculate dfcart there, or to ensure
-    ! we ignore it in other places?
-    do j = 1, size(dfm, 2)
-       do i = 2, size(dfm, 1)
-          dfcart(i,j,:) = dfcart(i,j,:) / denom(i,j)
-       end do
-    end do
+    ! Skips first point in first dimension because it's likely exactly on the
+    ! magnetic axis, which means the Jacobian is zero.
+    dfcart(2:, :, 1) = dfcart(2:, :, 1) / denom(2:, :)
+    dfcart(2:, :, 2) = dfcart(2:, :, 2) / denom(2:, :)
   end subroutine eqdcart
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form.
@@ -347,21 +340,15 @@ contains
     !> dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|;
     !> dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|.
     !> Note that in the special case where f=psi:
-    !> dbish(:,:,1) is |grad psi|;
-    !> dbish(:,:,2) is 0
+    !> dbish(:,:,1) is |grad psi|; dbish(:,:,2) is 0
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart, 1), size(dcart, 2)) :: denom
-    integer :: i, j
     ! denom is |grad psi|
     denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
-
-    do j = 1, size(dcart, 2)
-       do i = 2, size(dcart, 1)
-          dbish(i,j,:) = dbish(i,j,:) / denom(i,j)
-       end do
-    end do
+    dbish(2:, :, 1) = dbish(2:, :, 1) / denom(2:, :)
+    dbish(2:, :, 2) = dbish(2:, :, 2) / denom(2:, :)
   end subroutine eqdbish
 
   subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
