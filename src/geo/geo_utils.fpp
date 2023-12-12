@@ -530,31 +530,31 @@ contains
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: thet, sign, tps, st, dt, sr, dr, r
+    real :: thet, eqpsi_sign, st, dt, sr, dr, r, tps
     real, dimension(size(f,2)) :: mtheta
     real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
-    sign = 1.
-    if (self%eqpsi(2) < self%eqpsi(1)) sign = -1.
-    dim_1 = sign * self%eqpsi ; mtheta = self%eqth(1, :)
+    eqpsi_sign = 1.
+    if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
+    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :)
 
     !Copy input r to avoid any modification
     r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
 
     if (.not. self%has_full_theta_range) then ! assume up-down symmetry
-       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = thet / abs(thet)
+       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
        thet = abs(thet)
     end if
 
     ! check for axis evaluation
     if (r <= dim_1(1)) then
-       write(*,*) r, theta_in, sign, dim_1(1)
+       write(*,*) r, theta_in, eqpsi_sign, dim_1(1)
        call mp_abort('no evaluation at or inside axis allowed in eqitem', .true.)
     end if
 
     ! disallow evaluations on or outside the surface for now
     if (r >= dim_1(self%nr)) then
-       write(*,*) r, theta_in, dim_1(self%nr), sign
+       write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
        call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
     end if
 
