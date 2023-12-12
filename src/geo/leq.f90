@@ -110,16 +110,14 @@ contains
     !> Found r and theta indices
     integer :: jstar, istar
     real :: r, thet
-    !> linear interpolation weights
-    real :: st, dt
     !> Internal theta grid
     real, dimension(self%nt) :: mtheta
     real, dimension(self%nr) :: dim_1
     dim_1 = [1, 2, 3] ; mtheta = self%eqth(1, :)
-    r = 2.5 ; thet = mod2pi(theta_in) !Make 2 < r < 3 here so istar == 2
-    istar = find_lower_bound(r, dim_1, 0)
+    thet = mod2pi(theta_in)
+    istar = 2 !find_lower_bound(2.5, dim_1, 0)  !Make 2 < r < 3 here so istar == 2
     jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-    fstar = bilinear_interpolate(f, dim_1, mtheta, istar, jstar, 2.0, thet)
+    fstar = bilinear_interpolate(f, dim_1, mtheta, istar, jstar, dim_1(istar), thet)
   end function eqitem
 
   !> Return the major radius at \((r, \theta)\)
@@ -359,7 +357,7 @@ contains
     ! If using the global geometry, Rmaj is the center of the shaped flux surface
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
-    if (self%surf%geoType==1) then
+    if (self%surf%geoType == 1) then
        rcenter = self%surf%Rmaj+(1-(self%surf%r/self%surf%aSurf)**2)*self%surf%sHorz
     else
        rcenter = self%surf%Rmaj
