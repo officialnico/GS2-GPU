@@ -852,19 +852,9 @@ contains
     use constants, only: pi, twopi
     implicit none
     real, intent(in) :: theta
-    real :: th
-    logical :: out
-    if (theta <= pi .and. theta >= -pi) then
-       mod2pi = theta
-    else
-       th = theta
-       out = .true.
-       do while(out)
-          if (th > pi) th = th - twopi
-          if (th <-pi) th = th + twopi
-          if (th <= pi .and. th >= -pi) out = .false.
-       end do
-       mod2pi = th
+    mod2pi = theta
+    if (theta > pi .or. theta < -pi) then
+       mod2pi = modulo(mod2pi + pi, twopi) - pi
     end if
   end function mod2pi
 
