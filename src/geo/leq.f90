@@ -97,7 +97,7 @@ contains
 
   !> Calculates `fstar` which is `f` interpolated at the location `theta_in`
   real function eqitem(self, r_in, theta_in, f, char) result(fstar)
-    use geo_utils, only: mod2pi
+    use geo_utils, only: mod2pi, find_lower_bound, bilinear_interpolate
     implicit none
     class(leq_type), intent(in) :: self
     real, intent(in) :: r_in !Ignored
@@ -107,47 +107,19 @@ contains
     real, dimension(:, :), intent(in) :: f
     !> FIXME: Unused
     character(1), intent(in) :: char
-    !> Internal loop variable
-    integer :: j
-    !> Found theta index
-    integer :: jstar
-    !> r index, always centre of grid
-    integer, parameter :: istar = 2
-    !> theta point in [-pi, pi]
-    real :: tp
+    !> Found r and theta indices
+    integer :: jstar, istar
+    real :: r, thet
     !> linear interpolation weights
     real :: st, dt
     !> Internal theta grid
-    real, dimension(1:self%nt) :: mtheta
-
-    tp = mod2pi(theta_in)
-
-    ! get theta points on the local theta mesh
-    ! Note: mtheta must be the same points as the `t` variable in leq_init
-    mtheta = self%eqth(1, :)
-
-    ! note that theta(1)=0 for local_eq theta
-    jstar = -1
-    do j = 2, self%nt
-       if (tp < mtheta(j)) then
-          dt = tp - mtheta(j-1)
-          st = mtheta(j) - tp
-          jstar = j-1
-          exit
-       end if
-    end do
-
-    ! treat theta = pi separately
-    if (jstar == -1) then
-       jstar = self%nt-1
-       dt = mtheta(jstar+1) - mtheta(jstar)
-       st = 0.
-    end if
-
-    ! use opposite area stencil to interpolate
-    fstar=f(istar    , jstar    )  * st &
-         +f(istar    , jstar + 1)  * dt
-    fstar = fstar / (mtheta(jstar+1)-mtheta(jstar))
+    real, dimension(self%nt) :: mtheta
+    real, dimension(self%nr) :: dim_1
+    dim_1 = [1, 2, 3] ; mtheta = self%eqth(1, :)
+    r = 2.5 ; thet = mod2pi(theta_in) !Make 2 < r < 3 here so istar == 2
+    istar = find_lower_bound(r, dim_1, 0)
+    jstar = find_lower_bound(thet, mtheta, self%nt - 1)
+    fstar = bilinear_interpolate(f, dim_1, mtheta, istar, jstar, 2.0, thet)
   end function eqitem
 
   !> Return the major radius at \((r, \theta)\)

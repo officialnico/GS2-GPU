@@ -6,7 +6,8 @@ module geo_utils
   implicit none
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
-  public :: geo_input_type, flux_surface_type, mod2pi, sort
+  public :: geo_input_type, flux_surface_type, mod2pi, sort, find_lower_bound
+  public :: bilinear_interpolate
 
   integer, parameter :: EQFILE_LENGTH = 800
 
@@ -530,7 +531,7 @@ contains
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: thet, eqpsi_sign, st, dt, sr, dr, r, tps
+    real :: r, thet, eqpsi_sign, tps
     real, dimension(size(f,2)) :: mtheta
     real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
@@ -757,7 +758,7 @@ contains
     real, dimension(:, :), intent(in) :: f
     character(1), intent(in) :: char
     integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr, r, thet, r_pos, z_pos
+    real :: r, thet, r_pos, z_pos
     real, dimension(size(f, 1)) :: dim_1
     real, dimension(size(f, 2)) :: dim_2
     dim_1 = self%R_psi(:, 1) ; dim_2 = self%Z_psi(1, :)
