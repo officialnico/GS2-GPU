@@ -571,14 +571,8 @@ contains
 
     ! Now do theta direction
     ! jstar will be the lower theta index bounding the requested theta
-    jstar = find_lower_bound(thet, mtheta, 0)
-    if (jstar /= 0) then
-       dt = thet - mtheta(jstar) ; st = mtheta(jstar + 1) - thet
-    else
-       ! treat theta = pi separately
-       jstar = self%nt - 1
-       dt = mtheta(jstar + 1) - mtheta(jstar) ; st = 0.
-    end if
+    jstar = find_lower_bound(thet, mtheta, self%nt - 1)
+    dt = thet - mtheta(jstar) ; st = mtheta(jstar + 1) - thet
 
     fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, sr, st, dr, dt)
   end function eqitem_eqfile
