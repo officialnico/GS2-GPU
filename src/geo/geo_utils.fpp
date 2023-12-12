@@ -878,54 +878,40 @@ contains
     end do
   end subroutine sort
 
-  !> Returns the distance to the magnetic axis
-  !> as a function of rp (the normalised poloidal flux variable)
-  !> and theta.
+  !> Returns the distance to the magnetic axis as a function of rp
+  !> (the normalised poloidal flux variable) and theta.
   real function rfun(self, r, theta)
     implicit none
     class(abstract_eqfile_cart_geo_type), intent(in) :: self
     real, intent(in) :: r, theta
-    integer :: i, j, k, imax, jmax, kmax
-    real :: fa, fb, fbroot, bmult, rootval, thetroot
-    real :: a, b, xerrsec, local_broot
-
-    local_broot = self%bound(theta)
-    thetroot = theta
-    rootval = r
-    a = 0.
-    b = local_broot
-
-    fa = self%psi(a, thetroot) - rootval
-    fbroot = self%psi(b, thetroot) - rootval
-    fb = fbroot
-    if (fa*fbroot <= 0.) goto 100
-
-    ! need to bracket root.
-    bmult = 0.01
-    jmax = 5
-    kmax = 5
-
-    do k = 1, kmax
-       bmult = bmult * 2.
-       imax = 10
-       do j = 1, jmax
-          imax = imax * 2
-          do i = 1, imax
-             b = local_broot * (1 + bmult * float(i) / float(imax))
-             fb = self%psi(b, thetroot) - rootval
-             if (fa*fb <= 0.) goto 100
+    integer, parameter :: jmax = 5, kmax = 5
+    real, parameter :: xerrsec = 1.e-9
+    integer :: i, j, k, imax
+    real :: fa, fb, bmult, thetroot, a, b, local_broot
+    local_broot = self%bound(theta) ; thetroot = theta
+    a = 0. ; b = local_broot ; bmult = 0.01
+    fa = self%psi(a, thetroot) - r ; fb = self%psi(b, thetroot) - r
+    ! need to bracket root, if we don't then try to search for a different b which does bracket
+    if (fa * fb > 0.) then
+       outer: do k = 1, kmax !Each k increases the distance we scan by (bmult)
+          bmult = bmult * 2.
+          imax = 10
+          do j = 1, jmax !Each j increases the number of steps (imax)
+             imax = imax * 2
+             do i = 1, imax !Scan from local_broot to local_broot*(1 + bmult) in imax steps
+                b = local_broot * (1 + bmult * float(i) / float(imax))
+                fb = self%psi(b, thetroot) - r
+                if (fa * fb <= 0.) exit outer !If a ; b brackets root skip ahead
+             end do
+             do i = 1, imax !Scan from local_broot to local_broot/(1 + bmult) in imax steps
+                b = local_broot / (1 + bmult * float(i) / float(imax))
+                fb = self%psi(b, thetroot) - r
+                if (fa * fb <= 0.) exit outer  !If a ; b brackets root skip ahead
+             end do
           end do
-          do i = 1, imax
-             b = local_broot / (1 + bmult * float(i) / float(imax))
-             fb = self%psi(b, thetroot) - rootval
-             if (fa*fb <= 0.) goto 100
-          end do
-       end do
-    end do
-    write(*,*) 'yuk: Did not find bracket of root in rfun'
-100 continue
-    xerrsec = 1.e-9
-    rfun = self%zbrent(a, b, rootval, thetroot, xerrsec)
+       end do outer !No promise that we have found a bracket here, but zbrent will report this.
+    end if
+    rfun = self%zbrent(a, b, r, thetroot, xerrsec)
   end function rfun
 
   !> FIXME : Add documentation
@@ -938,48 +924,37 @@ contains
     integer, parameter :: itmax = 100
     real :: a, b, c, fa, fb, fc, d, e, tol1, xm, q, p, r, s
     integer :: iter
-
-    a = x1
-    b = x2
-    c = 0.
-    fa = self%psi(a, thetroot) - rootval
-    fb = self%psi(b, thetroot) - rootval
-    if (fb * fa > 0.) then
+    zbrent = 0
+    a = x1 ; b = x2
+    fa = self%psi(a, thetroot) - rootval ; fb = self%psi(b, thetroot) - rootval
+    if (fb * fa > 0.) then !If we're not bracketing the root
        ! check to see if fa or fb is close to zero already:
        if (abs(fa) < eps1) then
-          zbrent = a
-          return
+          zbrent = a ; return
        else if (abs(fb) < eps1) then
-          zbrent = b
-          return
+          zbrent = b ; return
+       else
+          write(*,*) a, b, fa, fb
+          call mp_abort('root must be bracketed for zbrent.', .true.)
        end if
-       write(*,*) a, b, fa, fb
-       call mp_abort('root must be bracketed for zbrent.', .true.)
     end if
-    fc = fb
 
+    c = 0. ; fc = fb
     do iter = 1, itmax
-       if (fb * fc > 0.) then
-          c = a
-          fc = fa
-          d = b - a
-          e = d
+       if (fb * fc > 0.) then ! If root not bracketed by b and c swap a and c
+          c = a ; fc = fa
+          d = b - a ; e = d
        end if
-       if (abs(fc) < abs(fb)) then
-          a = b
-          b = c
-          c = a
-          fa = fb
-          fb = fc
-          fc = fa
+       if (abs(fc) < abs(fb)) then !If c closer than b cyclic shuffle a<-b<-c<-a
+          a = b ; b = c ; c = a
+          fa = fb ; fb = fc ; fc = fa
        end if
        tol1 = 2. * eps * abs(b) + 0.5 * tol
-       xm = 0.5 * (c - b)
+       xm = 0.5 * (c - b) ! Bisect c and b
        if (abs(xm) <= tol1 .or. fb == 0.) then
-          zbrent = b
-          return
+          zbrent = b ; return
        end if
-       if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then
+       if (abs(e) >= tol1 .and. abs(fa) > abs(fb)) then !e might not be set by this point?
           s = fb / fa
           if (a == c) then
              p = 2. * xm * s
@@ -1003,8 +978,7 @@ contains
           d = xm
           e = d
        end if
-       a = b
-       fa = fb
+       a = b ; fa = fb
        if (abs(d)  >  tol1) then
           b = b + d
        else
@@ -1013,6 +987,5 @@ contains
        fb = self%psi(b, thetroot) - rootval
     end do
     call mp_abort('zbrent exceeding maximum iterations.',.true.)
-    zbrent = b
   end function zbrent
 end module geo_utils
