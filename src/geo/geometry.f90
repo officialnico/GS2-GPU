@@ -413,7 +413,7 @@ contains
 
     force_sym = (isym == 1)
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
-    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, iflux)
+    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, iflux, bishop)
 
     thetaShift = 0.0
     if (.not. allocated(geom)) call allocate_geom
@@ -456,7 +456,6 @@ contains
     !      enddo
     ! ******************
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
-
     drhodpsi = drhodrp / dpsidrp ; dpsidrho = 1.0 / drhodpsi
 
     !     compute derivatives of eikonal
@@ -1574,19 +1573,16 @@ contains
 
   !> FIXME : Add documentation
   subroutine thetagrad(rgrid, theta, thgrad)
-    use mp, only: mp_abort
     implicit none
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
     character(1), parameter :: char = 'T'
     if (bishop == 0) then
-       if (efit_eq .or. dfit_eq .or. gs2d_eq) call mp_abort('error in thetagrad, bishop==0 and either gs2_eq, efit_eq or dfit_eq are true',.true.) !Could move this to subroutine check?
        call geom%gradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     else
        call geom%bgradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
     end if
-
     call periodic_copy(thgrad(:, 1), 0., nperiod)
     call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
@@ -2190,15 +2186,16 @@ contains
   end subroutine bishop_gradB
 
   !> Perform minor checks on consistency of flags
-  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq, iflux)
+  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq, iflux, bishop)
     use mp, only: mp_abort
     implicit none
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq
-    integer, intent(in) :: iflux
+    integer, intent(in) :: iflux, bishop
     integer :: nflag_set
     if (iflux /= 0 .and. iflux /= 1) &
        call mp_abort('Can only choose iflux = 0 or iflux = 1', .true.)
-
+    if ((eeq .or. deq .or. gs2deq) .and. bishop == 0) &
+         call mp_abort('gs2_eq/efit_eq/dfit_eq are not compatible with bishop = 0',.true.)
     nflag_set = count([geq, ceq, eeq, gs2deq, peq, teq, leq, deq, ideq])
     if (nflag_set == 0) then
        call mp_abort('Must set at least one equilibrium flag to true', .true.)
