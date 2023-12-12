@@ -546,10 +546,10 @@ contains
        thet = abs(thet)
     end if
 
-    ! check for axis evaluation
-    if (r <= dim_1(1)) then
-       write(*,*) r, theta_in, eqpsi_sign, dim_1(1)
-       call mp_abort('no evaluation at or inside axis allowed in eqitem', .true.)
+    ! check for axis evaluation, no gradients available at axis, so do not get too close
+    if (r <= dim_1(2)) then
+       write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
+       call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
     end if
 
     ! disallow evaluations on or outside the surface for now
@@ -558,20 +558,8 @@ contains
        call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
     end if
 
-    ! find r on psi mesh
-    ! istar will be the lower radial index bounding the requested radius
     istar = find_lower_bound(r, dim_1, 0)
-
-    ! no gradients available at axis, so do not get too close
-    if (istar == 1) then ! Could this just make "axis evaluation" check dim_1(2)?
-       write(*,*) r, theta_in, dim_1(1), dim_1(2)
-       call mp_abort('Too close to axis in eqitem', .true.)
-    end if
-
-    ! Now do theta direction
-    ! jstar will be the lower theta index bounding the requested theta
     jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-
     fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
   end function eqitem_eqfile
 
@@ -803,8 +791,7 @@ contains
     limit = size(array) ; bound = default
     do ind = 2, limit
        if (val < array(ind)) then
-          bound = ind - 1
-          exit
+          bound = ind - 1 ; exit
        end if
     end do
   end function find_lower_bound
