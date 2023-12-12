@@ -348,20 +348,19 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id
     ! Local variables:
-    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR
+    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, jacob
     real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dsdl
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
     real, allocatable, dimension(:)   :: th_bish, invRpol, ltheta, Zoftheta, dZdl, bmod
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
-    real, allocatable, dimension(:) :: a_bish, b_bish, c_bish
-    real, allocatable, dimension(:) :: da_bish, db_bish, dc_bish, trip, jacob
+    real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
          gds2, gds21, gds22
-    real :: shat, dbetadrho,dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
+    real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod,  drhodpsi, dpsidrp, dpsidrho
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
@@ -369,8 +368,7 @@ contains
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
     integer :: iBmax, i
-    real :: a_b, b_b, c_b
-    real :: s_hat, dp, di, pressure, tmp
+    real :: a_b, b_b, c_b, s_hat, dp, di, pressure, tmp
     !> For outputting geom values
     integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit, bishop_unit
     logical, parameter :: save_bishop = .true.
@@ -394,6 +392,7 @@ contains
 
     !Compute the initial constants
     debug = (verb > 2)
+    if (debug) writelots = .true.
 
     if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
     if (local_eq .and. iflux /= 0) then
@@ -439,13 +438,12 @@ contains
     ! Make sure full Bmod array set
     call periodic_copy(Bmod, 0., nperiod)
 
-    !
     ! ******************
     ! Debug:
     ! Set itor=1 and the first two columns should be the
     ! same (better agreement results from higher ntheta)
     ! Set itor=0 and the first and third columns should
-    ! be equal.  All of this, of course, with iflux=0.
+    ! be equal. All of this, of course, with iflux==0.
     !
     ! This amounts to checking the expression for
     ! nu for axisymmetric, low beta equilibrium:
@@ -459,10 +457,8 @@ contains
     ! ******************
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
 
-    drhodpsi = drhodrp / dpsidrp
-    dpsidrho = 1.0 / drhodpsi
+    drhodpsi = drhodrp / dpsidrp ; dpsidrho = 1.0 / drhodpsi
 
-    !
     !     compute derivatives of eikonal
     if (bishop /= 0) then
        allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
@@ -661,9 +657,8 @@ contains
     ! for numerical equilibria
     ! <MAB
 
-    ! gradthtot is grad theta
-    ! since ballooning, theta goes from -ntheta*nperiod -> ntheta*nperiod,
-    ! but grad theta is periodic in theta
+    ! gradthtot is grad theta since ballooning, theta goes from
+    ! -ntheta*nperiod -> ntheta*nperiod, but grad theta is periodic in theta
     gradthtot(-nth:nth, 1:2) = thgrad(-nth:nth, :)
     call periodic_copy(gradthtot(:, 1), 0., nperiod)
     call periodic_copy(gradthtot(:, 2), 0., nperiod)
@@ -742,22 +737,24 @@ contains
        theta = arcl
     end if
 
-    !     compute grad rho*Jacobian of the transformation to the new coordinates:
-    !     Axisymmetry assumed to get this (nu indep. of phi):
+    ! compute grad rho*Jacobian of the transformation to the new coordinates:
+    ! Axisymmetry assumed to get this (nu indep. of phi):
     do i = -nth, nth
        jacob(i) = abs(dpsidrho / (gradpar(i)*bmag(i)))
        ds(i) = grho(i) * jacob(i)
     end do
 
-    !     compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
-    !     does not work with equal_arc grid
-
-    !     compute the surface area from A=Int(J |grad rho| dtheta dalpha)
+    ! compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
+    !  does not work with equal_arc grid
+    ! compute the surface area from A=Int(J |grad rho| dtheta dalpha)
     call integrate(ds, theta, dummy, nth)
     outputs%surfarea = twopi * (dummy(nth) - dummy(-nth))
     if (writelots) write (fort11_unit,*) 'surfarea=', outputs%surfarea
 
-    !     compute dV/drhon = 2 pi Int(J dtheta)
+    !Close output files
+    call close_output_file(fort11_unit)
+
+    ! compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, theta, dummy, nth)
     outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
 
@@ -785,9 +782,6 @@ contains
        outputs%kxfac = - 1 / drhodpsi
        gds22 = grho**2 / drhodpsi**2
     end if
-
-    !Close output files
-    call close_output_file(fort11_unit)
 
     if (start_file_utils) call finish_file_utils
 
@@ -866,13 +860,7 @@ contains
          inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
          inputs%surf%nt = ntheta_input / 2 ; inputs%thShift = thetaShift
       else
-         if (big <= 0 ) then
-            if (dfit_eq) then
-               big = 1
-            else
-               big = 8
-            end if
-         end if
+         if (big <= 0 ) big = 8
          inputs%eqfile = eqfile
          inputs%big = big
          inputs%eqnormfile = eqnormfile
@@ -888,7 +876,6 @@ contains
       ! specific geometry class we're using.
       call geom%finish_setup
 
-      if (debug) writelots = .true.
       if (debug) write(6,*) "eikcoefs: if (writelots)"
       if (writelots) then
          write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
@@ -915,7 +902,7 @@ contains
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
-      if (efit_eq .or. dfit_eq .or. gs2d_eq) then
+      if (efit_eq .or. dfit_eq .or. gs2d_eq) then !Cartesian like
          call rtg(rgrid, rp, theta)
       else
          rgrid = rp
@@ -952,17 +939,17 @@ contains
          call close_output_file(fort99_unit)
 
          rbar = 0.
-         do i =-nth, nth-1
-            rbar = rbar + rgrid(i) * (theta(i+1)-theta(i))
+         do i = -nth, nth - 1
+            rbar = rbar + rgrid(i) * (theta(i + 1) - theta(i))
          end do
          rbar = rbar / twopi
-         write (*,*) 'r_bar = ',rbar
+         write (*,*) 'r_bar = ', rbar
          write (*,*)
 
-         write(fort11_unit,*) 'drhodrp=',drhodrp
+         write(fort11_unit,*) 'drhodrp=', drhodrp
          if (irho == 1) then
             drhodrhod = drho_drhod(rp, drhodrp)
-            write(fort11_unit,*) 'drho_drhod=',drhodrhod
+            write(fort11_unit,*) 'drho_drhod=', drhodrhod
          end if
       end if
 
@@ -1043,22 +1030,19 @@ contains
       integer :: itot, k
       !     rp derivative
       delrp = delrho / drhodrp
-      rp1 = rp - delrp
-      rp2 = rp + delrp
+      rp1 = rp - delrp ; rp2 = rp + delrp
 
       ! Note for iflux == 0 we need to ensure qval is set before
       !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
       if (iflux == 0) then
          dqdrho = dqdrhofun(rhoc, shat, fort11_unit)
-         qval1 = qval - dqdrho * delrho
-         qval2 = qval + dqdrho * delrho
+         qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
       end if
 
       pbar_1 = pbarfun(rp1, theta(0)) ; pbar_2 = pbarfun(rp2, theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
       ! seikon to avoid having to form rgrid1/rgrid2 here.
-      bi1 = btori(pbar_1)
-      bi2 = btori(pbar_2)
+      bi1 = btori(pbar_1) ; bi2 = btori(pbar_2)
 
       allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dummy2(-ntgrid:ntgrid))
       allocate(dsdrp(-nth:nth))
@@ -1090,9 +1074,7 @@ contains
       s_hat_new = shat ! Output
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
 
-      !
       !     compute gradient of S
-
       ! this is really gradient of alpha
       ! note that coordinates are R and Z (not rho and l, as in bishop case)
       ! Note we don't use dsdthet1/2 (dummy2 above)
@@ -1200,7 +1182,7 @@ contains
            gradztot  , &
            gradthtot )  ! MAB
 
-    if (allocated(grho)) deallocate(grho   , &
+    if (allocated(grho)) deallocate(grho, &
          theta      , &
          bmag       , &
          gradpar    , &
@@ -1212,7 +1194,6 @@ contains
          gds24_noq  , &  ! MAB
          jacob)
     end subroutine dealloc_local_arrays
-
   end subroutine eikcoefs
 
   !> FIXME : Add documentation
@@ -1269,8 +1250,8 @@ contains
 
     do k = -nperiod+1, nperiod-1
        do i = -nth, nth
-          itot = i + k*ntheta
-          c(itot) = a(i,1)*b(itot,1) + a(i,2)*b(itot,2) + a(i,3)*b(itot,3)
+          itot = i + k * ntheta
+          c(itot) = a(i,1) * b(itot,1) + a(i,2) * b(itot,2) + a(i,3) * b(itot,3)
        enddo
     enddo
   end subroutine dottgrid
@@ -1279,7 +1260,7 @@ contains
   pure subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
     real, dimension(-ntgrid:), intent(out) :: c
-    c = a(:,1)*b(:,1) + a(:,2)*b(:,2) + a(:,3)*b(:,3)
+    c = a(:,1) * b(:,1) + a(:,2) * b(:,2) + a(:,3) * b(:,3)
   end subroutine dottgridf
 
   !> Returns the major radius R corresponding to the passed r and theta
@@ -2151,7 +2132,7 @@ contains
     ! Make sure ntheta is even
     ntheta = nth * 2
     nt = ntheta
-    ntgrid = (2*nperiod - 1)*nth
+    ntgrid = (2 * nperiod - 1) * nth
 
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
       allocated(theta),ntgrid,nt,nperiod
@@ -2159,7 +2140,7 @@ contains
     if (allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
 
-    theta = [ (i*pi/real(nth), i=-ntgrid, ntgrid) ]
+    theta = [ (i * pi / real(nth), i=-ntgrid, ntgrid) ]
   end subroutine init_uniform_theta_grid
 
   !> Copy the `[-nth,nth] = [-pi,pi]` section of the passed array into
@@ -2181,10 +2162,10 @@ contains
        end do
     end do
 
-    do k=1,nperiod-1
-       do i=-nth,nth
-          itot = i + k*ntheta
-          a(itot) = a(i) + k*ext
+    do k = 1, nperiod - 1
+       do i = -nth, nth
+          itot = i + k * ntheta
+          a(itot) = a(i) + k * ext
        end do
     end do
   end subroutine periodic_copy
@@ -2313,7 +2294,6 @@ contains
     real, intent (in) :: dpsidrho
     real :: rplus, rminus, dr
     integer :: i
-    !
     ! At the present flux surface, calculate these three functions
     ! as a function of theta, together with their derivates with
     ! respect to rho:
@@ -2330,7 +2310,6 @@ contains
     !
     ! BD: bug??
     ! Is this correct for EFIT data?  Need to check
-    !
     do i = -ntgrid, ntgrid
        Rplot(i) = Rpos(rgrid(i), theta(i))
        Zplot(i) = Zpos(rgrid(i), theta(i))
