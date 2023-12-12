@@ -430,25 +430,17 @@ contains
        bMaxShift = .false.
        ! if using Miller local equilibrium
        if (local_eq) then
-
           ! Locate the index of the maximum magnetic field in the range [-pi,pi)
-          iBmax = -nth
-          do i = -nth+1, nth-1
-             if (Bmod(iBmax) < Bmod(i)) then
-                iBmax = i
-             end if
-          end do
+          iBmax = maxloc(Bmod(-nth:nth-1), dim = 1) - (nth + 1)
 
           ! If it is not at plus or minus pi and theta has never been
-          ! shifted, then shift theta
-
-          ! thetaShift==0.0 limits the loop to at most execute twice
-          !  and is necessary to prevent an infinite loop if the field
-          !  is double peaked
-          if (iBmax/=-nth .and. thetaShift==0.0) then
+          ! shifted, then shift theta. The condition thetaShift==0.0
+          ! limits the loop to at most execute twice and is necessary
+          ! to prevent an infinite loop if the field is double peaked
+          if (iBmax /= -nth .and. thetaShift==0.0) then
              bMaxShift = .true.
-             thetaShift = theta(iBmax)-theta(-nth)
-             call geom%finalise
+             thetaShift = theta(iBmax) - theta(-nth)
+             call geom%finalise !Clean up geometry to allow reinitialisation
              write(*,*) "Bmax is not located at +pi or -pi, translating theta by", &
                   thetaShift," so that it is..."
           end if
