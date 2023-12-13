@@ -842,7 +842,7 @@ contains
     subroutine initialise_geometry_and_get_bmod
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
-      real :: avgrmid, Ltot, rbar
+      real :: avgrmid, rbar
       character(1) :: char
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -904,7 +904,7 @@ contains
       if (efit_eq .or. dfit_eq .or. gs2d_eq) then !Cartesian like
          call rtg(rgrid, rp, theta)
       else
-         rgrid = rp
+         rgrid = rp !This is likely just an optimisation, rtg should work here as well?
       end if
 
       pbar = pbarfun(rgrid(0), theta(0))
@@ -975,7 +975,6 @@ contains
       ! crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-
       call geom%gradient(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
@@ -999,14 +998,13 @@ contains
       if (debug) write(6,*) "eikcoefs: done thetagrad"
 
       !     compute eikonal S
-      if (iflux == 0) qval = qfun(pbarofrho(rhoc, fort11_unit))
+      if (iflux == 0) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
-      if (bishop > 0) then
-         !Following bits _could_ be calculated for all bishop
+      if (bishop > 0) then !Following bits _could_ be calculated for all bishop
          call th_bishop(crpgrad, th_bish, nth)
          call periodic_copy(th_bish, 0., nperiod)
          call B_pol(invR, crpgrad, Bpolmag, nth)
@@ -1014,8 +1012,7 @@ contains
          call periodic_copy(Bpolmag, 0., nperiod)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
          call loftheta(rgrid, theta, ltheta)
-         Ltot = ltheta(nth) - ltheta(-nth)
-         call periodic_copy(ltheta, Ltot, nperiod)
+         call periodic_copy(ltheta, ltheta(nth) - ltheta(-nth), nperiod)
          call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
          call periodic_copy(invRpol, 0., nperiod)
       end if
@@ -1231,9 +1228,9 @@ contains
     real, dimension(-ntgrid:, :), intent (out) ::  c
     integer :: i
     do i = -nth, nth
-       c(i,1) = a(i,2)*b(i,3) - b(i,2)*a(i,3)
-       c(i,2) = a(i,3)*b(i,1) - b(i,3)*a(i,1)
-       c(i,3) = a(i,1)*b(i,2) - b(i,1)*a(i,2)
+       c(i, 1) = a(i, 2) * b(i, 3) - b(i, 2) * a(i, 3)
+       c(i, 2) = a(i, 3) * b(i, 1) - b(i, 3) * a(i, 1)
+       c(i, 3) = a(i, 1) * b(i, 2) - b(i, 1) * a(i, 2)
     end do
   end subroutine crosstgrid
 
@@ -1248,7 +1245,7 @@ contains
     do k = -nperiod+1, nperiod-1
        do i = -nth, nth
           itot = i + k * ntheta
-          c(itot) = a(i,1) * b(itot,1) + a(i,2) * b(itot,2) + a(i,3) * b(itot,3)
+          c(itot) = a(i, 1) * b(itot, 1) + a(i, 2) * b(itot, 2) + a(i, 3) * b(itot, 3)
        enddo
     enddo
   end subroutine dottgrid
@@ -1257,7 +1254,7 @@ contains
   pure subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
     real, dimension(-ntgrid:), intent(out) :: c
-    c = a(:,1) * b(:,1) + a(:,2) * b(:,2) + a(:,3) * b(:,3)
+    c = a(:, 1) * b(:, 1) + a(:, 2) * b(:, 2) + a(:, 3) * b(:, 3)
   end subroutine dottgridf
 
   !> Returns the major radius R corresponding to the passed r and theta
@@ -1315,7 +1312,7 @@ contains
   end function dbtori
 
   !> FIXME : Add documentation
-  !> Only used with undocumented `irho = 4` option. Ideally would update to take pbar
+  !> Only used with ~undocumented `irho = 4` option. Ideally would update to take pbar
   real function rhofun (rp)
     implicit none
     real, intent (in) :: rp
@@ -1376,7 +1373,7 @@ contains
   pure real function psifun (rp)
     implicit none
     real, intent (in) :: rp
-    psifun = min(1.0, max(0.0, (rp-psi_0)/(psi_a-psi_0)))
+    psifun = min(1.0, max(0.0, (rp - psi_0) / (psi_a - psi_0)))
   end function psifun
 
   real function pbarfun(r, theta)
@@ -1412,7 +1409,6 @@ contains
 
        cvdrift = gbdrift
        cvdrift0 = gbdrift0
-
     else
        if (bishop >= 1) then
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
