@@ -354,24 +354,20 @@ contains
     real, allocatable, dimension(:)   :: th_bish, invRpol, ltheta, Zoftheta, dZdl, bmod
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
-    real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
     real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
          gds2, gds21, gds22
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
-    real :: rp, pbar, drhodrp, drhodrhod,  drhodpsi, dpsidrp, dpsidrho
+    real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
-    integer :: iBmax, i
-    real :: a_b, b_b, c_b, s_hat, dp, di, pressure, tmp
     !> For outputting geom values
-    integer :: fort25_unit, fort78_unit, fort99_unit, fort11_unit, bishop_unit
-    logical, parameter :: save_bishop = .true.
+    integer :: i, iBmax, fort25_unit, fort11_unit
 
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
@@ -460,162 +456,7 @@ contains
 
     !     compute derivatives of eikonal
     if (bishop /= 0) then
-       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
-       da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid))
-
-       da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
-       db_bish = bi / (Bpolmag * rmajor)**2
-       dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
-
-       if (debug) write(6,*) "eikcoefs:  gradients"
-       if (debug) write(6,*) 'drhodpsi', drhodpsi
-       if (debug) write(6,*) 'bi', bi
-       if (verb > 5) write(6,*) 'rmajor', rmajor(:)
-       if (verb > 5) write(6,*) 'Bpolmag', Bpolmag(:)
-       if (verb > 5) write(6,*) rpgrad(-nth:nth,1)
-       if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
-       if (verb > 5) write(6,*) thgrad(-nth:nth,1)
-       if (verb > 5) write(6,*) thgrad(-nth:nth,2)
-       if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
-       if (verb > 5) write(6,*) -1.0/(bpolmag(-nth:nth)*invRpol(-nth:nth))
-       if (debug) write(6,*) "eikcoefs: end gradients"
-
-       da_bish = da_bish / trip
-       db_bish = db_bish / trip
-       dc_bish = dc_bish / trip
-
-       call integrate(da_bish, theta, a_bish, ntgrid)
-       call integrate(db_bish, theta, b_bish, ntgrid)
-       call integrate(dc_bish, theta, c_bish, ntgrid)
-
-       a_b = a_bish(nth) - a_bish(-nth)
-       b_b = b_bish(nth) - b_bish(-nth)
-       c_b = c_bish(nth) - c_bish(-nth)
-
-       a_bish = - a_bish * Bpolmag * rmajor
-       b_bish = - b_bish * Bpolmag * rmajor
-       c_bish = - c_bish * Bpolmag * rmajor
-
-       ! find shat, pressure' and report them
-       dp = dpfun(pbar)
-       di = dbtori(pbar)
-
-       if (abs(qval) > epsilon(0.)) then
-          tmp = rhoc / (qval * twopi * drhodpsi)
-          s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
-          if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
-          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rhoc, drhodpsi, s_hat
-       else
-          tmp = 1.
-          s_hat = 0.
-       end if
-
-       write(fort11_unit,*)
-       write(fort11_unit,*) 'Quantity, equilibrium value, value used'
-
-       ! Decide how we want to set s_hat_new
-       select case (bishop)
-       case (2, 3, 4, 5, 8, 9)
-          s_hat_new = s_hat_input
-       case (6, 7)
-          s_hat_new = s_hat
-       case default
-          if (iflux == 1) then
-             s_hat_new = s_hat
-          else
-             s_hat_new = s_hat_input
-          end if
-       end select
-
-       ! Decide how we want to set dp_new
-       select case (bishop)
-       case (2)
-          dp_new = p_prime_input
-       case (3)
-          pressure = pfun(pbar)
-          dp_new = -invLp_input * pressure * drhodpsi
-       case (4, 6, 9)
-          dp_new = 0.5 * beta_prime_input * drhodpsi
-       case (5)
-           dp_new = -alpha_input * drhodpsi / (qval**2 * rmaj)
-       case (7)
-          dp_new = dp * dp_mult
-       case (8)
-          dp_new = 0.5 * beta_prime_input * drhodpsi * dp_mult
-       case default
-          dp_new = dp
-       end select
-
-       !Report on updated dp
-       select case(bishop)
-       case (2)
-          write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
-          if (writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
-       case (3)
-          write(fort11_unit,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
-               -dp_new / (drhodpsi *pressure)
-          if (writelots) write(*,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
-               -dp_new / (drhodpsi * pressure)
-       case (5)
-          write(fort11_unit,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
-               -qval**2 * rmaj * dp_new / drhodpsi
-          if (writelots) write(*,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
-               -qval**2 * rmaj * dp_new / drhodpsi
-       case default
-          write(fort11_unit,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
-          if (writelots) write(*,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
-       end select
-
-       if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
-          ! This handles case default for iflux == 1
-          di_new = di
-       else
-          di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
-       end if
-
-       write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
-       if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
-       write(fort11_unit,*)
-
-       shat = s_hat_new
-       dqdrp = s_hat_new * qval * drhodrp / rhoc
-       dbetadrho = 2 * dp_new / drhodpsi
-
-       call gradl(ltheta, seik, dSdl, twopi * qval, nth)
-       call periodic_copy(dSdl, 0., nperiod)
-
-       ! here the coordinates are rho and l
-       grads(:,1) = a_bish * di_new + b_bish * dp_new + c_bish * 2
-       grads(:,2) = dSdl
-
-       ! obtain Z(theta)
-       call Ztgrid(rgrid, theta, Zoftheta)
-       call periodic_copy(Zoftheta, 0., nperiod)
-       ! calculate dZ/dl
-       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
-       call periodic_copy(dZdl, 0., nperiod)
-
-       ! gradztot(:,1) is grad Z . rhohat
-       gradztot(:,1) = crpgrad(:,2)/grho
-       ! gradztot(:,2) is grad Z . lhat
-       gradztot(:,2) = dZdl
-       ! gradztot(:,3) is grad Z . phihat
-       gradztot(:,3) = 0.0
-
-       if (save_bishop) then
-          call open_output_file(bishop_unit, '.bishop')
-          write(bishop_unit, fmt="('#di, di_new = ',F12.7,' ',F12.7)") di, di_new
-          write(bishop_unit, fmt="('#dp, dp_new = ',F12.7,' ',F12.7)") dp, dp_new
-          write(bishop_unit, fmt="('#bi =', F12.7)") bi
-          write(bishop_unit, fmt="('#drdpsi =', F12.7)") drhodpsi
-          write(bishop_unit, fmt="('#a_b (fp)=', F20.10, ' ,b_b (pp)=', F20.10,' ,c_b  =', F20.10,' ,s_hat =', F20.10)") a_b*di, b_b*dp, c_b, s_hat
-          write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
-          do i =-ntgrid,ntgrid
-             write(bishop_unit, '( 10(2X, F25.17) )') theta(i), a_bish(i), b_bish(i), &
-                  c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
-          enddo
-          call close_output_file(bishop_unit)
-       end if
+       call bishop_grads
     else
        call bishop_large_aspect_ratio_approximation
     end if
@@ -838,6 +679,7 @@ contains
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar
       character(1) :: char
+      integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
@@ -1014,6 +856,169 @@ contains
          call periodic_copy(invRpol, 0., nperiod)
       end if
     end subroutine initialise_geometry_and_get_bmod
+
+    subroutine bishop_grads
+      logical, parameter :: save_bishop = .true.
+      integer :: bishop_unit
+      real :: a_b, b_b, c_b, dp, di, s_hat, pressure, tmp
+      real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish
+      allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
+           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid))
+
+      da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
+      db_bish = bi / (Bpolmag * rmajor)**2
+      dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
+
+      if (debug) write(6,*) "eikcoefs:  gradients"
+      if (debug) write(6,*) 'drhodpsi', drhodpsi
+      if (debug) write(6,*) 'bi', bi
+      if (verb > 5) write(6,*) 'rmajor', rmajor(:)
+      if (verb > 5) write(6,*) 'Bpolmag', Bpolmag(:)
+      if (verb > 5) write(6,*) rpgrad(-nth:nth,1)
+      if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
+      if (verb > 5) write(6,*) thgrad(-nth:nth,1)
+      if (verb > 5) write(6,*) thgrad(-nth:nth,2)
+      if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
+      if (verb > 5) write(6,*) -1.0/(bpolmag(-nth:nth)*invRpol(-nth:nth))
+      if (debug) write(6,*) "eikcoefs: end gradients"
+
+      da_bish = da_bish / trip
+      db_bish = db_bish / trip
+      dc_bish = dc_bish / trip
+
+      call integrate(da_bish, theta, a_bish, ntgrid)
+      call integrate(db_bish, theta, b_bish, ntgrid)
+      call integrate(dc_bish, theta, c_bish, ntgrid)
+
+      a_b = a_bish(nth) - a_bish(-nth)
+      b_b = b_bish(nth) - b_bish(-nth)
+      c_b = c_bish(nth) - c_bish(-nth)
+
+      a_bish = - a_bish * Bpolmag * rmajor
+      b_bish = - b_bish * Bpolmag * rmajor
+      c_bish = - c_bish * Bpolmag * rmajor
+
+      ! find shat, pressure' and report them
+      dp = dpfun(pbar)
+      di = dbtori(pbar)
+
+      if (abs(qval) > epsilon(0.)) then
+         tmp = rhoc / (qval * twopi * drhodpsi)
+         s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
+         if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
+         if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rhoc, drhodpsi, s_hat
+      else
+         tmp = 1.
+         s_hat = 0.
+      end if
+
+      write(fort11_unit,*)
+      write(fort11_unit,*) 'Quantity, equilibrium value, value used'
+
+      ! Decide how we want to set s_hat_new
+      select case (bishop)
+      case (2, 3, 4, 5, 8, 9)
+         s_hat_new = s_hat_input
+      case (6, 7)
+         s_hat_new = s_hat
+      case default
+         if (iflux == 1) then
+            s_hat_new = s_hat
+         else
+            s_hat_new = s_hat_input
+         end if
+      end select
+
+      ! Decide how we want to set dp_new
+      select case (bishop)
+      case (2)
+         dp_new = p_prime_input
+      case (3)
+         pressure = pfun(pbar)
+         dp_new = -invLp_input * pressure * drhodpsi
+      case (4, 6, 9)
+         dp_new = 0.5 * beta_prime_input * drhodpsi
+      case (5)
+         dp_new = -alpha_input * drhodpsi / (qval**2 * rmaj)
+      case (7)
+         dp_new = dp * dp_mult
+      case (8)
+         dp_new = 0.5 * beta_prime_input * drhodpsi * dp_mult
+      case default
+         dp_new = dp
+      end select
+
+      !Report on updated dp
+      select case(bishop)
+      case (2)
+         write(fort11_unit,*) 'p_prime = ',dp,', ',dp_new
+         if (writelots) write(*,*) 'p_prime = ',dp,', ',dp_new
+      case (3)
+         write(fort11_unit,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
+              -dp_new / (drhodpsi *pressure)
+         if (writelots) write(*,*) '1/L_p = ',-dp / (drhodpsi * pressure), ', ', &
+              -dp_new / (drhodpsi * pressure)
+      case (5)
+         write(fort11_unit,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
+              -qval**2 * rmaj * dp_new / drhodpsi
+         if (writelots) write(*,*) 'alpha = ', -qval**2 * rmaj * dp / drhodpsi,', ', &
+              -qval**2 * rmaj * dp_new / drhodpsi
+      case default
+         write(fort11_unit,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
+         if (writelots) write(*,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
+      end select
+
+      if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
+         ! This handles case default for iflux == 1
+         di_new = di
+      else
+         di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
+      end if
+
+      write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
+      if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
+      write(fort11_unit,*)
+
+      shat = s_hat_new
+      dqdrp = s_hat_new * qval * drhodrp / rhoc
+      dbetadrho = 2 * dp_new / drhodpsi
+
+      call gradl(ltheta, seik, dSdl, twopi * qval, nth)
+      call periodic_copy(dSdl, 0., nperiod)
+
+      ! here the coordinates are rho and l
+      grads(:,1) = a_bish * di_new + b_bish * dp_new + c_bish * 2
+      grads(:,2) = dSdl
+
+      ! obtain Z(theta)
+      call Ztgrid(rgrid, theta, Zoftheta)
+      call periodic_copy(Zoftheta, 0., nperiod)
+      ! calculate dZ/dl
+      call gradl(ltheta, Zoftheta, dZdl, 0., nth)
+      call periodic_copy(dZdl, 0., nperiod)
+
+      ! gradztot(:,1) is grad Z . rhohat
+      gradztot(:,1) = crpgrad(:,2)/grho
+      ! gradztot(:,2) is grad Z . lhat
+      gradztot(:,2) = dZdl
+      ! gradztot(:,3) is grad Z . phihat
+      gradztot(:,3) = 0.0
+
+      if (save_bishop) then
+         call open_output_file(bishop_unit, '.bishop')
+         write(bishop_unit, fmt="('#di, di_new = ',F12.7,' ',F12.7)") di, di_new
+         write(bishop_unit, fmt="('#dp, dp_new = ',F12.7,' ',F12.7)") dp, dp_new
+         write(bishop_unit, fmt="('#bi =', F12.7)") bi
+         write(bishop_unit, fmt="('#drdpsi =', F12.7)") drhodpsi
+         write(bishop_unit, fmt="('#a_b (fp)=', F20.10, ' ,b_b (pp)=', F20.10,' ,c_b  =', F20.10,' ,s_hat =', F20.10)") a_b*di, b_b*dp, c_b, s_hat
+         write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
+         do i =-ntgrid,ntgrid
+            write(bishop_unit, '( 10(2X, F25.17) )') theta(i), a_bish(i), b_bish(i), &
+                 c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
+         enddo
+         call close_output_file(bishop_unit)
+      end if
+    end subroutine bishop_grads
 
     subroutine bishop_large_aspect_ratio_approximation
       real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot, pbar_1, pbar_2
