@@ -876,15 +876,15 @@ contains
 
     allocate(eq_R(self%nw), eq_Z(self%nh))
     do i = 1, self%nw
-       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
+       eq_R(i) = rleft + rwid * float(i - 1) / float(self%nw - 1)
     end do
 
     do j = 1, self%nh
-       eq_Z(j) = zoffset + ((float(j-1) / float(self%nh-1) )) * zhei
+       eq_Z(j) = zoffset + ((float(j - 1) / float(self%nh - 1) )) * zhei
     end do
 
     ! Setup 2D interpolation of psi(R, Z)
-    allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
+    allocate(zp(3 * nw_in * nh_in), temp(nw_in + 2 * nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
     call fitp_surf1(nw_in, nh_in, sefit_R, sefit_Z, sefit_psi, &
          nw_in, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
@@ -892,7 +892,7 @@ contains
 
     do j = 1, self%nh
        do i = 1, self%nw
-          self%eqpsi_2d(i,j) = fitp_surf2(eq_R(i), eq_Z(j), nw_in, nh_in, &
+          self%eqpsi_2d(i, j) = fitp_surf2(eq_R(i), eq_Z(j), nw_in, nh_in, &
                sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
        end do
     end do

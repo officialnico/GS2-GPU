@@ -140,14 +140,13 @@ contains
     implicit none
     class(gs2d_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: rwid, rleft, zhei, rcentr, bcentr
+    real :: rwid, rleft, zhei, rcentr
     real, dimension(:), allocatable :: spsi_bar
     real, dimension(:, :), allocatable :: sefit_psi
-    integer :: nw_in, nh_in, big
+    integer :: nw_in, nh_in
     logical, parameter :: debug =.false.
     self%type_name = 'GS2DEQ'
     self%filename = trim(adjustl(inputs%eqfile))
-    big = inputs%big
     if (debug) write(6,*) "gs2din: filename=",self%filename
     ! read GS2D datafile
     call read_gs2d(self%filename)
@@ -162,7 +161,7 @@ contains
     end if
     allocate(spsi_bar(nw_in), sefit_psi(nw_in, nh_in))
     rwid = maxval(rgrid) - minval(rgrid) ; zhei = maxval(zgrid) - minval(zgrid)
-    rcentr = r0 ; rleft = minval(rgrid) ; bcentr = b0
+    rcentr = r0 ; rleft = minval(rgrid)
     self%R_mag = rmag ; self%Z_mag = zmag
     self%psi_0 = psmin ; self%psi_a = psip
     self%psi_0 = self%psi_0 / twopi ; self%psi_a = self%psi_a / twopi
@@ -174,7 +173,7 @@ contains
     ! functions of pbar
     spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
     call self%shared_setup(nw_in, nh_in, spsi_bar, rgrid, zgrid, f, p, q, sefit_psi, &
-         size(rsep), rsep, zsep, bcentr, rleft, rwid, minval(zgrid), zhei, big, .true.)
+         size(rsep), rsep, zsep, b0, rleft, rwid, minval(zgrid), zhei, inputs%big, .true.)
   end subroutine gs2d_read_and_set
 
   !> This subroutine reads an EFIT output file containing
@@ -199,10 +198,9 @@ contains
     real, dimension(:), allocatable :: dummy, spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, f, p, q
     real, dimension(:, :), allocatable :: sefit_psi
     character(10) ::  char
-    integer :: i, j, ndum, nw_in, nh_in, funit, nbbbs, big
+    integer :: i, j, ndum, nw_in, nh_in, funit, nbbbs
     self%type_name = 'EFIT'
     self%filename = trim(adjustl(inputs%eqfile))
-    big = inputs%big
     open(newunit = funit,  file = self%filename, status='old',form='formatted')
     read(funit, '(5(a10),i2,i4,i4)') char, char, char, char, char, i, nw_in, nh_in
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
@@ -228,16 +226,16 @@ contains
     ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0) fp and q are
     ! functions of pbar
     do i = 1, nw_in
-       spsi_bar(i) = float(i-1) / float(nw_in-1)
-       sefit_R(i) = rleft + rwid * float(i-1) / float(nw_in-1)
+       spsi_bar(i) = float(i - 1) / float(nw_in - 1)
+       sefit_R(i) = rleft + rwid * float(i - 1) / float(nw_in - 1)
     end do
 
     do j = 1, nh_in
-       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5) * zhei !Should we add zmid?
+       sefit_Z(j) = ((float(j - 1) / float(nh_in - 1) ) - 0.5) * zhei !Should we add zmid?
     end do
 
     call self%shared_setup(nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, sefit_psi, &
-         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, big, .true.) !Should -0.5*zhei be zmid
+         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, inputs%big, .true.) !Should -0.5*zhei be zmid
 2020 format (5e16.9)
   end subroutine efit_read_and_set
 
