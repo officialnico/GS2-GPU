@@ -29,12 +29,12 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine read_and_set_peq(self, inputs)
-    use constants, only: pi
+    use constants, only: pi, twopi
     implicit none
     class(peq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real :: R_geo, f_N, psi_N
-    integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2
+    integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2, tind_in, tind_out
     real, allocatable, dimension(:) :: work
     self%filename = trim(adjustl(inputs%eqfile))
 
@@ -147,21 +147,21 @@ contains
     !     R_mag == R position of magnetic axis
     !     Z_mag == Z position of magnetic axis
     !     aminor    == half diameter of last flux surface at elevation of Z_mag
+    tind_in = self%nt ; tind_out = 1
     self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
     self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
-    R_geo = (self%R_psi(self%nr, 1) + self%R_psi(self%nr, self%nt))/2.
-    self%aminor = (self%R_psi(self%nr, 1) - self%R_psi(self%nr, self%nt))/2.
+    self%aminor = 0.5 * (self%R_psi(self%nr, tind_out) - self%R_psi(self%nr, tind_in))
+    R_geo = 0.5 * (self%R_psi(self%nr, tind_out) + self%R_psi(self%nr, tind_in))
     self%B_T = self%fp(self%nr) / R_geo
     self%B_psi = 0.0
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
     self%R_mag = self%R_psi(1,1)
     self%Z_mag = self%Z_psi(1,1)
-    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet
+    self%beta = 4. * twopi * 1.e-7 * self%pressure / self%B_T**2 ! not correct definition yet
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
-    !     Normalize, rename quantities
     psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
@@ -169,10 +169,10 @@ contains
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    self%diam = abs(self%R_psi(:, self%nt) - self%R_psi(:, 1))
-    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
+    self%diam = abs(self%R_psi(:, tind_out) - self%R_psi(:, tind_in))
+    self%rc = 0.5 * (self%R_psi(:, tind_out) + self%R_psi(:, tind_in))
     do j = 1, self%nt
-       self%eqth(:, j) = (j-1) * pi / float(self%nt - 1)
+       self%eqth(:, j) = (j - 1) * pi / float(self%nt - 1)
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
     self%has_full_theta_range = .false.
@@ -189,7 +189,7 @@ contains
     implicit none
     class(teq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    integer :: istatus, ncid, id, j
+    integer :: istatus, ncid, id, j, tind_in, tind_out
     real, allocatable, dimension(:,:) :: work
     real :: f_N, psi_N, R_geo
     self%filename = trim(adjustl(inputs%eqfile))
@@ -269,33 +269,21 @@ contains
 
     deallocate(work)
 
-    self%eqpsi = abs(self%eqpsi)
+    self%eqpsi = abs(self%eqpsi) ; self%fp = abs(self%fp) ; self%qsf = abs(self%qsf)
+    tind_in = self%nt ; tind_out = self%nt / 2
     self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
     self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
-    self%fp = abs(self%fp)
-    self%qsf = abs(self%qsf)
-
-    ! mildly gimpy at the moment, because the TRANSP output does not
-    ! regularly include the point at theta=0.
-
-    ! find aminor
-    self%aminor = 0.5 * abs(self%R_psi(self%nr, self%nt/2) - self%R_psi(self%nr, 1))
-
-    ! find R_geo
-    R_geo = 0.5 * (self%R_psi(self%nr, self%nt/2) + self%R_psi(self%nr, 1))
-
-    ! Find normalizing magnetic field
+    self%aminor = 0.5 * abs(self%R_psi(self%nr, tind_out) - self%R_psi(self%nr, tind_in))
+    R_geo = 0.5 * (self%R_psi(self%nr, tind_out) + self%R_psi(self%nr, tind_in))
     self%B_T = self%fp(self%nr) / R_geo
-
-    !     Normalize, rename quantities
+    self%B_psi = 0.0
     self%R_psi = self%R_psi / self%aminor
     self%Z_psi = self%Z_psi / self%aminor
     self%R_mag = self%R_psi(1, 1)
     self%Z_mag = self%Z_psi(1, 1)
-    self%beta = 8. * pi * 1.e-7 * self%pressure / self%B_T**2  ! not correct definition yet?
+    self%beta = 4. * twopi * 1.e-7 * self%pressure / self%B_T**2 ! not correct definition yet?
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
-    self%B_psi = 0.0
 
     psi_N = abs(self%B_T) * self%aminor**2
     self%psi_a = self%psi_a / psi_N
@@ -304,10 +292,10 @@ contains
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
 
-    self%diam = abs(self%R_psi(:, self%nt/2) - self%R_psi(:, 1))
-    self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt/2))
+    self%diam = abs(self%R_psi(:, tind_out) - self%R_psi(:, tind_in))
+    self%rc = 0.5 * (self%R_psi(:, tind_out) + self%R_psi(:, tind_in))
     do j = 1, self%nt
-       self%eqth(:, j) = (j-1) * twopi / float(self%nt - 1) - pi
+       self%eqth(:, j) = (j - 1) * twopi / float(self%nt - 1) - pi
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
     self%has_full_theta_range = .true.
