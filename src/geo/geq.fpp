@@ -31,6 +31,7 @@ contains
     real, parameter :: psi_scale = 1.0e-8, b_scale = 1.0e-4, l_scale = 1.0e-2
     real :: f_N, psi_N
     integer :: istatus, ncid, id, j
+    self%type_name = 'geq'
     self%filename = trim(adjustl(inputs%eqfile))
 # ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)

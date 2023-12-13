@@ -73,6 +73,8 @@ module geo_utils
   end type geo_input_type
 
   type, abstract :: abstract_geo_type
+     !> Name of the specific implementation
+     character(len=:), allocatable :: type_name
      !> Has this instance been initialised
      logical :: initialised = .false.
      !> Does this implementation have the full or half theta grid? If only half

@@ -45,7 +45,7 @@ contains
     integer :: i, j, idum, jj, jmax, funit
     character (200) :: line
     logical, dimension(:), allocatable :: has_duplicate_point
-
+    self%type_name = 'ideq'
     ! Need to generalize initialization condition if equilibrium changes
     self%nt = size(inputs%theta)
 

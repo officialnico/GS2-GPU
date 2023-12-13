@@ -51,6 +51,7 @@ contains
     real, dimension(3) :: dr
     integer :: i, j
     real :: r, t
+    self%type_name = 'Local-Analytic'
     if (inputs%surf%geoType > 4 .or. inputs%surf%geoType < 0) &
        call mp_abort("ERROR: invalid analytic geometry specification", .true.)
 

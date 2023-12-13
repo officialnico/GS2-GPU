@@ -45,6 +45,7 @@ contains
     real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
+    self%type_name = 'deq'
     ! Need to generalize initialization condition if equilibrium changes
     lref = 0. ; bref = 0.
     ! read eqnorm file if exists

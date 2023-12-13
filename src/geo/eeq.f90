@@ -150,6 +150,7 @@ contains
     real :: zxy11, zxym1, zxy1n, zxymn
     integer :: i, j, ierr, nw_in, nh_in, nbbbs, big
     logical, parameter :: debug =.false.
+    self%type_name = 'GS2DEQ'
     self%filename = trim(adjustl(inputs%eqfile))
     big = inputs%big
     if (debug) write(6,*) "gs2din: filename=",self%filename
@@ -326,6 +327,7 @@ contains
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
     integer :: i, j, ndum, ierr, nw_in, nh_in, funit, nbbbs, big
+    self%type_name = 'EFIT'
     self%filename = trim(adjustl(inputs%eqfile))
     big = inputs%big
     open(newunit = funit,  file = self%filename, status='old',form='formatted')

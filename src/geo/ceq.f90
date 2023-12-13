@@ -41,6 +41,7 @@ contains
     real :: f_N, psi_N
     integer :: j
     logical, parameter :: debug = .true.
+    self%type_name = 'ceq'
     self%filename = trim(adjustl(inputs%eqfile))
     if (.not. skip_file_read) then ! Primarily for testing
        write (*,*)  'Reading CHEASE input file: ', trim(self%filename)
