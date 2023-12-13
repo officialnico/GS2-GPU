@@ -348,10 +348,9 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id
     ! Local variables:
-    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, jacob
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummy, dsdl
-    real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
-    real, allocatable, dimension(:)   :: th_bish, invRpol, ltheta, Zoftheta, dZdl, bmod
+    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, jacob, bmod
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummym th_bish, invRpol
+    real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
     !> The theta grid of the results. The final grid has
@@ -861,9 +860,11 @@ contains
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
       real :: a_b, b_b, c_b, dp, di, s_hat, pressure, tmp
-      real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish
+      real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
+           zoftheta, dzdl, dsdl
       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
-           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid))
+           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
+           zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
 
       da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
       db_bish = bi / (Bpolmag * rmajor)**2
@@ -916,20 +917,21 @@ contains
       write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
       ! Decide how we want to set s_hat_new
+      if (iflux == 1) then
+         s_hat_new = s_hat
+      else
+         s_hat_new = s_hat_input
+      end if
+
       select case (bishop)
       case (2, 3, 4, 5, 8, 9)
          s_hat_new = s_hat_input
       case (6, 7)
          s_hat_new = s_hat
-      case default
-         if (iflux == 1) then
-            s_hat_new = s_hat
-         else
-            s_hat_new = s_hat_input
-         end if
       end select
 
       ! Decide how we want to set dp_new
+      dp_new = dp
       select case (bishop)
       case (2)
          dp_new = p_prime_input
@@ -944,8 +946,6 @@ contains
          dp_new = dp * dp_mult
       case (8)
          dp_new = 0.5 * beta_prime_input * drhodpsi * dp_mult
-      case default
-         dp_new = dp
       end select
 
       !Report on updated dp
@@ -969,7 +969,6 @@ contains
       end select
 
       if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
-         ! This handles case default for iflux == 1
          di_new = di
       else
          di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
@@ -992,13 +991,12 @@ contains
 
       ! obtain Z(theta)
       call Ztgrid(rgrid, theta, Zoftheta)
-      call periodic_copy(Zoftheta, 0., nperiod)
       ! calculate dZ/dl
       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
       call periodic_copy(dZdl, 0., nperiod)
 
       ! gradztot(:,1) is grad Z . rhohat
-      gradztot(:,1) = crpgrad(:,2)/grho
+      gradztot(:,1) = crpgrad(:,2) / grho
       ! gradztot(:,2) is grad Z . lhat
       gradztot(:,2) = dZdl
       ! gradztot(:,3) is grad Z . phihat
@@ -1112,12 +1110,9 @@ contains
            dummy      (-n:n), &
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
-           dSdl       (-n:n), &
            rmajor     (-n:n), &
            ds         (-n:n), &
-           arcl       (-n:n), &
-           Zoftheta   (-n:n), &
-           dZdl       (-n:n))
+           arcl       (-n:n))
 
       allocate(thgrad (-n:n,2), &
            rpgrad     (-n:n,2), &
@@ -1162,12 +1157,9 @@ contains
            dummy     , &
            Bpolmag   , &
            Bmod      , &
-           dSdl      , &
            rmajor    , &
            ds        , &
-           arcl      , &
-           Zoftheta  , &
-           dZdl)
+           arcl)
 
       deallocate(thgrad, &
            rpgrad    , &
