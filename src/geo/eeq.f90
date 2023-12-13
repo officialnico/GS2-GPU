@@ -363,15 +363,14 @@ contains
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
-             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), &
-                  (eq_R(i) - self%R_mag))
+             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), (eq_R(i) - self%R_mag))
           end if
        end do
     end do
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
     self%has_full_theta_range = .true.
     if (.true.) then
-       write (*,*) "Finished efitin... imported ",self%type_name," equilibrium"
+       write (*,*) "Finished shared_setup... imported ",self%type_name," equilibrium"
        write (*,*) 'Some important quantities:'
        write (*,*) "aminor", self%aminor
        write (*,*) 'R_mag', self%R_mag
