@@ -560,12 +560,11 @@ contains
     call open_output_file(fort24_unit,".fort.24")
     do i = 2, nr - 1
        rho_eq = 0.5 * self%diameter(self%eqpsi(i))
-       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma_shear(i), bs_coll(i), bs_sh(i)
+       write(fort24_unit,'(i5,11(1x,e16.9))') i, pbar(i), rho_eq, pres(i), gamma_shear(i), bs_coll(i), bs_sh(i)
     end do
     call close_output_file(fort24_unit)
-1000 format(i5,11(1x,e16.9))
   end subroutine hahm_burrell
-  
+
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta
@@ -647,14 +646,12 @@ contains
   subroutine finalise_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
     self%initialised = .false.
-    call self%dealloc_arrays
-    call self%delete_splines
+    call self%dealloc_arrays ; call self%delete_splines
   end subroutine finalise_eqfile
 
   subroutine finish_setup_eqfile(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
-    call self%calculate_gradients
-    call self%setup_splines
+    call self%calculate_gradients ; call self%setup_splines
   end subroutine finish_setup_eqfile
 
   real function btori_eqfile (self, pbar) result(btori)
@@ -991,8 +988,7 @@ contains
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
     do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i)
-       self%Z_psi(i, :) = eq_Z
+       self%R_psi(i, :) = eq_R(i) ; self%Z_psi(i, :) = eq_Z
     end do
 
     self%B_T = abs(bcentr)
@@ -1049,29 +1045,23 @@ contains
     if (debug) write(6,fmt='("r=",10f8.4)') r
     if (debug) write(6,fmt='("z=",10f8.4)') z
 
-    if (n < nz) then
-       write(*,*) 'nbbbs < nz -- very strange.  Stopping.'
-       write(*,*) 'Look in eeq.f90.'
-    end if
+    if (n < nz) call mp_abort('nbbbs < nz -- very strange.  Stopping. Look in geo_utils.fpp', .true.)
 
     j = 0
     do i = half_nz + 1, 1, -1
        j = j + 1
-       ztmp(j) = z(i)
-       rtmp(j) = r(i)
+       ztmp(j) = z(i) ; rtmp(j) = r(i)
     end do
 
     if (r(1) == r(n) .and. z(1) == z(n)) then
-       do i = n-1, n-half_nz, -1
+       do i = n - 1, n - half_nz, -1
           j = j + 1
-          ztmp(j) = z(i)
-          rtmp(j) = r(i)
+          ztmp(j) = z(i) ; rtmp(j) = r(i)
        end do
     else
-       do i = n, n-half_nz+1, -1
+       do i = n, n - half_nz + 1, -1
           j = j + 1
-          ztmp(j) = z(i)
-          rtmp(j) = r(i)
+          ztmp(j) = z(i) ; rtmp(j) = r(i)
        end do
     end if
 
@@ -1084,7 +1074,6 @@ contains
     call delete_spline(spl)
 
     ! find point near magnetic axis elevation on low field side
-
     ! Initialise i1 to some invalid value so we can check if an appropriate
     ! point is not found.
     i1 = invalidPoint
@@ -1125,15 +1114,13 @@ contains
 
     if (debug) write(6,fmt='("a_minor: rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("a_minor: ztmp=",5f8.4)') ztmp
-    if (debug) write(6,fmt='("a_minor: Z_mag=",f8.4)') Z_mag
 
     call new_spline(nz, ztmp, rtmp, spl)
     r2 = splint(Z_mag, spl)
     call delete_spline(spl)
 
     a = (r2 - r1) / 2.
-    if (debug) write(6,*) "a_minor: r1,r2=",r1,r2
-    if (debug) write(6,*) "a_minor: a=",a
+    if (debug) write(6,*) "a_minor: r1,r2,a=",r1,r2,a
   end subroutine a_minor
 
   !> Put `theta` into the range \([-\pi, \pi]\)
@@ -1183,8 +1170,7 @@ contains
     ! need to bracket root, if we don't then try to search for a different b which does bracket
     if (fa * fb > 0.) then
        outer: do k = 1, kmax !Each k increases the distance we scan by (bmult)
-          bmult = bmult * 2.
-          imax = 10
+          bmult = bmult * 2. ; imax = 10
           do j = 1, jmax !Each j increases the number of steps (imax)
              imax = imax * 2
              do i = 1, imax !Scan from local_broot to local_broot*(1 + bmult) in imax steps
