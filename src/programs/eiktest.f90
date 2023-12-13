@@ -245,7 +245,7 @@ program eiktest
      write(21,1000) cvdrift0(i),gbdrift0(i),theta(i)
   enddo
 
-  call geom%hahm_burrell(irho, profile_fac)
+  call geom%hahm_burrell(profile_fac)
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then

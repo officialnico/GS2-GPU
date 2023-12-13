@@ -507,20 +507,17 @@ contains
   end function rhofun_null
 
   !> FIXME : Add documentation
-  subroutine hahm_burrell(self, irho, a)
+  subroutine hahm_burrell(self, a)
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     implicit none
     class(abstract_geo_type), intent(in) :: self
     real, intent(in) :: a
-    integer, intent(in) :: irho
     integer :: i, fort24_unit, nr
     real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
     real, dimension(self%nr) :: gamma_shear, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
     if (.not. proc0) return
     nr = self%nr
-    if(irho /= 2) write(*,*) 'use irho=2 to get correct shearing rate.'
-
     gamma_shear = 0.
     pbar = (self%eqpsi - self%eqpsi(1)) / (self%eqpsi(nr) - self%eqpsi(1))
 
@@ -562,19 +559,10 @@ contains
 
     call open_output_file(fort24_unit,".fort.24")
     do i = 2, nr - 1
-       if (irho == 1) then
-          rho_eq = self%eqpsi(i)
-       else if(irho == 2) then
-          rho_eq = 0.5 * self%diameter(self%eqpsi(i))
-       else if(irho == 3) then
-          rho_eq = pbar(i)
-       end if
+       rho_eq = 0.5 * self%diameter(self%eqpsi(i))
        write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma_shear(i), bs_coll(i), bs_sh(i)
     end do
-
-    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
     call close_output_file(fort24_unit)
-
 1000 format(i5,11(1x,e16.9))
   end subroutine hahm_burrell
   
