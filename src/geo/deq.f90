@@ -80,12 +80,12 @@ contains
     ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     do i = 1, nw_in
-       spsi_bar(i) = float(i) / float(nw_in) !Note this isn't 0 at i = 1
-       sdfit_R(i) = rwid * float(i) / float(nw_in)
+       spsi_bar(i) = float(i - 1) / float(nw_in - 1)
+       sdfit_R(i) = rwid * float(i - 1) / float(nw_in - 1)
     end do
 
     do j = 1, nh_in
-       sdfit_Z(j) = (float(j-1) / float(nh_in-1) - 0.5) * zhei
+       sdfit_Z(j) = (float(j - 1) / float(nh_in - 1) - 0.5) * zhei
     end do
 
     ! stay away from edge of box
@@ -150,12 +150,12 @@ contains
     self%nr = self%nw ; self%nt = self%nh
     call self%alloc_arrays
     do i = 1, self%nw
-       self%psi_bar(i) = float(i) / float(self%nw)
-       eq_R(i) = rwid * float(i) / float(self%nw)
+       self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
+       eq_R(i) = rwid * float(i - 1) / float(self%nw - 1)
     end do
 
     do j = 1, self%nh
-       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
+       eq_Z(j) = ((float(j - 1) / float(self%nh - 1) ) - 0.5) * zhei
     end do
 
     self%eqpsi_2d = sdfit_psi !No interpolation unlike eeq
