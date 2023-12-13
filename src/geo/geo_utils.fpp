@@ -155,7 +155,7 @@ module geo_utils
      procedure :: calculate_gradients, gradient_work
      procedure :: eqdcart, eqdbish, invR, derm, rhofun => rhofun_null
      procedure :: alloc_common_arrays, dealloc_common_arrays
-     procedure :: alloc_arrays, dealloc_arrays
+     procedure :: alloc_arrays, dealloc_arrays, hahm_burrell
      procedure :: alloc_special_arrays => alloc_special_arrays_null
      procedure :: dealloc_special_arrays => dealloc_special_arrays_null
   end type abstract_geo_type
@@ -506,6 +506,78 @@ contains
     rhofun = 0.
   end function rhofun_null
 
+  !> FIXME : Add documentation
+  subroutine hahm_burrell(self, irho, a)
+    use file_utils, only: open_output_file, close_output_file
+    use mp, only: proc0
+    implicit none
+    class(abstract_geo_type), intent(in) :: self
+    real, intent(in) :: a
+    integer, intent(in) :: irho
+    integer :: i, fort24_unit, nr
+    real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
+    real, dimension(self%nr) :: gamma_shear, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
+    if (.not. proc0) return
+    nr = self%nr
+    if(irho /= 2) write(*,*) 'use irho=2 to get correct shearing rate.'
+
+    gamma_shear = 0.
+    pbar = (self%eqpsi - self%eqpsi(1)) / (self%eqpsi(nr) - self%eqpsi(1))
+
+    do i = 1, nr
+       dp(i)  = self%dpfun(pbar(i))
+       pres(i) = self%pfun(pbar(i))
+    end do
+
+    d2p(1) = 0.0 ; d2p(nr) = 0.0
+    do i = 2, nr - 1
+       d2p(i) = (dp(i+1) - dp(i-1)) / (self%eqpsi(i+1) - self%eqpsi(i-1))
+    end do
+
+    do i = 2, nr- 1
+       rp1 = self%eqpsi(i+1) ; rp2 = self%eqpsi(i-1)
+       rho1 = 0.5 * self%diameter(rp1) ; rho2 = 0.5 * self%diameter(rp2)
+       drhodpsiq = (rho1 - rho2) / (rp1 - rp2)
+       gradpsi = self%eqitem(self%eqpsi(i), 0., self%dpbish(:,:,1), 'R')
+
+       mag_B = sqrt( (self%btori(pbar(i))**2 + gradpsi**2)) * self%invR(self%eqpsi(i), 0.)
+       !For geq and ideq could be mag_B = geom%eqitem(geom%eqpsi(i), 0., geom%B_psi, 'R')
+
+       gamma_shear(i) = 0.01 * gradpsi**2 * (d2p(i) / pres(i) - a * (dp(i) / pres(i))**2) &
+            * (2 * pres(i) / self%beta_0)**((1 - a) / 2) * (-pres(i) / (dp(i) / drhodpsiq)) &
+            / mag_B
+
+       s__hat(i) = (self%qfun(pbar(i+1)) - self%qfun(pbar(i-1))) / (rho2 - rho1)
+       s__hat(i) = s__hat(i) * 0.5 * (rho1 + rho2) / self%qfun(pbar(i))
+    end do
+
+    ! Assume rho_*0 = 0.01, nu_*0 = 1.0
+    do i = 2, nr - 1
+       bs_coll(i) = 0.01 * ((2 * pres(i) / self%beta_0)**(1 - a))**2.5 &
+             * self%qfun(0.) * 0.5 * self%diameter(self%eqpsi(i)) &
+            * (-dp(i) / pres(i)) * self%R_psi(1,1)**1.5 / (2 * pres(i) / self%beta_0)**a
+       bs_sh(i) = (-pres(i) / (dp(i) / drhodpsiq))*s__hat(i) / (self%R_psi(1,1) &
+            * self%qfun(pbar(i)) *sqrt(pres(i)))
+    end do
+
+    call open_output_file(fort24_unit,".fort.24")
+    do i = 2, nr - 1
+       if (irho == 1) then
+          rho_eq = self%eqpsi(i)
+       else if(irho == 2) then
+          rho_eq = 0.5 * self%diameter(self%eqpsi(i))
+       else if(irho == 3) then
+          rho_eq = pbar(i)
+       end if
+       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma_shear(i), bs_coll(i), bs_sh(i)
+    end do
+
+    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
+    call close_output_file(fort24_unit)
+
+1000 format(i5,11(1x,e16.9))
+  end subroutine hahm_burrell
+  
   !> Calculates fstar which is f interpolated at the location (r,theta).
   !> Here r is the normalised poloidal flux coordinate rp (= psi_pN + psi_0N)
   !> and theta_in is theta. f is a grid of values of f as a function of psi_p,theta

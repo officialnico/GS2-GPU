@@ -12,7 +12,7 @@ module peq
 
   private
 
-  public :: Hahm_Burrell, peq_type, teq_type
+  public :: peq_type, teq_type
 
   type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
    contains
@@ -275,76 +275,4 @@ contains
     end do
     if (self%has_full_theta_range) self%eqth = 2 * self%eqth - pi
   end subroutine shared_setup
-
-  !> FIXME : Add documentation
-  subroutine Hahm_Burrell(geom, irho, a)
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
-    implicit none
-    type(peq_type), intent(in) :: geom
-    real, intent(in) :: a
-    integer, intent(in) :: irho
-    integer :: i, fort24_unit, nr
-    real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(geom%nr) :: gamma_shear, pbar, dp, d2p, pres, bs_coll, s__hat, bs_sh
-    if (.not. proc0) return
-    nr = geom%nr
-    if(irho /= 2) write(*,*) 'use irho=2 to get correct shearing rate.'
-
-    gamma_shear = 0.
-    pbar = (geom%eqpsi - geom%eqpsi(1)) / (geom%eqpsi(nr) - geom%eqpsi(1))
-
-    do i = 1, nr
-       dp(i)  = geom%dpfun(pbar(i))
-       pres(i) = geom%pfun(pbar(i))
-    end do
-
-    d2p(1) = 0.0 ; d2p(nr) = 0.0
-    do i = 2, nr-1
-       d2p(i) = (dp(i+1) - dp(i-1)) / (geom%eqpsi(i+1) - geom%eqpsi(i-1))
-    enddo
-
-    do i = 2, nr- 1
-       rp1 = geom%eqpsi(i+1) ; rp2 = geom%eqpsi(i-1)
-       rho1 = 0.5 * geom%diameter(rp1) ; rho2 = 0.5 * geom%diameter(rp2)
-       drhodpsiq = (rho1 - rho2) / (rp1 - rp2)
-       gradpsi = geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), 'R')
-
-       mag_B = sqrt( (geom%btori(pbar(i))**2 + gradpsi**2)) * geom%invR(geom%eqpsi(i), 0.)
-
-       gamma_shear(i) = 0.01 * gradpsi**2 * (d2p(i) / pres(i) - a * (dp(i) / pres(i))**2) &
-            * (2 * pres(i) / geom%beta_0)**((1 - a) / 2) * (-pres(i) / (dp(i) / drhodpsiq)) &
-            / mag_B
-
-       s__hat(i) = (geom%qfun(pbar(i+1)) - geom%qfun(pbar(i-1))) / (rho2 - rho1)
-       s__hat(i) = s__hat(i) * 0.5 * (rho1 + rho2) / geom%qfun(pbar(i))
-
-    end do
-
-    ! Assume rho_*0 = 0.01, nu_*0 = 1.0
-    do i = 2, nr - 1
-       bs_coll(i) = 0.01 * ((2 * pres(i) / geom%beta_0)**(1 - a))**2.5 &
-             * geom%qfun(0.) * 0.5 * geom%diameter(geom%eqpsi(i)) &
-            * (-dp(i) / pres(i)) * geom%R_psi(1,1)**1.5 / (2 * pres(i) / geom%beta_0)**a
-       bs_sh(i) = (-pres(i) / (dp(i) / drhodpsiq))*s__hat(i) / (geom%R_psi(1,1) &
-            * geom%qfun(pbar(i)) *sqrt(pres(i)))
-    end do
-
-    call open_output_file(fort24_unit,".fort.24")
-    do i = 2, nr - 1
-       if (irho == 1) then
-          rho_eq = geom%eqpsi(i)
-       else if(irho == 2) then
-          rho_eq = 0.5 * geom%diameter(geom%eqpsi(i))
-       else if(irho == 3) then
-          rho_eq = pbar(i)
-       end if
-       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma_shear(i), bs_coll(i), bs_sh(i)
-    end do
-
-    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
-    call close_output_file(fort24_unit)
-
-1000 format(i5,11(1x,e16.9))
-  end subroutine Hahm_Burrell
 end module peq

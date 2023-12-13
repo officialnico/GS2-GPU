@@ -3,7 +3,7 @@
 module ceq
   use geo_utils, only: abstract_eqfile_geo_type, geo_input_type
   implicit none
-  public :: Hahm_Burrell, ceq_type, chease_chi_index
+  public :: ceq_type, chease_chi_index
 
   private
 
@@ -148,69 +148,4 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
   end subroutine set_ceq_from_chease
-
-  !> FIXME : Add documentation
-  subroutine Hahm_Burrell(geom, irho, a)
-    use file_utils, only: open_output_file, close_output_file
-    use mp, only: proc0
-    implicit none
-    type(ceq_type), intent(in) :: geom
-    real, intent(in) :: a
-    integer, intent(in) :: irho
-    integer :: i, nr
-    real :: gradpsi, mag_B, rho_eq, rp1, rp2, rho1, rho2, drhodpsiq
-    real, dimension(geom%nr) :: gamma, pbar, dp, d2p, pres
-    integer :: fort24_unit
-    if (.not. proc0) return
-    nr = geom%nr
-
-    gamma = 0.
-
-    pbar = (geom%eqpsi-geom%eqpsi(1))/(geom%eqpsi(nr)-geom%eqpsi(1))
-
-    do i=2, nr-1
-       dp(i)  = geom%dpfun(pbar(i))
-    enddo
-
-    do i=3,nr-2
-       d2p(i) = (dp(i+1)-dp(i-1))/(geom%eqpsi(i+1)-geom%eqpsi(i-1))
-    enddo
-
-    pres=0.
-    do i=3, nr-2
-       rp1=geom%eqpsi(i+1)
-       rp2=geom%eqpsi(i-1)
-       rho1=0.5*geom%diameter(rp1)
-       rho2=0.5*geom%diameter(rp2)
-       drhodpsiq=(rho1-rho2)/(rp1-rp2)
-
-       gradpsi = geom%eqitem(geom%eqpsi(i), 0., geom%dpbish(:,:,1), 'R')
-
-       mag_B = sqrt( (geom%btori(pbar(i))**2 + gradpsi**2))/geom%Rpos(geom%eqpsi(i),0.)
-
-       pres(i) = geom%pfun(pbar(i))
-
-       gamma(i) = 0.01*gradpsi**2*(d2p(i)/pres(i)-a*(dp(i)/pres(i))**2) &
-            /mag_B*(2.*pres(i)/geom%beta_0)**((1-a)/2.) &
-            *(-pres(i)/(dp(i)/drhodpsiq))
-    enddo
-
-    call open_output_file(fort24_unit,".fort.24")
-    do i=3,nr-2
-       if(irho == 1) then
-          rho_eq = geom%eqpsi(i)
-       else if(irho == 2) then
-          rho_eq = 0.5 * geom%diameter(geom%eqpsi(i))
-       else if(irho == 3) then
-          rho_eq = pbar(i)
-       endif
-       write(fort24_unit,1000) i, pbar(i), rho_eq, pres(i), gamma(i)
-    enddo
-
-    if(irho == 1) write(fort24_unit,*) '# irho = 1 produces psi instead of rho_eq'
-
-    call close_output_file(fort24_unit)
-
-1000 format(i5,11(1x,e16.9))
-  end subroutine Hahm_Burrell
 end module ceq
