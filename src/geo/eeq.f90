@@ -104,7 +104,7 @@ module eeq
      private
    contains
      procedure :: setup_special_splines, delete_special_splines
-     procedure :: rcenter, dealloc_special_arrays, shared_setup
+     procedure :: rcenter, dealloc_special_arrays
   end type eeq_base_type
 
   type, extends(eeq_base_type) :: eeq_type
@@ -240,125 +240,6 @@ contains
          nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, big) !Should -0.5*zhei be zmid
 2020 format (5e16.9)
   end subroutine efit_read_and_set
-
-  subroutine shared_setup(self, nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, &
-       sefit_psi, nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, zoffset, zhei, big)
-    use splines, only: inter_cspl, fitp_surf2, fitp_surf1
-    use constants, only: twopi
-    use geo_utils, only: a_minor
-    implicit none
-    class(eeq_base_type), intent(in out) :: self
-    integer, intent(in) :: nw_in, nh_in, nbbbs, big
-    real, dimension(:), intent(in) :: spsi_bar, sefit_R, sefit_Z, f, p, q
-    real, dimension(:), intent(in out) :: rbbbs, zbbbs
-    real, intent(in) :: bcentr, rleft, rwid, zoffset, zhei
-    real, dimension(:, :), intent(in) :: sefit_psi
-    real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, eq_R, eq_Z
-    real :: zxy11, zxym1, zxy1n, zxymn, psi_N, f_N
-    integer :: i, j, ierr
-    self%nw = nw_in * big ; self%nr = self%nw
-    self%nh = nh_in * big ; self%nt = self%nh
-    call self%alloc_arrays()
-    do i = 1, self%nw
-       self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
-    end do
-    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
-    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
-
-    allocate(eq_R(self%nw), eq_Z(self%nh))
-    do i = 1, self%nw
-       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
-    end do
-
-    do j = 1, self%nh
-       eq_Z(j) = zoffset + ((float(j-1) / float(self%nh-1) )) * zhei
-    end do
-
-    ! Setup 2D interpolation of psi(R, Z)
-    allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
-    allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
-    call fitp_surf1(nw_in, nh_in, sefit_R, sefit_Z, sefit_psi, &
-         nw_in, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
-         255, zp, temp, 1., ierr)
-
-    do j = 1, self%nh
-       do i = 1, self%nw
-          self%eqpsi_2d(i,j) = fitp_surf2(eq_R(i), eq_Z(j), nw_in, nh_in, &
-               sefit_R, sefit_Z, sefit_psi, nw_in, zp, 1.)
-       end do
-    end do
-    deallocate(zp, temp)
-
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
-    self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
-    call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-
-    ! Allow for duplicated points near +- pi:
-    if (self%thetab(1) == self%thetab(2)) then
-       self%thetab(1) = self%thetab(1) + twopi
-       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-    end if
-
-    if (self%thetab(nbbbs-1) == self%thetab(nbbbs)) then
-       self%thetab(nbbbs) = self%thetab(nbbbs) - twopi
-       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-    end if
-
-    ! It isn't likely that a duplicate point would exist near theta = 0,
-    ! so I am not allowing this possibility for now.
-    do i = 1, nbbbs-1
-       if (self%thetab(i+1) == self%thetab(i)) then
-          ! put in kluge for duplicate points, which happens near theta=0:
-          self%thetab(i+1) = self%thetab(i+1) +  1.e-8
-       end if
-    end do
-
-    call a_minor(rbbbs, zbbbs, self%Z_mag, self%aminor)
-
-    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
-    self%r_bound = self%r_bound / self%aminor
-    self%R_mag = self%R_mag / self%aminor
-    self%Z_mag = self%Z_mag / self%aminor
-    eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
-    do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i)
-       self%Z_psi(i, :) = eq_Z
-    end do
-
-    self%B_T = abs(bcentr)
-    psi_N = self%B_T * self%aminor**2
-    self%psi_a = self%psi_a / psi_N
-    self%psi_0 = self%psi_0 / psi_N
-    self%eqpsi_2d = self%eqpsi_2d / psi_N
-    f_N = self%B_T * self%aminor
-    self%fp = self%fp / f_N
-    ! MKS: beta = 2 mu_0 p / B**2
-    self%beta = 4. * twopi * self%pressure * 1.e-7 / self%B_T**2
-    self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / self%pressure(1)
-
-    do i = 1, self%nw
-       do j = 1, self%nh
-          if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
-             self%eqth(i, j) = 0.  ! value should not matter
-          else
-             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), (eq_R(i) - self%R_mag))
-          end if
-       end do
-    end do
-    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%has_full_theta_range = .true.
-    if (.true.) then
-       write (*,*) "Finished shared_setup... imported ",self%type_name," equilibrium"
-       write (*,*) 'Some important quantities:'
-       write (*,*) "aminor", self%aminor
-       write (*,*) 'R_mag', self%R_mag
-       write (*,*) 'B_T0', self%B_T
-       write (*,*) 'beta', self%beta_0
-    end if
-  end subroutine shared_setup
 
   !> FIXME : Add documentation
   pure subroutine dealloc_special_arrays(self)
