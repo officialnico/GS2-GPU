@@ -469,26 +469,10 @@ contains
     !     compute total grad S including toroidal part
     call gradstottgrid(rmajor, grads, gradstot)
 
-    !     compute the magnitude squared of grad S
-    call dottgridf(gradstot, gradstot, gdsdum1)
-
     gradrptot(-nth:nth, 1:2) = rpgrad(-nth:nth, :)
     call periodic_copy(gradrptot(:, 1), 0., nperiod)
     call periodic_copy(gradrptot(:, 2), 0., nperiod)
     gradrptot(:, 3) = 0.
-
-    call dottgridf(gradstot, gradrptot, gdsdum2)
-    call dottgridf(gradrptot, gradrptot, gdsdum3)
-    gds2  = gdsdum1            *dpsidrho**2
-    gds21 = gdsdum2*dqdrp      *dpsidrho**2
-    gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
-
-    ! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
-    ! is needed to simulate low-flow gk equation
-    ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
-    ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
-    ! for numerical equilibria
-    ! <MAB
 
     ! gradthtot is grad theta since ballooning, theta goes from
     ! -ntheta*nperiod -> ntheta*nperiod, but grad theta is periodic in theta
@@ -497,10 +481,21 @@ contains
     call periodic_copy(gradthtot(:, 2), 0., nperiod)
     gradthtot(:, 3) = 0.
 
-    ! calculate grad rho dot grad theta
-    call dottgridf(gradrptot, gradthtot, gdsdum4)
-    ! calculate grad alpha dot grad theta
-    call dottgridf(gradstot, gradthtot, gdsdum5)
+    !     compute the magnitude squared of grad S
+    call dottgridf(gradstot, gradstot, gdsdum1)
+    call dottgridf(gradstot, gradrptot, gdsdum2)
+    call dottgridf(gradrptot, gradrptot, gdsdum3)
+    gds2  = gdsdum1            *dpsidrho**2
+    gds21 = gdsdum2*dqdrp      *dpsidrho**2
+    gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
+
+    ! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
+    ! is needed to simulate low-flow gk equation.
+    ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
+    ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
+    ! for numerical equilibria
+    call dottgridf(gradrptot, gradthtot, gdsdum4) !grad rho dot grad theta
+    call dottgridf(gradstot, gradthtot, gdsdum5) !grad alpha dot grad theta
     gds23 = (gdsdum4 * gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
     gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
     gds24 = gds24_noq * dqdrp
