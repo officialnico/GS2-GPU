@@ -161,6 +161,11 @@ contains
     nw_in = nr ; nh_in = nz
     self%nw = nw_in * big ; self%nr = self%nw
     self%nh = nh_in * big ; self%nt = self%nh
+    if (size(ps) /= nw_in) then
+       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',nw_in,')'
+       write(6,*) 'gs2din: => should fix the GS2D output file and try again'
+       call mp_abort('gs2din: => should fix the GS2D output file and try again')
+    end if
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in))
     allocate(sefit_psi(nw_in, nh_in))
@@ -178,20 +183,12 @@ contains
     ! pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
     sefit_R = rgrid ; sefit_Z = zgrid
-    if (size(ps) /= nw_in) then
-       write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',nw_in,')'
-       write(6,*) 'gs2din: => should fix the GS2D output file and try again'
-       call mp_abort('gs2din: => should fix the GS2D output file and try again')
-    end if
     spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
     end do
 
-    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
-    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
     ! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
     sefit_psi = psi / twopi
 
@@ -207,6 +204,10 @@ contains
     do i = 1, self%nw
        eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
     end do
+
+    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
+    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
+    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
 
     allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
@@ -320,7 +321,7 @@ contains
     type(geo_input_type), intent(in) :: inputs
     real :: xdum, psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr, zmid
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy, eq_R, eq_Z
-    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
+    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, f, p, q
     real, dimension(:, :), allocatable :: sefit_psi
     real :: zxy11, zxym1, zxy1n, zxymn
     character(10) ::  char
@@ -335,7 +336,7 @@ contains
     call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
     allocate(sefit_psi(nw_in, nh_in))
-    allocate(eq_R(self%nw), eq_Z(self%nh))
+    allocate(eq_R(self%nw), eq_Z(self%nh), f(nw_in), p(nw_in), q(nw_in))
 
     read(funit, 2020) rwid, zhei, rcentr, rleft, zmid
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
@@ -352,22 +353,19 @@ contains
     end do
 
     do j = 1, nh_in
-       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5) * zhei
+       sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5) * zhei !Should we add zmid?
     end do
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
     end do
 
-    read(funit, 2020) (dummy(j),   j = 1, nw_in)
-    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%fp)
-    read(funit, 2020) (dummy(j), j = 1, nw_in)
-    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
+    read(funit, 2020) (f(j), j = 1, nw_in)
+    read(funit, 2020) (p(j), j = 1, nw_in)
     read(funit, 2020) (dummy(j),     j = 1, nw_in)
     read(funit, 2020) (dummy(j),     j = 1 ,nw_in)
     read(funit, 2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
-    read(funit, 2020) (dummy(j) ,   j = 1, nw_in)
-    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
+    read(funit, 2020) (q(j), j = 1, nw_in)
 
     read(funit, 2022) nbbbs, ndum
     allocate(rbbbs(nbbbs), zbbbs(nbbbs))
@@ -383,6 +381,10 @@ contains
     do i = 1, self%nw
        eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
     end do
+
+    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
+    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
+    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
 
     allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
