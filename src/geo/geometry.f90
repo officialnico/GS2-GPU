@@ -920,9 +920,7 @@ contains
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
          write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-         ! Is the following btori call always using something equivalent to pbar, i.e.
-         ! is theta(0) == 0. in all cases?
-         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbarfun(rgrid(0), 0.))
+         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbar)
 
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
