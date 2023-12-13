@@ -142,86 +142,8 @@ contains
        self%aminor = self%R_mag
     end if
 
-    ! Following very similar, but not quite identical (yet) to eeq:shared_setup
-    ! Note here we don't allow for rescaling the final grids with big
-    ! unlike in eeq. This makes many of the spline interpolation calls
-    ! in this routine effectively just copies
-    self%nw = nw_in ; self%nh = nh_in
-    self%nr = self%nw ; self%nt = self%nh
-    call self%alloc_arrays
-    do i = 1, self%nw
-       self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
-       eq_R(i) = rwid * float(i - 1) / float(self%nw - 1)
-    end do
-
-    do j = 1, self%nh
-       eq_Z(j) = ((float(j - 1) / float(self%nh - 1) ) - 0.5) * zhei
-    end do
-
-    self%eqpsi_2d = sdfit_psi !No interpolation unlike eeq
-    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
-    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
-
-    ! get r_boundary(theta)
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
-    self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
-    call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-
-    ! Allow for duplicated points near +- pi:
-    if (self%thetab(1) == self%thetab(2)) then
-       self%thetab(1) = self%thetab(1) + twopi
-       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-    end if
-
-    if (self%thetab(nbbbs-1) == self%thetab(nbbbs)) then
-       self%thetab(nbbbs) = self%thetab(nbbbs) - twopi
-       call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
-    end if
-
-    ! It isn't likely that a duplicate point would exist near theta = 0,
-    ! so I am not allowing this possibility for now.
-    do i = 1, nbbbs-1
-       if (self%thetab(i + 1) == self%thetab(i)) then
-          ! put in kluge for duplicate points, which happens near theta=0:
-          self%thetab(i+1) = self%thetab(i+1) +  1.e-8
-       end if
-    end do
-
-    self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
-    self%r_bound = self%r_bound / self%aminor
-    self%R_mag = self%R_mag / self%aminor
-    self%Z_mag = self%Z_mag / self%aminor
-    eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
-    do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i)
-       self%Z_psi(i, :) = eq_Z
-    end do
-
-    self%B_T = abs(bcentr)
-    psi_N = self%B_T * self%aminor**2
-    self%psi_a = self%psi_a / psi_N
-    self%psi_0 = self%psi_0 / psi_N
-    self%eqpsi_2d = self%eqpsi_2d / psi_N
-    f_N = self%B_T * self%aminor
-    self%fp = self%fp / f_N
-    ! MKS: beta = 2 mu_0 p / B**2
-    self%beta = 4. * twopi * self%pressure * 1.e-7 / self%B_T**2
-    self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / self%pressure(1)
-
-    do i = 1, self%nw
-       do j = 1, self%nh
-          if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
-             self%eqth(i, j) = 0.  ! value should not matter
-          else
-             self%eqth(i, j) = atan2( (eq_Z(j) - self%Z_mag), (eq_R(i) - self%R_mag))
-          end if
-       end do
-    end do
-    self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
-    self%has_full_theta_range = .true.
+    call self%shared_setup(nw_in, nh_in, spsi_bar, sdfit_R, sdfit_Z, f, p, q, sdfit_psi, &
+         nbbbs, rbbbs, zbbbs, bcentr, 0.0, rwid, -0.5*zhei, zhei, 1, .false.)
 2020 format (5e16.8)
   end subroutine read_and_set
 
