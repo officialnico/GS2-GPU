@@ -517,24 +517,18 @@ contains
     if (itor /= 0) then
        bmag = Bmod
     else
-       do i = -nth, nth
-          bmag(i)= 1 / (1 + rgrid(i) * cos(theta(i)) / rmaj)
-       end do
+       bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(theta(-nth:nth)) / rmaj)
        call periodic_copy(bmag, 0., nperiod)
     end if
-
     if (force_sym) call sym(bmag, 0, ntgrid)
 
     !     compute the gradparallel coefficient
     if (dfit_eq) then
        gradpar = trip / bmag
     else
-       do i = -nth, nth
-          gradpar(i) = -bi / (rmajor(i)**2 * bmag(i) * dsdthet(i))
-       end do
+       gradpar(-nth:nth) = -bi / (rmajor(-nth:nth)**2 * bmag(-nth:nth) * dsdthet(-nth:nth))
        call periodic_copy(gradpar, 0., nperiod)
     end if
-
     if (force_sym) call sym(gradpar, 0, ntgrid)
 
     ! MAB, CMR, 6/5/2009:
