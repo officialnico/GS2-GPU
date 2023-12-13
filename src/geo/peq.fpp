@@ -14,12 +14,17 @@ module peq
 
   public :: Hahm_Burrell, peq_type, teq_type
 
-  type, extends(abstract_eqfile_geo_type) :: peq_type
+  type, abstract, extends(abstract_eqfile_geo_type) :: peq_base_type
+   contains
+     procedure :: shared_setup
+  end type peq_base_type
+
+  type, extends(peq_base_type) :: peq_type
    contains
      procedure :: read_and_set => read_and_set_peq
   end type peq_type
 
-  type, extends(abstract_eqfile_geo_type) :: teq_type
+  type, extends(peq_base_type) :: teq_type
    contains
      procedure :: read_and_set => read_and_set_teq
   end type teq_type
@@ -33,8 +38,7 @@ contains
     implicit none
     class(peq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: R_geo, f_N, psi_N
-    integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2, tind_in, tind_out
+    integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2
     real, allocatable, dimension(:) :: work
     self%filename = trim(adjustl(inputs%eqfile))
 
@@ -139,43 +143,8 @@ contains
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
     deallocate(work)
 
-    !     assign scalars: psi_0, psi_a, B_T, R_mag, Z_mag, aminor
-    !
-    !     psi_0 == value of psi at the magnetic axis
-    !     psi_a == value of psi at the boundary of the plasma
-    !     B_T == vacuum toroidal magnetic field at R_center
-    !     R_mag == R position of magnetic axis
-    !     Z_mag == Z position of magnetic axis
-    !     aminor    == half diameter of last flux surface at elevation of Z_mag
-    tind_in = self%nt ; tind_out = 1
-    self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
-    self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
-    self%aminor = 0.5 * (self%R_psi(self%nr, tind_out) - self%R_psi(self%nr, tind_in))
-    R_geo = 0.5 * (self%R_psi(self%nr, tind_out) + self%R_psi(self%nr, tind_in))
-    self%B_T = self%fp(self%nr) / R_geo
-    self%B_psi = 0.0
-    self%R_psi = self%R_psi / self%aminor
-    self%Z_psi = self%Z_psi / self%aminor
-    self%R_mag = self%R_psi(1,1)
-    self%Z_mag = self%Z_psi(1,1)
-    self%beta = 4. * twopi * 1.e-7 * self%pressure / self%B_T**2 ! not correct definition yet
-    self%beta_0 = self%beta(1)
-    self%pressure = self%pressure / self%pressure(1)
-
-    psi_N = abs(self%B_T) * self%aminor**2
-    self%psi_a = self%psi_a / psi_N
-    self%psi_0 = self%psi_0 / psi_N
-    self%eqpsi = self%eqpsi / psi_N
-    f_N = abs(self%B_T) * self%aminor
-    self%fp = self%fp / f_N
-
-    self%diam = abs(self%R_psi(:, tind_out) - self%R_psi(:, tind_in))
-    self%rc = 0.5 * (self%R_psi(:, tind_out) + self%R_psi(:, tind_in))
-    do j = 1, self%nt
-       self%eqth(:, j) = (j - 1) * pi / float(self%nt - 1)
-       self%eqpsi_2d(:, j) = self%eqpsi
-    end do
     self%has_full_theta_range = .false.
+    call self%shared_setup(self%nt, 1)
 # else
     call mp_abort('error: peq eqin is called without netcdf',.true.)
 # endif
@@ -189,9 +158,8 @@ contains
     implicit none
     class(teq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    integer :: istatus, ncid, id, j, tind_in, tind_out
+    integer :: istatus, ncid, id
     real, allocatable, dimension(:,:) :: work
-    real :: f_N, psi_N, R_geo
     self%filename = trim(adjustl(inputs%eqfile))
 
 # ifdef NETCDF
@@ -266,28 +234,35 @@ contains
 
     istatus = nf90_close (ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus)
-
     deallocate(work)
 
     self%eqpsi = abs(self%eqpsi) ; self%fp = abs(self%fp) ; self%qsf = abs(self%qsf)
-    tind_in = self%nt ; tind_out = self%nt / 2
+    self%has_full_theta_range = .true.
+    call self%shared_setup(self%nt, self%nt/2)
+# else
+    call mp_abort('error: peq teqin is called without netcdf',.true.)
+# endif
+  end subroutine read_and_set_teq
+
+  subroutine shared_setup(self, tind_in, tind_out)
+    use constants, only: twopi, pi
+    class(peq_base_type), intent(in out) :: self
+    integer, intent(in) :: tind_in, tind_out !< Theta index of inboard and outboard
+    real :: R_geo, psi_N, f_n
+    integer :: j
     self%psi_0 = self%eqpsi(1) ; self%psi_a = self%eqpsi(self%nr)
     self%psi_bar = (self%eqpsi - self%psi_0) / (self%psi_a - self%psi_0)
     self%aminor = 0.5 * abs(self%R_psi(self%nr, tind_out) - self%R_psi(self%nr, tind_in))
     R_geo = 0.5 * (self%R_psi(self%nr, tind_out) + self%R_psi(self%nr, tind_in))
-    self%B_T = self%fp(self%nr) / R_geo
-    self%B_psi = 0.0
-    self%R_psi = self%R_psi / self%aminor
-    self%Z_psi = self%Z_psi / self%aminor
-    self%R_mag = self%R_psi(1, 1)
-    self%Z_mag = self%Z_psi(1, 1)
+    self%B_T = self%fp(self%nr) / R_geo ; self%B_psi = 0.0
+    self%R_psi = self%R_psi / self%aminor ; self%Z_psi = self%Z_psi / self%aminor
+    self%R_mag = self%R_psi(1, 1) ; self%Z_mag = self%Z_psi(1, 1)
     self%beta = 4. * twopi * 1.e-7 * self%pressure / self%B_T**2 ! not correct definition yet?
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
     psi_N = abs(self%B_T) * self%aminor**2
-    self%psi_a = self%psi_a / psi_N
-    self%psi_0 = self%psi_0 / psi_N
+    self%psi_a = self%psi_a / psi_N ; self%psi_0 = self%psi_0 / psi_N
     self%eqpsi = self%eqpsi / psi_N
     f_N = abs(self%B_T) * self%aminor
     self%fp = self%fp / f_N
@@ -295,14 +270,11 @@ contains
     self%diam = abs(self%R_psi(:, tind_out) - self%R_psi(:, tind_in))
     self%rc = 0.5 * (self%R_psi(:, tind_out) + self%R_psi(:, tind_in))
     do j = 1, self%nt
-       self%eqth(:, j) = (j - 1) * twopi / float(self%nt - 1) - pi
+       self%eqth(:, j) = (j - 1) * pi / float(self%nt - 1)
        self%eqpsi_2d(:, j) = self%eqpsi
     end do
-    self%has_full_theta_range = .true.
-# else
-    call mp_abort('error: peq teqin is called without netcdf',.true.)
-# endif
-  end subroutine read_and_set_teq
+    if (self%has_full_theta_range) self%eqth = 2 * self%eqth - pi
+  end subroutine shared_setup
 
   !> FIXME : Add documentation
   subroutine Hahm_Burrell(geom, irho, a)
