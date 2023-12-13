@@ -210,9 +210,8 @@ contains
 
     read(funit, 2020) rwid, zhei, rcentr, rleft, zmid
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
-    do i = 1, 2
-       read(funit, 2020) xdum,xdum,xdum,xdum,xdum
-    end do
+    read(funit, 2020) xdum,xdum,xdum,xdum,xdum
+    read(funit, 2020) xdum,xdum,xdum,xdum,xdum
 
     read(funit, 2020) (f(j), j = 1, nw_in)
     read(funit, 2020) (p(j), j = 1, nw_in)
@@ -293,7 +292,6 @@ contains
     allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
-
     call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
 
     ! Allow for duplicated points near +- pi:
