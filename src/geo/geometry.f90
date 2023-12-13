@@ -430,9 +430,6 @@ contains
        end if
     end if
 
-    ! Make sure full Bmod array set
-    call periodic_copy(Bmod, 0., nperiod)
-
     ! ******************
     ! Debug:
     ! Set itor=1 and the first two columns should be the
@@ -831,17 +828,12 @@ contains
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
-         call th_bishop(crpgrad, th_bish, nth)
-         call periodic_copy(th_bish, 0., nperiod)
          call B_pol(invR, crpgrad, Bpolmag, nth)
          if (iflux == 0) Bpolmag = Bpolmag * dpsidrp
          call periodic_copy(Bpolmag, 0., nperiod)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
-         call loftheta(rgrid, theta, ltheta)
-         call periodic_copy(ltheta, ltheta(nth) - ltheta(-nth), nperiod)
-         call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
-         call periodic_copy(invRpol, 0., nperiod)
-      end if
+         call periodic_copy(Bmod, 0., nperiod)
+      end if !Note bmod not set for bishop == 0
     end subroutine initialise_geometry_and_get_bmod
 
     subroutine bishop_grads
@@ -850,6 +842,14 @@ contains
       real :: a_b, b_b, c_b, dp, di, s_hat, pressure, tmp
       real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
            zoftheta, dzdl, dsdl
+
+      call th_bishop(crpgrad, th_bish, nth)
+      call periodic_copy(th_bish, 0., nperiod)
+      call loftheta(rgrid, theta, ltheta)
+      call periodic_copy(ltheta, ltheta(nth) - ltheta(-nth), nperiod)
+      call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
+      call periodic_copy(invRpol, 0., nperiod)
+
       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
            da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
            zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
