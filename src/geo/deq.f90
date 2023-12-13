@@ -69,7 +69,7 @@ contains
     call self%alloc_arrays
     allocate (self%rho_mid(nrho), self%psi_mid(nrho))
     allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in))
-    allocate(eq_R(nw_in), eq_Z(nh_in), f(nw_in), p(nw_in), q(nw_in)))
+    allocate(eq_R(nw_in), eq_Z(nh_in), f(nw_in), p(nw_in), q(nw_in))
     read(funit, 2020) rwid, zhei
     read(funit, 2020) self%R_mag, self%Z_mag
     read(funit, 2020) self%psi_0, self%psi_a, bcentr
