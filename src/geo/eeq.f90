@@ -174,7 +174,7 @@ contains
     ! functions of pbar
     spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
     call self%shared_setup(nw_in, nh_in, spsi_bar, rgrid, zgrid, f, p, q, sefit_psi, &
-         size(rsep), rsep, zsep, bcentr, rleft, rwid, minval(zgrid), zhei, big)
+         size(rsep), rsep, zsep, bcentr, rleft, rwid, minval(zgrid), zhei, big, .true.)
   end subroutine gs2d_read_and_set
 
   !> This subroutine reads an EFIT output file containing
@@ -237,7 +237,7 @@ contains
     end do
 
     call self%shared_setup(nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, sefit_psi, &
-         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, big) !Should -0.5*zhei be zmid
+         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, big, .true.) !Should -0.5*zhei be zmid
 2020 format (5e16.9)
   end subroutine efit_read_and_set
 

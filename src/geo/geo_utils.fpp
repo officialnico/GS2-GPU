@@ -850,7 +850,7 @@ contains
   end function diameter_eqfile_cart
 
   subroutine shared_setup_cart(self, nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, &
-       sefit_psi, nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, zoffset, zhei, big)
+       sefit_psi, nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, zoffset, zhei, big, calc_aminor)
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: twopi
     implicit none
@@ -860,6 +860,7 @@ contains
     real, dimension(:), intent(in out) :: rbbbs, zbbbs
     real, intent(in) :: bcentr, rleft, rwid, zoffset, zhei
     real, dimension(:, :), intent(in) :: sefit_psi
+    logical, intent(in) :: calc_aminor
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, eq_R, eq_Z
     real :: zxy11, zxym1, zxy1n, zxymn, psi_N, f_N
     integer :: i, j, ierr
@@ -922,7 +923,7 @@ contains
        end if
     end do
 
-    call a_minor(rbbbs, zbbbs, self%Z_mag, self%aminor)
+    if (calc_aminor) call a_minor(rbbbs, zbbbs, self%Z_mag, self%aminor)
 
     self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
     self%r_bound = self%r_bound / self%aminor
