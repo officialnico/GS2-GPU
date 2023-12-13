@@ -627,7 +627,6 @@ contains
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
     outputs%rhoc = rhoc
-    call dealloc_local_arrays
 
   contains
     !> Allocate the geom instance to the correct type
@@ -1124,53 +1123,6 @@ contains
          gds24_noq  (-n:n), &  ! MAB
          jacob      (-n:n))
     end subroutine alloc_local_arrays
-
-    !> FIXME : Add documentation
-    subroutine dealloc_local_arrays
-      implicit none
-
-      deallocate(seik, &
-           dsdthet   , &
-           gdsdum1   , &
-           gdsdum2   , &
-           gdsdum3   , &
-           gdsdum4   , &  ! MAB
-           gdsdum5   , &  ! MAB
-           th_bish   , &
-           invRpol   , &
-           invR      , &
-           trip      , &
-           ltheta    , &
-           rgrid     , &
-           dummy     , &
-           Bpolmag   , &
-           Bmod      , &
-           rmajor    , &
-           ds)
-
-      deallocate(thgrad, &
-           rpgrad    , &
-           crpgrad   , &
-           grads     )
-
-      deallocate(bvector, &
-           gradrptot , &
-           gradstot  , &
-           gradztot  , &
-           gradthtot )  ! MAB
-
-    if (allocated(grho)) deallocate(grho, &
-         theta      , &
-         bmag       , &
-         gradpar    , &
-         gds2       , &
-         gds21      , &
-         gds22      , &
-         gds23      , &  ! MAB
-         gds24      , &  ! MAB
-         gds24_noq  , &  ! MAB
-         jacob)
-    end subroutine dealloc_local_arrays
   end subroutine eikcoefs
 
   !> FIXME : Add documentation
