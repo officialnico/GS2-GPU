@@ -7,7 +7,7 @@ module geo_utils
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
   public :: geo_input_type, flux_surface_type, mod2pi, sort, find_lower_bound
-  public :: bilinear_interpolate
+  public :: bilinear_interpolate, a_minor
 
   integer, parameter :: EQFILE_LENGTH = 800
 
@@ -848,6 +848,114 @@ contains
     real, intent (in) :: rp
     diameter = self%rfun(rp, 0.) + self%rfun(rp, pi)
   end function diameter_eqfile_cart
+
+  !> FIXME : Add documentation | Designed for eeq/gs2deq only
+  subroutine a_minor(r, z, Z_mag, a)
+    use mp, only: mp_abort
+    use splines, only: new_spline, splint, delete_spline, spline
+    implicit none
+    real, dimension(:), intent (in) :: r, z
+    real, intent(in) :: Z_mag
+    real, intent(out) :: a
+    real :: r1, r2
+    integer, parameter :: nz = 5, half_nz = int(nz/2.0), invalidPoint = -nz
+    real, dimension(nz) :: rtmp, ztmp
+    integer :: i, j, i1, n, k, index
+    type (spline) :: spl
+    !CMR, 28/10/08: add code to avoid duplicate points in 5 point spline
+    !               to determine r2 on inboard mid-plane
+    logical, parameter :: debug=.false.
+    k = 0 ; n = size(r)
+    if (debug) write(6,*) "aminor:"
+    if (debug) write(6,fmt='("r=",10f8.4)') r
+    if (debug) write(6,fmt='("z=",10f8.4)') z
+
+    if (n < nz) then
+       write(*,*) 'nbbbs < nz -- very strange.  Stopping.'
+       write(*,*) 'Look in eeq.f90.'
+    end if
+
+    j = 0
+    do i = half_nz + 1, 1, -1
+       j = j + 1
+       ztmp(j) = z(i)
+       rtmp(j) = r(i)
+    end do
+
+    if (r(1) == r(n) .and. z(1) == z(n)) then
+       do i = n-1, n-half_nz, -1
+          j = j + 1
+          ztmp(j) = z(i)
+          rtmp(j) = r(i)
+       end do
+    else
+       do i = n, n-half_nz+1, -1
+          j = j + 1
+          ztmp(j) = z(i)
+          rtmp(j) = r(i)
+       end do
+    end if
+
+    if (debug) write(6,fmt='("rtmp=",5f8.4)') rtmp
+    if (debug) write(6,fmt='("ztmp=",5f8.4)') ztmp
+    if (debug) write(6,fmt='("Z_mag=",f8.4)') Z_mag
+
+    call new_spline(nz, ztmp, rtmp, spl)
+    r1 = splint(Z_mag, spl)
+    call delete_spline(spl)
+
+    ! find point near magnetic axis elevation on low field side
+
+    ! Initialise i1 to some invalid value so we can check if an appropriate
+    ! point is not found.
+    i1 = invalidPoint
+
+    ! Note there appears to be an assumption here about the order
+    ! of z which may not be true
+    do i = nz, n
+       if (z(i) - Z_mag > 0.) then
+          i1 = i - 1
+          exit
+       end if
+    end do
+
+    if (i1 == invalidPoint) then
+       write(*, '("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")')
+       call mp_abort("Could not find point near magnetic axis elevation on low field side in aminor of eeq.f90")
+    end if
+
+    !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
+    !               to determine r2 on inboard mid-plane
+    do i = 1, nz
+       index = i1 - half_nz + i - 1 + k
+       rtmp(i) = r(index) ; ztmp(i) = z(index)
+       if ( i > 1 ) then
+          ! If we find a duplicate point then we increase the
+          ! duplicate point counter in k, used to offset index and
+          ! store the next value instead Note, here we assume we can't
+          ! get three duplicate values. A better approach may be to
+          ! instead use a while loop where we keep going until we've
+          ! found enough points.
+          if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
+             k = k + 1
+             if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
+             rtmp(i) = r(index + 1) ; ztmp(i) = z(index + 1)
+          end if
+       end if
+    end do
+
+    if (debug) write(6,fmt='("a_minor: rtmp=",5f8.4)') rtmp
+    if (debug) write(6,fmt='("a_minor: ztmp=",5f8.4)') ztmp
+    if (debug) write(6,fmt='("a_minor: Z_mag=",f8.4)') Z_mag
+
+    call new_spline(nz, ztmp, rtmp, spl)
+    r2 = splint(Z_mag, spl)
+    call delete_spline(spl)
+
+    a = (r2 - r1) / 2.
+    if (debug) write(6,*) "a_minor: r1,r2=",r1,r2
+    if (debug) write(6,*) "a_minor: a=",a
+  end subroutine a_minor
 
   !> Put `theta` into the range \([-\pi, \pi]\)
   elemental real function mod2pi (theta)
