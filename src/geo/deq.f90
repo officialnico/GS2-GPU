@@ -35,13 +35,13 @@ contains
   !> zhei       total height of domain
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use constants, only: pi, twopi
+    use constants, only: twopi
     use splines, only: inter_cspl
     use geo_utils, only: sort
     implicit none
     class(deq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, dummy, eq_R, eq_Z
+    real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, eq_R, eq_Z, f, p, q
     real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
@@ -68,11 +68,23 @@ contains
     self%nr = self%nw ; self%nt = self%nh
     call self%alloc_arrays
     allocate (self%rho_mid(nrho), self%psi_mid(nrho))
-    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), dummy(nw_in))
-    allocate(eq_R(nw_in), eq_Z(nh_in))
+    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in))
+    allocate(eq_R(nw_in), eq_Z(nh_in), f(nw_in), p(nw_in), q(nw_in)))
     read(funit, 2020) rwid, zhei
     read(funit, 2020) self%R_mag, self%Z_mag
     read(funit, 2020) self%psi_0, self%psi_a, bcentr
+    ! Overwrite inputs with normalisations if provided
+    if (bref /= 0.) then
+       bcentr = bref
+       write(6,*) 'B_T0 = ', bref
+    end if
+
+    if (lref /= 0.) then
+       self%aminor = lref
+       write(6,*) 'aminor = ', self%aminor, lref
+    else
+       self%aminor = self%R_mag
+    end if
 
     ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
@@ -94,8 +106,8 @@ contains
        eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
-    read(funit, 2020) (dummy(j), j = 1, nw_in)  ! pressure read
-    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%pressure)
+    f = 0 ; q = 0
+    read(funit, 2020) (p(j), j = 1, nw_in)  ! pressure read
     ! Note we read directly into the eqpsi_2d array here so self%nw == nw_in etc.
     ! has to be true for this to work. See efit_in for a more general approach.
     read(funit, 2020) ((self%eqpsi_2d(i,j) , i = 1, nw_in) , j = 1, nh_in)
@@ -147,6 +159,11 @@ contains
        end if
     end do
 
+    ! Following very similar, but not quite identical (yet) to eeq:shared_setup
+    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
+    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
+    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
+
     ! get r_boundary(theta)
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
@@ -167,41 +184,23 @@ contains
     ! It isn't likely that a duplicate point would exist near theta = 0,
     ! so I am not allowing this possibility for now.
     do i = 1, nbbbs-1
-       if (self%thetab(i) == self%thetab(i+1)) then
-          write(*,*) 'Duplicates near theta = 0 not allowed.'
-          write(*,*) i, i+1, ' Stopping.'
-          call mp_abort('Duplicates near theta = 0 not allowed.')
+       if (self%thetab(i + 1) == self%thetab(i)) then
+          ! put in kluge for duplicate points, which happens near theta=0:
+          self%thetab(i+1) = self%thetab(i+1) +  1.e-8
        end if
     end do
-    deallocate (rbbbs, zbbbs)
 
     self%B_psi = 0.0 ; self%diam = 0.0 ; self%rc = 0.0
-    self%fp = 0. ; self%qsf = 0.
-
-    if (lref /= 0.) then
-       self%aminor = lref
-       write(6,*) 'aminor = ', self%aminor, lref
-    else
-       self%aminor = self%R_mag
-    end if
-
     self%r_bound = self%r_bound / self%aminor
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
-    eq_R = eq_R / self%aminor
-    eq_Z = eq_Z / self%aminor
-
+    eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
     do i = 1, self%nw
        self%R_psi(i, :) = eq_R(i)
        self%Z_psi(i, :) = eq_Z
     end do
 
-    if (bref /= 0.) then
-       self%B_T = bref
-       write(6,*) 'B_T0 = ', self%B_T, bref
-    else
-       self%B_T = abs(bcentr)
-    end if
+    self%B_T = abs(bcentr)
     psi_N = self%B_T * self%aminor**2
     self%psi_a = self%psi_a / psi_N
     self%psi_0 = self%psi_0 / psi_N
@@ -209,7 +208,7 @@ contains
     f_N = self%B_T * self%aminor
     self%fp = self%fp / f_N
     ! MKS: beta = 2 mu_0 p / B**2
-    self%beta = 8. * pi * self%pressure * 1.e-7 / self%B_T**2
+    self%beta = 4. * twopi * self%pressure * 1.e-7 / self%B_T**2
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
