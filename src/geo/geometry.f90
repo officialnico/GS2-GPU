@@ -828,7 +828,7 @@ contains
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
-         call B_pol(invR, crpgrad, Bpolmag, nth)
+         call B_pol(invR, crpgrad, Bpolmag, nth) !<Should this use rpgrad for local?
          if (iflux == 0) Bpolmag = Bpolmag * dpsidrp
          call periodic_copy(Bpolmag, 0., nperiod)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
