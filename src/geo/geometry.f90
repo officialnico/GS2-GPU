@@ -461,17 +461,11 @@ contains
     !     compute derivatives of eikonal
     if (bishop /= 0) then
        allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
-       da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
-            trip(-ntgrid:ntgrid))
+       da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid))
 
        da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
        db_bish = bi / (Bpolmag * rmajor)**2
        dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
-
-       call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
-       call periodic_copy(trip, 0., nperiod)
-
-       if (iflux == 0) trip = trip * dpsidrp
 
        if (debug) write(6,*) "eikcoefs:  gradients"
        if (debug) write(6,*) 'drhodpsi', drhodpsi
@@ -996,11 +990,14 @@ contains
       if (debug) write(6,*) "eikcoefs: call thetagrad"
       call thetagrad(rgrid, theta, thgrad)
       if (debug) write(6,*) "eikcoefs: done thetagrad"
+      call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
+      call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
       if (iflux == 0) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
-      call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
+      call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
+      if (iflux == 0) trip = trip * dpsidrp
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
@@ -1104,6 +1101,7 @@ contains
            th_bish    (-n:n), &
            invRpol    (-n:n), &
            invR       (-n:n), &
+           trip       (-n:n), &
            ltheta     (-n:n), &
            rgrid      (-n:n), &
            dummy      (-n:n), &
@@ -1153,6 +1151,7 @@ contains
            th_bish   , &
            invRpol   , &
            invR      , &
+           trip      , &
            ltheta    , &
            rgrid     , &
            dummy     , &
@@ -1520,6 +1519,7 @@ contains
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
+    real, dimension(-ntgrid:ntgrid) :: trip
     character(1), parameter :: char = 'P'
     rgrid = rp
     ! Note we only call this routine when bishop == 0
@@ -1528,25 +1528,21 @@ contains
     else
        call geom%bgradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
     end if
-
     call thetagrad(rgrid, theta, thgrad)
-    call eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
+    call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
+    call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
   !> FIXME : Add documentation
-  pure subroutine eikonal(theta, invR, rpgrad, thgrad, qval, bi, seik, dsdthet, dpsidrp)
+  pure subroutine eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
     use constants, only: twopi
     implicit none
-    real, dimension(-ntgrid:), intent(in) :: theta, invR
+    real, dimension(-ntgrid:), intent(in) :: theta, invR, trip
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet
-    real, dimension(-ntgrid:,:), intent(in) ::  rpgrad, thgrad
     real, intent(in out) :: qval
     real, intent(in) :: bi
     real, intent(out) :: dpsidrp
-    real, dimension(-ntgrid:ntgrid) :: trip
     integer :: i
-
-    call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
 
     do i = -nth, nth
        dsdthet(i) = -bi * invR(i)**2 / trip(i)
