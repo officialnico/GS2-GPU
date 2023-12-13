@@ -42,6 +42,7 @@ contains
     class(deq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, eq_R, eq_Z, f, p, q
+    real, dimension(:, :), allocatable :: sdfit_psi
     real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
@@ -61,18 +62,73 @@ contains
 
     ! Read the data
     read(funit, *) nw_in, nh_in, nrho
-    ! Note here we don't allow for rescaling the final grids with big
-    ! unlike in eeq. This makes many of the spline interpolation calls
-    ! in this routine effectively just copies
-    self%nw = nw_in ; self%nh = nh_in
-    self%nr = self%nw ; self%nt = self%nh
-    call self%alloc_arrays
     allocate (self%rho_mid(nrho), self%psi_mid(nrho))
-    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in))
-    allocate(eq_R(nw_in), eq_Z(nh_in), f(nw_in), p(nw_in), q(nw_in))
+    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), sdfit_psi(nw_in, nh_in))
+    allocate(eq_R(self%nw), eq_Z(self%nh), f(nw_in), p(nw_in), q(nw_in))
     read(funit, 2020) rwid, zhei
     read(funit, 2020) self%R_mag, self%Z_mag
     read(funit, 2020) self%psi_0, self%psi_a, bcentr
+    f = 0 ; q = 0
+    read(funit, 2020) (p(j), j = 1, nw_in)  ! pressure read
+    read(funit, 2020) ((sdfit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
+
+    ! Only needed for irho = 4
+    read (funit, 2020) (self%rho_mid(i), i = 1, nrho)
+    read (funit, 2020) (self%psi_mid(i), i = 1, nrho)
+    close(funit)
+
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! fp and q are functions of pbar
+    do i = 1, nw_in
+       spsi_bar(i) = float(i) / float(nw_in) !Note this isn't 0 at i = 1
+       sdfit_R(i) = rwid * float(i) / float(nw_in)
+    end do
+
+    do j = 1, nh_in
+       sdfit_Z(j) = (float(j-1) / float(nh_in-1) - 0.5) * zhei
+    end do
+
+    ! stay away from edge of box
+    delta_R = 1.02 ; delta_Z = 1.02
+
+    nbbbs = 2 * (nw_in + nh_in) - 5
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    jmin = 1 ; jmax = nh_in / 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(j + nh_in / 2) / delta_Z
+    end do
+
+    jmin = jmax + 1 ; jmax = jmax + nw_in - 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(j - jmin + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(nh_in) / delta_Z
+    end do
+
+    jmin = jmax + 1 ; jmax = jmax + nh_in - 1
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(nw_in) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(jmax - j + 2) / delta_Z
+    end do
+
+    jmin = jmax + 1 ; jmax = jmax + nw_in - 1
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(jmax - j + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(1) / delta_Z
+    end do
+
+    jmin = jmax + 1 ; jmax = jmax + nh_in / 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(j - jmin + 2) / delta_Z
+    end do
+
+    do j = 1, nbbbs-1
+       if ((rbbbs(j) == rbbbs(j+1)) .and. (zbbbs(j) == zbbbs(j+1))) then
+          write(*,*) 'duplicates: ',rbbbs(j),zbbbs(j)
+       end if
+    end do
+
     ! Overwrite inputs with normalisations if provided
     if (bref /= 0.) then
        bcentr = bref
@@ -86,17 +142,13 @@ contains
        self%aminor = self%R_mag
     end if
 
-    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
-    ! fp and q are functions of pbar
-    do i = 1, nw_in
-       spsi_bar(i) = float(i) / float(nw_in) !Note this isn't 0 at i = 1
-       sdfit_R(i) = rwid * float(i) / float(nw_in)
-    end do
-
-    do j = 1, nh_in
-       sdfit_Z(j) = (float(j-1) / float(nh_in-1) - 0.5) * zhei
-    end do
-
+    ! Following very similar, but not quite identical (yet) to eeq:shared_setup
+    ! Note here we don't allow for rescaling the final grids with big
+    ! unlike in eeq. This makes many of the spline interpolation calls
+    ! in this routine effectively just copies
+    self%nw = nw_in ; self%nh = nh_in
+    self%nr = self%nw ; self%nt = self%nh
+    call self%alloc_arrays
     do i = 1, self%nw
        self%psi_bar(i) = float(i) / float(self%nw)
        eq_R(i) = rwid * float(i) / float(self%nw)
@@ -106,68 +158,15 @@ contains
        eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5)*zhei
     end do
 
-    f = 0 ; q = 0
-    read(funit, 2020) (p(j), j = 1, nw_in)  ! pressure read
-    ! Note we read directly into the eqpsi_2d array here so self%nw == nw_in etc.
-    ! has to be true for this to work. See efit_in for a more general approach.
-    read(funit, 2020) ((self%eqpsi_2d(i,j) , i = 1, nw_in) , j = 1, nh_in)
-
-    ! Only needed for irho = 4
-    read (funit, 2020) (self%rho_mid(i), i = 1, nrho)
-    read (funit, 2020) (self%psi_mid(i), i = 1, nrho)
-    close(funit)
-
-    ! stay away from edge of box
-    delta_R = 1.02 ; delta_Z = 1.02
-
-    nbbbs = 2 * (self%nw + self%nh) - 5
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    jmin = 1 ; jmax = self%nh / 2
-    do j = jmin, jmax
-       rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
-       zbbbs(j) = eq_Z(j + self%nh / 2) / delta_Z
-    end do
-
-    jmin = jmax + 1 ; jmax = jmax + self%nw - 2
-    do j = jmin, jmax
-       rbbbs(j) = (eq_R(j - jmin + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
-       zbbbs(j) = eq_Z(self%nh) / delta_Z
-    end do
-
-    jmin = jmax + 1 ; jmax = jmax + self%nh - 1
-    do j = jmin, jmax
-       rbbbs(j) = (eq_R(self%nw) - 0.5 * rwid) / delta_R + 0.5 * rwid
-       zbbbs(j) = eq_Z(jmax - j + 2) / delta_Z
-    end do
-
-    jmin = jmax + 1 ; jmax = jmax + self%nw - 1
-    do j = jmin, jmax
-       rbbbs(j) = (eq_R(jmax - j + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
-       zbbbs(j) = eq_Z(1) / delta_Z
-    end do
-
-    jmin = jmax + 1 ; jmax = jmax + self%nh / 2
-    do j = jmin, jmax
-       rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
-       zbbbs(j) = eq_Z(j - jmin + 2) / delta_Z
-    end do
-
-    do j = 1, nbbbs-1
-       if ((rbbbs(j) == rbbbs(j+1)) .and. (zbbbs(j) == zbbbs(j+1))) then
-          write(*,*) 'duplicates: ',rbbbs(j),zbbbs(j)
-       end if
-    end do
-
-    ! Following very similar, but not quite identical (yet) to eeq:shared_setup
+    self%eqpsi_2d = sdfit_psi !No interpolation unlike eeq
     call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
     call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
     call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
 
     ! get r_boundary(theta)
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
-
     call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
 
     ! Allow for duplicated points near +- pi:
