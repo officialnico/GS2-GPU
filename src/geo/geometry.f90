@@ -349,7 +349,7 @@ contains
     integer :: job_id
     ! Local variables:
     real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, jacob, bmod
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, arcl, dummym th_bish, invRpol
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, dummy, th_bish, invRpol
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
@@ -566,8 +566,8 @@ contains
     ! theta in the gs2 output file are not values of the poloidal
     ! angle but values of theta_prime EGH
     if (equal_arc) then
-       call arclength (ntheta, nperiod, theta, gradpar, arcl)
-       theta = arcl
+       call arclength (ntheta, nperiod, theta, gradpar, dummy)
+       theta = dummy
     end if
 
     ! compute grad rho*Jacobian of the transformation to the new coordinates:
@@ -1111,8 +1111,7 @@ contains
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
            rmajor     (-n:n), &
-           ds         (-n:n), &
-           arcl       (-n:n))
+           ds         (-n:n))
 
       allocate(thgrad (-n:n,2), &
            rpgrad     (-n:n,2), &
@@ -1158,8 +1157,7 @@ contains
            Bpolmag   , &
            Bmod      , &
            rmajor    , &
-           ds        , &
-           arcl)
+           ds)
 
       deallocate(thgrad, &
            rpgrad    , &
