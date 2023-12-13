@@ -110,36 +110,31 @@ contains
     nbbbs = 2 * (self%nw + self%nh) - 5
     allocate(rbbbs(nbbbs), zbbbs(nbbbs))
     allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    jmin = 1
-    jmax = self%nh / 2
+    jmin = 1 ; jmax = self%nh / 2
     do j = jmin, jmax
        rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(j + self%nh / 2) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + self%nw - 2
+    jmin = jmax + 1 ; jmax = jmax + self%nw - 2
     do j = jmin, jmax
        rbbbs(j) = (eq_R(j - jmin + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(self%nh) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + self%nh - 1
+    jmin = jmax + 1 ; jmax = jmax + self%nh - 1
     do j = jmin, jmax
        rbbbs(j) = (eq_R(self%nw) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(jmax - j + 2) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + self%nw - 1
+    jmin = jmax + 1 ; jmax = jmax + self%nw - 1
     do j = jmin, jmax
        rbbbs(j) = (eq_R(jmax - j + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(1) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + self%nh / 2
+    jmin = jmax + 1 ; jmax = jmax + self%nh / 2
     do j = jmin, jmax
        rbbbs(j) = (eq_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
        zbbbs(j) = eq_Z(j - jmin + 2) / delta_Z
@@ -226,7 +221,6 @@ contains
           end if
        end do
     end do
-
     self%eqpsi = self%psi_bar * (self%psi_a - self%psi_0) + self%psi_0
     self%has_full_theta_range = .true.
 2020 format (5e16.8)
@@ -273,5 +267,4 @@ contains
     real, intent(in) :: pbar
     rhofun = splint(pbar, self%rho_spl)
   end function rhofun
-
 end module deq

@@ -187,18 +187,26 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
-       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
-    end do
-
-    ! nb Zgrid is not necessarily UpDown symmetric
-    do j = 1, self%nh
-       eq_Z(j) = ((float(j-1) / float(self%nh-1) )) * zhei + minval(zgrid)
     end do
 
     call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
     call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
+    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
     ! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
     sefit_psi = psi / twopi
+
+    nbbbs = size(rsep)
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
+    rbbbs = rsep ; zbbbs = zsep
+    !Not quite identical to efit unless minval(sefit_Z)==0
+    do j = 1, self%nh ! nb Zgrid is not necessarily UpDown symmetric about zero
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) )) * zhei + minval(sefit_Z)
+    end do
+
+    ! Identical to efit_read_and_set (except prints) from here
+    do i = 1, self%nw
+       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
+    end do
 
     allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
@@ -216,14 +224,6 @@ contains
     end do
 
     deallocate(zp, temp)
-
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
-
-    nbbbs = size(rsep)
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    rbbbs = rsep ; zbbbs = zsep
-
     ! get r_boundary(theta)
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
@@ -246,7 +246,7 @@ contains
     do i = 1, nbbbs-1
        if (self%thetab(i+1) == self%thetab(i)) then
           ! put in kluge for duplicate points, which happens near theta=0:
-          self%thetab(i+1) = self%thetab(i+1)+1.e-8
+          self%thetab(i+1) = self%thetab(i+1) + 1.e-8
        end if
     end do
 
@@ -318,7 +318,7 @@ contains
     implicit none
     class(eeq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: xdum, psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr
+    real :: xdum, psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr, zmid
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, dummy, eq_R, eq_Z
     real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs
     real, dimension(:, :), allocatable :: sefit_psi
@@ -337,7 +337,7 @@ contains
     allocate(sefit_psi(nw_in, nh_in))
     allocate(eq_R(self%nw), eq_Z(self%nh))
 
-    read(funit, 2020) rwid, zhei, rcentr, rleft, xdum
+    read(funit, 2020) rwid, zhei, rcentr, rleft, zmid
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
 
     ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
@@ -348,7 +348,7 @@ contains
 
     do i = 1, nw_in
        spsi_bar(i) = float(i-1) / float(nw_in-1)
-       sefit_R(i) = rleft +rwid * float(i-1) / float(nw_in-1)
+       sefit_R(i) = rleft + rwid * float(i-1) / float(nw_in-1)
     end do
 
     do j = 1, nh_in
@@ -357,11 +357,6 @@ contains
 
     do i = 1, self%nw
        self%psi_bar(i) = float(i-1) / float(self%nw-1)
-       eq_R(i) = rleft +rwid * float(i-1) / float(self%nw-1)
-    end do
-
-    do j = 1, self%nh
-       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5) * zhei
     end do
 
     read(funit, 2020) (dummy(j),   j = 1, nw_in)
@@ -371,10 +366,28 @@ contains
     read(funit, 2020) (dummy(j),     j = 1, nw_in)
     read(funit, 2020) (dummy(j),     j = 1 ,nw_in)
     read(funit, 2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
+    read(funit, 2020) (dummy(j) ,   j = 1, nw_in)
+    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
+
+    read(funit, 2022) nbbbs, ndum
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
+    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
+    close(funit)
+    !Not quite identical to gs2d unless minval(sefit_Z)==0 - Should we add zmid?
+    do j = 1, self%nh
+       eq_Z(j) = ((float(j-1) / float(self%nh-1) ) - 0.5) * zhei
+    end do
+
+    ! Identical to gs2d_read_and_set (except prints) from here
+    do i = 1, self%nw
+       eq_R(i) = rleft + rwid * float(i-1) / float(self%nw-1)
+    end do
 
     allocate(zp(3*nw_in*nh_in), temp(nw_in+2*nh_in))
     allocate(zx1(nh_in), zxm(nh_in), zy1(nw_in), zyn(nw_in))
 
+    ! Setup 2D interpolation of psi(R, Z)
     call fitp_surf1(nw_in, nh_in, sefit_R, sefit_Z, sefit_psi, &
          nw_in, zx1, zxm, zy1, zyn, zxy11, zxym1, zxy1n, zxymn, &
          255, zp, temp, 1., ierr)
@@ -387,16 +400,6 @@ contains
     end do
 
     deallocate(zp, temp)
-
-    read(funit, 2020) (dummy(j) ,   j = 1, nw_in)
-    call inter_cspl(nw_in, spsi_bar, dummy, self%nw, self%psi_bar, self%qsf)
-
-    read(funit, 2022) nbbbs, ndum
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
-    close(funit)
-
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
 
