@@ -140,10 +140,10 @@ contains
     implicit none
     class(gs2d_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr
-    real, dimension(:), allocatable :: spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, eq_R, eq_Z
+    real :: rwid, rleft, zhei, rcentr, bcentr
+    real, dimension(:), allocatable :: spsi_bar
     real, dimension(:, :), allocatable :: sefit_psi
-    integer :: i, j, nw_in, nh_in, nbbbs, big
+    integer :: nw_in, nh_in, big
     logical, parameter :: debug =.false.
     self%type_name = 'GS2DEQ'
     self%filename = trim(adjustl(inputs%eqfile))
@@ -155,40 +155,26 @@ contains
     if (debug) write(6,fmt='(T2,"psmin",T15,"psedge (Wb)",T27,"b0 (T)",T39,"ip(A)"/1p,4e16.8)') psmin,psip,b0,ippsi
 
     nw_in = nr ; nh_in = nz
-    self%nw = nw_in * big ; self%nr = self%nw
-    self%nh = nh_in * big ; self%nt = self%nh
     if (size(ps) /= nw_in) then
        write(6,*) 'gs2din: size(ps) (',size(ps),') /= nw (',nw_in,')'
        write(6,*) 'gs2din: => should fix the GS2D output file and try again'
        call mp_abort('gs2din: => should fix the GS2D output file and try again')
     end if
-    call self%alloc_arrays()
-    allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in))
-    allocate(sefit_psi(nw_in, nh_in))
+    allocate(spsi_bar(nw_in), sefit_psi(nw_in, nh_in))
     rwid = maxval(rgrid) - minval(rgrid) ; zhei = maxval(zgrid) - minval(zgrid)
-    rcentr = r0 ; rleft = minval(rgrid)
+    rcentr = r0 ; rleft = minval(rgrid) ; bcentr = b0
     self%R_mag = rmag ; self%Z_mag = zmag
-    self%psi_0 = psmin ; self%psi_a = psip ; bcentr = b0
-
-    self%psi_0 = self%psi_0 / twopi
-    self%psi_a = self%psi_a / twopi
+    self%psi_0 = psmin ; self%psi_a = psip
+    self%psi_0 = self%psi_0 / twopi ; self%psi_a = self%psi_a / twopi
     if (debug) write(6,*) "gs2din: psi_0, psi_a=", self%psi_0, self%psi_a
-
-    ! pbar is defined by
-    ! pbar = (psi-psi_0)/(psi_a-psi_0)
-    ! fp and q are functions of pbar
-    sefit_R = rgrid ; sefit_Z = zgrid
-    spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
-
     ! divide GS2D psi by 2pi to get poloidal flux in (Wb/rad)
     sefit_psi = psi / twopi
 
-    nbbbs = size(rsep)
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    rbbbs = rsep ; zbbbs = zsep
-
-    call self%shared_setup(nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, sefit_psi, &
-         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, minval(sefit_Z), zhei)
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0). fp and q are
+    ! functions of pbar
+    spsi_bar = (ps - minval(ps)) / (maxval(ps) - minval(ps))
+    call self%shared_setup(nw_in, nh_in, spsi_bar, rgrid, zgrid, f, p, q, sefit_psi, &
+         size(rsep), rsep, zsep, bcentr, rleft, rwid, minval(zgrid), zhei, big)
   end subroutine gs2d_read_and_set
 
   !> This subroutine reads an EFIT output file containing
@@ -209,8 +195,8 @@ contains
     implicit none
     class(eeq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
-    real :: xdum, psi_N, f_N, rwid, rleft, zhei, rcentr, bcentr, zmid
-    real, dimension(:), allocatable :: dummy, eq_R, eq_Z, spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, f, p, q
+    real :: xdum, rwid, rleft, zhei, rcentr, bcentr, zmid
+    real, dimension(:), allocatable :: dummy, spsi_bar, sefit_R, sefit_Z, rbbbs, zbbbs, f, p, q
     real, dimension(:, :), allocatable :: sefit_psi
     character(10) ::  char
     integer :: i, j, ndum, nw_in, nh_in, funit, nbbbs, big
@@ -219,23 +205,29 @@ contains
     big = inputs%big
     open(newunit = funit,  file = self%filename, status='old',form='formatted')
     read(funit, '(5(a10),i2,i4,i4)') char, char, char, char, char, i, nw_in, nh_in
-    self%nw = nw_in * big ; self%nr = self%nw
-    self%nh = nh_in * big ; self%nt = self%nh
-
-    call self%alloc_arrays()
     allocate(spsi_bar(nw_in), sefit_R(nw_in), sefit_Z(nh_in), dummy(nw_in))
-    allocate(sefit_psi(nw_in, nh_in))
-    allocate(eq_R(self%nw), eq_Z(self%nh), f(nw_in), p(nw_in), q(nw_in))
+    allocate(sefit_psi(nw_in, nh_in), f(nw_in), p(nw_in), q(nw_in))
 
     read(funit, 2020) rwid, zhei, rcentr, rleft, zmid
     read(funit, 2020) self%R_mag, self%Z_mag, self%psi_0, self%psi_a, bcentr
-
-    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
-    ! fp and q are functions of pbar
     do i = 1, 2
        read(funit, 2020) xdum,xdum,xdum,xdum,xdum
     end do
 
+    read(funit, 2020) (f(j), j = 1, nw_in)
+    read(funit, 2020) (p(j), j = 1, nw_in)
+    read(funit, 2020) (dummy(j), j = 1, nw_in)
+    read(funit, 2020) (dummy(j), j = 1 ,nw_in)
+    read(funit, 2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
+    read(funit, 2020) (q(j), j = 1, nw_in)
+
+    read(funit, '(2i5)') nbbbs, ndum
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
+    close(funit)
+
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0) fp and q are
+    ! functions of pbar
     do i = 1, nw_in
        spsi_bar(i) = float(i-1) / float(nw_in-1)
        sefit_R(i) = rleft + rwid * float(i-1) / float(nw_in-1)
@@ -245,31 +237,18 @@ contains
        sefit_Z(j) = ((float(j-1) / float(nh_in-1) ) - 0.5) * zhei !Should we add zmid?
     end do
 
-    read(funit, 2020) (f(j), j = 1, nw_in)
-    read(funit, 2020) (p(j), j = 1, nw_in)
-    read(funit, 2020) (dummy(j),     j = 1, nw_in)
-    read(funit, 2020) (dummy(j),     j = 1 ,nw_in)
-    read(funit, 2020) ((sefit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
-    read(funit, 2020) (q(j), j = 1, nw_in)
-
-    read(funit, '(2i5)') nbbbs, ndum
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
-    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    read(funit, 2020) (rbbbs(i), zbbbs(i) , i = 1, nbbbs)
-    close(funit)
-
     call self%shared_setup(nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, sefit_psi, &
-         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei) !Should -0.5*zhei be zmid
+         nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, -0.5*zhei, zhei, big) !Should -0.5*zhei be zmid
 2020 format (5e16.9)
   end subroutine efit_read_and_set
 
   subroutine shared_setup(self, nw_in, nh_in, spsi_bar, sefit_R, sefit_Z, f, p, q, &
-       sefit_psi, nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, zoffset, zhei)
+       sefit_psi, nbbbs, rbbbs, zbbbs, bcentr, rleft, rwid, zoffset, zhei, big)
     use splines, only: inter_cspl, fitp_surf2, fitp_surf1
     use constants, only: twopi
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    integer, intent(in) :: nw_in, nh_in, nbbbs
+    integer, intent(in) :: nw_in, nh_in, nbbbs, big
     real, dimension(:), intent(in) :: spsi_bar, sefit_R, sefit_Z, f, p, q
     real, dimension(:), intent(in out) :: rbbbs, zbbbs
     real, intent(in) :: bcentr, rleft, rwid, zoffset, zhei
@@ -277,7 +256,9 @@ contains
     real, dimension(:), allocatable :: zp, temp, zx1, zxm, zy1, zyn, eq_R, eq_Z
     real :: zxy11, zxym1, zxy1n, zxymn, psi_N, f_N
     integer :: i, j, ierr
-
+    self%nw = nw_in * big ; self%nr = self%nw
+    self%nh = nh_in * big ; self%nt = self%nh
+    call self%alloc_arrays()
     do i = 1, self%nw
        self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
     end do
@@ -309,6 +290,7 @@ contains
     end do
     deallocate(zp, temp)
 
+    allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
     self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
     self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
 
