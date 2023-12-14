@@ -26,8 +26,6 @@ module theta_grid_params
   real :: akappa, tri, delta2, delta3, deltampri, deltanpri
   real :: akappri, tripri, thetam, thetan, thetak, thetad, theta2, theta3
   real :: btor_slab, betaprim
-  real :: asym, asympri ! JRB - these two geometry parameters are NOT functional
-
   integer :: ntheta, nperiod
 
   logical :: initialized = .false.
@@ -60,14 +58,6 @@ module theta_grid_params
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
      !> documentation for more details.
      real :: asurf = 1.0
-     !> No longer functional.
-     !>
-     !> @todo Consider removing
-     real :: asym = 0.0
-     !> No longer functional.
-     !>
-     !> @todo Consider removing
-     real :: asympri = 0.0
      !> In the slab limit, determines the angle between the field and
      !> the background flow (which flows in an imaginary toroidal
      !> direction). It is effectively equal to
@@ -365,7 +355,6 @@ contains
     
     call debug_message(verb, "theta_grid_params::read_parameters start")
     
-    
     if (present(theta_grid_parameters_config_in)) theta_grid_parameters_config = theta_grid_parameters_config_in
     
     call theta_grid_parameters_config%init(name = 'theta_grid_parameters', requires_index = .false.)
@@ -375,8 +364,6 @@ contains
     akappri = theta_grid_parameters_config%akappri
     alpmhd = theta_grid_parameters_config%alpmhd
     asurf = theta_grid_parameters_config%asurf
-    asym = theta_grid_parameters_config%asym
-    asympri = theta_grid_parameters_config%asympri
     btor_slab = theta_grid_parameters_config%btor_slab
     delta2 = theta_grid_parameters_config%delta2
     delta3 = theta_grid_parameters_config%delta3
@@ -502,9 +489,6 @@ contains
        case default
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
-
-    if (asym/=0.0) write (*,*) "WARNING: ignoring value of asym (not functional)"
-    if (asympri/=0.0) write (*,*) "WARNING: ignoring value of asympri (not functional)"
 
   end subroutine read_parameters
 
@@ -646,10 +630,10 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: geotype, mmode, nmode, nperiod, ntheta
-    real :: akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
+    real :: akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
     real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
 
-    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, asym, asympri, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
+    namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
          rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
 
     ! Only proc0 reads from file
@@ -660,8 +644,6 @@ contains
     akappri = self%akappri
     alpmhd = self%alpmhd
     asurf = self%asurf
-    asym = self%asym
-    asympri = self%asympri
     btor_slab = self%btor_slab
     delta2 = self%delta2
     delta3 = self%delta3
@@ -705,8 +687,6 @@ contains
     self%akappri = akappri
     self%alpmhd = alpmhd
     self%asurf = asurf
-    self%asym = asym
-    self%asympri = asympri
     self%btor_slab = btor_slab
     self%delta2 = delta2
     self%delta3 = delta3
@@ -761,8 +741,6 @@ contains
     call self%write_key_val("akappri", self%akappri, unit_internal)
     call self%write_key_val("alpmhd", self%alpmhd, unit_internal)
     call self%write_key_val("asurf", self%asurf, unit_internal)
-    call self%write_key_val("asym", self%asym, unit_internal)
-    call self%write_key_val("asympri", self%asympri, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
     call self%write_key_val("delta2", self%delta2, unit_internal)
     call self%write_key_val("delta3", self%delta3, unit_internal)
@@ -819,8 +797,6 @@ contains
     call broadcast(self%akappri)
     call broadcast(self%alpmhd)
     call broadcast(self%asurf)
-    call broadcast(self%asym)
-    call broadcast(self%asympri)
     call broadcast(self%btor_slab)
     call broadcast(self%delta2)
     call broadcast(self%delta3)
