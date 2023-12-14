@@ -4,7 +4,7 @@ program ball
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
   use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
-  use geometry, only: bishop, irho, isym, efit_eq, writelots, R_geo
+  use geometry, only: bishop, irho, force_sym, efit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, alpha_input, dp_mult
@@ -26,12 +26,12 @@ program ball
   type(eikcoefs_output_type) :: eikcoefs_results
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
-       rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, irho,isym, &
+       rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, irho, isym, &
        tripri,writelots,R_geo, gen_eq,efit_eq,local_eq,eqfile, &
        chs_eq, s_hat_input,p_prime_input,invLp_input,ppl_eq,&
        diffscheme,nbeta,beta_p1,beta_p2,beta_prime_input, &
        alpha_input, beta_prime_times, beta_prime_over, big, gs2d_eq, &
-       transp_eq, diagram, nshat, s_hat_max
+       transp_eq, diagram, nshat, s_hat_max, force_sym
 
 
 ! set defaults
@@ -52,19 +52,19 @@ program ball
 
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;    shift = 0.
-   
+
   s_hat_input = 1
   p_prime_input = 1
   invLp_input = 5
 
   beta_prime_times = -1. ; beta_prime_over = -1.
 
-  irho = 2 ;      isym = 0
+  irho = 2 ;      isym = -1
 
   delrho = 0.01
 
   diffscheme=0.33; nbeta = 1; beta_p1 = 0.; beta_p2 = 0.
-      
+
 !     read in data
   open(10,file='eik.in')
   read(10,stuff)
@@ -72,6 +72,7 @@ program ball
 
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
+  if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
 
   writelots = .false.
 
@@ -84,20 +85,20 @@ program ball
   if(.not.local_eq) then
      if(beta_prime_times >= 0) then
         if(beta_prime_over == -1) beta_prime_over = beta_prime_times
-     endif     
+     endif
   endif
 
   equal_arc = .false.   ! this should not be required
-  
+
   !if(k1.lt.0) k1=(ntheta/abs(k1))**2
   !if(k2.lt.0) k2=(ntheta/abs(k2))**2
-  
+
   !if(vmom_eq .and. gen_eq) then
-     !write(*,*) 'Choose either vmom_eq or gen_eq, not both'               
+     !write(*,*) 'Choose either vmom_eq or gen_eq, not both'
      !write(*,*) 'Stopping'
      !stop
   !endif
-  
+
 !
 ! Note that if iflux=1 then always choose itor=1
 !
@@ -105,19 +106,19 @@ program ball
      itor=1
      write(*,*) 'Forcing itor=1'
   endif
-  
+
   if(iflux /= 0 .and. iflux /=0) then
      write(*,*) 'iflux=0 or 1 is the only option.'
      stop
   endif
 !
-! Catch if no q profile 
+! Catch if no q profile
 !
   if(iflux.ne.1 .and. irho.eq.1) then
      irho=2
      write(*,*) 'Forcing irho=2'
   endif
-  
+
   if(iflux.ne.1) then
      !if(vmom_eq) write(*,*) 'Forcing vmom_eq to be false'
      if(gen_eq) write(*,*) 'Forcing gen_eq to be false'
@@ -125,7 +126,7 @@ program ball
      !vmom_eq=.false.
      gen_eq=.false.
   endif
-  
+
 !     compute the theta grid
 
   if( (.not. gen_eq) .and. (.not. ppl_eq) &
@@ -135,9 +136,9 @@ program ball
      dbetadrho = eikcoefs_results%dbetadrho
      ntgrid = (2*nperiod - 1)*(ntheta/2)
      allocate(psi(-ntgrid:ntgrid))
-  else 
+  else
      allocate(psi(-1:1))
-  endif 
+  endif
 
   open(11,file='ball.out')
   open(29,file='psi.out')
@@ -158,24 +159,24 @@ program ball
      do ishat = 1, nshat
         if (nshat > 1) &
              s_hat_input = shat_0 + (ishat-1)*(s_hat_max-shat_0)/(nshat-1)
-        
+
         bcrit = 0.
         call beta_loop (bcrit, order, ntheta)
-        
+
         if (bcrit /= 0.) then
            write (*,*) 'shat= ',s_hat_input,' alpha= ', -Rmaj*qinp**2*bcrit
         end if
      end do
-     write (*,*) 
+     write (*,*)
   end do
 
 contains
-  
+
   subroutine beta_loop (bcrit, order, ntheta)
     integer, intent(inout) :: ntheta
     integer :: order
     real :: bcrit
-    logical :: done 
+    logical :: done
     integer :: ibmin, ibmax, ibstep
 
     done = .false.
@@ -191,7 +192,7 @@ contains
     end if
 
     do ibeta=ibmin, ibmax, ibstep
-       
+
        if(bishop >= 7) then
           if(nbeta == 1) then
              dp_mult = beta_prime_times
@@ -207,24 +208,24 @@ contains
           endif
           beta_prime_input = beta_prime
        endif
-       
+
        call eikcoefs(ntheta, eikcoefs_results)
        theta = eikcoefs_results%theta
        dbetadrho = eikcoefs_results%dbetadrho
-       
+
        if(.not.local_eq) then
           ntgrid = (size(theta)-1)/2
           ntheta = (size(theta)-1)/(2*nperiod-1)
           deallocate(psi)
           allocate(psi(-ntgrid:ntgrid))
        endif
-       
+
        if(bishop>= 7) beta_prime = dbetadrho
-       
+
        call mhdballn(ntgrid, beta_prime, diffscheme, iunstable, psiend, &
             cflmax, cflmin, psi, eikcoefs_results%bmag, eikcoefs_results%cvdrift, &
             eikcoefs_results%gradpar, eikcoefs_results%gds2, theta)
-       
+
        if(ibeta.eq.1) then
           stabmhd=0.
        else
@@ -245,7 +246,7 @@ contains
        pprev=psiend
 
        if (done) cycle
-       
+
        if (.not. diagram) then
         write(6,998) beta_prime,iunstable,stabmhd,max(abs(cflmax),abs(cflmin)),dp_mult
        end if
@@ -253,7 +254,7 @@ contains
 
 998  format(1x,g13.6,2x,i2,3x,g13.6,2x,2(1pe11.4,1x))
   end subroutine beta_loop
-  
+
   subroutine mhdballn(ntgrid, beta_prime, diffscheme, iunstable, psiend, cflmax, &
        cflmin, psi, bmag, cvdrift, gradpar, gds2, theta)
     implicit none
@@ -342,6 +343,5 @@ contains
     enddo
 
   end subroutine mhdballn
-  
-end program ball
 
+end program ball

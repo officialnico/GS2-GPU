@@ -98,7 +98,7 @@
 !>
 !> delrho :: numerical parameter.  Should be "small enough".  Typically 0.001 ok.
 !>
-!> isym :: 1 -> assume up-down symmetric equilibrium.
+!> force_sym :: true -> assume up-down symmetric equilibrium.
 !> writelots :: .true. for more output
 !>
 !>  Use:
@@ -116,7 +116,7 @@ module geometry
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
   public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
-  public :: isym, writelots, equal_arc, bishop, qinp, s_hat_input
+  public :: force_sym, writelots, equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
@@ -128,9 +128,9 @@ module geometry
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
   real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  integer :: nperiod, itor, iflux, irho, isym, bishop
+  integer :: nperiod, itor, iflux, irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
-  logical :: writelots, equal_arc
+  logical :: writelots, equal_arc, force_sym
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
@@ -360,7 +360,6 @@ contains
          gds2, gds21, gds22
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
-    logical :: force_sym
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
@@ -406,7 +405,6 @@ contains
        end if
     end if
 
-    force_sym = (isym == 1)
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, iflux, bishop)
 
@@ -829,7 +827,7 @@ contains
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
          call B_pol(invR, crpgrad, Bpolmag, nth) !<Should this use rpgrad for local?
-         if (iflux == 0) Bpolmag = Bpolmag * dpsidrp
+         if (iflux == 0) Bpolmag(-nth:nth) = Bpolmag(-nth:nth) * dpsidrp
          call periodic_copy(Bpolmag, 0., nperiod)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
          call periodic_copy(Bmod, 0., nperiod)
@@ -979,7 +977,7 @@ contains
 
       ! obtain Z(theta)
       call Ztgrid(rgrid, theta, Zoftheta)
-      call periodic_copy(Zoftheta, 0., nperiod)      
+      call periodic_copy(Zoftheta, 0., nperiod)
       ! calculate dZ/dl
       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
       call periodic_copy(dZdl, 0., nperiod)

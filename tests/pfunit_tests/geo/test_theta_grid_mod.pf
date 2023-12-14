@@ -401,7 +401,8 @@ contains
          irho = 2, &
          bishop = 4, &
          delrho = 0.001, &
-         isym = 0, &
+         isym = -1, &
+         force_sym = .false., &
          local_eq = .true., &
          beta_prime_input = -7.3746392639128452E-002, &
          s_hat_input = 0.26742081952674540 &
@@ -772,7 +773,8 @@ contains
          irho = 2, &
          bishop = 4, &
          delrho = 0.001, &
-         isym = 0, &
+         isym = -1, &
+         force_sym = .false., &
          local_eq = .true., &
          beta_prime_input = -7.3746392639128452E-002, &
          s_hat_input = 0.26742081952674540, &
@@ -985,7 +987,8 @@ contains
          irho = 2, &
          bishop = 1, &
          delrho = 0.001, &
-         isym = 0, &
+         isym = -1, &
+         force_sym = .false., &
          local_eq = .false., &
          chs_eq = .true., &
          equal_arc = .true., &
@@ -1339,7 +1342,8 @@ contains
          irho = 2, &
          bishop = 1, &
          delrho = 0.001, &
-         isym = 0, &
+         isym = -1, &
+         force_sym = .false., &
          local_eq = .false., &
          efit_eq = .true., &
          equal_arc = .true., &

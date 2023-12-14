@@ -13,7 +13,7 @@ module theta_grid_gridgen
   public :: theta_grid_gridgen_config_type
   public :: set_theta_grid_gridgen_config
   public :: get_theta_grid_gridgen_config
-  
+
   ! knobs
   integer :: npadd
   real :: alknob, epsknob, bpknob, extrknob, tension
@@ -24,7 +24,7 @@ module theta_grid_gridgen
   !> Used to represent the input configuration of theta_grid_gridgen
   type, extends(abstract_config_type) :: theta_grid_gridgen_config_type
      ! namelist : theta_grid_gridgen_knobs
-     ! indexed : false     
+     ! indexed : false
      !> Relative weighting of pitch-angle metric to \(\theta\) metric
      real :: alknob = 0.0
      !> Consider when the right grid point is equal to the target bmag.
@@ -72,8 +72,8 @@ module theta_grid_gridgen
   type(theta_grid_gridgen_config_type) :: theta_grid_gridgen_config
 
 contains
-  
-  !> FIXME : Add documentation  
+
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid_gridgen(unit)
     implicit none
     integer, intent(in) :: unit
@@ -93,7 +93,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_gridgen
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine theta_grid_gridgen_init(theta_grid_gridgen_config_in)
     implicit none
     type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
@@ -102,7 +102,7 @@ contains
     call read_parameters(theta_grid_gridgen_config_in)
   end subroutine theta_grid_gridgen_init
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine finish_theta_grid_gridgen
     implicit none
     initialized = .false.
@@ -134,7 +134,7 @@ contains
     exist = theta_grid_gridgen_config%exist
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine gridgen_get_grids (nperiod, ntheta, ntgrid, nbset, &
        theta, bset, bmag, gradpar, gbdrift, gbdrift0, cvdrift, &
        cvdrift0, cdrift, cdrift0, gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
@@ -420,7 +420,7 @@ end module theta_grid_gridgen
 !> FIXME : Add documentation
 module theta_grid_salpha
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  
+
   implicit none
 
   private
@@ -433,7 +433,7 @@ module theta_grid_salpha
   public :: theta_grid_salpha_config_type
   public :: set_theta_grid_salpha_config
   public :: get_theta_grid_salpha_config
-  
+
   ! knobs
   real :: alpmhdfac, alpha1
 
@@ -448,7 +448,7 @@ module theta_grid_salpha
   !> Used to represent the input configuration of theta_grid_salpha
   type, extends(abstract_config_type) :: theta_grid_salpha_config_type
      ! namelist : theta_grid_salpha_knobs
-     ! indexed : false     
+     ! indexed : false
 
      !> Used in conjunction with [[theta_grid_parameters:alpmhd]] to override
      !> `shift`, set as `shift=-alpmhd*alpmhdfac`.
@@ -501,17 +501,17 @@ module theta_grid_salpha
      procedure, public, nopass :: get_default_name => get_default_name_theta_grid_salpha_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_salpha_config
   end type theta_grid_salpha_config_type
-  
+
   type(theta_grid_salpha_config_type) :: theta_grid_salpha_config
-  
+
 contains
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine check_theta_grid_salpha(report_unit,alne,dbetadrho)
     use theta_grid_params, only: eps, epsl, pk, shat
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: alne, dbetadrho
-!CMR input dbetadrho is computed externally (eg from species) 
+!CMR input dbetadrho is computed externally (eg from species)
 !    allowing consistency check
     real :: arat, qsf
 !
@@ -519,7 +519,7 @@ contains
  !
     if (epsl > 0.) then
        arat = 2. / epsl
-       
+
        if (epsl == 2.0) then
           write (report_unit, &
                & fmt="('Scale lengths are normalized to the major radius, R')")
@@ -537,13 +537,13 @@ contains
           write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
        end if
        write (report_unit, fmt="('and epsilon == r/R = ',f7.4)") eps
-       write (report_unit, *) 
+       write (report_unit, *)
        if (eps > epsilon(0.0)) then
           write (report_unit, fmt="('Trapped particles are included.')")
        else
           write (report_unit, fmt="('Trapped particles are neglected.')")
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
 
        if (shift > -epsilon(0.0)) then
           write (report_unit, fmt="('The s-alpha alpha parameter is ',f7.4)") shift
@@ -551,16 +551,16 @@ contains
           write (report_unit, fmt="('corresponding to d beta / d rho = ',f10.4)") -shift/arat/qsf**2
           !CMR 10/11/06: correct sign of dbeta/drho in s-alpha in this check
           if (abs(dbetadrho + shift/arat/qsf**2) > 1.e-2) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, fmt="('This is inconsistent with beta and the pressure gradient.')") 
+             write (report_unit, fmt="('This is inconsistent with beta and the pressure gradient.')")
              write (report_unit, fmt="('################# WARNING #######################')")
           end if
        else
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('The s-alpha alpha parameter is less that zero.')") 
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('The s-alpha alpha parameter is less that zero.')")
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
 
@@ -570,89 +570,89 @@ contains
             & fmt="('The radius of curvature is infinite.  This is a slab calculation.')")
     end if
 
-    write (report_unit, *) 
+    write (report_unit, *)
     select case (model_switch)
 
     case (model_salpha,model_b2,model_eps)
        if (epsl > 0.) then
           write (report_unit, fmt="('An s-alpha model equilibrium has been selected.')")
           write (report_unit, fmt="('The curvature and grad-B drifts are equal.')")
-          write (report_unit, *) 
+          write (report_unit, *)
           if (model_switch /= model_eps) then
              write (report_unit, fmt="('For theta0 = 0, each is of the form')")
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('  epsl*(cos(theta) + (shat*theta-shift*sin(theta))*sin(theta))')")
-             write (report_unit, *) 
+             write (report_unit, *)
           else
              write (report_unit, fmt="('For theta0 = 0, each is of the form')")
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('  epsl*(cos(theta) - eps + (shat*theta-shift*sin(theta))*sin(theta))')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
           write (report_unit, fmt="('For finite theta0, there is also a term')")
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('  -epsl*shat*sin(theta)*theta0')")
           write (report_unit, *)
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For theta0 = 0, |(grad S)**2| is of the form')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  1.0 + (shat*theta-shift*sin(theta))**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For finite theta0, there is also a term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  -shat*(shat*theta - shift*sin(theta))*theta0')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('and finally, the term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  shat**2 * theta0**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
        if (model_switch == model_eps) then
-          write (report_unit, *) 
-          write (report_unit, fmt="(' This model differs from the normal s-alpha model')") 
+          write (report_unit, *)
+          write (report_unit, fmt="(' This model differs from the normal s-alpha model')")
           write (report_unit, fmt="(' only in the curv and grad_B drifts.')")
        end if
        if (model_switch == model_b2) then
-          write (report_unit, *) 
-          write (report_unit, fmt="(' This model differs from the normal s-alpha model')") 
+          write (report_unit, *)
+          write (report_unit, fmt="(' This model differs from the normal s-alpha model')")
           write (report_unit, fmt="(' by an additional factor of 1/B(theta)**2 (not shown above)')")
           write (report_unit, fmt="(' in the curv and grad_B drifts.')")
        end if
     case (model_ccurv)
        write (report_unit, fmt="('Constant curvature is assumed.')")
        write (report_unit, fmt="('The grad-B and curvature drifts are each = ',f10.4)") epsl
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For theta0 = 0, |(grad S)**2| is of the form')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  1.0 + (shat*theta-shift*sin(theta))**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For finite theta0, there is also a term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  -shat*shat*theta*theta0')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('and finally, the term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  shat**2 * theta0**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
     case (model_nocurve)
        write (report_unit, fmt="('Zero curvature is assumed.')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For theta0 = 0, |(grad S)**2| is of the form')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  1.0 + (shat*theta)**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('For finite theta0, there is also a term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  -shat*shat*theta*theta0')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('and finally, the term')")
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('  shat**2 * theta0**2')")
-       write (report_unit, *) 
+       write (report_unit, *)
     end select
   end subroutine check_theta_grid_salpha
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine wnml_theta_grid_salpha(unit)
     implicit none
     integer, intent(in) :: unit
@@ -689,12 +689,12 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_salpha
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_theta_grid_salpha(theta_grid_salpha_config_in)
     use theta_grid_params, only: init_theta_grid_params
     implicit none
     type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
-    
+
     if (initialized) return
     initialized = .false.
 
@@ -711,14 +711,14 @@ contains
     call theta_grid_salpha_config%reset()
   end subroutine finish_theta_grid_salpha
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_salpha_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use theta_grid_params, only: shift_in => shift, alpmhd
     use text_options, only: text_option, get_option_value
     implicit none
     type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
-    
+
     character(20) :: model_option
     type (text_option), dimension (8), parameter :: modelopts = &
          (/ text_option('default', model_salpha), &
@@ -742,7 +742,7 @@ contains
     model_option = theta_grid_salpha_config%model_option
 
     exist = theta_grid_salpha_config%exist
-    
+
     ierr = error_unit()
     call get_option_value &
          (model_option, modelopts, model_switch, &
@@ -756,7 +756,7 @@ contains
 
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine salpha_get_sizes (nthetaout, nperiodout, nbsetout)
     use theta_grid_params, only: ntheta, nperiod
     implicit none
@@ -767,7 +767,7 @@ contains
     nbsetout = ntheta/2+1 ! upper bound when alpha1 model is used
   end subroutine salpha_get_sizes
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine salpha_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, &
        bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gds2, gds21, gds22, gds23, gds24, gds24_noq, grho, &
@@ -841,7 +841,7 @@ contains
        if (epsl < epsilon(0.)) shape = 'slab    '
        gbdrift = cvdrift
        gbdrift0 = cvdrift0
-    
+
     case (model_normal_only)
        cvdrift = epsl*cos(theta)
        cvdrift0 = 0.
@@ -852,7 +852,7 @@ contains
        if (epsl < epsilon(0.)) shape = 'slab    '
        gbdrift = cvdrift
        gbdrift0 = cvdrift0
-    
+
     case (model_eps)
        cvdrift = epsl*(cos(theta) -eps + (shat*theta-shift*sin(theta))*sin(theta))
        cvdrift0 = -epsl*shat*sin(theta)
@@ -863,24 +863,24 @@ contains
        if (epsl < epsilon(0.)) shape = 'slab    '
        gbdrift = cvdrift
        gbdrift0 = cvdrift0
-    
+
     case (model_ccurv,model_nocurve)
        cvdrift = epsl
        cvdrift0 = 0.0
 
 ! Some strangeness here to get straight at some point:
 !    ccurv == constant curvature should be the case used for cylindrical
-!             geometry, but evidently Paolo and Barrett do not like the 
+!             geometry, but evidently Paolo and Barrett do not like the
 !             gds2 definition there, and have been using the slab
-!             option (no_curvature) for their Z-pinch studies.  
+!             option (no_curvature) for their Z-pinch studies.
 !
 !    Simply need to look into the shift dependence of gds2
 !
        if (model_switch == model_nocurve) then
-!CMR, 4/6/2014: 
+!CMR, 4/6/2014:
 ! commented out gbdrift=0 as looked wrong, surely really want cvdrift=0
 !dja fix for no curvature
-!          gbdrift = 0.0  
+!          gbdrift = 0.0
 !dja end
 !CMRend
           gds2 = 1.0 + (shat*theta)**2
@@ -970,8 +970,8 @@ contains
 
   !---------------------------------------
   ! Following is for the config_type
-  !--------------------------------------- 
-  
+  !---------------------------------------
+
   !> Reads in the theta_grid_salpha_knobs namelist and populates the member variables
   subroutine read_theta_grid_salpha_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -983,7 +983,7 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: model_option
     real :: alpha1, alpmhdfac
 
@@ -1081,7 +1081,7 @@ module theta_grid_eik
   public :: theta_grid_eik_config_type
   public :: set_theta_grid_eik_config
   public :: get_theta_grid_eik_config
-  
+
   logical :: exist, initialized = .false.
   type(eikcoefs_output_type) :: eikcoefs_results
   integer :: ntheta_geometry
@@ -1089,7 +1089,7 @@ module theta_grid_eik
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_eik_config_type
      ! namelist : theta_grid_eik_knobs
-     ! indexed : false     
+     ! indexed : false
      !> Used in calculation of `dp_new = -alpha_input/qval**2/rmaj*drhodpsi`
      !> @note This gets a "smart" default.
      real :: alpha_input = 0.0
@@ -1135,6 +1135,8 @@ module theta_grid_eik
      !> @note We recommend `.false.` but default to `.true.`. We should consider
      !> changing the default.
      logical :: equal_arc = .true.
+     !> If true then forces up-down symmetry in some geometrical quantities
+     logical :: force_sym = .false.
      !> Use Toq-style NetCDF equilibrium (TOQ)
      logical :: gen_eq = .false.
      !> Read Colin Roach's GS2D equilibrium file
@@ -1162,13 +1164,8 @@ module theta_grid_eik
      !>  *must be computed using same radial variable*,
      !>  i.e. *depend on choice of irho*!
      integer :: irho = 2
-     !> One of
-     !>
-     !> - 0: Recommended
-     !> - 1: Force up-down symmetry.
-     !>
-     !> @todo Consider changing type to logical
-     integer :: isym = 0
+     !> Deprecated, see force_sym instead
+     integer :: isym = -1
      !> Do not change
      !> @todo Consider removing
      integer :: itor = 1
@@ -1197,18 +1194,16 @@ module theta_grid_eik
      procedure, public, nopass :: get_default_name => get_default_name_theta_grid_eik_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_eik_config
   end type theta_grid_eik_config_type
-  
+
   type(theta_grid_eik_config_type) :: theta_grid_eik_config
-  
+
 contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: alpha_input, beta_prime_input, invLp_input, s_hat_input
-    use geometry, only: delrho, dp_mult
-    use geometry, only: bishop, iflux, irho, itor, isym
-    use geometry, only: eqfile, eqnormfile
+    use geometry, only: delrho, dp_mult, bishop, iflux, irho, itor, force_sym
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
-    use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc
+    use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc, eqfile, eqnormfile
     implicit none
     integer, intent(in) :: unit
     if (.not. exist) return
@@ -1234,14 +1229,14 @@ contains
     write (unit, fmt="(' beta_prime_input =  ',e13.6)") beta_prime_input
     write (unit, fmt="(' dp_mult =  ',e13.6)") dp_mult
     write (unit, fmt="(' delrho =  ',e13.6)") delrho
-    write (unit, fmt="(' isym =  ',i1)") isym
+    write (unit, fmt="(' force_sym =  ',L1)") force_sym
     write (unit, fmt="(' writelots =  ',L1)") writelots
     write (unit, fmt="(' eqfile = ',a)") '"'//trim(eqfile)//'"'
     write (unit, fmt="(' eqnormfile = ',a)") '"'//trim(eqnormfile)//'"'
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_eik
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine check_theta_grid_eik(report_unit, dbetadrho)
     use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps, thetan
     use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam
@@ -1279,31 +1274,31 @@ contains
           write (report_unit, fmt="('The aspect ratio R/a = ',f7.4)") Rmaj
        end if
        if (Rmaj /= R_geo) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('R_geo is not equal to Rmaj.')")
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
        if (irho /= 2) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('You have selected irho = ',i2)") irho
           write (report_unit, fmt="('For local equilibria, irho=2 is required.')")
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('The safety factor q =      ',f7.4)") qinp
        eps = rhoc/R_geo
        write (report_unit, fmt="('and epsilon == r/R =       ',f7.4)") eps
-       write (report_unit, *) 
+       write (report_unit, *)
        if (eps > epsilon(0.0)) then
           write (report_unit, fmt="('Trapped particles are included.')")
        else
           write (report_unit, fmt="('Trapped particles are neglected.')")
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('B_poloidal is determined by:')")
        if (geoType==1) then
           write (report_unit, *)
@@ -1313,62 +1308,62 @@ contains
           write (report_unit, fmt="('    first shaping mode number: mMode =  ',i2)") mMode
           write (report_unit, fmt="('    second shaping mode number: nMode = ',i2)") nMode
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('    deltam =       ',f7.4)") deltam
        write (report_unit, fmt="('    deltan =        ',f7.4)") deltan
        if (geoType/=1) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('  & gradient: d deltam /d rho =   ',f7.4)") deltampri
           write (report_unit, fmt="('  & gradient: d deltan /d rho = ',f7.4)") deltanpri
        end if
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('    thetam =       ',f7.4)") thetam
        write (report_unit, fmt="('    thetan =        ',f7.4)") thetan
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('    shift =        ',f7.4)") shift
        write (report_unit, fmt="('    shiftVert =    ',f7.4)") shiftVert
 
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") shat
-       write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')") 
+       write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
        if (abs(shat) <= 1.e-5) then
           write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
        end if
        select case (bishop)
-       case (3) 
+       case (3)
           write (report_unit, fmt="('The normalized inverse pressure gradient scale length = ',f8.4)") invLp_input
-       case (4) 
+       case (4)
           write (report_unit, fmt="('The beta gradient d beta / d rho = ',f8.4)") beta_prime_input
           if (beta_prime_input > epsilon(0.0)) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime > 0.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
           if (abs(beta_prime_input - dbetadrho) > 1.e-2*max(abs(beta_prime_input),abs(dbetadrho))) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime_input is not consistent with beta and Lp.')")
              write (report_unit, fmt="('beta_prime_input=',f6.4,' dbeta_drho (from species)=',f6.4)") beta_prime_input, dbetadrho
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
-       case (5) 
+       case (5)
           write (report_unit, fmt="('The alpha parameter (R beta_prime q**2) = ',f8.4)") alpha_input
           !              write (*,*) alpha_input, dbetadrho, qinp, Rmaj
           if (abs(alpha_input + dbetadrho*qinp**2*Rmaj) > 1.e-2) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('alpha is not consistent with beta, q, and Lp.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
        case default
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('You have selected bishop = ',i2)") bishop
           write (report_unit, fmt="('For local equilibria, bishop = 4 is recommended.')")
@@ -1376,172 +1371,172 @@ contains
              write (report_unit, fmt="('For d beta / d rho = 0, bishop = 1 is ok.')")
              write (report_unit, fmt="('Otherwise, ')")
           end if
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
+          write (report_unit, *)
        end select
     end if
     if (local_eq .and. .not. (iflux == 0)) then
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You have selected a local equilibrium and iflux = ',i2)") iflux
        write (report_unit, fmt="('For local equilibria, iflux=0 is required.')")
-       write (report_unit, fmt="('THIS IS AN ERROR.')") 
+       write (report_unit, fmt="('THIS IS AN ERROR.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     end if
     if (.not. local_eq) then
        if (gen_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Equilibrium information obtained from NetCDF file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        if (ppl_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Equilibrium information obtained from NetCDF file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        if (dfit_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Dipole equilibrium information obtained from file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
           write (report_unit, fmt="(a)") trim(eqnormfile)
        end if
        if (idfit_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Dipole equilibrium information obtained from file:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        if (efit_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Equilibrium information obtained from eqdsk:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        if (chs_eq) then
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('Equilibrium information obtained from chease:')")
           write (report_unit, fmt="(a)") trim(eqfile)
        end if
        select case (bishop)
-       case (1) 
-          write (report_unit, *) 
+       case (1)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=1, so dp/drho and s_hat will be found from the equilibrium file.')")
-          write (report_unit, *) 
-       case (3) 
-          write (report_unit, *) 
+          write (report_unit, *)
+       case (3)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=3.')")
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
-          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')") 
+          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
           end if
           write (report_unit, fmt="('The normalized inverse pressure gradient scale length = ',f8.4)") invLp_input
-       case (4) 
-          write (report_unit, *) 
+       case (4)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=4.')")
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
-          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')") 
+          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
           end if
           write (report_unit, fmt="('The beta gradient d beta / d rho = ',f8.4)") beta_prime_input
           if (beta_prime_input > epsilon(0.0)) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime > 0.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
           if (abs(beta_prime_input - dbetadrho) > 1.e-2*abs(dbetadrho)) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime_input is not consistent with beta and Lp.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
-       case (5) 
-          write (report_unit, *) 
+       case (5)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=5.')")
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
-          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')") 
+          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
           end if
           write (report_unit, fmt="('The alpha parameter (R beta_prime q**2) = ',f8.4)") alpha_input
           write (*,*) alpha_input, dbetadrho, qinp, Rmaj
           if (abs(alpha_input + dbetadrho*qinp**2*Rmaj) > 1.e-2) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('alpha is not consistent with beta, q, and Lp.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
-       case (6) 
-          write (report_unit, *) 
+       case (6)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=6.')")
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
-          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')") 
+          write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
           end if
-          write (report_unit, fmt="('The value of dp/drho will be found from the equilibrium file.')") 
-       case (7) 
-          write (report_unit, *) 
+          write (report_unit, fmt="('The value of dp/drho will be found from the equilibrium file.')")
+       case (7)
+          write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=7.')")
-          write (report_unit, fmt="('The value of s_hat will be found from the equilibrium file.')") 
+          write (report_unit, fmt="('The value of s_hat will be found from the equilibrium file.')")
           write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_new
           write (report_unit, fmt="('The value of dp/drho found from the equilibrium file will be multiplied by',f10.4)") dp_mult
           write (report_unit, fmt="('to give beta gradient d beta / d rho = ',f8.4)") beta_prime_new
 
           if (abs(beta_prime_new - dbetadrho) > 1.e-2*abs(dbetadrho)) then
-             write (report_unit, *) 
+             write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('beta_prime_new is not consistent with beta and Lp.')")
-             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+             write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
              write (report_unit, fmt="('################# WARNING #######################')")
-             write (report_unit, *) 
+             write (report_unit, *)
           end if
 
        case default
 
-          write (report_unit, *) 
+          write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('You have selected a value for bishop that is not recommended.')")
-          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+          write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
           write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
+          write (report_unit, *)
 
        end select
     end if
   end subroutine check_theta_grid_eik
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine checklogic_theta_grid_eik(report_unit)
     use geometry, only: geq=>gen_eq, eeq=>efit_eq, peq=>ppl_eq
     use geometry, only: leq=>local_eq, deq=>dfit_eq, ceq=>chs_eq
     integer, intent (in) :: report_unit
-    
-    if(geq .and. deq) then     
-       write (report_unit, *) 
+
+    if(geq .and. deq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing gen_eq = .true. AND dfit_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
-    if(geq .and. eeq) then     
-       write (report_unit, *) 
+    if(geq .and. eeq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing gen_eq = .true. AND efit_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
      if(geq .and. ceq) then
@@ -1552,36 +1547,36 @@ contains
         write (report_unit, *)
      endif
 
-    if(geq .and. peq) then     
-       write (report_unit, *) 
+    if(geq .and. peq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing gen_eq = .true. AND ppl_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
-    if(geq .and. leq) then     
-       write (report_unit, *) 
+    if(geq .and. leq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing gen_eq = .true. AND local_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
-    if(eeq .and. deq) then     
-       write (report_unit, *) 
+    if(eeq .and. deq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing efit_eq = .true. AND dfit_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
-    if(eeq .and. leq) then     
-       write (report_unit, *) 
+    if(eeq .and. leq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing efit_eq = .true. AND local_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
      if(eeq .and. ceq) then
@@ -1592,20 +1587,20 @@ contains
         write (report_unit, *)
      endif
 
-    if(eeq .and. peq) then     
-       write (report_unit, *) 
+    if(eeq .and. peq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing efit_eq = .true. AND ppl_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
-    if(deq .and. leq) then     
-       write (report_unit, *) 
+    if(deq .and. leq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing dfit_eq = .true. AND local_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
      if(deq .and. ceq) then
@@ -1616,12 +1611,12 @@ contains
         write (report_unit, *)
      endif
 
-    if(deq .and. peq) then     
-       write (report_unit, *) 
+    if(deq .and. peq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing dfit_eq = .true. AND ppl_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
 
      if(ceq .and. peq) then
@@ -1640,16 +1635,16 @@ contains
         write (report_unit, *)
      endif
 
-    if(peq .and. leq) then     
-       write (report_unit, *) 
+    if(peq .and. leq) then
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write(report_unit,fmt="('Choosing ppl_eq = .true. AND local_eq = .true. is not permitted.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     endif
   end subroutine checklogic_theta_grid_eik
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: nperiod_geo => nperiod, verb_geo => verb
     use geometry, only: eikcoefs, itor, delrho, rhoc
@@ -1660,7 +1655,7 @@ contains
     use unit_tests, only: debug_message
     use mp, only: proc0
     implicit none
-    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
     real :: rhoc_save
     integer, parameter :: verb = 3
     character(4) :: ntheta_char
@@ -1710,19 +1705,19 @@ contains
     call theta_grid_eik_config%reset()
   end subroutine finish_theta_grid_eik
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine eik_get_sizes (nthetaout, nperiodout, nbsetout)
     use geometry, only: nperiod
     use theta_grid_params, only: ntheta
     implicit none
     integer, intent (out) :: nthetaout, nperiodout, nbsetout
-    
+
     nthetaout = ntheta
     nperiodout = nperiod
     nbsetout = ntheta/2+1 ! upper bound
   end subroutine eik_get_sizes
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine eik_get_grids (nperiod, ntheta, ntgrid, nbset, theta, bset, bmag,&
        gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
        gds2, gds21, gds22, gds23, gds24, gds24_noq, &
@@ -1742,7 +1737,7 @@ contains
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     logical, intent (in) :: gb_to_cv
     integer :: ig
-    integer, parameter :: verb=3 
+    integer, parameter :: verb=3
     character(4) :: ntgrid_char
     write(ntgrid_char, "(I4)") ntgrid
     call debug_message(verb, 'eik_get_grids: ntgrid= '//ntgrid_char)
@@ -1793,7 +1788,7 @@ contains
     call debug_message(verb, 'eik_get_grids: end')
   end subroutine eik_get_grids
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_eik_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: itor, iflux, irho, rhoc, eqnormfile
@@ -1802,7 +1797,7 @@ contains
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult, s_hat_input
     use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
     use geometry, only: deltampri, deltanpri, thetam, thetan, qinp, rmaj, r_geo
-    use geometry, only: delrho, isym, writelots
+    use geometry, only: delrho, writelots, force_sym
     use theta_grid_params, only: nperiod_in => nperiod
     use theta_grid_params, only: rhoc_in => rhoc
     use theta_grid_params, only: rmaj_in => rmaj, r_geo_in => r_geo
@@ -1817,9 +1812,9 @@ contains
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
-    
+    integer :: isym
     ! Copy some values from theta_grid_params into this module
-    nperiod = nperiod_in  
+    nperiod = nperiod_in
     rhoc = rhoc_in
     rmaj = rmaj_in
     r_geo = r_geo_in
@@ -1836,16 +1831,16 @@ contains
     thetam = thetam_in
     thetan = thetan_in
     qinp = qinp_in
-
+    isym = -1
     if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in
 
     ! Smart defaults
-    if (.not.theta_grid_eik_config%is_initialised()) then    
+    if (.not.theta_grid_eik_config%is_initialised()) then
        theta_grid_eik_config%alpha_input = alpmhd_in
        theta_grid_eik_config%s_hat_input = shat_in
        theta_grid_eik_config%beta_prime_input = betaprim_in
     end if
-    
+
     call theta_grid_eik_config%init(name = 'theta_grid_eik_knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
@@ -1860,6 +1855,7 @@ contains
     eqfile = theta_grid_eik_config%eqfile
     eqnormfile = theta_grid_eik_config%eqnormfile
     equal_arc = theta_grid_eik_config%equal_arc
+    force_sym = theta_grid_eik_config%force_sym
     gen_eq = theta_grid_eik_config%gen_eq
     gs2d_eq = theta_grid_eik_config%gs2d_eq
     idfit_eq = theta_grid_eik_config%idfit_eq
@@ -1875,6 +1871,7 @@ contains
     transp_eq = theta_grid_eik_config%transp_eq
     writelots = theta_grid_eik_config%writelots
 
+    if (isym /= -1) write(6,*) 'Warning: isym input is deprecated -- set force_sym instead'
     exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
@@ -1901,7 +1898,7 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
+
   !> Reads in the theta_grid_eik_knobs namelist and populates the member variables
   subroutine read_theta_grid_eik_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -1916,11 +1913,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
-    logical :: chs_eq, dfit_eq, efit_eq, equal_arc, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
+    logical :: chs_eq, dfit_eq, efit_eq, equal_arc, force_sym, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, s_hat_input
 
-    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, eqnormfile, equal_arc, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, ntheta_geometry, ppl_eq, &
-         s_hat_input, transp_eq, writelots
+    namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, eqnormfile, equal_arc, force_sym, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, &
+         ntheta_geometry, ppl_eq, s_hat_input, transp_eq, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1937,6 +1934,7 @@ contains
     eqfile = self%eqfile
     eqnormfile = self%eqnormfile
     equal_arc = self%equal_arc
+    force_sym = self%force_sym
     gen_eq = self%gen_eq
     gs2d_eq = self%gs2d_eq
     idfit_eq = self%idfit_eq
@@ -1968,6 +1966,7 @@ contains
     self%eqfile = eqfile
     self%eqnormfile = eqnormfile
     self%equal_arc = equal_arc
+    self%force_sym = force_sym
     self%gen_eq = gen_eq
     self%gs2d_eq = gs2d_eq
     self%idfit_eq = idfit_eq
@@ -2010,6 +2009,7 @@ contains
     call self%write_key_val("eqfile", self%eqfile, unit_internal)
     call self%write_key_val("eqnormfile", self%eqnormfile, unit_internal)
     call self%write_key_val("equal_arc", self%equal_arc, unit_internal)
+    call self%write_key_val("force_sym", self%force_sym, unit_internal)
     call self%write_key_val("gen_eq", self%gen_eq, unit_internal)
     call self%write_key_val("gs2d_eq", self%gs2d_eq, unit_internal)
     call self%write_key_val("idfit_eq", self%idfit_eq, unit_internal)
@@ -2054,6 +2054,7 @@ contains
     call broadcast(self%eqfile)
     call broadcast(self%eqnormfile)
     call broadcast(self%equal_arc)
+    call broadcast(self%force_sym)
     call broadcast(self%gen_eq)
     call broadcast(self%gs2d_eq)
     call broadcast(self%idfit_eq)
@@ -2071,7 +2072,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_eik_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_theta_grid_eik_config()
     implicit none
@@ -2090,7 +2091,7 @@ end module theta_grid_eik
 !> Use output from [[rungridgen]]
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  
+
   implicit none
 
   private
@@ -2105,7 +2106,7 @@ module theta_grid_file
   public :: theta_grid_file_config_type
   public :: set_theta_grid_file_config
   public :: get_theta_grid_file_config
-  
+
   character (2000) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
@@ -2114,8 +2115,8 @@ module theta_grid_file
 
   !> Used to represent the input configuration of theta_grid
   type, extends(abstract_config_type) :: theta_grid_file_config_type
-     ! namelist : theta_grid_file_knobs 
-     ! indexed : false    
+     ! namelist : theta_grid_file_knobs
+     ! indexed : false
      !> Name of file with output from [[rungridgen]].
      character(len = 2000) :: gridout_file = "grid.out"
      !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
@@ -2129,9 +2130,9 @@ module theta_grid_file
      procedure, public, nopass :: get_default_name => get_default_name_theta_grid_file_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_file_config
   end type theta_grid_file_config_type
-  
+
   type(theta_grid_file_config_type) :: theta_grid_file_config
-  
+
 contains
 
   !> FIXME : Add documentation
@@ -2145,7 +2146,7 @@ contains
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_file
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine check_theta_grid_file(report_unit)
     use file_utils, only: get_unused_unit
     implicit none
@@ -2153,8 +2154,8 @@ contains
     integer :: i, iunit
     real :: drhodpsi, kxfac, rmaj, shat
     character (200) :: line
-    
-    write (report_unit, *) 
+
+    write (report_unit, *)
     write (report_unit, fmt="('Equilibrium information obtained from gridgen output file:')")
     write (report_unit, fmt="(a)") trim(gridout_file)
 
@@ -2173,9 +2174,9 @@ contains
 
     close (unit=iunit)
 
-    write (report_unit, *) 
+    write (report_unit, *)
     write (report_unit, fmt="('Limited information available:')")
-    write (report_unit, *) 
+    write (report_unit, *)
     write (report_unit, fmt="('nbset =     ',i5)") nbset
     write (report_unit, fmt="('ntgrid =    ',i5)") ntgrid
     write (report_unit, fmt="('ntheta =    ',i5)") ntheta
@@ -2238,12 +2239,12 @@ contains
     write (report_unit, *)
   end subroutine check_theta_grid_file_nc
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_theta_grid_file(theta_grid_file_config_in)
     use theta_grid_params, only: init_theta_grid_params
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
-    
+
     if (initialized) return
     initialized = .true.
 
@@ -2251,7 +2252,7 @@ contains
     call read_parameters(theta_grid_file_config_in)
   end subroutine init_theta_grid_file
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine finish_theta_grid_file
     implicit none
     initialized = .false.
@@ -2263,19 +2264,19 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     implicit none
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
-    
+
     if (present(theta_grid_file_config_in)) theta_grid_file_config = theta_grid_file_config_in
 
     call theta_grid_file_config%init(name = 'theta_grid_file_knobs', requires_index = .false.)
-    
+
     ! Copy out internal values into module level parameters
     gridout_file = theta_grid_file_config%gridout_file
     no_geo_info = theta_grid_file_config%no_geo_info
-    
+
     exist = theta_grid_file_config%exist
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine file_get_sizes
     use file_utils, only: get_unused_unit
     implicit none
@@ -2535,7 +2536,7 @@ contains
   !---------------------------------------
   ! Following is for the config_type
   !---------------------------------------
-  
+
   !> Reads in the theta_grid_file_knobs namelist and populates the member variables
   subroutine read_theta_grid_file_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -2547,7 +2548,7 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 2000) :: gridout_file
     logical :: no_geo_info
 
@@ -2629,7 +2630,7 @@ end module theta_grid_file
 !> FIXME : Add documentation
 module theta_grid
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  
+
   implicit none
 
   private
@@ -2647,7 +2648,7 @@ module theta_grid
   public :: theta_grid_config_type
   public :: set_theta_grid_config
   public :: get_theta_grid_config
-  
+
   real, dimension (:), allocatable :: theta, theta2, delthet, delthet2
   real, dimension (:), allocatable :: bset
   real, dimension (:), allocatable :: bmag, gradpar
@@ -2719,10 +2720,10 @@ module theta_grid
   end type theta_grid_config_type
 
   type(theta_grid_config_type) :: theta_grid_config
-  
+
 contains
-  
-  !> FIXME : Add documentation  
+
+  !> FIXME : Add documentation
   subroutine check_theta_grid(report_unit, alne, dbetadrho)
     use theta_grid_salpha, only: check_theta_grid_salpha
     use theta_grid_eik, only: check_theta_grid_eik
@@ -2747,12 +2748,12 @@ contains
        write (report_unit, *) 'fbpar = 1.0 in this case.'
        write (report_unit, *)
        write (report_unit, *) 'You got this option by setting gb_to_cv = .true.'
-       write (report_unit, *) 
+       write (report_unit, *)
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('You have chosen to set the grad B drift equal to the curvature drift.')")
-       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')") 
+       write (report_unit, fmt="('THIS IS PROBABLY AN ERROR.')")
        write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *) 
+       write (report_unit, *)
     end if
   end subroutine check_theta_grid
 
@@ -2770,7 +2771,7 @@ contains
 
     select case (eqopt_switch)
     case (eqopt_eik)
-       write (unit, fmt="(a)") ' equilibrium_option = "eik"'          
+       write (unit, fmt="(a)") ' equilibrium_option = "eik"'
     case (eqopt_salpha)
        write (unit, fmt="(a)") ' equilibrium_option = "s-alpha"'
     case (eqopt_file)
@@ -2807,7 +2808,7 @@ contains
     type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
     type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
-    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
     integer, parameter :: verb=3
     if (initialized) return
     initialized = .true.
@@ -2836,9 +2837,9 @@ contains
     use theta_grid_file, only: finish_theta_grid_file
     use theta_grid_params, only: finish_theta_grid_params
     implicit none
-    
+
     initialized = .false.
-    
+
     call finish_theta_grid_gridgen
     call finish_theta_grid_salpha
     call finish_theta_grid_eik
@@ -2849,7 +2850,7 @@ contains
     call theta_grid_config%reset()
   end subroutine finish_theta_grid
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine broadcast_results
     use mp, only: proc0, broadcast
     use unit_tests, only: debug_message
@@ -2916,12 +2917,12 @@ contains
     call debug_message(verb, "theta_grid::broadcast_results finished")
   end subroutine broadcast_results
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_config_in)
     use file_utils, only: input_unit, error_unit
     use text_options, only: text_option, get_option_value
     implicit none
-    type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in    
+    type(theta_grid_config_type), intent(in), optional :: theta_grid_config_in
     type (text_option), dimension (6), parameter :: eqopts = &
          (/ text_option('default', eqopt_eik), &
             text_option('eik', eqopt_eik), &
@@ -2935,7 +2936,7 @@ contains
     ! 'grid.out' 'file': read grid from grid.out file generated by rungridgen
 
     integer :: ierr
-    
+
     if (present(theta_grid_config_in)) theta_grid_config = theta_grid_config_in
 
     call theta_grid_config%init(name = 'theta_grid_knobs', requires_index = .false.)
@@ -2954,7 +2955,7 @@ contains
          ierr, "equilibrium_option in theta_grid_knobs",.true.)
   end subroutine read_parameters
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine allocate_arrays
     implicit none
     if (.not. allocated(theta)) allocate (theta(-ntgrid:ntgrid))
@@ -3029,7 +3030,7 @@ contains
     implicit none
     real, dimension (nbset) :: bset_save
     real, dimension (-ntgrid:ntgrid) :: eik_save
-    
+
     ! in case nbset changes after gridgen
     if (nbset /= size(bset)) then
        bset_save = bset(:nbset)
@@ -3123,7 +3124,7 @@ contains
     bmax = maxval(bmag)
     bmin = minval(bmag)
     ! ?? check Krook collision operator coding which is only place eps is used
-    ! the line with bmin/bmax was the original coding.  Changed in 2002-2004 time 
+    ! the line with bmin/bmax was the original coding.  Changed in 2002-2004 time
     ! frame to 1.0 - 1.0/bmax , now changed back (8.19.04) BD
     ! Now only used in le_grids to check if we have any trapped particles
     eps_trapped = 1.0 - sqrt(bmin/bmax)
@@ -3158,8 +3159,8 @@ contains
     type(theta_grid_gridgen_config_type), intent(in), optional :: theta_grid_gridgen_config_in
     type(theta_grid_salpha_config_type), intent(in), optional :: theta_grid_salpha_config_in
     type(theta_grid_file_config_type), intent(in), optional :: theta_grid_file_config_in
-    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in    
-    
+    type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
+
     logical, parameter :: debug=.false.
 if (debug) write(6,*) 'get_sizes: eqopt_switch=',eqopt_switch
     select case (eqopt_switch)
@@ -3252,17 +3253,17 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
     cvdrift0=cvdriftknob*cvdrift0
 
     itor_over_B=0.
-!CMR, 2/2/2011: 
-! If using slab geometry, set itor_over_B = btor_slab from "theta_grid_params": 
-! cleaner equivalent alternative to using btor_slab in "dist_fn_knobs", and 
+!CMR, 2/2/2011:
+! If using slab geometry, set itor_over_B = btor_slab from "theta_grid_params":
+! cleaner equivalent alternative to using btor_slab in "dist_fn_knobs", and
 ! sets geometric parameter itor_over_B in one place for ALL geometries.
 !
     if (eqopt_switch .eq. eqopt_salpha .and. eps .eq. 0. ) then
        itor_over_B = btor_slab
     else
-!CMR, 19/10/10: moved MAB's definition of geometry quantity itor_over_B from 
+!CMR, 19/10/10: moved MAB's definition of geometry quantity itor_over_B from
 !               dist_fn.f90 to here.
-! Calculate the parallel velocity shear drive factor itor_over_B 
+! Calculate the parallel velocity shear drive factor itor_over_B
 ! (which effectively depends on the angle the field lines make with the flow)
 ! note that the following is only valid in a torus!
 ! itor_over_B = (q/rho) * Rmaj*Btor/(a*B)
@@ -3328,8 +3329,8 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
 
   !---------------------------------------
   ! Following is for the config_type
-  !--------------------------------------- 
-  
+  !---------------------------------------
+
   !> Reads in the theta_grid_knobs namelist and populates the member variables
   subroutine read_theta_grid_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -3341,7 +3342,7 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: equilibrium_option
     logical :: gb_to_cv
     real :: cvdriftknob, gbdriftknob
@@ -3412,7 +3413,7 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_theta_grid_config()
     implicit none
@@ -3427,5 +3428,3 @@ if (debug) write(6,*) 'get_grids: call file_nc_get_grids'
     get_default_requires_index_theta_grid_config = .false.
   end function get_default_requires_index_theta_grid_config
 end module theta_grid
-
-

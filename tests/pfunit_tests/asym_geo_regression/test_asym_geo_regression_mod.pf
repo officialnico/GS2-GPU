@@ -30,7 +30,8 @@ contains
         local_eq = .true., &
         bishop = 4, &
         delrho = 0.001, &
-        isym = 0, &
+        isym = -1, &
+        force_sym = .false., &        
         ppl_eq = .false., &
         gen_eq = .false., &
         efit_eq = .false., &

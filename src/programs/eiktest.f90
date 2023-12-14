@@ -5,7 +5,7 @@ program eiktest
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
   use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
-  use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
+  use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
@@ -31,9 +31,7 @@ program eiktest
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   real :: tstar
   integer :: nbeta, funit
-
   logical :: no_end_point
-
   logical :: fast, dipole, list, Xanthopoulos, in_nt
   character(len=:), allocatable :: in_stem, out_stem
 
@@ -48,7 +46,7 @@ program eiktest
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
        gen_eq, ppl_eq, eqfile, local_eq, idfit_eq,&
-       chs_eq,&
+       chs_eq, force_sym, &
        s_hat_input,p_prime_input,invLp_input,beta_prime_input, &
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
@@ -90,14 +88,14 @@ program eiktest
 
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;     shat = 1
-  shift = 0  
-   
+  shift = 0
+
   s_hat_input = 1
   beta_prime_input = -1
   p_prime_input = -2
   invLp_input = 5
 
-  irho = 2 ;      isym = 0
+  irho = 2 ;      isym = -1
 
   delrho = 0.01
 
@@ -126,6 +124,7 @@ program eiktest
   if (.not. fast) write(*,*) "Option deprecated : fast set but doesn't do anything"
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
+  if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
 
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
@@ -142,19 +141,19 @@ program eiktest
      itor=1
      write(*,*) 'Forcing itor=1'
   endif
-  
+
   if(iflux /= 0 .and. iflux /=1) then
      write(*,*) 'iflux=0 or 1 is the only option.'
      stop
   endif
 !
-! Catch if no q profile 
+! Catch if no q profile
 !
   if(iflux.ne.1 .and. irho.eq.1) then
      irho=2
      write(*,*) 'Forcing irho=2'
   endif
-  
+
   if(iflux.ne.1) then
      if(gen_eq) write(*,*) 'Forcing gen_eq to be false'
      if(ppl_eq) write(*,*) 'Forcing ppl_eq to be false'
@@ -165,14 +164,14 @@ program eiktest
      ppl_eq=.false.
      chs_eq = .false.
   endif
-  
+
   open(unit=21,file=out_stem//'eik.out',status='unknown')
   open(unit=24,file=out_stem//'shear.out',status='unknown')
   open(unit=25,file=out_stem//'trap.out',status='unknown')
   open(unit=11,file=out_stem//'eik2.out',status='unknown')
   open(unit=99,file=out_stem//'eik3.out',status='unknown')
   open(unit=78,file=out_stem//'eik7.out',status='unknown')
-  
+
   call eikcoefs(ntheta, eikcoefs_results)
 
   ! Unpack results for ease of use
@@ -213,7 +212,7 @@ program eiktest
 
      write(*,*) 'B_bar = ',bbar
   end if
-           
+
   if (dipole) then
      shat = max(1.e-7, shat)
   end if
@@ -222,24 +221,24 @@ program eiktest
 !CMR 14/01/05 change format to prevent line breaks with intel compiler and allow runngridgen to read the output files
   write(21,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsi, rmaj, shat, kxfac, qsf
 !CMR
-  
+
   write(21,*) '    gbdrift     gradpar       grho    tgrid'
   do i= -ntgrid,ntgrid
      write(21,1000) gbdrift(i), gradpar(i),grho(i),theta(i)
   enddo
-  
+
   write(21,*) '    cvdrift            gds2            bmag   tgrid'
   do i= -ntgrid,ntgrid
      write(21,1000) cvdrift(i), gds2(i),bmag(i),theta(i)
   enddo
-     
+
 !      write(*,*) 'bmag(0)= ',bmag(0),' bmag(pi)= ',bmag(ntgrid)
 
   write(21,*) '    gds21             gds22  tgrid'
   do i= -ntgrid,ntgrid
      write(21,1000) gds21(i), gds22(i),theta(i)
   enddo
-  
+
   write(21,*) '    cvdrift0          gbdrift0   tgrid'
   do i= -ntgrid,ntgrid
      write(21,1000) cvdrift0(i),gbdrift0(i),theta(i)
@@ -274,7 +273,7 @@ program eiktest
   !      write(*,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
-  
+
      call geofax(rhoc, theta, rt, rk, rd, fort11_unit)
      if(iflux == 1) then
         rhocp=rhoc+delrho
@@ -296,7 +295,7 @@ program eiktest
         rtpri=tripri
         rdpri=shift
      endif
-  
+
      qq=qfun(pbar)
      write(11,*) 'shat= ',shat
      write(11,*) 'qinp= ',qq
@@ -310,7 +309,7 @@ program eiktest
      write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0, fort11_unit))/2.0, ' ...  should be 1'
      write(11, *) 'r/a = ', diameter(rpofrho(rhoc, fort11_unit))/diameter(rpofrho(1.0, fort11_unit))
   end if
-     
+
   close(11)
   close(21)
   close(99)
