@@ -41,7 +41,7 @@ program eiktest
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
   real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
-  integer :: fort11_unit
+  integer :: fort11_unit, isym
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &

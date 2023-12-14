@@ -16,7 +16,7 @@ program ball
   real, dimension(:), allocatable :: theta
   real :: dbetadrho
   integer :: nbeta, ntgrid, ntheta, iunstable, ibeta, ishat
-  integer :: nshat, order
+  integer :: nshat, order, isym
 
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
