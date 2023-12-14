@@ -120,7 +120,7 @@ module geometry
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
   public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
-  public :: eikcoefs_output, run_eikcoefs_and_resample, get_theta_eqarc
+  public :: eikcoefs_output_type, run_eikcoefs_and_resample, get_theta_eqarc
 
   class(abstract_geo_type), allocatable :: geom
   ! Start of inputs
@@ -158,7 +158,7 @@ module geometry
 
   !> A type to hold a collection of geometrical quantities as calculated by
   !> [[eikcoefs]]
-  type eikcoefs_output
+  type eikcoefs_output_type
      integer :: ntheta
      real :: s_hat_new
      real :: drhodpsi
@@ -216,7 +216,7 @@ module geometry
      real, dimension(:), allocatable :: aprime
      !> bpol :: Poloidal magnetic field strength
      real, dimension(:), allocatable :: bpol
-  end type eikcoefs_output
+  end type eikcoefs_output_type
 
 contains
 
@@ -230,9 +230,9 @@ contains
     !> This is the desired number of theta grid points per two pi period
     !> in the resulting geometrical coefficients used elsewhere.
     integer, intent(in) :: ntheta_target
-    type(eikcoefs_output), intent(out) :: results
+    type(eikcoefs_output_type), intent(out) :: results
     integer, intent(in), optional :: job_id
-    type(eikcoefs_output) :: full_results
+    type(eikcoefs_output_type) :: full_results
     real, dimension(:), allocatable :: input_index_space, target_index_space
     integer :: ig, ntgrid_target, ntgrid_input
     real :: spacing
@@ -341,7 +341,7 @@ contains
     !> set `nth = ntheta_input - 1`
     integer, intent (inout) :: ntheta_input
     !> A type containing all of the outputs of eikcoefs
-    type(eikcoefs_output), intent(out) :: outputs
+    type(eikcoefs_output_type), intent(out) :: outputs
     !> job_id is the job id in a  Trinity or list mode run. Used
     !> for debug statements
     integer, intent(in), optional :: job_id_in

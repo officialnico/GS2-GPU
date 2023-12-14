@@ -1,6 +1,6 @@
 !> FIXME : Add documentation
 program ball
-  use geometry, only: eikcoefs, eikcoefs_output
+  use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
   use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
@@ -23,7 +23,7 @@ program ball
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   real :: akappa, tri, akappri, tripri, rmin, rmax
   logical :: diagram
-  type(eikcoefs_output) :: eikcoefs_results
+  type(eikcoefs_output_type) :: eikcoefs_results
 
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, irho,isym, &

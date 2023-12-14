@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
-  use geometry, only: eikcoefs_output, geofax, eikcoefs, pbarfun, geom
+  use geometry, only: eikcoefs_output_type, geofax, eikcoefs, pbarfun, geom
   use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
@@ -38,7 +38,7 @@ program eiktest
   character(len=:), allocatable :: in_stem, out_stem
 
   character(len=run_name_size) :: ncout
-  type(eikcoefs_output) :: eikcoefs_results
+  type(eikcoefs_output_type) :: eikcoefs_results
   real, dimension(:), allocatable :: theta, bmag, aplot, aprime, bpol, cvdrift, grho
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot

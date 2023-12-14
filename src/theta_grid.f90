@@ -1069,7 +1069,7 @@ end module theta_grid_salpha
 !> FIXME : Add documentation
 module theta_grid_eik
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-  use geometry, only: eikcoefs_output
+  use geometry, only: eikcoefs_output_type
   use geo_utils, only: EQFILE_LENGTH
   implicit none
 
@@ -1083,7 +1083,7 @@ module theta_grid_eik
   public :: get_theta_grid_eik_config
   
   logical :: exist, initialized = .false.
-  type(eikcoefs_output) :: eikcoefs_results
+  type(eikcoefs_output_type) :: eikcoefs_results
   integer :: ntheta_geometry
 
   !> Used to represent the input configuration of theta_grid

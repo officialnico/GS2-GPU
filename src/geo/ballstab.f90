@@ -420,7 +420,7 @@ contains
        iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
-    use geometry, only: eikcoefs, eikcoefs_output
+    use geometry, only: eikcoefs, eikcoefs_output_type
     use optionals, only: get_option_with_default
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
@@ -428,7 +428,7 @@ contains
     integer, intent(out) :: iunstable
     real, intent(in), optional :: theta0
     logical, intent(in), optional :: restore
-    type(eikcoefs_output) :: eikcoefs_results
+    type(eikcoefs_output_type) :: eikcoefs_results
     real :: shat_bak, beta_prime_bak
     integer :: ntgrid
     logical :: local_restore
