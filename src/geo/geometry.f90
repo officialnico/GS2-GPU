@@ -979,6 +979,7 @@ contains
 
       ! obtain Z(theta)
       call Ztgrid(rgrid, theta, Zoftheta)
+      call periodic_copy(Zoftheta, 0., nperiod)      
       ! calculate dZ/dl
       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
       call periodic_copy(dZdl, 0., nperiod)
@@ -998,10 +999,10 @@ contains
          write(bishop_unit, fmt="('#drdpsi =', F12.7)") drhodpsi
          write(bishop_unit, fmt="('#a_b (fp)=', F20.10, ' ,b_b (pp)=', F20.10,' ,c_b  =', F20.10,' ,s_hat =', F20.10)") a_b*di, b_b*dp, c_b, s_hat
          write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
-         do i =-ntgrid,ntgrid
+         do i = -ntgrid, ntgrid
             write(bishop_unit, '( 10(2X, F25.17) )') theta(i), a_bish(i), b_bish(i), &
                  c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
-         enddo
+         end do
          call close_output_file(bishop_unit)
       end if
     end subroutine bishop_grads
