@@ -3,7 +3,7 @@ program ball
   use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
+  use geometry, only: equal_arc, rhoc, itor, qinp, delrho
   use geometry, only: bishop, irho, force_sym, efit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -16,7 +16,7 @@ program ball
   real, dimension(:), allocatable :: theta
   real :: dbetadrho
   integer :: nbeta, ntgrid, ntheta, iunstable, ibeta, ishat
-  integer :: nshat, order, isym
+  integer :: nshat, order, isym, iflux
 
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
@@ -38,7 +38,7 @@ program ball
 
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0
-  itor=1; iflux=0
+  itor=1; iflux=-1
 
   eqfile='dskeq.cdf'
   rhoc=0.5
@@ -73,6 +73,7 @@ program ball
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
   if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
+  if (iflux /= -1) write(*,*) "Option deprecated : iflux set but not used"
 
   writelots = .false.
 
@@ -90,42 +91,27 @@ program ball
 
   equal_arc = .false.   ! this should not be required
 
-  !if(k1.lt.0) k1=(ntheta/abs(k1))**2
-  !if(k2.lt.0) k2=(ntheta/abs(k2))**2
-
-  !if(vmom_eq .and. gen_eq) then
-     !write(*,*) 'Choose either vmom_eq or gen_eq, not both'
-     !write(*,*) 'Stopping'
-     !stop
-  !endif
-
 !
-! Note that if iflux=1 then always choose itor=1
+! Note that if .not. local_eq then always choose itor=1
 !
-  if(iflux.eq.1 .and. itor.ne.1) then
-     itor=1
+  if ((.not. local_eq) .and. itor /= 1) then
+     itor = 1
      write(*,*) 'Forcing itor=1'
-  endif
-
-  if(iflux /= 0 .and. iflux /=0) then
-     write(*,*) 'iflux=0 or 1 is the only option.'
-     stop
-  endif
+  end if
 !
 ! Catch if no q profile
 !
-  if(iflux.ne.1 .and. irho.eq.1) then
-     irho=2
+  if (local_eq .and. irho == 1) then
+     irho = 2
      write(*,*) 'Forcing irho=2'
-  endif
+  end if
 
-  if(iflux.ne.1) then
+  if (local_eq) then
      !if(vmom_eq) write(*,*) 'Forcing vmom_eq to be false'
-     if(gen_eq) write(*,*) 'Forcing gen_eq to be false'
-     if(gen_eq) write(*,*) 'because iflux.ne.1'
+     if(gen_eq) write(*,*) 'Forcing gen_eq to be false because local_eq is set'
      !vmom_eq=.false.
-     gen_eq=.false.
-  endif
+     gen_eq = .false.
+  end if
 
 !     compute the theta grid
 

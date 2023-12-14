@@ -158,7 +158,7 @@ contains
 
   !> Check parameters are consistent etc.
   subroutine verify_parameters
-    use geometry, only: bishop, iflux
+    use geometry, only: bishop, local_eq
     use file_utils, only: error_unit
     implicit none
     integer :: ierr
@@ -166,33 +166,32 @@ contains
     ierr = error_unit()
 
     !Disable scan in s_hat when incompatible bishop used
-    if(n_shat.gt.1)then
+    if (n_shat > 1) then
        select case(bishop)
        case(2,3,4,5,8,9)
           !These are valid values
        case default
-          if((bishop.ne.0).and.(iflux.ne.1)) then
+          if( (bishop /= 0) .and. local_eq) then
              !This is also ok
           else
              !This is not ok
-             n_shat=1
-             write(ierr,'("ERROR : Cannot scan in shat for current combination of bishop and iflux")')
-          endif
+             n_shat = 1
+             write(ierr,'("ERROR : Cannot scan in shat for current combination of bishop and equilbrium type")')
+          end if
        end select
-    endif
+    end if
 
     !Disable scan in beta_prime when incompatible bishop used
-    if(n_beta.gt.1)then
+    if (n_beta > 1) then
        select case(bishop)
        case(2,3,4,5,6,7,8,9)
           !These are valid values
        case default
           !This is not ok
-          n_beta=1
-          write(ierr,'("ERROR : Cannot scan in beta_prime for current combination of bishop and iflux")')
+          n_beta = 1
+          write(ierr,'("ERROR : Cannot scan in beta_prime for current combination of bishop and equilbrium type")')
        end select
-    endif
-
+    end if
   end subroutine verify_parameters
 
   !> Allocate+populate arrays
@@ -277,7 +276,7 @@ contains
     use geometry, only: s_hat_input
     implicit none
     real, intent(in) :: shat_in
-    !Note for bishop = 6,7 or not in 2-9 and iflux==1 cannot change shat
+    !Note for bishop = 6,7 or not in 2-9 and .not. local_eq cannot change shat
     !Should flag this somewhere (during init)
     s_hat_input = shat_in
   end subroutine set_shat

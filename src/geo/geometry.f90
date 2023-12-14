@@ -1,18 +1,16 @@
 !> Deals with most types of equilibria to generate GS2's expected geometrical parameters
 !> Input:
 !> rhoc :: minor radius of surface of interest (see irho below)
-!> itor :: default one.  Choose zero to get "s-alpha" equilibria (see iflux=0)
-!> iflux :: chooses mode of operation.
-!>          case (0)  :: no equilibrium.  Analytic parameterization of local equilibrium
-!>                       iflux = 0 forces local_eq = .true. and irho = 2
-!>          case (1)  :: use numerical equilibrium.  6 choices:
-!>             ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
-!>             transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
-!>             gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
-!>             chs_eq = .true. ::  Use CHEASE generated equilibrium
-!>             efit_eq = .true. :: use EFIT  equilibrium
-!>             dfit_eq = .true. :: use dipole equilibrium
-!> -------------------> [note: if any of the above are true set eqfile = input file name]
+!> itor :: default one.  Choose zero to get "s-alpha" equilibria (see local_eq)
+!> Equilibrium options : Choose 1 of:
+!>          local_eq : Analytic parameterization of local equilibrium
+!>          ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
+!>          transp_eq = .true. :: use TRXPL style NetCDF equilibrium (Menard)
+!>          gen_eq = .true. :: use GA style NetCDF equilibrium (TOQ)
+!>          chs_eq = .true. ::  Use CHEASE generated equilibrium
+!>          efit_eq = .true. :: use EFIT  equilibrium
+!>          dfit_eq = .true. :: use dipole equilibrium
+!> -------------------> [note: if any of the above except local_eq are true set eqfile = input file name]
 !> irho :: choose flux surface label
 !>         case (1) :: sqrt(toroidal flux)/sqrt(toroidal flux of LCFS)
 !>         case (2) :: diameter/(diameter of LCFS).  recommended
@@ -56,10 +54,10 @@
 !>           to arbitrary shaping effect mode number (see Chapter 5.1.2 of J. Ball Oxford PhD thesis)
 !>         case (3) :: the Fourier series geometry: Fourier decomposition of the minor radius as a function
 !>           of poloidal angle (see Chapter 5.1.1 of J. Ball Oxford PhD thesis)
-!> rmaj :: major radius of magnetic axis (in units of aminor) if iflux = 1
+!> rmaj :: major radius of magnetic axis (in units of aminor) if not local_eq
 !>      or major radius of center of flux surface of interest (units of aminor) otherwise
 !> r_geo :: major radius of last closed flux surface or
-!>       if iflux=0: sets the reference magnetic field to be the value of the toroidal
+!>       if local_eq: sets the reference magnetic field to be the value of the toroidal
 !>       field at R=r_geo on the flux surface of interest
 !> aSurf :: the real-space flux surface label of the surface with deltam and deltan shaping as well as
 !>   a major radius of Rmaj (only used when geoType={1})
@@ -114,7 +112,7 @@ module geometry
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: nperiod, eqfile, eqnormfile, irho, iflux, itor
+  public :: nperiod, eqfile, eqnormfile, irho, itor
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, qinp, s_hat_input
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
@@ -128,7 +126,7 @@ module geometry
   real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
   real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
   real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  integer :: nperiod, itor, iflux, irho, bishop
+  integer :: nperiod, itor, irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc, force_sym
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
@@ -389,14 +387,8 @@ contains
     if (debug) writelots = .true.
 
     if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
-    if (local_eq .and. iflux /= 0) then
-       write (*,*) 'Forcing iflux = 0 as local_eq is true'
-       iflux = 0
-    end if
 
-    if (iflux == 0) then
-       if (.not. local_eq) write(*,*) 'Forcing local_eq = true as iflux = 0'
-       local_eq = .true.
+    if (local_eq) then
        if (irho /= 2) write(*,*) 'Forcing irho = 2'
        irho = 2
        if (bishop == 0) then
@@ -406,7 +398,7 @@ contains
     end if
 
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
-    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, iflux, bishop)
+    call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     thetaShift = 0.0
     if (.not. allocated(geom)) call allocate_geom
@@ -433,7 +425,7 @@ contains
     ! Set itor=1 and the first two columns should be the
     ! same (better agreement results from higher ntheta)
     ! Set itor=0 and the first and third columns should
-    ! be equal. All of this, of course, with iflux==0.
+    ! be equal. All of this, of course, with local_eq = T
     !
     ! This amounts to checking the expression for
     ! nu for axisymmetric, low beta equilibrium:
@@ -664,9 +656,9 @@ contains
       integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
-      if (debug) write(6,*) "eikcoefs: iflux=",iflux, 'chs_eq=', chs_eq, 'jid=',job_id
+      if (debug) write(6,*) "eikcoefs: chs_eq=", chs_eq, 'jid=',job_id
 
-      if (iflux == 0) then
+      if (local_eq) then
          inputs%surf%geoType = geoType
          inputs%surf%mMode = mMode ; inputs%surf%nMode = nMode
          inputs%surf%rmaj = rmaj ; inputs%surf%R_geo = R_geo ; inputs%surf%r = rhoc
@@ -701,20 +693,20 @@ contains
             write(fort11_unit,*) 'The rho normalization is determined by irho.'
          end if
          write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
-         if (iflux == 1) write(fort11_unit,*) 'R_mag = ',rmaj
-         if (iflux == 1) write(fort11_unit,*) 'B_T0 = ',B_T0
+         if (.not. local_eq) write(fort11_unit,*) 'R_mag = ',rmaj
+         if (.not. local_eq) write(fort11_unit,*) 'B_T0 = ',B_T0
       end if
 
       if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
 
-      if (iflux == 1) then
-         rp = rpofrho(rhoc, fort11_unit)
-         R_geo = rcenter(rpmax) !Only used for writelots/checks
-      else
-         ! Because irho==2 if iflux/=0 and diameter is effectively analytic
+      if (local_eq) then
+         ! Because irho==2 if local_eq and diameter is effectively analytic
          ! one would expect rpofrho(rho) == rho in this case. So here we
          ! effectively just have an optimisation (I think)
          rp = rhoc
+      else
+         rp = rpofrho(rhoc, fort11_unit)
+         R_geo = rcenter(rpmax) !Only used for writelots/checks
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
@@ -728,7 +720,7 @@ contains
       pbar = pbarfun(rgrid(0), theta(0))
       drhodrp = drho_drp(rp)
 
-      if (iflux == 1 .and. R_geo > Rmaj + 1.e-5) then
+      if ((.not. local_eq) .and. R_geo > Rmaj + 1.e-5) then
          write(6,*)
          write(6,*) 'Warning: the center of the LCFS is outboard of the '
          write(6,*) 'center of the reference surface.  This is probably wrong.'
@@ -784,7 +776,7 @@ contains
 
       ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
       ! and (rho,l,phi) coordinates if bishop>0
-      ! also, rpgrad is grad psi if iflux=1 and grad rho if iflux=0 -- MAB
+      ! also, rpgrad is grad psi if not local_eq and grad rho if local_eq -- MAB
 
       ! When bishop > 0
       ! rpgrad(:,1) is |grad rp|
@@ -818,16 +810,16 @@ contains
       call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
-      if (iflux == 0) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
+      if (local_eq) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
-      if (iflux == 0) trip = trip * dpsidrp
+      if (local_eq) trip = trip * dpsidrp
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
          call B_pol(invR, crpgrad, Bpolmag, nth) !<Should this use rpgrad for local?
-         if (iflux == 0) Bpolmag(-nth:nth) = Bpolmag(-nth:nth) * dpsidrp
+         if (local_eq) Bpolmag(-nth:nth) = Bpolmag(-nth:nth) * dpsidrp
          call periodic_copy(Bpolmag, 0., nperiod)
          call B_mod(invR, Bpolmag, Bmod, bi, nth)
          call periodic_copy(Bmod, 0., nperiod)
@@ -903,10 +895,10 @@ contains
       write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
       ! Decide how we want to set s_hat_new
-      if (iflux == 1) then
-         s_hat_new = s_hat
-      else
+      if (local_eq) then
          s_hat_new = s_hat_input
+      else
+         s_hat_new = s_hat
       end if
 
       select case (bishop)
@@ -954,7 +946,7 @@ contains
          if (writelots) write(*,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
       end select
 
-      if (iflux == 1 .and. (bishop == 1 .or. bishop > 9)) then
+      if ((.not. local_eq) .and. (bishop == 1 .or. bishop > 9)) then
          di_new = di
       else
          di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
@@ -1013,9 +1005,9 @@ contains
       delrp = delrho / drhodrp
       rp1 = rp - delrp ; rp2 = rp + delrp
 
-      ! Note for iflux == 0 we need to ensure qval is set before
-      !calling seikon. We force bishop > 0 for iflux == 0 so shouldn't get here.
-      if (iflux == 0) then
+      ! Note for local_eq we need to ensure qval is set before
+      !calling seikon. We force bishop > 0 for local_eq so shouldn't get here.
+      if (local_eq) then
          dqdrho = dqdrhofun(rhoc, shat, fort11_unit)
          qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
       end if
@@ -1037,7 +1029,7 @@ contains
          dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
       end do
 
-      if (iflux == 1) then
+      if (.not. local_eq) then
          dqdrho = (qval2 - qval1) / (2 * delrho)
          shat = dqdrho * rhoc / qval
       end if
@@ -1486,7 +1478,7 @@ contains
 
     call integrate(dsdthet, theta, seik, ntgrid)
 
-    if (iflux == 0) then
+    if (local_eq) then
        dpsidrp = -(seik(nth) - seik(-nth)) / (twopi * qval)
        seik = seik / dpsidrp
        dsdthet = dsdthet / dpsidrp
@@ -2111,14 +2103,12 @@ contains
   end subroutine bishop_gradB
 
   !> Perform minor checks on consistency of flags
-  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq, iflux, bishop)
+  subroutine check(geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq, bishop)
     use mp, only: mp_abort
     implicit none
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq
-    integer, intent(in) :: iflux, bishop
+    integer, intent(in) :: bishop
     integer :: nflag_set
-    if (iflux /= 0 .and. iflux /= 1) &
-       call mp_abort('Can only choose iflux = 0 or iflux = 1', .true.)
     if ((eeq .or. deq .or. gs2deq) .and. bishop == 0) &
          call mp_abort('gs2_eq/efit_eq/dfit_eq are not compatible with bishop = 0',.true.)
     nflag_set = count([geq, ceq, eeq, gs2deq, peq, teq, leq, deq, ideq])

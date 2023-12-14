@@ -129,7 +129,7 @@ module theta_grid_params
      !>  is the major radius at the centre of the flux surface.
      real :: epsl = 0.3
      !> Selects between different analytic geometry specifications
-     !> (only used when `iflux=0` and `local_eq=T`): `geoType=0`
+     !> (only used when `local_eq=T`): `geoType=0`
      !> selects the Generalised Miller, `geoType=1` selects the Global
      !> MHD, `geoType=2` selects the Generalised Elongation, and
      !> `geoType=3` selects the Fourier specification. See Section 2.1
@@ -191,8 +191,8 @@ module theta_grid_params
      !> Sets value of the safety factor when using local toroidal
      !> equilibrium model.
      real :: qinp = 1.5
-     !> When `iflux = 1`: Centerpoint of LCFS (normalized to
-     !> \(L_\textrm{ref}\)) - When `iflux /= 1`: Major radius of
+     !> When not local_eq: Centerpoint of LCFS (normalized to
+     !> \(L_\textrm{ref}\)) - When local_eq: Major radius of
      !> magnetic field reference point (normalized to
      !> \(L_\textrm{ref}\)). Specifically, the reference magnetic
      !> field is defined to be the value of the toroidal magnetic
@@ -216,8 +216,8 @@ module theta_grid_params
      !> - When `irho` = 3, `rhoc` = poloidal flux/(poloidal flux of LCFS)
      !>
      real :: rhoc = 0.5
-     !> When `iflux = 1`: Position of magnetic axis (normalized to \(L_\textrm{ref}\)).
-     !> When `iflux /= 1`: Major radius of the centre of the
+     !> When not local_eq: Position of magnetic axis (normalized to \(L_\textrm{ref}\)).
+     !> When local_eq: Major radius of the centre of the
      !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
      !> Sets value of magnetic shear in simple geometric models.

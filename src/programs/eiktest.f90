@@ -4,7 +4,7 @@ program eiktest
   use constants, only: pi, run_name_size
   !> Inputs
   use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
+  use geometry, only: equal_arc, rhoc, itor, qinp, delrho
   use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots, R_geo
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -41,7 +41,7 @@ program eiktest
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
   real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
-  integer :: fort11_unit, isym
+  integer :: fort11_unit, isym, iflux
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
@@ -73,7 +73,7 @@ program eiktest
 
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0 ; fast = .true.
-  itor=1; iflux=0;  big = 8
+  itor=1; iflux=-1;  big = 8
 
   eqfile='dskeq.cdf'
   rhoc=0.5
@@ -134,32 +134,26 @@ program eiktest
      dp_mult = beta_prime_times
   endif
   fort11_unit = 12
-!
-! Note that if iflux=1 then always choose itor=1
-!
-  if(iflux.eq.1 .and. itor.ne.1) then
-     itor=1
-     write(*,*) 'Forcing itor=1'
-  endif
 
-  if(iflux /= 0 .and. iflux /=1) then
-     write(*,*) 'iflux=0 or 1 is the only option.'
-     stop
-  endif
+  ! Note that if .not. local_eq then always choose itor=1
+  if ((.not. local_eq) .and. itor /= 1) then
+     itor = 1
+     write(*,*) 'Forcing itor=1'
+  end if
 !
 ! Catch if no q profile
 !
-  if(iflux.ne.1 .and. irho.eq.1) then
-     irho=2
+  if (local_eq .and. irho == 1) then
+     irho = 2
      write(*,*) 'Forcing irho=2'
-  endif
+  end if
 
-  if(iflux.ne.1) then
+  if(local_eq) then
      if(gen_eq) write(*,*) 'Forcing gen_eq to be false'
      if(ppl_eq) write(*,*) 'Forcing ppl_eq to be false'
      if(chs_eq) write(*,*) 'Forcing chs_eq to be false'
      if(transp_eq) write(*,*) 'Forcing transp_eq to be false'
-     if(gen_eq .or. ppl_eq .or. transp_eq) write(*,*) 'because iflux.ne.1'
+     if(gen_eq .or. ppl_eq .or. transp_eq) write(*,*) 'because local_eq'
      gen_eq=.false.
      ppl_eq=.false.
      chs_eq = .false.
@@ -275,7 +269,7 @@ program eiktest
      write(11,*) 'q_95= ',q
 
      call geofax(rhoc, theta, rt, rk, rd, fort11_unit)
-     if(iflux == 1) then
+     if (.not. local_eq) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
         call geofax(rhocp, theta, rtp, rkp, rdp, fort11_unit)
@@ -318,7 +312,7 @@ program eiktest
   write (21,'(''#theta1 gradpar2 bmag3 grho4 '', &
        &   ''gbdrift5 gbdrift06 cvdrift7 cvdrift08 '', &
        &    ''gds29 gds2110 gds2211'')')
-  if (iflux .ne. 1) then
+  if (local_eq) then
      do i=-ntgrid,ntgrid
         write (21,1000) theta(i),gradpar(i),bmag(i),grho(i), &
              gbdrift(i),gbdrift0(i),cvdrift(i),cvdrift0(i), &

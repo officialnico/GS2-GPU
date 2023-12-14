@@ -1144,12 +1144,8 @@ module theta_grid_eik
      !> Unknown equilibrium file. You probably don't want this.
      !> FIXME: Add documentation
      logical :: idfit_eq = .false.
-     !> Choose mode of operation:
-     !>
-     !> -  0: Use analytic parameterization of local toroidal MHD equilibrium (Miller).
-     !> -  1: Read equilibrium data from output of MHD Grad Shafranov solver
-     !>
-     integer :: iflux = 0
+     !> Deprecated -- redundant information.
+     integer :: iflux = -1
      !> Used with [[theta_grid_eik_knobs:bishop]] == 3: controls pressure length
      !> scale by multiplying \(p \frac{d \rho}{d \psi}\)
      real :: invlp_input = 0.
@@ -1201,7 +1197,7 @@ contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: alpha_input, beta_prime_input, invLp_input, s_hat_input
-    use geometry, only: delrho, dp_mult, bishop, iflux, irho, itor, force_sym
+    use geometry, only: delrho, dp_mult, bishop, irho, itor, force_sym
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc, eqfile, eqnormfile
     implicit none
@@ -1210,7 +1206,6 @@ contains
     write (unit, *)
     write (unit, fmt="(' &',a)") "theta_grid_eik_knobs"
     write (unit, fmt="(' itor =  ',i2)") itor
-    write (unit, fmt="(' iflux =  ',i2)") iflux
     write (unit, fmt="(' irho =  ',i2)") irho
     write (unit, fmt="(' ppl_eq =   ',L1)") ppl_eq
     write (unit, fmt="(' efit_eq =  ',L1)") efit_eq
@@ -1241,7 +1236,7 @@ contains
     use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps, thetan
     use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam
     use geometry, only: dp_mult, alpha_input, beta_prime_input, invLp_input, s_hat_input
-    use geometry, only: rmaj, r_geo, qinp, bishop, iflux, irho, eqfile, eqnormfile
+    use geometry, only: rmaj, r_geo, qinp, bishop, irho, eqfile, eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, chs_eq
     implicit none
     integer, intent(in) :: report_unit
@@ -1253,7 +1248,7 @@ contains
     rhoc = eikcoefs_results%rhoc
     call checklogic_theta_grid_eik(report_unit)
     write (report_unit, *)
-    if (local_eq .and. iflux == 0) then
+    if (local_eq) then
        write (report_unit, fmt="('The following local equilibrium model has been selected:')")
        select case (geoType)
           case (0)
@@ -1375,15 +1370,6 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, *)
        end select
-    end if
-    if (local_eq .and. .not. (iflux == 0)) then
-       write (report_unit, *)
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, fmt="('You have selected a local equilibrium and iflux = ',i2)") iflux
-       write (report_unit, fmt="('For local equilibria, iflux=0 is required.')")
-       write (report_unit, fmt="('THIS IS AN ERROR.')")
-       write (report_unit, fmt="('################# WARNING #######################')")
-       write (report_unit, *)
     end if
     if (.not. local_eq) then
        if (gen_eq) then
@@ -1791,7 +1777,7 @@ contains
   !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_eik_config_in)
     use file_utils, only: input_unit, input_unit_exist
-    use geometry, only: itor, iflux, irho, rhoc, eqnormfile
+    use geometry, only: itor, irho, rhoc, eqnormfile
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
     use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop, nperiod
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult, s_hat_input
@@ -1812,7 +1798,7 @@ contains
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
-    integer :: isym
+    integer :: isym, iflux
     ! Copy some values from theta_grid_params into this module
     nperiod = nperiod_in
     rhoc = rhoc_in
@@ -1831,7 +1817,7 @@ contains
     thetam = thetam_in
     thetan = thetan_in
     qinp = qinp_in
-    isym = -1
+    isym = -1 ; iflux = -1
     if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in
 
     ! Smart defaults
@@ -1872,6 +1858,7 @@ contains
     writelots = theta_grid_eik_config%writelots
 
     if (isym /= -1) write(6,*) 'Warning: isym input is deprecated -- set force_sym instead'
+    if (iflux /= -1) write(6,*) 'Warning: iflux input is deprecated'
     exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
