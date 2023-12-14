@@ -58,7 +58,7 @@ contains
     self%surf = inputs%surf ;  self%thetaShift = inputs%thShift
     self%beta_0 = 1.
     self%nr = 3
-    self%nt = self%surf%nt * 2 + 1
+    self%nt = self%surf%nt + 1
     call self%alloc_arrays()
     dr = [-self%surf%dr, 0., self%surf%dr]
     ! Why do we set pressure to -dr here?

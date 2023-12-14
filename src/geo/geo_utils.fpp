@@ -44,7 +44,7 @@ module geo_utils
      real :: q
      !> Magnetic shear, \(\hat{s}\), input variable: `s_hat_input`
      real :: shat
-     !> Number of points in theta, input variable: `ntheta(nperiod - 1/2)`
+     !> Number of points in theta, input variable: `ntheta`
      integer :: nt
      !> Geometry specification type, input variable: `geoType`
      integer :: geoType

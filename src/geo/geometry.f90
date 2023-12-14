@@ -667,7 +667,7 @@ contains
          inputs%surf%deln = deltan ; inputs%surf%delmp = deltampri
          inputs%surf%delnp = deltanpri ; inputs%surf%thm = thetam
          inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
-         inputs%surf%nt = ntheta_input / 2 ; inputs%thShift = thetaShift
+         inputs%surf%nt = ntheta_input ; inputs%thShift = thetaShift
       else
          if (big <= 0 ) big = 8
          inputs%eqfile = eqfile
