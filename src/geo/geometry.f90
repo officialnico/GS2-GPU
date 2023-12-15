@@ -130,7 +130,7 @@ module geometry
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
   real :: rmaj, r_geo, rhoc, qinp, s_hat_input !< From surf
-  integer :: big = 0
+  integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
   !> \((0, \pi]\). `theta(-nth:nth)` is the single central period \([-\pi, \pi]\).  For
@@ -662,7 +662,6 @@ contains
       if (local_eq) then
          inputs%surf = surf ; inputs%thShift = thetaShift
       else
-         if (big <= 0 ) big = 8
          inputs%eqfile = eqfile
          inputs%big = big
          inputs%eqnormfile = eqnormfile
