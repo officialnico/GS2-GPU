@@ -3,7 +3,7 @@ program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
   !> Inputs
-  use geometry, only: surf, nperiod, eqfile, equal_arc, itor, delrho
+  use geometry, only: surf, nperiod, eqfile, equal_arc, use_large_aspect, delrho
   use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -41,7 +41,7 @@ program eiktest
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
   real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
-  integer :: fort11_unit, isym, iflux
+  integer :: fort11_unit, isym, iflux, itor
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
@@ -69,7 +69,7 @@ program eiktest
   tstar = 1.0
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0 ; fast = .true.
-  itor=1; iflux=-1;  big = 8
+  big = 8
   eqfile='dskeq.cdf'
   rhoc=0.5
   rmin=-1.0 ; rmax=-1.0
@@ -83,7 +83,7 @@ program eiktest
   beta_prime_input = -1
   p_prime_input = -2
   invLp_input = 5
-  irho = 2 ;      isym = -1
+  irho = 2 ;      isym = -1 ; itor = -1 ; iflux=-1
   delrho = 0.01
   no_end_point = .false.
 
@@ -112,6 +112,8 @@ program eiktest
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
   if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
+  if (iflux /= -1) write(*,*) "Option deprecated : iflux set but not used"
+  if (itor /= -1) write(*,*) "Option deprecated : itor set but not used (see use_large_aspect)"
 
   surf%geoType = geoType
   surf%mMode = 2 ; surf%nMode = 3
@@ -130,10 +132,10 @@ program eiktest
   endif
   fort11_unit = 12
 
-  ! Note that if .not. local_eq then always choose itor=1
-  if ((.not. local_eq) .and. itor /= 1) then
-     itor = 1
-     write(*,*) 'Forcing itor=1'
+  ! Note that if .not. local_eq then always choose use_large_aspect = F
+  if ((.not. local_eq) .and. use_large_aspect) then
+     use_large_aspect = .false.
+     write(*,*) 'Forcing use_large_aspect to false'
   end if
 
   ! Catch if no q profile

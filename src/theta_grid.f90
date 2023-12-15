@@ -1162,9 +1162,8 @@ module theta_grid_eik
      integer :: irho = 2
      !> Deprecated, see force_sym instead
      integer :: isym = -1
-     !> Do not change
-     !> @todo Consider removing
-     integer :: itor = 1
+     !> Deprecated, see use_large_aspect instead
+     integer :: itor = -1
      !> If `.true.` use Miller-style local equilibrium else use other
      !> numerical equilibrium types
      logical :: local_eq = .true.
@@ -1180,6 +1179,8 @@ module theta_grid_eik
      real :: s_hat_input = 0.0
      !> Use PPL NetCDF equilibrium (psipqgrz equilibrium from TRANSP/TRXPL)
      logical :: transp_eq = .false.
+     !> If true use large aspect ratio expansions in eik geometry to get ~s-alpha
+     logical :: use_large_aspect = .false.
      !> Write a little extra about geometry to the screen.
      logical :: writelots = .false.
    contains
@@ -1197,7 +1198,7 @@ contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: surf, alpha_input, beta_prime_input, invLp_input
-    use geometry, only: delrho, dp_mult, bishop, irho, itor, force_sym
+    use geometry, only: delrho, dp_mult, bishop, irho, force_sym, use_large_aspect
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc, eqfile, eqnormfile
     implicit none
@@ -1205,7 +1206,6 @@ contains
     if (.not. exist) return
     write (unit, *)
     write (unit, fmt="(' &',a)") "theta_grid_eik_knobs"
-    write (unit, fmt="(' itor =  ',i2)") itor
     write (unit, fmt="(' irho =  ',i2)") irho
     write (unit, fmt="(' ppl_eq =   ',L1)") ppl_eq
     write (unit, fmt="(' efit_eq =  ',L1)") efit_eq
@@ -1225,6 +1225,7 @@ contains
     write (unit, fmt="(' dp_mult =  ',e13.6)") dp_mult
     write (unit, fmt="(' delrho =  ',e13.6)") delrho
     write (unit, fmt="(' force_sym =  ',L1)") force_sym
+    write (unit, fmt="(' use_large_aspect =  ',L1)") use_large_aspect
     write (unit, fmt="(' writelots =  ',L1)") writelots
     write (unit, fmt="(' eqfile = ',a)") '"'//trim(eqfile)//'"'
     write (unit, fmt="(' eqnormfile = ',a)") '"'//trim(eqnormfile)//'"'
@@ -1632,7 +1633,7 @@ contains
   !> FIXME : Add documentation
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: nperiod_geo => nperiod, verb_geo => verb
-    use geometry, only: eikcoefs, itor, delrho, surf
+    use geometry, only: eikcoefs, delrho, surf, use_large_aspect
     use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
@@ -1662,7 +1663,7 @@ contains
 
     nperiod_geo = nperiod
     rhoc_save = surf%r
-    if (itor == 0) surf%r = 1.5 * delrho
+    if (use_large_aspect) surf%r = 1.5 * delrho
 
     if(proc0) then
        if (ntheta_geometry == -1) then
@@ -1776,22 +1777,22 @@ contains
   !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_eik_config_in)
     use file_utils, only: input_unit, input_unit_exist
-    use geometry, only: surf, itor, irho, eqnormfile
+    use geometry, only: surf, irho, eqnormfile
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
     use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop, nperiod
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
-    use geometry, only: delrho, writelots, force_sym
+    use geometry, only: delrho, writelots, force_sym, use_large_aspect
     use theta_grid_params, only: get_parameters_as_surf, nperiod_in => nperiod
     use theta_grid_params, only: shat_in => shat
     use theta_grid_params, only: alpmhd_in => alpmhd
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
-    integer :: isym, iflux
+    integer :: isym, iflux, itor
     ! Copy some values from theta_grid_params into this module (actually into geometry)
     nperiod = nperiod_in
     surf = get_parameters_as_surf()
-    isym = -1 ; iflux = -1
+    isym = -1 ; iflux = -1 ; itor = -1
     if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in
 
     ! Smart defaults
@@ -1829,10 +1830,12 @@ contains
     ppl_eq = theta_grid_eik_config%ppl_eq
     surf%shat = theta_grid_eik_config%s_hat_input
     transp_eq = theta_grid_eik_config%transp_eq
+    use_large_aspect = theta_grid_eik_config%use_large_aspect
     writelots = theta_grid_eik_config%writelots
 
     if (isym /= -1) write(6,*) 'Warning: isym input is deprecated -- set force_sym instead'
     if (iflux /= -1) write(6,*) 'Warning: iflux input is deprecated'
+    if (itor /= -1) write(6,*) 'Warning: itor input is deprecated -- set use_large_aspect instead'
     exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
@@ -1874,11 +1877,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
     integer :: bishop, iflux, irho, isym, itor, ntheta_geometry
-    logical :: chs_eq, dfit_eq, efit_eq, equal_arc, force_sym, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, writelots
+    logical :: chs_eq, dfit_eq, efit_eq, equal_arc, force_sym, gen_eq, gs2d_eq, idfit_eq, local_eq, ppl_eq, transp_eq, use_large_aspect, writelots
     real :: alpha_input, beta_prime_input, delrho, dp_mult, invlp_input, s_hat_input
 
     namelist /theta_grid_eik_knobs/ alpha_input, beta_prime_input, bishop, chs_eq, delrho, dfit_eq, dp_mult, efit_eq, eqfile, eqnormfile, equal_arc, force_sym, gen_eq, gs2d_eq, idfit_eq, iflux, invlp_input, irho, isym, itor, local_eq, &
-         ntheta_geometry, ppl_eq, s_hat_input, transp_eq, writelots
+         ntheta_geometry, ppl_eq, s_hat_input, transp_eq, use_large_aspect, writelots
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1909,6 +1912,7 @@ contains
     ppl_eq = self%ppl_eq
     s_hat_input = self%s_hat_input
     transp_eq = self%transp_eq
+    use_large_aspect = self%use_large_aspect
     writelots = self%writelots
 
     ! Now read in the main namelist
@@ -1941,6 +1945,7 @@ contains
     self%ppl_eq = ppl_eq
     self%s_hat_input = s_hat_input
     self%transp_eq = transp_eq
+    self%use_large_aspect = use_large_aspect
     self%writelots = writelots
 
     self%exist = exist
@@ -1984,6 +1989,7 @@ contains
     call self%write_key_val("ppl_eq", self%ppl_eq, unit_internal)
     call self%write_key_val("s_hat_input", self%s_hat_input, unit_internal)
     call self%write_key_val("transp_eq", self%transp_eq, unit_internal)
+    call self%write_key_val("use_large_aspect", self%use_large_aspect, unit_internal)
     call self%write_key_val("writelots", self%writelots, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_theta_grid_eik_config
@@ -2029,6 +2035,7 @@ contains
     call broadcast(self%ppl_eq)
     call broadcast(self%s_hat_input)
     call broadcast(self%transp_eq)
+    call broadcast(self%use_large_aspect)
     call broadcast(self%writelots)
 
     call broadcast(self%exist)

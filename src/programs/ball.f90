@@ -2,7 +2,7 @@
 program ball
   use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
-  use geometry, only: nperiod, eqfile, equal_arc, itor, delrho, surf
+  use geometry, only: nperiod, eqfile, equal_arc, use_large_aspect, delrho, surf
   use geometry, only: bishop, irho, force_sym, efit_eq, writelots, big
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, gs2d_eq, transp_eq
   use geometry, only: alpha_input, dp_mult, p_prime_input, invLp_input, beta_prime_input
@@ -13,7 +13,7 @@ program ball
   real, dimension(:), allocatable :: theta
   real :: dbetadrho
   integer :: nbeta, ntgrid, ntheta, iunstable, ibeta, ishat
-  integer :: nshat, order, isym, iflux
+  integer :: nshat, order, isym, iflux, itor
 
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
@@ -34,7 +34,6 @@ program ball
   ! set defaults
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0
-  itor=1; iflux=-1
   eqfile='dskeq.cdf'
   rhoc=0.5
   rmin = -1.0 ; rmax = -1.0
@@ -47,7 +46,7 @@ program ball
   p_prime_input = 1
   invLp_input = 5
   beta_prime_times = -1. ; beta_prime_over = -1.
-  irho = 2 ;      isym = -1
+  irho = 2 ;      isym = -1 ; itor = -1; iflux=-1
   delrho = 0.01
   diffscheme=0.33; nbeta = 1; beta_p1 = 0.; beta_p2 = 0.
 
@@ -61,6 +60,7 @@ program ball
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
   if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
   if (iflux /= -1) write(*,*) "Option deprecated : iflux set but not used"
+  if (itor /= -1) write(*,*) "Option deprecated : itor set but not used (see use_large_aspect)"
 
   writelots = .false.
 
@@ -80,10 +80,10 @@ program ball
 
   equal_arc = .false.   ! this should not be required
 
-  ! Note that if .not. local_eq then always choose itor=1
-  if ((.not. local_eq) .and. itor /= 1) then
-     itor = 1
-     write(*,*) 'Forcing itor=1'
+  ! Note that if .not. local_eq then always choose use_large_aspect = F
+  if ((.not. local_eq) .and. use_large_aspect) then
+     use_large_aspect = .false.
+     write(*,*) 'Forcing use_large_aspect to false'
   end if
 
   ! Catch if no q profile

@@ -1,7 +1,7 @@
 !> Deals with most types of equilibria to generate GS2's expected geometrical parameters
 !> Input:
 !> rhoc :: minor radius of surface of interest (see irho below)
-!> itor :: default one.  Choose zero to get "s-alpha" equilibria (see local_eq)
+!> use_large_aspect :: default false.  Choose true to get "s-alpha" equilibria (see local_eq)
 !> Equilibrium options : Choose 1 of:
 !>          local_eq : Analytic parameterization of local equilibrium
 !>          ppl_eq = .true. :: use PPL style NetCDF equilibrium (Menard)
@@ -112,9 +112,9 @@ module geometry
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: nperiod, eqfile, eqnormfile, irho, itor, surf, delrho
+  public :: nperiod, eqfile, eqnormfile, irho, surf, delrho
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
-  public :: force_sym, writelots, equal_arc, bishop
+  public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   public :: eikcoefs_output_type, run_eikcoefs_and_resample, get_theta_eqarc
 
@@ -122,9 +122,9 @@ module geometry
   ! Start of inputs
   type(flux_surface_type) :: surf
   real :: delrho, p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  integer :: nperiod, itor, irho, bishop
+  integer :: nperiod, irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
-  logical :: writelots, equal_arc, force_sym
+  logical :: writelots, equal_arc, force_sym, use_large_aspect
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
@@ -423,9 +423,9 @@ contains
 
     ! ******************
     ! Debug:
-    ! Set itor=1 and the first two columns should be the
+    ! Set .not. use_large_aspect and the first two columns should be the
     ! same (better agreement results from higher ntheta)
-    ! Set itor=0 and the first and third columns should
+    ! Set use_large_aspect and the first and third columns should
     ! be equal. All of this, of course, with local_eq = T
     !
     ! This amounts to checking the expression for
@@ -502,11 +502,11 @@ contains
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
-    if (itor /= 0) then
-       bmag = Bmod
-    else
+    if (use_large_aspect) then
        bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(theta(-nth:nth)) / rmaj)
        call periodic_copy(bmag, 0., nperiod)
+    else
+       bmag = Bmod
     end if
     if (force_sym) call sym(bmag, 0, ntgrid)
 
@@ -1130,7 +1130,7 @@ contains
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
     integer :: i
     gradstot(:, 1:2) = grads
-    if (itor == 0) then
+    if (use_large_aspect) then
        gradstot(:, 3) = 0.
     else
        do i = -nth, nth
@@ -1194,7 +1194,7 @@ contains
   real function invRfun(r, thet)
     implicit none
     real, intent (in) :: r, thet
-    if(itor == 0) then
+    if(use_large_aspect) then
        invRfun = 1. / rmaj
     else
        invRfun = geom%invR(r, thet)
@@ -1318,7 +1318,7 @@ contains
     character(1) :: char
     integer :: i, k, itot
 
-    if (itor == 0) then
+    if (use_large_aspect) then
        gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) / rmaj
        gbdrift = 2 * dpsidrho * gbdrift
 
