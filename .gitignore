@@ -23,6 +23,7 @@ objs/
 # GS2 output files
 *.amoments
 *.bin
+*.bishop
 *.dat
 *.decomp.*
 *.eigenfunc
