@@ -13,7 +13,7 @@ module theta_grid_params
   public :: pk, geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
   public :: deltampri, deltanpri, thetam, thetan
   public :: btor_slab, betaprim, ntheta, nperiod
-  public :: set_overrides
+  public :: set_overrides, get_parameters_as_surf
 
   public :: theta_grid_parameters_config_type
   public :: set_theta_grid_params_config
@@ -486,11 +486,28 @@ contains
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
           
-       case default
+       case default ! We should abort here, but we don't know if local_eq is true so maybe this is fine.
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
 
   end subroutine read_parameters
+
+  !> Packs all relevant parameters into a flux_surface_type instance.
+  !> Note we can't fully populate the surface instance as we don't hold delrho
+  function get_parameters_as_surf() result(surf)
+    use geo_utils, only: flux_surface_type
+    implicit none
+    type(flux_surface_type) :: surf
+    surf%geoType = geoType
+    surf%mMode = mMode ; surf%nMode = nMode
+    surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
+    surf%aSurf = aSurf ; surf%sHorz = shift
+    surf%sVert = shiftVert ; surf%delm = deltam
+    surf%deln = deltan ; surf%delmp = deltampri
+    surf%delnp = deltanpri ; surf%thm = thetam
+    surf%thn = thetan ; surf%q = qinp ; surf%shat = shat
+    surf%nt = ntheta !< Might not want to pack this here
+  end function get_parameters_as_surf
 
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_params(unit)
