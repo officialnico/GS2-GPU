@@ -105,27 +105,23 @@
 !> I do not recommend calling other routines, but a few are available for
 !> diagnostic purposes.
 module geometry
-  use geo_utils, only: abstract_geo_type, EQFILE_LENGTH
+  use geo_utils, only: abstract_geo_type, EQFILE_LENGTH, flux_surface_type
   implicit none
 
   private
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: nperiod, eqfile, eqnormfile, irho, itor
+  public :: nperiod, eqfile, eqnormfile, irho, itor, surf, delrho
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
-  public :: force_sym, writelots, equal_arc, bishop, qinp, s_hat_input
+  public :: force_sym, writelots, equal_arc, bishop
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  public :: geotype, rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert, mMode, nMode
-  public :: deltam, deltan, deltampri, deltanpri, thetam, thetan
   public :: eikcoefs_output_type, run_eikcoefs_and_resample, get_theta_eqarc
 
   class(abstract_geo_type), allocatable :: geom
   ! Start of inputs
-  integer :: geotype, mMode, nMode
-  real :: rmaj, r_geo, rhoc, delrho, aSurf, shift, shiftVert
-  real :: deltam, deltan, deltampri, deltanpri, thetam, thetan, qinp, s_hat_input
-  real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
+  type(flux_surface_type) :: surf
+  real :: delrho, p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   integer :: nperiod, itor, irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc, force_sym
@@ -133,6 +129,7 @@ module geometry
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
+  real :: rmaj, r_geo, rhoc, qinp, s_hat_input !< From surf
   integer :: big = 0
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -365,6 +362,9 @@ contains
     !> For outputting geom values
     integer :: i, iBmax, fort25_unit, fort11_unit
 
+    ! Unpack from surf into module level for now
+    rhoc = surf%r ; qinp = surf%q ; s_hat_input = surf%shat
+    rmaj = surf%rmaj ; r_geo = surf%r_geo
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -659,15 +659,8 @@ contains
       if (debug) write(6,*) "eikcoefs: chs_eq=", chs_eq, 'jid=',job_id
 
       if (local_eq) then
-         inputs%surf%geoType = geoType
-         inputs%surf%mMode = mMode ; inputs%surf%nMode = nMode
-         inputs%surf%rmaj = rmaj ; inputs%surf%R_geo = R_geo ; inputs%surf%r = rhoc
-         inputs%surf%dr = delrho ; inputs%surf%aSurf = aSurf ; inputs%surf%sHorz = shift
-         inputs%surf%sVert = shiftVert ; inputs%surf%delm = deltam
-         inputs%surf%deln = deltan ; inputs%surf%delmp = deltampri
-         inputs%surf%delnp = deltanpri ; inputs%surf%thm = thetam
-         inputs%surf%thn = thetan ; inputs%surf%q = qinp ; inputs%surf%shat = s_hat_input
-         inputs%surf%nt = ntheta_input ; inputs%thShift = thetaShift
+         inputs%surf = surf ; inputs%surf%dr = delrho ; inputs%surf%nt = ntheta_input
+         inputs%thShift = thetaShift
       else
          if (big <= 0 ) big = 8
          inputs%eqfile = eqfile

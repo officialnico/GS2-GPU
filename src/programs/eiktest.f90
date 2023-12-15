@@ -3,10 +3,9 @@ program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
   !> Inputs
-  use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, itor, qinp, delrho
-  use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots, R_geo
-  use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
+  use geometry, only: surf, nperiod, eqfile, equal_arc, itor, delrho
+  use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots
+  use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
@@ -27,6 +26,7 @@ program eiktest
   real :: rhocm, rhocp
   real :: bbar, rmin, rmax, pbar
   real :: akappa, akappri, tri, tripri
+  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   real :: tstar
@@ -46,8 +46,7 @@ program eiktest
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
        gen_eq, ppl_eq, eqfile, local_eq, idfit_eq,&
-       chs_eq, force_sym, &
-       s_hat_input,p_prime_input,invLp_input,beta_prime_input, &
+       chs_eq, force_sym, s_hat_input,p_prime_input,invLp_input,beta_prime_input, &
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
@@ -55,8 +54,7 @@ program eiktest
 
   call init_mp
 
-! set defaults
-
+  ! set defaults
   gen_eq = .false.
   ppl_eq = .false.
   chs_eq = .false.
@@ -66,39 +64,27 @@ program eiktest
   gs2d_eq = .false.
   transp_eq = .false.
   Xanthopoulos = .false.
-
   dipole = .false.
   shotnum=1001109020
   tstar = 1.0
-
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0 ; fast = .true.
   itor=1; iflux=-1;  big = 8
-
   eqfile='dskeq.cdf'
   rhoc=0.5
-
   rmin=-1.0 ; rmax=-1.0
-
   beta_prime_times = -1.
-
   profile_fac = 0.5
-
   geoType = 0
-
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;     shat = 1
   shift = 0
-
-  s_hat_input = 1
+  s_hat_input = shat
   beta_prime_input = -1
   p_prime_input = -2
   invLp_input = 5
-
   irho = 2 ;      isym = -1
-
   delrho = 0.01
-
   no_end_point = .false.
 
   if (command_argument_count() == 0) then
@@ -114,17 +100,26 @@ program eiktest
      out_stem = trim(in_stem)//'.'
   endif
 
-!     read in data
+  !     read in data
   open(newunit=funit,file=in_stem//'.in')
   read(funit,nml=stuff)
   close(funit)
 
+  if (local_eq .and. (geoType /= 0)) print*,'Warning : geoType /= 0 not supported'
   if (Xanthopoulos) write(*,*) "Option deprecated : Xanthopoulos set but unused"
   if (in_nt) write(*,*) "Option deprecated : in_nt set but unused"
   if (.not. fast) write(*,*) "Option deprecated : fast set but doesn't do anything"
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
   if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
+
+  surf%geoType = geoType
+  surf%mMode = 2 ; surf%nMode = 3
+  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
+  surf%sHorz = shift ; surf%delm = akappa
+  surf%deln = tri ; surf%delmp = akappri
+  surf%delnp = tripri ; surf%thm = 0
+  surf%thn = 0 ; surf%q = qinp ; surf%shat = s_hat_input
 
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
@@ -140,9 +135,8 @@ program eiktest
      itor = 1
      write(*,*) 'Forcing itor=1'
   end if
-!
-! Catch if no q profile
-!
+
+  ! Catch if no q profile
   if (local_eq .and. irho == 1) then
      irho = 2
      write(*,*) 'Forcing irho=2'
@@ -212,9 +206,9 @@ program eiktest
   end if
 
   write(21,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
-!CMR 14/01/05 change format to prevent line breaks with intel compiler and allow runngridgen to read the output files
+  !CMR 14/01/05 change format to prevent line breaks with intel compiler and allow runngridgen to read the output files
   write(21,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsi, rmaj, shat, kxfac, qsf
-!CMR
+  !CMR
 
   write(21,*) '    gbdrift     gradpar       grho    tgrid'
   do i= -ntgrid,ntgrid
@@ -225,8 +219,6 @@ program eiktest
   do i= -ntgrid,ntgrid
      write(21,1000) cvdrift(i), gds2(i),bmag(i),theta(i)
   enddo
-
-!      write(*,*) 'bmag(0)= ',bmag(0),' bmag(pi)= ',bmag(ntgrid)
 
   write(21,*) '    gds21             gds22  tgrid'
   do i= -ntgrid,ntgrid
@@ -264,7 +256,6 @@ program eiktest
      write(11,*) 'q_0= ',q
      q=qfun(pbar)
      write(11,*) 'rho= ',rhoc,' q(rho)= ',q
-  !      write(*,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
 

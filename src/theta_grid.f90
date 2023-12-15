@@ -1196,7 +1196,7 @@ module theta_grid_eik
 contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
-    use geometry, only: alpha_input, beta_prime_input, invLp_input, s_hat_input
+    use geometry, only: surf, alpha_input, beta_prime_input, invLp_input
     use geometry, only: delrho, dp_mult, bishop, irho, itor, force_sym
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc, eqfile, eqnormfile
@@ -1218,7 +1218,7 @@ contains
     write (unit, fmt="(' chs_eq =  ',L1)") chs_eq
     write (unit, fmt="(' equal_arc =  ',L1)") equal_arc
     write (unit, fmt="(' bishop =  ',i2)") bishop
-    write (unit, fmt="(' s_hat_input =  ',e13.6)") s_hat_input
+    write (unit, fmt="(' s_hat_input =  ',e13.6)") surf%shat
     write (unit, fmt="(' alpha_input =  ',e13.6)") alpha_input
     write (unit, fmt="(' invLp_input =  ',e13.6)") invLp_input
     write (unit, fmt="(' beta_prime_input =  ',e13.6)") beta_prime_input
@@ -1233,10 +1233,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine check_theta_grid_eik(report_unit, dbetadrho)
-    use theta_grid_params, only: deltam, deltan, deltampri, deltanpri, eps, thetan
-    use theta_grid_params, only: geoType, aSurf, shift, shiftVert, mMode, nMode, thetam
-    use geometry, only: dp_mult, alpha_input, beta_prime_input, invLp_input, s_hat_input
-    use geometry, only: rmaj, r_geo, qinp, bishop, irho, eqfile, eqnormfile
+    use theta_grid_params, only: eps
+    use geometry, only: surf, dp_mult, alpha_input, beta_prime_input, invLp_input
+    use geometry, only: bishop, irho, eqfile, eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, chs_eq
     implicit none
     integer, intent(in) :: report_unit
@@ -1250,7 +1249,7 @@ contains
     write (report_unit, *)
     if (local_eq) then
        write (report_unit, fmt="('The following local equilibrium model has been selected:')")
-       select case (geoType)
+       select case (surf%geoType)
           case (0)
              write (report_unit, fmt="('Miller')")
           case (1)
@@ -1262,13 +1261,13 @@ contains
           case default
              write (report_unit, fmt="('ERROR: invalid analytic geometry specification')")
        end select
-       if (Rmaj == 1.0) then
+       if (surf%rmaj == 1.0) then
           write (report_unit, &
                & fmt="('Scale lengths are normalized to the major radius, R')")
        else
-          write (report_unit, fmt="('The aspect ratio R/a = ',f7.4)") Rmaj
+          write (report_unit, fmt="('The aspect ratio R/a = ',f7.4)") surf%rmaj
        end if
-       if (Rmaj /= R_geo) then
+       if (surf%rmaj /= surf%r_geo) then
           write (report_unit, *)
           write (report_unit, fmt="('################# WARNING #######################')")
           write (report_unit, fmt="('R_geo is not equal to Rmaj.')")
@@ -1284,8 +1283,8 @@ contains
           write (report_unit, fmt="('################# WARNING #######################')")
        end if
        write (report_unit, *)
-       write (report_unit, fmt="('The safety factor q =      ',f7.4)") qinp
-       eps = rhoc/R_geo
+       write (report_unit, fmt="('The safety factor q =      ',f7.4)") surf%q
+       eps = rhoc / surf%R_geo
        write (report_unit, fmt="('and epsilon == r/R =       ',f7.4)") eps
        write (report_unit, *)
        if (eps > epsilon(0.0)) then
@@ -1295,28 +1294,28 @@ contains
        end if
        write (report_unit, *)
        write (report_unit, fmt="('B_poloidal is determined by:')")
-       if (geoType==1) then
+       if (surf%geoType == 1) then
           write (report_unit, *)
-          write (report_unit, fmt="('    minor radius of shaped surface: aSurf = ',f7.4)") aSurf
-       elseif (geoType==2 .or. geoType==3) then
+          write (report_unit, fmt="('    minor radius of shaped surface: aSurf = ',f7.4)") surf%aSurf
+       elseif (surf%geoType == 2 .or. surf%geoType == 3) then
           write (report_unit, *)
-          write (report_unit, fmt="('    first shaping mode number: mMode =  ',i2)") mMode
-          write (report_unit, fmt="('    second shaping mode number: nMode = ',i2)") nMode
+          write (report_unit, fmt="('    first shaping mode number: mMode =  ',i2)") surf%mMode
+          write (report_unit, fmt="('    second shaping mode number: nMode = ',i2)") surf%nMode
        end if
        write (report_unit, *)
-       write (report_unit, fmt="('    deltam =       ',f7.4)") deltam
-       write (report_unit, fmt="('    deltan =        ',f7.4)") deltan
-       if (geoType/=1) then
+       write (report_unit, fmt="('    deltam =       ',f7.4)") surf%delm
+       write (report_unit, fmt="('    deltan =        ',f7.4)") surf%deln
+       if (surf%geoType /= 1) then
           write (report_unit, *)
-          write (report_unit, fmt="('  & gradient: d deltam /d rho =   ',f7.4)") deltampri
-          write (report_unit, fmt="('  & gradient: d deltan /d rho = ',f7.4)") deltanpri
+          write (report_unit, fmt="('  & gradient: d deltam /d rho =   ',f7.4)") surf%delmp
+          write (report_unit, fmt="('  & gradient: d deltan /d rho = ',f7.4)") surf%delnp
        end if
        write (report_unit, *)
-       write (report_unit, fmt="('    thetam =       ',f7.4)") thetam
-       write (report_unit, fmt="('    thetan =        ',f7.4)") thetan
+       write (report_unit, fmt="('    thetam =       ',f7.4)") surf%thm
+       write (report_unit, fmt="('    thetan =        ',f7.4)") surf%thn
        write (report_unit, *)
-       write (report_unit, fmt="('    shift =        ',f7.4)") shift
-       write (report_unit, fmt="('    shiftVert =    ',f7.4)") shiftVert
+       write (report_unit, fmt="('    shift =        ',f7.4)") surf%sHorz
+       write (report_unit, fmt="('    shiftVert =    ',f7.4)") surf%sVert
 
        write (report_unit, *)
        write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") shat
@@ -1349,7 +1348,7 @@ contains
        case (5)
           write (report_unit, fmt="('The alpha parameter (R beta_prime q**2) = ',f8.4)") alpha_input
           !              write (*,*) alpha_input, dbetadrho, qinp, Rmaj
-          if (abs(alpha_input + dbetadrho*qinp**2*Rmaj) > 1.e-2) then
+          if (abs(alpha_input + dbetadrho*surf%q**2*surf%rmaj) > 1.e-2) then
              write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('alpha is not consistent with beta, q, and Lp.')")
@@ -1412,7 +1411,7 @@ contains
           write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=3.')")
           write (report_unit, *)
-          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
+          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") surf%shat
           write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
@@ -1422,7 +1421,7 @@ contains
           write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=4.')")
           write (report_unit, *)
-          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
+          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") surf%shat
           write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
@@ -1448,14 +1447,14 @@ contains
           write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=5.')")
           write (report_unit, *)
-          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
+          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") surf%shat
           write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
           end if
           write (report_unit, fmt="('The alpha parameter (R beta_prime q**2) = ',f8.4)") alpha_input
-          write (*,*) alpha_input, dbetadrho, qinp, Rmaj
-          if (abs(alpha_input + dbetadrho*qinp**2*Rmaj) > 1.e-2) then
+          write (*,*) alpha_input, dbetadrho, surf%q, surf%rmaj
+          if (abs(alpha_input + dbetadrho*surf%q**2*surf%rmaj) > 1.e-2) then
              write (report_unit, *)
              write (report_unit, fmt="('################# WARNING #######################')")
              write (report_unit, fmt="('alpha is not consistent with beta, q, and Lp.')")
@@ -1467,7 +1466,7 @@ contains
           write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=6.')")
           write (report_unit, *)
-          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_input
+          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") surf%shat
           write (report_unit, fmt="('This value is set by s_hat_input in the theta_grid_eik_knobs namelist.')")
           if (abs(shat) <= 1.e-5) then
              write (report_unit, fmt="('This is effectively zero; periodic boundary conditions are assumed.')")
@@ -1633,7 +1632,7 @@ contains
   !> FIXME : Add documentation
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
     use geometry, only: nperiod_geo => nperiod, verb_geo => verb
-    use geometry, only: eikcoefs, itor, delrho, rhoc
+    use geometry, only: eikcoefs, itor, delrho, surf
     use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
@@ -1662,8 +1661,8 @@ contains
     call read_parameters(theta_grid_eik_config_in)
 
     nperiod_geo = nperiod
-    rhoc_save = rhoc
-    if (itor == 0) rhoc = 1.5*delrho
+    rhoc_save = surf%r
+    if (itor == 0) surf%r = 1.5 * delrho
 
     if(proc0) then
        if (ntheta_geometry == -1) then
@@ -1680,7 +1679,7 @@ contains
     write(ntheta_char, "(I4)") ntheta
     call debug_message(verb, "init_theta_grid_eik: done, ntheta="//ntheta_char)
 
-    rhoc = rhoc_save
+    surf%r = rhoc_save
   end subroutine init_theta_grid_eik
 
   subroutine finish_theta_grid_eik
@@ -1777,46 +1776,21 @@ contains
   !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_eik_config_in)
     use file_utils, only: input_unit, input_unit_exist
-    use geometry, only: itor, irho, rhoc, eqnormfile
+    use geometry, only: surf, itor, irho, eqnormfile
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
     use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop, nperiod
-    use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult, s_hat_input
-    use geometry, only: geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
-    use geometry, only: deltampri, deltanpri, thetam, thetan, qinp, rmaj, r_geo
+    use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
     use geometry, only: delrho, writelots, force_sym
-    use theta_grid_params, only: nperiod_in => nperiod
-    use theta_grid_params, only: rhoc_in => rhoc
-    use theta_grid_params, only: rmaj_in => rmaj, r_geo_in => r_geo
-    use theta_grid_params, only: qinp_in => qinp, shat_in => shat
+    use theta_grid_params, only: get_parameters_as_surf, nperiod_in => nperiod
+    use theta_grid_params, only: shat_in => shat
     use theta_grid_params, only: alpmhd_in => alpmhd
-    use theta_grid_params, only: geoType_in => geoType, aSurf_in => aSurf
-    use theta_grid_params, only: shift_in => shift, shiftVert_in => shiftVert
-    use theta_grid_params, only: mMode_in => mMode, nMode_in => nMode
-    use theta_grid_params, only: deltam_in => deltam, deltan_in => deltan
-    use theta_grid_params, only: deltampri_in => deltampri, deltanpri_in => deltanpri
-    use theta_grid_params, only: thetam_in => thetam, thetan_in => thetan
     use theta_grid_params, only: betaprim_in => betaprim
     implicit none
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
     integer :: isym, iflux
-    ! Copy some values from theta_grid_params into this module
+    ! Copy some values from theta_grid_params into this module (actually into geometry)
     nperiod = nperiod_in
-    rhoc = rhoc_in
-    rmaj = rmaj_in
-    r_geo = r_geo_in
-    geoType = geoType_in
-    aSurf = aSurf_in
-    shift = shift_in
-    shiftVert = shiftVert_in
-    mMode = mMode_in
-    nMode = nMode_in
-    deltam = deltam_in
-    deltan = deltan_in
-    deltampri = deltampri_in
-    deltanpri = deltanpri_in
-    thetam = thetam_in
-    thetan = thetan_in
-    qinp = qinp_in
+    surf = get_parameters_as_surf()
     isym = -1 ; iflux = -1
     if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in
 
@@ -1853,7 +1827,7 @@ contains
     local_eq = theta_grid_eik_config%local_eq
     ntheta_geometry = theta_grid_eik_config%ntheta_geometry
     ppl_eq = theta_grid_eik_config%ppl_eq
-    s_hat_input = theta_grid_eik_config%s_hat_input
+    surf%shat = theta_grid_eik_config%s_hat_input
     transp_eq = theta_grid_eik_config%transp_eq
     writelots = theta_grid_eik_config%writelots
 

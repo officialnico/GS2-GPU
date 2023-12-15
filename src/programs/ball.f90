@@ -2,13 +2,10 @@
 program ball
   use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
-  use geometry, only: nperiod, geoType, rmaj, shift, eqfile
-  use geometry, only: equal_arc, rhoc, itor, qinp, delrho
-  use geometry, only: bishop, irho, force_sym, efit_eq, writelots, R_geo
-  use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, s_hat_input
-  use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
-  use geometry, only: transp_eq, alpha_input, dp_mult
-  use geometry, only: deltam, deltan, deltampri, deltanpri
+  use geometry, only: nperiod, eqfile, equal_arc, itor, delrho, surf
+  use geometry, only: bishop, irho, force_sym, efit_eq, writelots, big
+  use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, gs2d_eq, transp_eq
+  use geometry, only: alpha_input, dp_mult, p_prime_input, invLp_input, beta_prime_input
   implicit none
 
   real, dimension(:), pointer :: psi
@@ -22,6 +19,7 @@ program ball
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   real :: akappa, tri, akappri, tripri, rmin, rmax
+  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift
   logical :: diagram
   type(eikcoefs_output_type) :: eikcoefs_results
 
@@ -33,43 +31,32 @@ program ball
        alpha_input, beta_prime_times, beta_prime_over, big, gs2d_eq, &
        transp_eq, diagram, nshat, s_hat_max, force_sym
 
-
-! set defaults
-
+  ! set defaults
   ntheta=32; nperiod=1
   equal_arc = .false. ; bishop = 0
   itor=1; iflux=-1
-
   eqfile='dskeq.cdf'
   rhoc=0.5
-
   rmin = -1.0 ; rmax = -1.0
-
   diagram = .false.
   nshat = 1 ; s_hat_max = 2.0
-
   geoType = 0
-
   rmaj = 3   ;     akappa = 1   ;     tri = 0   ;     qinp = 2
   R_geo = 3  ;     akappri = 0  ;     tripri=0  ;    shift = 0.
-
   s_hat_input = 1
   p_prime_input = 1
   invLp_input = 5
-
   beta_prime_times = -1. ; beta_prime_over = -1.
-
   irho = 2 ;      isym = -1
-
   delrho = 0.01
-
   diffscheme=0.33; nbeta = 1; beta_p1 = 0.; beta_p2 = 0.
 
-!     read in data
+  !     read in data
   open(10,file='eik.in')
   read(10,stuff)
   close(10)
 
+  if (local_eq .and. (geoType /= 0)) print*,'Warning : geoType /= 0 not supported'
   if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
   if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
   if (isym /= -1) write(*,*) "Option deprecated : isym set but not used (see force_sym)"
@@ -77,11 +64,13 @@ program ball
 
   writelots = .false.
 
-  ! Copy shaping inputs to generic names
-  deltam = akappa
-  deltan = tri
-  deltampri = akappri
-  deltanpri = tripri
+  surf%geoType = geoType
+  surf%mMode = 2 ; surf%nMode = 3
+  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
+  surf%sHorz = shift ; surf%delm = akappa
+  surf%deln = tri ; surf%delmp = akappri
+  surf%delnp = tripri ; surf%thm = 0
+  surf%thn = 0 ; surf%q = qinp ; surf%shat = s_hat_input
 
   if(.not.local_eq) then
      if(beta_prime_times >= 0) then
@@ -91,30 +80,24 @@ program ball
 
   equal_arc = .false.   ! this should not be required
 
-!
-! Note that if .not. local_eq then always choose itor=1
-!
+  ! Note that if .not. local_eq then always choose itor=1
   if ((.not. local_eq) .and. itor /= 1) then
      itor = 1
      write(*,*) 'Forcing itor=1'
   end if
-!
-! Catch if no q profile
-!
+
+  ! Catch if no q profile
   if (local_eq .and. irho == 1) then
      irho = 2
      write(*,*) 'Forcing irho=2'
   end if
 
   if (local_eq) then
-     !if(vmom_eq) write(*,*) 'Forcing vmom_eq to be false'
      if(gen_eq) write(*,*) 'Forcing gen_eq to be false because local_eq is set'
-     !vmom_eq=.false.
      gen_eq = .false.
   end if
 
-!     compute the theta grid
-
+  !     compute the theta grid
   if( (.not. gen_eq) .and. (.not. ppl_eq) &
        .and. (.not. transp_eq) .and. (.not. chs_eq)) then
      call eikcoefs(ntheta, eikcoefs_results)
@@ -135,8 +118,7 @@ program ball
      stop
   endif
 
-! Attempt to sketch out an s-alpha type diagram
-
+  ! Attempt to sketch out an s-alpha type diagram
   if (bishop /= 8) stop  ! just do one case for now
 
   shat_0 = s_hat_input

@@ -265,20 +265,20 @@ contains
 
   !> Gets the current value of shat
   subroutine get_shat(shat_out)
-    use geometry, only: s_hat_input
+    use geometry, only: surf
     implicit none
     real, intent(out) :: shat_out
-    shat_out = s_hat_input
+    shat_out = surf%shat
   end subroutine get_shat
 
   !> Sets the value of shat
   subroutine set_shat(shat_in)
-    use geometry, only: s_hat_input
+    use geometry, only: surf
     implicit none
     real, intent(in) :: shat_in
     !Note for bishop = 6,7 or not in 2-9 and .not. local_eq cannot change shat
     !Should flag this somewhere (during init)
-    s_hat_input = shat_in
+    surf%shat = shat_in
   end subroutine set_shat
 
   !> Gets the current value of beta_prime (or equivalent var)
