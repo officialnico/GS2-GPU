@@ -365,6 +365,7 @@ contains
     ! Unpack from surf into module level for now
     rhoc = surf%r ; qinp = surf%q ; s_hat_input = surf%shat
     rmaj = surf%rmaj ; r_geo = surf%r_geo
+    surf%nt = ntheta_input ; surf%dr = delrho
     !Set output verbosity levels
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -659,8 +660,7 @@ contains
       if (debug) write(6,*) "eikcoefs: chs_eq=", chs_eq, 'jid=',job_id
 
       if (local_eq) then
-         inputs%surf = surf ; inputs%surf%dr = delrho ; inputs%surf%nt = ntheta_input
-         inputs%thShift = thetaShift
+         inputs%surf = surf ; inputs%thShift = thetaShift
       else
          if (big <= 0 ) big = 8
          inputs%eqfile = eqfile
