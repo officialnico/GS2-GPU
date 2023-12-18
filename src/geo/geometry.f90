@@ -693,7 +693,7 @@ contains
       call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
-      if (local_eq) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
+      if (local_eq) qval = qfun(pbar) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(outputs%theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
       if (local_eq) trip = trip * dpsidrp
