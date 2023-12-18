@@ -468,8 +468,8 @@ contains
          outputs%gds22(-ntgrid:ntgrid), outputs%gds23(-ntgrid:ntgrid), &
          outputs%gds24(-ntgrid:ntgrid), outputs%gds24_noq(-ntgrid:ntgrid))
     call calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
-         qval, rhoc, bmod, outputs%gds2, outputs%gds21, outputs%gds22, outputs%gds23, &
-         outputs%gds24, outputs%gds24_noq)
+         qval, rhoc, bmod, force_sym, outputs%gds2, outputs%gds21, outputs%gds22, &
+         outputs%gds23, outputs%gds24, outputs%gds24_noq)
 
     !     compute curvature, grad b, and coriolis drift terms
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
@@ -549,15 +549,6 @@ contains
     ! compute dV/drhon = 2 pi Int(J dtheta)
     call integrate(jacob, outputs%theta, dummy, nth)
     outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
-
-    if (force_sym) then
-       call sym(outputs%gds2, 0, ntgrid)
-       call sym(outputs%gds21, 1, ntgrid)
-       call sym(outputs%gds22, 0, ntgrid)
-       ! not sure abou the following yet -- MAB
-       !       call sym(outputs%gds23, 0, ntgrid)
-       !       call sym(outputs%gds24, 1, ntgrid)
-    end if
 
     call open_output_file(fort25_unit,".fort.25")
     write(fort25_unit,*) rhoc, f_trap(outputs%bmag(-nth:nth), outputs%theta(-nth:nth), jacob(-nth:nth))
@@ -1065,10 +1056,11 @@ contains
   end subroutine eikcoefs
 
   pure subroutine calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
-       qval, rhoc, bmod, gds2, gds21, gds22, gds23, gds24, gds24_noq)
+       qval, rhoc, bmod, force_sym, gds2, gds21, gds22, gds23, gds24, gds24_noq)
     real, dimension(-ntgrid:, :), intent(in) :: gradstot, gradrptot, gradthtot
     real, intent(in) :: dpsidrho, dqdrp, qval, rhoc
     real, dimension(-ntgrid:), intent(in) :: bmod
+    logical intent(in) :: force_sym
     real, dimension(-ntgrid:), intent(out) :: gds2, gds21, gds22, gds23, gds24, gds24_noq
     real, dimension(:), allocatable :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
     allocate(gdsdum1(-ntgrid:ntgrid), gdsdum2(-ntgrid:ntgrid), gdsdum3(-ntgrid:ntgrid))
@@ -1089,6 +1081,15 @@ contains
     gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
     gds24 = gds24_noq * dqdrp
     gds24_noq = gds24_noq * qval / rhoc
+
+    if (force_sym) then
+       call sym(outputs%gds2, 0, ntgrid)
+       call sym(outputs%gds21, 1, ntgrid)
+       call sym(outputs%gds22, 0, ntgrid)
+       ! not sure abou the following yet -- MAB
+       !       call sym(outputs%gds23, 0, ntgrid)
+       !       call sym(outputs%gds24, 1, ntgrid)
+    end if
   end subroutine calculate_metric_terms
 
   !> FIXME : Add documentation
