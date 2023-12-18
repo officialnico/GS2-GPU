@@ -351,8 +351,7 @@ contains
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
-    real, allocatable, dimension(:) :: grho, bmag, gradpar, gds23, gds24, gds24_noq, &
-         gds2, gds21, gds22
+    real, allocatable, dimension(:) :: grho, bmag, gradpar
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -473,9 +472,9 @@ contains
     call dottgridf(gradstot, gradstot, gdsdum1)
     call dottgridf(gradstot, gradrptot, gdsdum2)
     call dottgridf(gradrptot, gradrptot, gdsdum3)
-    gds2  = gdsdum1            *dpsidrho**2
-    gds21 = gdsdum2*dqdrp      *dpsidrho**2
-    gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
+    outputs%gds2  = gdsdum1            *dpsidrho**2
+    outputs%gds21 = gdsdum2*dqdrp      *dpsidrho**2
+    outputs%gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
 
     ! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
     ! is needed to simulate low-flow gk equation.
@@ -484,10 +483,10 @@ contains
     ! for numerical equilibria
     call dottgridf(gradrptot, gradthtot, gdsdum4) !grad rho dot grad theta
     call dottgridf(gradstot, gradthtot, gdsdum5) !grad alpha dot grad theta
-    gds23 = (gdsdum4 * gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
-    gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
-    gds24 = gds24_noq * dqdrp
-    gds24_noq = gds24_noq * qval / rhoc
+    outputs%gds23 = (gdsdum4 * outputs%gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
+    outputs%gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
+    outputs%gds24 = outputs%gds24_noq * dqdrp
+    outputs%gds24_noq = outputs%gds24_noq * qval / rhoc
 
     !     compute magnetic field
     call bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
@@ -569,12 +568,12 @@ contains
     outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
 
     if (force_sym) then
-       call sym(gds2, 0, ntgrid)
-       call sym(gds21, 1, ntgrid)
-       call sym(gds22, 0, ntgrid)
+       call sym(outputs%gds2, 0, ntgrid)
+       call sym(outputs%gds21, 1, ntgrid)
+       call sym(outputs%gds22, 0, ntgrid)
        ! not sure abou the following yet -- MAB
-       !       call sym(gds23, 0, ntgrid)
-       !       call sym(gds24, 1, ntgrid)
+       !       call sym(outputs%gds23, 0, ntgrid)
+       !       call sym(outputs%gds24, 1, ntgrid)
     end if
 
     call open_output_file(fort25_unit,".fort.25")
@@ -590,7 +589,7 @@ contains
        !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
        !RN> I just leave the sign here.
        outputs%kxfac = - 1 / drhodpsi
-       gds22 = grho**2 / drhodpsi**2
+       outputs%gds22 = grho**2 / drhodpsi**2
     end if
 
     if (start_file_utils) call finish_file_utils
@@ -601,12 +600,6 @@ contains
     outputs%bmag = bmag
     outputs%gradpar = gradpar
     outputs%grho = grho
-    outputs%gds2 = gds2
-    outputs%gds21 = gds21
-    outputs%gds22 = gds22
-    outputs%gds23 = gds23
-    outputs%gds24 = gds24
-    outputs%gds24_noq = gds24_noq
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
@@ -1098,12 +1091,6 @@ contains
     allocate(grho   (-n:n), &
          bmag       (-n:n), &
          gradpar    (-n:n), &
-         gds2       (-n:n), &
-         gds21      (-n:n), &
-         gds22      (-n:n), &
-         gds23      (-n:n), &  ! MAB
-         gds24      (-n:n), &  ! MAB
-         gds24_noq  (-n:n), &  ! MAB
          jacob      (-n:n))
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
