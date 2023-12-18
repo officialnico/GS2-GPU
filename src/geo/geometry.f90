@@ -351,7 +351,7 @@ contains
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
-    real, allocatable, dimension(:) :: grho, bmag
+    real, allocatable, dimension(:) :: grho
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -501,20 +501,21 @@ contains
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
+    allocate(outputs%bmag(-ntgrid:ntgrid))
     if (use_large_aspect) then
-       bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(theta(-nth:nth)) / rmaj)
-       call periodic_copy(bmag, 0., nperiod)
+       outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(theta(-nth:nth)) / rmaj)
+       call periodic_copy(outputs%bmag, 0., nperiod)
     else
-       bmag = Bmod
+       outputs%bmag = Bmod
     end if
-    if (force_sym) call sym(bmag, 0, ntgrid)
+    if (force_sym) call sym(outputs%bmag, 0, ntgrid)
 
     !     compute the gradparallel coefficient
     allocate(outputs%gradpar(-ntgrid:ntgrid))
     if (dfit_eq) then
-       outputs%gradpar = trip / bmag
+       outputs%gradpar = trip / outputs%bmag
     else
-       outputs%gradpar(-nth:nth) = -bi / (rmajor(-nth:nth)**2 * bmag(-nth:nth) * dsdthet(-nth:nth))
+       outputs%gradpar(-nth:nth) = -bi / (rmajor(-nth:nth)**2 * outputs%bmag(-nth:nth) * dsdthet(-nth:nth))
        call periodic_copy(outputs%gradpar, 0., nperiod)
     end if
     if (force_sym) call sym(outputs%gradpar, 0, ntgrid)
@@ -550,7 +551,7 @@ contains
     ! compute grad rho*Jacobian of the transformation to the new coordinates:
     ! Axisymmetry assumed to get this (nu indep. of phi):
     do i = -nth, nth
-       jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*bmag(i)))
+       jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*outputs%bmag(i)))
        ds(i) = grho(i) * jacob(i)
     end do
 
@@ -578,7 +579,7 @@ contains
     end if
 
     call open_output_file(fort25_unit,".fort.25")
-    write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
+    write(fort25_unit,*) rhoc, f_trap(outputs%bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
 
     outputs%kxfac = abs(qval / (rhoc * drhodpsi))
@@ -598,7 +599,6 @@ contains
     ! Pack module level data into output type
     outputs%ntheta = ntheta_input
     outputs%theta = theta
-    outputs%bmag = bmag
     outputs%grho = grho
     outputs%bpol = bpolmag
 
@@ -1089,7 +1089,6 @@ contains
            gradthtot  (-n:n,3))  ! MAB
 
     allocate(grho   (-n:n), &
-         bmag       (-n:n), &
          jacob      (-n:n))
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
