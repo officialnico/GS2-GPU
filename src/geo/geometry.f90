@@ -348,9 +348,6 @@ contains
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
-    !> The theta grid of the results. The final grid has
-    !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
-    real, allocatable, dimension(:) :: theta
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -412,7 +409,7 @@ contains
 
        ! If max is not at -pi and theta then shift theta.
        if (iBmax /= -nth) then
-          thetaShift = theta(iBmax) - theta(-nth)
+          thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
           call initialise_geometry_and_get_bmod
@@ -449,7 +446,7 @@ contains
     if (writelots) then
        write(fort11_unit,*) 'i,theta,grads1,2=  '
        do i = -ntgrid, ntgrid
-          write(fort11_unit,*) i, theta(i), grads(i, 1), grads(i, 2)
+          write(fort11_unit,*) i, outputs%theta(i), grads(i, 1), grads(i, 2)
        end do
     end if
     !     compute total grad S including toroidal part
@@ -495,14 +492,14 @@ contains
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-         dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
-         bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
+         dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, outputs%theta, rmajor, &
+         dp_new, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
     allocate(outputs%bmag(-ntgrid:ntgrid))
     if (use_large_aspect) then
-       outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(theta(-nth:nth)) / rmaj)
+       outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(outputs%theta(-nth:nth)) / rmaj)
        call periodic_copy(outputs%bmag, 0., nperiod)
     else
        outputs%bmag = Bmod
@@ -534,7 +531,7 @@ contains
     allocate(outputs%rplot(-ntgrid:ntgrid), outputs%rprime(-ntgrid:ntgrid))
     allocate(outputs%zplot(-ntgrid:ntgrid), outputs%zprime(-ntgrid:ntgrid))
     allocate(outputs%aplot(-ntgrid:ntgrid), outputs%aprime(-ntgrid:ntgrid))
-    call plotdata (rgrid, seik, grads, dpsidrho, theta, &
+    call plotdata (rgrid, seik, grads, dpsidrho, outputs%theta, &
          outputs%rplot, outputs%zplot, outputs%aplot, &
          outputs%rprime, outputs%zprime, outputs%aprime)
 
@@ -543,8 +540,8 @@ contains
     ! theta in the gs2 output file are not values of the poloidal
     ! angle but values of theta_prime EGH
     if (equal_arc) then
-       call arclength (ntheta, nperiod, theta, outputs%gradpar, dummy)
-       theta = dummy
+       call arclength (ntheta, nperiod, outputs%theta, outputs%gradpar, dummy)
+       outputs%theta = dummy
     end if
 
     ! compute grad rho*Jacobian of the transformation to the new coordinates:
@@ -557,7 +554,7 @@ contains
     ! compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
     !  does not work with equal_arc grid
     ! compute the surface area from A=Int(J |grad rho| dtheta dalpha)
-    call integrate(ds, theta, dummy, nth)
+    call integrate(ds, outputs%theta, dummy, nth)
     outputs%surfarea = twopi * (dummy(nth) - dummy(-nth))
     if (writelots) write (fort11_unit,*) 'surfarea=', outputs%surfarea
 
@@ -565,7 +562,7 @@ contains
     call close_output_file(fort11_unit)
 
     ! compute dV/drhon = 2 pi Int(J dtheta)
-    call integrate(jacob, theta, dummy, nth)
+    call integrate(jacob, outputs%theta, dummy, nth)
     outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
 
     if (force_sym) then
@@ -578,7 +575,7 @@ contains
     end if
 
     call open_output_file(fort25_unit,".fort.25")
-    write(fort25_unit,*) rhoc, f_trap(outputs%bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
+    write(fort25_unit,*) rhoc, f_trap(outputs%bmag(-nth:nth), outputs%theta(-nth:nth), jacob(-nth:nth))
     call close_output_file(fort25_unit)
 
     outputs%kxfac = abs(qval / (rhoc * drhodpsi))
@@ -595,9 +592,8 @@ contains
 
     if (start_file_utils) call finish_file_utils
 
-    ! Pack module level data into output type
+    ! Pack module/routine level data into output type
     outputs%ntheta = ntheta_input
-    outputs%theta = theta
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
@@ -660,7 +656,7 @@ contains
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid)
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
-      call init_uniform_theta_grid(ntheta_input, theta)
+      call init_uniform_theta_grid(ntheta_input, outputs%theta)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
 
@@ -695,12 +691,12 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
       if (efit_eq .or. dfit_eq .or. gs2d_eq) then !Cartesian like
-         call rtg(rgrid, rp, theta)
+         call rtg(rgrid, rp, outputs%theta)
       else
          rgrid = rp !This is likely just an optimisation, rtg should work here as well?
       end if
 
-      pbar = pbarfun(rgrid(0), theta(0))
+      pbar = pbarfun(rgrid(0), outputs%theta(0))
       drhodrp = drho_drp(rp)
 
       if ((.not. local_eq) .and. R_geo > Rmaj + 1.e-5) then
@@ -718,19 +714,20 @@ contains
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
-            write(fort78_unit,*) theta(i),Rpos(rgrid(i),theta(i)),Zpos(rgrid(i),theta(i))
+            write(fort78_unit,*) outputs%theta(i), Rpos(rgrid(i),outputs%theta(i)), &
+                 Zpos(rgrid(i),outputs%theta(i))
          end do
          call close_output_file(fort78_unit)
 
          call open_output_file(fort99_unit,".fort.99")
          do i = -nth, nth
-            write(fort99_unit,*) 'i=',i,' thet= ',theta(i),' rgrid= ',rgrid(i)
+            write(fort99_unit,*) 'i=',i,' thet= ',outputs%theta(i),' rgrid= ',rgrid(i)
          end do
          call close_output_file(fort99_unit)
 
          rbar = 0.
          do i = -nth, nth - 1
-            rbar = rbar + rgrid(i) * (theta(i + 1) - theta(i))
+            rbar = rbar + rgrid(i) * (outputs%theta(i + 1) - outputs%theta(i))
          end do
          rbar = rbar / twopi
          write (*,*) 'r_bar = ', rbar
@@ -746,9 +743,9 @@ contains
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
-      call rmajortgrid(rgrid, theta, rmajor)
+      call rmajortgrid(rgrid, outputs%theta, rmajor)
       call periodic_copy(rmajor, 0., nperiod)
-      call invRtgrid(rgrid, theta, invR)
+      call invRtgrid(rgrid, outputs%theta, invR)
       call periodic_copy(invR, 0., nperiod)
 
       ! Get the toroidal field function (i.e. fp = R B_T)
@@ -768,14 +765,14 @@ contains
       ! crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-      call geom%gradient(rgrid, theta, crpgrad, char, dum, nth, ntgrid)
+      call geom%gradient(rgrid, outputs%theta, crpgrad, char, dum, nth, ntgrid)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
 
       if (bishop == 0) then
          rpgrad = crpgrad
       else
-         call geom%bgradient(rgrid, theta, rpgrad, char, dum, nth, ntgrid)
+         call geom%bgradient(rgrid, outputs%theta, rpgrad, char, dum, nth, ntgrid)
       end if
 
       !     compute |grad rho|:
@@ -788,7 +785,7 @@ contains
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
-      call thetagrad(rgrid, theta, thgrad)
+      call thetagrad(rgrid, outputs%theta, thgrad)
       if (debug) write(6,*) "eikcoefs: done thetagrad"
       call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
       call periodic_copy(trip, 0., nperiod)
@@ -796,7 +793,7 @@ contains
       !     compute eikonal S
       if (local_eq) qval = qfun(pbarofrho(rhoc, fort11_unit)) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
-      call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
+      call eikonal(outputs%theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
       if (local_eq) trip = trip * dpsidrp
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
@@ -819,9 +816,9 @@ contains
 
       call th_bishop(crpgrad, th_bish, nth)
       call periodic_copy(th_bish, 0., nperiod)
-      call loftheta(rgrid, theta, ltheta)
+      call loftheta(rgrid, outputs%theta, ltheta)
       call periodic_copy(ltheta, ltheta(nth) - ltheta(-nth), nperiod)
-      call inv_Rpol(theta, th_bish, ltheta, invRpol, nth)
+      call inv_Rpol(outputs%theta, th_bish, ltheta, invRpol, nth)
       call periodic_copy(invRpol, 0., nperiod)
 
       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
@@ -849,9 +846,9 @@ contains
       db_bish = db_bish / trip
       dc_bish = dc_bish / trip
 
-      call integrate(da_bish, theta, a_bish, ntgrid)
-      call integrate(db_bish, theta, b_bish, ntgrid)
-      call integrate(dc_bish, theta, c_bish, ntgrid)
+      call integrate(da_bish, outputs%theta, a_bish, ntgrid)
+      call integrate(db_bish, outputs%theta, b_bish, ntgrid)
+      call integrate(dc_bish, outputs%theta, c_bish, ntgrid)
 
       a_b = a_bish(nth) - a_bish(-nth)
       b_b = b_bish(nth) - b_bish(-nth)
@@ -952,7 +949,7 @@ contains
       grads(:,2) = dSdl
 
       ! obtain Z(theta)
-      call Ztgrid(rgrid, theta, Zoftheta)
+      call Ztgrid(rgrid, outputs%theta, Zoftheta)
       call periodic_copy(Zoftheta, 0., nperiod)
       ! calculate dZ/dl
       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
@@ -974,7 +971,7 @@ contains
          write(bishop_unit, fmt="('#a_b (fp)=', F20.10, ' ,b_b (pp)=', F20.10,' ,c_b  =', F20.10,' ,s_hat =', F20.10)") a_b*di, b_b*dp, c_b, s_hat
          write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
          do i = -ntgrid, ntgrid
-            write(bishop_unit, '( 10(2X, F25.17) )') theta(i), a_bish(i), b_bish(i), &
+            write(bishop_unit, '( 10(2X, F25.17) )') outputs%theta(i), a_bish(i), b_bish(i), &
                  c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
          end do
          call close_output_file(bishop_unit)
@@ -996,7 +993,7 @@ contains
          qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
       end if
 
-      pbar_1 = pbarfun(rp1, theta(0)) ; pbar_2 = pbarfun(rp2, theta(0))
+      pbar_1 = pbarfun(rp1, outputs%theta(0)) ; pbar_2 = pbarfun(rp2, outputs%theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
       ! seikon to avoid having to form rgrid1/rgrid2 here.
       bi1 = btori(pbar_1) ; bi2 = btori(pbar_2)
@@ -1006,8 +1003,8 @@ contains
       ! Note seikon sets rgrid = rp. This is only the same as the regular
       ! rgrid for equilibrium types other than efit or dfit. For those cases
       ! this _might_ not do what is expected.
-      call seikon(rp1, theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
-      call seikon(rp2, theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
+      call seikon(rp1, outputs%theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
+      call seikon(rp2, outputs%theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
 
       do i = -nth, nth
          dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
