@@ -886,7 +886,7 @@ contains
       ! Note for local_eq we need to ensure qval is set before
       !calling seikon. We force bishop > 0 for local_eq so shouldn't get here.
       if (local_eq) then
-         dqdrho = dqdrhofun(rhoc, shat, fort11_unit)
+         dqdrho = shat * qval / rhoc
          qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
       end if
 
@@ -1398,7 +1398,7 @@ contains
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real, dimension(-ntgrid:ntgrid) :: trip
     character(1), parameter :: char = 'P'
-    rgrid = rp
+    rgrid = rp !< Not sure this is right for efit etc.
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
        call geom%gradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
@@ -1565,14 +1565,6 @@ contains
     integer, intent(in) :: fort11_unit
     pbarofrho = psifun(rpofrho(rho, fort11_unit))
   end function pbarofrho
-
-  !> FIXME : Add documentation
-  real function dqdrhofun(rho, shat, fort11_unit)
-    implicit none
-    real, intent (in) :: rho, shat
-    integer, intent(in) :: fort11_unit
-    dqdrhofun = shat * qfun(pbarofrho(rho, fort11_unit)) / rho
-  end function dqdrhofun
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
   !> We can then first bisect the bracket to narrow in on the solution.
