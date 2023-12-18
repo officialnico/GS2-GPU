@@ -1293,7 +1293,6 @@ contains
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
     character(1) :: char
-    integer :: i, k, itot
 
     if (use_large_aspect) then
        gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) / rmaj
@@ -1304,6 +1303,9 @@ contains
 
        cvdrift = gbdrift ; cvdrift0 = gbdrift0
     else
+       !     compute magnetic field
+       call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
+
        if (bishop >= 1) then
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
        else
@@ -1313,6 +1315,10 @@ contains
 
        bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
        bgradtot(-nth:nth, 3) = 0.0
+
+       call crosstgrid(bvector, bgradtot, dummy)
+       call dottgrid(dummy, gradstot, gbdrift1)
+       call dottgrid(dummy, gradrptot, gbdrift2)
 
        !     create curvature
        if (bishop == 0) then
@@ -1324,34 +1330,22 @@ contains
           pgradtot = gradrptot * dpsidrp * dp_new
        end if
 
-       do i = -nth, nth
-          curve(i, 1) = bgradtot(i, 1) / bmod(i) + pgradtot(i, 1) / bmod(i)**2
-          curve(i, 2) = bgradtot(i, 2) / bmod(i) + pgradtot(i, 2) / bmod(i)**2
-          curve(i, 3) = 0.
-       end do
+       curve(-nth:nth, 1) = bgradtot(-nth:nth, 1) / bmod(-nth:nth) + &
+            pgradtot(-nth:nth, 1) / bmod(-nth:nth)**2
+       curve(-nth:nth, 2) = bgradtot(-nth:nth, 2) / bmod(-nth:nth) + &
+            pgradtot(-nth:nth, 2) / bmod(-nth:nth)**2
+       curve(-nth:nth, 3) = 0.
 
-       !     compute magnetic field
-       call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
-
-       call crosstgrid(bvector, bgradtot, dummy)
-       call dottgrid(dummy, gradstot, gbdrift1)
-       call dottgrid(dummy, gradrptot, gbdrift2)
        call crosstgrid(bvector, curve, dummy)
        call dottgrid(dummy, gradstot, cvdrift1)
        call dottgrid(dummy, gradrptot, cvdrift2)
+
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
-       ! Provided bmod is specified on [-ntgrid, ntgrid] we could replace
-       ! the below nested loop with do i = -ntgrid, ntgrid....
-       do k = -nperiod+1, nperiod-1
-          do i = -nth, nth
-             itot = i + k * ntheta
-             gbdrift(itot) = 2 * dpsidrho * gbdrift1(itot) / bmod(i)**3
-             gbdrift0(itot)= 2 * dpsidrho * gbdrift2(itot) * dqdrp / bmod(i)**3
-             cvdrift(itot) = 2 * dpsidrho * cvdrift1(itot) / bmod(i)**2
-             cvdrift0(itot)= 2 * dpsidrho * cvdrift2(itot) * dqdrp / bmod(i)**2
-          end do
-       end do
+       gbdrift = 2 * dpsidrho * gbdrift1 / bmod**3
+       gbdrift0 = 2 * dpsidrho * gbdrift2 * dqdrp / bmod**3
+       cvdrift = 2 * dpsidrho * cvdrift1 / bmod**2
+       cvdrift0 = 2 * dpsidrho * cvdrift2 * dqdrp / bmod**2
     end if
 
     ! coriolis drift term is -2*vpa*om_phi/Omega * (bhat x (zhat x bhat)) . grad (g+q<phi>F_0/T)
@@ -1366,14 +1360,9 @@ contains
 
     ! factor of 4 (instead of 2) below because will later mutliply
     ! by wunits, which has a built-in factor of 1/2
-    do k = -nperiod+1, nperiod-1
-       do i = -nth, nth
-          itot = i + k * ntheta
-          ! cdrift0 is part of coriolis drift dependent on theta0
-          cdrift(itot)  = -4 * dpsidrho * cdrift1(itot) / bmod(i)
-          cdrift0(itot) = -4 * dpsidrho * cdrift2(itot) * dqdrp / bmod(i)
-       end do
-    end do
+    ! cdrift0 is part of coriolis drift dependent on theta0
+    cdrift  = -4 * dpsidrho * cdrift1 / bmod
+    cdrift0 = -4 * dpsidrho * cdrift2 * dqdrp / bmod
 
     if (force_sym) then
        call sym(gbdrift, 0, ntgrid)
