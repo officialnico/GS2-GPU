@@ -415,6 +415,14 @@ contains
        end if
     end if
 
+    !     compute |grad rho|:
+    allocate(outputs%grho(-ntgrid:ntgrid))
+    do i = -nth, nth
+       outputs%grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
+    end do
+    call periodic_copy(outputs%grho, 0., nperiod)
+    if (force_sym) call sym(outputs%grho, 0, ntgrid)
+
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
     drhodpsi = drhodrp / dpsidrp ; dpsidrho = 1.0 / drhodpsi
 
@@ -678,14 +686,6 @@ contains
       else
          call geom%bgradient(rgrid, outputs%theta, rpgrad, char, dum, nth, ntgrid)
       end if
-
-      !     compute |grad rho|:
-      if (.not. allocated(outputs%grho)) allocate(outputs%grho(-ntgrid:ntgrid))
-      do i = -nth, nth
-         outputs%grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
-      end do
-      call periodic_copy(outputs%grho, 0., nperiod)
-      if (force_sym) call sym(outputs%grho, 0, ntgrid)
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
@@ -1047,9 +1047,8 @@ contains
        call sym(gds2, 0, ntgrid)
        call sym(gds21, 1, ntgrid)
        call sym(gds22, 0, ntgrid)
-       ! not sure abou the following yet -- MAB
-       !       call sym(gds23, 0, ntgrid)
-       !       call sym(gds24, 1, ntgrid)
+       ! not sure about the following yet -- MAB
+       ! call sym(gds23, 0, ntgrid); call sym(gds24, 1, ntgrid)
     end if
   end subroutine calculate_metric_terms
 
@@ -2053,9 +2052,9 @@ contains
     do i = -nth, nth
        bp = -Bpolmag(i)
        gradB(i, 1) = (bp / Bmod(i)) * (bp * invRpol(i) + dp_new * rmajor(i) &
-            - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp))
+            - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp)) !dBdrho
     end do
-    call gradl(ltheta, Bmod, gradB(:, 2), 0., nth)
+    call gradl(ltheta, Bmod, gradB(:, 2), 0., nth) !dBdl
   end subroutine bishop_gradB
 
   !> Perform minor checks on consistency of flags
