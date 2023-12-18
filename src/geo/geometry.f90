@@ -487,7 +487,7 @@ contains
     outputs%gds24_noq = outputs%gds24_noq * qval / rhoc
 
     !     compute magnetic field
-    call bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
+    call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
 
     !     compute curvature, grad b, and coriolis drift terms
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
@@ -1085,16 +1085,16 @@ contains
   end subroutine eikcoefs
 
   !> FIXME : Add documentation
-  pure subroutine bvectortgrid(invR, nth, rpgrad, dpsidrp, bi, bvector)
+  pure subroutine bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
     integer, intent (in) :: nth
     real, dimension(-ntgrid:  ), intent (in) :: invR
-    real, dimension(-ntgrid:,:), intent (in) :: rpgrad
+    real, dimension(-ntgrid:,:), intent (in) :: gradrptot
     real, dimension(-ntgrid:,:), intent (out) :: bvector
     real, intent (in) :: dpsidrp, bi
     integer :: i
     do i = -nth, nth
-       bvector(i,1) = -dpsidrp * rpgrad(i,2) * invR(i)
-       bvector(i,2) = dpsidrp * rpgrad(i,1) * invR(i)
+       bvector(i,1) = -dpsidrp * gradrptot(i,2) * invR(i)
+       bvector(i,2) = dpsidrp * gradrptot(i,1) * invR(i)
        bvector(i,3) = bi * invR(i)
     end do
   end subroutine bvectortgrid
