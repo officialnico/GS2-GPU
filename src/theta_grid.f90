@@ -1764,7 +1764,7 @@ contains
          gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0, &
          gds2, gds21, gds22, gds23, gds24, gds24_noq, &
          grho, Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol)
-    shat = eikcoefs_results%s_hat_new
+    shat = eikcoefs_results%shat
     drhodpsi = eikcoefs_results%drhodpsi
     kxfac = eikcoefs_results%kxfac
     qval = eikcoefs_results%qsf
