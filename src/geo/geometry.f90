@@ -354,7 +354,7 @@ contains
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
     !> For outputting geom values
-    integer :: i, iBmax, fort25_unit, fort11_unit
+    integer :: i, iBmax, fort11_unit
 
     ! Unpack from surf into module level for now
     rhoc = surf%r ; qinp = surf%q ; s_hat_input = surf%shat
@@ -507,31 +507,12 @@ contains
        outputs%theta = dummy
     end if
 
-    ! compute grad rho*Jacobian of the transformation to the new coordinates:
-    ! Axisymmetry assumed to get this (nu indep. of phi):
-    allocate(jacob(-ntgrid:ntgrid), ds(-ntgrid:ntgrid))
-    do i = -nth, nth
-       jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*outputs%bmag(i)))
-       ds(i) = outputs%grho(i) * jacob(i)
-    end do
-
-    ! compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
-    !  does not work with equal_arc grid
-    ! compute the surface area from A=Int(J |grad rho| dtheta dalpha)
-    call integrate(ds, outputs%theta, dummy, nth)
-    outputs%surfarea = twopi * (dummy(nth) - dummy(-nth))
+    call calculate_surface_area(outputs%theta, outputs%gradpar, outputs%bmag, outputs%grho, &
+         dpsidrho, rhoc, nth, outputs%surfarea, outputs%dvdrhon)
     if (writelots) write (fort11_unit,*) 'surfarea=', outputs%surfarea
 
-    !Close output files
+    !Close output file
     call close_output_file(fort11_unit)
-
-    ! compute dV/drhon = 2 pi Int(J dtheta)
-    call integrate(jacob, outputs%theta, dummy, nth)
-    outputs%dvdrhon = twopi * (dummy(nth) - dummy(-nth))
-
-    call open_output_file(fort25_unit,".fort.25")
-    write(fort25_unit,*) rhoc, f_trap(outputs%bmag(-nth:nth), outputs%theta(-nth:nth), jacob(-nth:nth))
-    call close_output_file(fort25_unit)
 
     outputs%kxfac = abs(qval / (rhoc * drhodpsi))
 
@@ -1070,6 +1051,39 @@ contains
        !       call sym(gds24, 1, ntgrid)
     end if
   end subroutine calculate_metric_terms
+
+  subroutine calculate_surface_area(theta, gradpar, bmag, grho, dpsidrho, rhoc, nth, &
+       surfarea, dvdrhon)
+    use constants, only: twopi
+    use file_utils, only: open_output_file, close_output_file
+    real, dimension(-ntgrid:), intent(in) :: theta, gradpar, bmag, grho
+    real, intent(in) :: dpsidrho, rhoc
+    integer, intent(in) :: nth
+    real, intent(out) :: surfarea, dvdrhon
+    real, dimension(:), allocatable :: jacob, ds, dummy
+    integer :: i, fort25_unit
+    ! compute grad rho*Jacobian of the transformation to the new coordinates:
+    ! Axisymmetry assumed to get this (nu indep. of phi):
+    allocate(jacob(-ntgrid:ntgrid), ds(-ntgrid:ntgrid), dummy(-ntgrid:ntgrid))
+    do i = -nth, nth
+       jacob(i) = abs(dpsidrho / (gradpar(i)*bmag(i)))
+       ds(i) = grho(i) * jacob(i)
+    end do
+
+    ! compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
+    !  does not work with equal_arc grid
+    ! compute the surface area from A=Int(J |grad rho| dtheta dalpha)
+    call integrate(ds, theta, dummy, nth)
+    surfarea = twopi * (dummy(nth) - dummy(-nth))
+
+    ! compute dV/drhon = 2 pi Int(J dtheta)
+    call integrate(jacob, theta, dummy, nth)
+    dvdrhon = twopi * (dummy(nth) - dummy(-nth))
+
+    call open_output_file(fort25_unit,".fort.25")
+    write(fort25_unit,*) rhoc, f_trap(bmag(-nth:nth), theta(-nth:nth), jacob(-nth:nth))
+    call close_output_file(fort25_unit)
+  end subroutine calculate_surface_area
 
   !> FIXME : Add documentation
   pure subroutine bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
