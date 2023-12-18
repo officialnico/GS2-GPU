@@ -610,6 +610,7 @@ contains
 
       pbar = pbarfun(rgrid(0), outputs%theta(0))
       drhodrp = drho_drp(rp)
+      bi = btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
 
       if ((.not. local_eq) .and. R_geo > Rmaj + 1.e-5) then
          write(6,*)
@@ -621,7 +622,7 @@ contains
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
          write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',btori(pbar)
+         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',bi
 
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
@@ -659,9 +660,6 @@ contains
       call periodic_copy(rmajor, 0., nperiod)
       call invRtgrid(rgrid, outputs%theta, invR)
       call periodic_copy(invR, 0., nperiod)
-
-      ! Get the toroidal field function (i.e. fp = R B_T)
-      bi = btori(pbar)
 
       !     compute gradient of rp
       char = 'P'
@@ -845,10 +843,9 @@ contains
       grads(:,2) = dSdl
 
       ! Calculate grad(Z)
-      ! obtain Z(theta)
+      ! obtain Z(theta) and hence dZ/dl
       call Ztgrid(rgrid, outputs%theta, Zoftheta)
       call periodic_copy(Zoftheta, 0., nperiod)
-      ! calculate dZ/dl
       call gradl(ltheta, Zoftheta, dZdl, 0., nth)
       call periodic_copy(dZdl, 0., nperiod)
 
@@ -1130,7 +1127,6 @@ contains
     real, dimension (-ntgrid:, :), intent(in) :: a, b
     real, dimension (-ntgrid:), intent(out) :: c
     integer :: i, k, itot
-
     do k = -nperiod+1, nperiod-1
        do i = -nth, nth
           itot = i + k * ntheta
@@ -1231,7 +1227,7 @@ contains
     dpfun = geom%dpfun(pbar)
   end function dpfun
 
-  !> FIXME : Add documentation
+  !> FIXME : Add documentation | Only for eiktest
   real function beta_a_fun(pbar)
     implicit none
     real, intent (in) :: pbar
