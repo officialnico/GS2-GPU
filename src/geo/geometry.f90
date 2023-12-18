@@ -530,6 +530,7 @@ contains
 
     ! compute grad rho*Jacobian of the transformation to the new coordinates:
     ! Axisymmetry assumed to get this (nu indep. of phi):
+    allocate(jacob(-ntgrid:ntgrid), ds(-ntgrid:ntgrid))
     do i = -nth, nth
        jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*outputs%bmag(i)))
        ds(i) = outputs%grho(i) * jacob(i)
@@ -1049,9 +1050,7 @@ contains
            dummy      (-n:n), &
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
-           rmajor     (-n:n), &
-           jacob      (-n:n), &
-           ds         (-n:n))
+           rmajor     (-n:n))
 
       allocate(thgrad (-n:n,2), &
            rpgrad     (-n:n,2), &
@@ -2065,16 +2064,14 @@ contains
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, rmajor
     real, intent(in) :: dp_new, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
-    real, dimension(-ntgrid:ntgrid) :: dBdl
     real :: bp
     integer :: i
-    call gradl(ltheta, Bmod, dBdl, 0., nth)
     do i = -nth, nth
        bp = -Bpolmag(i)
-       gradB(i, 1) = (bp / Bmod(i)) *(bp * invRpol(i) + dp_new * rmajor(i) &
+       gradB(i, 1) = (bp / Bmod(i)) * (bp * invRpol(i) + dp_new * rmajor(i) &
             - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp))
-       gradB(i, 2) = dBdl(i)
     end do
+    call gradl(ltheta, Bmod, gradB(:, 2), 0., nth)
   end subroutine bishop_gradB
 
   !> Perform minor checks on consistency of flags
