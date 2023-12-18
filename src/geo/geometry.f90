@@ -129,7 +129,7 @@ module geometry
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
-  real :: rmaj, r_geo, rhoc, qinp, s_hat_input !< From surf
+  real :: rmaj, r_geo, rhoc, qinp !< From surf
   integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -357,7 +357,7 @@ contains
     integer :: i, iBmax, fort11_unit
 
     ! Unpack from surf into module level for now
-    rhoc = surf%r ; qinp = surf%q ; s_hat_input = surf%shat
+    rhoc = surf%r ; qinp = surf%q
     rmaj = surf%rmaj ; r_geo = surf%r_geo
     surf%nt = ntheta_input ; surf%dr = delrho
     !Set output verbosity levels
@@ -665,11 +665,9 @@ contains
 
       !     compute gradient of rp
       char = 'P'
-
       ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
       ! and (rho,l,phi) coordinates if bishop>0
       ! also, rpgrad is grad psi if not local_eq and grad rho if local_eq -- MAB
-
       ! When bishop > 0
       ! rpgrad(:,1) is |grad rp|
       ! rpgrad(:,2) is 0
@@ -769,26 +767,21 @@ contains
       if (abs(qval) > epsilon(0.)) then
          tmp = rhoc / (qval * twopi * drhodpsi)
          s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
+         if (local_eq) s_hat = surf%shat !Can't determine this by calculation
          if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rhoc, drhodpsi, s_hat
       else
-         tmp = 1.
-         s_hat = 0.
+         tmp = 1. ; s_hat = 0.
       end if
 
       write(fort11_unit,*)
       write(fort11_unit,*) 'Quantity, equilibrium value, value used'
 
-      ! Decide how we want to set s_hat_new
-      if (local_eq) then
-         s_hat_new = s_hat_input
-      else
-         s_hat_new = s_hat
-      end if
-
+      ! Decide how we want to set s_hat_new in the default case
+      s_hat_new = s_hat
       select case (bishop)
       case (2, 3, 4, 5, 8, 9)
-         s_hat_new = s_hat_input
+         s_hat_new = surf%shat
       case (6, 7)
          s_hat_new = s_hat
       end select
