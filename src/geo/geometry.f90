@@ -343,9 +343,8 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id
     ! Local variables:
-    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, jacob, bmod
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, dummy, th_bish, invRpol
-    real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5, ltheta
+    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, bmod, ds, jacob
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
@@ -465,30 +464,12 @@ contains
     gradthtot(:, 3) = 0.
 
     !     compute the magnitude squared of grad S
-    allocate(gdsdum1(-ntgrid:ntgrid), gdsdum2(-ntgrid:ntgrid), gdsdum3(-ntgrid:ntgrid))
     allocate(outputs%gds2(-ntgrid:ntgrid), outputs%gds21(-ntgrid:ntgrid), &
-         outputs%gds22(-ntgrid:ntgrid))
-    call dottgridf(gradstot, gradstot, gdsdum1)
-    call dottgridf(gradstot, gradrptot, gdsdum2)
-    call dottgridf(gradrptot, gradrptot, gdsdum3)
-    outputs%gds2  = gdsdum1            *dpsidrho**2
-    outputs%gds21 = gdsdum2*dqdrp      *dpsidrho**2
-    outputs%gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
-
-    ! MAB> new geometry terms gds23 and gds24 added because v_E . grad theta
-    ! is needed to simulate low-flow gk equation.
-    ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
-    ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
-    ! for numerical equilibria
-    allocate(gdsdum4(-ntgrid:ntgrid), gdsdum5(-ntgrid:ntgrid))
-    allocate(outputs%gds23(-ntgrid:ntgrid), outputs%gds24(-ntgrid:ntgrid), &
-         outputs%gds24_noq(-ntgrid:ntgrid))
-    call dottgridf(gradrptot, gradthtot, gdsdum4) !grad rho dot grad theta
-    call dottgridf(gradstot, gradthtot, gdsdum5) !grad alpha dot grad theta
-    outputs%gds23 = (gdsdum4 * outputs%gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
-    outputs%gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
-    outputs%gds24 = outputs%gds24_noq * dqdrp
-    outputs%gds24_noq = outputs%gds24_noq * qval / rhoc
+         outputs%gds22(-ntgrid:ntgrid), outputs%gds23(-ntgrid:ntgrid), &
+         outputs%gds24(-ntgrid:ntgrid), outputs%gds24_noq(-ntgrid:ntgrid))
+    call calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
+         qval, rhoc, bmod, outputs%gds2, outputs%gds21, outputs%gds22, outputs%gds23, &
+         outputs%gds24, outputs%gds24_noq)
 
     !     compute curvature, grad b, and coriolis drift terms
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
@@ -1083,6 +1064,33 @@ contains
            gradthtot  (-n:n,3))  ! MAB
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
+
+  pure subroutine calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
+       qval, rhoc, bmod, gds2, gds21, gds22, gds23, gds24, gds24_noq)
+    real, dimension(-ntgrid:, :), intent(in) :: gradstot, gradrptot, gradthtot
+    real, intent(in) :: dpsidrho, dqdrp, qval, rhoc
+    real, dimension(-ntgrid:), intent(in) :: bmod
+    real, dimension(-ntgrid:), intent(out) :: gds2, gds21, gds22, gds23, gds24, gds24_noq
+    real, dimension(:), allocatable :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
+    allocate(gdsdum1(-ntgrid:ntgrid), gdsdum2(-ntgrid:ntgrid), gdsdum3(-ntgrid:ntgrid))
+    call dottgridf(gradstot, gradstot, gdsdum1)
+    call dottgridf(gradstot, gradrptot, gdsdum2)
+    call dottgridf(gradrptot, gradrptot, gdsdum3)
+    gds2  = gdsdum1            *dpsidrho**2
+    gds21 = gdsdum2*dqdrp      *dpsidrho**2
+    gds22 = gdsdum3*dqdrp*dqdrp*dpsidrho**2
+
+    ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
+    ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
+    ! for numerical equilibria
+    allocate(gdsdum4(-ntgrid:ntgrid), gdsdum5(-ntgrid:ntgrid))
+    call dottgridf(gradrptot, gradthtot, gdsdum4) !grad rho dot grad theta
+    call dottgridf(gradstot, gradthtot, gdsdum5) !grad alpha dot grad theta
+    gds23 = (gdsdum4 * gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
+    gds24_noq = (gdsdum4 * gdsdum2 - gdsdum5 * gdsdum3) * (dpsidrho / bmod)**2
+    gds24 = gds24_noq * dqdrp
+    gds24_noq = gds24_noq * qval / rhoc
+  end subroutine calculate_metric_terms
 
   !> FIXME : Add documentation
   pure subroutine bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
