@@ -723,14 +723,6 @@ contains
       call inv_Rpol(outputs%theta, th_bish, ltheta, invRpol, nth)
       call periodic_copy(invRpol, 0., nperiod)
 
-      allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
-           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
-           zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
-
-      da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
-      db_bish = bi / (Bpolmag * rmajor)**2
-      dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
-
       if (debug) write(6,*) "eikcoefs:  gradients"
       if (debug) write(6,*) 'drhodpsi', drhodpsi
       if (debug) write(6,*) 'bi', bi
@@ -740,9 +732,17 @@ contains
       if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
       if (verb > 5) write(6,*) thgrad(-nth:nth,1)
       if (verb > 5) write(6,*) thgrad(-nth:nth,2)
-      if (verb > 5) write(6,*) 1.0d0/trip(-nth:nth)
-      if (verb > 5) write(6,*) -1.0/(bpolmag(-nth:nth)*invRpol(-nth:nth))
+      if (verb > 5) write(6,*) 1.0 / trip(-nth:nth)
+      if (verb > 5) write(6,*) -1.0 / (bpolmag(-nth:nth) * invRpol(-nth:nth))
       if (debug) write(6,*) "eikcoefs: end gradients"
+
+      allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
+           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
+           zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
+
+      da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
+      db_bish = bi / (Bpolmag * rmajor)**2
+      dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
 
       da_bish = da_bish / trip
       db_bish = db_bish / trip
@@ -761,8 +761,7 @@ contains
       c_bish = - c_bish * Bpolmag * rmajor
 
       ! find shat, pressure' and report them
-      dp = dpfun(pbar)
-      di = dbtori(pbar)
+      dp = dpfun(pbar) ; di = dbtori(pbar)
 
       if (abs(qval) > epsilon(0.)) then
          tmp = rhoc / (qval * twopi * drhodpsi)
@@ -836,15 +835,16 @@ contains
 
       shat = s_hat_new
       dqdrp = s_hat_new * qval * drhodrp / rhoc
-      dbetadrho = 2 * dp_new / drhodpsi
+      dbetadrho = 2 * dp_new * dpsidrho
 
+      ! Calculate grad(S)
+      ! here the coordinates are rho and l
       call gradl(ltheta, seik, dSdl, twopi * qval, nth)
       call periodic_copy(dSdl, 0., nperiod)
-
-      ! here the coordinates are rho and l
       grads(:,1) = a_bish * di_new + b_bish * dp_new + c_bish * 2
       grads(:,2) = dSdl
 
+      ! Calculate grad(Z)
       ! obtain Z(theta)
       call Ztgrid(rgrid, outputs%theta, Zoftheta)
       call periodic_copy(Zoftheta, 0., nperiod)
