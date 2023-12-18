@@ -465,6 +465,7 @@ contains
     gradthtot(:, 3) = 0.
 
     !     compute the magnitude squared of grad S
+    allocate(gdsdum1(-ntgrid:ntgrid), gdsdum2(-ntgrid:ntgrid), gdsdum3(-ntgrid:ntgrid))
     call dottgridf(gradstot, gradstot, gdsdum1)
     call dottgridf(gradstot, gradrptot, gdsdum2)
     call dottgridf(gradrptot, gradrptot, gdsdum3)
@@ -477,6 +478,7 @@ contains
     ! v_E . grad theta = i*ky*phi*(rho_{r}*v_{t,r}/a**2)*(gds23 + gsd24*theta0)
     ! calculation of gds23 and gds24 assumes rp=rho, which is not necessarily true
     ! for numerical equilibria
+    allocate(gdsdum4(-ntgrid:ntgrid), gdsdum5(-ntgrid:ntgrid))
     call dottgridf(gradrptot, gradthtot, gdsdum4) !grad rho dot grad theta
     call dottgridf(gradstot, gradthtot, gdsdum5) !grad alpha dot grad theta
     outputs%gds23 = (gdsdum4 * outputs%gds2 - gdsdum5 * gdsdum2 * dpsidrho**2) / bmod**2
@@ -1056,11 +1058,6 @@ contains
 
       allocate(seik   (-n:n), &
            dsdthet    (-n:n), &
-           gdsdum1    (-n:n), &
-           gdsdum2    (-n:n), &
-           gdsdum3    (-n:n), &
-           gdsdum4    (-n:n), &  ! MAB
-           gdsdum5    (-n:n), &  ! MAB
            th_bish    (-n:n), &
            invRpol    (-n:n), &
            invR       (-n:n), &
