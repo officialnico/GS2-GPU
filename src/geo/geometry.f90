@@ -155,7 +155,6 @@ module geometry
   !> [[eikcoefs]]
   type eikcoefs_output_type
      integer :: ntheta
-     real :: s_hat_new
      real :: drhodpsi
      real :: kxfac
      real :: qsf
@@ -240,7 +239,6 @@ contains
 
     ! Set scalar outputs
     results%ntheta = ntheta_target
-    results%s_hat_new = full_results%s_hat_new
     results%drhodpsi = full_results%drhodpsi
     results%kxfac = full_results%kxfac
     results%qsf = full_results%qsf
@@ -347,7 +345,7 @@ contains
     real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
-    real :: shat, dbetadrho, dp_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
+    real :: shat, dbetadrho, dp_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -539,7 +537,6 @@ contains
     outputs%ntheta = ntheta_input
     outputs%bpol = bpolmag
 
-    outputs%s_hat_new = s_hat_new
     outputs%drhodpsi = drhodpsi
     outputs%qsf = qval
     outputs%shat = shat
@@ -708,7 +705,7 @@ contains
     subroutine bishop_grads
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
-      real :: a_b, b_b, c_b, dp, di, di_new, s_hat, pressure, tmp
+      real :: a_b, b_b, c_b, dp, di, di_new, s_hat, s_hat_new, pressure, tmp
       real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
            zoftheta, dzdl, dsdl
 
@@ -881,7 +878,7 @@ contains
       ! Note for local_eq we need to ensure qval is set before
       !calling seikon. We force bishop > 0 for local_eq so shouldn't get here.
       if (local_eq) then
-         dqdrho = shat * qval / rhoc
+         dqdrho = shat * qval / rhoc !Note shat _not_ set for local_eq here
          qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
       end if
 
@@ -917,7 +914,6 @@ contains
          end do
       end if
 
-      s_hat_new = shat ! Output
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
       dp_new = dbetadrho / (2 * dpsidrho) !Output
 

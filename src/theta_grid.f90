@@ -1241,10 +1241,9 @@ contains
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: dbetadrho
-    real :: beta_prime_new, shat, s_hat_new, rhoc
+    real :: beta_prime_new, shat, rhoc
     beta_prime_new = eikcoefs_results%dbetadrho
     shat = eikcoefs_results%shat
-    s_hat_new = eikcoefs_results%s_hat_new
     rhoc = eikcoefs_results%rhoc
     call checklogic_theta_grid_eik(report_unit)
     write (report_unit, *)
@@ -1477,7 +1476,7 @@ contains
           write (report_unit, *)
           write (report_unit, fmt="('You have set bishop=7.')")
           write (report_unit, fmt="('The value of s_hat will be found from the equilibrium file.')")
-          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") s_hat_new
+          write (report_unit, fmt="('The magnetic shear s_hat = ',f7.4)") shat
           write (report_unit, fmt="('The value of dp/drho found from the equilibrium file will be multiplied by',f10.4)") dp_mult
           write (report_unit, fmt="('to give beta gradient d beta / d rho = ',f8.4)") beta_prime_new
 
