@@ -347,7 +347,7 @@ contains
     real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
-    real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
+    real :: shat, dbetadrho, dp_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -656,10 +656,8 @@ contains
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
-      call rmajortgrid(rgrid, outputs%theta, rmajor)
-      call periodic_copy(rmajor, 0., nperiod)
-      call invRtgrid(rgrid, outputs%theta, invR)
-      call periodic_copy(invR, 0., nperiod)
+      call rmajortgrid(rgrid, outputs%theta, rmajor) ; call periodic_copy(rmajor, 0., nperiod)
+      call invRtgrid(rgrid, outputs%theta, invR) ; call periodic_copy(invR, 0., nperiod)
 
       !     compute gradient of rp
       char = 'P'
@@ -710,7 +708,7 @@ contains
     subroutine bishop_grads
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
-      real :: a_b, b_b, c_b, dp, di, s_hat, pressure, tmp
+      real :: a_b, b_b, c_b, dp, di, di_new, s_hat, pressure, tmp
       real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
            zoftheta, dzdl, dsdl
 
@@ -763,8 +761,8 @@ contains
 
       if (abs(qval) > epsilon(0.)) then
          tmp = rhoc / (qval * twopi * drhodpsi)
-         s_hat = tmp * (a_b * di + b_b * dp + c_b * 2)
-         if (local_eq) s_hat = surf%shat !Can't determine this by calculation
+         s_hat = tmp * (a_b * di + b_b * dp + c_b * 2) !< Calculate the shear from equib.
+         if (local_eq) s_hat = surf%shat !Can't determine this by calculation in local_eq
          if (debug) write(6,*) "a_b (f'), b_b (p'), c_b terms =", a_b*di, b_b*dp, c_b*2
          if (debug) write(6,*) 'qval, rho, drhodpsi, s_hat =', qval, rhoc, drhodpsi, s_hat
       else
