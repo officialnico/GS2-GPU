@@ -782,7 +782,7 @@ contains
       end if
 
       !     compute |grad rho|:
-      allocate(outputs%grho(-ntgrid:ntgrid))
+      if (.not. allocated(outputs%grho)) allocate(outputs%grho(-ntgrid:ntgrid))
       do i = -nth, nth
          outputs%grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
       end do
