@@ -351,7 +351,7 @@ contains
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
-    real, allocatable, dimension(:) :: grho, bmag, gradpar
+    real, allocatable, dimension(:) :: grho, bmag
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -510,13 +510,14 @@ contains
     if (force_sym) call sym(bmag, 0, ntgrid)
 
     !     compute the gradparallel coefficient
+    allocate(outputs%gradpar(-ntgrid:ntgrid))
     if (dfit_eq) then
-       gradpar = trip / bmag
+       outputs%gradpar = trip / bmag
     else
-       gradpar(-nth:nth) = -bi / (rmajor(-nth:nth)**2 * bmag(-nth:nth) * dsdthet(-nth:nth))
-       call periodic_copy(gradpar, 0., nperiod)
+       outputs%gradpar(-nth:nth) = -bi / (rmajor(-nth:nth)**2 * bmag(-nth:nth) * dsdthet(-nth:nth))
+       call periodic_copy(outputs%gradpar, 0., nperiod)
     end if
-    if (force_sym) call sym(gradpar, 0, ntgrid)
+    if (force_sym) call sym(outputs%gradpar, 0, ntgrid)
 
     ! MAB, CMR, 6/5/2009:
     ! remove unnecessary restriction to calling plotdata for nperiod=1
@@ -542,14 +543,14 @@ contains
     ! theta in the gs2 output file are not values of the poloidal
     ! angle but values of theta_prime EGH
     if (equal_arc) then
-       call arclength (ntheta, nperiod, theta, gradpar, dummy)
+       call arclength (ntheta, nperiod, theta, outputs%gradpar, dummy)
        theta = dummy
     end if
 
     ! compute grad rho*Jacobian of the transformation to the new coordinates:
     ! Axisymmetry assumed to get this (nu indep. of phi):
     do i = -nth, nth
-       jacob(i) = abs(dpsidrho / (gradpar(i)*bmag(i)))
+       jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*bmag(i)))
        ds(i) = grho(i) * jacob(i)
     end do
 
@@ -598,7 +599,6 @@ contains
     outputs%ntheta = ntheta_input
     outputs%theta = theta
     outputs%bmag = bmag
-    outputs%gradpar = gradpar
     outputs%grho = grho
     outputs%bpol = bpolmag
 
@@ -1090,7 +1090,6 @@ contains
 
     allocate(grho   (-n:n), &
          bmag       (-n:n), &
-         gradpar    (-n:n), &
          jacob      (-n:n))
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
