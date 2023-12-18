@@ -415,23 +415,6 @@ contains
        end if
     end if
 
-    ! ******************
-    ! Debug:
-    ! Set .not. use_large_aspect and the first two columns should be the
-    ! same (better agreement results from higher ntheta)
-    ! Set use_large_aspect and the first and third columns should
-    ! be equal. All of this, of course, with local_eq = T
-    !
-    ! This amounts to checking the expression for
-    ! nu for axisymmetric, low beta equilibrium:
-    ! nu = - q r/R sin(theta).
-    !
-    !      call rmajortgrid(rgrid, theta, rmajor)
-    !      do i=-nth,nth
-    !         dum=-qval*(theta(i)-rgrid(i)*sin(theta(i))/rmajor(i))
-    !         write(*,*) seik(i),dum,-qval*theta(i)
-    !      enddo
-    ! ******************
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
     drhodpsi = drhodrp / dpsidrp ; dpsidrho = 1.0 / drhodpsi
 
@@ -500,9 +483,6 @@ contains
     end if
     if (force_sym) call sym(outputs%gradpar, 0, ntgrid)
 
-    ! MAB, CMR, 6/5/2009:
-    ! remove unnecessary restriction to calling plotdata for nperiod=1
-    ! so that Rplot, Zplot etc can be made available elsewhere in GS2
     ! Note : We should call this before we potentially redefine the theta grid
     ! due to equal_arc below as some specific equilibrium types rely on theta
     ! having a consistent definition with that used to calculate rgrid initially.
@@ -519,10 +499,9 @@ contains
          outputs%rplot, outputs%zplot, outputs%aplot, &
          outputs%rprime, outputs%zprime, outputs%aprime)
 
-    ! In the lines below we redefine theta to be theta', and
-    ! gradpar to be gradpar'. This means that the values of
-    ! theta in the gs2 output file are not values of the poloidal
-    ! angle but values of theta_prime EGH
+    ! In the lines below we redefine theta to be theta', and gradpar
+    ! to be gradpar'. This means that the values of theta in the gs2
+    ! output file are not values of the poloidal angle but values of theta_prime
     if (equal_arc) then
        call arclength (ntheta, nperiod, outputs%theta, outputs%gradpar, dummy)
        outputs%theta = dummy
@@ -1060,7 +1039,7 @@ contains
     real, dimension(-ntgrid:, :), intent(in) :: gradstot, gradrptot, gradthtot
     real, intent(in) :: dpsidrho, dqdrp, qval, rhoc
     real, dimension(-ntgrid:), intent(in) :: bmod
-    logical intent(in) :: force_sym
+    logical, intent(in) :: force_sym
     real, dimension(-ntgrid:), intent(out) :: gds2, gds21, gds22, gds23, gds24, gds24_noq
     real, dimension(:), allocatable :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5
     allocate(gdsdum1(-ntgrid:ntgrid), gdsdum2(-ntgrid:ntgrid), gdsdum3(-ntgrid:ntgrid))
@@ -1083,12 +1062,12 @@ contains
     gds24_noq = gds24_noq * qval / rhoc
 
     if (force_sym) then
-       call sym(outputs%gds2, 0, ntgrid)
-       call sym(outputs%gds21, 1, ntgrid)
-       call sym(outputs%gds22, 0, ntgrid)
+       call sym(gds2, 0, ntgrid)
+       call sym(gds21, 1, ntgrid)
+       call sym(gds22, 0, ntgrid)
        ! not sure abou the following yet -- MAB
-       !       call sym(outputs%gds23, 0, ntgrid)
-       !       call sym(outputs%gds24, 1, ntgrid)
+       !       call sym(gds23, 0, ntgrid)
+       !       call sym(gds24, 1, ntgrid)
     end if
   end subroutine calculate_metric_terms
 
