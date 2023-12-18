@@ -396,7 +396,7 @@ contains
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     thetaShift = 0.0
-    if (.not. allocated(geom)) call allocate_geom
+    if (.not. allocated(geom)) call allocate_geom(geom)
     call initialise_geometry_and_get_bmod
 
     ! Start theta shift calc. This is used to modify the definition of
@@ -518,10 +518,9 @@ contains
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
-       !RN> I think kxfac should include the sign.
-       !RN> However, from GS2 convention, eventually kxfac = abs(kxfac). See get_grids in theta_grid.
-       !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
-       !RN> I just leave the sign here.
+       !RN> I think kxfac should include the sign. However, from GS2 convention,
+       !RN> eventually kxfac = abs(kxfac). See get_grids in theta_grid. Even if the sign is
+       !RN> effective, probably it has no effect due to symmetry. I just leave the sign here.
        outputs%kxfac = - 1 / drhodpsi
        outputs%gds22 = outputs%grho**2 / drhodpsi**2
     end if
@@ -540,37 +539,6 @@ contains
     outputs%rhoc = rhoc
 
   contains
-    !> Allocate the geom instance to the correct type
-    subroutine allocate_geom
-      use geq, only: geq_type
-      use leq, only: leq_type
-      use ceq, only: ceq_type
-      use peq, only: peq_type, teq_type
-      use eeq, only: eeq_type, gs2d_type
-      use deq, only: deq_type
-      use ideq, only: ideq_type
-      implicit none
-      if (gen_eq) then
-         allocate(geq_type :: geom)
-      else if (chs_eq) then
-         allocate(ceq_type :: geom)
-      else if (gs2d_eq) then
-         allocate(gs2d_type :: geom)
-      else if (efit_eq) then
-         allocate(eeq_type :: geom)
-      else if (transp_eq) then
-         allocate(teq_type :: geom)
-      else if (ppl_eq) then
-         allocate(peq_type :: geom)
-      else if (dfit_eq) then
-         allocate(deq_type :: geom)
-      else if (idfit_eq) then
-         allocate(ideq_type :: geom)
-      else if (local_eq) then
-         allocate(leq_type :: geom)
-      end if
-    end subroutine allocate_geom
-
     !> Initialises the specific geometry backend
     subroutine initialise_geometry_and_get_bmod
       use geo_utils, only: geo_input_type
@@ -1014,6 +982,39 @@ contains
            gradthtot  (-n:n,3))  ! MAB
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
+
+  !> Allocate the geom instance to the correct type
+  pure subroutine allocate_geom(geom)
+    use geq, only: geq_type
+    use leq, only: leq_type
+    use ceq, only: ceq_type
+    use peq, only: peq_type, teq_type
+    use eeq, only: eeq_type, gs2d_type
+    use deq, only: deq_type
+    use ideq, only: ideq_type
+    use geo_utils, only: abstract_geo_type
+    implicit none
+    class(abstract_geo_type), allocatable, intent(in out) :: geom
+    if (gen_eq) then
+       allocate(geq_type :: geom)
+    else if (chs_eq) then
+       allocate(ceq_type :: geom)
+    else if (gs2d_eq) then
+       allocate(gs2d_type :: geom)
+    else if (efit_eq) then
+       allocate(eeq_type :: geom)
+    else if (transp_eq) then
+       allocate(teq_type :: geom)
+    else if (ppl_eq) then
+       allocate(peq_type :: geom)
+    else if (dfit_eq) then
+       allocate(deq_type :: geom)
+    else if (idfit_eq) then
+       allocate(ideq_type :: geom)
+    else if (local_eq) then
+       allocate(leq_type :: geom)
+    end if
+  end subroutine allocate_geom
 
   pure subroutine calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
        qval, rhoc, bmod, force_sym, gds2, gds21, gds22, gds23, gds24, gds24_noq)
