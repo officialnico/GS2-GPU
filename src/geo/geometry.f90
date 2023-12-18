@@ -475,7 +475,7 @@ contains
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
-    call drift(rgrid, rp, gradstot, gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, dpsidrp,&
+    call drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, dpsidrp,&
          Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
          dp_new, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
@@ -1285,20 +1285,19 @@ contains
   end function pbarfun
 
   !> FIXME : Add documentation
-  subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, &
+  subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, &
        dpsidrp, Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dp_new, &
        bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, invR, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
-    real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot, gradthtot
+    real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot
     real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dp_new, bi
     logical, intent(in) :: force_sym
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
-    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve, bvector
+    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, curve, bvector
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
-    real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
-    real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3, cdrift1, cdrift2
+    real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
     character(1) :: char
     integer :: i, k, itot
 
@@ -1309,8 +1308,7 @@ contains
        gbdrift0 = (-sin(theta) * gradrptot(:,1) - cos(theta) * gradrptot(:,2)) / rmaj
        gbdrift0 = 2 * dpsidrho * gbdrift0 * dqdrp
 
-       cvdrift = gbdrift
-       cvdrift0 = gbdrift0
+       cvdrift = gbdrift ; cvdrift0 = gbdrift0
     else
        if (bishop >= 1) then
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
@@ -1341,14 +1339,12 @@ contains
        !     compute magnetic field
        call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
 
-       call crosstgrid(bvector, bgradtot, dummy1)
-       call dottgrid(dummy1, gradstot, gbdrift1)
-       call dottgrid(dummy1, gradrptot, gbdrift2)
-       call dottgrid(dummy1, gradthtot, gbdrift3)
+       call crosstgrid(bvector, bgradtot, dummy)
+       call dottgrid(dummy, gradstot, gbdrift1)
+       call dottgrid(dummy, gradrptot, gbdrift2)
        call crosstgrid(bvector, curve, dummy)
        call dottgrid(dummy, gradstot, cvdrift1)
        call dottgrid(dummy, gradrptot, cvdrift2)
-       call dottgrid(dummy, gradthtot, cvdrift3)
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
        ! Provided bmod is specified on [-ntgrid, ntgrid] we could replace
