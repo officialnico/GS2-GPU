@@ -351,7 +351,6 @@ contains
     !> The theta grid of the results. The final grid has
     !> $$\pi - 2 \pi \mathrm{nperiod} \leq \theta \leq 2 \pi \mathrm{nperiod} - \pi$$
     real, allocatable, dimension(:) :: theta
-    real, allocatable, dimension(:) :: grho
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -552,7 +551,7 @@ contains
     ! Axisymmetry assumed to get this (nu indep. of phi):
     do i = -nth, nth
        jacob(i) = abs(dpsidrho / (outputs%gradpar(i)*outputs%bmag(i)))
-       ds(i) = grho(i) * jacob(i)
+       ds(i) = outputs%grho(i) * jacob(i)
     end do
 
     ! compute surface area from A=Int(R sqrt(r**2+drdtheta**2) dtheta dphi)
@@ -591,7 +590,7 @@ contains
        !RN> Even if the sign is effective, probably it has no effect because of the symmetry.
        !RN> I just leave the sign here.
        outputs%kxfac = - 1 / drhodpsi
-       outputs%gds22 = grho**2 / drhodpsi**2
+       outputs%gds22 = outputs%grho**2 / drhodpsi**2
     end if
 
     if (start_file_utils) call finish_file_utils
@@ -599,7 +598,6 @@ contains
     ! Pack module level data into output type
     outputs%ntheta = ntheta_input
     outputs%theta = theta
-    outputs%grho = grho
     outputs%bpol = bpolmag
 
     outputs%s_hat_new = s_hat_new
@@ -781,11 +779,12 @@ contains
       end if
 
       !     compute |grad rho|:
+      allocate(outputs%grho(-ntgrid:ntgrid))
       do i = -nth, nth
-         grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
+         outputs%grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
       end do
-      call periodic_copy(grho, 0., nperiod)
-      if (force_sym) call sym(grho, 0, ntgrid)
+      call periodic_copy(outputs%grho, 0., nperiod)
+      if (force_sym) call sym(outputs%grho, 0, ntgrid)
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
@@ -960,7 +959,7 @@ contains
       call periodic_copy(dZdl, 0., nperiod)
 
       ! gradztot(:,1) is grad Z . rhohat
-      gradztot(:,1) = crpgrad(:,2) / grho
+      gradztot(:,1) = crpgrad(:,2) / outputs%grho
       ! gradztot(:,2) is grad Z . lhat
       gradztot(:,2) = dZdl
       ! gradztot(:,3) is grad Z . phihat
@@ -1075,6 +1074,7 @@ contains
            Bpolmag    (-n:n), &
            Bmod       (-n:n), &
            rmajor     (-n:n), &
+           jacob      (-n:n), &
            ds         (-n:n))
 
       allocate(thgrad (-n:n,2), &
@@ -1087,9 +1087,6 @@ contains
            gradstot   (-n:n,3), &
            gradztot   (-n:n,3), &
            gradthtot  (-n:n,3))  ! MAB
-
-    allocate(grho   (-n:n), &
-         jacob      (-n:n))
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
 
