@@ -384,10 +384,10 @@ contains
     if (debug) write(6,*) "eikcoefs: local_eq=",local_eq, 'jid=',job_id
 
     if (local_eq) then
-       if (irho /= 2) write(*,*) 'Forcing irho = 2'
+       if (irho /= 2) write(*,*) 'Forcing irho = 2 for local_eq'
        irho = 2
        if (bishop == 0) then
-          write(*,*) 'Forcing bishop = 1'
+          write(*,*) 'Bishop = 0 not compatible with local_eq. Forcing bishop = 1'
           bishop = 1 !Not clear that this is a good choice for Miller
        end if
     end if
@@ -924,6 +924,7 @@ contains
 
       s_hat_new = shat ! Output
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
+      dp_new = dbetadrho / (2 * dpsidrho) !Output
 
       !     compute gradient of S
       ! this is really gradient of alpha
