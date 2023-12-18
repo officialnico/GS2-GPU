@@ -347,7 +347,7 @@ contains
     real, allocatable, dimension(:)   :: dsdthet, rmajor, ds, dummy, th_bish, invRpol
     real, allocatable, dimension(:)   :: gdsdum1, gdsdum2, gdsdum3, gdsdum4, gdsdum5, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
-    real, allocatable, dimension(:,:) :: bvector, gradrptot, gradstot, gradztot, gradthtot
+    real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
     real :: shat, dbetadrho, dp_new, di_new, s_hat_new, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -490,15 +490,12 @@ contains
     outputs%gds24 = outputs%gds24_noq * dqdrp
     outputs%gds24_noq = outputs%gds24_noq * qval / rhoc
 
-    !     compute magnetic field
-    call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
-
     !     compute curvature, grad b, and coriolis drift terms
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
-    call drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-         dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, outputs%theta, rmajor, &
+    call drift(rgrid, rp, gradstot, gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, dpsidrp,&
+         Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
          dp_new, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
@@ -1080,8 +1077,7 @@ contains
            crpgrad    (-n:n,2), &
            grads      (-n:n,2))
 
-      allocate(bvector(-n:n,3), &
-           gradrptot  (-n:n,3), &
+      allocate(gradrptot (-n:n,3), &
            gradstot   (-n:n,3), &
            gradztot   (-n:n,3), &
            gradthtot  (-n:n,3))  ! MAB
@@ -1281,17 +1277,17 @@ contains
   end function pbarfun
 
   !> FIXME : Add documentation
-  subroutine drift(rgrid, rp, bvector, gradstot, gradrptot, gradztot, gradthtot, dqdrp, &
-       dpsidrho, drhodrp, Bmod, Bpolmag, invRpol, th_bish, ltheta, theta, rmajor, dp_new, &
+  subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, gradthtot, dqdrp, dpsidrho, &
+       dpsidrp, Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dp_new, &
        bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, th_bish
+    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, invR, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
-    real, dimension (-ntgrid:, :), intent (in) :: bvector, gradstot, gradrptot, gradztot, gradthtot
-    real, intent (in) :: rp, dqdrp, dpsidrho, drhodrp, dp_new, bi
+    real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot, gradthtot
+    real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dp_new, bi
     logical, intent(in) :: force_sym
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
-    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve
+    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, dummy1, curve, bvector
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2
     real, dimension (-ntgrid:ntgrid) :: gbdrift3, cvdrift3, cdrift1, cdrift2
@@ -1325,7 +1321,7 @@ contains
           pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
           pgradtot(-nth:nth, 3) = 0.0
        else
-          pgradtot = gradrptot * dpsidrho * drhodrp * dp_new
+          pgradtot = gradrptot * dpsidrp * dp_new
        end if
 
        do i = -nth, nth
@@ -1333,6 +1329,9 @@ contains
           curve(i, 2) = bgradtot(i, 2) / bmod(i) + pgradtot(i, 2) / bmod(i)**2
           curve(i, 3) = 0.
        end do
+
+       !     compute magnetic field
+       call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
 
        call crosstgrid(bvector, bgradtot, dummy1)
        call dottgrid(dummy1, gradstot, gbdrift1)
