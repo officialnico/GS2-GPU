@@ -2,7 +2,7 @@
 program ball
   use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
-  use geometry, only: nperiod, eqfile, equal_arc, use_large_aspect, delrho, surf
+  use geometry, only: eqfile, equal_arc, use_large_aspect, delrho, surf
   use geometry, only: bishop, irho, force_sym, efit_eq, writelots, big
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, gs2d_eq, transp_eq
   use geometry, only: alpha_input, dp_mult, p_prime_input, invLp_input, beta_prime_input
@@ -13,7 +13,7 @@ program ball
   real, dimension(:), allocatable :: theta
   real :: dbetadrho
   integer :: nbeta, ntgrid, ntheta, iunstable, ibeta, ishat
-  integer :: nshat, order, isym, iflux, itor
+  integer :: nshat, order, isym, iflux, itor, nperiod
 
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
@@ -100,7 +100,7 @@ program ball
   !     compute the theta grid
   if( (.not. gen_eq) .and. (.not. ppl_eq) &
        .and. (.not. transp_eq) .and. (.not. chs_eq)) then
-     call eikcoefs(ntheta, eikcoefs_results)
+     call eikcoefs(ntheta, nperiod, eikcoefs_results)
      theta = eikcoefs_results%theta
      dbetadrho = eikcoefs_results%dbetadrho
      ntgrid = (2*nperiod - 1)*(ntheta/2)
@@ -177,7 +177,7 @@ contains
           beta_prime_input = beta_prime
        endif
 
-       call eikcoefs(ntheta, eikcoefs_results)
+       call eikcoefs(ntheta, nperiod, eikcoefs_results)
        theta = eikcoefs_results%theta
        dbetadrho = eikcoefs_results%dbetadrho
 

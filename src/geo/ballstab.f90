@@ -418,7 +418,7 @@ contains
   subroutine check_stability(shat_in, beta_prime_in, dbetadrho_out, &
        iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
-    use theta_grid_params, only: ntheta
+    use theta_grid_params, only: ntheta, nperiod
     use geometry, only: eikcoefs, eikcoefs_output_type
     use optionals, only: get_option_with_default
     implicit none
@@ -446,7 +446,7 @@ contains
     !physical parameter dbetadrho should really be the relevant parameter.
     call set_beta_prime(beta_prime_in)
     call set_shat(shat_in)
-    call eikcoefs(ntheta, eikcoefs_results) !Recalculate geometry terms
+    call eikcoefs(ntheta, nperiod, eikcoefs_results) !Recalculate geometry terms
 
     !Here we pass out the value of dbetadrho, this should be bishop value independent
     dbetadrho_out = eikcoefs_results%dbetadrho
@@ -469,7 +469,7 @@ contains
     if (local_restore) then
        call set_beta_prime(beta_prime_bak)
        call set_shat(shat_bak)
-       call eikcoefs(ntheta, eikcoefs_results)
+       call eikcoefs(ntheta, nperiod, eikcoefs_results)
     end if
   end subroutine check_stability
 

@@ -112,7 +112,7 @@ module geometry
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: nperiod, eqfile, eqnormfile, irho, surf, delrho
+  public :: eqfile, eqnormfile, irho, surf, delrho
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
@@ -122,7 +122,7 @@ module geometry
   ! Start of inputs
   type(flux_surface_type) :: surf
   real :: delrho, p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  integer :: nperiod, irho, bishop
+  integer :: irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc, force_sym, use_large_aspect
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
@@ -216,7 +216,7 @@ contains
 
   !> Run eikcoefs with `ntheta = ntheta_input` and then resample onto
   !> a theta grid with resolution `ntheta_target`.
-  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, results, job_id)
+  subroutine run_eikcoefs_and_resample(ntheta_input, ntheta_target, nperiod, results, job_id)
     implicit none
     !> This is the number of theta grid points per two pi period used in the
     !> geometry calculation (actually one less than this).
@@ -224,6 +224,7 @@ contains
     !> This is the desired number of theta grid points per two pi period
     !> in the resulting geometrical coefficients used elsewhere.
     integer, intent(in) :: ntheta_target
+    integer, intent(in) :: nperiod
     type(eikcoefs_output_type), intent(out) :: results
     integer, intent(in), optional :: job_id
     type(eikcoefs_output_type) :: full_results
@@ -232,7 +233,7 @@ contains
     real :: spacing
 
     ! First run eikcoefs using requested resolution
-    call eikcoefs(ntheta_input, full_results, job_id)
+    call eikcoefs(ntheta_input, nperiod, full_results, job_id)
 
     ntgrid_input = (size(full_results%theta) - 1) / 2
     ntgrid_target =(ntheta_target*(2*nperiod-1)) / 2
@@ -320,7 +321,7 @@ contains
   end subroutine run_eikcoefs_and_resample
 
   !> FIXME : Add documentation
-  subroutine eikcoefs (ntheta_input, outputs, job_id_in)
+  subroutine eikcoefs (ntheta_input, nperiod, outputs, job_id_in)
     use constants, only: twopi
     use file_utils, only: open_output_file, close_output_file
     use file_utils, only: futils_initialized => initialized, init_file_utils
@@ -338,6 +339,7 @@ contains
     !> job_id is the job id in a  Trinity or list mode run. Used
     !> for debug statements
     integer, intent(in), optional :: job_id_in
+    integer, intent(in) :: nperiod
     logical :: start_file_utils, dummy_flag
     integer :: job_id
     ! Local variables:
@@ -466,8 +468,8 @@ contains
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, dpsidrp,&
          Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
-         dbetadrho, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
-         outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
+         dbetadrho, bi, force_sym, nperiod, outputs%gbdrift, outputs%gbdrift0, &
+         outputs%cvdrift, outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
     allocate(outputs%bmag(-ntgrid:ntgrid))
@@ -564,7 +566,7 @@ contains
       call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid)
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
-      call init_uniform_theta_grid(ntheta_input, outputs%theta)
+      call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod)
       if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
       if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
 
@@ -599,7 +601,8 @@ contains
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
       if (efit_eq .or. dfit_eq .or. gs2d_eq) then !Cartesian like
-         call rtg(rgrid, rp, outputs%theta)
+         call rtgrid(rgrid, rp, outputs%theta)
+         call periodic_copy(rgrid, 0.0, nperiod)
       else
          rgrid = rp !This is likely just an optimisation, rtg should work here as well?
       end if
@@ -890,8 +893,8 @@ contains
       ! Note seikon sets rgrid = rp. This is only the same as the regular
       ! rgrid for equilibrium types other than efit or dfit. For those cases
       ! this _might_ not do what is expected.
-      call seikon(rp1, outputs%theta, invR, qval1, bi1, seik1, dummy2, dummy, dum)
-      call seikon(rp2, outputs%theta, invR, qval2, bi2, seik2, dummy2, dummy, dum)
+      call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1, dummy2, dummy, dum)
+      call seikon(rp2, outputs%theta, invR, qval2, bi2, nperiod, seik2, dummy2, dummy, dum)
 
       do i = -nth, nth
          dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
@@ -1092,10 +1095,7 @@ contains
     if (use_large_aspect) then
        gradstot(:, 3) = 0.
     else
-       do i = -nth, nth
-          gradstot(i, 3) = invR(i)
-       end do
-       call periodic_copy(gradstot(:, 3), 0.0, nperiod)
+       gradstot(:, 3) = invR
     end if
   end subroutine gradstottgrid
 
@@ -1114,9 +1114,10 @@ contains
   !> Calculate the dot product c = a.b where a is on the `[-nth, nth]` domain
   !> and b and c are both on the `[-ntgrid, ntgrid]` domain. In other words a
   !> is considered periodic on 2pi whilst b may not be.
-  pure subroutine dottgrid(a, b, c)
+  pure subroutine dottgrid(a, b, c, nperiod)
     real, dimension (-ntgrid:, :), intent(in) :: a, b
     real, dimension (-ntgrid:), intent(out) :: c
+    integer, intent(in) :: nperiod
     integer :: i, k, itot
     do k = -nperiod+1, nperiod-1
        do i = -nth, nth
@@ -1261,13 +1262,14 @@ contains
   !> FIXME : Add documentation
   subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, &
        dpsidrp, Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dbetadrho, &
-       bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
+       bi, force_sym, nperiod, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, invR, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot
     real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dbetadrho, bi
     logical, intent(in) :: force_sym
+    integer, intent(in) :: nperiod
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, curve, bvector
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
@@ -1295,8 +1297,8 @@ contains
        bgradtot(-nth:nth, 3) = 0.0
 
        call crosstgrid(bvector, bgradtot, dummy) !B cross Grad B
-       call dottgrid(dummy, gradstot, gbdrift1)
-       call dottgrid(dummy, gradrptot, gbdrift2)
+       call dottgrid(dummy, gradstot, gbdrift1, nperiod)
+       call dottgrid(dummy, gradrptot, gbdrift2, nperiod)
 
        !     create curvature
        if (bishop == 0) then
@@ -1312,8 +1314,8 @@ contains
        curve(-nth:nth, 2) = curve(-nth:nth, 2) + pgradtot(-nth:nth, 2) / bmod(-nth:nth)
 
        call crosstgrid(bvector, curve, dummy) !B cross [Grad B + Grad P / B]
-       call dottgrid(dummy, gradstot, cvdrift1)
-       call dottgrid(dummy, gradrptot, cvdrift2)
+       call dottgrid(dummy, gradstot, cvdrift1, nperiod)
+       call dottgrid(dummy, gradrptot, cvdrift2, nperiod)
 
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
@@ -1328,10 +1330,10 @@ contains
 
     ! this is the Zhat . grad(alpha) part of Zhat . grad(S)
     ! note that a factor of k_y = (n0/a) (drho/dpsiN) has been factored out
-    call dottgrid(gradztot, gradstot, cdrift1)
+    call dottgrid(gradztot, gradstot, cdrift1, nperiod)
     ! this is the Zhat . grad(q) part of Zhat . grad(S)
     ! note that a factor of k_y * theta0 has been factored out
-    call dottgrid(gradztot, gradrptot, cdrift2)
+    call dottgrid(gradztot, gradrptot, cdrift2, nperiod)
 
     ! factor of 4 (instead of 2) below because will later mutliply
     ! by wunits, which has a built-in factor of 1/2
@@ -1371,11 +1373,12 @@ contains
   end subroutine sym
 
   !> FIXME: Add documentation. Only used for bishop == 0 testing
-  subroutine seikon(rp, theta, invR, qval, bi, seik, dsdthet, rgrid, dpsidrp)
+  subroutine seikon(rp, theta, invR, qval, bi, nperiod, seik, dsdthet, rgrid, dpsidrp)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta, invR
     real, intent(in out) :: qval
     real, intent(in) :: bi
+    integer, intent(in) :: nperiod
     real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
@@ -1388,7 +1391,7 @@ contains
        call geom%bgradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
     end if
     call thetagrad(rgrid, theta, thgrad)
-    call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
+    call tripprod2dtgrid(rpgrad, thgrad, invR, trip) ; call periodic_copy(trip, 0., nperiod)
     call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
   end subroutine seikon
 
@@ -1401,13 +1404,8 @@ contains
     real, intent(in out) :: qval
     real, intent(in) :: bi
     real, intent(out) :: dpsidrp
-    integer :: i
 
-    do i = -nth, nth
-       dsdthet(i) = -bi * invR(i)**2 / trip(i)
-    end do
-    call periodic_copy(dsdthet, 0., nperiod)
-
+    dsdthet = -bi * invR**2 / trip
     call integrate(dsdthet, theta, seik, ntgrid)
 
     if (local_eq) then
@@ -1431,8 +1429,6 @@ contains
     else
        call geom%bgradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid)
     end if
-    call periodic_copy(thgrad(:, 1), 0., nperiod)
-    call periodic_copy(thgrad(:, 2), 0., nperiod)
   end subroutine thetagrad
 
   !> FIXME : Add documentation
@@ -1659,7 +1655,7 @@ contains
     rp = rpofrho(rho, fort11_unit)
 
     if (efit_eq .or. dfit_eq .or. gs2d_eq) then
-       call rtg(rgrid, rp, theta)
+       call rtgrid(rgrid, rp, theta)
     else
        rgrid = rp
     end if
@@ -1952,11 +1948,12 @@ contains
   !> `nth == nt - 1`.
   !>
   !> `nt` is set equal to [[geometry:ntheta]] on exit
-  subroutine init_uniform_theta_grid(nt, theta)
+  subroutine init_uniform_theta_grid(nt, theta, nperiod)
     use constants, only: pi
     implicit none
     integer, intent(in out) :: nt
     real, dimension(:), allocatable, intent(in out) :: theta
+    integer, intent(in) :: nperiod
     integer :: i
 
     nth = nt / 2
@@ -2037,7 +2034,7 @@ contains
 
   !> Calculate rgrid for the case of eeq and deq: in this case, rgrid
   !> is the distance to the magnetic axis as a function of theta.
-  subroutine rtg(rgrid, rp, theta)
+  subroutine rtgrid(rgrid, rp, theta)
     implicit none
     real, dimension(-ntgrid:), intent (out) :: rgrid
     real, intent (in) :: rp
@@ -2046,8 +2043,7 @@ contains
     do i = -nth, nth
        rgrid(i) = geom%rfun(rp, theta(i))
     end do
-    call periodic_copy(rgrid, 0.0, nperiod)
-  end subroutine rtg
+  end subroutine rtgrid
 
   !> Calculate the derivative of the flux label rho
   !> with respect to the internal flux label rp (the

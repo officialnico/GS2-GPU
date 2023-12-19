@@ -1631,8 +1631,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: nperiod_geo => nperiod, verb_geo => verb
-    use geometry, only: eikcoefs, delrho, surf, use_large_aspect
+    use geometry, only: eikcoefs, delrho, surf, use_large_aspect, verb_geo => verb
     use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
@@ -1660,7 +1659,6 @@ contains
     call debug_message(verb, "init_theta_grid_eik: call read_parameters, ntheta="//ntheta_char)
     call read_parameters(theta_grid_eik_config_in)
 
-    nperiod_geo = nperiod
     rhoc_save = surf%r
     if (use_large_aspect) surf%r = 1.5 * delrho
 
@@ -1668,11 +1666,11 @@ contains
        if (ntheta_geometry == -1) then
           write(ntheta_char, "(I4)") ntheta
           call debug_message(verb, "init_theta_grid_eik: call eikcoefs, ntheta="//ntheta_char)
-          call eikcoefs(ntheta, eikcoefs_results, job_id)
+          call eikcoefs(ntheta, nperiod, eikcoefs_results, job_id)
        else
           write(ntheta_char, "(I4)") ntheta_geometry
           call debug_message(verb, "init_theta_grid_eik: call run_eikcoefs_and_resample, ntheta_geometry="//ntheta_char)
-          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, eikcoefs_results, job_id)
+          call run_eikcoefs_and_resample (ntheta_geometry, ntheta, nperiod, eikcoefs_results, job_id)
        end if
     end if
 
@@ -1692,8 +1690,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine eik_get_sizes (nthetaout, nperiodout, nbsetout)
-    use geometry, only: nperiod
-    use theta_grid_params, only: ntheta
+    use theta_grid_params, only: ntheta, nperiod
     implicit none
     integer, intent (out) :: nthetaout, nperiodout, nbsetout
 
@@ -1778,7 +1775,7 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: surf, irho, eqnormfile
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
-    use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop, nperiod
+    use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
     use geometry, only: delrho, writelots, force_sym, use_large_aspect
     use theta_grid_params, only: get_parameters_as_surf, nperiod_in => nperiod
@@ -1789,7 +1786,6 @@ contains
     type(theta_grid_eik_config_type), intent(in), optional :: theta_grid_eik_config_in
     integer :: isym, iflux, itor
     ! Copy some values from theta_grid_params into this module (actually into geometry)
-    nperiod = nperiod_in
     surf = get_parameters_as_surf()
     isym = -1 ; iflux = -1 ; itor = -1
     if (present(theta_grid_eik_config_in)) theta_grid_eik_config = theta_grid_eik_config_in

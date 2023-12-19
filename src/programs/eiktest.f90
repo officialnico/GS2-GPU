@@ -3,7 +3,7 @@ program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
   !> Inputs
-  use geometry, only: surf, nperiod, eqfile, equal_arc, use_large_aspect, delrho
+  use geometry, only: surf, eqfile, equal_arc, use_large_aspect, delrho
   use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -41,7 +41,7 @@ program eiktest
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
   real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
-  integer :: fort11_unit, isym, iflux, itor
+  integer :: fort11_unit, isym, iflux, itor, nperiod
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
@@ -162,7 +162,7 @@ program eiktest
   open(unit=99,file=out_stem//'eik3.out',status='unknown')
   open(unit=78,file=out_stem//'eik7.out',status='unknown')
 
-  call eikcoefs(ntheta, eikcoefs_results)
+  call eikcoefs(ntheta, nperiod, eikcoefs_results)
 
   ! Unpack results for ease of use
   theta = eikcoefs_results%theta
