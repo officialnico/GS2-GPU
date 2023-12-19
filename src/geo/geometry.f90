@@ -1277,10 +1277,10 @@ contains
     character(1) :: char
     real :: dp
     if (use_large_aspect) then
-       gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) / rmaj
+       gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) * invR
        gbdrift = 2 * dpsidrho * gbdrift
 
-       gbdrift0 = (-sin(theta) * gradrptot(:,1) - cos(theta) * gradrptot(:,2)) / rmaj
+       gbdrift0 = (-sin(theta) * gradrptot(:,1) - cos(theta) * gradrptot(:,2)) * invR
        gbdrift0 = 2 * dpsidrho * gbdrift0 * dqdrp
 
        cvdrift = gbdrift ; cvdrift0 = gbdrift0
