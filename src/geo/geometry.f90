@@ -1846,31 +1846,26 @@ contains
     integer, intent (in) :: nth
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:), intent (out) :: th_bish
-    real, dimension (-ntgrid:ntgrid) :: magrp
-    real, dimension (-ntgrid:ntgrid, 2) :: tvec
+    real, dimension (-nth:nth) :: magrp
+    real, dimension (-nth:nth, 2) :: tvec
     integer :: i
+    real :: tvec_dot_gradR
 
-    do i = -nth, nth
-       magrp(i) = sqrt(rpgrad(i, 1)**2 + rpgrad(i, 2)**2)
-    end do
+    magrp = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2)
 
     ! tvec is the tangent vector in the surface of the poloidal plane
-    do i = -nth, nth
-       tvec(i, 1) = rpgrad(i, 2) / magrp(i)
-       tvec(i, 2) = -rpgrad(i, 1) / magrp(i)
-    end do
+    tvec(:, 1) = rpgrad(-nth:nth, 2) / magrp
+    tvec(:, 2) = -rpgrad(-nth:nth, 1) / magrp
 
-    ! need to find grad(R) and dot it with tvec.
-    ! but grad(R) is simple -- it is just (1,0)
-    ! so simply return acos(tvec(:,1))
-    ! with corrections for left-hand quadrants
-    !
+    ! need to find grad(R) and dot it with tvec.  but grad(R) is
+    ! simple -- it is just (1,0) so simply return acos(tvec(:,1)) with
+    ! corrections for left-hand quadrants
     do i = -nth, nth
-       tvec(i, 1) = min(1., max(-1., tvec(i, 1)))
+       tvec_dot_gradR = min(1., max(-1., tvec(i, 1)))
        if (tvec(i, 2) > 0.) then
-          th_bish(i) = twopi - acos(max(min(tvec(i, 1), 1.0), -1.0))
+          th_bish(i) = twopi - acos(tvec_dot_gradR)
        else
-          th_bish(i) = acos(max(min(tvec(i, 1), 1.0), -1.0))
+          th_bish(i) = acos(tvec_dot_gradR)
        end if
     end do
   end subroutine th_bishop
