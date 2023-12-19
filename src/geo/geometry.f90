@@ -549,7 +549,6 @@ contains
       use geo_utils, only: geo_input_type
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar
-      character(1) :: char
       integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -657,7 +656,6 @@ contains
       call invRtgrid(rgrid, outputs%theta, invR) ; call periodic_copy(invR, 0., nperiod)
 
       !     compute gradient of rp
-      char = 'P'
       ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
       ! and (rho,l,phi) coordinates if bishop>0
       ! also, rpgrad is grad psi if not local_eq and grad rho if local_eq -- MAB
@@ -668,14 +666,14 @@ contains
       ! crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-      call geom%gradient(rgrid, outputs%theta, crpgrad, char, dum, nth, ntgrid)
+      call geom%gradient(rgrid, outputs%theta, crpgrad, 'P', dum, nth, ntgrid)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
 
       if (bishop == 0) then
          rpgrad = crpgrad
       else
-         call geom%bgradient(rgrid, outputs%theta, rpgrad, char, dum, nth, ntgrid)
+         call geom%bgradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid)
       end if
 
       !     compute  coordinate gradients
@@ -1428,11 +1426,10 @@ contains
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
-    character(1), parameter :: char = 'T'
     if (bishop == 0) then
-       call geom%gradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
+       call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid)
     else
-       call geom%bgradient(rgrid, theta, thgrad, char, dum, nth, ntgrid)
+       call geom%bgradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid)
     end if
     call periodic_copy(thgrad(:, 1), 0., nperiod)
     call periodic_copy(thgrad(:, 2), 0., nperiod)
