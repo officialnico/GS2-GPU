@@ -345,7 +345,7 @@ contains
     real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
-    real :: shat, dbetadrho, dp_new, dqdrp, B_T0, qval, dum, bi
+    real :: shat, dbetadrho, dqdrp, B_T0, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
@@ -466,7 +466,7 @@ contains
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, dpsidrp,&
          Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
-         dp_new, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
+         dbetadrho, bi, force_sym, outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, &
          outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
     !     compute the magnetic field along theta
@@ -705,7 +705,7 @@ contains
     subroutine bishop_grads
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
-      real :: a_b, b_b, c_b, dp, di, di_new, s_hat, s_hat_new, pressure, tmp
+      real :: a_b, b_b, c_b, dp, dp_new, di, di_new, s_hat, s_hat_new, pressure, tmp
       real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
            zoftheta, dzdl, dsdl
 
@@ -915,7 +915,6 @@ contains
       end if
 
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
-      dp_new = dbetadrho / (2 * dpsidrho) !Output
 
       !     compute gradient of S
       ! this is really gradient of alpha
@@ -1263,20 +1262,20 @@ contains
 
   !> FIXME : Add documentation
   subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, &
-       dpsidrp, Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dp_new, &
+       dpsidrp, Bmod, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dbetadrho, &
        bi, force_sym, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, Bmod, Bpolmag, invRpol, invR, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot
-    real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dp_new, bi
+    real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dbetadrho, bi
     logical, intent(in) :: force_sym
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, curve, bvector
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
     character(1) :: char
-
+    real :: dp
     if (use_large_aspect) then
        gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) / rmaj
        gbdrift = 2 * dpsidrho * gbdrift
@@ -1288,9 +1287,9 @@ contains
     else
        !     compute magnetic field
        call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
-
+       dp = dbetadrho / (2 * dpsidrho)
        if (bishop >= 1) then
-          call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, bgrad1)
+          call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
        else
           char = 'B'
           call geom%gradient(rgrid, theta, bgrad1, char, rp, nth, ntgrid)
@@ -1310,7 +1309,7 @@ contains
           pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
           pgradtot(-nth:nth, 3) = 0.0
        else
-          pgradtot = gradrptot * dpsidrp * dp_new
+          pgradtot = gradrptot * dpsidrp * dp
        end if
 
        curve(-nth:nth, 1) = bgradtot(-nth:nth, 1) / bmod(-nth:nth) + &
@@ -2017,17 +2016,17 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation
-  pure subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradB)
+  pure subroutine bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, gradB)
     implicit none
     real, dimension(-ntgrid:), intent (in) :: Bmod, Bpolmag, invRpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, rmajor
-    real, intent(in) :: dp_new, bi
+    real, intent(in) :: dp, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real :: bp
     integer :: i
     do i = -nth, nth
        bp = -Bpolmag(i)
-       gradB(i, 1) = (bp / Bmod(i)) * (bp * invRpol(i) + dp_new * rmajor(i) &
+       gradB(i, 1) = (bp / Bmod(i)) * (bp * invRpol(i) + dp * rmajor(i) &
             - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp)) !dBdrho
     end do
     call gradl(ltheta, Bmod, gradB(:, 2), 0., nth) !dBdl
