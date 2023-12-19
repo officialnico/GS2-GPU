@@ -438,7 +438,7 @@ contains
        end do
     end if
     !     compute total grad S including toroidal part
-    call gradstottgrid(rmajor, grads, gradstot)
+    call gradstottgrid(invR, grads, gradstot)
 
     gradrptot(-nth:nth, 1:2) = rpgrad(-nth:nth, :)
     call periodic_copy(gradrptot(:, 1), 0., nperiod)
@@ -1083,8 +1083,8 @@ contains
   end subroutine bvectortgrid
 
   !> FIXME : Add documentation
-  pure subroutine gradstottgrid (rmajor, grads, gradstot)
-    real, dimension(-ntgrid:), intent (in) :: rmajor
+  pure subroutine gradstottgrid (invR, grads, gradstot)
+    real, dimension(-ntgrid:), intent (in) :: invR
     real, dimension(-ntgrid:, :), intent (in) :: grads
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
     integer :: i
@@ -1093,7 +1093,7 @@ contains
        gradstot(:, 3) = 0.
     else
        do i = -nth, nth
-          gradstot(i, 3) = 1.0 / rmajor(i)
+          gradstot(i, 3) = invR(i)
        end do
        call periodic_copy(gradstot(:, 3), 0.0, nperiod)
     end if
