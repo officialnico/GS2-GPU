@@ -1309,13 +1309,11 @@ contains
           pgradtot = gradrptot * dpsidrp * dp
        end if
 
-       curve(-nth:nth, 1) = bgradtot(-nth:nth, 1) / bmod(-nth:nth) + &
-            pgradtot(-nth:nth, 1) / bmod(-nth:nth)**2
-       curve(-nth:nth, 2) = bgradtot(-nth:nth, 2) / bmod(-nth:nth) + &
-            pgradtot(-nth:nth, 2) / bmod(-nth:nth)**2
-       curve(-nth:nth, 3) = 0.
+       curve = bgradtot
+       curve(-nth:nth, 1) = curve(-nth:nth, 1) + pgradtot(-nth:nth, 1) / bmod(-nth:nth)
+       curve(-nth:nth, 2) = curve(-nth:nth, 2) + pgradtot(-nth:nth, 2) / bmod(-nth:nth)
 
-       call crosstgrid(bvector, curve, dummy)
+       call crosstgrid(bvector, curve, dummy) !B cross [Grad B + Grad P / B]
        call dottgrid(dummy, gradstot, cvdrift1)
        call dottgrid(dummy, gradrptot, cvdrift2)
 
@@ -1323,8 +1321,8 @@ contains
        ! by wunits, which has a factor of 1/2 built-in
        gbdrift = 2 * dpsidrho * gbdrift1 / bmod**3
        gbdrift0 = 2 * dpsidrho * gbdrift2 * dqdrp / bmod**3
-       cvdrift = 2 * dpsidrho * cvdrift1 / bmod**2
-       cvdrift0 = 2 * dpsidrho * cvdrift2 * dqdrp / bmod**2
+       cvdrift = 2 * dpsidrho * cvdrift1 / bmod**3
+       cvdrift0 = 2 * dpsidrho * cvdrift2 * dqdrp / bmod**3
     end if
 
     ! coriolis drift term is -2*vpa*om_phi/Omega * (bhat x (zhat x bhat)) . grad (g+q<phi>F_0/T)
