@@ -1274,7 +1274,6 @@ contains
     real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, curve, bvector
     real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
-    character(1) :: char
     real :: dp
     if (use_large_aspect) then
        gbdrift = (-sin(theta) * gradstot(:,1) - cos(theta) * gradstot(:,2)) * invR
@@ -1288,24 +1287,22 @@ contains
        !     compute magnetic field
        call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
        dp = dbetadrho / (2 * dpsidrho)
-       if (bishop >= 1) then
-          call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
+       if (bishop == 0) then
+          call geom%gradient(rgrid, theta, bgrad1, 'B', rp, nth, ntgrid)
        else
-          char = 'B'
-          call geom%gradient(rgrid, theta, bgrad1, char, rp, nth, ntgrid)
+          call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
        end if
 
        bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
        bgradtot(-nth:nth, 3) = 0.0
 
-       call crosstgrid(bvector, bgradtot, dummy)
+       call crosstgrid(bvector, bgradtot, dummy) !B cross Grad B
        call dottgrid(dummy, gradstot, gbdrift1)
        call dottgrid(dummy, gradrptot, gbdrift2)
 
        !     create curvature
        if (bishop == 0) then
-          char='R'
-          call geom%gradient(rgrid, theta, pgrad, char, rp, nth, ntgrid)
+          call geom%gradient(rgrid, theta, pgrad, 'R', rp, nth, ntgrid)
           pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
           pgradtot(-nth:nth, 3) = 0.0
        else
