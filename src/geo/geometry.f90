@@ -1306,7 +1306,7 @@ contains
           pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
           pgradtot(-nth:nth, 3) = 0.0
        else
-          pgradtot = gradrptot * dpsidrp * dp
+          pgradtot = gradrptot * dpsidrp * dp !Grad rho * dp/drho
        end if
 
        curve = bgradtot
@@ -1382,13 +1382,12 @@ contains
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real, dimension(-ntgrid:ntgrid) :: trip
-    character(1), parameter :: char = 'P'
     rgrid = rp !< Not sure this is right for efit etc.
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
-       call geom%gradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
+       call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
     else
-       call geom%bgradient(rgrid, theta, rpgrad, char, rp, nth, ntgrid)
+       call geom%bgradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
     end if
     call thetagrad(rgrid, theta, thgrad)
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
@@ -1645,7 +1644,7 @@ contains
 
   !> FIXME : Add documentation
   !>
-  !> @note This routine is just used by eik, not GS2
+  !> @note This routine is just used by eik, not GS2. Left here for now as it uses internals
   subroutine geofax(rho, theta, t, e, d, fort11_unit)
     implicit none
     real, intent (in) :: rho
@@ -1829,7 +1828,7 @@ contains
     real, intent(in) :: ext
     integer, intent(in) :: n
     integer :: i
-    ! Note here we're effectively assuming a uniformly (or symetric)
+    ! Note here we're effectively assuming a uniformly (or symmetric)
     ! spaced ltheta grid - we could probably use
     !(ltheta(-n) - ltheta(-n+1) + ltheta(n) - ltheta(n-1)) to avoid this
     dfdl(-n) = (f(n-1) + ext - f(-n+1)) / (2. * (ltheta(-n) - ltheta(-n+1)))
