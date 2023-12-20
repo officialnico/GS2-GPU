@@ -105,7 +105,7 @@ contains
     geom%dpcart = dpcart
     ! Note only need to test 'P' as other values for char don't make
     ! sense for leq
-    call geom%gradient(radius, theta, grad_result, 'P', -1., ntheta_half, ntheta_half)
+    call geom%gradient(radius, theta, grad_result, 'P', -1., ntheta_half, ntheta_half, .false.)
     @assertEqual(expected, grad_result, tolerance=value_tolerance)
     call geom%dealloc_arrays()
   end subroutine test_gradient
@@ -138,8 +138,8 @@ contains
 
     ! Note only need to test 'P' and 'T' as other values for char
     ! don't make sense for leq
-    call geom%bgradient(radius, theta, grad_P_result, 'P', -1., ntheta_half, ntheta_half)
-    call geom%bgradient(radius, theta, grad_T_result, 'T', -1., ntheta_half, ntheta_half)
+    call geom%gradient(radius, theta, grad_P_result, 'P', -1., ntheta_half, ntheta_half, .true.)
+    call geom%gradient(radius, theta, grad_T_result, 'T', -1., ntheta_half, ntheta_half, .true.)
 
     @assertEqual(expected_P, grad_P_result, tolerance=value_tolerance)
     @assertEqual(expected_T, grad_T_result, tolerance=value_tolerance)

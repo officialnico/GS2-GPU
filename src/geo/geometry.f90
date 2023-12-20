@@ -664,15 +664,10 @@ contains
       ! crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-      call geom%gradient(rgrid, outputs%theta, crpgrad, 'P', dum, nth, ntgrid)
+      call geom%gradient(rgrid, outputs%theta, crpgrad, 'P', dum, nth, ntgrid, .false.)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
-
-      if (bishop == 0) then
-         rpgrad = crpgrad
-      else
-         call geom%bgradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid)
-      end if
+      call geom%gradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
 
       !     compute  coordinate gradients
       if (debug) write(6,*) "eikcoefs: call thetagrad"
@@ -1283,7 +1278,7 @@ contains
        call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
        dp = dbetadrho / (2 * dpsidrho)
        if (bishop == 0) then
-          call geom%gradient(rgrid, theta, bgrad1, 'B', rp, nth, ntgrid)
+          call geom%gradient(rgrid, theta, bgrad1, 'B', rp, nth, ntgrid, bishop /= 0)
        else
           call bishop_gradB(Bmod, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
        end if
@@ -1297,7 +1292,7 @@ contains
 
        !     create curvature
        if (bishop == 0) then
-          call geom%gradient(rgrid, theta, pgrad, 'R', rp, nth, ntgrid)
+          call geom%gradient(rgrid, theta, pgrad, 'R', rp, nth, ntgrid, bishop /= 0)
           pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
           pgradtot(-nth:nth, 3) = 0.0
        else
@@ -1380,11 +1375,7 @@ contains
     real, dimension(-ntgrid:ntgrid) :: trip
     rgrid = rp !<This is not right for cart types, but not those compatible with bishop=0.
     ! Note we only call this routine when bishop == 0
-    if (bishop == 0)  then
-       call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
-    else
-       call geom%bgradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
-    end if
+    call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid, bishop /= 0)
     call thetagrad(rgrid, theta, thgrad)
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip) ; call periodic_copy(trip, 0., nperiod)
     call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
@@ -1419,11 +1410,7 @@ contains
     real, dimension(-ntgrid:), intent (in) :: rgrid, theta
     real, dimension(-ntgrid:, :), intent (out) :: thgrad
     real :: dum
-    if (bishop == 0) then
-       call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid)
-    else
-       call geom%bgradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid)
-    end if
+    call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
   end subroutine thetagrad
 
   !> FIXME : Add documentation

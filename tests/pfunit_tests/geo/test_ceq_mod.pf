@@ -201,13 +201,13 @@ contains
     geom%dpcart = dpcart ; geom%dtcart = dtcart
     expected(:, 1) = [-2., 0., 2., 0., -2.]
     expected(:, 2) = [0., -2., 0., 2., 0.]
-    call geom%gradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half)
+    call geom%gradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half, .false.)
     @assertEqual(expected, grad_result, tolerance=value_tolerance)
 
     expected(:, 1) = [-3., 0., 3., 0., -3.]
     expected(:, 2) = [0., -3., 0., 3., 0.]
     expected = expected * abs(geom%B_T) * geom%aminor**2 ! Scale by psi_N
-    call geom%gradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
+    call geom%gradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half, .false.)
     ! 'R' is derivative of pressure, and involves a separate
     ! interpolation, hence reduced tolerance
     @assertEqual(expected, grad_result, tolerance=derivative_tolerance)
@@ -238,13 +238,13 @@ contains
     geom%dpbish = dpbish ; geom%dtbish = dtbish
     expected(:, 1) = [-2., 0., 2., 0., -2.]
     expected(:, 2) = [0., -2., 0., 2., 0.]
-    call geom%bgradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half)
+    call geom%gradient(psi, theta, grad_result, 'P', 0.5, ntheta_half, ntheta_half, .true.)
     @assertEqual(expected, grad_result, tolerance=value_tolerance)
 
     expected(:, 1) = [-3., 0., 3., 0., -3.]
     expected(:, 2) = [0., -3., 0., 3., 0.]
     expected = expected * abs(geom%B_T) * geom%aminor**2 ! Scale by psi_N
-    call geom%bgradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half)
+    call geom%gradient(psi, theta, grad_result, 'R', 0.5, ntheta_half, ntheta_half, .true.)
     ! 'R' is derivative of pressure, and involves a separate
     ! interpolation, hence reduced tolerance
     @assertEqual(expected, grad_result, tolerance=derivative_tolerance)

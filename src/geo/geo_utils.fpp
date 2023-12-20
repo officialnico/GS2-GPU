@@ -125,17 +125,6 @@ module geo_utils
      procedure(rtheta_interface), deferred :: rpos, zpos, psi, rfun
      procedure(rp_interface), deferred :: rcenter, diameter
      procedure(pbar_interface), deferred :: btori, dbtori, qfun, pfun, dpfun, betafun
-     !> Calculate the derivative of rp w.r.t. R and Z. Parameters
-     !> are:
-     !>   - rgrid: Submodule radial grid (r_circ for EFIT, rp otherwise)
-     !>   - theta: grid of theta
-     !>   - grad(:,1): deriv w.r.t. R as fn of theta
-     !>   - grad(:,2): deriv w.r.t  Z as fn of theta
-     !>   - char: if char = 'R', return the gradient of pressure instead
-     !>   - rp: value of rp on the flux surface where we want the grad
-     !>   - nth: number of theta points
-     !>   - ntm: lower index of theta array is -ntgrid
-     procedure :: gradient
      !> Calculate the derivative of rp w.r.t. R and Z and return
      !> the modulus sqrt(drp/dR ^ 2 + drp/dZ^2). I.e. return |grad rp|.
      !> Parameters are:
@@ -150,7 +139,7 @@ module geo_utils
      !>   - rp: value of rp on the flux surface where we want the grad
      !>   - nth: number of theta points
      !>   - ntgrid: lower index of theta array is -ntgrid
-     procedure :: bgradient
+     procedure :: gradient
      procedure(eqitem_interface), deferred :: eqitem
      procedure :: calculate_gradients, gradient_work
      procedure :: eqdcart, eqdbish, invR, derm, rhofun => rhofun_null
@@ -353,7 +342,7 @@ contains
     dbish(2:, :, 2) = dbish(2:, :, 2) / denom(2:, :)
   end subroutine eqdbish
 
-  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
+  subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm, use_bishop)
     implicit none
     class(abstract_geo_type), intent(in) :: self
     integer, intent (in) :: nth_used, ntm
@@ -361,39 +350,30 @@ contains
     real, dimension (-ntm:), intent (in)  :: rgrid, theta
     real, dimension (-ntm:,:), intent (out) :: grad
     real, intent(in) :: rp
-    real, dimension(:, :, :), allocatable :: dcart
-    select case(char)
-    case('B')
-       dcart = self%dbcart
-    case('P', 'R')
-       dcart = self%dpcart
-    case('T')
-       dcart = self%dtcart
-    end select
+    logical, intent(in) :: use_bishop
+    real, dimension(:, :, :), allocatable :: darr
+    if (use_bishop) then
+       select case(char)
+       case('B')
+          darr = self%dbbish
+       case('P', 'R')
+          darr = self%dpbish
+       case('T')
+          darr = self%dtbish
+       end select
+    else
+       select case(char)
+       case('B')
+          darr = self%dbcart
+       case('P', 'R')
+          darr = self%dpcart
+       case('T')
+          darr = self%dtcart
+       end select
+    end if
 
-    call self%gradient_work(rgrid, theta, dcart, grad, char, rp, nth_used, ntm)
+    call self%gradient_work(rgrid, theta, darr, grad, char, rp, nth_used, ntm)
   end subroutine gradient
-
-  subroutine bgradient(self, rgrid, theta, grad, char, rp, nth_used, ntm)
-    implicit none
-    class(abstract_geo_type), intent(in) :: self
-    integer, intent (in) :: nth_used, ntm
-    character(1), intent (in) :: char
-    real, dimension (-ntm:), intent (in)  :: rgrid, theta
-    real, dimension (-ntm:,:), intent (out) :: grad
-    real, intent(in) :: rp
-    real, dimension(:, :, :), allocatable :: dbish
-    select case(char)
-    case('B')
-       dbish = self%dbbish
-    case('P', 'R')
-       dbish = self%dpbish
-    case('T')
-       dbish = self%dtbish
-    end select
-
-    call self%gradient_work(rgrid, theta, dbish, grad, char, rp, nth_used, ntm)
-  end subroutine bgradient
 
   subroutine gradient_work(self, rgrid, theta, darr, grad, char, rp, nth_used, ntm)
     use splines, only: inter_d_cspl
