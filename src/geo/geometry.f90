@@ -596,27 +596,22 @@ contains
       else
          rp = rpofrho(rhoc, fort11_unit)
          R_geo = rcenter(rpmax) !Only used for writelots/checks
+         if (R_geo > Rmaj + 1.e-5) then !Not checked for leq
+            write(6,*)
+            write(6,*) 'Warning: the center of the LCFS is outboard of the '
+            write(6,*) 'center of the reference surface.  This is probably wrong.'
+            write(6,*)
+         end if
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
-      if (efit_eq .or. dfit_eq .or. gs2d_eq) then !Cartesian like
-         call rtgrid(rgrid, rp, outputs%theta)
-         call periodic_copy(rgrid, 0.0, nperiod)
-      else
-         rgrid = rp !This is likely just an optimisation, rtg should work here as well?
-      end if
+      call rtgrid(rgrid, rp, outputs%theta)
+      call periodic_copy(rgrid, 0.0, nperiod)
 
       pbar = pbarfun(rgrid(0), outputs%theta(0))
       drhodrp = drho_drp(rp)
       bi = btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
-
-      if ((.not. local_eq) .and. R_geo > Rmaj + 1.e-5) then
-         write(6,*)
-         write(6,*) 'Warning: the center of the LCFS is outboard of the '
-         write(6,*) 'center of the reference surface.  This is probably wrong.'
-         write(6,*)
-      end if
 
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
@@ -1383,7 +1378,7 @@ contains
     real, intent(out) :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real, dimension(-ntgrid:ntgrid) :: trip
-    rgrid = rp !< Not sure this is right for efit etc.
+    rgrid = rp !<This is not right for cart types, but not those compatible with bishop=0.
     ! Note we only call this routine when bishop == 0
     if (bishop == 0)  then
        call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid)
@@ -1653,12 +1648,7 @@ contains
        first = .false.
     end if
     rp = rpofrho(rho, fort11_unit)
-
-    if (efit_eq .or. dfit_eq .or. gs2d_eq) then
-       call rtgrid(rgrid, rp, theta)
-    else
-       rgrid = rp
-    end if
+    call rtgrid(rgrid, rp, theta)
 
     ! do not treat up-down asymmetry completely for now
     hmaxu = -1.e6 ; hmaxl = 1.e6
@@ -2022,7 +2012,7 @@ contains
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq
     integer, intent(in) :: bishop
     integer :: nflag_set
-    if ((eeq .or. deq .or. gs2deq) .and. bishop == 0) &
+    if ((eeq .or. deq .or. gs2deq) .and. bishop == 0) & !Probably abort unless geq/ideq?
          call mp_abort('gs2_eq/efit_eq/dfit_eq are not compatible with bishop = 0',.true.)
     nflag_set = count([geq, ceq, eeq, gs2deq, peq, teq, leq, deq, ideq])
     if (nflag_set == 0) then
