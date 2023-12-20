@@ -667,12 +667,10 @@ contains
       call geom%gradient(rgrid, outputs%theta, crpgrad, 'P', dum, nth, ntgrid, .false.)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
-      call geom%gradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
 
       !     compute  coordinate gradients
-      if (debug) write(6,*) "eikcoefs: call thetagrad"
-      call thetagrad(rgrid, outputs%theta, thgrad)
-      if (debug) write(6,*) "eikcoefs: done thetagrad"
+      call geom%gradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
+      call geom%gradient(rgrid, outputs%theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
       call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
       call periodic_copy(trip, 0., nperiod)
 
@@ -1376,7 +1374,7 @@ contains
     rgrid = rp !<This is not right for cart types, but not those compatible with bishop=0.
     ! Note we only call this routine when bishop == 0
     call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid, bishop /= 0)
-    call thetagrad(rgrid, theta, thgrad)
+    call geom%gradient(rgrid, theta, thgrad, 'T', rp, nth, ntgrid, bishop /= 0)
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip) ; call periodic_copy(trip, 0., nperiod)
     call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
   end subroutine seikon
@@ -1403,15 +1401,6 @@ contains
        qval = -(seik(nth) - seik(-nth)) / (twopi)
     end if
   end subroutine eikonal
-
-  !> FIXME : Add documentation
-  subroutine thetagrad(rgrid, theta, thgrad)
-    implicit none
-    real, dimension(-ntgrid:), intent (in) :: rgrid, theta
-    real, dimension(-ntgrid:, :), intent (out) :: thgrad
-    real :: dum
-    call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
-  end subroutine thetagrad
 
   !> FIXME : Add documentation
   real function rpofrho(rho, fort11_unit)
