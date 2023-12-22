@@ -1082,22 +1082,6 @@ contains
     end do
   end subroutine crosstgrid
 
-  !> Calculate the dot product c = a.b where a is on the `[-nth, nth]` domain
-  !> and b and c are both on the `[-ntgrid, ntgrid]` domain. In other words a
-  !> is considered periodic on 2pi whilst b may not be.
-  pure subroutine dottgrid(a, b, c, nperiod)
-    real, dimension (-ntgrid:, :), intent(in) :: a, b
-    real, dimension (-ntgrid:), intent(out) :: c
-    integer, intent(in) :: nperiod
-    integer :: i, k, itot
-    do k = -nperiod+1, nperiod-1
-       do i = -nth, nth
-          itot = i + k * ntheta
-          c(itot) = a(i, 1) * b(itot, 1) + a(i, 2) * b(itot, 2) + a(i, 3) * b(itot, 3)
-       enddo
-    enddo
-  end subroutine dottgrid
-
   !> Calculate the dot product c = a.b where a, b and c are on the `[-ntgrid, ntgrid]` domain
   pure subroutine dottgridf(a, b, c)
     real, dimension(-ntgrid:,:), intent(in) :: a, b
@@ -1262,8 +1246,11 @@ contains
        bgradtot(-nth:nth, 3) = 0.0
 
        call crosstgrid(bvector, bgradtot, dummy) !B cross Grad B
-       call dottgrid(dummy, gradstot, gbdrift1, nperiod)
-       call dottgrid(dummy, gradrptot, gbdrift2, nperiod)
+       call periodic_copy(dummy(:, 1), 0.0, nperiod)
+       call periodic_copy(dummy(:, 2), 0.0, nperiod)
+       call periodic_copy(dummy(:, 3), 0.0, nperiod)
+       call dottgridf(dummy, gradstot, gbdrift1)
+       call dottgridf(dummy, gradrptot, gbdrift2)
 
        !     create curvature
        if (bishop == 0) then
@@ -1279,8 +1266,11 @@ contains
        curve(-nth:nth, 2) = curve(-nth:nth, 2) + pgradtot(-nth:nth, 2) / bmod(-nth:nth)
 
        call crosstgrid(bvector, curve, dummy) !B cross [Grad B + Grad P / B]
-       call dottgrid(dummy, gradstot, cvdrift1, nperiod)
-       call dottgrid(dummy, gradrptot, cvdrift2, nperiod)
+       call periodic_copy(dummy(:, 1), 0.0, nperiod)
+       call periodic_copy(dummy(:, 2), 0.0, nperiod)
+       call periodic_copy(dummy(:, 3), 0.0, nperiod)
+       call dottgridf(dummy, gradstot, cvdrift1)
+       call dottgridf(dummy, gradrptot, cvdrift2)
 
        ! factor of 2 appears below because will later multiply
        ! by wunits, which has a factor of 1/2 built-in
@@ -1295,10 +1285,10 @@ contains
 
     ! this is the Zhat . grad(alpha) part of Zhat . grad(S)
     ! note that a factor of k_y = (n0/a) (drho/dpsiN) has been factored out
-    call dottgrid(gradztot, gradstot, cdrift1, nperiod)
+    call dottgridf(gradztot, gradstot, cdrift1)
     ! this is the Zhat . grad(q) part of Zhat . grad(S)
     ! note that a factor of k_y * theta0 has been factored out
-    call dottgrid(gradztot, gradrptot, cdrift2, nperiod)
+    call dottgridf(gradztot, gradrptot, cdrift2)
 
     ! factor of 4 (instead of 2) below because will later mutliply
     ! by wunits, which has a built-in factor of 1/2
@@ -1845,8 +1835,8 @@ contains
     integer :: i
 
     ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998))
-    ! Note that we must properly account for discontinuities in u
-    do i = -nth+1, nth-1
+    ! Note that we must properly account for discontinuities in u. u is th_bish
+    do i = -nth + 1, nth - 1
        if (th_bish(i+1)-th_bish(i-1) > pi) then
           invRpol(i) = (th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
        else if(th_bish(i+1)-th_bish(i-1) < -pi) then
@@ -1863,7 +1853,7 @@ contains
     dthdl(-nth) = (theta(nth-1) - theta(-nth+1) - twopi) &
          /(ltheta(nth-1) - ltheta(-nth+1) - ltheta(nth) + ltheta(-nth))
 
-    do i = -nth+1, nth-1
+    do i = -nth + 1, nth - 1
        dthdl(i) = (theta(i+1) - theta(i-1)) / (ltheta(i+1) - ltheta(i-1))
     end do
 
@@ -1900,10 +1890,8 @@ contains
     integer :: i
 
     nth = nt / 2
-    ! Make sure ntheta is even
-    ntheta = nth * 2
-    nt = ntheta
-    ntgrid = (2 * nperiod - 1) * nth
+    ! Make sure ntheta is even, update argument and set ntgrid
+    ntheta = nth * 2 ; nt = ntheta ; ntgrid = (2 * nperiod - 1) * nth
 
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
       allocated(theta),ntgrid,nt,nperiod
