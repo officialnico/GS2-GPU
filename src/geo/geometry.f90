@@ -338,7 +338,7 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id, i, iBmax, fort11_unit
     ! Local variables:
-    real, allocatable, dimension(:)   :: seik, rgrid, bpolmag, invR, trip, ds, jacob
+    real, allocatable, dimension(:)   :: seik, rgrid, invR, trip, ds, jacob
     real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
@@ -389,9 +389,10 @@ contains
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod)
-    thetaShift = 0.0 ; allocate(outputs%bmag(-ntgrid:ntgrid))
+    thetaShift = 0.0 ;
+    allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(outputs%bmag)
+    call initialise_geometry_and_get_bmag(outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -405,7 +406,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(outputs%bmag)
+          call initialise_geometry_and_get_bmag(outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -422,7 +423,7 @@ contains
 
     !     compute derivatives of eikonal
     if (bishop /= 0) then
-       call bishop_grads
+       call bishop_grads(outputs%bpol)
     else
        call bishop_large_aspect_ratio_approximation
     end if
@@ -461,7 +462,7 @@ contains
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, dpsidrp,&
-         outputs%bmag, Bpolmag, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
+         outputs%bmag, outputs%bpol, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
          dbetadrho, bi, force_sym, nperiod, outputs%gbdrift, outputs%gbdrift0, &
          outputs%cvdrift, outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
@@ -529,8 +530,6 @@ contains
 
     ! Pack module/routine level data into output type
     outputs%ntheta = ntheta_input
-    outputs%bpol = bpolmag
-
     outputs%drhodpsi = drhodpsi
     outputs%qsf = qval
     outputs%shat = shat
@@ -539,9 +538,9 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(bmag)
+    subroutine initialise_geometry_and_get_bmag(bmag, bpol)
       use geo_utils, only: geo_input_type
-      real, dimension(-ntgrid:), intent(out) :: bmag
+      real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar, B_T0
       integer :: fort78_unit, fort99_unit
@@ -666,15 +665,16 @@ contains
       if (local_eq) trip = trip * dpsidrp
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
-         call B_pol(invR, crpgrad, Bpolmag, nth) !<Should this use rpgrad for local?
-         if (local_eq) Bpolmag(-nth:nth) = Bpolmag(-nth:nth) * dpsidrp
-         call periodic_copy(Bpolmag, 0., nperiod)
-         call B_mod(invR, Bpolmag, bmag, bi, nth)
+         call B_pol(invR, crpgrad, bpol, nth) !<Should this use rpgrad for local?
+         if (local_eq) bpol(-nth:nth) = bpol(-nth:nth) * dpsidrp
+         call periodic_copy(bpol, 0., nperiod)
+         call B_mod(invR, bpol, bmag, bi, nth)
          call periodic_copy(bmag, 0., nperiod)
       end if !Note bmag not set for bishop == 0
     end subroutine initialise_geometry_and_get_bmag
 
-    subroutine bishop_grads
+    subroutine bishop_grads(bpol)
+      real, dimension(-ntgrid:), intent(in) :: bpol
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
       real :: a_b, b_b, c_b, dp, dp_new, di, di_new, s_hat, s_hat_new, pressure, tmp
@@ -692,22 +692,22 @@ contains
       if (debug) write(6,*) 'drhodpsi', drhodpsi
       if (debug) write(6,*) 'bi', bi
       if (verb > 5) write(6,*) 'rmajor', rmajor(:)
-      if (verb > 5) write(6,*) 'Bpolmag', Bpolmag(:)
+      if (verb > 5) write(6,*) 'bpol', bpol(:)
       if (verb > 5) write(6,*) rpgrad(-nth:nth,1)
       if (verb > 5) write(6,*) rpgrad(-nth:nth,2)
       if (verb > 5) write(6,*) thgrad(-nth:nth,1)
       if (verb > 5) write(6,*) thgrad(-nth:nth,2)
       if (verb > 5) write(6,*) 1.0 / trip(-nth:nth)
-      if (verb > 5) write(6,*) -1.0 / (bpolmag(-nth:nth) * invRpol(-nth:nth))
+      if (verb > 5) write(6,*) -1.0 / (bpol(-nth:nth) * invRpol(-nth:nth))
       if (debug) write(6,*) "eikcoefs: end gradients"
 
       allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
            da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
            zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
 
-      da_bish = (1 / rmajor**2) + (bi / (Bpolmag * rmajor**2))**2
-      db_bish = bi / (Bpolmag * rmajor)**2
-      dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-Bpolmag * rmajor**4)
+      da_bish = (1 / rmajor**2) + (bi / (bpol * rmajor**2))**2
+      db_bish = bi / (bpol * rmajor)**2
+      dc_bish = bi * (sin(th_bish) + rmajor * invRpol) / (-bpol * rmajor**4)
 
       da_bish = da_bish / trip
       db_bish = db_bish / trip
@@ -721,9 +721,9 @@ contains
       b_b = b_bish(nth) - b_bish(-nth)
       c_b = c_bish(nth) - c_bish(-nth)
 
-      a_bish = - a_bish * Bpolmag * rmajor
-      b_bish = - b_bish * Bpolmag * rmajor
-      c_bish = - c_bish * Bpolmag * rmajor
+      a_bish = - a_bish * bpol * rmajor
+      b_bish = - b_bish * bpol * rmajor
+      c_bish = - c_bish * bpol * rmajor
 
       ! find shat, pressure' and report them
       dp = dpfun(pbar) ; di = dbtori(pbar)
@@ -833,7 +833,7 @@ contains
          write(bishop_unit, fmt ="('#  theta, a_bish,  b_bish,  c_bish, rmajor, Z, Bpol, invRpol, th_bish')")
          do i = -ntgrid, ntgrid
             write(bishop_unit, '( 10(2X, F25.17) )') outputs%theta(i), a_bish(i), b_bish(i), &
-                 c_bish(i), rmajor(i), Zoftheta(i),  Bpolmag(i), invRpol(i), th_bish(i)
+                 c_bish(i), rmajor(i), Zoftheta(i),  bpol(i), invRpol(i), th_bish(i)
          end do
          call close_output_file(bishop_unit)
       end if
@@ -905,7 +905,6 @@ contains
            trip       (-n:n), &
            ltheta     (-n:n), &
            rgrid      (-n:n), &
-           Bpolmag    (-n:n), &
            rmajor     (-n:n))
 
       allocate(thgrad (-n:n,2), &
@@ -1191,10 +1190,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, &
-       dpsidrp, Bmag, Bpolmag, invRpol, invR, th_bish, ltheta, theta, rmajor, dbetadrho, &
+       dpsidrp, bmag, bpol, invRpol, invR, th_bish, ltheta, theta, rmajor, dbetadrho, &
        bi, force_sym, nperiod, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, Bmag, Bpolmag, invRpol, invR, th_bish
+    real, dimension (-ntgrid:), intent (in) :: rgrid, bmag, bpol, invRpol, invR, th_bish
     real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
     real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot
     real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dbetadrho, bi
@@ -1220,7 +1219,7 @@ contains
        if (bishop == 0) then
           call geom%gradient(rgrid, theta, bgrad1, 'B', rp, nth, ntgrid, bishop /= 0)
        else
-          call bishop_gradB(Bmag, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
+          call bishop_gradB(Bmag, bpol, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
        end if
 
        bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
@@ -1776,23 +1775,23 @@ contains
   end subroutine th_bishop
 
   !> FIXME : Add documentation
-  pure subroutine B_pol(invR, rpgrad, Bpolmag, nth)
+  pure subroutine B_pol(invR, rpgrad, bpol, nth)
     implicit none
     integer, intent (in) :: nth
     real, dimension (-ntgrid:), intent (in) :: invR
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
-    real, dimension (-ntgrid:)   , intent (out) :: Bpolmag
-    Bpolmag(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * invR(-nth:nth)
+    real, dimension (-ntgrid:)   , intent (out) :: bpol
+    bpol(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * invR(-nth:nth)
   end subroutine B_pol
 
   !> FIXME : Add documentation
-  pure subroutine B_mod(invR, Bpolmag, bmag, bi, nth)
+  pure subroutine B_mod(invR, bpol, bmag, bi, nth)
     implicit none
     integer, intent (in) :: nth
-    real, dimension (-ntgrid:), intent (in) :: invR, Bpolmag
+    real, dimension (-ntgrid:), intent (in) :: invR, bpol
     real, dimension(-ntgrid:), intent (out) :: bmag
     real, intent(in) :: bi
-    bmag(-nth:nth) = sqrt((bi * invR(-nth:nth))**2 + Bpolmag(-nth:nth)**2)
+    bmag(-nth:nth) = sqrt((bi * invR(-nth:nth))**2 + bpol(-nth:nth)**2)
   end subroutine B_mod
 
   !> General calculation of the poloidal magnetic field radius of curvature
@@ -1894,16 +1893,16 @@ contains
   end subroutine periodic_copy
 
   !> FIXME : Add documentation
-  pure subroutine bishop_gradB(bmag, Bpolmag, invRpol, th_bish, ltheta, rmajor, dp, bi, gradB)
+  pure subroutine bishop_gradB(bmag, Bpol, invRpol, th_bish, ltheta, rmajor, dp, bi, gradB)
     implicit none
-    real, dimension(-ntgrid:), intent (in) :: bmag, Bpolmag, invRpol
+    real, dimension(-ntgrid:), intent (in) :: bmag, bpol, invRpol
     real, dimension(-ntgrid:), intent (in) :: th_bish, ltheta, rmajor
     real, intent(in) :: dp, bi
     real, dimension(-ntgrid:,:), intent(out) :: gradB
     real :: bp
     integer :: i
     do i = -nth, nth
-       bp = -Bpolmag(i)
+       bp = -bpol(i)
        gradB(i, 1) = (bp / bmag(i)) * (bp * invRpol(i) + dp * rmajor(i) &
             - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp)) !dBdrho
     end do
