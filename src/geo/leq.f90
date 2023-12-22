@@ -36,7 +36,7 @@ module leq
      procedure :: finish_setup, finalise, read_and_set
      procedure :: rpos, zpos, rcenter, diameter, btori, dbtori, qfun
      procedure :: pfun, dpfun, betafun, psi, rfun, eqitem
-     procedure :: geo_Miller, geo_global, geo_generalizedEllipticity, geo_FourierSeries
+     procedure :: geo_Miller, geo_global, geo_generalizedElongation, geo_FourierSeries
   end type leq_type
 
 contains
@@ -57,8 +57,7 @@ contains
 
     self%surf = inputs%surf ;  self%thetaShift = inputs%thShift
     self%beta_0 = 1.
-    self%nr = 3
-    self%nt = self%surf%nt + 1
+    self%nr = 3 ; self%nt = self%surf%nt + 1
     call self%alloc_arrays()
     dr = [-self%surf%dr, 0., self%surf%dr]
     ! Why do we set pressure to -dr here?
@@ -136,7 +135,7 @@ contains
        case (1)
           call self%geo_global(r, theta, Rpos, Zpos)
        case (2)
-          call self%geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+          call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
        case (3)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
     end select
@@ -157,7 +156,7 @@ contains
        case (1)
           call self%geo_global(r, theta, Rpos, Zpos)
        case (2)
-          call self%geo_generalizedEllipticity(r, theta, Rpos, Zpos)
+          call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
        case (3)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
     end select
@@ -263,7 +262,7 @@ contains
   !>
   !> See section 5.1.2 of Ball Oxford PhD thesis or section 2.1.3 of
   !> "GS2 analytic geometry specification"
-  pure subroutine geo_generalizedEllipticity(self, r, theta, Rpos, Zpos)
+  pure subroutine geo_generalizedElongation(self, r, theta, Rpos, Zpos)
     implicit none
     class(leq_type), intent(in) :: self
     real, intent (in) :: r, theta
@@ -291,7 +290,7 @@ contains
     Rpos=Rfinal+dr*Rfinalp
     Zpos=Zfinal+dr*Zfinalp
 
-  end subroutine geo_generalizedEllipticity
+  end subroutine geo_generalizedElongation
 
   !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
   !> Fourier model
