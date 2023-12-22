@@ -856,46 +856,30 @@ contains
       end if
     end subroutine bishop_grads
 
+    !> @Note local_eq _must_ be false if we end in this routine. We make use of this.
     subroutine bishop_large_aspect_ratio_approximation
-      real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, dsdrptot, pbar_1, pbar_2
-      real, dimension(:), allocatable :: seik1, seik2, dummy2, dsdrp
+      real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, pbar_1, pbar_2
+      real, dimension(:), allocatable :: seik1, seik2, dsdrp
       integer :: itot, k
       !     rp derivative
       delrp = delrho / drhodrp
       rp1 = rp - delrp ; rp2 = rp + delrp
-
-      ! Note for local_eq we need to ensure qval is set before
-      !calling seikon. We force bishop > 0 for local_eq so shouldn't get here.
-      if (local_eq) then
-         dqdrho = shat * qval / rhoc !Note shat _not_ set for local_eq here
-         qval1 = qval - dqdrho * delrho ; qval2 = qval + dqdrho * delrho
-      end if
-
       pbar_1 = pbarfun(rp1, outputs%theta(0)) ; pbar_2 = pbarfun(rp2, outputs%theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
       ! seikon to avoid having to form rgrid1/rgrid2 here.
       bi1 = btori(pbar_1) ; bi2 = btori(pbar_2)
 
-      allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dummy2(-ntgrid:ntgrid))
-      allocate(dsdrp(-nth:nth))
-      ! Note seikon sets rgrid = rp. This is only the same as the regular
-      ! rgrid for equilibrium types other than efit or dfit. For those cases
-      ! this _might_ not do what is expected.
-      call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1, dummy2, dummy, dum)
-      call seikon(rp2, outputs%theta, invR, qval2, bi2, nperiod, seik2, dummy2, dummy, dum)
+      allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dsdrp(-ntgrid:ntgrid))
+      call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1)
+      call seikon(rp2, outputs%theta, invR, qval2, bi2, nperiod, seik2)
 
-      do i = -nth, nth
-         dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
-      end do
-
-      if (.not. local_eq) then
-         dqdrho = (qval2 - qval1) / (2 * delrho)
-         shat = dqdrho * rhoc / qval
-      end if
+      dqdrho = (qval2 - qval1) / (2 * delrho)
+      shat = dqdrho * rhoc / qval ! Output
       dqdrp = dqdrho * drhodrp ! Output
+      dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
 
       if (writelots) then
-         write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1,qval2
+         write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1, qval2
          write (fort11_unit,*) 's_hat= ',shat
          write (fort11_unit,*) 'i,rgrid,rgrid1,rgrid2:'
          do i = -nth, nth
@@ -903,19 +887,18 @@ contains
          end do
       end if
 
-      dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
+      do i = -nth, nth
+         dsdrp(i) = (seik2(i) - seik1(i)) / (2 * delrp)
+      end do
+      call periodic_copy(dsdrp, -twopi * dqdrp, nperiod)
 
       !     compute gradient of S
       ! this is really gradient of alpha
       ! note that coordinates are R and Z (not rho and l, as in bishop case)
-      ! Note we don't use dsdthet1/2 (dummy2 above)
       do k = -nperiod+1, nperiod-1
          do i = -nth, nth
             itot = i + k * ntheta
-            ! By calling periodic_copy(dsdrp, twopi * dqdrp) we should
-            ! be able to use dsdrp directly here?
-            dsdrptot = dsdrp(i) - k * twopi * dqdrp
-            grads(itot, :) = rpgrad(i, :) * dsdrptot + thgrad(i, :) * dsdthet(i)  ! Output
+            grads(itot, :) = rpgrad(i, :) * dsdrp(itot) + thgrad(i, :) * dsdthet(i)  ! Output
          end do
       end do
       ! gradztot(:,1) is grad Z . Rhat ! Output
@@ -1361,17 +1344,17 @@ contains
   end subroutine sym
 
   !> FIXME: Add documentation. Only used for bishop == 0 testing
-  subroutine seikon(rp, theta, invR, qval, bi, nperiod, seik, dsdthet, rgrid, dpsidrp)
+  subroutine seikon(rp, theta, invR, qval, bi, nperiod, seik)
     real, intent(in) :: rp
     real, dimension(-ntgrid:), intent(in) :: theta, invR
     real, intent(in out) :: qval
     real, intent(in) :: bi
     integer, intent(in) :: nperiod
-    real, dimension(-ntgrid:), intent(out) :: seik, dsdthet, rgrid
-    real, intent(out) :: dpsidrp
+    real, dimension(-ntgrid:), intent(out) :: seik
+    real :: dpsidrp
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
-    real, dimension(-ntgrid:ntgrid) :: trip
-    rgrid = rp !<This is not right for cart types, but not those compatible with bishop=0.
+    real, dimension(-ntgrid:ntgrid) :: trip, dsdthet, rgrid
+    rgrid = rp !<This is not right for cart types, but ok for those compatible with bishop=0.
     ! Note we only call this routine when bishop == 0
     call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid, bishop /= 0)
     call geom%gradient(rgrid, theta, thgrad, 'T', rp, nth, ntgrid, bishop /= 0)
