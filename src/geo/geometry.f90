@@ -541,7 +541,7 @@ contains
       use geo_utils, only: geo_input_type
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
-      real :: avgrmid, rbar, B_T0, r_geo
+      real :: avgrmid, rbar, B_T0
       integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -574,11 +574,10 @@ contains
          ! one would expect rpofrho(rho) == rho in this case. So here we
          ! effectively just have an optimisation (I think)
          rp = rhoc
-         r_geo = surf%r_geo
       else
          rp = rpofrho(rhoc, fort11_unit)
-         R_geo = rcenter(rpmax) !Only used for writelots/checks
-         if (R_geo > Rmaj + 1.e-5) then !Not checked for leq
+         surf%r_geo = rcenter(rpmax) !Only used for writelots/checks
+         if (surf%r_geo > Rmaj + 1.e-5) then !Not checked for leq
             write(6,*)
             write(6,*) 'Warning: the center of the LCFS is outboard of the '
             write(6,*) 'center of the reference surface.  This is probably wrong.'
@@ -598,7 +597,7 @@ contains
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
          write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
-         write(fort11_unit,*) 'R_geo = ',R_geo,' !or ',bi
+         write(fort11_unit,*) 'R_geo = ',surf%r_geo,' !or ',bi
 
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
