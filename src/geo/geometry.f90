@@ -339,9 +339,9 @@ contains
     integer :: job_id, i, iBmax, fort11_unit
     ! Local variables:
     real, allocatable, dimension(:)   :: seik, rgrid, invR, trip, ds, jacob
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy, th_bish, invRpol, ltheta
+    real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
-    real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot
+    real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot, gradbtot
     real :: shat, dbetadrho, dqdrp, qval, dum, bi
     real :: rp, pbar, drhodrp, drhodrhod, drhodpsi, dpsidrp, dpsidrho
     ! Used to translate definition of the poloidal angle such that the location
@@ -420,9 +420,9 @@ contains
     if (writelots) write(fort11_unit,*) 'dpsidrp= ',dpsidrp
     drhodpsi = drhodrp / dpsidrp ; dpsidrho = 1.0 / drhodpsi
 
-    !     compute derivatives of eikonal
+    !     compute derivatives of eikonal, grad B and grad Z
     if (bishop /= 0) then
-       call bishop_grads(outputs%bpol)
+       call bishop_grads(outputs%bmag, outputs%bpol)
     else
        call bishop_large_aspect_ratio_approximation
     end if
@@ -460,10 +460,10 @@ contains
     allocate(outputs%gbdrift(-ntgrid:ntgrid), outputs%gbdrift0(-ntgrid:ntgrid))
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
-    call drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, dpsidrp,&
-         outputs%bmag, outputs%bpol, invRpol, invR, th_bish, ltheta, outputs%theta, rmajor, &
-         dbetadrho, bi, force_sym, nperiod, outputs%gbdrift, outputs%gbdrift0, &
-         outputs%cvdrift, outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
+    call drift(rgrid, rp, gradstot, gradrptot, gradztot, gradbtot, dqdrp, dpsidrho, dpsidrp,&
+         outputs%bmag, invR, outputs%theta, rmajor, dbetadrho, bi, force_sym, nperiod, &
+         outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, outputs%cvdrift0, &
+         outputs%cdrift, outputs%cdrift0)
 
     !Recompute the magnetic field along theta if use_large_aspect - should this come earlier?
     if (use_large_aspect) then
@@ -672,13 +672,17 @@ contains
       end if !Note bmag not set for bishop == 0
     end subroutine initialise_geometry_and_get_bmag
 
-    subroutine bishop_grads(bpol)
-      real, dimension(-ntgrid:), intent(in) :: bpol
+    subroutine bishop_grads(bmag, bpol)
+      real, dimension(-ntgrid:), intent(in) :: bmag, bpol
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
       real :: a_b, b_b, c_b, dp, dp_new, di, di_new, s_hat, s_hat_new, pressure, tmp
       real, allocatable, dimension(:) :: a_bish, b_bish, c_bish, da_bish, db_bish, dc_bish, &
-           zoftheta, dzdl, dsdl
+           zoftheta, dzdl, dsdl, ltheta, th_bish, invRpol
+      allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
+           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
+           zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid), &
+           ltheta(-ntgrid:ntgrid), th_bish(-ntgrid:ntgrid), invRpol(-ntgrid:ntgrid))
 
       call th_bishop(crpgrad, th_bish, nth)
       call periodic_copy(th_bish, 0., nperiod)
@@ -686,7 +690,6 @@ contains
       call periodic_copy(ltheta, ltheta(nth) - ltheta(-nth), nperiod)
       call inv_Rpol(outputs%theta, th_bish, ltheta, invRpol, nth)
       call periodic_copy(invRpol, 0., nperiod)
-
       if (debug) write(6,*) "eikcoefs:  gradients"
       if (debug) write(6,*) 'drhodpsi', drhodpsi
       if (debug) write(6,*) 'bi', bi
@@ -699,10 +702,6 @@ contains
       if (verb > 5) write(6,*) 1.0 / trip(-nth:nth)
       if (verb > 5) write(6,*) -1.0 / (bpol(-nth:nth) * invRpol(-nth:nth))
       if (debug) write(6,*) "eikcoefs: end gradients"
-
-      allocate(a_bish(-ntgrid:ntgrid), b_bish(-ntgrid:ntgrid), c_bish(-ntgrid:ntgrid), &
-           da_bish(-ntgrid:ntgrid), db_bish(-ntgrid:ntgrid), dc_bish(-ntgrid:ntgrid), &
-           zoftheta(-ntgrid:ntgrid), dzdl(-ntgrid:ntgrid), dsdl(-ntgrid:ntgrid))
 
       da_bish = (1 / rmajor**2) + (bi / (bpol * rmajor**2))**2
       db_bish = bi / (bpol * rmajor)**2
@@ -820,6 +819,8 @@ contains
       dqdrp = s_hat_new * qval * drhodrp / rhoc ! Output
       dbetadrho = 2 * dp_new * dpsidrho ! Output
 
+      call bishop_gradB(bmag, bpol, invRpol, th_bish, ltheta, rmajor, dp_new, bi, gradbtot)
+
       if (save_bishop) then
          call open_output_file(bishop_unit, '.bishop')
          write(bishop_unit, fmt="('#di, di_new = ',F12.7,' ',F12.7)") di, di_new
@@ -887,6 +888,9 @@ contains
       gradztot(:,2) = 1.
       ! gradztot(:,3) is grad Z . phihat ! Output
       gradztot(:,3) = 0.
+
+      call geom%gradient(rgrid, outputs%theta, gradbtot(:, 1:2), 'B', rp, nth, ntgrid, bishop /= 0)
+      gradbtot(:, 3) = 0.0
     end subroutine bishop_large_aspect_ratio_approximation
 
     !> FIXME : Add documentation
@@ -896,11 +900,8 @@ contains
 
       allocate(seik   (-n:n), &
            dsdthet    (-n:n), &
-           th_bish    (-n:n), &
-           invRpol    (-n:n), &
            invR       (-n:n), &
            trip       (-n:n), &
-           ltheta     (-n:n), &
            rgrid      (-n:n), &
            rmajor     (-n:n))
 
@@ -912,7 +913,8 @@ contains
       allocate(gradrptot (-n:n,3), &
            gradstot   (-n:n,3), &
            gradztot   (-n:n,3), &
-           gradthtot  (-n:n,3))  ! MAB
+           gradthtot  (-n:n,3), & ! MAB
+           gradbtot   (-n:n,3))
     end subroutine alloc_local_arrays
   end subroutine eikcoefs
 
@@ -1186,19 +1188,17 @@ contains
   end function pbarfun
 
   !> FIXME : Add documentation
-  subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, dqdrp, dpsidrho, &
-       dpsidrp, bmag, bpol, invRpol, invR, th_bish, ltheta, theta, rmajor, dbetadrho, &
-       bi, force_sym, nperiod, gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
+  subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, gradbtot, dqdrp, dpsidrho, &
+       dpsidrp, bmag, invR, theta, rmajor, dbetadrho, bi, force_sym, nperiod, &
+       gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, bmag, bpol, invRpol, invR, th_bish
-    real, dimension (-ntgrid:), intent (in) :: ltheta, theta, rmajor
-    real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot
+    real, dimension (-ntgrid:), intent (in) :: rgrid, bmag, invR, theta, rmajor
+    real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot, gradbtot
     real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dbetadrho, bi
     logical, intent(in) :: force_sym
     integer, intent(in) :: nperiod
     real, dimension(-ntgrid:ntgrid), intent(out) :: gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0
-    real, dimension (-ntgrid:ntgrid, 3) :: bgradtot, pgradtot, dummy, curve, bvector
-    real, dimension (-ntgrid:ntgrid, 2) :: pgrad, bgrad1
+    real, dimension (-ntgrid:ntgrid, 3) :: pgradtot, dummy, curve, bvector
     real, dimension (-ntgrid:ntgrid) :: gbdrift1, gbdrift2, cvdrift1, cvdrift2, cdrift1, cdrift2
     real :: dp
     if (use_large_aspect) then
@@ -1213,16 +1213,8 @@ contains
        !     compute magnetic field
        call bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
        dp = dbetadrho / (2 * dpsidrho)
-       if (bishop == 0) then
-          call geom%gradient(rgrid, theta, bgrad1, 'B', rp, nth, ntgrid, bishop /= 0)
-       else
-          call bishop_gradB(Bmag, bpol, invRpol, th_bish, ltheta, rmajor, dp, bi, bgrad1)
-       end if
 
-       bgradtot(-nth:nth, 1:2) = bgrad1(-nth:nth, :)
-       bgradtot(-nth:nth, 3) = 0.0
-
-       call crosstgrid(bvector, bgradtot, dummy) !B cross Grad B
+       call crosstgrid(bvector, gradbtot, dummy) !B cross Grad B
        call periodic_copy(dummy(:, 1), 0.0, nperiod)
        call periodic_copy(dummy(:, 2), 0.0, nperiod)
        call periodic_copy(dummy(:, 3), 0.0, nperiod)
@@ -1231,14 +1223,13 @@ contains
 
        !     create curvature
        if (bishop == 0) then
-          call geom%gradient(rgrid, theta, pgrad, 'R', rp, nth, ntgrid, bishop /= 0)
-          pgradtot(-nth:nth, 1:2) = pgrad(-nth:nth, :)
+          call geom%gradient(rgrid, theta, pgradtot(:, 1:2), 'R', rp, nth, ntgrid, bishop /= 0)
           pgradtot(-nth:nth, 3) = 0.0
        else
           pgradtot = gradrptot * dpsidrp * dp !Grad rho * dp/drho
        end if
 
-       curve = bgradtot
+       curve = gradbtot
        curve(-nth:nth, 1) = curve(-nth:nth, 1) + pgradtot(-nth:nth, 1) / bmag(-nth:nth)
        curve(-nth:nth, 2) = curve(-nth:nth, 2) + pgradtot(-nth:nth, 2) / bmag(-nth:nth)
 
@@ -1904,6 +1895,7 @@ contains
             - bi**2 * sin(th_bish(i)) / (rmajor(i)**3 * bp)) !dBdrho
     end do
     call gradl(ltheta, bmag, gradB(:, 2), 0., nth) !dBdl
+    gradB(:, 3) = 0.0
   end subroutine bishop_gradB
 
   !> Perform minor checks on consistency of flags
