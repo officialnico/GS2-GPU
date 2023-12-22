@@ -2,11 +2,9 @@
 module deq
   use geo_utils, only: abstract_eqfile_cart_geo_type, geo_input_type
   use splines, only: spline
-
   implicit none
 
   private
-
   public :: deq_type
 
   type, extends(abstract_eqfile_cart_geo_type) :: deq_type
@@ -23,16 +21,6 @@ contains
   !> This subroutine reads an DFIT output file containing
   !> the axisymmetric magnetic field geometry on a rectangular
   !> domain defined by the coordinates (R,Z).
-  !
-  !> eq_R     R grid
-  !> eq_Z     Z grid
-  !> fp    F on psibar grid
-  !> eqpsi_2d   psi on (R,Z) grid
-  !> R_mag        major radius of the magnetic axis
-  !> Z_mag        elevation of the magnetic axis
-  !> rwid       total width of the domain
-  !> rleft      position of leftmost point of domain
-  !> zhei       total height of domain
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
     use constants, only: twopi

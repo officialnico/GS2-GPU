@@ -1,12 +1,10 @@
 !> This module contains routines to read from CMR's GS2D equilibrium solver
 module gs2d
   private
-
   public :: write_gs2d, read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
   public :: psip, psmin, q, r0, rgrid, rmag, rsep, zgrid, zmag, zsep
 
-  real, dimension(:), allocatable :: ps, amin_gs2d, q, f, p, pp
-  real, dimension(:), allocatable :: rsep, zsep, rgrid, zgrid
+  real, dimension(:), allocatable :: ps, amin_gs2d, q, f, p, pp, rsep, zsep, rgrid, zgrid
   real, dimension(:,:), allocatable :: psi
   real :: r0, a, rmag, zmag, psmin, psip, b0, ippsi
   integer :: nsurf, nsep, nr, nz
@@ -122,16 +120,6 @@ contains
   !> This subroutine reads a GS2D output file containing
   !> the axisymmetric magnetic field geometry on a rectangular
   !> domain defined by the coordinates (R,Z).
-  !>
-  !> eq_R     R grid
-  !> eq_Z     Z grid
-  !> fp    F on psibar grid
-  !> eqpsi_2d   psi on (R,Z) grid
-  !> R_mag        major radius of the magnetic axis
-  !> Z_mag        elevation of the magnetic axis
-  !> rwid       total width of the domain
-  !> rleft      position of leftmost point of domain
-  !> zhei       total height of domain
   subroutine gs2d_read_and_set(self, inputs)
     use constants, only: twopi
     use gs2d, only: read_gs2d, psi, b0, f, ippsi, nr, nz, p, ps
