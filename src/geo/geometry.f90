@@ -743,10 +743,8 @@ contains
       ! Decide how we want to set s_hat_new in the default case
       s_hat_new = s_hat
       select case (bishop)
-      case (2, 3, 4, 5, 8, 9)
+      case (2, 3, 4, 5, 8, 9) !1, 6, 7 keep the initial value
          s_hat_new = surf%shat
-      case (6, 7)
-         s_hat_new = s_hat
       end select
 
       ! Decide how we want to set dp_new
@@ -787,19 +785,15 @@ contains
          if (writelots) write(*,*) 'd beta/d rho = ',2 * dp / drhodpsi,', ',2 * dp_new / drhodpsi
       end select
 
+      write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
+      if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
+      write(fort11_unit,*)
+
       if ((.not. local_eq) .and. (bishop == 1 .or. bishop > 9)) then
          di_new = di
       else
          di_new = (s_hat_new / tmp - 2 * c_b - dp_new * b_b) / a_b
       end if
-
-      write(fort11_unit,*) 's_hat ',s_hat,', ',s_hat_new
-      if (writelots) write(*,*) 's_hat ',s_hat,', ',s_hat_new
-      write(fort11_unit,*)
-
-      shat = s_hat_new ! Output
-      dqdrp = s_hat_new * qval * drhodrp / rhoc ! Output
-      dbetadrho = 2 * dp_new * dpsidrho ! Output
 
       ! Calculate grad(S)
       ! here the coordinates are rho and l
@@ -821,6 +815,10 @@ contains
       gradztot(:,2) = dZdl
       ! gradztot(:,3) is grad Z . phihat
       gradztot(:,3) = 0.0
+
+      shat = s_hat_new ! Output
+      dqdrp = s_hat_new * qval * drhodrp / rhoc ! Output
+      dbetadrho = 2 * dp_new * dpsidrho ! Output
 
       if (save_bishop) then
          call open_output_file(bishop_unit, '.bishop')
@@ -1808,7 +1806,7 @@ contains
     ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998))
     ! Note that we must properly account for discontinuities in u. u is th_bish
     do i = -nth + 1, nth - 1
-       if (th_bish(i+1)-th_bish(i-1) > pi) then
+       if (th_bish(i+1) - th_bish(i-1) > pi) then
           invRpol(i) = (th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
        else if(th_bish(i+1)-th_bish(i-1) < -pi) then
           invRpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
