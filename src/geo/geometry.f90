@@ -1754,10 +1754,8 @@ contains
     real, intent(in) :: ext
     integer, intent(in) :: n
     integer :: i
-    ! Note here we're effectively assuming a uniformly (or symmetric)
-    ! spaced ltheta grid - we could probably use
-    !(ltheta(-n) - ltheta(-n+1) + ltheta(n) - ltheta(n-1)) to avoid this
-    dfdl(-n) = (f(n-1) + ext - f(-n+1)) / (2. * (ltheta(-n) - ltheta(-n+1)))
+    dfdl(-n) = (f(n-1) + ext - f(-n+1)) / &
+         (ltheta(n-1) - ltheta(-n+1) - ltheta(n) + ltheta(-n))
     do i = -n+1, n-1
        dfdl(i) = (f(i+1) - f(i-1)) / (ltheta(i+1) - ltheta(i-1))
     end do
