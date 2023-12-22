@@ -1848,14 +1848,7 @@ contains
     invRpol(-nth) = invRpol(nth)
 
     ! Calculate dtheta/dl (where l is the poloidal arc length)
-    dthdl(-nth) = (theta(nth-1) - theta(-nth+1) - twopi) &
-         /(ltheta(nth-1) - ltheta(-nth+1) - ltheta(nth) + ltheta(-nth))
-
-    do i = -nth + 1, nth - 1
-       dthdl(i) = (theta(i+1) - theta(i-1)) / (ltheta(i+1) - ltheta(i-1))
-    end do
-
-    dthdl(nth) = dthdl(-nth)
+    call gradl(ltheta, theta, dthdl, -twopi, nth)
 
     ! Scale by dtdl to complete calculation of  1/Rpol
     ! (the inverse radius of curvature of the poloidal magnetic field)
