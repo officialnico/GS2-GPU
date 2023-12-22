@@ -141,7 +141,7 @@ module geo_utils
      !>   - ntgrid: lower index of theta array is -ntgrid
      procedure :: gradient
      procedure(eqitem_interface), deferred :: eqitem
-     procedure :: calculate_gradients, gradient_work
+     procedure :: calculate_gradients
      procedure :: eqdcart, eqdbish, invR, derm, rhofun => rhofun_null
      procedure :: alloc_common_arrays, dealloc_common_arrays
      procedure :: alloc_arrays, dealloc_arrays, hahm_burrell
@@ -232,14 +232,12 @@ contains
 
   pure subroutine alloc_arrays(self)
     class(abstract_geo_type), intent(in out) :: self
-    call self%alloc_common_arrays
-    call self%alloc_special_arrays
+    call self%alloc_common_arrays ; call self%alloc_special_arrays
   end subroutine alloc_arrays
 
   pure subroutine dealloc_arrays(self)
     class(abstract_geo_type), intent(in out) :: self
-    call self%dealloc_common_arrays
-    call self%dealloc_special_arrays
+    call self%dealloc_common_arrays ; call self%dealloc_special_arrays
   end subroutine dealloc_arrays
 
   pure subroutine alloc_special_arrays_null(self)
@@ -283,19 +281,16 @@ contains
     call self%derm(self%B_psi, self%dbm, 'E')
     call self%derm(self%eqpsi_2d, self%dpm, 'E')
 
-    ! grad(psi) in cartesian form
+    ! grad(psi) in cartesian and bishop form
     call self%eqdcart(self%dpm, self%dpcart)
-    ! grad(psi) in Bishop form
     call self%eqdbish(self%dpcart, self%dpbish)
 
-    ! grad(B) in cartesian form
+    ! grad(B) in cartesian and bishop form
     call self%eqdcart(self%dbm, self%dbcart)
-    ! grad(B) in Bishop form
     call self%eqdbish(self%dbcart, self%dbbish)
 
-    ! grad(theta) in cartesian form
+    ! grad(theta) in cartesian and bishop form
     call self%eqdcart(self%dtm, self%dtcart)
-    ! grad(theta) in Bishop form
     call self%eqdbish(self%dtcart, self%dtbish)
   end subroutine calculate_gradients
 
@@ -343,6 +338,7 @@ contains
   end subroutine eqdbish
 
   subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm, use_bishop)
+    use splines, only: inter_d_cspl
     implicit none
     class(abstract_geo_type), intent(in) :: self
     integer, intent (in) :: nth_used, ntm
@@ -352,6 +348,8 @@ contains
     real, intent(in) :: rp
     logical, intent(in) :: use_bishop
     real, dimension(:, :, :), allocatable :: darr
+    real, dimension (1) :: p_eqpsi, dp_deqpsi
+    integer :: i
     if (use_bishop) then
        select case(char)
        case('B')
@@ -372,22 +370,6 @@ contains
        end select
     end if
 
-    call self%gradient_work(rgrid, theta, darr, grad, char, rp, nth_used, ntm)
-  end subroutine gradient
-
-  subroutine gradient_work(self, rgrid, theta, darr, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    class(abstract_geo_type), intent(in) :: self
-    integer, intent (in) :: nth_used, ntm
-    character(1), intent (in) :: char
-    real, dimension (-ntm:), intent (in)  :: rgrid, theta
-    real, dimension (:, :, :), intent (in) :: darr
-    real, dimension (-ntm:,:), intent (out) :: grad
-    real, intent(in) :: rp
-    real, dimension(:, :, :), allocatable :: dcart
-    real, dimension (1) :: p_eqpsi, dp_deqpsi
-    integer :: i
     do i = -nth_used, nth_used
        grad(i, 1) = self%eqitem(rgrid(i), theta(i), darr(:,:,1), 'R')
        grad(i, 2) = self%eqitem(rgrid(i), theta(i), darr(:,:,2), 'Z')
@@ -408,7 +390,7 @@ contains
           grad(i, 1:2) = grad(i, 1:2) * dp_deqpsi(1) * 0.5 * self%beta_0
        end do
     end if
-  end subroutine gradient_work
+  end subroutine gradient
 
   !> Calculate the derivative of f w.r.t to the radial
   !> and poloidal indexes (i.e. calculate the finite
