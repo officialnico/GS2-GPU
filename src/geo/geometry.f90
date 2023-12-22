@@ -1801,10 +1801,7 @@ contains
     real, dimension (-ntgrid:), intent (in) :: invR
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:)   , intent (out) :: Bpolmag
-    integer :: i
-    do i = -nth, nth
-       Bpolmag(i) = sqrt(rpgrad(i, 1)**2 + rpgrad(i, 2)**2) * invR(i)
-    end do
+    Bpolmag(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * invR(-nth:nth)
   end subroutine B_pol
 
   !> FIXME : Add documentation
@@ -1814,10 +1811,7 @@ contains
     real, dimension (-ntgrid:), intent (in) :: invR, Bpolmag
     real, dimension(-ntgrid:), intent (out) :: Bmod
     real, intent(in) :: bi
-    integer :: i
-    do i = -nth, nth
-       Bmod(i) = sqrt((bi * invR(i))**2 + Bpolmag(i)**2)
-    end do
+    Bmod(-nth:nth) = sqrt((bi * invR(-nth:nth))**2 + Bpolmag(-nth:nth)**2)
   end subroutine B_mod
 
   !> General calculation of the poloidal magnetic field radius of curvature
@@ -1852,9 +1846,7 @@ contains
 
     ! Scale by dtdl to complete calculation of  1/Rpol
     ! (the inverse radius of curvature of the poloidal magnetic field)
-    do i = -nth, nth
-       invRpol(i) = (invRpol(i) * dthdl(i))
-    end do
+    invRpol(-nth:nth) = invRpol(-nth:nth) * dthdl(-nth:nth)
   end subroutine inv_Rpol
 
   !> FIXME : Add documentation
