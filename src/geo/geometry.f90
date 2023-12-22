@@ -1135,7 +1135,6 @@ contains
   real function diameter(rp)
     implicit none
     real, intent(in) :: rp
-    integer :: i
     !Do we really want to silently ignore requests out of range? Perhaps we should remove.
     if (rp <= rpmin .and. .not. (efit_eq .or. gs2d_eq)) then
        diameter = 0.
