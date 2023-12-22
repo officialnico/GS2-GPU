@@ -1988,8 +1988,8 @@ contains
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq
     integer, intent(in) :: bishop
     integer :: nflag_set
-    if ((eeq .or. deq .or. gs2deq) .and. bishop == 0) & !Probably abort unless geq/ideq?
-         call mp_abort('gs2_eq/efit_eq/dfit_eq are not compatible with bishop = 0',.true.)
+    if (.not.(geq .or. ideq) .and. bishop == 0) & !Probably abort unless geq/ideq?
+         call mp_abort('bishop = 0 only compatible with geq or ideq',.true.)
     nflag_set = count([geq, ceq, eeq, gs2deq, peq, teq, leq, deq, ideq])
     if (nflag_set == 0) then
        call mp_abort('Must set at least one equilibrium flag to true', .true.)
