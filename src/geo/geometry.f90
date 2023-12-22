@@ -1135,12 +1135,7 @@ contains
   real function diameter(rp)
     implicit none
     real, intent(in) :: rp
-    !Do we really want to silently ignore requests out of range? Perhaps we should remove.
-    if (rp <= rpmin .and. .not. (efit_eq .or. gs2d_eq)) then
-       diameter = 0.
-    else
-       diameter = geom%diameter(rp)
-    end if
+    diameter = geom%diameter(rp) !Used to allow rp<rpmin here by just returning zero
   end function diameter
 
   !> FIXME : Add documentation
