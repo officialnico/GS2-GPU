@@ -1919,7 +1919,7 @@ contains
   !> labelling the sections/periods). Here we expect `ext == array(nth) - array(-nth)`.
   pure subroutine periodic_copy(a, ext, nperiod)
     implicit none
-    real, dimension(-ntgrid:ntgrid), intent(in out) :: a
+    real, dimension(-ntgrid:), intent(in out) :: a
     real, intent(in) :: ext
     integer, intent(in) :: nperiod
     integer :: i, k, itot
