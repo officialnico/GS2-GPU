@@ -129,7 +129,7 @@ module geometry
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
-  real :: rmaj, r_geo, rhoc, qinp !< From surf
+  real :: rmaj, rhoc !< From surf
   integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -350,8 +350,7 @@ contains
     real :: thetaShift
 
     ! Unpack from/pack to surf <--> module level for now
-    rhoc = surf%r ; qinp = surf%q
-    rmaj = surf%rmaj ; r_geo = surf%r_geo
+    rhoc = surf%r ; rmaj = surf%rmaj
     surf%nt = ntheta_input ; surf%dr = delrho
 
     job_id = get_option_with_default(job_id_in, -1)
@@ -466,7 +465,7 @@ contains
          dbetadrho, bi, force_sym, nperiod, outputs%gbdrift, outputs%gbdrift0, &
          outputs%cvdrift, outputs%cvdrift0, outputs%cdrift, outputs%cdrift0)
 
-    !     compute the magnetic field along theta
+    !Recompute the magnetic field along theta if use_large_aspect - should this come earlier?
     if (use_large_aspect) then
        outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(outputs%theta(-nth:nth)) / rmaj)
        call periodic_copy(outputs%bmag, 0., nperiod)
@@ -542,7 +541,7 @@ contains
       use geo_utils, only: geo_input_type
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
-      real :: avgrmid, rbar, B_T0
+      real :: avgrmid, rbar, B_T0, r_geo
       integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
@@ -575,6 +574,7 @@ contains
          ! one would expect rpofrho(rho) == rho in this case. So here we
          ! effectively just have an optimisation (I think)
          rp = rhoc
+         r_geo = surf%r_geo
       else
          rp = rpofrho(rhoc, fort11_unit)
          R_geo = rcenter(rpmax) !Only used for writelots/checks
