@@ -2,7 +2,7 @@
 program ball
   use geometry, only: eikcoefs, eikcoefs_output_type
   !> Inputs
-  use geometry, only: eqfile, equal_arc, use_large_aspect, delrho, surf
+  use geometry, only: eqfile, equal_arc, use_large_aspect, surf
   use geometry, only: bishop, irho, force_sym, efit_eq, writelots, big
   use geometry, only: gen_eq, ppl_eq, local_eq, chs_eq, gs2d_eq, transp_eq
   use geometry, only: alpha_input, dp_mult, p_prime_input, invLp_input, beta_prime_input
@@ -19,7 +19,7 @@ program ball
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   real :: akappa, tri, akappri, tripri, rmin, rmax
-  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift
+  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift, delrho
   logical :: diagram
   type(eikcoefs_output_type) :: eikcoefs_results
 
@@ -66,7 +66,7 @@ program ball
 
   surf%geoType = geoType
   surf%mMode = 2 ; surf%nMode = 3
-  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
+  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc ; surf%dr = delrho
   surf%sHorz = shift ; surf%delm = akappa
   surf%deln = tri ; surf%delmp = akappri
   surf%delnp = tripri ; surf%thm = 0

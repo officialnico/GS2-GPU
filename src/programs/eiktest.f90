@@ -3,7 +3,7 @@ program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
   !> Inputs
-  use geometry, only: surf, eqfile, equal_arc, use_large_aspect, delrho
+  use geometry, only: surf, eqfile, equal_arc, use_large_aspect
   use geometry, only: bishop, irho, force_sym, efit_eq, dfit_eq, writelots
   use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq
   use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
@@ -40,7 +40,7 @@ program eiktest
   real, dimension(:), allocatable :: theta, bmag, aplot, aprime, bpol, cvdrift, grho
   real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
   real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
-  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho
+  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsi, dbetadrho, delrho
   integer :: fort11_unit, isym, iflux, itor, nperiod
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
@@ -117,7 +117,7 @@ program eiktest
 
   surf%geoType = geoType
   surf%mMode = 2 ; surf%nMode = 3
-  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
+  surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc ; surf%dr = delrho
   surf%sHorz = shift ; surf%delm = akappa
   surf%deln = tri ; surf%delmp = akappri
   surf%delnp = tripri ; surf%thm = 0

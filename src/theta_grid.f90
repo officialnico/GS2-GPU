@@ -1198,7 +1198,7 @@ contains
   !> FIXME : Add documentation
   subroutine wnml_theta_grid_eik(unit)
     use geometry, only: surf, alpha_input, beta_prime_input, invLp_input
-    use geometry, only: delrho, dp_mult, bishop, irho, force_sym, use_large_aspect
+    use geometry, only: dp_mult, bishop, irho, force_sym, use_large_aspect
     use geometry, only: gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq
     use geometry, only: gs2d_eq, chs_eq, transp_eq, writelots, equal_arc, eqfile, eqnormfile
     implicit none
@@ -1223,7 +1223,7 @@ contains
     write (unit, fmt="(' invLp_input =  ',e13.6)") invLp_input
     write (unit, fmt="(' beta_prime_input =  ',e13.6)") beta_prime_input
     write (unit, fmt="(' dp_mult =  ',e13.6)") dp_mult
-    write (unit, fmt="(' delrho =  ',e13.6)") delrho
+    write (unit, fmt="(' delrho =  ',e13.6)") surf%dr
     write (unit, fmt="(' force_sym =  ',L1)") force_sym
     write (unit, fmt="(' use_large_aspect =  ',L1)") use_large_aspect
     write (unit, fmt="(' writelots =  ',L1)") writelots
@@ -1631,7 +1631,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_theta_grid_eik(theta_grid_eik_config_in)
-    use geometry, only: eikcoefs, delrho, surf, use_large_aspect, verb_geo => verb
+    use geometry, only: eikcoefs, surf, use_large_aspect, verb_geo => verb
     use geometry, only: run_eikcoefs_and_resample
     use unit_tests, only: job_id
     use theta_grid_params, only: init_theta_grid_params, ntheta, nperiod
@@ -1660,7 +1660,7 @@ contains
     call read_parameters(theta_grid_eik_config_in)
 
     rhoc_save = surf%r
-    if (use_large_aspect) surf%r = 1.5 * delrho
+    if (use_large_aspect) surf%r = 1.5 * surf%dr
 
     if(proc0) then
        if (ntheta_geometry == -1) then
@@ -1777,7 +1777,7 @@ contains
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
     use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
-    use geometry, only: delrho, writelots, force_sym, use_large_aspect
+    use geometry, only: writelots, force_sym, use_large_aspect
     use theta_grid_params, only: get_parameters_as_surf, nperiod_in => nperiod
     use theta_grid_params, only: shat_in => shat
     use theta_grid_params, only: alpmhd_in => alpmhd
@@ -1804,7 +1804,7 @@ contains
     beta_prime_input = theta_grid_eik_config%beta_prime_input
     bishop = theta_grid_eik_config%bishop
     chs_eq = theta_grid_eik_config%chs_eq
-    delrho = theta_grid_eik_config%delrho
+    surf%dr = theta_grid_eik_config%delrho
     dfit_eq = theta_grid_eik_config%dfit_eq
     dp_mult = theta_grid_eik_config%dp_mult
     efit_eq = theta_grid_eik_config%efit_eq

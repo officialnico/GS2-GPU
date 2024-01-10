@@ -112,7 +112,7 @@ module geometry
 
   public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
   public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: eqfile, eqnormfile, irho, surf, delrho
+  public :: eqfile, eqnormfile, irho, surf
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
@@ -121,7 +121,7 @@ module geometry
   class(abstract_geo_type), allocatable :: geom
   ! Start of inputs
   type(flux_surface_type) :: surf
-  real :: delrho, p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
+  real :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
   integer :: irho, bishop
   logical :: gen_eq, efit_eq, ppl_eq, local_eq, chs_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
   logical :: writelots, equal_arc, force_sym, use_large_aspect
@@ -351,7 +351,7 @@ contains
 
     ! Unpack from/pack to surf <--> module level for now
     rhoc = surf%r ; rmaj = surf%rmaj
-    surf%nt = ntheta_input ; surf%dr = delrho
+    surf%nt = ntheta_input
 
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -843,7 +843,7 @@ contains
       real, dimension(:), allocatable :: seik1, seik2, dsdrp
       integer :: itot, k
       !     rp derivative
-      delrp = delrho / drhodrp
+      delrp = surf%dr / drhodrp
       rp1 = rp - delrp ; rp2 = rp + delrp
       pbar_1 = pbarfun(rp1, outputs%theta(0)) ; pbar_2 = pbarfun(rp2, outputs%theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
@@ -854,7 +854,7 @@ contains
       call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1)
       call seikon(rp2, outputs%theta, invR, qval2, bi2, nperiod, seik2)
 
-      dqdrho = (qval2 - qval1) / (2 * delrho)
+      dqdrho = (qval2 - qval1) / (2 * surf%dr)
       shat = dqdrho * rhoc / qval ! Output
       dqdrp = dqdrho * drhodrp ! Output
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
@@ -1936,7 +1936,7 @@ contains
     real, intent(in) :: rp
     real :: rp1, rp2, rho1, rho2
     !     compute d rho / d rp
-    rp1 = rp * (1 - delrho) ; rp2 = rp * (1 + delrho)
+    rp1 = rp * (1 - surf%dr) ; rp2 = rp * (1 + surf%dr)
     if (irho == 1) then
        rho1 = sqrt(abs(phi(rp1) / phi(rpmax))) ; rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
     else if (irho == 2) then
@@ -1955,7 +1955,7 @@ contains
     real, intent (in) :: drhodrp, rp
     real :: rp1, rp2,  rho1, rho2
     !     compute d rho / d rb
-    rp1 = rp * (1 - delrho) ; rp2 = rp * (1 + delrho)
+    rp1 = rp * (1 - surf%dr) ; rp2 = rp * (1 + surf%dr)
     rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
     drho_drhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
   end function drho_drhod
@@ -2024,9 +2024,9 @@ contains
     aplot = seik
 
     do i = -ntgrid, ntgrid
-       rplus  = rgrid(i) * (1 + delrho)
-       rminus = rgrid(i) * (1 - delrho)
-       dr = 2 * delrho * rgrid(i)
+       rplus  = rgrid(i) * (1 + surf%dr)
+       rminus = rgrid(i) * (1 - surf%dr)
+       dr = 2 * surf%dr * rgrid(i)
        Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr
        Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr
        aprime(i) = grads(i, 1) * dpsidrho
