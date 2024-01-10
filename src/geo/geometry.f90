@@ -424,7 +424,7 @@ contains
     if (bishop /= 0) then
        call bishop_grads(outputs%bmag, outputs%bpol)
     else
-       call bishop_large_aspect_ratio_approximation
+       call bishop_large_aspect_ratio_approximation(surf%dr)
     end if
 
     if (writelots) then
@@ -494,7 +494,7 @@ contains
     allocate(outputs%rplot(-ntgrid:ntgrid), outputs%rprime(-ntgrid:ntgrid))
     allocate(outputs%zplot(-ntgrid:ntgrid), outputs%zprime(-ntgrid:ntgrid))
     allocate(outputs%aplot(-ntgrid:ntgrid), outputs%aprime(-ntgrid:ntgrid))
-    call plotdata (rgrid, seik, grads, dpsidrho, outputs%theta, &
+    call plotdata (rgrid, seik, grads, dpsidrho, surf%dr, outputs%theta, &
          outputs%rplot, outputs%zplot, outputs%aplot, &
          outputs%rprime, outputs%zprime, outputs%aprime)
 
@@ -591,7 +591,7 @@ contains
       call periodic_copy(rgrid, 0.0, nperiod)
 
       pbar = pbarfun(rgrid(0), outputs%theta(0))
-      drhodrp = drho_drp(rp)
+      drhodrp = drho_drp(rp, surf%dr)
       bi = btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
 
       if (writelots) then
@@ -623,7 +623,7 @@ contains
 
          write(fort11_unit,*) 'drhodrp=', drhodrp
          if (irho == 1) then
-            drhodrhod = drho_drhod(rp, drhodrp)
+            drhodrhod = drho_drhod(rp, drhodrp, surf%dr)
             write(fort11_unit,*) 'drho_drhod=', drhodrhod
          end if
       end if
@@ -838,12 +838,13 @@ contains
     end subroutine bishop_grads
 
     !> @Note local_eq _must_ be false if we end in this routine. We make use of this.
-    subroutine bishop_large_aspect_ratio_approximation
+    subroutine bishop_large_aspect_ratio_approximation(dr)
+      real, intent(in) :: dr
       real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, pbar_1, pbar_2
       real, dimension(:), allocatable :: seik1, seik2, dsdrp
       integer :: itot, k
       !     rp derivative
-      delrp = surf%dr / drhodrp
+      delrp = dr / drhodrp
       rp1 = rp - delrp ; rp2 = rp + delrp
       pbar_1 = pbarfun(rp1, outputs%theta(0)) ; pbar_2 = pbarfun(rp2, outputs%theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
@@ -854,7 +855,7 @@ contains
       call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1)
       call seikon(rp2, outputs%theta, invR, qval2, bi2, nperiod, seik2)
 
-      dqdrho = (qval2 - qval1) / (2 * surf%dr)
+      dqdrho = (qval2 - qval1) / (2 * dr)
       shat = dqdrho * rhoc / qval ! Output
       dqdrp = dqdrho * drhodrp ! Output
       dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
@@ -1931,12 +1932,12 @@ contains
   !> Calculate the derivative of the flux label rho
   !> with respect to the internal flux label rp (the
   !> normalised poloidal flux)
-  real function drho_drp(rp)
+  real function drho_drp(rp, dr)
     implicit none
-    real, intent(in) :: rp
+    real, intent(in) :: rp, dr
     real :: rp1, rp2, rho1, rho2
     !     compute d rho / d rp
-    rp1 = rp * (1 - surf%dr) ; rp2 = rp * (1 + surf%dr)
+    rp1 = rp * (1 - dr) ; rp2 = rp * (1 + dr)
     if (irho == 1) then
        rho1 = sqrt(abs(phi(rp1) / phi(rpmax))) ; rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
     else if (irho == 2) then
@@ -1950,12 +1951,12 @@ contains
   end function drho_drp
 
   !> FIXME : Add documentation | Only used for writelots output and if irho=1
-  real function drho_drhod(rp, drhodrp)
+  real function drho_drhod(rp, drhodrp, dr)
     implicit none
-    real, intent (in) :: drhodrp, rp
+    real, intent (in) :: drhodrp, rp, dr
     real :: rp1, rp2,  rho1, rho2
     !     compute d rho / d rb
-    rp1 = rp * (1 - surf%dr) ; rp2 = rp * (1 + surf%dr)
+    rp1 = rp * (1 - dr) ; rp2 = rp * (1 + dr)
     rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
     drho_drhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
   end function drho_drhod
@@ -1992,14 +1993,14 @@ contains
   end function f_trap
 
   !> FIXME : Add documentation
-  subroutine plotdata (rgrid, seik, grads, dpsidrho, theta, &
+  subroutine plotdata (rgrid, seik, grads, dpsidrho, dr, theta, &
        rplot, zplot, aplot, rprime, zprime, aprime)
     implicit none
     real, dimension (-ntgrid:), intent (in) :: rgrid, seik, theta
     real, dimension (-ntgrid:,:), intent (in) :: grads
     real, dimension (-ntgrid:), intent(out) :: rplot, zplot, aplot, rprime, zprime, aprime
-    real, intent (in) :: dpsidrho
-    real :: rplus, rminus, dr
+    real, intent (in) :: dpsidrho, dr
+    real :: rplus, rminus, dr_tot
     integer :: i
     ! At the present flux surface, calculate these three functions
     ! as a function of theta, together with their derivates with
@@ -2024,11 +2025,11 @@ contains
     aplot = seik
 
     do i = -ntgrid, ntgrid
-       rplus  = rgrid(i) * (1 + surf%dr)
-       rminus = rgrid(i) * (1 - surf%dr)
-       dr = 2 * surf%dr * rgrid(i)
-       Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr
-       Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr
+       rplus  = rgrid(i) * (1 + dr)
+       rminus = rgrid(i) * (1 - dr)
+       dr_tot = 2 * dr * rgrid(i)
+       Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr_tot
+       Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr_tot
        aprime(i) = grads(i, 1) * dpsidrho
     end do
   end subroutine plotdata
