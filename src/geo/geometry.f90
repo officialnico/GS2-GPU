@@ -387,10 +387,10 @@ contains
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod)
-    thetaShift = 0.0 ;
+    thetaShift = 0.0
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(surf%r, outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -404,7 +404,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(surf%r, outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -536,9 +536,9 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(rhoc, bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(rhoc, thetaShift, bmag, bpol)
       use geo_utils, only: geo_input_type
-      real, intent(in) :: rhoc
+      real, intent(in) :: rhoc, thetaShift
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar, B_T0
