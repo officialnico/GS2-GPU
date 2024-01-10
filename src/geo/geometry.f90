@@ -129,7 +129,7 @@ module geometry
   ! End of inputs
   !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
   real :: psi_0, psi_a, rpmin, rpmax
-  real :: rmaj, rhoc !< From surf
+  real :: rmaj !< From surf
   integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -350,8 +350,7 @@ contains
     real :: thetaShift
 
     ! Unpack from/pack to surf <--> module level for now
-    rhoc = surf%r ; rmaj = surf%rmaj
-    surf%nt = ntheta_input
+    rmaj = surf%rmaj ; surf%nt = ntheta_input
 
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
@@ -391,7 +390,7 @@ contains
     thetaShift = 0.0 ;
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(surf%r, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -405,7 +404,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(surf%r, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -422,9 +421,9 @@ contains
 
     !     compute derivatives of eikonal, grad B and grad Z
     if (bishop /= 0) then
-       call bishop_grads(outputs%bmag, outputs%bpol)
+       call bishop_grads(surf%r, outputs%bmag, outputs%bpol)
     else
-       call bishop_large_aspect_ratio_approximation(surf%dr)
+       call bishop_large_aspect_ratio_approximation(surf%r, surf%dr)
     end if
 
     if (writelots) then
@@ -453,7 +452,7 @@ contains
          outputs%gds22(-ntgrid:ntgrid), outputs%gds23(-ntgrid:ntgrid), &
          outputs%gds24(-ntgrid:ntgrid), outputs%gds24_noq(-ntgrid:ntgrid))
     call calculate_metric_terms(gradstot, gradrptot, gradthtot, dpsidrho, dqdrp, &
-         qval, rhoc, outputs%bmag, force_sym, outputs%gds2, outputs%gds21, outputs%gds22, &
+         qval, surf%r, outputs%bmag, force_sym, outputs%gds2, outputs%gds21, outputs%gds22, &
          outputs%gds23, outputs%gds24, outputs%gds24_noq)
 
     !     compute curvature, grad b, and coriolis drift terms
@@ -508,13 +507,13 @@ contains
     end if
 
     call calculate_surface_area(outputs%theta, outputs%gradpar, outputs%bmag, outputs%grho, &
-         dpsidrho, rhoc, nth, outputs%surfarea, outputs%dvdrhon)
+         dpsidrho, surf%r, nth, outputs%surfarea, outputs%dvdrhon)
     if (writelots) write (fort11_unit,*) 'surfarea=', outputs%surfarea
 
     !Close output file
     call close_output_file(fort11_unit)
 
-    outputs%kxfac = abs(qval / (rhoc * drhodpsi))
+    outputs%kxfac = abs(qval / (surf%r * drhodpsi))
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
@@ -533,12 +532,13 @@ contains
     outputs%qsf = qval
     outputs%shat = shat
     outputs%dbetadrho = dbetadrho
-    outputs%rhoc = rhoc
+    outputs%rhoc = surf%r
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(rhoc, bmag, bpol)
       use geo_utils, only: geo_input_type
+      real, intent(in) :: rhoc
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar, B_T0
@@ -672,7 +672,8 @@ contains
       end if !Note bmag not set for bishop == 0
     end subroutine initialise_geometry_and_get_bmag
 
-    subroutine bishop_grads(bmag, bpol)
+    subroutine bishop_grads(rhoc, bmag, bpol)
+      real, intent(in) :: rhoc
       real, dimension(-ntgrid:), intent(in) :: bmag, bpol
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
@@ -838,8 +839,8 @@ contains
     end subroutine bishop_grads
 
     !> @Note local_eq _must_ be false if we end in this routine. We make use of this.
-    subroutine bishop_large_aspect_ratio_approximation(dr)
-      real, intent(in) :: dr
+    subroutine bishop_large_aspect_ratio_approximation(rhoc, dr)
+      real, intent(in) :: rhoc, dr
       real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, pbar_1, pbar_2
       real, dimension(:), allocatable :: seik1, seik2, dsdrp
       integer :: itot, k
