@@ -390,7 +390,7 @@ contains
     thetaShift = 0.0
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -404,7 +404,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -536,9 +536,10 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(rhoc, thetaShift, bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(rhoc, thetaShift, theta, bmag, bpol)
       use geo_utils, only: geo_input_type
       real, intent(in) :: rhoc, thetaShift
+      real, dimension(-ntgrid:), intent(in) :: theta
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: inputs
       real :: avgrmid, rbar, B_T0
@@ -587,10 +588,10 @@ contains
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
-      call rtgrid(rgrid, rp, outputs%theta)
+      call rtgrid(rgrid, rp, theta)
       call periodic_copy(rgrid, 0.0, nperiod)
 
-      pbar = pbarfun(rgrid(0), outputs%theta(0))
+      pbar = pbarfun(rgrid(0), theta(0))
       drhodrp = drho_drp(rp, surf%dr)
       bi = btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
 
@@ -602,20 +603,20 @@ contains
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
-            write(fort78_unit,*) outputs%theta(i), Rpos(rgrid(i),outputs%theta(i)), &
-                 Zpos(rgrid(i),outputs%theta(i))
+            write(fort78_unit,*) theta(i), Rpos(rgrid(i), theta(i)), &
+                 Zpos(rgrid(i), theta(i))
          end do
          call close_output_file(fort78_unit)
 
          call open_output_file(fort99_unit,".fort.99")
          do i = -nth, nth
-            write(fort99_unit,*) 'i=',i,' thet= ',outputs%theta(i),' rgrid= ',rgrid(i)
+            write(fort99_unit,*) 'i=', i, ' thet= ', theta(i), ' rgrid= ', rgrid(i)
          end do
          call close_output_file(fort99_unit)
 
          rbar = 0.
          do i = -nth, nth - 1
-            rbar = rbar + rgrid(i) * (outputs%theta(i + 1) - outputs%theta(i))
+            rbar = rbar + rgrid(i) * (theta(i + 1) - theta(i))
          end do
          rbar = rbar / twopi
          write (*,*) 'r_bar = ', rbar
@@ -631,8 +632,8 @@ contains
       if (debug) write(fort11_unit,*) 'eikcoefs: various logs', gen_eq, ppl_eq, chs_eq, efit_eq, dfit_eq, idfit_eq, gs2d_eq, transp_eq
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
-      call rmajortgrid(rgrid, outputs%theta, rmajor) ; call periodic_copy(rmajor, 0., nperiod)
-      call invRtgrid(rgrid, outputs%theta, invR) ; call periodic_copy(invR, 0., nperiod)
+      call rmajortgrid(rgrid, theta, rmajor) ; call periodic_copy(rmajor, 0., nperiod)
+      call invRtgrid(rgrid, theta, invR) ; call periodic_copy(invR, 0., nperiod)
 
       !     compute gradient of rp in R, Z, phi (cartesian - crpgrad)
       ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
@@ -645,20 +646,20 @@ contains
       ! crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
-      call geom%gradient(rgrid, outputs%theta, crpgrad, 'P', dum, nth, ntgrid, .false.)
+      call geom%gradient(rgrid, theta, crpgrad, 'P', dum, nth, ntgrid, .false.)
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
 
       !     compute  coordinate gradients
-      call geom%gradient(rgrid, outputs%theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
-      call geom%gradient(rgrid, outputs%theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
+      call geom%gradient(rgrid, theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
+      call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
       call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
       call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
       if (local_eq) qval = qfun(pbar) !leq ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
-      call eikonal(outputs%theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
+      call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
       if (writelots) write(fort11_unit,*) 'q= ', qval
       if (local_eq) trip = trip * dpsidrp
