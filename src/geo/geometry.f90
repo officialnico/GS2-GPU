@@ -323,13 +323,12 @@ contains
   !> FIXME : Add documentation
   subroutine eikcoefs (ntheta_input, nperiod, outputs, job_id_in)
     use constants, only: twopi
-    use file_utils, only: open_output_file, close_output_file
+    use file_utils, only: open_output_file, close_output_file, finish_file_utils
     use file_utils, only: futils_initialized => initialized, init_file_utils
-    use file_utils, only: finish_file_utils
     use optionals, only: get_option_with_default
     implicit none
     !> Sets the number of theta grid points. If odd will be updated to be ntheta_input - 1
-    integer, intent (inout) :: ntheta_input
+    integer, intent(in out) :: ntheta_input
     integer, intent(in) :: nperiod
     !> A type containing all of the outputs of eikcoefs
     type(eikcoefs_output_type), intent(out) :: outputs
@@ -338,8 +337,8 @@ contains
     logical :: start_file_utils, dummy_flag
     integer :: job_id, i, iBmax, fort11_unit
     ! Local variables:
-    real, allocatable, dimension(:)   :: seik, rgrid, invR, trip, ds, jacob
-    real, allocatable, dimension(:)   :: dsdthet, rmajor, dummy
+    real, allocatable, dimension(:) :: seik, rgrid, invR, trip, ds, jacob, dsdthet, rmajor
+    real, allocatable, dimension(:) :: dummy
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot, gradbtot
     real :: shat, dbetadrho, dqdrp, qval, dum, bi
@@ -387,10 +386,12 @@ contains
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod)
+    if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
+    if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
     thetaShift = 0.0
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -404,7 +405,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -536,8 +537,9 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(rhoc, thetaShift, theta, bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(geom, rhoc, thetaShift, theta, bmag, bpol)
       use geo_utils, only: geo_input_type
+      class(abstract_geo_type), intent(in out) :: geom
       real, intent(in) :: rhoc, thetaShift
       real, dimension(-ntgrid:), intent(in) :: theta
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
@@ -552,8 +554,6 @@ contains
 
       rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
-      if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
-      if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
       ! Calculate grad(psi), grad(BT) and grad(theta) for the specific
       ! geometry class we're using and setup any related splines. Could be part of initialise
       call geom%finish_setup
