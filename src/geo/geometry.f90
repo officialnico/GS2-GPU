@@ -513,15 +513,15 @@ contains
     !Close output file
     call close_output_file(fort11_unit)
 
-    outputs%kxfac = abs(qval / (surf%r * drhodpsi))
+    outputs%kxfac = abs(qval * dpsidrho / surf%r)
 
     if (qval == 0. .and. (dfit_eq .or. idfit_eq)) then
        shat = max(1.e-7, shat)
        !RN> I think kxfac should include the sign. However, from GS2 convention,
        !RN> eventually kxfac = abs(kxfac). See get_grids in theta_grid. Even if the sign is
        !RN> effective, probably it has no effect due to symmetry. I just leave the sign here.
-       outputs%kxfac = - 1 / drhodpsi
-       outputs%gds22 = outputs%grho**2 / drhodpsi**2
+       outputs%kxfac = - dpsidrho
+       outputs%gds22 = (outputs%grho * dpsidrho)**2
     end if
 
     if (start_file_utils) call finish_file_utils
