@@ -249,46 +249,46 @@ contains
     ! Make an index space array for the original theta
     ! grid. Spans [0,1] in size(theta)=2*ntgrid_input points
     allocate(input_index_space(-ntgrid_input:ntgrid_input))
-    spacing = 1.0/(2*ntgrid_input)
+    spacing = 1.0 / (2 * ntgrid_input)
     do ig = -ntgrid_input, ntgrid_input
-       input_index_space(ig) = (ig+ntgrid_input) * spacing
+       input_index_space(ig) = (ig + ntgrid_input) * spacing
     end do
 
     ! Make new theta grid
     allocate(target_index_space(-ntgrid_target:ntgrid_target))
 
     ! First make target index space grid
-    spacing = 1.0/(2*ntgrid_target)
+    spacing = 1.0 / (2 * ntgrid_target)
     do ig = -ntgrid_target, ntgrid_target
-       target_index_space(ig) = (ig+ntgrid_target) * spacing
+       target_index_space(ig) = (ig + ntgrid_target) * spacing
     end do
 
     ! Now interpolate theta grid onto target index space grid
     call resample( input_index_space, full_results%theta, target_index_space, results%theta)
 
     ! Now interpolate other output quantities onto target theta grid
-    call resample( full_results%theta, full_results%bmag, results%theta, results%bmag)
-    call resample( full_results%theta, full_results%gradpar, results%theta, results%gradpar)
-    call resample( full_results%theta, full_results%grho, results%theta, results%grho)
-    call resample( full_results%theta, full_results%cdrift, results%theta, results%cdrift)
-    call resample( full_results%theta, full_results%cvdrift, results%theta, results%cvdrift)
-    call resample( full_results%theta, full_results%gbdrift, results%theta, results%gbdrift)
-    call resample( full_results%theta, full_results%cdrift0, results%theta, results%cdrift0)
-    call resample( full_results%theta, full_results%cvdrift0, results%theta, results%cvdrift0)
-    call resample( full_results%theta, full_results%gbdrift0, results%theta, results%gbdrift0)
-    call resample( full_results%theta, full_results%gds2, results%theta, results%gds2)
-    call resample( full_results%theta, full_results%gds21, results%theta, results%gds21)
-    call resample( full_results%theta, full_results%gds22, results%theta, results%gds22)
-    call resample( full_results%theta, full_results%gds23, results%theta, results%gds23)
-    call resample( full_results%theta, full_results%gds24, results%theta, results%gds24)
-    call resample( full_results%theta, full_results%gds24_noq, results%theta, results%gds24_noq)
-    call resample( full_results%theta, full_results%rplot, results%theta, results%rplot)
-    call resample( full_results%theta, full_results%zplot, results%theta, results%zplot)
-    call resample( full_results%theta, full_results%aplot, results%theta, results%aplot)
-    call resample( full_results%theta, full_results%rprime, results%theta, results%rprime)
-    call resample( full_results%theta, full_results%zprime, results%theta, results%zprime)
-    call resample( full_results%theta, full_results%aprime, results%theta, results%aprime)
-    call resample( full_results%theta, full_results%bpol, results%theta, results%bpol)
+    call resample(full_results%theta, full_results%bmag, results%theta, results%bmag)
+    call resample(full_results%theta, full_results%gradpar, results%theta, results%gradpar)
+    call resample(full_results%theta, full_results%grho, results%theta, results%grho)
+    call resample(full_results%theta, full_results%cdrift, results%theta, results%cdrift)
+    call resample(full_results%theta, full_results%cvdrift, results%theta, results%cvdrift)
+    call resample(full_results%theta, full_results%gbdrift, results%theta, results%gbdrift)
+    call resample(full_results%theta, full_results%cdrift0, results%theta, results%cdrift0)
+    call resample(full_results%theta, full_results%cvdrift0, results%theta, results%cvdrift0)
+    call resample(full_results%theta, full_results%gbdrift0, results%theta, results%gbdrift0)
+    call resample(full_results%theta, full_results%gds2, results%theta, results%gds2)
+    call resample(full_results%theta, full_results%gds21, results%theta, results%gds21)
+    call resample(full_results%theta, full_results%gds22, results%theta, results%gds22)
+    call resample(full_results%theta, full_results%gds23, results%theta, results%gds23)
+    call resample(full_results%theta, full_results%gds24, results%theta, results%gds24)
+    call resample(full_results%theta, full_results%gds24_noq, results%theta, results%gds24_noq)
+    call resample(full_results%theta, full_results%rplot, results%theta, results%rplot)
+    call resample(full_results%theta, full_results%zplot, results%theta, results%zplot)
+    call resample(full_results%theta, full_results%aplot, results%theta, results%aplot)
+    call resample(full_results%theta, full_results%rprime, results%theta, results%rprime)
+    call resample(full_results%theta, full_results%zprime, results%theta, results%zprime)
+    call resample(full_results%theta, full_results%aprime, results%theta, results%aprime)
+    call resample(full_results%theta, full_results%bpol, results%theta, results%bpol)
 
   contains
     subroutine resample(x_orig, y_orig, x_new, y_new)
@@ -301,9 +301,7 @@ contains
 
       ! Spline the old data
       call new_spline(size(x_orig), x_orig, y_orig, the_spline)
-
-      lower = lbound(x_new, 1)
-      upper = ubound(x_new, 1)
+      lower = lbound(x_new, 1) ; upper = ubound(x_new, 1)
 
       allocate(y_new(lower:upper))
 
@@ -314,7 +312,6 @@ contains
       ! Get rid of the spline
       call delete_spline(the_spline)
     end subroutine resample
-
   end subroutine run_eikcoefs_and_resample
 
   !> FIXME : Add documentation
