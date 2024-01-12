@@ -4250,7 +4250,7 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, aj0
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
-    use geometry, only : surf, Rpos
+    use geometry, only : surf, Rpos !< Should be Rplot from theta_grid instead of Rpos?
     use spfunc, only: j0
     use array_utils, only: copy
     implicit none
