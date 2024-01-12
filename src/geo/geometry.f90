@@ -383,7 +383,7 @@ contains
     thetaShift = 0.0
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, rmaj, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -397,7 +397,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, rmaj, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -529,10 +529,11 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(geom, rhoc, thetaShift, theta, bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(geom, rhoc, thetaShift, theta, rmaj, bmag, bpol)
       use geo_utils, only: geo_input_type
       class(abstract_geo_type), intent(in out) :: geom
       real, intent(in) :: rhoc, thetaShift
+      real, intent(out) :: rmaj
       real, dimension(-ntgrid:), intent(in) :: theta
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: geom_inputs
@@ -557,7 +558,7 @@ contains
             write(fort11_unit,*) 'The rho normalization is determined by irho.'
          end if
          write(fort11_unit,*) 'avgrmid = ',avgrmid,' meters'
-         if (.not. local_eq) write(fort11_unit,*) 'R_mag = ',rmaj
+         if (.not. local_eq) write(fort11_unit,*) 'R_mag = ',surf%rmaj
          if (.not. local_eq) write(fort11_unit,*) 'B_T0 = ',B_T0
       end if
 
@@ -570,7 +571,7 @@ contains
       else
          rp = rpofrho(rhoc, fort11_unit)
          surf%r_geo = rcenter(rpmax) !Only used for writelots/checks
-         if (surf%r_geo > Rmaj + 1.e-5) then !Not checked for leq
+         if (surf%r_geo > surf%rmaj + 1.e-5) then !Not checked for leq
             write(6,*)
             write(6,*) 'Warning: the center of the LCFS is outboard of the '
             write(6,*) 'center of the reference surface.  This is probably wrong.'
