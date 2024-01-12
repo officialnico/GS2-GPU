@@ -127,9 +127,7 @@ module geometry
   logical :: writelots, equal_arc, force_sym, use_large_aspect
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
   ! End of inputs
-  !> We always set rpmin = psi_0 and rpmax = psi_a so we probably don't need both.
-  real :: psi_0, psi_a, rpmin, rpmax
-  real :: rmaj !< From surf
+  real :: rpmin, rpmax, rmaj !< From surf or equilibrium file
   integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -543,9 +541,9 @@ contains
       ! from file and calculating derived quantities).
       geom_inputs%surf = surf ; geom_inputs%thShift = thetaShift ; geom_inputs%big = big
       geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile
-      call geom%initialise(geom_inputs, psi_0, psi_a, surf%rmaj, B_T0, avgrmid)
+      call geom%initialise(geom_inputs, rpmin, rpmax, surf%rmaj, B_T0, avgrmid)
 
-      rmaj = surf%rmaj ; rpmin = psi_0 ; rpmax = psi_a
+      rmaj = surf%rmaj
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Calculate grad(psi), grad(BT) and grad(theta) for the specific
       ! geometry class we're using and setup any related splines. Could be part of initialise
@@ -1228,7 +1226,7 @@ contains
   pure real function psifun (rp)
     implicit none
     real, intent (in) :: rp
-    psifun = min(1.0, max(0.0, (rp - psi_0) / (psi_a - psi_0)))
+    psifun = min(1.0, max(0.0, (rp - rpmin) / (rpmax - rpmin)))
   end function psifun
 
   real function pbarfun(r, theta)
@@ -1537,7 +1535,7 @@ contains
        phi = phi + 0.5 * dpb * (qnext + qi)
        qi = qnext
     end do
-    phi = phi * (psi_a - psi_0)
+    phi = phi * (rpmax - rpmin)
   end function phi
 
   !> FIXME : Add documentation
@@ -1597,7 +1595,7 @@ contains
     ! wasn't properly normalized before 29 Feb 08, and don't use asin:
     !    t = asin(rcenter(rp)-rmax)
     t = (rcenter(rp) - rmaxu) / rmid
-    d = rcenter(rp) - rcenter(psi_a)
+    d = rcenter(rp) - rcenter(rpmax)
   end subroutine geofax
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
