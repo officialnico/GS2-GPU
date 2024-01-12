@@ -629,14 +629,12 @@ contains
       call invRtgrid(rgrid, theta, invR) ; call periodic_copy(invR, 0., nperiod)
 
       !     compute gradient of rp in R, Z, phi (cartesian - crpgrad)
-      ! note that rpgrad is given in (R,Z,phi) coordinates if bishop=0
-      ! and (rho,l,phi) coordinates if bishop>0
-      ! also, rpgrad is grad psi if not local_eq and grad rho if local_eq -- MAB
+      ! Note that rpgrad is given in (R,Z,phi) coordinates if bishop == 0
+      ! and (rho,l,phi) coordinates otherwise
+      ! Also, rpgrad is grad psi if not local_eq and grad rho if local_eq -- MAB
       ! When bishop > 0
-      ! rpgrad(:,1) is |grad rp|
-      ! rpgrad(:,2) is 0
-      ! crpgrad(:,1) is drp/dR
-      ! crpgrad(:,2) is drp/dZ
+      ! rpgrad(:,1) is |grad rp| ; rpgrad(:,2) is 0
+      ! crpgrad(:,1) is drp/dR ; crpgrad(:,2) is drp/dZ
       !
       ! bishop = 0 is high aspect ratio coefficients for debugging -- EGH
       call geom%gradient(rgrid, theta, crpgrad, 'P', dum, nth, ntgrid, .false.)
@@ -1016,6 +1014,69 @@ contains
     call close_output_file(fort25_unit)
   end subroutine calculate_surface_area
 
+  !> Computes something like x cross y dot grad zeta.
+  pure subroutine tripprod2dtgrid(x, y, invR, val)
+    implicit none
+    real, dimension(-ntgrid:), intent (in) :: invR
+    real, dimension(-ntgrid:), intent (out) :: val
+    real, dimension(-ntgrid:, :), intent (in) :: x, y
+    integer :: i
+    ! factor of 1/R from grad zeta
+    do i = -nth, nth
+       val(i) = (x(i, 1) * y(i, 2) - x(i, 2) * y(i, 1)) * invR(i)
+    end do
+  end subroutine tripprod2dtgrid
+
+  !> Calculate rgrid for the case of eeq and deq: in this case, rgrid
+  !> is the distance to the magnetic axis as a function of theta.
+  subroutine rtgrid(rgrid, rp, theta)
+    implicit none
+    real, dimension(-ntgrid:), intent (out) :: rgrid
+    real, intent (in) :: rp
+    real, dimension(-ntgrid:), intent (in) :: theta
+    integer :: i
+    do i = -nth, nth
+       rgrid(i) = geom%rfun(rp, theta(i))
+    end do
+  end subroutine rtgrid
+
+  !> Calculates rmajor = R(theta), where R is the distance
+  !> to the central axis (rmajor not to be confused with rmaj, r_geo etc)
+  !> rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
+  subroutine rmajortgrid(rgrid, theta, rmajor)
+    implicit none
+    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
+    real, dimension(-ntgrid:), intent(out) :: rmajor
+    integer :: i
+    do i = -nth, nth
+       rmajor(i) = Rpos(rgrid(i), theta(i))
+    end do
+  end subroutine rmajortgrid
+
+  !> Calculates invR = 1/R(theta), where R is the distance
+  !> to the central axis (rmajor not to be confused with rmaj, r_geo etc)
+  !> rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
+  subroutine invRtgrid(rgrid, theta, invR)
+    implicit none
+    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
+    real, dimension(-ntgrid:), intent(out) :: invR
+    integer :: i
+    do i = -nth, nth
+       invR(i) = invRfun(rgrid(i), theta(i))
+    end do
+  end subroutine invRtgrid
+
+  !> Calculates the vertical height, Z, on the theta grid
+  subroutine Ztgrid(rgrid, theta, Zoftheta)
+    implicit none
+    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
+    real, dimension(-ntgrid:), intent(out) :: Zoftheta
+    integer :: i
+    do i = -nth, nth
+       Zoftheta(i) = Zpos(rgrid(i), theta(i))
+    end do
+  end subroutine Ztgrid
+
   !> FIXME : Add documentation
   pure subroutine bvectortgrid(invR, nth, gradrptot, dpsidrp, bi, bvector)
     integer, intent (in) :: nth
@@ -1362,19 +1423,6 @@ contains
     if (ier > 0) write(fort11_unit,*) 'error in rpofrho, rho=', rho, rpofrho, ier
   end function rpofrho
 
-  !> Computes something like x cross y dot grad zeta.
-  pure subroutine tripprod2dtgrid(x, y, invR, val)
-    implicit none
-    real, dimension(-ntgrid:), intent (in) :: invR
-    real, dimension(-ntgrid:), intent (out) :: val
-    real, dimension(-ntgrid:, :), intent (in) :: x, y
-    integer :: i
-    ! factor of 1/R from grad zeta
-    do i = -nth, nth
-       val(i) = (x(i, 1) * y(i, 2) - x(i, 2) * y(i, 1)) * invR(i)
-    end do
-  end subroutine tripprod2dtgrid
-
   !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
   !> ends of the grid (usually +/- pi) storing the cumulative integral
   !> in the output `ans`.
@@ -1391,43 +1439,6 @@ contains
        ans(i) = ans(i+1) + 0.5 * (grid(i) - grid(i+1)) * (arg(i) + arg(i+1))
     end do
   end subroutine integrate
-
-  !> Calculates rmajor = R(theta), where R is the distance
-  !> to the central axis (rmajor not to be confused with rmaj, r_geo etc)
-  !> rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
-  subroutine rmajortgrid(rgrid, theta, rmajor)
-    implicit none
-    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
-    real, dimension(-ntgrid:), intent(out) :: rmajor
-    integer :: i
-    do i = -nth, nth
-       rmajor(i) = Rpos(rgrid(i), theta(i))
-    end do
-  end subroutine rmajortgrid
-
-  !> Calculates invR = 1/R(theta), where R is the distance
-  !> to the central axis (rmajor not to be confused with rmaj, r_geo etc)
-  !> rgrid is the submodule radial grid (r_circ for EFIT & deq, rp otherwise)
-  subroutine invRtgrid(rgrid, theta, invR)
-    implicit none
-    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
-    real, dimension(-ntgrid:), intent(out) :: invR
-    integer :: i
-    do i = -nth, nth
-       invR(i) = invRfun(rgrid(i), theta(i))
-    end do
-  end subroutine invRtgrid
-
-  !> Calculates the vertical height, Z, on the theta grid
-  subroutine Ztgrid(rgrid, theta, Zoftheta)
-    implicit none
-    real, dimension(-ntgrid:), intent(in) :: rgrid, theta
-    real, dimension(-ntgrid:), intent(out) :: Zoftheta
-    integer :: i
-    do i = -nth, nth
-       Zoftheta(i) = Zpos(rgrid(i), theta(i))
-    end do
-  end subroutine Ztgrid
 
   !> FIXME : Add documentation
   real function pbarofrho(rho, fort11_unit)
@@ -1516,7 +1527,7 @@ contains
     ! Construct a uniformly space grid from 0 to pbar
     dpb = pbar / float(nimax - 1)
     do i = 1, nimax
-       pb(i) = dpb * float(i-1)
+       pb(i) = dpb * float(i - 1)
     end do
 
     ! Integrate area under q(pb) curve from pb = 0 to pbar
@@ -1906,19 +1917,6 @@ contains
     end if
   end subroutine check
 
-  !> Calculate rgrid for the case of eeq and deq: in this case, rgrid
-  !> is the distance to the magnetic axis as a function of theta.
-  subroutine rtgrid(rgrid, rp, theta)
-    implicit none
-    real, dimension(-ntgrid:), intent (out) :: rgrid
-    real, intent (in) :: rp
-    real, dimension(-ntgrid:), intent (in) :: theta
-    integer :: i
-    do i = -nth, nth
-       rgrid(i) = geom%rfun(rp, theta(i))
-    end do
-  end subroutine rtgrid
-
   !> Calculate the derivative of the flux label rho with respect to
   !> the internal flux label rp (the normalised poloidal flux)
   real function drho_drp(rp, dr)
@@ -2014,12 +2012,11 @@ contains
     aplot = seik
 
     do i = -ntgrid, ntgrid
-       rplus  = rgrid(i) * (1 + dr)
-       rminus = rgrid(i) * (1 - dr)
+       rplus  = rgrid(i) * (1 + dr) ; rminus = rgrid(i) * (1 - dr)
        dr_tot = 2 * dr * rgrid(i)
        Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr_tot
        Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr_tot
-       aprime(i) = grads(i, 1) * dpsidrho
     end do
+    aprime = grads(:, 1) * dpsidrho
   end subroutine plotdata
 end module geometry
