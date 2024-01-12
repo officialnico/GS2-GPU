@@ -383,7 +383,7 @@ contains
     if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
-    call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod)
+    call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod, ntgrid, nth, ntheta)
     if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
     if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
     thetaShift = 0.0
@@ -1834,12 +1834,13 @@ contains
   !> `nth == nt - 1`.
   !>
   !> `nt` is set equal to [[geometry:ntheta]] on exit
-  subroutine init_uniform_theta_grid(nt, theta, nperiod)
+  subroutine init_uniform_theta_grid(nt, theta, nperiod, ntgrid, nth, ntheta)
     use constants, only: pi
     implicit none
     integer, intent(in out) :: nt
     real, dimension(:), allocatable, intent(in out) :: theta
     integer, intent(in) :: nperiod
+    integer, intent(out) :: ntgrid, nth, ntheta
     integer :: i
 
     nth = nt / 2
@@ -1847,7 +1848,7 @@ contains
     ntheta = nth * 2 ; nt = ntheta ; ntgrid = (2 * nperiod - 1) * nth
 
     if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
-      allocated(theta),ntgrid,nt,nperiod
+      allocated(theta), ntgrid, nt, nperiod
 
     if (allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
