@@ -462,7 +462,7 @@ contains
     end if
     if (force_sym) call sym(outputs%bmag, 0, ntgrid)
 
-    !     compute the gradparallel coefficient
+    !     compute the grad-parallel coefficient
     allocate(outputs%gradpar(-ntgrid:ntgrid))
     if (dfit_eq) then
        outputs%gradpar = trip / outputs%bmag
@@ -517,13 +517,9 @@ contains
 
     if (start_file_utils) call finish_file_utils
 
-    ! Pack module/routine level data into output type
-    outputs%ntheta = ntheta_input
-    outputs%drhodpsi = drhodpsi
-    outputs%qsf = qval
-    outputs%shat = shat
-    outputs%dbetadrho = dbetadrho
-    outputs%rhoc = surf%r
+    ! Pack data into output type
+    outputs%ntheta = ntheta_input ; outputs%drhodpsi = drhodpsi ; outputs%rhoc = surf%r
+    outputs%qsf = qval ; outputs%shat = shat ; outputs%dbetadrho = dbetadrho
 
   contains
     !> Initialises the specific geometry backend
@@ -567,7 +563,7 @@ contains
          ! effectively just have an optimisation (I think)
          rp = rhoc
       else
-         rp = rpofrho(rhoc, fort11_unit)
+         rp = rpofrho(rhoc)
          surf%r_geo = rcenter(rpmax) !Only used for writelots/checks
          if (surf%r_geo > surf%rmaj + 1.e-5) then !Not checked for leq
             write(6,*)
@@ -1385,10 +1381,9 @@ contains
   end subroutine eikonal
 
   !> FIXME : Add documentation
-  real function rpofrho(rho, fort11_unit)
+  real function rpofrho(rho)
     implicit none
     real, intent(in) :: rho
-    integer, intent(in) :: fort11_unit
     real, parameter :: xerrbi = 1.e-4, xerrsec = 1.e-8
     real :: a, b, fval
     integer :: ier
@@ -1398,16 +1393,16 @@ contains
 
     if (irho == 1) then
        fval = rho * rho * phi(b)
-       call root(phi, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
+       call root(phi, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
     else if (irho == 2) then
        fval = rho * diameter(b)
-       call root(diameter, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
+       call root(diameter, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
     else if (irho == 3) then
        fval = rho * psifun(b)
-       call root(psifun, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
+       call root(psifun, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
     else if (irho == 4) then
        fval = rho * rhofun(b)
-       call root(rhofun, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, rpofrho)
+       call root(rhofun, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
     endif
 
     if (debug) then
@@ -1418,7 +1413,7 @@ contains
        write (*,*) 'rpmin: ', rpmin
        write (*,*) 'rpmax: ', rpmax
     end if
-    if (ier > 0) write(fort11_unit,*) 'error in rpofrho, rho=', rho, rpofrho, ier
+    if (ier > 0) write(*, *) 'error in rpofrho, rho=', rho, rpofrho, ier
   end function rpofrho
 
   !> Integrates arg(grid) from i = 0 (generally theta = 0) to either
@@ -1439,11 +1434,10 @@ contains
   end subroutine integrate
 
   !> FIXME : Add documentation
-  real function pbarofrho(rho, fort11_unit)
+  real function pbarofrho(rho)
     implicit none
     real, intent (in) :: rho
-    integer, intent(in) :: fort11_unit
-    pbarofrho = psifun(rpofrho(rho, fort11_unit))
+    pbarofrho = psifun(rpofrho(rho))
   end function pbarofrho
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
@@ -1451,7 +1445,7 @@ contains
   !> Following this we use the secant method to find the solution.
   !> The input xerrbi influences the number of bisection iterations whilst
   !> xerrsec is used to set the stopping tolerance on the secant method.
-  subroutine root(f, fval, a, b, xerrbi, xerrsec, fort11_unit, ier, soln)
+  subroutine root(f, fval, a, b, xerrbi, xerrsec, ier, soln)
     implicit none
     interface
       real function f(x_)
@@ -1460,7 +1454,6 @@ contains
     end interface
     real, intent(in) :: fval, a, b, xerrbi, xerrsec
     real, intent(out) :: soln
-    integer, intent(in) :: fort11_unit
     integer, intent(out) :: ier
     real :: a1, b1, f1, f2, f3, trial, aold
     integer :: i, niter
@@ -1469,9 +1462,9 @@ contains
     f1 = f(a1) - fval ;  f2 = f(b1) - fval
     skip_bisection = xerrbi <= 0 !Could be xerrbi <= abs(b1 - a1)?
     if (.not. skip_bisection .and. f1 * f2 > 0.) then
-       write(fort11_unit, *) 'f1 and f2 have same sign in bisection routine root'
-       write(fort11_unit, *) 'a1,f1,b1,f2=', a1, f1, b1, f2
-       write(fort11_unit, *) 'fval=', fval
+       write(*, *) 'f1 and f2 have same sign in bisection routine root'
+       write(*, *) 'a1,f1,b1,f2=', a1, f1, b1, f2
+       write(*, *) 'fval=', fval
        ier = 1
        skip_bisection = .true.
     end if
@@ -1541,12 +1534,11 @@ contains
   !> FIXME : Add documentation
   !>
   !> @note This routine is just used by eik, not GS2. Left here for now as it uses internals
-  subroutine geofax(rho, theta, t, e, d, fort11_unit)
+  subroutine geofax(rho, theta, t, e, d)
     implicit none
     real, intent (in) :: rho
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
-    integer, intent(in) :: fort11_unit
     real, dimension(-ntgrid:ntgrid) :: rgrid
     real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
     integer :: i
@@ -1555,7 +1547,7 @@ contains
        write(*,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
        first = .false.
     end if
-    rp = rpofrho(rho, fort11_unit)
+    rp = rpofrho(rho)
     call rtgrid(rgrid, rp, theta)
 
     ! do not treat up-down asymmetry completely for now

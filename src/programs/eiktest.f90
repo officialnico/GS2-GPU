@@ -236,7 +236,7 @@ program eiktest
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
-     pbar = pbarfun(rfun(rpofrho(rhoc, fort11_unit),0.),0.)
+     pbar = pbarfun(rfun(rpofrho(rhoc),0.),0.)
      bb = geom%betafun(pbar)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
@@ -247,7 +247,7 @@ program eiktest
   end if
 
   write(11,*) 'dV/drhon= ',dvdrhon
-  pbar = pbarofrho(rhoc, fort11_unit)
+  pbar = pbarofrho(rhoc)
   if (.not. dipole) then
      write (11,*)
      write (11,*) 'The following q and shat values'
@@ -261,14 +261,14 @@ program eiktest
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
 
-     call geofax(rhoc, theta, rt, rk, rd, fort11_unit)
+     call geofax(rhoc, theta, rt, rk, rd)
      if (.not. local_eq) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
-        call geofax(rhocp, theta, rtp, rkp, rdp, fort11_unit)
-        call geofax(rhocm, theta, rtm, rkm, rdm, fort11_unit)
-        qplus=qfun(pbarofrho(rhocp, fort11_unit))
-        qmnus=qfun(pbarofrho(rhocm, fort11_unit))
+        call geofax(rhocp, theta, rtp, rkp, rdp)
+        call geofax(rhocm, theta, rtm, rkm, rdm)
+        qplus=qfun(pbarofrho(rhocp))
+        qmnus=qfun(pbarofrho(rhocm))
         rkpri=0.5*(rkp-rkm)/delrho
         rtpri=0.5*(rtp-rtm)/delrho
         rdpri=0.5*(rdp-rdm)/delrho
@@ -292,9 +292,9 @@ program eiktest
      write(11,*) 'tri= ',rt
      write(11,*) 'tripri= ',rtpri
      write(11,*) 'surface area= ',surfarea,' avgrmid**2'
-     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc, fort11_unit))
-     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0, fort11_unit))/2.0, ' ...  should be 1'
-     write(11, *) 'r/a = ', diameter(rpofrho(rhoc, fort11_unit))/diameter(rpofrho(1.0, fort11_unit))
+     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc))
+     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
+     write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
 
   close(11)
