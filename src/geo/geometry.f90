@@ -1796,16 +1796,17 @@ contains
     real, dimension(-ntgrid:), intent (out) :: invRpol
     real, dimension(-ntgrid:ntgrid) :: dthdl
     integer :: i
-
+    real :: dth_bish, dth
     ! Calculate du/dtheta (where u is defined according to Miller PoP 5 973 (1998))
     ! Note that we must properly account for discontinuities in u. u is th_bish
     do i = -nth + 1, nth - 1
-       if (th_bish(i+1) - th_bish(i-1) > pi) then
-          invRpol(i) = (th_bish(i+1) - th_bish(i-1) - twopi) / (theta(i+1) - theta(i-1))
-       else if(th_bish(i+1)-th_bish(i-1) < -pi) then
-          invRpol(i) = (th_bish(i+1) - th_bish(i-1) + twopi) / (theta(i+1) - theta(i-1))
+       dth_bish = th_bish(i + 1) - th_bish(i - 1) ; dth = theta(i + 1) - theta(i - 1)
+       if ( dth_bish > pi) then
+          invRpol(i) = (dth_bish - twopi) / dth
+       else if(dth_bish < -pi) then
+          invRpol(i) = (dth_bish + twopi) / dth
        else
-          invRpol(i) = (th_bish(i+1) - th_bish(i-1)) / (theta(i+1) - theta(i-1))
+          invRpol(i) = dth_bish / dth
        end if
     end do
 
@@ -1815,7 +1816,7 @@ contains
     ! Calculate dtheta/dl (where l is the poloidal arc length)
     call gradl(ltheta, theta, dthdl, -twopi, nth)
 
-    ! Scale by dtdl to complete calculation of  1/Rpol
+    ! Scale by dthdl to complete calculation of  1/Rpol
     ! (the inverse radius of curvature of the poloidal magnetic field)
     invRpol(-nth:nth) = invRpol(-nth:nth) * dthdl(-nth:nth)
   end subroutine inv_Rpol
