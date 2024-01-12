@@ -142,9 +142,6 @@ module geometry
   !> [[geometry:theta]] grid is `(2 * ntgrid) + 1`, with array bounds
   !> `theta(-ntgrid:ntgrid)`. Equal to `(2*nperiod - 1)*nth`
   integer :: ntgrid
-  !> Equal to `2 * nth`
-  !> FIXME: Remove and replace uses with calls to [[periodic_copy]]
-  integer :: ntheta
   !> Verbosity of print statements | Should we use runtime_tests:verbosity?
   integer :: verb = 2
   !> If debug then print out lots of debug info.
@@ -335,7 +332,7 @@ contains
     !> job_id is the job id in a Trinity or list mode run. Only for debug
     integer, intent(in), optional :: job_id_in
     logical :: start_file_utils, dummy_flag
-    integer :: job_id, i, iBmax, fort11_unit
+    integer :: job_id, i, iBmax, fort11_unit, ntheta
     ! Local variables:
     real, allocatable, dimension(:) :: seik, rgrid, invR, trip, ds, jacob, dsdthet, rmajor
     real, allocatable, dimension(:) :: dummy
@@ -1864,10 +1861,11 @@ contains
     real, dimension(-ntgrid:), intent(in out) :: a
     real, intent(in) :: ext
     integer, intent(in) :: nperiod
-    integer :: i, k, itot
+    integer :: i, k, itot, ntheta
     if (nperiod <= 1) return
     ! Note we end up enforcing a(nth)-a(-nth) = ext, but we should probably check this is
     ! also true on input to the routine
+    ntheta = 2 * nth
     do k = -nperiod + 1, -1
        do i = -nth, nth
           itot = i + k * ntheta
