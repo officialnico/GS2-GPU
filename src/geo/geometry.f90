@@ -127,7 +127,7 @@ module geometry
   logical :: writelots, equal_arc, force_sym, use_large_aspect
   character(len = EQFILE_LENGTH) :: eqfile, eqnormfile
   ! End of inputs
-  real :: rpmin, rpmax, rmaj !< From surf or equilibrium file
+  real :: rpmin, rpmax
   integer :: big = 8
 
   !> The single-period theta domain "half-grid" size. That is, the number of points in
@@ -381,7 +381,7 @@ contains
     thetaShift = 0.0
     allocate(outputs%bmag(-ntgrid:ntgrid), outputs%bpol(-ntgrid:ntgrid))
     if (.not. allocated(geom)) call allocate_geom(geom)
-    call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, rmaj, outputs%bmag, outputs%bpol)
+    call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
 
     ! Start theta shift calc. This is used to modify the definition of
     ! theta such that the maxiumum magnetic field is at pi. This is
@@ -395,7 +395,7 @@ contains
           thetaShift = outputs%theta(iBmax) - outputs%theta(-nth)
           call geom%finalise !Clean up geometry to allow reinitialisation
           write(*,*) "Bmax is not located at +/-pi, translating theta by",thetaShift," so that it is..."
-          call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, rmaj, outputs%bmag, outputs%bpol)
+          call initialise_geometry_and_get_bmag(geom, surf%r, thetaShift, outputs%theta, outputs%bmag, outputs%bpol)
        end if
     end if
 
@@ -412,7 +412,7 @@ contains
 
     !     compute derivatives of eikonal, grad B and grad Z
     if (bishop /= 0) then
-       call bishop_grads(surf%r, outputs%bmag, outputs%bpol)
+       call bishop_grads(surf%r, surf%rmaj, outputs%bmag, outputs%bpol)
     else
        call bishop_large_aspect_ratio_approximation(surf%r, surf%dr)
     end if
@@ -457,7 +457,7 @@ contains
 
     !Recompute the magnetic field along theta if use_large_aspect - should this come earlier?
     if (use_large_aspect) then
-       outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(outputs%theta(-nth:nth)) / rmaj)
+       outputs%bmag(-nth:nth)= 1 / (1 + rgrid(-nth:nth) * cos(outputs%theta(-nth:nth)) / surf%rmaj)
        call periodic_copy(outputs%bmag, 0., nperiod)
     end if
     if (force_sym) call sym(outputs%bmag, 0, ntgrid)
@@ -523,11 +523,10 @@ contains
 
   contains
     !> Initialises the specific geometry backend
-    subroutine initialise_geometry_and_get_bmag(geom, rhoc, thetaShift, theta, rmaj, bmag, bpol)
+    subroutine initialise_geometry_and_get_bmag(geom, rhoc, thetaShift, theta, bmag, bpol)
       use geo_utils, only: geo_input_type
       class(abstract_geo_type), intent(in out) :: geom
       real, intent(in) :: rhoc, thetaShift
-      real, intent(out) :: rmaj
       real, dimension(-ntgrid:), intent(in) :: theta
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
       type(geo_input_type) :: geom_inputs
@@ -539,7 +538,6 @@ contains
       geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile
       call geom%initialise(geom_inputs, rpmin, rpmax, surf%rmaj, B_T0, avgrmid)
 
-      rmaj = surf%rmaj
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Calculate grad(psi), grad(BT) and grad(theta) for the specific
       ! geometry class we're using and setup any related splines. Could be part of initialise
@@ -620,7 +618,11 @@ contains
 
       if (debug) write(6,*) "eikcoefs: call rmajortgrid"
       call rmajortgrid(rgrid, theta, rmajor) ; call periodic_copy(rmajor, 0., nperiod)
-      call invRtgrid(rgrid, theta, invR) ; call periodic_copy(invR, 0., nperiod)
+      if (use_large_aspect) then
+         invR = 1.0 / surf%rmaj
+      else
+         call invRtgrid(rgrid, theta, invR) ; call periodic_copy(invR, 0., nperiod)
+      end if
 
       !     compute gradient of rp in R, Z, phi (cartesian - crpgrad)
       ! Note that rpgrad is given in (R,Z,phi) coordinates if bishop == 0
@@ -658,8 +660,8 @@ contains
       end if !Note bmag not set for bishop == 0
     end subroutine initialise_geometry_and_get_bmag
 
-    subroutine bishop_grads(rhoc, bmag, bpol)
-      real, intent(in) :: rhoc
+    subroutine bishop_grads(rhoc, rmaj, bmag, bpol)
+      real, intent(in) :: rhoc, rmaj
       real, dimension(-ntgrid:), intent(in) :: bmag, bpol
       logical, parameter :: save_bishop = .true.
       integer :: bishop_unit
@@ -1056,7 +1058,7 @@ contains
     real, dimension(-ntgrid:), intent(out) :: invR
     integer :: i
     do i = -nth, nth
-       invR(i) = invRfun(rgrid(i), theta(i))
+       invR(i) = geom%invR(rgrid(i), theta(i))
     end do
   end subroutine invRtgrid
 
@@ -1132,18 +1134,6 @@ contains
     real, intent (in) :: r, thet
     Zpos = geom%Zpos(r, thet)
   end function Zpos
-
-  !> Returns the inverse of the major radius, 1/R, corresponding to the passed r and theta
-  !> Should we implement this in terms of 1/Rpos?
-  real function invRfun(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    if(use_large_aspect) then
-       invRfun = 1. / rmaj
-    else
-       invRfun = geom%invR(r, thet)
-    end if
-  end function invRfun
 
   !> Returns the diameter of the surface labelled by rp.
   real function diameter(rp)
