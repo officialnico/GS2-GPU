@@ -348,9 +348,7 @@ contains
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
 
-    ! Unpack from/pack to surf <--> module level for now
-    rmaj = surf%rmaj ; surf%nt = ntheta_input
-
+    surf%nt = ntheta_input
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
 
@@ -543,16 +541,16 @@ contains
       real, intent(in) :: rhoc, thetaShift
       real, dimension(-ntgrid:), intent(in) :: theta
       real, dimension(-ntgrid:), intent(out) :: bmag, bpol
-      type(geo_input_type) :: inputs
+      type(geo_input_type) :: geom_inputs
       real :: avgrmid, rbar, B_T0
       integer :: fort78_unit, fort99_unit
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
-      inputs%surf = surf ; inputs%thShift = thetaShift
-      inputs%eqfile = eqfile ; inputs%big = big ; inputs%eqnormfile = eqnormfile
-      call geom%initialise(inputs, psi_0, psi_a, rmaj, B_T0, avgrmid)
+      geom_inputs%surf = surf ; geom_inputs%thShift = thetaShift ; geom_inputs%big = big
+      geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile
+      call geom%initialise(geom_inputs, psi_0, psi_a, surf%rmaj, B_T0, avgrmid)
 
-      rpmin = psi_0 ; rpmax = psi_a
+      rmaj = surf%rmaj ; rpmin = psi_0 ; rpmax = psi_a
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
       ! Calculate grad(psi), grad(BT) and grad(theta) for the specific
       ! geometry class we're using and setup any related splines. Could be part of initialise
