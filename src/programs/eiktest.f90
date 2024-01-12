@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
   use geometry, only: eikcoefs_output_type, geofax, eikcoefs, pbarfun, geom
-  use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
+  use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
@@ -237,7 +237,7 @@ program eiktest
 
   if (.not. dipole) then
      pbar = pbarfun(rfun(rpofrho(rhoc, fort11_unit),0.),0.)
-     bb=beta_a_fun(pbar)
+     bb = geom%betafun(pbar)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
         write(21,1000) -dbetadrho

@@ -110,13 +110,13 @@ module geometry
 
   private
 
-  public :: beta_a_fun, eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter
-  public :: qfun, rpofrho, finish_geometry, verb, big, pbarfun, geom
-  public :: eqfile, eqnormfile, irho, surf
+  public :: eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter, run_eikcoefs_and_resample
+  public :: qfun, rpofrho, finish_geometry, pbarfun, get_theta_eqarc
+  public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  public :: eikcoefs_output_type, run_eikcoefs_and_resample, get_theta_eqarc
+  public :: geom, eikcoefs_output_type
 
   class(abstract_geo_type), allocatable :: geom
   ! Start of inputs
@@ -1145,13 +1145,6 @@ contains
     dpfun = geom%dpfun(pbar)
   end function dpfun
 
-  !> FIXME : Add documentation | Only for eiktest
-  real function beta_a_fun(pbar)
-    implicit none
-    real, intent (in) :: pbar
-    beta_a_fun = geom%betafun(pbar)
-  end function beta_a_fun
-
   real function rfun(rp, theta)
     implicit none
     real, intent(in) :: rp, theta
@@ -1305,7 +1298,6 @@ contains
     real, dimension(-ntgrid:ntgrid, 2) :: thgrad, rpgrad
     real, dimension(-ntgrid:ntgrid) :: trip, dsdthet, rgrid
     rgrid = rp !<This is not right for cart types, but ok for those compatible with bishop=0.
-    ! Note we only call this routine when bishop == 0
     call geom%gradient(rgrid, theta, rpgrad, 'P', rp, nth, ntgrid, bishop /= 0)
     call geom%gradient(rgrid, theta, thgrad, 'T', rp, nth, ntgrid, bishop /= 0)
     call tripprod2dtgrid(rpgrad, thgrad, invR, trip) ; call periodic_copy(trip, 0., nperiod)
@@ -1929,9 +1921,8 @@ contains
     end do
   end subroutine rtgrid
 
-  !> Calculate the derivative of the flux label rho
-  !> with respect to the internal flux label rp (the
-  !> normalised poloidal flux)
+  !> Calculate the derivative of the flux label rho with respect to
+  !> the internal flux label rp (the normalised poloidal flux)
   real function drho_drp(rp, dr)
     implicit none
     real, intent(in) :: rp, dr
@@ -1954,11 +1945,11 @@ contains
   real function drho_drhod(rp, drhodrp, dr)
     implicit none
     real, intent (in) :: drhodrp, rp, dr
-    real :: rp1, rp2,  rho1, rho2
+    real :: rp1, rp2,  rhod1, rhod2
     !     compute d rho / d rb
     rp1 = rp * (1 - dr) ; rp2 = rp * (1 + dr)
-    rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
-    drho_drhod = drhodrp / ((rho2 - rho1) / (rp2 - rp1))
+    rhod1 = 0.5 * diameter(rp1) ; rhod2 = 0.5 * diameter(rp2)
+    drho_drhod = drhodrp / ((rhod2 - rhod1) / (rp2 - rp1))
   end function drho_drhod
 
   !> FIXME : Add documentation
@@ -1966,9 +1957,9 @@ contains
     implicit none
     real, dimension(-nth:nth), intent(in) :: f, theta, jacob
     real, dimension(-nth:nth) :: delth
-    delth(-nth+1:nth-1) = 0.5*(theta(-nth+2:nth) - theta(-nth:nth-2))
-    delth(-nth) = 0.5*(theta(-nth+1) - theta(-nth))
-    delth(nth) = 0.5*(theta(nth) - theta(nth-1))
+    delth(-nth+1:nth-1) = 0.5 * (theta(-nth+2:nth) - theta(-nth:nth-2))
+    delth(-nth) = 0.5 * (theta(-nth+1) - theta(-nth))
+    delth(nth) = 0.5 * (theta(nth) - theta(nth-1))
 
     ! We might want to write this to use trapezoidal_integration instead
     ! of this sum form. Currently only used in [[f_trap]], which itself
@@ -1984,7 +1975,7 @@ contains
     real, dimension(-nth:nth), intent (in) :: b_mag, theta, jacob
     real :: ftu, ftl, havg, h2avg, h(-nth:nth)
     ! use expressions from Y. R. Lin-Liu and Bob Miller, coding from Q. P. Liu
-    h = min(b_mag/maxval(b_mag),1.0)
+    h = min(b_mag / maxval(b_mag),1.0)
     havg = fluxavg(h, theta, jacob)
     h2avg = fluxavg(h**2, theta, jacob)
     ftu = 1.0 - (h2avg / havg**2) * (1.0 - sqrt(1.0 - havg) * (1.0 + 0.5 * havg))
@@ -1996,8 +1987,8 @@ contains
   subroutine plotdata (rgrid, seik, grads, dpsidrho, dr, theta, &
        rplot, zplot, aplot, rprime, zprime, aprime)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, seik, theta
-    real, dimension (-ntgrid:,:), intent (in) :: grads
+    real, dimension (-ntgrid:), intent(in) :: rgrid, seik, theta
+    real, dimension (-ntgrid:, :), intent(in) :: grads
     real, dimension (-ntgrid:), intent(out) :: rplot, zplot, aplot, rprime, zprime, aprime
     real, intent (in) :: dpsidrho, dr
     real :: rplus, rminus, dr_tot
