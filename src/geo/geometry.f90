@@ -536,11 +536,7 @@ contains
       geom_inputs%surf = surf ; geom_inputs%thShift = thetaShift ; geom_inputs%big = big
       geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile
       call geom%initialise(geom_inputs, rpmin, rpmax, surf%rmaj, B_T0, avgrmid)
-
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
-      ! Calculate grad(psi), grad(BT) and grad(theta) for the specific
-      ! geometry class we're using and setup any related splines. Could be part of initialise
-      call geom%finish_setup
 
       if (writelots) then
          write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'

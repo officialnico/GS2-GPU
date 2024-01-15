@@ -228,6 +228,7 @@ contains
     psi_a_out = self%psi_a ; psi_0_out = self%psi_0
     rmaj = self%R_mag ; B_T0 = abs(self%B_T) ; avgrmid = self%aminor
     self%initialised = .true.
+    call self%finish_setup
   end subroutine initialise
 
   pure subroutine alloc_arrays(self)
