@@ -339,8 +339,6 @@ contains
     ! of the maximium magnetic field is at pi (see section 3.2.3 of Ball MIT
     ! Masters thesis or section 2.4 of "GS2 analytic geometry specification")
     real :: thetaShift
-
-    surf%nt = ntheta_input
     job_id = get_option_with_default(job_id_in, -1)
     start_file_utils = .not. futils_initialized
 
@@ -376,6 +374,7 @@ contains
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod, ntgrid, nth, ntheta)
+    surf%nt = ntheta_input
     if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
     if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
     thetaShift = 0.0
