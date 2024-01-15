@@ -81,7 +81,7 @@ contains
        do j = 1, jmax
           read (funit,*) d%grid(i)%R(j), d%grid(i)%Z(j), dpsidR, dpsidZ
           ! make B:
-          d%grid(i)%B(j) = sqrt(dpsidR**2 + dpsidZ**2) / (d%grid(i)%R(j)*twopi)
+          d%grid(i)%B(j) = hypot(dpsidR, dpsidZ) / (d%grid(i)%R(j)*twopi)
           d%grid(i)%theta(j) = atan2 (d%grid(i)%Z(j) - self%Z_mag, &
                (d%grid(i)%R(j) - self%R_mag))
        end do

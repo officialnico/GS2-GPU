@@ -400,9 +400,7 @@ contains
 
     !     compute |grad rho|:
     allocate(outputs%grho(-ntgrid:ntgrid))
-    do i = -nth, nth
-       outputs%grho(i) = sqrt(rpgrad(i,1)**2 + rpgrad(i,2)**2) * abs(drhodrp)
-    end do
+    outputs%grho(-nth:nth) = hypot(rpgrad(-nth:nth,1), rpgrad(-nth:nth,2)) * abs(drhodrp)
     call periodic_copy(outputs%grho, 0., nperiod)
     if (force_sym) call sym(outputs%grho, 0, ntgrid)
 
@@ -1677,7 +1675,7 @@ contains
        rpos_old = rpos_new ; zpos_old = zpos_new
        r = rgrid(i) ; thet = theta(i)
        rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
-       ltheta(i) = ltheta(i-1) + sqrt((Rpos_new - Rpos_old)**2 + (Zpos_new - Zpos_old)**2)
+       ltheta(i) = ltheta(i-1) + hypot((Rpos_new - Rpos_old), (Zpos_new - Zpos_old))
     end do
 
     rpos_new = rpos_orig ; zpos_new = zpos_orig
@@ -1685,7 +1683,7 @@ contains
        rpos_old = rpos_new ; zpos_old = zpos_new
        r = rgrid(i) ; thet = theta(i)
        rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
-       ltheta(i) = ltheta(i+1) - sqrt((Rpos_new - Rpos_old)**2 + (Zpos_new - Zpos_old)**2)
+       ltheta(i) = ltheta(i+1) - hypot((Rpos_new - Rpos_old), (Zpos_new - Zpos_old))
     end do
   end subroutine loftheta
 
@@ -1720,7 +1718,7 @@ contains
     integer :: i
     real :: tvec_dot_gradR
 
-    magrp = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2)
+    magrp = hypot(rpgrad(-nth:nth, 1), rpgrad(-nth:nth, 2))
 
     ! tvec is the tangent vector in the surface of the poloidal plane
     tvec(:, 1) = rpgrad(-nth:nth, 2) / magrp
@@ -1747,8 +1745,7 @@ contains
     real, dimension (-ntgrid:), intent (in) :: invR
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:)   , intent (out) :: bpol
-    bpol(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * &
-         invR(-nth:nth) * dpsidrp
+    bpol(-nth:nth) = hypot(rpgrad(-nth:nth, 1), rpgrad(-nth:nth, 2)) * invR(-nth:nth) * dpsidrp
   end subroutine B_pol
 
   !> FIXME : Add documentation
@@ -1758,7 +1755,7 @@ contains
     real, dimension (-ntgrid:), intent (in) :: invR, bpol
     real, dimension(-ntgrid:), intent (out) :: bmag
     real, intent(in) :: bi
-    bmag(-nth:nth) = sqrt((bi * invR(-nth:nth))**2 + bpol(-nth:nth)**2)
+    bmag(-nth:nth) = hypot((bi * invR(-nth:nth)), bpol(-nth:nth))
   end subroutine B_mod
 
   !> General calculation of the poloidal magnetic field radius of curvature

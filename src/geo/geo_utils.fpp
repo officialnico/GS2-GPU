@@ -331,7 +331,7 @@ contains
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart, 1), size(dcart, 2)) :: denom
     ! denom is |grad psi|
-    denom = sqrt(self%dpcart(:,:,1)**2 + self%dpcart(:,:,2)**2)
+    denom = hypot(self%dpcart(:,:,1), self%dpcart(:,:,2))
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
     dbish(2:, :, 1) = dbish(2:, :, 1) / denom(2:, :)
@@ -500,7 +500,7 @@ contains
        drhodpsiq = (rho1 - rho2) / (rp1 - rp2)
        gradpsi = self%eqitem(self%eqpsi(i), 0., self%dpbish(:,:,1), 'R')
 
-       mag_B = sqrt( (self%btori(pbar(i))**2 + gradpsi**2)) * self%invR(self%eqpsi(i), 0.)
+       mag_B = hypot(self%btori(pbar(i)), gradpsi) * self%invR(self%eqpsi(i), 0.)
        !For geq and ideq could be mag_B = geom%eqitem(geom%eqpsi(i), 0., geom%B_psi, 'R')
 
        gamma_shear(i) = 0.01 * gradpsi**2 * (d2p(i) / pres(i) - a * (dp(i) / pres(i))**2) &
@@ -517,7 +517,7 @@ contains
              * self%qfun(0.) * 0.5 * self%diameter(self%eqpsi(i)) &
             * (-dp(i) / pres(i)) * self%R_psi(1,1)**1.5 / (2 * pres(i) / self%beta_0)**a
        bs_sh(i) = (-pres(i) / (dp(i) / drhodpsiq))*s__hat(i) / (self%R_psi(1,1) &
-            * self%qfun(pbar(i)) *sqrt(pres(i)))
+            * self%qfun(pbar(i)) * sqrt(pres(i)))
     end do
 
     call open_output_file(fort24_unit,".fort.24")
@@ -919,8 +919,8 @@ contains
     deallocate(zp, temp)
 
     allocate(self%thetab(nbbbs), self%r_bound(nbbbs))
-    self%thetab = atan2 ((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
-    self%r_bound = sqrt( (rbbbs - self%R_mag)**2 + (zbbbs - self%Z_mag)**2 )
+    self%thetab = atan2((zbbbs - self%Z_mag), (rbbbs - self%R_mag))
+    self%r_bound = hypot((rbbbs - self%R_mag), (zbbbs - self%Z_mag))
     call sort(self%thetab, self%r_bound, zbbbs, rbbbs)
 
     ! Allow for duplicated points near +- pi:
