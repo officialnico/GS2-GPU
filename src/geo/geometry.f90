@@ -1369,6 +1369,12 @@ contains
     implicit none
     real, intent(in) :: rho
     real, parameter :: xerrbi = 1.e-4, xerrsec = 1.e-8
+    interface
+      real function f(x_)
+        real, intent(in) :: x_
+      end function f
+    end interface
+    procedure(f), pointer :: func
     real :: a, b, fval
     integer :: ier
 
@@ -1376,18 +1382,16 @@ contains
     a = rpmin ; b = rpmax
 
     if (irho == 1) then
-       fval = rho * rho * phi(b)
-       call root(phi, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
+       func => phi ; fval = rho * rho * func(b)
     else if (irho == 2) then
-       fval = rho * diameter(b)
-       call root(diameter, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
+       func => diameter ; fval = rho * func(b)
     else if (irho == 3) then
-       fval = rho * psifun(b)
-       call root(psifun, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
+       func => psifun ; fval = rho * func(b)
     else if (irho == 4) then
-       fval = rho * rhofun(b)
-       call root(rhofun, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
-    endif
+       func => rhofun ; fval = rho * func(b)
+    end if
+
+    call root(func, fval, a, b, xerrbi, xerrsec, ier, rpofrho)
 
     if (debug) then
        write (*,*) "Values in root: "
