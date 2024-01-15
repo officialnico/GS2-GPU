@@ -1884,7 +1884,7 @@ contains
     logical, intent(in) :: geq, eeq, peq, leq, deq, ideq, ceq, gs2deq, teq
     integer, intent(in) :: bishop
     integer :: nflag_set
-    if (.not.(geq .or. ideq) .and. bishop == 0) & !Probably abort unless geq/ideq?
+    if (.not.(geq .or. ideq) .and. bishop == 0) & !Possibly also need use_large_aspect if bishop == 0?
          call mp_abort('bishop = 0 only compatible with geq or ideq',.true.)
     nflag_set = count([geq, ceq, eeq, gs2deq, peq, teq, leq, deq, ideq])
     if (nflag_set == 0) then
