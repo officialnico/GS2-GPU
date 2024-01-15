@@ -647,8 +647,7 @@ contains
       if (local_eq) trip = trip * dpsidrp
 
       if (bishop > 0) then !Following bits _could_ be calculated for all bishop
-         call B_pol(invR, crpgrad, bpol, nth) !<Should this use rpgrad for local?
-         if (local_eq) bpol(-nth:nth) = bpol(-nth:nth) * dpsidrp
+         call B_pol(invR, crpgrad, dpsidrp, bpol, nth) !<Should this use rpgrad for local?
          call periodic_copy(bpol, 0., nperiod)
          call B_mod(invR, bpol, bmag, bi, nth)
          call periodic_copy(bmag, 0., nperiod)
@@ -1737,13 +1736,15 @@ contains
   end subroutine th_bishop
 
   !> FIXME : Add documentation
-  pure subroutine B_pol(invR, rpgrad, bpol, nth)
+  pure subroutine B_pol(invR, rpgrad, dpsidrp, bpol, nth)
     implicit none
     integer, intent (in) :: nth
+    real, intent(in) :: dpsidrp
     real, dimension (-ntgrid:), intent (in) :: invR
     real, dimension (-ntgrid:, :), intent (in) :: rpgrad
     real, dimension (-ntgrid:)   , intent (out) :: bpol
-    bpol(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * invR(-nth:nth)
+    bpol(-nth:nth) = sqrt(rpgrad(-nth:nth, 1)**2 + rpgrad(-nth:nth, 2)**2) * &
+         invR(-nth:nth) * dpsidrp
   end subroutine B_pol
 
   !> FIXME : Add documentation
