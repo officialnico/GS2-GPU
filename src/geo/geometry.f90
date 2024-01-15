@@ -558,12 +558,12 @@ contains
       else
          rp = rpofrho(rhoc)
          surf%r_geo = rcenter(rpmax) !Only used for writelots/checks
-         if (surf%r_geo > surf%rmaj + 1.e-5) then !Not checked for leq
-            write(6,*)
-            write(6,*) 'Warning: the center of the LCFS is outboard of the '
-            write(6,*) 'center of the reference surface.  This is probably wrong.'
-            write(6,*)
-         end if
+      end if
+      if (surf%r_geo > surf%rmaj + 1.e-5) then
+         write(6,*)
+         write(6,*) 'Warning: the center of the LCFS is outboard of the '
+         write(6,*) 'center of the reference surface.  This is probably wrong.'
+         write(6,*)
       end if
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
