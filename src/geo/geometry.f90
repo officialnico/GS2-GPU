@@ -370,7 +370,7 @@ contains
        end if
     end if
 
-    if (debug) write(6,*) "eikcoefs: call check", 'jid=',job_id
+    if (debug) write(6,*) "eikcoefs: call check ",'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
     call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod, ntgrid, nth, ntheta)
@@ -549,7 +549,7 @@ contains
          if (.not. local_eq) write(fort11_unit,*) 'B_T0 = ',B_T0
       end if
 
-      if (debug) write(6,*) "eikcoefs: find rp", 'jid=',job_id
+      if (debug) write(6,*) "eikcoefs: find rp ", 'jid=',job_id
       if (local_eq) then
          ! Because irho==2 if local_eq and diameter is effectively analytic
          ! one would expect rpofrho(rho) == rho in this case. So here we
@@ -632,14 +632,14 @@ contains
       call periodic_copy(crpgrad(:,1), 0., nperiod)
       call periodic_copy(crpgrad(:,2), 0., nperiod)
 
-      !     compute  coordinate gradients
+      !     compute coordinate gradients
       call geom%gradient(rgrid, theta, rpgrad, 'P', dum, nth, ntgrid, bishop /= 0)
       call geom%gradient(rgrid, theta, thgrad, 'T', dum, nth, ntgrid, bishop /= 0)
       call tripprod2dtgrid(rpgrad, thgrad, invR, trip)
       call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
-      if (local_eq) qval = qfun(pbar) !leq ignores input pbar
+      if (local_eq) qval = qfun(pbar) !leq:qfun ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
