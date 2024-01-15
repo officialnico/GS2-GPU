@@ -331,7 +331,7 @@ contains
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart, 1), size(dcart, 2)) :: denom
     ! denom is |grad psi|
-    denom = hypot(self%dpcart(:,:,1), self%dpcart(:,:,2))
+    denom(2:, :) = hypot(self%dpcart(2:,:,1), self%dpcart(2:,:,2))
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
     dbish(2:, :, 1) = dbish(2:, :, 1) / denom(2:, :)
