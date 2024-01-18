@@ -160,11 +160,7 @@ program eiktest
   endif
 
   open(unit=21,file=out_stem//'eik.out',status='unknown')
-  open(unit=24,file=out_stem//'shear.out',status='unknown')
-  open(unit=25,file=out_stem//'trap.out',status='unknown')
   open(unit=11,file=out_stem//'eik2.out',status='unknown')
-  open(unit=99,file=out_stem//'eik3.out',status='unknown')
-  open(unit=78,file=out_stem//'eik7.out',status='unknown')
 
   call eikcoefs(ntheta, nperiod, eikcoefs_results)
 
@@ -303,7 +299,6 @@ program eiktest
 
   close(11)
   close(21)
-  close(99)
 
   open (unit=21,file='eik5.out',status='unknown')
   write (21,'(''#theta1 gradpar2 bmag3 grho4 '', &
