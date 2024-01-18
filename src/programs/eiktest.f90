@@ -16,7 +16,7 @@ program eiktest
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
-  integer :: i, ntgrid, ntheta, shotnum
+  integer :: i, ntgrid, ntheta, shotnum, geoType
   real :: broot
   real :: q, qq, qplus, qmnus
   real :: bb, profile_fac
@@ -26,7 +26,7 @@ program eiktest
   real :: rhocm, rhocp
   real :: bbar, rmin, rmax, pbar
   real :: akappa, akappri, tri, tripri
-  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift
+  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, shift
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
   real :: tstar
