@@ -299,7 +299,7 @@ contains
   !> w.r.t. (R,Z). Note that `dfcart(1, :, :)` is not valid
   pure subroutine eqdcart(self, dfm, dfcart)
     implicit none
-    class(abstract_geo_type), intent(in out) :: self
+    class(abstract_geo_type), intent(in) :: self
     !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
     !> dfm(:,:,2) is deriv w.r.t. theta_index
     real, dimension (:,:,:), intent(in)  :: dfm
@@ -320,7 +320,7 @@ contains
   !> Note that `dbish(1, :, :)` is not valid
   pure subroutine eqdbish(self, dcart, dbish)
     implicit none
-    class(abstract_geo_type), intent(in out) :: self
+    class(abstract_geo_type), intent(in) :: self
     !> dcart(:,:,1) is gradient of f w.r.t. R;
     !> dcart(:,:,2) is gradient of f w.r.t. Z
     real, dimension(:, :, :), intent (in) :: dcart
@@ -329,13 +329,13 @@ contains
     !> Note that in the special case where f=psi:
     !> dbish(:,:,1) is |grad psi|; dbish(:,:,2) is 0
     real, dimension(:, :, :), intent(out) :: dbish
-    real, dimension(size(dcart, 1), size(dcart, 2)) :: denom
+    real, dimension(size(dcart, 1) - 1, size(dcart, 2)) :: denom
     ! denom is |grad psi|
-    denom(2:, :) = hypot(self%dpcart(2:,:,1), self%dpcart(2:,:,2))
+    denom = hypot(self%dpcart(2:,:,1), self%dpcart(2:,:,2))
     dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
     dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
-    dbish(2:, :, 1) = dbish(2:, :, 1) / denom(2:, :)
-    dbish(2:, :, 2) = dbish(2:, :, 2) / denom(2:, :)
+    dbish(2:, :, 1) = dbish(2:, :, 1) / denom
+    dbish(2:, :, 2) = dbish(2:, :, 2) / denom
   end subroutine eqdbish
 
   subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm, use_bishop)
