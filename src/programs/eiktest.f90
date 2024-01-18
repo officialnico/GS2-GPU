@@ -146,13 +146,17 @@ program eiktest
 
   if(local_eq) then
      if(gen_eq) write(*,*) 'Forcing gen_eq to be false'
+     if(efit_eq) write(*,*) 'Forcing efit_eq to be false'
+     if(dfit_eq) write(*,*) 'Forcing dfit_eq to be false'
+     if(gs2d_eq) write(*,*) 'Forcing gs2d_eq to be false'
+     if(idfit_eq) write(*,*) 'Forcing idfit_eq to be false'
      if(ppl_eq) write(*,*) 'Forcing ppl_eq to be false'
      if(chs_eq) write(*,*) 'Forcing chs_eq to be false'
      if(transp_eq) write(*,*) 'Forcing transp_eq to be false'
-     if(gen_eq .or. ppl_eq .or. transp_eq) write(*,*) 'because local_eq'
-     gen_eq=.false.
-     ppl_eq=.false.
-     chs_eq = .false.
+     if (any([gen_eq, ppl_eq, transp_eq, chs_eq, efit_eq, dfit_eq, gs2d_eq, idfit_eq])) &
+          write(*,*) 'because local_eq'
+     gen_eq = .false. ; ppl_eq = .false. ; transp_eq = .false. ; chs_eq = .false.
+     efit_eq = .false. ; dfit_eq = .false. ; gs2d_eq = .false. ; idfit_eq = .false.
   endif
 
   open(unit=21,file=out_stem//'eik.out',status='unknown')
