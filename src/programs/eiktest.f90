@@ -159,8 +159,7 @@ program eiktest
      efit_eq = .false. ; dfit_eq = .false. ; gs2d_eq = .false. ; idfit_eq = .false.
   endif
 
-  open(unit=21,file=out_stem//'eik.out',status='unknown')
-  open(unit=11,file=out_stem//'eik2.out',status='unknown')
+  open(newunit=funit,file=out_stem//'eik.out',status='unknown')
 
   call eikcoefs(ntheta, nperiod, eikcoefs_results)
 
@@ -207,29 +206,29 @@ program eiktest
      shat = max(1.e-7, shat)
   end if
 
-  write(21,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
+  write(funit,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
   !CMR 14/01/05 change format to prevent line breaks with intel compiler and allow runngridgen to read the output files
-  write(21,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsi, rmaj, shat, kxfac, qsf
+  write(funit,fmt='(3i8,1p5e12.4)') ntgrid, nperiod, ntheta, drhodpsi, rmaj, shat, kxfac, qsf
   !CMR
 
-  write(21,*) '    gbdrift     gradpar       grho    tgrid'
+  write(funit,*) '    gbdrift     gradpar       grho    tgrid'
   do i= -ntgrid,ntgrid
-     write(21,1000) gbdrift(i), gradpar(i),grho(i),theta(i)
+     write(funit,1000) gbdrift(i), gradpar(i),grho(i),theta(i)
   enddo
 
-  write(21,*) '    cvdrift            gds2            bmag   tgrid'
+  write(funit,*) '    cvdrift            gds2            bmag   tgrid'
   do i= -ntgrid,ntgrid
-     write(21,1000) cvdrift(i), gds2(i),bmag(i),theta(i)
+     write(funit,1000) cvdrift(i), gds2(i),bmag(i),theta(i)
   enddo
 
-  write(21,*) '    gds21             gds22  tgrid'
+  write(funit,*) '    gds21             gds22  tgrid'
   do i= -ntgrid,ntgrid
-     write(21,1000) gds21(i), gds22(i),theta(i)
+     write(funit,1000) gds21(i), gds22(i),theta(i)
   enddo
 
-  write(21,*) '    cvdrift0          gbdrift0   tgrid'
+  write(funit,*) '    cvdrift0          gbdrift0   tgrid'
   do i= -ntgrid,ntgrid
-     write(21,1000) cvdrift0(i),gbdrift0(i),theta(i)
+     write(funit,1000) cvdrift0(i),gbdrift0(i),theta(i)
   enddo
 
   call geom%hahm_burrell(profile_fac)
@@ -238,29 +237,30 @@ program eiktest
   if (.not. dipole) then
      pbar = pbarfun(rfun(rpofrho(rhoc),0.),0.)
      bb = geom%betafun(pbar)
-     write(21,*) '-8*pi/B_0**2 * dp/drho= '
+     write(funit,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
-        write(21,1000) -dbetadrho
-        write(21,1000) -dbetadrho/bb, -0.5*dbetadrho/bb
-        write(21,1000) bb, bb/2.
+        write(funit,1000) -dbetadrho
+        write(funit,1000) -dbetadrho/bb, -0.5*dbetadrho/bb
+        write(funit,1000) bb, bb/2.
      endif
   end if
-  close(21)
+  close(funit)
 
-  write(11,*) 'dV/drhon= ',dvdrhon
+  open(newunit=funit,file=out_stem//'eik2.out',status='unknown')
+  write(funit,*) 'dV/drhon= ',dvdrhon
   pbar = pbarofrho(rhoc)
   if (.not. dipole) then
-     write (11,*)
-     write (11,*) 'The following q and shat values'
-     write (11,*) 'were calculated directly'
-     write (11,*) 'from the equilibrium.'
-     write (11,*) 'They should match the ones above' !EGH
+     write (funit,*)
+     write (funit,*) 'The following q and shat values'
+     write (funit,*) 'were calculated directly'
+     write (funit,*) 'from the equilibrium.'
+     write (funit,*) 'They should match the ones above' !EGH
      q=qfun(0.)
-     write(11,*) 'q_0= ',q
+     write(funit,*) 'q_0= ',q
      q=qfun(pbar)
-     write(11,*) 'rho= ',rhoc,' q(rho)= ',q
+     write(funit,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
-     write(11,*) 'q_95= ',q
+     write(funit,*) 'q_95= ',q
 
      call geofax(rhoc, theta, rt, rk, rd)
      if (.not. local_eq) then
@@ -285,42 +285,42 @@ program eiktest
      endif
 
      qq=qfun(pbar)
-     write(11,*) 'shat= ',shat
-     write(11,*) 'qinp= ',qq
-     write(11,*) 'shift= ',rdpri
-     write(11,*) 'akappa= ',rk
-     write(11,*) 'akappri= ',rkpri
-     write(11,*) 'tri= ',rt
-     write(11,*) 'tripri= ',rtpri
-     write(11,*) 'surface area= ',surfarea,' avgrmid**2'
-     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc))
-     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
-     write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
+     write(funit,*) 'shat= ',shat
+     write(funit,*) 'qinp= ',qq
+     write(funit,*) 'shift= ',rdpri
+     write(funit,*) 'akappa= ',rk
+     write(funit,*) 'akappri= ',rkpri
+     write(funit,*) 'tri= ',rt
+     write(funit,*) 'tripri= ',rtpri
+     write(funit,*) 'surface area= ',surfarea,' avgrmid**2'
+     write(funit, *) 'diameter/a = ', diameter(rpofrho(rhoc))
+     write(funit, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
+     write(funit, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
   end if
 
-  close(11)
+  close(funit)
 
-  open (unit=21,file='eik5.out',status='unknown')
-  write (21,'(''#theta1 gradpar2 bmag3 grho4 '', &
+  open (newunit=funit,file='eik5.out',status='unknown')
+  write (funit,'(''#theta1 gradpar2 bmag3 grho4 '', &
        &   ''gbdrift5 gbdrift06 cvdrift7 cvdrift08 '', &
        &    ''gds29 gds2110 gds2211'')')
   do i = -ntgrid, ntgrid
-     write (21,1000) theta(i),gradpar(i),bmag(i),grho(i), &
+     write (funit,1000) theta(i),gradpar(i),bmag(i),grho(i), &
           gbdrift(i),gbdrift0(i),cvdrift(i),cvdrift0(i), &
           gds2(i),gds21(i),gds22(i)
   end do
-  close (unit=21)
+  close (funit)
 
-  open (unit=21,file='eik6.out',status='unknown')
-  write (21,fmt="('# shape: torus')")
-  write (21,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsi
-  write (21,fmt="('# theta1             R2                  Z3               alpha4      ', &
+  open (newunit=funit,file='eik6.out',status='unknown')
+  write (funit,fmt="('# shape: torus')")
+  write (funit,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsi
+  write (funit,fmt="('# theta1             R2                  Z3               alpha4      ', &
             &   '       Rprime5              Zprime6           alpha_prime7         bpol8')")
   do i = -ntgrid, ntgrid
-     write (21,1000) theta(i),Rplot(i),Zplot(i),aplot(i), &
+     write (funit,1000) theta(i),Rplot(i),Zplot(i),aplot(i), &
           Rprime(i),Zprime(i),aprime(i),Bpol(i)
   end do
-  close (unit=21)
+  close (funit)
 1000 format(20(1x,1pg18.11))
 
   if (proc0) then
