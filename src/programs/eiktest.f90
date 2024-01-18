@@ -245,6 +245,7 @@ program eiktest
         write(21,1000) bb, bb/2.
      endif
   end if
+  close(21)
 
   write(11,*) 'dV/drhon= ',dvdrhon
   pbar = pbarofrho(rhoc)
@@ -298,37 +299,27 @@ program eiktest
   end if
 
   close(11)
-  close(21)
 
   open (unit=21,file='eik5.out',status='unknown')
   write (21,'(''#theta1 gradpar2 bmag3 grho4 '', &
        &   ''gbdrift5 gbdrift06 cvdrift7 cvdrift08 '', &
        &    ''gds29 gds2110 gds2211'')')
-  if (local_eq) then
-     do i=-ntgrid,ntgrid
-        write (21,1000) theta(i),gradpar(i),bmag(i),grho(i), &
-             gbdrift(i),gbdrift0(i),cvdrift(i),cvdrift0(i), &
-             gds2(i),gds21(i),gds22(i)
-     enddo
-  else
-     do i=-ntgrid,ntgrid
-        write (21,1000) theta(i),gradpar(i),bmag(i),grho(i), &
-             gbdrift(i),gbdrift0(i),cvdrift(i),cvdrift0(i), &
-             gds2(i),gds21(i),gds22(i)
-     enddo
-  endif
+  do i = -ntgrid, ntgrid
+     write (21,1000) theta(i),gradpar(i),bmag(i),grho(i), &
+          gbdrift(i),gbdrift0(i),cvdrift(i),cvdrift0(i), &
+          gds2(i),gds21(i),gds22(i)
+  end do
   close (unit=21)
 
   open (unit=21,file='eik6.out',status='unknown')
-
   write (21,fmt="('# shape: torus')")
   write (21,fmt="('# q = ',e10.4,' drhodpsi = ',e10.4)") qsf, drhodpsi
   write (21,fmt="('# theta1             R2                  Z3               alpha4      ', &
             &   '       Rprime5              Zprime6           alpha_prime7         bpol8')")
-  do i=-ntgrid,ntgrid
+  do i = -ntgrid, ntgrid
      write (21,1000) theta(i),Rplot(i),Zplot(i),aplot(i), &
           Rprime(i),Zprime(i),aprime(i),Bpol(i)
-  enddo
+  end do
   close (unit=21)
 1000 format(20(1x,1pg18.11))
 
