@@ -139,7 +139,7 @@ program eiktest
   end if
 
   ! Catch if no q profile
-  if (local_eq .and. irho == 1) then
+  if (local_eq .and. irho /= 2) then
      irho = 2
      write(*,*) 'Forcing irho=2'
   end if
