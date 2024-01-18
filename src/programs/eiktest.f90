@@ -17,7 +17,6 @@ program eiktest
   implicit none
 
   integer :: i, ntgrid, ntheta, shotnum, geoType
-  real :: broot
   real :: q, qq, qplus, qmnus
   real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
