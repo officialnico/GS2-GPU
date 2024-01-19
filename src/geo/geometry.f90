@@ -446,7 +446,7 @@ contains
     allocate(outputs%cvdrift(-ntgrid:ntgrid), outputs%cvdrift0(-ntgrid:ntgrid))
     allocate(outputs%cdrift(-ntgrid:ntgrid), outputs%cdrift0(-ntgrid:ntgrid))
     call drift(rgrid, rp, gradstot, gradrptot, gradztot, gradbtot, dqdrp, dpsidrho, dpsidrp,&
-         outputs%bmag, invR, outputs%theta, rmajor, dbetadrho, bi, force_sym, nperiod, &
+         outputs%bmag, invR, outputs%theta, dbetadrho, bi, force_sym, nperiod, &
          outputs%gbdrift, outputs%gbdrift0, outputs%cvdrift, outputs%cvdrift0, &
          outputs%cdrift, outputs%cdrift0)
 
@@ -1146,10 +1146,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, gradbtot, dqdrp, dpsidrho, &
-       dpsidrp, bmag, invR, theta, rmajor, dbetadrho, bi, force_sym, nperiod, &
+       dpsidrp, bmag, invR, theta, dbetadrho, bi, force_sym, nperiod, &
        gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
     implicit none
-    real, dimension (-ntgrid:), intent (in) :: rgrid, bmag, invR, theta, rmajor
+    real, dimension (-ntgrid:), intent (in) :: rgrid, bmag, invR, theta
     real, dimension (-ntgrid:, :), intent (in) :: gradstot, gradrptot, gradztot, gradbtot
     real, intent (in) :: rp, dqdrp, dpsidrho, dpsidrp, dbetadrho, bi
     logical, intent(in) :: force_sym
