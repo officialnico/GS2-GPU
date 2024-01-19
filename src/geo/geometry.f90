@@ -110,7 +110,7 @@ module geometry
 
   private
 
-  public :: eikcoefs, geofax, pbarofrho, Rpos, rfun, diameter, run_eikcoefs_and_resample
+  public :: eikcoefs, geofax, pbarofrho, Rpos, diameter, run_eikcoefs_and_resample
   public :: qfun, rpofrho, finish_geometry, pbarfun, get_theta_eqarc
   public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
@@ -1179,12 +1179,6 @@ contains
     real, intent (in) :: pbar
     dpfun = geom%dpfun(pbar)
   end function dpfun
-
-  real function rfun(rp, theta)
-    implicit none
-    real, intent(in) :: rp, theta
-    rfun = geom%rfun(rp, theta)
-  end function rfun
 
   !> FIXME : Add documentation
   real function psi(r, thet)
