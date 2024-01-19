@@ -109,14 +109,12 @@ module geometry
   implicit none
 
   private
-
   public :: eikcoefs, pbarfun, pbarofrho, rpofrho, diameter, run_eikcoefs_and_resample
-  public :: finish_geometry, get_theta_eqarc
   public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
   public :: p_prime_input, invLp_input, beta_prime_input, alpha_input, dp_mult
-  public :: geom, eikcoefs_output_type
+  public :: geom, eikcoefs_output_type, finish_geometry
 
   class(abstract_geo_type), allocatable :: geom
   ! Start of inputs
@@ -1447,62 +1445,6 @@ contains
     phi = phi * (rpmax - rpmin)
   end function phi
 
-  !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
-  !> such that gradpar is constant and theta_eqarc is a theta grid with uniform arc length.
-  !> @note It is not clear that the gradpar_eqarc and theta_eqarc are actually consistent
-  !> with one another?
-  subroutine get_theta_eqarc(ntheta, nperiod, theta, gradpar, gradpar_eqarc, theta_eqarc)
-    use splines, only: inter_cspl
-    implicit none
-    integer, intent (in) :: ntheta, nperiod
-    real, dimension(-ntgrid:), intent (in) :: theta, gradpar
-    real, dimension(-ntgrid:), intent (out) :: gradpar_eqarc, theta_eqarc
-    real, dimension(:), allocatable :: theta_prime, theta_prime_eqarc
-
-    ! In the GK equation we have dg/dl. Our parallel coordinate is
-    ! theta, so the term is dtheta/dl dg/dtheta and gradpar =
-    ! dtheta/dl.  We now define a new coordinate theta' such that
-    ! gradpar' = dtheta'/dl is constant, and the term is now
-    ! dtheta'/dl dg/dtheta'. This is the coordinate that is used if
-    ! equal_arc = .true. and as a consequence the values of theta that
-    ! are used, e.g. in calculating the matrices for invert_rhs is
-    ! emphatically not the poloidal angle but this new coordinate
-    ! theta'.  It is important to note that when you use equal_arc it
-    ! means that gradpar is constant, NOT that there are equal lengths
-    ! of arc between gridpoints. In fact the grid points do not move,
-    ! it's just that we have changed the definition of our parallel
-    ! coordinate, and consequently gradpar. In other words Delta l/
-    ! Delta theta' is constant, but Delta l is not... it is the same
-    ! as it was before.  In the section of code below, which is used
-    ! primarly by GRYFX, we are doing something more. We calculate a
-    ! set of theta values such that Delta theta' is constant (rather
-    ! than, as is the case for most geometries, Delta theta). As a
-    ! consequence, on this new grid, which we call theta_eqarc, Delta
-    ! l is itself a constant as a function of grid index.
-    gradpar_eqarc = gradpar
-    theta_prime = theta
-    call arclength (ntheta, nperiod, theta, gradpar_eqarc, theta_prime)
-    ! theta'(i) is theta'(i) = theta'(theta(i)) such that
-    ! dl / dtheta' is constant. At the moment Delta theta is
-    ! constant and Delta theta' is not. We now calculate a new
-    ! set of theta values, theta_eqarc, such that Delta theta'
-    ! is constant but Delta theta is not. Since we have convenient
-    ! equally spaced set of grid points in theta, we use that for
-    ! the x values of the interpolation routine.
-    ! The four important arguments of the call below
-    ! are:
-    !     2. An unequally spaced set of theta' values: theta_prime
-    !     3. The values of theta that correspond to them: theta
-    !     5. A set of equally spaced theta' values: theta_prime_eqarc
-    !     6. The new set of unequally spaced theta values, theta_eqarc, which correspond
-    !          to equally spaced theta' values and consequently constant
-    !          values of Delta l, i.e. constant arc lengths between gridpoints.
-    !
-    theta_prime_eqarc = theta
-    call inter_cspl(size(theta), theta_prime,       theta, &
-                    size(theta), theta_prime_eqarc, theta_eqarc)
-  end subroutine get_theta_eqarc
-
   !> Given an initial theta and gradpar (=dtheta/dl) compute a new
   !> theta grid, returned in arcl, which has gradpar = dg/dl  = constant.
   !> @note The input gradpar is modified on output.
@@ -1771,7 +1713,6 @@ contains
     implicit none
     real, intent(in) :: rp, dr
     real :: rp1, rp2, rho1, rho2
-    !     compute d rho / d rp
     rp1 = rp * (1 - dr) ; rp2 = rp * (1 + dr)
     if (irho == 1) then
        rho1 = sqrt(abs(phi(rp1) / phi(rpmax))) ; rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
