@@ -555,7 +555,7 @@ contains
          rp = rhoc
       else
          rp = rpofrho(rhoc)
-         surf%r_geo = rcenter(rpmax) !Only used for writelots/checks
+         surf%r_geo = geom%rcenter(rpmax) !Only used for writelots/checks
       end if
       if (surf%r_geo > surf%rmaj + 1.e-5) then
          write(6,*)
@@ -575,7 +575,7 @@ contains
 
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
-         write(fort11_unit,*) 'Rcenter(rho) = ',rcenter(rp)
+         write(fort11_unit,*) 'Rcenter(rho) = ',geom%rcenter(rp)
          write(fort11_unit,*) 'R_geo = ',surf%r_geo,' !or ',bi
 
          call open_output_file(fort78_unit,".fort.78")
@@ -1193,13 +1193,6 @@ contains
     psi = geom%psi(r, thet)
   end function psi
 
-  !> FIXME : Add documentation
-  real function rcenter(rp)
-    implicit none
-    real, intent (in) :: rp
-    rcenter = geom%rcenter(rp)
-  end function rcenter
-
   !> Calculates the normalised radial coordinate
   pure real function psifun (rp)
     implicit none
@@ -1572,8 +1565,8 @@ contains
     ! Using only the upper triangularity:
     ! wasn't properly normalized before 29 Feb 08, and don't use asin:
     !    t = asin(rcenter(rp)-rmax)
-    t = (rcenter(rp) - rmaxu) / rmid
-    d = rcenter(rp) - rcenter(rpmax)
+    t = (geom%rcenter(rp) - rmaxu) / rmid
+    d = geom%rcenter(rp) - geom%rcenter(rpmax)
   end subroutine geofax
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
