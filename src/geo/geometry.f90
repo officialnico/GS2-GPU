@@ -1456,7 +1456,7 @@ contains
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
     integer, intent(in) :: nth, ntgrid
-    real, dimension(-ntgrid:ntgrid) :: rgrid
+    real, dimension(-nth:nth) :: rgrid
     real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
     integer :: i
     logical, save :: first=.true.
@@ -1465,7 +1465,9 @@ contains
        first = .false.
     end if
     rp = rpofrho(rho)
-    call rtgrid(rgrid, rp, theta)
+    do i = -nth, nth
+       rgrid(i) = geom%run(rp, theta(i))
+    end do
 
     ! do not treat up-down asymmetry completely for now
     hmaxu = -1.e6 ; hmaxl = 1.e6
