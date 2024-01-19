@@ -16,7 +16,7 @@ program eiktest
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
-  integer :: i, ntgrid, ntheta, shotnum, geoType
+  integer :: i, nth, ntgrid, ntheta, shotnum, geoType
   real :: q, qq, qplus, qmnus
   real :: bb, profile_fac
   real :: rk, rkm, rkp, rkpri
@@ -189,7 +189,7 @@ program eiktest
   drhodpsi = eikcoefs_results%drhodpsi
 
   ! note that ntheta may have changed
-  ntgrid = (size(theta)-1)/2
+  ntgrid = (size(theta)-1)/2 ; nth = ntheta / 2
 
   if (writelots) then
      bbar = 0.
@@ -261,12 +261,12 @@ program eiktest
      q = geom%qfun(0.95)
      write(funit,*) 'q_95= ',q
 
-     call geofax(rhoc, theta, rt, rk, rd)
+     call geofax(rhoc, theta, rt, rk, rd, nth, ntgrid)
      if (.not. local_eq) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
-        call geofax(rhocp, theta, rtp, rkp, rdp)
-        call geofax(rhocm, theta, rtm, rkm, rdm)
+        call geofax(rhocp, theta, rtp, rkp, rdp, nth, ntgrid)
+        call geofax(rhocm, theta, rtm, rkm, rdm, nth, ntgrid)
         qplus = geom%qfun(pbarofrho(rhocp))
         qmnus = geom%qfun(pbarofrho(rhocm))
         rkpri=0.5*(rkp-rkm)/delrho

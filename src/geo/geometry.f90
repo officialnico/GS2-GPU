@@ -1450,11 +1450,12 @@ contains
   !> FIXME : Add documentation
   !>
   !> @note This routine is just used by eik, not GS2. Left here for now as it uses internals
-  subroutine geofax(rho, theta, t, e, d)
+  subroutine geofax(rho, theta, t, e, d, nth, ntgrid)
     implicit none
     real, intent (in) :: rho
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
+    integer, intent(in) :: nth, ntgrid
     real, dimension(-ntgrid:ntgrid) :: rgrid
     real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
     integer :: i
