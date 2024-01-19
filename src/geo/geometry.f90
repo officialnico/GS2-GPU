@@ -110,8 +110,8 @@ module geometry
 
   private
 
-  public :: eikcoefs, geofax, pbarofrho, diameter, run_eikcoefs_and_resample
-  public :: rpofrho, finish_geometry, pbarfun, get_theta_eqarc
+  public :: eikcoefs, pbarfun, pbarofrho, rpofrho, diameter, run_eikcoefs_and_resample
+  public :: finish_geometry, get_theta_eqarc
   public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
@@ -1446,68 +1446,6 @@ contains
     end do
     phi = phi * (rpmax - rpmin)
   end function phi
-
-  !> FIXME : Add documentation
-  !>
-  !> @note This routine is just used by eik, not GS2. Left here for now as it uses internals
-  subroutine geofax(rho, theta, t, e, d, nth, ntgrid)
-    implicit none
-    real, intent (in) :: rho
-    real, dimension(-ntgrid:ntgrid), intent(in) :: theta
-    real, intent (out) :: t, e, d
-    integer, intent(in) :: nth, ntgrid
-    real, dimension(-nth:nth) :: rgrid
-    real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
-    integer :: i
-    logical, save :: first=.true.
-    if (first) then
-       write(*,'("WARNING: GEOFAX USES UNINITIALISED VALUES -- RESULT MAY NOT BE SENSIBLE")')
-       first = .false.
-    end if
-    rp = rpofrho(rho)
-    do i = -nth, nth
-       rgrid(i) = geom%run(rp, theta(i))
-    end do
-
-    ! do not treat up-down asymmetry completely for now
-    hmaxu = -1.e6 ; hmaxl = 1.e6
-    rmaxu = 0. ; rmaxl = 0.
-
-    do i = 0, nth
-       a = geom%Rpos(rgrid(i), theta(i))
-       b = geom%Zpos(rgrid(i), theta(i))
-
-       aa = geom%Rpos(rgrid(-i), theta(-i))
-       bb = geom%Zpos(rgrid(-i), theta(-i))
-
-       if (hmaxu < b ) then
-          hmaxu = b ; rmaxu = a
-       end if
-
-       if (hmaxl > bb ) then
-          hmaxl = bb ; rmaxl = aa
-       end if
-
-       Rlo = min(a, aa) ; Rhi = max(a, aa)
-       !<DD>WARNING : Rinnr has not been defined on first loop through
-       if (Rinnr > Rlo) then
-          Rinnr = Rlo
-       end if
-       !<DD>WARNING : Routr has not been defined on first loop through
-       if (Routr < Rhi) then
-          Routr = Rhi
-       end if
-    end do
-    a = (geom%Rpos(rgrid(0), theta(0)) - geom%Rpos(rgrid(nth), theta(nth)))
-    e = (hmaxu - hmaxl) / a
-    ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)
-    rmid=(Routr - Rinnr) / 2. ! midplane minor radius of this surface
-    ! Using only the upper triangularity:
-    ! wasn't properly normalized before 29 Feb 08, and don't use asin:
-    !    t = asin(rcenter(rp)-rmax)
-    t = (geom%rcenter(rp) - rmaxu) / rmid
-    d = geom%rcenter(rp) - geom%rcenter(rpmax)
-  end subroutine geofax
 
   !> Given the input theta and gradpar (= dtheta/dl) calculate and return a theta grid
   !> such that gradpar is constant and theta_eqarc is a theta grid with uniform arc length.
