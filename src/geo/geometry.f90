@@ -528,7 +528,7 @@ contains
       ! Initialise the specific geometry types (mostly reading data
       ! from file and calculating derived quantities).
       geom_inputs%surf = surf ; geom_inputs%thShift = thetaShift ; geom_inputs%big = big
-      geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile
+      geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile ; geom_inputs%theta = theta
       call geom%initialise(geom_inputs, rpmin, rpmax, surf%rmaj, B_T0, avgrmid)
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
 
