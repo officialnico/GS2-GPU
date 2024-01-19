@@ -1697,10 +1697,11 @@ contains
   real function drho_drp(rp, dr)
     implicit none
     real, intent(in) :: rp, dr
-    real :: rp1, rp2, rho1, rho2
+    real :: rp1, rp2, rho1, rho2, phirpmax
     rp1 = rp * (1 - dr) ; rp2 = rp * (1 + dr)
     if (irho == 1) then
-       rho1 = sqrt(abs(phi(rp1) / phi(rpmax))) ; rho2 = sqrt(abs(phi(rp2) / phi(rpmax)))
+       phirpmax = phi(rpmax)
+       rho1 = sqrt(abs(phi(rp1) / phirpmax)) ; rho2 = sqrt(abs(phi(rp2) / phirpmax))
     else if (irho == 2) then
        rho1 = 0.5 * diameter(rp1) ; rho2 = 0.5 * diameter(rp2)
     else if (irho == 3) then
