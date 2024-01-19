@@ -325,7 +325,7 @@ contains
     !> job_id is the job id in a Trinity or list mode run. Only for debug
     integer, intent(in), optional :: job_id_in
     logical :: start_file_utils, dummy_flag
-    integer :: job_id, i, iBmax, fort11_unit, ntheta
+    integer :: job_id, i, iBmax, fort11_unit
     real, allocatable, dimension(:) :: seik, rgrid, invR, trip, dsdthet, rmajor, dummy
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot, gradbtot
@@ -369,7 +369,7 @@ contains
     if (debug) write(6,*) "eikcoefs: call check ",'jid=',job_id
     call check(gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, idfit_eq, chs_eq, gs2d_eq, transp_eq, bishop)
 
-    call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod, ntgrid, nth, ntheta)
+    call init_uniform_theta_grid(ntheta_input, outputs%theta, nperiod, ntgrid, nth)
     surf%nt = ntheta_input
     if (debug) write(6,*) 'eikcoefs: alloc_local_arrays'
     if (.not. allocated(seik)) call alloc_local_arrays(ntgrid)
@@ -407,7 +407,7 @@ contains
     if (bishop /= 0) then
        call bishop_grads(surf%r, surf%rmaj, outputs%bmag, outputs%bpol)
     else
-       call bishop_large_aspect_ratio_approximation(surf%r, surf%dr)
+       call bishop_large_aspect_ratio_approximation(surf%r, surf%dr, ntheta_input)
     end if
 
     if (writelots) then
@@ -486,7 +486,7 @@ contains
     ! output file are not values of the poloidal angle but values of theta_prime
     if (equal_arc) then
        allocate(dummy(-ntgrid:ntgrid))
-       call arclength (ntheta, nperiod, outputs%theta, outputs%gradpar, dummy)
+       call arclength (ntheta_input, nperiod, outputs%theta, outputs%gradpar, dummy)
        outputs%theta = dummy
     end if
 
@@ -803,8 +803,9 @@ contains
     end subroutine bishop_grads
 
     !> @Note local_eq _must_ be false if we end in this routine. We make use of this.
-    subroutine bishop_large_aspect_ratio_approximation(rhoc, dr)
+    subroutine bishop_large_aspect_ratio_approximation(rhoc, dr, ntheta)
       real, intent(in) :: rhoc, dr
+      integer, intent(in) :: ntheta
       real :: delrp, rp1, rp2, qval1, qval2, bi1, bi2, dqdrho, pbar_1, pbar_2
       real, dimension(:), allocatable :: seik1, seik2, dsdrp
       integer :: itot, k
@@ -1603,25 +1604,25 @@ contains
 
   !> Initialse [[geometry:theta]] to a uniform grid with `2*((2*nperiod - 1)*(nt/2)) + 1`
   !> points. Also set [[geometry:nth]], [[geometry:ntheta]] and [[geometry::ntgrid]]
-  !> consistently; importantly [[geometry:nth]] is forced to be even. If `nt` is odd, then
-  !> `nth == nt - 1`.
+  !> consistently; importantly [[geometry:nth]] is forced to be even. If `ntheta` is odd, then
+  !> `nth == ntheta - 1`.
   !>
-  !> `nt` is set equal to [[geometry:ntheta]] on exit
-  subroutine init_uniform_theta_grid(nt, theta, nperiod, ntgrid, nth, ntheta)
+  !> `ntheta` is set equal to [[geometry:ntheta]] on exit
+  subroutine init_uniform_theta_grid(ntheta, theta, nperiod, ntgrid, nth)
     use constants, only: pi
     implicit none
-    integer, intent(in out) :: nt
+    integer, intent(in out) :: ntheta
     real, dimension(:), allocatable, intent(in out) :: theta
     integer, intent(in) :: nperiod
-    integer, intent(out) :: ntgrid, nth, ntheta
+    integer, intent(out) :: ntgrid, nth
     integer :: i
 
-    nth = nt / 2
+    nth = ntheta / 2
     ! Make sure ntheta is even, update argument and set ntgrid
-    ntheta = nth * 2 ; nt = ntheta ; ntgrid = (2 * nperiod - 1) * nth
+    ntheta = nth * 2 ; ntgrid = (2 * nperiod - 1) * nth
 
-    if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,nt,nperiod=",&
-      allocated(theta), ntgrid, nt, nperiod
+    if (verb>3) write(6,*) "init_theta: allocated(theta),ntgrid,ntheta,nperiod=",&
+      allocated(theta), ntgrid, ntheta, nperiod
 
     if (allocated(theta)) deallocate (theta)
     allocate(theta(-ntgrid:ntgrid))
