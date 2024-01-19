@@ -10,7 +10,7 @@ program eiktest
   use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
   !> Methods from geometry
   use geometry, only: eikcoefs_output_type, geofax, eikcoefs, pbarfun, geom
-  use geometry, only: pbarofrho, qfun, rpofrho, diameter
+  use geometry, only: pbarofrho, rpofrho, diameter
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
@@ -254,11 +254,11 @@ program eiktest
      write (funit,*) 'were calculated directly'
      write (funit,*) 'from the equilibrium.'
      write (funit,*) 'They should match the ones above' !EGH
-     q=qfun(0.)
+     q = geom%qfun(0.)
      write(funit,*) 'q_0= ',q
-     q=qfun(pbar)
+     q = geom%qfun(pbar)
      write(funit,*) 'rho= ',rhoc,' q(rho)= ',q
-     q=qfun(0.95)
+     q = geom%qfun(0.95)
      write(funit,*) 'q_95= ',q
 
      call geofax(rhoc, theta, rt, rk, rd)
@@ -267,15 +267,15 @@ program eiktest
         rhocm=rhoc-delrho
         call geofax(rhocp, theta, rtp, rkp, rdp)
         call geofax(rhocm, theta, rtm, rkm, rdm)
-        qplus=qfun(pbarofrho(rhocp))
-        qmnus=qfun(pbarofrho(rhocm))
+        qplus = geom%qfun(pbarofrho(rhocp))
+        qmnus = geom%qfun(pbarofrho(rhocm))
         rkpri=0.5*(rkp-rkm)/delrho
         rtpri=0.5*(rtp-rtm)/delrho
         rdpri=0.5*(rdp-rdm)/delrho
         if (dipole) then
            shat = 0.
         else
-           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbar)/delrho
+           shat = 0.5 * rhoc * (qplus - qmnus) / geom%qfun(pbar) / delrho
         endif
      else
         rkpri=akappri
@@ -283,7 +283,7 @@ program eiktest
         rdpri=shift
      endif
 
-     qq=qfun(pbar)
+     qq = geom%qfun(pbar)
      write(funit,*) 'shat= ',shat
      write(funit,*) 'qinp= ',qq
      write(funit,*) 'shift= ',rdpri

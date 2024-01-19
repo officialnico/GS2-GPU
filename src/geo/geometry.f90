@@ -111,7 +111,7 @@ module geometry
   private
 
   public :: eikcoefs, geofax, pbarofrho, Rpos, diameter, run_eikcoefs_and_resample
-  public :: qfun, rpofrho, finish_geometry, pbarfun, get_theta_eqarc
+  public :: rpofrho, finish_geometry, pbarfun, get_theta_eqarc
   public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
   public :: force_sym, writelots, equal_arc, bishop, use_large_aspect
@@ -637,7 +637,7 @@ contains
       call periodic_copy(trip, 0., nperiod)
 
       !     compute eikonal S
-      if (local_eq) qval = qfun(pbar) !leq:qfun ignores input pbar
+      if (local_eq) qval = geom%qfun(pbar) !leq:qfun ignores input pbar
       if (debug) write(6,*) "eikcoefs: call eikonal"
       call eikonal(theta, invR, trip, qval, bi, seik, dsdthet, dpsidrp)
       if (debug) write(6,*) "eikcoefs: done eikonal"
@@ -1144,13 +1144,6 @@ contains
     rhofun = geom%rhofun(pbar)
   end function rhofun
 
-  !> FIXME : Add documentation
-  real function qfun(pbar)
-    implicit none
-    real, intent(in) :: pbar
-    qfun = geom%qfun(pbar)
-  end function qfun
-
   !> Calculates the normalised radial coordinate
   pure real function psifun (rp)
     implicit none
@@ -1459,9 +1452,9 @@ contains
     end do
 
     ! Integrate area under q(pb) curve from pb = 0 to pbar
-    phi = 0. ; qi = qfun(pb(1))
+    phi = 0. ; qi = geom%qfun(pb(1))
     do i = 1, nimax - 1
-       qnext = qfun(pb(i+1))
+       qnext = geom%qfun(pb(i+1))
        phi = phi + 0.5 * dpb * (qnext + qi)
        qi = qnext
     end do
