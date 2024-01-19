@@ -571,7 +571,7 @@ contains
 
       pbar = pbarfun(rgrid(0), theta(0))
       drhodrp = drho_drp(rp, surf%dr)
-      bi = btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
+      bi = geom%btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
 
       if (writelots) then
          write(fort11_unit,*) 'rp of rho = ',rp
@@ -705,7 +705,7 @@ contains
       c_bish = - c_bish * bpol * rmajor
 
       ! find shat, pressure' and report them
-      dp = dpfun(pbar) ; di = dbtori(pbar)
+      dp = geom%dpfun(pbar) ; di = geom%dbtori(pbar)
 
       if (abs(qval) > epsilon(0.)) then
          tmp = rhoc / (qval * twopi * drhodpsi)
@@ -733,7 +733,7 @@ contains
       case (2)
          dp_new = p_prime_input
       case (3)
-         pressure = pfun(pbar)
+         pressure = geom%pfun(pbar)
          dp_new = -invLp_input * pressure * drhodpsi
       case (4, 6, 9)
          dp_new = 0.5 * beta_prime_input * drhodpsi
@@ -830,7 +830,7 @@ contains
       pbar_1 = pbarfun(rp1, outputs%theta(0)) ; pbar_2 = pbarfun(rp2, outputs%theta(0))
       ! Calculate modified btori -- note we use the fact that rgrid == rp in
       ! seikon to avoid having to form rgrid1/rgrid2 here.
-      bi1 = btori(pbar_1) ; bi2 = btori(pbar_2)
+      bi1 = geom%btori(pbar_1) ; bi2 = geom%btori(pbar_2)
 
       allocate(seik1(-ntgrid:ntgrid), seik2(-ntgrid:ntgrid), dsdrp(-ntgrid:ntgrid))
       call seikon(rp1, outputs%theta, invR, qval1, bi1, nperiod, seik1)
@@ -839,7 +839,7 @@ contains
       dqdrho = (qval2 - qval1) / (2 * dr)
       shat = dqdrho * rhoc / qval ! Output
       dqdrp = dqdrho * drhodrp ! Output
-      dbetadrho = 2 * dpfun(pbar) / drhodrp ! Output
+      dbetadrho = 2 * geom%dpfun(pbar) / drhodrp ! Output
 
       if (writelots) then
          write (fort11_unit,*) 'dqdrho=',dqdrho,' qval1,2= ',qval1, qval2
@@ -1037,7 +1037,7 @@ contains
     real, dimension(-ntgrid:), intent(out) :: rmajor
     integer :: i
     do i = -nth, nth
-       rmajor(i) = Rpos(rgrid(i), theta(i))
+       rmajor(i) = geom%Rpos(rgrid(i), theta(i))
     end do
   end subroutine rmajortgrid
 
@@ -1061,7 +1061,7 @@ contains
     real, dimension(-ntgrid:), intent(out) :: Zoftheta
     integer :: i
     do i = -nth, nth
-       Zoftheta(i) = Zpos(rgrid(i), theta(i))
+       Zoftheta(i) = geom%Zpos(rgrid(i), theta(i))
     end do
   end subroutine Ztgrid
 
@@ -1135,21 +1135,6 @@ contains
   end function diameter
 
   !> FIXME : Add documentation
-  real function btori(pbar)
-    implicit none
-    real, intent (in) :: pbar
-    btori = geom%btori(pbar)
-  end function btori
-
-  !> FIXME : Add documentation
-  !> returns dI/dpsi
-  real function dbtori(pbar)
-    implicit none
-    real, intent (in) :: pbar
-    dbtori = geom%dbtori(pbar)
-  end function dbtori
-
-  !> FIXME : Add documentation
   !> Only used with ~undocumented `irho = 4` option. Ideally would update to take pbar
   real function rhofun (rp)
     implicit none
@@ -1166,27 +1151,6 @@ contains
     qfun = geom%qfun(pbar)
   end function qfun
 
-  !> FIXME : Add documentation
-  real function pfun(pbar)
-    implicit none
-    real, intent (in) :: pbar
-    pfun = geom%pfun(pbar)
-  end function pfun
-
-  !> FIXME : Add documentation
-  real function dpfun(pbar)
-    implicit none
-    real, intent (in) :: pbar
-    dpfun = geom%dpfun(pbar)
-  end function dpfun
-
-  !> FIXME : Add documentation
-  real function psi(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    psi = geom%psi(r, thet)
-  end function psi
-
   !> Calculates the normalised radial coordinate
   pure real function psifun (rp)
     implicit none
@@ -1197,7 +1161,7 @@ contains
   real function pbarfun(r, theta)
     implicit none
     real, intent(in) :: r, theta
-    pbarfun = psifun(psi(r, theta))
+    pbarfun = psifun(geom%psi(r, theta))
   end function pbarfun
 
   !> FIXME : Add documentation
