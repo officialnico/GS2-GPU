@@ -577,18 +577,14 @@ contains
          write(fort11_unit,*) 'R_geo = ',surf%r_geo,' !or ',bi
 
          call open_output_file(fort78_unit,".fort.78")
+         call open_output_file(fort99_unit,".fort.99")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
             write(fort78_unit,*) theta(i), geom%Rpos(rgrid(i), theta(i)), &
                  geom%Zpos(rgrid(i), theta(i))
-         end do
-         call close_output_file(fort78_unit)
-
-         call open_output_file(fort99_unit,".fort.99")
-         do i = -nth, nth
             write(fort99_unit,*) 'i=', i, ' thet= ', theta(i), ' rgrid= ', rgrid(i)
          end do
-         call close_output_file(fort99_unit)
+         call close_output_file(fort78_unit) ; call close_output_file(fort99_unit)
 
          rbar = 0.
          do i = -nth, nth - 1
