@@ -1144,6 +1144,13 @@ contains
   end function pbarfun
 
   !> FIXME : Add documentation
+  real function pbarofrho(rho)
+    implicit none
+    real, intent (in) :: rho
+    pbarofrho = psifun(rpofrho(rho))
+  end function pbarofrho
+
+  !> FIXME : Add documentation
   subroutine drift(rgrid, rp, gradstot, gradrptot, gradztot, gradbtot, dqdrp, dpsidrho, &
        dpsidrp, bmag, invR, theta, rmajor, dbetadrho, bi, force_sym, nperiod, &
        gbdrift, gbdrift0, cvdrift, cvdrift0, cdrift, cdrift0)
@@ -1348,13 +1355,6 @@ contains
        ans(i) = ans(i+1) + 0.5 * (grid(i) - grid(i+1)) * (arg(i) + arg(i+1))
     end do
   end subroutine integrate
-
-  !> FIXME : Add documentation
-  real function pbarofrho(rho)
-    implicit none
-    real, intent (in) :: rho
-    pbarofrho = psifun(rpofrho(rho))
-  end function pbarofrho
 
   !> Find soln where f(soln) ~= fval. Works best if a and b bracket the root.
   !> We can then first bisect the bracket to narrow in on the solution.
