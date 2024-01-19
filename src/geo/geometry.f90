@@ -531,6 +531,13 @@ contains
       geom_inputs%eqfile = eqfile ; geom_inputs%eqnormfile = eqnormfile ; geom_inputs%theta = theta
       call geom%initialise(geom_inputs, rpmin, rpmax, surf%rmaj, B_T0, avgrmid)
       if (debug) write(6,*) "eikcoefs: rpmin,rpmax=", rpmin, rpmax
+      if (.not. local_eq) surf%r_geo = geom%rcenter(rpmax) !Only used for writelots/checks
+      if (surf%r_geo > surf%rmaj + 1.e-5) then
+         write(6,*)
+         write(6,*) 'Warning: the center of the LCFS is outboard of the '
+         write(6,*) 'center of the reference surface.  This is probably wrong.'
+         write(6,*)
+      end if
 
       if (writelots) then
          write(fort11_unit,*) 'All lengths normalized to the avg midplane minor radius'
@@ -544,21 +551,7 @@ contains
       end if
 
       if (debug) write(6,*) "eikcoefs: find rp ", 'jid=',job_id
-      if (local_eq) then
-         ! Because irho==2 if local_eq and diameter is effectively analytic
-         ! one would expect rpofrho(rho) == rho in this case. So here we
-         ! effectively just have an optimisation (I think)
-         rp = rhoc
-      else
-         rp = rpofrho(rhoc)
-         surf%r_geo = geom%rcenter(rpmax) !Only used for writelots/checks
-      end if
-      if (surf%r_geo > surf%rmaj + 1.e-5) then
-         write(6,*)
-         write(6,*) 'Warning: the center of the LCFS is outboard of the '
-         write(6,*) 'center of the reference surface.  This is probably wrong.'
-         write(6,*)
-      end if
+      rp = rpofrho(rhoc) ; drhodrp = drho_drp(rp, surf%dr)
       if (debug) write(6,*) "eikcoefs: rp=",rp, 'jid=',job_id
 
       if (debug) write(6,*) "eikcoefs: find rgrid"
@@ -566,7 +559,6 @@ contains
       call periodic_copy(rgrid, 0.0, nperiod)
 
       pbar = pbarfun(rgrid(0), theta(0))
-      drhodrp = drho_drp(rp, surf%dr)
       bi = geom%btori(pbar) ! Get the toroidal field function (i.e. fp = R B_T)
 
       if (writelots) then
