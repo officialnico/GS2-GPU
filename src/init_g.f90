@@ -4250,7 +4250,7 @@ contains
     use dist_fn_arrays, only: g, gnew, vpa, aj0
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
-    use geometry, only : surf, Rpos !< Should be Rplot from theta_grid instead of Rpos?
+    use geometry, only : surf, geom !< Should be Rplot from theta_grid instead of geom%Rpos?
     use spfunc, only: j0
     use array_utils, only: copy
     implicit none
@@ -4268,7 +4268,7 @@ contains
     ik = 1
     do is = 1, nspec
       do ig = -ntgrid, ntgrid
-        numeratorSum(ig) = numeratorSum(ig) + ((spec(is)%z)**2)*spec(is)%dens*exp(-((spec(is)%mass*spec(is)%temp)/(4*(spec(is)%z)**2))*((qinp/rhoc)*akx(it)*Rpos(rhoc,theta(ig)))**2)
+        numeratorSum(ig) = numeratorSum(ig) + ((spec(is)%z)**2)*spec(is)%dens*exp(-((spec(is)%mass*spec(is)%temp)/(4*(spec(is)%z)**2))*((qinp/rhoc)*akx(it)*geom%Rpos(rhoc,theta(ig)))**2)
       end do
       denominatorSum = denominatorSum + (spec(is)%z)**2*spec(is)%dens/spec(is)%temp
     end do

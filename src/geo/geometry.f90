@@ -110,7 +110,7 @@ module geometry
 
   private
 
-  public :: eikcoefs, geofax, pbarofrho, Rpos, diameter, run_eikcoefs_and_resample
+  public :: eikcoefs, geofax, pbarofrho, diameter, run_eikcoefs_and_resample
   public :: rpofrho, finish_geometry, pbarfun, get_theta_eqarc
   public :: eqfile, eqnormfile, irho, surf, verb, big
   public :: ppl_eq, transp_eq, chs_eq, efit_eq, gs2d_eq, idfit_eq, dfit_eq, local_eq, gen_eq
@@ -581,8 +581,8 @@ contains
          call open_output_file(fort78_unit,".fort.78")
          write(fort78_unit,*) '# theta_pol,  R,   Z'
          do i = -nth, nth
-            write(fort78_unit,*) theta(i), Rpos(rgrid(i), theta(i)), &
-                 Zpos(rgrid(i), theta(i))
+            write(fort78_unit,*) theta(i), geom%Rpos(rgrid(i), theta(i)), &
+                 geom%Zpos(rgrid(i), theta(i))
          end do
          call close_output_file(fort78_unit)
 
@@ -1113,20 +1113,6 @@ contains
     c = a(:, 1) * b(:, 1) + a(:, 2) * b(:, 2) + a(:, 3) * b(:, 3)
   end subroutine dottgridf
 
-  !> Returns the major radius R corresponding to the passed r and theta
-  real function Rpos(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    Rpos = geom%Rpos(r, thet)
-  end function Rpos
-
-  !> Returns the height Z corresponding to the passed r and theta
-  real function Zpos(r, thet)
-    implicit none
-    real, intent (in) :: r, thet
-    Zpos = geom%Zpos(r, thet)
-  end function Zpos
-
   !> Returns the diameter of the surface labelled by rp.
   real function diameter(rp)
     implicit none
@@ -1485,11 +1471,11 @@ contains
     rmaxu = 0. ; rmaxl = 0.
 
     do i = 0, nth
-       a = Rpos(rgrid(i), theta(i))
-       b = Zpos(rgrid(i), theta(i))
+       a = geom%Rpos(rgrid(i), theta(i))
+       b = geom%Zpos(rgrid(i), theta(i))
 
-       aa = Rpos(rgrid(-i), theta(-i))
-       bb = Zpos(rgrid(-i), theta(-i))
+       aa = geom%Rpos(rgrid(-i), theta(-i))
+       bb = geom%Zpos(rgrid(-i), theta(-i))
 
        if (hmaxu < b ) then
           hmaxu = b ; rmaxu = a
@@ -1509,7 +1495,7 @@ contains
           Routr = Rhi
        end if
     end do
-    a = (Rpos(rgrid(0), theta(0)) - Rpos(rgrid(nth), theta(nth)))
+    a = (geom%Rpos(rgrid(0), theta(0)) - geom%Rpos(rgrid(nth), theta(nth)))
     e = (hmaxu - hmaxl) / a
     ! Ro=(Routr+Rinnr)/2. should = rcenter(rp)
     rmid=(Routr - Rinnr) / 2. ! midplane minor radius of this surface
@@ -1613,12 +1599,12 @@ contains
     real :: r, thet, rpos_orig, zpos_orig
     ltheta(0) = 0.
     rold = rgrid(0) ; told = theta(0)
-    rpos_orig = Rpos(rold, told) ; zpos_orig = Zpos(rold, told)
+    rpos_orig = geom%Rpos(rold, told) ; zpos_orig = geom%Zpos(rold, told)
     rpos_new = rpos_orig ; zpos_new = zpos_orig
     do i = 1, nth
        rpos_old = rpos_new ; zpos_old = zpos_new
        r = rgrid(i) ; thet = theta(i)
-       rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
+       rpos_new = geom%Rpos(r, thet) ; zpos_new = geom%Zpos(r, thet)
        ltheta(i) = ltheta(i-1) + hypot((Rpos_new - Rpos_old), (Zpos_new - Zpos_old))
     end do
 
@@ -1626,7 +1612,7 @@ contains
     do i = -1, -nth, -1
        rpos_old = rpos_new ; zpos_old = zpos_new
        r = rgrid(i) ; thet = theta(i)
-       rpos_new = Rpos(r, thet) ; zpos_new = Zpos(r, thet)
+       rpos_new = geom%Rpos(r, thet) ; zpos_new = geom%Zpos(r, thet)
        ltheta(i) = ltheta(i+1) - hypot((Rpos_new - Rpos_old), (Zpos_new - Zpos_old))
     end do
   end subroutine loftheta
@@ -1927,16 +1913,16 @@ contains
     ! BD: bug??
     ! Is this correct for EFIT data?  Need to check
     do i = -ntgrid, ntgrid
-       Rplot(i) = Rpos(rgrid(i), theta(i))
-       Zplot(i) = Zpos(rgrid(i), theta(i))
+       Rplot(i) = geom%Rpos(rgrid(i), theta(i))
+       Zplot(i) = geom%Zpos(rgrid(i), theta(i))
     end do
     aplot = seik
 
     do i = -ntgrid, ntgrid
        rplus  = rgrid(i) * (1 + dr) ; rminus = rgrid(i) * (1 - dr)
        dr_tot = 2 * dr * rgrid(i)
-       Rprime(i) = (Rpos(rplus, theta(i)) - Rpos(rminus, theta(i))) / dr_tot
-       Zprime(i) = (Zpos(rplus, theta(i)) - Zpos(rminus, theta(i))) / dr_tot
+       Rprime(i) = (geom%Rpos(rplus, theta(i)) - geom%Rpos(rminus, theta(i))) / dr_tot
+       Zprime(i) = (geom%Zpos(rplus, theta(i)) - geom%Zpos(rminus, theta(i))) / dr_tot
     end do
     aprime = grads(:, 1) * dpsidrho
   end subroutine plotdata
