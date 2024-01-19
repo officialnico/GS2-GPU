@@ -540,7 +540,7 @@ contains
     real, intent(in) :: r_in, theta_in
     real, dimension(:,:), intent(in) :: f
     character(1), intent(in) :: char
-    integer :: i, j, istar, jstar
+    integer :: istar, jstar
     real :: r, thet, eqpsi_sign, tps
     real, dimension(size(f,2)) :: mtheta
     real, dimension(size(f,1)) :: dim_1
@@ -765,7 +765,7 @@ contains
     real, intent (in) :: r_in, theta_in
     real, dimension(:, :), intent(in) :: f
     character(1), intent(in) :: char
-    integer :: i, j, istar, jstar
+    integer :: istar, jstar
     real :: r, thet, r_pos, z_pos
     real, dimension(size(f, 1)) :: dim_1
     real, dimension(size(f, 2)) :: dim_2

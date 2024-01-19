@@ -326,9 +326,7 @@ contains
     integer, intent(in), optional :: job_id_in
     logical :: start_file_utils, dummy_flag
     integer :: job_id, i, iBmax, fort11_unit, ntheta
-    ! Local variables:
-    real, allocatable, dimension(:) :: seik, rgrid, invR, trip, ds, jacob, dsdthet, rmajor
-    real, allocatable, dimension(:) :: dummy
+    real, allocatable, dimension(:) :: seik, rgrid, invR, trip, dsdthet, rmajor, dummy
     real, allocatable, dimension(:,:) :: thgrad, rpgrad, crpgrad, grads
     real, allocatable, dimension(:,:) :: gradrptot, gradstot, gradztot, gradthtot, gradbtot
     real :: shat, dbetadrho, dqdrp, qval, dum, bi
@@ -1079,7 +1077,6 @@ contains
     real, dimension(-ntgrid:), intent (in) :: invR
     real, dimension(-ntgrid:, :), intent (in) :: grads
     real, dimension(-ntgrid:, :), intent (out) :: gradstot
-    integer :: i
     gradstot(:, 1:2) = grads
     if (use_large_aspect) then
        gradstot(:, 3) = 0.
