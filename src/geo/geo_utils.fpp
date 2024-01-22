@@ -224,11 +224,12 @@ contains
     class(abstract_geo_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
-    if (.not. self%initialised) call self%read_and_set(inputs)
+    if (.not. self%initialised) then
+       call self%read_and_set(inputs) ; call self%finish_setup
+    end if
     psi_a_out = self%psi_a ; psi_0_out = self%psi_0
     rmaj = self%R_mag ; B_T0 = abs(self%B_T) ; avgrmid = self%aminor
     self%initialised = .true.
-    call self%finish_setup
   end subroutine initialise
 
   pure subroutine alloc_arrays(self)
