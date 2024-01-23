@@ -790,6 +790,7 @@ contains
     use kt_grids, only: init_kt_grids
     use le_grids, only: init_le_grids
     use theta_grid, only: init_theta_grid, ntgrid
+    use gs2_time, only: init_gs2_time
     implicit none
     logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
@@ -797,9 +798,9 @@ contains
 
     if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
-    ! run_parameters:
-    call init_run_parameters
 
+    call init_run_parameters
+    call init_gs2_time
 if (debug) write(6,*) 'get_namelists: collisions'
     call coll_read_parameters
 
