@@ -797,8 +797,6 @@ contains
 
     if (debug) write(6,*) 'get_namelists: layouts'
     call init_gs2_layouts
-    call init_antenna
-
     ! run_parameters:
     call init_run_parameters
 
@@ -833,6 +831,8 @@ if (debug) write(6,*) 'get_namelists: init_species'
         coll_on = spec(is)%vnewk > epsilon(0.0) .or. coll_on
     end do
     coll_on = coll_on .and. (collision_model_switch /= collision_model_none)
+
+    call init_antenna
 
 !CMR, 2/2/2011:  reduce much duplication by calling init_theta_grid
 if (debug) write(6,*) 'get_namelists: call init_theta_grid, ntgrid=',ntgrid
