@@ -70,6 +70,7 @@ variables: &default_variables
   BUILD_PFUNIT_JOBS: "1"
   PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
   BUILD_PFUNIT_IGNORE_GIT: "yes"
+  BUILD_PFUNIT_FORCE_INSTALL: "yes"
   PFUNIT_VERSION_MAJOR: "4"
   PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 
