@@ -6180,7 +6180,7 @@ contains
        call integrate_species (g_work, wgt, antot)
 
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
-       if(esv) call ensure_single_val_fields_pass(antot)
+       if (esv) call ensure_single_val_fields_pass(antot, force_all = .true.)
     end if
 
     if (has_apar) then
@@ -6200,7 +6200,7 @@ contains
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
-       if(esv) call ensure_single_val_fields_pass(antota)
+       if (esv) call ensure_single_val_fields_pass(antota, force_all = .true.)
     end if
 
     if (has_bpar) then
@@ -6220,7 +6220,7 @@ contains
 
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
-       if(esv) call ensure_single_val_fields_pass(antotp)
+       if (esv) call ensure_single_val_fields_pass(antotp, force_all = .true.)
     end if
 
   end subroutine getan_from_dfn
