@@ -285,7 +285,7 @@ module init_g
      !> Which processor is responsible for saving/reading potentials to/from restart
      !> files. If <0 then all procs write to restart files. If >= nproc then set to
      !> proc_to_save_fields = mod(proc_to_save_fields, nproc)
-     integer :: proc_to_save_fields = -1
+     integer :: proc_to_save_fields = 0
      !> Width of "porcelli", "doubleharris" profiles in
      !> [[init_g_knobs:ginit_option]] `"recon3"`. If negative, this gives the
      !> ratio to the box size
@@ -4245,12 +4245,12 @@ contains
   !! JRB
   subroutine ginit_stationary_mode
     use species, only: spec, nspec
-    use theta_grid, only: ntgrid, theta, bmag
+    use theta_grid, only: ntgrid, theta, bmag, rhoc
     use kt_grids, only: akx
-    use dist_fn_arrays, only: g, gnew, vpa,  aj0
+    use dist_fn_arrays, only: g, gnew, vpa, aj0
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
-    use geometry, only : rhoc, qinp, Rpos, R_geo
+    use geometry, only : qinp, Rpos, R_geo
     use spfunc, only: j0
     use array_utils, only: copy
     implicit none

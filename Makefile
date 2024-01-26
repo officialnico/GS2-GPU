@@ -95,7 +95,6 @@ GS2_PYTHON_NAME ?= python3
 GS2_PYTEST_NAME ?= pytest
 # A user-settable name for this particular build of GS2
 GS2_BUILD_TAG ?= None
-
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
 # Does the compiler version support the iso_c_binding features of Fortran?
@@ -753,10 +752,6 @@ endif
 ifneq ($(strip $(MUST_INCLUDE_DEPEND)),)
 include $(DEPEND)
 endif
-
-geometry_c_interface.o: geometry_c_interface.h
-
-gryfx_libs: utils.a geo.a $(OBJDIR)/geometry_c_interface.o
 
 ############################################################# Get project specific targets
 Makefile.target_$(GK_PROJECT): ;

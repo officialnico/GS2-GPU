@@ -99,8 +99,7 @@ module eeq
 
   private
 
-  public :: efit_init, efitin, gradient, eqitem, bgradient, efit_finish
-  public :: gs2din
+  public :: efit_init, efitin, gradient, bgradient, efit_finish, gs2din
 
   public :: invR
   public :: Rpos

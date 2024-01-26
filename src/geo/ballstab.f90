@@ -30,11 +30,6 @@ module ballstab
   logical :: initialised = .false. 
   character(len=14) :: namelist_name="ballstab_knobs"
 
-  interface is_unstable
-     module procedure is_unstable_use_geo
-     module procedure is_unstable_use_passed
-  end interface is_unstable
-
   !> Used to represent the input configuration of ballstab
   type, extends(abstract_config_type) :: ballstab_config_type
      ! namelist : ballstab_knobs
@@ -271,21 +266,20 @@ contains
 
   !> Gets the current value of shat
   subroutine get_shat(shat_out)
-    use geometry, only: shat
+    use geometry, only: s_hat_input
     implicit none
     real, intent(out) :: shat_out
-    shat_out = shat
+    shat_out = s_hat_input
   end subroutine get_shat
 
   !> Sets the value of shat
   subroutine set_shat(shat_in)
-    use geometry, only: s_hat_input, shat
+    use geometry, only: s_hat_input
     implicit none
     real, intent(in) :: shat_in
     !Note for bishop = 6,7 or not in 2-9 and iflux==1 cannot change shat
     !Should flag this somewhere (during init)
     s_hat_input = shat_in
-    shat = shat_in
   end subroutine set_shat
 
   !> Gets the current value of beta_prime (or equivalent var)
@@ -426,18 +420,26 @@ contains
        iunstable, theta0, restore)
     !Note iunstable>0 means unstable - Could use a logical but size may be interesting
     use theta_grid_params, only: ntheta
-    use geometry, only: dbetadrho, eikcoefs
+    use geometry, only: eikcoefs, eikcoefs_output
+    use optionals, only: get_option_with_default
     implicit none
     real, intent(in) :: shat_in, beta_prime_in
     real, intent(out) :: dbetadrho_out
     integer, intent(out) :: iunstable
     real, intent(in), optional :: theta0
     logical, intent(in), optional :: restore
+    type(eikcoefs_output) :: eikcoefs_results
     real :: shat_bak, beta_prime_bak
+    integer :: ntgrid
+    logical :: local_restore
     
-    !Store initial state
-    call get_shat(shat_bak)
-    call get_beta_prime(beta_prime_bak)
+    local_restore = get_option_with_default(restore, .false.)
+
+    !Store initial state if we're going to restore
+    if (local_restore) then
+       call get_shat(shat_bak)
+       call get_beta_prime(beta_prime_bak)
+    end if
 
     !Setup geometry
     !NOTE: As how we can influence beta_prime (and shat) varies with bishop
@@ -445,38 +447,10 @@ contains
     !physical parameter dbetadrho should really be the relevant parameter.
     call set_beta_prime(beta_prime_in)
     call set_shat(shat_in)
-    call eikcoefs(ntheta) !Recalculate geometry terms
+    call eikcoefs(ntheta, eikcoefs_results) !Recalculate geometry terms
 
     !Here we pass out the value of dbetadrho, this should be bishop value independent
-    dbetadrho_out = dbetadrho
-
-    !Test stability
-    iunstable = is_unstable(theta0)
-
-    !Restore geometry if requested
-    if(present(restore))then
-       if(restore) then
-          call set_beta_prime(beta_prime_bak)
-          call set_shat(shat_bak)
-          call eikcoefs(ntheta)
-       endif
-    endif
-  end subroutine check_stability
-
-  !> Test stability of current system for passed theta0 -- return integer
-  !>
-  !> Note is_unstable>0 means unstable - Could use a logical but size
-  !> may be interesting.
-  !>
-  !> Assumes a call has been made to eikcoefs so that geometry terms
-  !> are setup correctly and passes these to generic is_unstable
-  !> implementation
-  integer function is_unstable_use_geo(theta0_in) result(is_unstable_out)
-    use geometry, only: gds2, gradpar, bmag, cvdrift, dbetadrho, theta
-    use geometry, only: gds21, gds22, cvdrift0
-    implicit none
-    real, intent(in), optional :: theta0_in
-    integer :: ntgrid
+    dbetadrho_out = eikcoefs_results%dbetadrho
 
     !Note we don't use theta_grid:ntgrid as in the case that
     !gridgen resizes the theta grid used by GS2 we don't end up
@@ -484,18 +458,29 @@ contains
     !Really we would like to use everything from theta_grid directly but we'd
     !need some way to force theta_grid to update it's internal arrays when we
     !change parameters
-    ntgrid=ubound(theta,1)
+    ntgrid=ubound(eikcoefs_results%theta,1)
 
-    is_unstable_out = is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
-         gds2, gds21, gds22, cvdrift, cvdrift0, theta0)
-  end function is_unstable_use_geo
+    !Test stability
+    iunstable = is_unstable(ntgrid, eikcoefs_results%theta, eikcoefs_results%bmag, &
+         eikcoefs_results%dbetadrho, eikcoefs_results%gradpar, eikcoefs_results%gds2, &
+         eikcoefs_results%gds21, eikcoefs_results%gds22, eikcoefs_results%cvdrift, &
+         eikcoefs_results%cvdrift0, theta0)
+
+    !Restore geometry if requested
+    if (local_restore) then
+       call set_beta_prime(beta_prime_bak)
+       call set_shat(shat_bak)
+       call eikcoefs(ntheta, eikcoefs_results)
+    end if
+  end subroutine check_stability
 
   !> Test stability of current system for passed theta0 and geometry -- return integer
   !>
   !> Note is_unstable>0 means unstable - Could use a logical but size
   !> may be interesting.
-  integer function is_unstable_use_passed(ntgrid, theta, bmag, dbetadrho, gradpar, &
-       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) result(is_unstable_out)
+  pure integer function is_unstable(ntgrid, theta, bmag, dbetadrho, gradpar, &
+       gds2, gds21, gds22, cvdrift, cvdrift0, theta0_in) &
+       result(is_unstable_out)
     use optionals, only: get_option_with_default
     implicit none
     integer, intent(in) :: ntgrid
@@ -507,8 +492,7 @@ contains
     real, dimension(-ntgrid:ntgrid) :: g, c, psi, c1, c2, ch, g1, g2, gh
     real, dimension(-ntgrid:ntgrid-1) :: delthet
     integer :: ig
-    real :: cflmax, cflmin, one_m_diff, psi_prime, theta0
-    logical, parameter :: debug = .false.
+    real :: one_m_diff, psi_prime, theta0
 
     !Initialise
     theta0 = get_option_with_default(theta0_in, 0.0)
@@ -526,21 +510,6 @@ contains
        ch(ig)=0.5*(c(ig)+c(ig-1))
        gh(ig)=0.5*(g(ig)+g(ig-1))
     enddo
-
-    ! Note this section (with writes) prevents us from marking this function
-    ! as pure.
-    if(debug) then
-       cflmax = delthet(-ntgrid)**2
-       cflmax = cflmax*(c(-ntgrid+1)+c(-ntgrid))/(g(-ntgrid+1)+g(-ntgrid))
-       cflmin = cflmax
-       do ig=-ntgrid+1,ntgrid
-          cflmax=max(cflmax,delthet(ig-1)**2*ch(ig)/gh(ig))
-          cflmin=min(cflmin,delthet(ig-1)**2*ch(ig)/gh(ig))
-       enddo
-       write(6,'("|cflmax| = ",F12.5)') abs(cflmax)
-       write(6,'("|cflmin| = ",F12.5)') abs(cflmin)
-       write(6,'("These should be much less than 1")') !Could actually do a quantitative check
-    endif
 
     !Calculate coefficients -- note we don't set the value at -ntgrid or ntgrid
     do ig=-ntgrid+1,ntgrid-1
@@ -577,7 +546,7 @@ contains
     enddo
 
     !Probably want to think about writing out psi if debug
-  end function is_unstable_use_passed
+  end function is_unstable
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid

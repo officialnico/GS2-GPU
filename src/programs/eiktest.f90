@@ -2,13 +2,22 @@
 program eiktest
   use mp, only: init_mp, finish_mp, proc0
   use constants, only: pi, run_name_size
-  use geometry
+  !> Inputs
+  use geometry, only: nperiod, geoType, rmaj, shift, eqfile
+  use geometry, only: equal_arc, rhoc, itor, qinp, iflux, delrho
+  use geometry, only: bishop, irho, isym, efit_eq, dfit_eq, writelots, R_geo
+  use geometry, only: gen_eq, ppl_eq, local_eq, idfit_eq, chs_eq, s_hat_input
+  use geometry, only: p_prime_input, invLp_input, beta_prime_input, big, gs2d_eq
+  use geometry, only: transp_eq, eqnormfile, alpha_input, dp_mult
+  !> Methods from geometry
+  use geometry, only: eikcoefs_output, eqinit, geofax, Hahm_Burrell, eikcoefs
+  use geometry, only: pbarofrho, qfun, rpofrho, rfun, diameter, beta_a_fun
   use file_utils, only: init_file_utils, run_name
   use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
   use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
   implicit none
 
-  integer :: i, ntgrid, ntheta
+  integer :: i, ntgrid, ntheta, shotnum
   real :: broot
   real :: q, qq, qplus, qmnus
   real :: bb, profile_fac
@@ -16,19 +25,25 @@ program eiktest
   real :: rt, rtm, rtp, rtpri
   real :: rd, rdm, rdp, rdpri
   real :: rhocm, rhocp
-  real :: bbar
+  real :: bbar, rmin, rmax
   real :: akappa, akappri, tri, tripri
 
   real :: diffscheme, beta_p1, beta_p2, beta_prime_times, beta_prime_over
+  real :: tstar
   integer :: nbeta, funit
 
   logical :: no_end_point
 
-  logical :: fast, dipole, list
+  logical :: fast, dipole, list, Xanthopoulos, in_nt
   character(len=:), allocatable :: in_stem, out_stem
 
   character(len=run_name_size) :: ncout
-
+  type(eikcoefs_output) :: eikcoefs_results
+  real, dimension(:), allocatable :: theta, bmag, aplot, aprime, bpol, cvdrift, grho
+  real, dimension(:), allocatable :: cvdrift0, gbdrift, gbdrift0, gds2, gds21, gds22
+  real, dimension(:), allocatable :: gradpar, zplot, zprime, rprime, rplot
+  real :: qsf, surfarea, kxfac, dvdrhon, shat, drhodpsin, dbetadrho
+  integer :: fort11_unit
   namelist/stuff/ntheta,nperiod,geoType,rmaj,akappri,akappa,shift,equal_arc, &
        rhoc,rmin,rmax,itor,qinp,iflux,delrho,tri,bishop, &
        irho,isym,tripri,efit_eq,dfit_eq,writelots,R_geo, &
@@ -59,14 +74,13 @@ program eiktest
   tstar = 1.0
 
   ntheta=32; nperiod=1
-  equal_arc = .false. ; bishop = 0 ; in_nt = .false. ; fast = .true.
+  equal_arc = .false. ; bishop = 0 ; fast = .true.
   itor=1; iflux=0;  big = 8
 
   eqfile='dskeq.cdf'
   rhoc=0.5
 
-  rmin=0.05
-  rmax=1.0  ! other than unity is an inconsistent normalization
+  rmin=-1.0 ; rmax=-1.0
 
   beta_prime_times = -1.
 
@@ -108,7 +122,13 @@ program eiktest
   open(newunit=funit,file=in_stem//'.in')
   read(funit,nml=stuff)
   close(funit)
-  
+
+  if (Xanthopoulos) write(*,*) "Option deprecated : Xanthopoulos set but unused"
+  if (in_nt) write(*,*) "Option deprecated : in_nt set but unused"
+  if (.not. fast) write(*,*) "Option deprecated : fast set but doesn't do anything"
+  if (rmin /= -1) write(*,*) "Option deprecated : rmin set but not used"
+  if (rmax /= -1) write(*,*) "Option deprecated : rmax set but not used"
+
   if(bishop >= 7) then
      if(beta_prime_times == -1) then
         write(*,*) 'beta_prime_times should be set for bishop = 7 or 8'
@@ -116,7 +136,7 @@ program eiktest
      endif
      dp_mult = beta_prime_times
   endif
-
+  fort11_unit = 12
 !
 ! Note that if iflux=1 then always choose itor=1
 !
@@ -125,8 +145,8 @@ program eiktest
      write(*,*) 'Forcing itor=1'
   endif
   
-  if(iflux.eq.2) then
-     write(*,*) 'iflux=2 is not a standalone option.'
+  if(iflux /= 0 .and. iflux /=1) then
+     write(*,*) 'iflux=0 or 1 is the only option.'
      stop
   endif
 !
@@ -155,9 +175,35 @@ program eiktest
   open(unit=99,file=out_stem//'eik3.out',status='unknown')
   open(unit=78,file=out_stem//'eik7.out',status='unknown')
   
-  call eikcoefs(ntheta)
-! note that ntheta may have changed
+  call eikcoefs(ntheta, eikcoefs_results)
 
+  ! Unpack results for ease of use
+  theta = eikcoefs_results%theta
+  bmag = eikcoefs_results%bmag
+  gradpar = eikcoefs_results%gradpar
+  grho = eikcoefs_results%grho
+  cvdrift = eikcoefs_results%cvdrift
+  gbdrift = eikcoefs_results%gbdrift
+  cvdrift0 = eikcoefs_results%cvdrift0
+  gbdrift0 = eikcoefs_results%gbdrift0
+  gds2 = eikcoefs_results%gds2
+  gds21 = eikcoefs_results%gds21
+  gds22 = eikcoefs_results%gds22
+  rplot = eikcoefs_results%rplot
+  zplot = eikcoefs_results%zplot
+  aplot = eikcoefs_results%aplot
+  rprime = eikcoefs_results%rprime
+  zprime = eikcoefs_results%zprime
+  aprime = eikcoefs_results%aprime
+  bpol = eikcoefs_results%bpol
+  kxfac = eikcoefs_results%kxfac
+  qsf = eikcoefs_results%qsf
+  surfarea = eikcoefs_results%surfarea
+  dvdrhon = eikcoefs_results%dvdrhon
+  shat = eikcoefs_results%shat
+  drhodpsin = eikcoefs_results%drhodpsin
+
+  ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2
 
   if (writelots) then
@@ -172,7 +218,6 @@ program eiktest
            
   if (dipole) then
      shat = max(1.e-7, shat)
-     if (shat == 1.e-7) gds22 = shat*shat
   end if
 
   write(21,*) ' ntgrid  nperiod  ntheta, drhodpsi, rmaj, shat, kxfac, q'
@@ -208,7 +253,7 @@ program eiktest
   dipole = dfit_eq .or. idfit_eq
 
   if (.not. dipole) then
-     bb=beta_a_fun(rfun(rpofrho(rhoc),0.,broot),0.)
+     bb=beta_a_fun(rfun(rpofrho(rhoc, fort11_unit),0.,broot),0.)
      write(21,*) '-8*pi/B_0**2 * dp/drho= '
      if(bb.ne.0.) then
         write(21,1000) -dbetadrho
@@ -226,27 +271,27 @@ program eiktest
      write (11,*) 'They should match the ones above' !EGH
      q=qfun(0.)
      write(11,*) 'q_0= ',q
-     q=qfun(pbarofrho(rhoc))
+     q=qfun(pbarofrho(rhoc, fort11_unit))
      write(11,*) 'rho= ',rhoc,' q(rho)= ',q
   !      write(*,*) 'rho= ',rhoc,' q(rho)= ',q
      q=qfun(0.95)
      write(11,*) 'q_95= ',q
   
-     call geofax(rhoc, rt, rk, rd)
+     call geofax(rhoc, theta, rt, rk, rd, fort11_unit)
      if(iflux == 1) then
         rhocp=rhoc+delrho
         rhocm=rhoc-delrho
-        call geofax(rhocp, rtp, rkp, rdp)
-        call geofax(rhocm, rtm, rkm, rdm)
-        qplus=qfun(pbarofrho(rhocp))
-        qmnus=qfun(pbarofrho(rhocm))
+        call geofax(rhocp, theta, rtp, rkp, rdp, fort11_unit)
+        call geofax(rhocm, theta, rtm, rkm, rdm, fort11_unit)
+        qplus=qfun(pbarofrho(rhocp, fort11_unit))
+        qmnus=qfun(pbarofrho(rhocm, fort11_unit))
         rkpri=0.5*(rkp-rkm)/delrho
         rtpri=0.5*(rtp-rtm)/delrho
         rdpri=0.5*(rdp-rdm)/delrho
         if (dipole) then
            shat = 0.
         else
-           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbarofrho(rhoc))/delrho
+           shat = 0.5*rhoc*(qplus-qmnus)/qfun(pbarofrho(rhoc, fort11_unit))/delrho
         endif
      else
         rkpri=akappri
@@ -254,7 +299,7 @@ program eiktest
         rdpri=shift
      endif
   
-     qq=qfun(pbarofrho(rhoc))
+     qq=qfun(pbarofrho(rhoc, fort11_unit))
      write(11,*) 'shat= ',shat
      write(11,*) 'qinp= ',qq
      write(11,*) 'shift= ',rdpri
@@ -263,9 +308,9 @@ program eiktest
      write(11,*) 'tri= ',rt
      write(11,*) 'tripri= ',rtpri
      write(11,*) 'surface area= ',surfarea,' avgrmid**2'
-     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc))
-     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0))/2.0, ' ...  should be 1'
-     write(11, *) 'r/a = ', diameter(rpofrho(rhoc))/diameter(rpofrho(1.0))
+     write(11, *) 'diameter/a = ', diameter(rpofrho(rhoc, fort11_unit))
+     write(11, *) 'diameter(rhoc=1.0)/a/2.0 = ', diameter(rpofrho(1.0, fort11_unit))/2.0, ' ...  should be 1'
+     write(11, *) 'r/a = ', diameter(rpofrho(rhoc, fort11_unit))/diameter(rpofrho(1.0, fort11_unit))
   end if
      
   close(11)

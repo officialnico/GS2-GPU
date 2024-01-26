@@ -16,7 +16,7 @@ module peq
 
   private
 
-  public :: peq_init, eqin, teqin, gradient, eqitem, bgradient, Hahm_Burrell, peq_finish
+  public :: peq_init, eqin, teqin, gradient, bgradient, Hahm_Burrell, peq_finish
 
   public :: invR,     initialize_invR
   public :: Rpos
@@ -60,7 +60,7 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !! containing the axisymmetric magnetic field geometry in flux 
   !! coordinates
-  subroutine eqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, in_nt, nthg) 
+  subroutine eqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg) 
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
@@ -69,7 +69,6 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    logical, intent(in) :: in_nt
     real :: d, R_geo
     integer :: istatus
     integer :: ncid, id, i, j
@@ -92,155 +91,151 @@ contains
     ! (unconfirmed) but not `gs2` (also unconfirmed).
     if(initeq == 0) return
     
-    if (.not.in_nt) then
+    nchar=index(eqfile,' ')-1
+    filename=eqfile(1:nchar)
 
-       nchar=index(eqfile,' ')-1
-       filename=eqfile(1:nchar)
+    !     netcdf open file
+    istatus = nf90_open(filename, NF90_NOWRITE, ncid)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=filename)
 
-       !     netcdf open file         
-       istatus = nf90_open(filename, NF90_NOWRITE, ncid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=filename)
+    !     netcdf read scalar: nr
+    !
+    !     nz2 == number of points in radial array
+    !     nr == number of actual grid points in radial array
+    istatus = nf90_inq_dimid (ncid, 'z2', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='z2')
+    istatus = nf90_inquire_dimension (ncid, id, len=nz2)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-       !     netcdf read scalar: nr
-       !
-       !     nz2 == number of points in radial array
-       !     nr == number of actual grid points in radial array
-       istatus = nf90_inq_dimid (ncid, 'z2', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='z2')
-       istatus = nf90_inquire_dimension (ncid, id, len=nz2)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
+    istatus = nf90_inq_dimid (ncid, 'z1', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='z1')
+    istatus = nf90_inquire_dimension (ncid, id, len=nz1)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-       istatus = nf90_inq_dimid (ncid, 'z1', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='z1')
-       istatus = nf90_inquire_dimension (ncid, id, len=nz1)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
+    istatus = nf90_inq_dimid (ncid, 'npsi', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='npsi')
+    istatus = nf90_inquire_dimension (ncid, id, len=nr)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-       istatus = nf90_inq_dimid (ncid, 'npsi', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='npsi')
-       istatus = nf90_inquire_dimension (ncid, id, len=nr)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
+    istatus = nf90_inq_varid (ncid, 'nxy', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='nxy')
+    istatus = nf90_get_var (ncid, id, i_sym, start=(/ 8 /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       istatus = nf90_inq_varid (ncid, 'nxy', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='nxy')
-       istatus = nf90_get_var (ncid, id, i_sym, start=(/ 8 /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    !     netcdf read scalar: nt
+    !
+    !     nt == number of theta grid points in theta eq grid
+    istatus = nf90_inq_dimid (ncid, 'nthe', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='nthe')
+    istatus = nf90_inquire_dimension (ncid, id, len=nt)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
 
-       !     netcdf read scalar: nt
-       !
-       !     nt == number of theta grid points in theta eq grid
-       istatus = nf90_inq_dimid (ncid, 'nthe', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='nthe')
-       istatus = nf90_inquire_dimension (ncid, id, len=nt)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, dimid=id)
+    call alloc_arrays(nr, nt)
 
-       call alloc_arrays(nr, nt)
-       
-       !     netcdf read vectors: rho_d, eqpsi, psi_bar, fp, beta, pressure
-       !
-       !     rho_d(1:nr) == half diameters of flux surfaces at elevation 
-       !                             of Z_mag on the radial grid
-       !     psi is the poloidal flux
-       !     eqpsi(1:nr) == values of psi on the radial grid
-       !     psi_bar(1:nr) == values of psi_bar on the radial grid
-       !     [psi_bar == (eqpsi - psi_0)/(psi_a - psi_0) if not available]
-       !     fp(1:nr) == the function that satisfies 
-       !              B = fp grad zeta + grad zeta x grad psi
-       !     beta(1:nr) == local beta, with the magnetic field defined 
-       !     to be vacuum magnetic field on axis
-       !     pressure(1:nr) == pressure profile on the radial grid,
-       !     normalized to the value at the magnetic axis.     
-       
-       istatus = nf90_inq_varid (ncid, 'psivec', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psivec')
-       istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    !     netcdf read vectors: rho_d, eqpsi, psi_bar, fp, beta, pressure
+    !
+    !     rho_d(1:nr) == half diameters of flux surfaces at elevation
+    !                             of Z_mag on the radial grid
+    !     psi is the poloidal flux
+    !     eqpsi(1:nr) == values of psi on the radial grid
+    !     psi_bar(1:nr) == values of psi_bar on the radial grid
+    !     [psi_bar == (eqpsi - psi_0)/(psi_a - psi_0) if not available]
+    !     fp(1:nr) == the function that satisfies
+    !              B = fp grad zeta + grad zeta x grad psi
+    !     beta(1:nr) == local beta, with the magnetic field defined
+    !     to be vacuum magnetic field on axis
+    !     pressure(1:nr) == pressure profile on the radial grid,
+    !     normalized to the value at the magnetic axis.
 
-       istatus = nf90_inq_varid (ncid, 'fvec', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='fvec')
-       istatus = nf90_get_var (ncid, id, fp, count=(/ nr /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    istatus = nf90_inq_varid (ncid, 'psivec', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='psivec')
+    istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       istatus = nf90_inq_varid (ncid, 'pvec', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='pvec')
-       istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    istatus = nf90_inq_varid (ncid, 'fvec', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='fvec')
+    istatus = nf90_get_var (ncid, id, fp, count=(/ nr /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       !     assign scalars: psi_0, psi_a, B_T
-       !
-       !     psi_0 == value of psi at the magnetic axis
-       !     psi_a == value of psi at the boundary of the plasma
-       !     B_T == vacuum toroidal magnetic field at R_center
-       !
-       psi_0 = eqpsi(1)
-       psi_a = eqpsi(nr)
+    istatus = nf90_inq_varid (ncid, 'pvec', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='pvec')
+    istatus = nf90_get_var (ncid, id, eqpsi, count=(/ nr /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
+    !     assign scalars: psi_0, psi_a, B_T
+    !
+    !     psi_0 == value of psi at the magnetic axis
+    !     psi_a == value of psi at the boundary of the plasma
+    !     B_T == vacuum toroidal magnetic field at R_center
+    !
+    psi_0 = eqpsi(1)
+    psi_a = eqpsi(nr)
 
-       !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
-       !     R_psi(1:nr, 1:nt) -- transpose of Menard's storage ...
-       !     Z_psi(1:nr, 1:nt)
-       !     B_psi(1:nr, 1:nt)
-       allocate(work(nz1*nz2))
+    psi_bar = (eqpsi-psi_0)/(psi_a-psi_0)
 
-       istatus = nf90_inq_varid (ncid, 'x', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='x')
-       istatus = nf90_get_var (ncid, id, work, count=(/ nz1*nz2 /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    !     netcdf read 2d field: R_psi,Z_psi and B_psi (mod(B))
+    !     R_psi(1:nr, 1:nt) -- transpose of Menard's storage ...
+    !     Z_psi(1:nr, 1:nt)
+    !     B_psi(1:nr, 1:nt)
+    allocate(work(nz1*nz2))
 
-       if(i_sym == 0) then
-          write(*,*) 'Up-down asymmetries not yet handled correctly.'
-       endif
+    istatus = nf90_inq_varid (ncid, 'x', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='x')
+    istatus = nf90_get_var (ncid, id, work, count=(/ nz1*nz2 /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       do j=1,nt
-          do i=1,nr
-             R_psi(i,j) = work(3+j-1+nz1*(i-1))
-          enddo
+    if(i_sym == 0) then
+       write(*,*) 'Up-down asymmetries not yet handled correctly.'
+    endif
+
+    do j=1,nt
+       do i=1,nr
+          R_psi(i,j) = work(3+j-1+nz1*(i-1))
        enddo
+    enddo
 
-       istatus = nf90_inq_varid (ncid, 'z', id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='z')
-       istatus = nf90_get_var (ncid, id, work, count=(/ nz1, nz2 /))
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
+    istatus = nf90_inq_varid (ncid, 'z', id)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='z')
+    istatus = nf90_get_var (ncid, id, work, count=(/ nz1, nz2 /))
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, id)
 
-       if(i_sym == 0) then
-          write(*,*) 'Up-down asymmetries not yet handled correctly.'
-       endif
+    if(i_sym == 0) then
+       write(*,*) 'Up-down asymmetries not yet handled correctly.'
+    endif
 
-       do j=1,nt
-          do i=1,nr
-             Z_psi(i,j) = work(3+j-1+nz1*(i-1))
-          enddo
+    do j=1,nt
+       do i=1,nr
+          Z_psi(i,j) = work(3+j-1+nz1*(i-1))
        enddo
+    enddo
 
 
-       !     assign scalars: R_mag, Z_mag, aminor
-       !
-       !     R_mag == R position of magnetic axis
-       !     Z_mag == Z position of magnetic axis
-       !     aminor    == half diameter of last flux surface at elevation of Z_mag
+    !     assign scalars: R_mag, Z_mag, aminor
+    !
+    !     R_mag == R position of magnetic axis
+    !     Z_mag == Z position of magnetic axis
+    !     aminor    == half diameter of last flux surface at elevation of Z_mag
 
-       d = R_psi(nr,1) - R_psi(nr,nt)
-       R_geo = (R_psi(nr,1) + R_psi(nr, nt))/2.
-       aminor = d/2.
-       
-       B_T = fp(nr)/R_geo
+    d = R_psi(nr,1) - R_psi(nr,nt)
+    R_geo = (R_psi(nr,1) + R_psi(nr, nt))/2.
+    aminor = d/2.
 
-       R_psi = R_psi / aminor
-       Z_psi = Z_psi / aminor
+    B_T = fp(nr)/R_geo
 
-       R_mag = R_psi(1,1)
-       Z_mag = Z_psi(1,1)
+    R_psi = R_psi / aminor
+    Z_psi = Z_psi / aminor
 
-       beta = 8. * pi * 1.e-7 * pressure / B_T**2  ! not correct definition yet
-       beta_0 = beta(1)
-       pressure = pressure/pressure(1)
+    R_mag = R_psi(1,1)
+    Z_mag = Z_psi(1,1)
 
-       istatus = nf90_close(ncid)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus)
+    beta = 8. * pi * 1.e-7 * pressure / B_T**2  ! not correct definition yet
+    beta_0 = beta(1)
+    pressure = pressure/pressure(1)
 
-       deallocate(work)
+    istatus = nf90_close(ncid)
+    if (istatus /= NF90_NOERR) call netcdf_error (istatus)
 
-    endif   ! end of external reads
+    deallocate(work)
                        
     !
     !     Normalize, rename quantities 
@@ -269,7 +264,7 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file
   !! containing the axisymmetric magnetic field geometry in flux 
   !! coordinates
-  subroutine teqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, in_nt, nthg) 
+  subroutine teqin(eqfile, psi_0_out, psi_a_out, rmaj, B_T0, avgrmid, initeq, nthg) 
     use mp, only: mp_abort
     use constants, only: pi
     implicit none
@@ -277,7 +272,6 @@ contains
     real, intent(out) :: psi_0_out, psi_a_out, rmaj, B_T0, avgrmid
     integer, intent(in) :: initeq
     integer, intent(out) :: nthg
-    logical, intent(in) :: in_nt
     real :: R_geo
     integer :: istatus
     integer :: ncid, id, i, j
@@ -294,13 +288,9 @@ contains
        nthg = nt/2
        return
     endif
-    if (.not.in_nt) then
 
-       nchar=index(eqfile,' ')-1
-       filename=eqfile(1:nchar)
-    else
-       filename='dskeq.cdf'
-    endif
+    nchar=index(eqfile,' ')-1
+    filename=eqfile(1:nchar)
 
 # ifdef NETCDF
     !     netcdf open file         

@@ -15,13 +15,15 @@ PFUNIT_ERROR:=pfunit.error
 MACRO_DEFS += -DPFUNIT_VERSION_MAJOR=$(PFUNIT_VERSION_MAJOR)
 
 ifeq ($(PFUNIT_VERSION_MAJOR),4)
-  include $(PFUNIT_DIR)/include/PFUNIT.mk
+  PFUNIT_VERSION_MINOR ?= 8
+  sinclude $(PFUNIT_DIR)/PFUNIT-${PFUNIT_VERSION_MAJOR}.${PFUNIT_VERSION_MINOR}/include/PFUNIT.mk
   PFUNIT_MOD := pfunit
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_BIN_DIR)/funitproc
   PFUNIT_INC := -I$(PFUNIT_INCLUDE_DIR)
   PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES)
   F90FLAGS += $(PFUNIT_EXTRA_FFLAGS)
 else
+  PFUNIT_TOP_DIR := $(PFUNIT_DIR)
   PFUNIT_MOD := pfunit_mod
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_DIR)/bin/pFUnitParser.py
   PFUNIT_INC := -I$(PFUNIT_DIR)/mod
@@ -38,7 +40,7 @@ PFUNIT_TESTS:= $(shell find $(PFUNIT_TEST_DIR) -name '[^.\#]*.pf')
 
 PFUNIT_OBJS := $(PFUNIT_TESTS:.pf=.o)
 PFUNIT_INTERMEDIATES := $(PFUNIT_TESTS:.pf=.F90)
-PFUNIT_DRIVER := $(PFUNIT_DIR)/include/driver.F90
+PFUNIT_DRIVER := $(PFUNIT_TOP_DIR)/include/driver.F90
 PFUNIT_TEST_LIST := $(PFUNIT_TEST_DIR)/testSuites.inc
 
 .INTERMEDIATE: $(PFUNIT_INTERMEDIATES)
@@ -57,6 +59,10 @@ BUILD_PFUNIT_JOBS ?= 1
 BUILD_PFUNIT_INSTALL_DIR ?= $(GK_HEAD_DIR)/externals/pFUnit_build/install
 # Where do we build
 BUILD_PFUNIT_BUILD_DIR ?=
+# Do we ignore the git submodule
+BUILD_PFUNIT_IGNORE_GIT ?=
+# Do we force the install
+BUILD_PFUNIT_FORCE_INSTALL ?=
 
 # Construct full set of flags
 BUILD_PFUNIT_FLAGS ?=
@@ -72,6 +78,14 @@ endif
 
 ifdef BUILD_PFUNIT_BUILD_DIR
 BUILD_PFUNIT_FLAGS += -b ${BUILD_PFUNIT_BUILD_DIR}
+endif
+
+ifdef BUILD_PFUNIT_IGNORE_GIT
+BUILD_PFUNIT_FLAGS += -g
+endif
+
+ifdef BUILD_PFUNIT_FORCE_INSTALL
+BUILD_PFUNIT_FLAGS += -f
 endif
 
 test_build_pfunit_library:

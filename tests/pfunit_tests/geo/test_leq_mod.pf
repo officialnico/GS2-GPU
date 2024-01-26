@@ -260,7 +260,7 @@ contains
   @test
   subroutine test_eqitem()
     use constants, only : pi
-    use leq, only : leq_testing_type, eqitem
+    use leq, only : leq_testing_type
     type(leq_testing_type) :: leq_privates
 
     integer, parameter :: nradius = 3
@@ -290,19 +290,19 @@ contains
     array = reshape([([(real(j) * pi / real(ntheta), &
          i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
-    call eqitem(theta_zero, array, actual, 'A')
+    call leq_privates%eqitem(theta_zero, array, actual, 'A')
     @assertEqual(expected_zero, actual, tolerance=value_tolerance)
 
-    call eqitem(theta_inside, array, actual, 'A')
+    call leq_privates%eqitem(theta_inside, array, actual, 'A')
     @assertEqual(expected_inside, actual, tolerance=value_tolerance)
 
-    call eqitem(theta_inside_negative, array, actual, 'A')
+    call leq_privates%eqitem(theta_inside_negative, array, actual, 'A')
     @assertEqual(expected_inside_negative, actual, tolerance=value_tolerance)
 
-    call eqitem(theta_outside, array, actual, 'A')
+    call leq_privates%eqitem(theta_outside, array, actual, 'A')
     @assertEqual(expected_outside, actual, tolerance=value_tolerance)
 
-    call eqitem(theta_outside_negative, array, actual, 'A')
+    call leq_privates%eqitem(theta_outside_negative, array, actual, 'A')
     @assertEqual(expected_outside_negative, actual, tolerance=value_tolerance)
 
     call leq_privates%dealloc_arrays()

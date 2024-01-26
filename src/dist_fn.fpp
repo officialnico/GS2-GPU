@@ -4046,20 +4046,20 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer,save :: istep_last=-1
+    integer, save :: istep_last = -1
     integer, parameter :: verb = 3
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then       
+       if (istep > 0 .and. istep /= istep_last) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -6274,7 +6274,7 @@ contains
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
     id_message = get_option_with_default(identifier, '')
-    allocate(g_pass, mold = g_array)
+    allocate(g_pass(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     err = 0.0
 
@@ -8445,9 +8445,8 @@ contains
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: ntgrid, bmag, gds21, gds22, qval, shat
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use kt_grids, only: aky, theta0
     use le_grids, only: integrate_volume, nlambda, negrid
     use le_grids, only: get_flux_vs_theta_vs_vpa
@@ -8564,8 +8563,7 @@ contains
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only:has_phi
     use constants, only: zi
-    use geometry, only: rhoc
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
