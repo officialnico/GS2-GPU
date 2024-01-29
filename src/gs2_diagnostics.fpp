@@ -1403,7 +1403,7 @@ contains
     if (write_ql_metric) then
 
        ! Calculate the instantaneous omega and keep the growth rate.
-       growth_rates = imag(calculate_instantaneous_omega())
+       growth_rates = aimag(calculate_instantaneous_omega())
        ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates)
     else
        ql_metric = 0.0
@@ -1727,7 +1727,6 @@ contains
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
   subroutine do_write_heating(t, file_unit, file_unit2, h)
     use species, only: nspec
-    use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
     integer, intent(in) :: file_unit, file_unit2
@@ -1809,8 +1808,8 @@ contains
     end do
     write (unit=file_unit2, fmt=*)
 
-    call flush_output_file (file_unit)
-    call flush_output_file (file_unit2)
+    flush (file_unit)
+    flush (file_unit2)
   end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
@@ -2589,15 +2588,14 @@ contains
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
   !> [[parity_unit]])
   subroutine flush_files
-    use file_utils, only: flush_output_file
     implicit none
     if (.not. write_ascii) return
-    call flush_output_file (out_unit)
+    flush (out_unit)
     if (write_verr) then
-       call flush_output_file (res_unit)
-       call flush_output_file (lpc_unit)
+       flush (res_unit)
+       flush (lpc_unit)
     end if
-    if (write_parity) call flush_output_file (parity_unit)
+    if (write_parity) flush (parity_unit)
   end subroutine flush_files
 
   !> Trinity convergence condition - simple and experimental

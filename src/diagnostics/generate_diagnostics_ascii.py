@@ -108,14 +108,13 @@ def generate_flush(files):
 !> Flushes all enabled ascii output files as given
 !> by recorded file units.
 subroutine flush_output_files(ascii_files)
-  use file_utils, only: flush_output_file
   type(diagnostics_ascii_type), intent(in out) :: ascii_files
 
 {contents}
 
 end subroutine flush_output_files
 """
-    flush_line = "  if (ascii_files%write_to_{name}) call flush_output_file(ascii_files%{name})"
+    flush_line = "  if (ascii_files%write_to_{name}) flush(ascii_files%{name})"
 
     contents = "\n".join([flush_line.format(name = name) for name in files])
 

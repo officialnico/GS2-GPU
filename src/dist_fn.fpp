@@ -9832,7 +9832,7 @@ contains
   !> "<runname>.yxdist"
   subroutine write_fyx (phi,bpar,last)
     use mp, only: proc0, send, receive, barrier
-    use file_utils, only: open_output_file, close_output_file, flush_output_file
+    use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
@@ -10025,7 +10025,7 @@ contains
        deallocate (grs, gzf)
     end if
 
-    if (proc0) call flush_output_file (unit)
+    if (proc0) flush (unit)
 
     if (proc0) then
        write(unit,*)
