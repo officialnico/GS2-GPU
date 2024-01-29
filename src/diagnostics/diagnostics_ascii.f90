@@ -78,20 +78,19 @@ end subroutine finish_diagnostics_ascii
 !> Flushes all enabled ascii output files as given
 !> by recorded file units.
 subroutine flush_output_files(ascii_files)
-  use file_utils, only: flush_output_file
   type(diagnostics_ascii_type), intent(in out) :: ascii_files
 
-  if (ascii_files%write_to_out) call flush_output_file(ascii_files%out)
-  if (ascii_files%write_to_phase) call flush_output_file(ascii_files%phase)
-  if (ascii_files%write_to_heat) call flush_output_file(ascii_files%heat)
-  if (ascii_files%write_to_heat2) call flush_output_file(ascii_files%heat2)
-  if (ascii_files%write_to_vres) call flush_output_file(ascii_files%vres)
-  if (ascii_files%write_to_lpc) call flush_output_file(ascii_files%lpc)
-  if (ascii_files%write_to_vres2) call flush_output_file(ascii_files%vres2)
-  if (ascii_files%write_to_cres) call flush_output_file(ascii_files%cres)
-  if (ascii_files%write_to_parity) call flush_output_file(ascii_files%parity)
-  if (ascii_files%write_to_jext) call flush_output_file(ascii_files%jext)
-  if (ascii_files%write_to_eigenfunc) call flush_output_file(ascii_files%eigenfunc)
+  if (ascii_files%write_to_out) flush(ascii_files%out)
+  if (ascii_files%write_to_phase) flush(ascii_files%phase)
+  if (ascii_files%write_to_heat) flush(ascii_files%heat)
+  if (ascii_files%write_to_heat2) flush(ascii_files%heat2)
+  if (ascii_files%write_to_vres) flush(ascii_files%vres)
+  if (ascii_files%write_to_lpc) flush(ascii_files%lpc)
+  if (ascii_files%write_to_vres2) flush(ascii_files%vres2)
+  if (ascii_files%write_to_cres) flush(ascii_files%cres)
+  if (ascii_files%write_to_parity) flush(ascii_files%parity)
+  if (ascii_files%write_to_jext) flush(ascii_files%jext)
+  if (ascii_files%write_to_eigenfunc) flush(ascii_files%eigenfunc)
 
 end subroutine flush_output_files
 
