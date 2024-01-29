@@ -79,7 +79,6 @@ module diagnostics_base_config
     !> @warning Default value differs between old (100) and new (10)
     !> diagnostics
     integer :: navg = 10
-
     !> FIXME: Timestep period of which to check velocity space resolution and
     !> correction by varying collisionality. But doesn't happen on timesteps
     !> when diagnostics are written.
@@ -89,12 +88,9 @@ module diagnostics_base_config
     !> @warning This value "shadows" the `ncheck` input of the
     !> collisions namelist.
     integer :: ncheck = 10
-
     !> Sets the number of output steps between syncing the netcdf file.
     !> Higher values may reduce disk overheads but increase the risk of
     !> data loss on unclean exit.
-    !>
-    !> @warning Not present in new diagnostics
     integer :: nc_sync_freq = 10
     !> Timestep period to write real space fields \(\phi, A_\parallel,
     !> B_\parallel\)
@@ -164,7 +160,6 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:nsave]] is positive, then also enable
     !> checkpoints by writing restart files every `nsave` timesteps.
     logical :: save_for_restart = .false.
-
     !> Save some layout and distribution information in restart files
     logical :: save_glo_info_and_grids = .false.
     !> If `.true.`, write one restart file per processor, otherwise write a
@@ -180,12 +175,10 @@ module diagnostics_base_config
     !> Save parallel and perpendicular velocities in final restart and/or
     !> distribution function files
     logical :: save_velocities = .false.
-
     !> @warning Not used
     !>
     !> @warning Only in new diagnostics
     logical :: serial_netcdf4 = .false.
-
     !> For nonlinear runs, stop the run when the averaged differential of the
     !> summed averaged heat flux drops below a threshold for a period of time,
     !> controlled by [[gs2_diagnostics_knobs:conv_test_multiplier]],
@@ -194,14 +187,12 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:conv_max_step]], and
     !> [[gs2_diagnostics_knobs:conv_min_step]].
     logical :: use_nonlin_convergence = .false.
-
     !> If `.false.`, skip writing any diagnostics
     !>
     !> @warning Only in new diagnostics
     !>
     !> @warning This also turns off checking the linear convergence
     logical :: write_any = .true.
-
     !> Write the entire \(A_\parallel\) field every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -237,14 +228,12 @@ module diagnostics_base_config
     !>
     !> @warning This is expensive
     logical :: write_cerr = .false.
-
     !> Write collisional heating (collisional and hyper viscous rate of loss of
     !> free energy for each mode) every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
     !> @warning Only in new diagnostics
     logical :: write_collisional = .false.
-
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation
     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -266,7 +255,6 @@ module diagnostics_base_config
     !>
     !> @warning In old diagnostics, only written to text files
     logical :: write_cross_phase = .false.
-
     !> Write the whole non-adiabatic part of the density moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -275,7 +263,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_density_over_time = .false.
-
     !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
     !> \(\phi\) at the outboard midplane every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps.
@@ -372,7 +359,6 @@ module diagnostics_base_config
     !>
     !> @warning In old diagnostics, this is combined with `write_fluxes`
     logical :: write_fluxes_by_mode = .false.
-
     !> Write moments (density, parallel flow, and parallel and perpendicular
     !> temperatures) in non-guiding centre coordinates every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -401,7 +387,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_jext = .false.
-
     !> Write the parallel spectrum of \(\phi, A_\parallel,
     !> B_\parallel\) at final timestep. File suffix is `.kpar`
     !>
@@ -449,7 +434,6 @@ module diagnostics_base_config
     !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as
     !> section 5 of "GS2 analytic geometry specification"
     logical :: write_nl_flux_dist = .false.
-
     !> Write the whole total density moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -458,7 +442,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_ntot_over_time = .false.
-
     !> Write time-averaged growth rate and frequency to the output text file
     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps. Time average is
     !> rolling window over the previous [[gs2_diagnostics_knobs:navg]]
@@ -519,7 +502,6 @@ module diagnostics_base_config
     !> @warning Old diagnostics does not write the particle flux, use
     !> [[gs2_diagnostics_knobs:write_pflux_sym]] instead
     logical :: write_symmetry = .false.
-
     !> Write the whole perturbed perpendicular temperature moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -536,7 +518,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_upar_over_time = .false.
-
     !> Write estimates of error resulting from velocity space integrals in the
     !> calculation of various quantities every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps.
@@ -549,7 +530,6 @@ module diagnostics_base_config
     !>
     !> @warning This is expensive
     logical :: write_verr = .false.
-
     !> Write the transfer of free energy, \(\tau\), as a function of \((k_x,
     !> k_y)\), averaged over \(\theta\), every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
