@@ -342,10 +342,10 @@ contains
   subroutine geofax(rho, theta, t, e, d, nth, ntgrid)
     use geometry, only: rpofrho, geom
     implicit none
+    integer, intent(in) :: nth, ntgrid
     real, intent (in) :: rho
     real, dimension(-ntgrid:ntgrid), intent(in) :: theta
     real, intent (out) :: t, e, d
-    integer, intent(in) :: nth, ntgrid
     real, dimension(-nth:nth) :: rgrid
     real :: a, b, aa, bb, rp, hmaxu, hmaxl, rmaxu, rmaxl, rmid, Rlo, Rhi, Rinnr, Routr
     integer :: i
