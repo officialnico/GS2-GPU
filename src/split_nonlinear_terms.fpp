@@ -282,7 +282,7 @@ contains
     use gs2_time, only: code_dt_min, dt_not_set, code_dt_prev1, code_dt_prev2
     use mp, only: mp_abort, max_allreduce
     use gs2_layouts, only: g_lo
-    use array_utils, only: copy
+    use array_utils, only: copy, zero_array
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_state
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -299,9 +299,9 @@ contains
     internal_time = 0.0
     counter = 1
 
-    allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    allocate(gnl_3(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc)) ; call zero_array(gnl_1)
+    allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc)) ; call zero_array(gnl_2)
+    allocate(gnl_3(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc)) ; call zero_array(gnl_3)
 
     ! Reset time step sizes to reflect fact we're restarting the explicit scheme
     code_dt_prev1 = dt_not_set
@@ -398,7 +398,7 @@ contains
     use mp, only: mp_abort, max_allreduce, proc0
     use run_parameters, only: immediate_reset
     use gs2_layouts, only: g_lo
-    use array_utils, only: copy, gs2_max_abs
+    use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_state
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -428,6 +428,8 @@ contains
     allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(gnl_2(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     call copy(g_state, g_cur)
+    call zero_array(error_array) ; call zero_array(g_local)
+    call zero_array(gnl_1); call zero_array(gnl_2)
 
     ! Keep on advancing until we have advanced by dt
     do while (internal_time < dt)
@@ -658,10 +660,9 @@ contains
 
     nstages = scheme%number_of_stages
     allocate(stages(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc, nstages))
-
     allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(g_cur(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    call copy(g_state, g_cur)
+    call copy(g_state, g_cur) ; call zero_array(stages) ; call zero_array(gnl_1)
 
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
@@ -814,7 +815,7 @@ contains
     use gs2_time, only: code_dt_min
     use mp, only: mp_abort, proc0, max_allreduce
     use gs2_layouts, only: g_lo
-    use array_utils, only: copy, gs2_max_abs
+    use array_utils, only: copy, gs2_max_abs, zero_array
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: g_state
     complex, dimension (-ntgrid:,:,:), intent (in out) :: phinew, aparnew, bparnew
@@ -842,7 +843,7 @@ contains
 
     allocate(g_start(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(gnl_1(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-
+    call zero_array(g_start) ; call zero_array(gnl_1)
     ! Keep taking explicit steps until we have advanced by dt
     do while (internal_time < dt)
        call copy(g_state, g_start)
