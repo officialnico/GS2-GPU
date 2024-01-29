@@ -306,7 +306,7 @@ contains
     real, dimension(ntheta0, naky) :: growth_rates
     if (.not. gnostics%writing) return
 
-    growth_rates = imag(calculate_instantaneous_omega(&
+    growth_rates = aimag(calculate_instantaneous_omega(&
          ig = gnostics%igomega, tolerance = gnostics%omegatol))
     call nc_write_ql_metric(gnostics%file_id, gnostics%nout, &
          ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates))
