@@ -90,7 +90,7 @@ default:
   cache:
     paths:
       - cache
-    key: "$CI_JOB_NAME"
+    key: "$CI_JOB_NAME-$CI_COMMIT_BRANCH"
 
 .the_default_script: &default_script
   - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser

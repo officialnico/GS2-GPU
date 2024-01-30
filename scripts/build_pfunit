@@ -24,7 +24,8 @@ pfunit_skip_if_present="YES"
 
 # Which major version of pfunit are we using
 # Version 4+ needs very recent compilers
-pfunit_version_major=3
+pfunit_version_major=4
+pfunit_version_minor=8
 
 # Number of make jobs to use (i.e. argument to `make -j N`)
 make_jobs=1
@@ -46,6 +47,7 @@ function usage {
     echo "  -g              Ignore git"
     echo "  -f              Force install (ignores presence of existing directory)"
     echo "  -v 3|4          Set which major version of pFUnit to use"
+    echo "  -V              Set which minor version of pFUnit to use"
     echo "  -b BUILD_DIR    Directory to build pFUnit in"
     echo "  -i INSTALL_DIR  Directory to install pFUnit in"
     echo "  -j N            Number of make jobs to use (default: 1)"
@@ -59,7 +61,7 @@ if [[ "$1" == "--help" ]]; then
     exit 0
 fi
 
-while getopts ":mogfv:b:i:hrj:" OPT; do
+while getopts ":mogfv:V:b:i:hrj:" OPT; do
     case $OPT in
 	m )
 	    echo "Disabling MPI"
@@ -85,6 +87,10 @@ while getopts ":mogfv:b:i:hrj:" OPT; do
 	    fi
 	    echo "Using pFUnit major version $OPTARG"
 	    pfunit_version_major="$OPTARG"
+	    ;;
+	V )
+	    echo "Using pFUnit minor version $OPTARG"
+	    punit_version_minor="$OPTARG"
 	    ;;
 	b )
 	    echo "Building pFUnit in $OPTARG"
@@ -129,8 +135,8 @@ if [[ ${pfunit_version_major} == 3 ]]; then
     fi
     pfunit_mpi_flag="-DMPI=${pfunit_use_mpi}"
 else
-    pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.8.0/pFUnit-v4.8.0.tar"
-    pfunit_version="v4.8.0"
+    pfunit_url="https://github.com/Goddard-Fortran-Ecosystem/pFUnit/releases/download/v4.${pfunit_version_minor}.0/pFUnit-v4.${pfunit_version_minor}.0.tar"
+    pfunit_version="v4.${pfunit_version_minor}.0"
     if [[  ${pfunit_use_openmp} == "NO" ]]; then
 	pfunit_openmp_flag="-DSKIP_OPENMP=YES"
     else
@@ -148,9 +154,15 @@ pfunit_version_directory="${externals_directory}/pFUnit-${pfunit_version}"
 # What to rename the tarball to
 pfunit_downloaded_file="pFUnit-${pfunit_version}.tar.gz"
 
+if [[  ${pfunit_version_major} == 3 ]]; then
+    pfunit_full_install_directory=${pfunit_install_directory}
+else
+    pfunit_full_install_directory=${pfunit_install_directory}/PFUNIT-4.${pfunit_version_minor}
+fi
+
 # If pFUnit is already installed, we don't need to go any further and can exit cleanly
-if [[ -d ${pfunit_install_directory} && ${pfunit_skip_if_present} == "YES" ]]; then
-    echo "pFUnit installation directory \"${pfunit_install_directory}\" already exists, nothing to do"
+if [[ -d ${pfunit_full_install_directory} && ${pfunit_skip_if_present} == "YES" ]]; then
+    echo "pFUnit full installation directory \"${pfunit_full_install_directory}\" already exists, nothing to do"
     exit 0
 fi
 
@@ -175,7 +187,7 @@ fi
 fi
 
 # If we're not in a git repo and the pFUnit submodule isn't there, best download it
-if [[ ${pfunit_try_git}  == "NO" || ! -d ${pfunit_directory} ]]; then
+if [[ ${pfunit_try_git} == "NO" || ! -d ${pfunit_directory} ]]; then
     echo "pFUnit submodule not availabe downloading pFUnit tarball"
     cd ${externals_directory}
     wget ${pfunit_url} -O ${pfunit_downloaded_file}
