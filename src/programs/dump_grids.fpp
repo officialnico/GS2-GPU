@@ -123,7 +123,6 @@ contains
     use theta_grid, only: bmag, bpol, gradpar, grho
     use theta_grid, only: cdrift, cvdrift, gbdrift
     use theta_grid, only: cdrift0, cvdrift0, gbdrift0
-    use theta_grid, only: cvdrift_th, gbdrift_th
     use theta_grid, only: gds2, gds21, gds22, gds23, gds24, gds24_noq
     use theta_grid, only: rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime
@@ -139,7 +138,6 @@ contains
     integer :: bmag_varid, bpol_varid, gradpar_varid, grho_varid
     integer :: cdrift_varid, cvdrift_varid, gbdrift_varid
     integer :: cdrift0_varid, cvdrift0_varid, gbdrift0_varid
-    integer :: cvdrift_th_varid, gbdrift_th_varid
     integer :: gds2_varid, gds21_varid, gds22_varid, gds23_varid, gds24_varid, gds24_noq_varid
     integer :: rplot_varid, zplot_varid, aplot_varid, rprime_varid, zprime_varid, aprime_varid
     integer :: wl_varid, w_varid, kperp2_varid
@@ -175,8 +173,6 @@ contains
     ierr=nf90_def_var(ncid,'cdrift0',netcdf_real,[theta_dimid], cdrift0_varid)
     ierr=nf90_def_var(ncid,'cvdrift0',netcdf_real,[theta_dimid], cvdrift0_varid)
     ierr=nf90_def_var(ncid,'gbdrift0',netcdf_real,[theta_dimid], gbdrift0_varid)
-    ierr=nf90_def_var(ncid,'cvdrift_th',netcdf_real,[theta_dimid], cvdrift_th_varid)
-    ierr=nf90_def_var(ncid,'gbdrift_th',netcdf_real,[theta_dimid], gbdrift_th_varid)
     ierr=nf90_def_var(ncid,'gds2',netcdf_real,[theta_dimid], gds2_varid)
     ierr=nf90_def_var(ncid,'gds21',netcdf_real,[theta_dimid], gds21_varid)
     ierr=nf90_def_var(ncid,'gds22',netcdf_real,[theta_dimid], gds22_varid)
@@ -214,8 +210,6 @@ contains
     ierr=nf90_put_var(ncid, cdrift0_varid, cdrift0)
     ierr=nf90_put_var(ncid, cvdrift0_varid, cvdrift0)
     ierr=nf90_put_var(ncid, gbdrift0_varid, gbdrift0)
-    ierr=nf90_put_var(ncid, cvdrift_th_varid, cvdrift_th)
-    ierr=nf90_put_var(ncid, gbdrift_th_varid, gbdrift_th)
     ierr=nf90_put_var(ncid, gds2_varid, gds2)
     ierr=nf90_put_var(ncid, gds21_varid, gds21)
     ierr=nf90_put_var(ncid, gds22_varid, gds22)
@@ -245,7 +239,6 @@ contains
     use theta_grid, only: bmag, bpol, gradpar, grho
     use theta_grid, only: cdrift, cvdrift, gbdrift
     use theta_grid, only: cdrift0, cvdrift0, gbdrift0
-    use theta_grid, only: cvdrift_th, gbdrift_th
     use theta_grid, only: gds2, gds21, gds22, gds23, gds24, gds24_noq
     use theta_grid, only: rplot, zplot, aplot
     use theta_grid, only: rprime, zprime, aprime
@@ -320,14 +313,6 @@ contains
 
     open(unit=unit,file=trim(adjustl(fname))//".gbdrift0",form="unformatted")
     write(unit) gbdrift0
-    close(unit)
-
-    open(unit=unit,file=trim(adjustl(fname))//".cvdrift_th",form="unformatted")
-    write(unit) cvdrift_th
-    close(unit)
-
-    open(unit=unit,file=trim(adjustl(fname))//".gbdrift_th",form="unformatted")
-    write(unit) gbdrift_th
     close(unit)
 
     open(unit=unit,file=trim(adjustl(fname))//".gds2",form="unformatted")
