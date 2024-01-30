@@ -171,7 +171,7 @@ intel_tests:
   variables:
     CASENAME: "intel"
     EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
     GS2_PACKAGES: "cpp gcc"
     EXTRA_PACKAGES: "dnf-plugins-core"
     WITH_PYTHON: "no"
