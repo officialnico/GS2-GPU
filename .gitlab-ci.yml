@@ -123,6 +123,7 @@ openmp_tests:
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     OMP_NUM_THREADS: 2
   script: *default_script
 
