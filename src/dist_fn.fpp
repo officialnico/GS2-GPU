@@ -6180,7 +6180,7 @@ contains
        call integrate_species (g_work, wgt, antot)
 
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
-       if(esv) call ensure_single_val_fields_pass(antot)
+       if (esv) call ensure_single_val_fields_pass(antot, force_all = .true.)
     end if
 
     if (has_apar) then
@@ -6200,7 +6200,7 @@ contains
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
-       if(esv) call ensure_single_val_fields_pass(antota)
+       if (esv) call ensure_single_val_fields_pass(antota, force_all = .true.)
     end if
 
     if (has_bpar) then
@@ -6220,7 +6220,7 @@ contains
 
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
-       if(esv) call ensure_single_val_fields_pass(antotp)
+       if (esv) call ensure_single_val_fields_pass(antotp, force_all = .true.)
     end if
 
   end subroutine getan_from_dfn
@@ -9832,7 +9832,7 @@ contains
   !> "<runname>.yxdist"
   subroutine write_fyx (phi,bpar,last)
     use mp, only: proc0, send, receive, barrier
-    use file_utils, only: open_output_file, close_output_file, flush_output_file
+    use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
@@ -10025,7 +10025,7 @@ contains
        deallocate (grs, gzf)
     end if
 
-    if (proc0) call flush_output_file (unit)
+    if (proc0) flush (unit)
 
     if (proc0) then
        write(unit,*)

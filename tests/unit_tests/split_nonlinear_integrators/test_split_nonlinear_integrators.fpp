@@ -47,6 +47,7 @@ program test_split_nonlinear_integrators
   use run_parameters, only: nstep
   use test_integrator, only: null_field_op, exponential_source, exponential_coefficient
   use array_utils, only: copy
+  use gs2_layouts, only: g_lo
   implicit none
   type(gs2_program_state_type) :: state
   logical :: agrees
@@ -81,7 +82,8 @@ program test_split_nonlinear_integrators
 
   ! Form expected result, gnew = g(t=0) * exp(exponential_coefficient * dt)
   g = exp(exponential_coefficient * code_dt * nstep)
-  error = maxval(abs(gnew - g))
+  error = 0.0;
+  if (g_lo%llim_proc <= g_lo%ulim_proc) error = maxval(abs(gnew - g))
   call max_allreduce(error)
 
   ! Initialise local variables

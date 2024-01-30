@@ -42,6 +42,8 @@ variables: &default_variables
   # a new user to run as.
   # OMPI_ALLOW_RUN_AS_ROOT=1
   # OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
+  # Below attempts to avoid issue on F39 https://github.com/open-mpi/ompi/issues/11295
+  FI_PROVIDER: "tcp"
   MAKEFLAGS: "-IMakefiles"
   GK_SYSTEM: "fedora"
   # The following control what aspects of the test script are run
@@ -56,7 +58,7 @@ variables: &default_variables
   GK_MAKEFILE_LOCAL_EXTRA_FLAGS: ""
   GK_BUILD_TARGET: "all"
   JOB_STATUS_FILE: "special_file_to_indicate_job_status"
-  BASIC_PACKAGES: "environment-modules make git which cmake findutils"
+  BASIC_PACKAGES: "environment-modules make git which cmake findutils wget m4"
   GS2_PACKAGES: "fftw-devel netcdf-fortran netcdf-devel netcdf-fortran-devel gcc gcc-gfortran"
   MPI_PACKAGES: "openmpi openmpi-devel"
   PYTHON_PACKAGES: "python python3 python3-pip python3-devel"
@@ -67,6 +69,8 @@ variables: &default_variables
   BUILD_PFUNIT_INSTALL_DIR: "${PKG_CACHE_DIR}/pfunit"
   BUILD_PFUNIT_JOBS: "1"
   PFUNIT_DIR: "${BUILD_PFUNIT_INSTALL_DIR}"
+  BUILD_PFUNIT_IGNORE_GIT: "yes"
+  PFUNIT_VERSION_MAJOR: "4"
   PFUNIT_EXTRA_CMAKE_FLAGS: -DCMAKE_Fortran_FLAGS_DEBUG='-fallow-argument-mismatch -g'
 
 default:
@@ -86,7 +90,7 @@ default:
   cache:
     paths:
       - cache
-    key: "$CI_JOB_NAME"
+    key: "$CI_JOB_NAME-$CI_COMMIT_BRANCH"
 
 .the_default_script: &default_script
   - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -94,7 +98,7 @@ default:
 
 formattting_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "formatting"
     GS2_PACKAGES: ""
@@ -107,28 +111,29 @@ formattting_tests:
 
 standard_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "standard"
   script: *default_script
 
 openmp_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   tags: [ saas-linux-medium-amd64 ]
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     OMP_NUM_THREADS: 2
   script: *default_script
 
 gfortran13_mpich:
   stage: test
-  image: fedora:38
+  image: fedora:39
   variables:
     CASENAME: "gfortran_13_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
-    EXTRA_PACKAGES: "wget openblas openblas-devel diffutils"
+    EXTRA_PACKAGES: "openblas openblas-devel diffutils"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
 # MPICH performs very poorly when oversubscribed so we limit our integrated tests to
 # one process only.
@@ -152,7 +157,7 @@ gfortran9_standard_tests:
 
 initialisation_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "ffpe_trap"
     EXTRA_MAKE_FLAGS: "TEST_LEVEL=2"
@@ -161,7 +166,7 @@ initialisation_tests:
 
 intel_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   artifacts:
   variables:
     CASENAME: "intel"
@@ -181,7 +186,7 @@ intel_tests:
 
 coverage_standard_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "standard+coverage+debug+onestep"
     GK_CI_INTEGRATED: ""
@@ -198,7 +203,7 @@ coverage_standard_tests:
 
 onestep_standard_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "standard_one_step_pp"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
@@ -208,7 +213,7 @@ onestep_standard_tests:
 
 nodeps_tests:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "no_dependency"
     EXTRA_MAKE_FLAGS: "USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
@@ -221,7 +226,7 @@ nodeps_tests:
 
 pages:
   stage: test
-  image: fedora:37
+  image: fedora:39
   variables:
     CASENAME: "website"
   script:
