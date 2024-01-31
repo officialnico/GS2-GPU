@@ -948,8 +948,8 @@ contains
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
     self%eq_R = eq_R ; self%eq_Z = eq_Z
-    do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i) ; self%Z_psi(i, :) = eq_Z
+    do j = 1, self%nh
+       self%R_psi(:, j) = eq_R ; self%Z_psi(:, j) = eq_Z(j)
     end do
 
     self%B_T = abs(bcentr)
@@ -964,8 +964,8 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
-    do i = 1, self%nw
-       do j = 1, self%nh
+    do j = 1, self%nh
+       do i = 1, self%nw
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
