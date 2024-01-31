@@ -1772,6 +1772,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine read_parameters(theta_grid_eik_config_in)
+    use mp, only: proc0
     use file_utils, only: input_unit, input_unit_exist
     use geometry, only: surf, irho, eqnormfile
     use geometry, only: ppl_eq, gen_eq, efit_eq, eqfile, local_eq, dfit_eq, gs2d_eq
@@ -1828,9 +1829,12 @@ contains
     use_large_aspect = theta_grid_eik_config%use_large_aspect
     writelots = theta_grid_eik_config%writelots
 
-    if (isym /= -1) write(6,*) 'Warning: isym input is deprecated -- set force_sym instead'
-    if (iflux /= -1) write(6,*) 'Warning: iflux input is deprecated'
-    if (itor /= -1) write(6,*) 'Warning: itor input is deprecated -- set use_large_aspect instead'
+    if (proc0) then
+       if (isym /= -1) write(6,*) 'Warning: isym input is deprecated -- set force_sym instead'
+       if (iflux /= -1) write(6,*) 'Warning: iflux input is deprecated'
+       if (itor /= -1) write(6,*) 'Warning: itor input is deprecated -- set use_large_aspect instead'
+    end if
+
     exist = theta_grid_eik_config%exist
   end subroutine read_parameters
 
