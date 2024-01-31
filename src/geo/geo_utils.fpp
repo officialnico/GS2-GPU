@@ -156,7 +156,7 @@ module geo_utils
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
      integer :: nw, nh
-     real, allocatable, dimension(:) :: thetab, r_bound
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent, shared_setup => shared_setup_cart
@@ -949,6 +949,7 @@ contains
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
+    self%eq_R = eq_R ; self%eq_Z = eq_Z
     do i = 1, self%nw
        self%R_psi(i, :) = eq_R(i) ; self%Z_psi(i, :) = eq_Z
     end do

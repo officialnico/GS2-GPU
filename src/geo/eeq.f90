@@ -231,7 +231,7 @@ contains
   pure subroutine dealloc_special_arrays(self)
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    deallocate(self%thetab, self%r_bound)
+    deallocate(self%thetab, self%r_bound, self%eq_R, self%eq_Z)
   end subroutine dealloc_special_arrays
 
   subroutine setup_special_splines(self)
