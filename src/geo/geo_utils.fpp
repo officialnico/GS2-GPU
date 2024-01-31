@@ -546,7 +546,7 @@ contains
     ! allow psi(r) to be a decreasing function
     eqpsi_sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
-    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :)
+    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :) !Non-contiguous copy - slow?
 
     !Copy input r to avoid any modification
     r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
@@ -766,29 +766,27 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, r_pos, z_pos
-    real, dimension(size(f, 1)) :: dim_1
-    real, dimension(size(f, 2)) :: dim_2
-    dim_1 = self%R_psi(:, 1) ; dim_2 = self%Z_psi(1, :)
+    associate(dim_1 => self%eq_R, dim_2 => self%eq_Z)
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in)
+      r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in)
-    r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
+      ! ensure point is on R mesh
+      if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
+         write(*,*) r, theta_in, dim_1(self%nw), r_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
+      end if
 
-    ! ensure point is on R mesh
-    if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
-       write(*,*) r, theta_in, dim_1(self%nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
-    end if
+      ! ensure point is on Z mesh
+      if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
+         write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
+      end if
 
-    ! ensure point is on Z mesh
-    if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
-       write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
-    end if
-
-    istar = find_lower_bound(r_pos, dim_1, 0)
-    jstar = find_lower_bound(z_pos, dim_2, 0)
-    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+      istar = find_lower_bound(r_pos, dim_1, 0)
+      jstar = find_lower_bound(z_pos, dim_2, 0)
+      fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+    end associate
   end function eqitem_cart
 
   pure integer function find_lower_bound(val, array, default) result(bound)
