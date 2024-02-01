@@ -541,8 +541,6 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, eqpsi_sign, tps
-    real, dimension(size(f,2)) :: mtheta
-    real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
     eqpsi_sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
