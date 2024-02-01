@@ -11,9 +11,6 @@ program test_max_sim_time
   implicit none
   type(gs2_program_state_type) :: state
 
-  ! Tell make system to run this test
-  functional_test_flag = .true.
-
   call announce_module_test("max_sim_time")
 
   call init_mp()

@@ -1,6 +1,5 @@
 !> This unit runs a tiny grid with nstep=10000, and checks
 !! that the creation of a .stop file causes GS2 to exit.
-!
 program test_job_manage
   use gs2_main, only: run_gs2, gs2_program_state_type
   use unit_tests
@@ -10,8 +9,6 @@ program test_job_manage
   implicit none
   type(gs2_program_state_type) :: state
 
-  ! Tell make system to run this test
-  functional_test_flag = .true.
   call init_mp()
   state%mp_comm = mp_comm
 

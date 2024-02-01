@@ -49,16 +49,12 @@ module diagnostics_base_config
     !>
     !> @warning You probably don't want this?  Expensive.
     logical :: dump_fields_periodically = .false.
-
-    !> If built with parallel IO capability enable parallel IO. Currently
-    !> disabled by default because of problems on Helios: parallel IO seems to
-    !> work on 1 node but not on >1. This problem does not affect parallel IO
-    !> for the single restart file because it only affects output with infinite
-    !> dimensions
+    !> Enable parallel IO in the .out.nc file. Currently disabled by default
+    !> and doesn't activate feature when set to true as we hard code that parallel
+    !> IO isn't supported for the .out.nc file.
     !>
     !> @warning Only in new diagnostics
     logical :: enable_parallel = .false.
-
     !> Exit when the run has reached convergence
     logical :: exit_when_converged = .true.
     !> Verify that the restart file(s) can be written before starting the run
@@ -83,7 +79,6 @@ module diagnostics_base_config
     !> @warning Default value differs between old (100) and new (10)
     !> diagnostics
     integer :: navg = 10
-
     !> FIXME: Timestep period of which to check velocity space resolution and
     !> correction by varying collisionality. But doesn't happen on timesteps
     !> when diagnostics are written.
@@ -93,12 +88,9 @@ module diagnostics_base_config
     !> @warning This value "shadows" the `ncheck` input of the
     !> collisions namelist.
     integer :: ncheck = 10
-
     !> Sets the number of output steps between syncing the netcdf file.
     !> Higher values may reduce disk overheads but increase the risk of
     !> data loss on unclean exit.
-    !>
-    !> @warning Not present in new diagnostics
     integer :: nc_sync_freq = 10
     !> Timestep period to write real space fields \(\phi, A_\parallel,
     !> B_\parallel\)
@@ -168,7 +160,6 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:nsave]] is positive, then also enable
     !> checkpoints by writing restart files every `nsave` timesteps.
     logical :: save_for_restart = .false.
-
     !> Save some layout and distribution information in restart files
     logical :: save_glo_info_and_grids = .false.
     !> If `.true.`, write one restart file per processor, otherwise write a
@@ -184,12 +175,10 @@ module diagnostics_base_config
     !> Save parallel and perpendicular velocities in final restart and/or
     !> distribution function files
     logical :: save_velocities = .false.
-
     !> @warning Not used
     !>
     !> @warning Only in new diagnostics
     logical :: serial_netcdf4 = .false.
-
     !> For nonlinear runs, stop the run when the averaged differential of the
     !> summed averaged heat flux drops below a threshold for a period of time,
     !> controlled by [[gs2_diagnostics_knobs:conv_test_multiplier]],
@@ -198,16 +187,14 @@ module diagnostics_base_config
     !> [[gs2_diagnostics_knobs:conv_max_step]], and
     !> [[gs2_diagnostics_knobs:conv_min_step]].
     logical :: use_nonlin_convergence = .false.
-
     !> If `.false.`, skip writing any diagnostics
     !>
     !> @warning Only in new diagnostics
     !>
     !> @warning This also turns off checking the linear convergence
     logical :: write_any = .true.
-
     !> Write the entire \(A_\parallel\) field every
-    !> [gs2_diagnostics_knobs:nwrite]] timesteps
+    !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
     !> @warning New diagnostics requires
     !> [[gs2_diagnostics_knobs:write_fields]] to also be `.true.`
@@ -241,14 +228,12 @@ module diagnostics_base_config
     !>
     !> @warning This is expensive
     logical :: write_cerr = .false.
-
     !> Write collisional heating (collisional and hyper viscous rate of loss of
     !> free energy for each mode) every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
     !> @warning Only in new diagnostics
     logical :: write_collisional = .false.
-
     !> Write two point parallel correlation function calculated from the
     !> electric potential as a function of \(k_y\) and parallel separation
     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -270,7 +255,6 @@ module diagnostics_base_config
     !>
     !> @warning In old diagnostics, only written to text files
     logical :: write_cross_phase = .false.
-
     !> Write the whole non-adiabatic part of the density moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -279,7 +263,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_density_over_time = .false.
-
     !> Write \(\phi, A_\parallel, B_\parallel\) normalised to the value of
     !> \(\phi\) at the outboard midplane every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps.
@@ -376,7 +359,6 @@ module diagnostics_base_config
     !>
     !> @warning In old diagnostics, this is combined with `write_fluxes`
     logical :: write_fluxes_by_mode = .false.
-
     !> Write moments (density, parallel flow, and parallel and perpendicular
     !> temperatures) in non-guiding centre coordinates every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
@@ -386,10 +368,6 @@ module diagnostics_base_config
     !>
     !> @warning Only to text files
     logical :: write_g = .false.
-    !> @warning Unused
-    !>
-    !> FIXME: Delete
-    logical :: write_gg = .false.
     !> FIXME: Add documentation
     !>
     !> @warning Only outputs to text files
@@ -403,16 +381,12 @@ module diagnostics_base_config
     !> Write out various heating, free energy and energy injection
     !> diagnostics. Text file extension is `.heat`
     logical :: write_heating = .false.
-    !> @deprecated Use [[gs2_diagnostics_knobs:write_heating]] instead
-    logical, private :: write_hrate = .false.
-
     !> Write time averaged external current in the antenna,
     !> \(\operatorname{Re}(k_\perp^2 A_\mathrm{antenna})\), as a function of
     !> \(k_x, k_y\). File suffix is `.jext`
     !>
     !> @warning Only in new diagnostics
     logical :: write_jext = .false.
-
     !> Write the parallel spectrum of \(\phi, A_\parallel,
     !> B_\parallel\) at final timestep. File suffix is `.kpar`
     !>
@@ -430,11 +404,6 @@ module diagnostics_base_config
     !>
     !> @warning New diagnostics only writes to netCDF
     logical :: write_lorentzian = .false.
-    !> Write Lagrange interpolating function value at interpolating
-    !> points specified by `xloc` to text file with suffix `.interp`
-    !>
-    !> FIXME: Define `xloc`
-    logical :: write_lpoly = .false.
     !> Write the estimated maximum error from velocity space
     !> integrals for various quantities
     !>
@@ -457,11 +426,6 @@ module diagnostics_base_config
     !> @warning Default value differs between old (`.false.`) and new
     !> (`.true.`) diagnostics
     logical :: write_moments = .true.
-    !> Write various fluxes every [[gs2_diagnostics_knobs:nwrite]]
-    !> timesteps
-    !>
-    !> @deprecated Use [[gs2_diagnostics_knobs:write_fluxes]]
-    logical :: write_nl_flux = .false.
     !> Write the poloidal distributions of the fluxes of particles,
     !> parallel momentum, perpendicular momentum, and energy every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps.
@@ -470,7 +434,6 @@ module diagnostics_base_config
     !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as
     !> section 5 of "GS2 analytic geometry specification"
     logical :: write_nl_flux_dist = .false.
-
     !> Write the whole total density moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -479,7 +442,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_ntot_over_time = .false.
-
     !> Write time-averaged growth rate and frequency to the output text file
     !> every [[gs2_diagnostics_knobs:nwrite]] timesteps. Time average is
     !> rolling window over the previous [[gs2_diagnostics_knobs:navg]]
@@ -522,7 +484,7 @@ module diagnostics_base_config
     !>
     !> @warning Non-functional in new diagnostics
     logical :: write_pflux_tormom = .false.
-    !> Write the entire \(\phi\) field every [gs2_diagnostics_knobs:nwrite]]
+    !> Write the entire \(\phi\) field every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
     !>
     !> @warning New diagnostics requires
@@ -540,7 +502,6 @@ module diagnostics_base_config
     !> @warning Old diagnostics does not write the particle flux, use
     !> [[gs2_diagnostics_knobs:write_pflux_sym]] instead
     logical :: write_symmetry = .false.
-
     !> Write the whole perturbed perpendicular temperature moment every
     !> [[gs2_diagnostics_knobs:nwrite]] timesteps
     !>
@@ -557,7 +518,6 @@ module diagnostics_base_config
     !>
     !> @warning Only in new diagnostics
     logical :: write_upar_over_time = .false.
-
     !> Write estimates of error resulting from velocity space integrals in the
     !> calculation of various quantities every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps.
@@ -570,7 +530,6 @@ module diagnostics_base_config
     !>
     !> @warning This is expensive
     logical :: write_verr = .false.
-
     !> Write the transfer of free energy, \(\tau\), as a function of \((k_x,
     !> k_y)\), averaged over \(\theta\), every [[gs2_diagnostics_knobs:nwrite]]
     !> timesteps
@@ -650,8 +609,8 @@ contains
     logical :: write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend
     logical :: write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db
     logical :: write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode
-    logical :: write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar
-    logical :: write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time
+    logical :: write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar
+    logical :: write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time
     logical :: write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time
     logical :: write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
     real :: conv_test_multiplier, omegatinst, omegatol
@@ -664,8 +623,8 @@ contains
          write_avg_moments, write_bpar_over_time, write_cerr, write_collisional, write_correlation, write_correlation_extend, &
          write_cross_phase, write_density_over_time, write_eigenfunc, write_fields, write_final_antot, write_final_db, &
          write_final_epar, write_final_fields, write_final_moments, write_flux_line, write_fluxes, write_fluxes_by_mode, &
-         write_full_moments_notgc, write_g, write_gg, write_gs, write_gyx, write_heating, write_hrate, write_jext, write_kpar, &
-         write_line, write_lorentzian, write_lpoly, write_max_verr, write_moments, write_nl_flux, write_nl_flux_dist, write_ntot_over_time, &
+         write_full_moments_notgc, write_g, write_gs, write_gyx, write_heating, write_jext, write_kpar, &
+         write_line, write_lorentzian, write_max_verr, write_moments, write_nl_flux_dist, write_ntot_over_time, &
          write_omavg, write_omega, write_parity, write_pflux_sym, write_pflux_tormom, write_phi_over_time, write_ql_metric, write_tperp_over_time, &
          write_symmetry, write_upar_over_time, write_verr, write_zonal_transfer
 
@@ -729,19 +688,15 @@ contains
     write_fluxes_by_mode = self%write_fluxes_by_mode
     write_full_moments_notgc = self%write_full_moments_notgc
     write_g = self%write_g
-    write_gg = self%write_gg
     write_gs = self%write_gs
     write_gyx = self%write_gyx
     write_heating = self%write_heating
-    write_hrate = self%write_hrate
     write_jext = self%write_jext
     write_kpar = self%write_kpar
     write_line = self%write_line
     write_lorentzian = self%write_lorentzian
-    write_lpoly = self%write_lpoly
     write_max_verr = self%write_max_verr
     write_moments = self%write_moments
-    write_nl_flux = self%write_nl_flux
     write_nl_flux_dist = self%write_nl_flux_dist
     write_ntot_over_time = self%write_ntot_over_time
     write_omavg = self%write_omavg
@@ -760,21 +715,6 @@ contains
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
     if (exist) read(in_file, nml = gs2_diagnostics_knobs)
-
-    !!!!!!!!!!!!!!!!!!!!
-    ! Non-generated code
-    ! write_heating is now correct synonym for write_hrate
-    write_heating = write_heating .or. write_hrate
-
-    call warn_about_deprecated_option(write_hrate, "write_hrate", &
-                                      write_heating, "write_heating")
-
-    write_fluxes = write_fluxes .or. write_nl_flux
-    write_fluxes_by_mode = write_fluxes_by_mode .or. write_nl_flux
-    call warn_about_deprecated_option(write_nl_flux, "write_nl_flux", &
-                                      write_fluxes, "write_fluxes")
-
-    !!!!!!!!!!!!!!!!!!!!
 
     ! Now copy from local variables into type members
     self%append_old = append_old
@@ -833,19 +773,15 @@ contains
     self%write_fluxes_by_mode = write_fluxes_by_mode
     self%write_full_moments_notgc = write_full_moments_notgc
     self%write_g = write_g
-    self%write_gg = write_gg
     self%write_gs = write_gs
     self%write_gyx = write_gyx
     self%write_heating = write_heating
-    self%write_hrate = write_hrate
     self%write_jext = write_jext
     self%write_kpar = write_kpar
     self%write_line = write_line
     self%write_lorentzian = write_lorentzian
-    self%write_lpoly = write_lpoly
     self%write_max_verr = write_max_verr
     self%write_moments = write_moments
-    self%write_nl_flux = write_nl_flux
     self%write_nl_flux_dist = write_nl_flux_dist
     self%write_ntot_over_time = write_ntot_over_time
     self%write_omavg = write_omavg
@@ -933,7 +869,6 @@ contains
     call self%write_key_val("write_fluxes_by_mode", self%write_fluxes_by_mode, unit_internal)
     call self%write_key_val("write_full_moments_notgc", self%write_full_moments_notgc, unit_internal)
     call self%write_key_val("write_g", self%write_g, unit_internal)
-    call self%write_key_val("write_gg", self%write_gg, unit_internal)
     call self%write_key_val("write_gs", self%write_gs, unit_internal)
     call self%write_key_val("write_gyx", self%write_gyx, unit_internal)
     call self%write_key_val("write_heating", self%write_heating, unit_internal)
@@ -941,10 +876,8 @@ contains
     call self%write_key_val("write_kpar", self%write_kpar, unit_internal)
     call self%write_key_val("write_line", self%write_line, unit_internal)
     call self%write_key_val("write_lorentzian", self%write_lorentzian, unit_internal)
-    call self%write_key_val("write_lpoly", self%write_lpoly, unit_internal)
     call self%write_key_val("write_max_verr", self%write_max_verr, unit_internal)
     call self%write_key_val("write_moments", self%write_moments, unit_internal)
-    call self%write_key_val("write_nl_flux", self%write_nl_flux, unit_internal)
     call self%write_key_val("write_nl_flux_dist", self%write_nl_flux_dist, unit_internal)
     call self%write_key_val("write_ntot_over_time", self%write_ntot_over_time, unit_internal)
     call self%write_key_val("write_omavg", self%write_omavg, unit_internal)
@@ -1034,7 +967,6 @@ contains
     call broadcast(self%write_fluxes_by_mode)
     call broadcast(self%write_full_moments_notgc)
     call broadcast(self%write_g)
-    call broadcast(self%write_gg)
     call broadcast(self%write_gs)
     call broadcast(self%write_gyx)
     call broadcast(self%write_heating)
@@ -1042,10 +974,8 @@ contains
     call broadcast(self%write_kpar)
     call broadcast(self%write_line)
     call broadcast(self%write_lorentzian)
-    call broadcast(self%write_lpoly)
     call broadcast(self%write_max_verr)
     call broadcast(self%write_moments)
-    call broadcast(self%write_nl_flux)
     call broadcast(self%write_nl_flux_dist)
     call broadcast(self%write_ntot_over_time)
     call broadcast(self%write_omavg)

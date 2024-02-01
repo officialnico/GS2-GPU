@@ -55,8 +55,8 @@ module gs2_diagnostics
   logical, public :: print_line, print_flux_line
   logical, public :: print_summary, write_line, write_flux_line
   logical, public :: write_omega, write_omavg, write_ascii
-  logical, public :: write_gs, write_lpoly, write_ql_metric
-  logical, public :: write_g, write_gg, write_gyx
+  logical, public :: write_gs, write_ql_metric
+  logical, public :: write_g, write_gyx
   logical, public :: write_eigenfunc, write_fields, write_final_fields, write_final_antot
   logical, public :: write_final_moments, write_avg_moments, write_parity
   logical, public :: write_moments, ob_midplane, write_final_db
@@ -769,14 +769,12 @@ contains
     write_flux_line = gs2_diagnostics_config%write_flux_line
     write_full_moments_notgc = gs2_diagnostics_config%write_full_moments_notgc
     write_g = gs2_diagnostics_config%write_g
-    write_gg = gs2_diagnostics_config%write_gg
     write_gs = gs2_diagnostics_config%write_gs
     write_gyx = gs2_diagnostics_config%write_gyx
     write_heating = gs2_diagnostics_config%write_heating
     write_kpar = gs2_diagnostics_config%write_kpar
     write_line = gs2_diagnostics_config%write_line
     write_lorentzian = gs2_diagnostics_config%write_lorentzian
-    write_lpoly = gs2_diagnostics_config%write_lpoly
     write_max_verr = gs2_diagnostics_config%write_max_verr
     write_moments = gs2_diagnostics_config%write_moments
     write_fluxes = gs2_diagnostics_config%write_fluxes
@@ -840,7 +838,7 @@ contains
   subroutine finish_gs2_diagnostics (istep)
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx, write_poly, collision_error
+    use dist_fn, only: write_f, write_fyx, collision_error
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
@@ -863,7 +861,6 @@ contains
 
     if (write_gyx) call write_fyx (phinew,bparnew,last)
     if (write_g) call write_f (last)
-    if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
     if (write_cerr) call collision_error (phinew, bparnew, last)
     if (write_verr .and. proc0) call finish_weights
 
@@ -1032,7 +1029,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_poly, collision_error, write_f, write_fyx
+    use dist_fn, only: collision_error, write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use gs2_time, only: user_time
@@ -1041,7 +1038,7 @@ contains
     use antenna, only: antenna_w
     use parameter_scan_arrays, only: scan_hflux => hflux_tot, scan_momflux => momflux_tot 
     use parameter_scan_arrays, only: scan_phi2_tot => phi2_tot, scan_nout => nout
-    use parameter_scan, only: scan_type_switch, scan_type_none
+    use parameter_scan, only: scanning
     use optionals, only: get_option_with_default
     use diagnostics_printout, only: write_phi_fluxes_to_unit, write_fluxes_to_unit
     use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
@@ -1116,8 +1113,6 @@ contains
     istep_last = istep
 
     if (write_g) call write_f (last)
-
-    if (write_lpoly) call write_poly (phinew, bparnew, last, istep)
 
     ! Note this also returns phi2, apar2, bpar2 and phitot for other diagnostics
     if (proc0) call do_write_ncloop(t, istep, phi2, apar2, bpar2, phitot)
@@ -1306,7 +1301,7 @@ contains
        end if
     endif
 
-    if (scan_type_switch /= scan_type_none) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
+    if (scanning) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
 
     if (write_cerr) call collision_error(phinew, bparnew, last)
 
@@ -1408,7 +1403,7 @@ contains
     if (write_ql_metric) then
 
        ! Calculate the instantaneous omega and keep the growth rate.
-       growth_rates = imag(calculate_instantaneous_omega())
+       growth_rates = aimag(calculate_instantaneous_omega())
        ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates)
     else
        ql_metric = 0.0
@@ -1732,7 +1727,6 @@ contains
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)
   subroutine do_write_heating(t, file_unit, file_unit2, h)
     use species, only: nspec
-    use file_utils, only: flush_output_file
     implicit none
     real, intent(in) :: t
     integer, intent(in) :: file_unit, file_unit2
@@ -1814,8 +1808,8 @@ contains
     end do
     write (unit=file_unit2, fmt=*)
 
-    call flush_output_file (file_unit)
-    call flush_output_file (file_unit2)
+    flush (file_unit)
+    flush (file_unit2)
   end subroutine do_write_heating
 
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
@@ -2594,15 +2588,14 @@ contains
   !> Flush text files (only [[out_unit]], [[res_unit]], [[lpc_unit]], and
   !> [[parity_unit]])
   subroutine flush_files
-    use file_utils, only: flush_output_file
     implicit none
     if (.not. write_ascii) return
-    call flush_output_file (out_unit)
+    flush (out_unit)
     if (write_verr) then
-       call flush_output_file (res_unit)
-       call flush_output_file (lpc_unit)
+       flush (res_unit)
+       flush (lpc_unit)
     end if
-    if (write_parity) call flush_output_file (parity_unit)
+    if (write_parity) flush (parity_unit)
   end subroutine flush_files
 
   !> Trinity convergence condition - simple and experimental

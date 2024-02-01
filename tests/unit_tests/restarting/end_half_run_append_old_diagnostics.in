@@ -135,7 +135,7 @@
  print_line = .false.
  write_verr = .true.
  write_line = .false.
- write_hrate = .true.
+ write_heating = .true.
  write_avg_moments = .true.
  write_omega = .true.
  write_omavg = .true.

@@ -157,9 +157,9 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: xloc, sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
-  public :: xx, nterp, new_trap_int, vcut, genquad
-  public :: init_weights, legendre_transform, lagrange_interp, lagrange_coefs
+  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
+  public :: xx, new_trap_int, vcut, genquad
+  public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
   public :: integrate_kysum, integrate_volume
@@ -207,10 +207,9 @@ module le_grids
   end interface
 
   real, dimension (:), allocatable :: xx ! (ng2)
-  real, dimension (:,:), allocatable :: wlerr, xloc ! mbmark
+  real, dimension (:,:), allocatable :: wlerr ! mbmark
   real, dimension (:,:,:), allocatable :: werr
   real, dimension (:,:,:), allocatable :: wlterr
-  real, dimension (:,:,:,:), allocatable :: lgrnge
   real, dimension (:,:,:), allocatable :: wlmod
   real, dimension (:,:,:), allocatable :: wtmod
   real, dimension (:,:,:), allocatable :: wmod
@@ -273,7 +272,6 @@ module le_grids
        wfbbc_option_trapped = 3
 
   integer :: nmax = 500
-  integer :: nterp = 100
 
   real :: wgt_fac = 10.0
 
@@ -325,7 +323,7 @@ module le_grids
      !> along field line.
      integer :: npassing = -1
      !> The number of untrapped pitch-angles moving in one direction
-     !> along field line is `2*ngauss` if [[le_grids_knobs::npassing]] is
+     !> along field line is `2*ngauss` if [[le_grids_knobs:npassing]] is
      !> not set. Note that the number of trapped pitch angles is
      !> directly related to the number of theta grid points (per
      !> \(2\pi\)) and is `ntheta/2 + 1`.
@@ -333,10 +331,6 @@ module le_grids
      !> Influences the minimum number of grid points in an integration
      !> subinterval used in calculating the integration grid weights.
      integer :: nmax = 500
-     !> The number of nodes used in calculating lagrange coefficients
-     !> is `2*nterp-1`.  This code isn't currently used in GS2 so this
-     !> input should not influence anything significant.
-     integer :: nterp = 100
      !> The default lambda grid is now gauss-radau, for passing
      !> particles up to and including the passing-trapped boundary
      !> (wfb). The grid gives finite weight to the class of particles
@@ -477,9 +471,6 @@ contains
     use theta_grid, only: ntgrid
 
     implicit none
-    integer :: tsize
-
-    tsize = 2*nterp-1
 
     call broadcast (lmax)
     call broadcast (ng2)
@@ -501,8 +492,6 @@ contains
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
-       allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-       allocate (xloc(-ntgrid:ntgrid,tsize))
        allocate (xi(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_il(-ntgrid:ntgrid, 2*nlambda))
        allocate (ixi_to_isgn(-ntgrid:ntgrid, 2*nlambda))
@@ -529,9 +518,6 @@ contains
     call broadcast(is_ttp)
     call broadcast(is_bounce_point)
     call broadcast(can_be_ttp)
-
-    call broadcast(xloc)
-    call broadcast(lgrnge)
 
     call broadcast(xi)
     call broadcast(ixi_to_il)
@@ -570,7 +556,6 @@ contains
     npassing = le_grids_config%npassing
     ngauss = le_grids_config%ngauss
     nmax = le_grids_config%nmax
-    nterp = le_grids_config%nterp
     radau_gauss_grid = le_grids_config%radau_gauss_grid
     split_passing_region = le_grids_config%split_passing_region
     test = le_grids_config%test
@@ -958,18 +943,19 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, iglo
 
     !Ensure array is zero to begin
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -977,34 +963,32 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total(:, it, ik) = total(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total(:, it, ik) = total(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1025,7 +1009,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     complex, dimension(:,:,:),allocatable :: total_small
     integer :: is, il, ie, ik, it, iglo
@@ -1039,12 +1023,13 @@ contains
        allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky))       
     endif
     call zero_array(total_small)
+    where (spec%type == tracer_species) weights = 0
 
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter))then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, kwork_filter, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, kwork_filter, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1052,34 +1037,32 @@ contains
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           if(kwork_filter(it,ik)) cycle
-          ie = ie_idx(g_lo,iglo)
           is = is_idx(g_lo,iglo)
+          ie = ie_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
-       !$OMP SHARED(g_lo, spec, weights, w, wl, g) &
+       !$OMP SHARED(g_lo, weights, w, wl, g) &
        !$OMP REDUCTION(+ : total_small) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_small(:, it, ik) = total_small(:, it, ik) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_small(:, it, ik) = total_small(:, it, ik) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1122,11 +1105,12 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
     complex, dimension (:, :, :, :, :, :), allocatable :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     allocate(gf(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
     call gather(g2gf, g, gf, ntgrid)
 
@@ -1139,9 +1123,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1153,9 +1136,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1183,12 +1165,12 @@ contains
     implicit none
 
     complex, dimension(-ntgrid:ntgrid,2,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc), intent(in) :: gf
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:ntgrid,gf_lo%ntheta0,gf_lo%naky), intent (out) :: total
     integer :: is, il, ie, igf, it, ik
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(any(kwork_filter)) then
        do igf = gf_lo%llim_proc,gf_lo%ulim_proc
@@ -1199,9 +1181,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   if (spec(is)%type .NE. tracer_species) then
-                      total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
-                   end if
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1214,7 +1195,8 @@ contains
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   total(:,it,ik) = total(:,it,ik) + weights(is)*w(ie,is)*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
+                   total(:,it,ik) = total(:,it,ik) + &
+                        (weights(is)*w(ie,is))*wl(:,il)*(gf(:,1,is,ie,il,igf)+gf(:,2,is,ie,il,igf))
                 end do
              end do
           end do
@@ -1236,7 +1218,7 @@ contains
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (0:,:,:), intent (out) :: total
     logical, intent(in), optional :: nogath
     logical, intent(in), optional :: gf_lo
@@ -1288,20 +1270,20 @@ contains
     allocate(total_flat(g_lo%les_kxky_range(1,local_rank_intspec)*&
          (2*ntgrid+1):(1+g_lo%les_kxky_range(2,local_rank_intspec))*(2*ntgrid+1)))
     call zero_array(total_flat)
-
+    where (spec%type == tracer_species) weights = 0
     !Performed integral (weighted sum) over local velocity space and species
     if(g_lo%x_before_y) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, ntheta0) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, ntheta0) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1309,23 +1291,22 @@ contains
           nr=nl+(2*ntgrid)
           
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, it, ik, ie, il, is, nl, nr) &
-       !$OMP SHARED(g_lo, ntgrid, spec, weights, w, wl, g, naky) &
+       !$OMP SHARED(g_lo, ntgrid, weights, w, wl, g, naky) &
        !$OMP REDUCTION(+ : total_flat) &
        !$OMP SCHEDULE(static)
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           !Convert from iglo to the separate indices
+          is = is_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
           it = it_idx(g_lo,iglo)
           ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
           il = il_idx(g_lo,iglo)
           
           !Calculate extent
@@ -1333,9 +1314,8 @@ contains
           nr=nl+(2*ntgrid)
 
           !Sum up weighted g
-          if (spec(is)%type .NE. tracer_species) then
-             total_flat(nl:nr) = total_flat(nl:nr) + weights(is)*w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
-          end if
+          total_flat(nl:nr) = total_flat(nl:nr) + &
+               (weights(is)*w(ie,is))*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
        end do
        !$OMP END PARALLEL DO
     endif
@@ -1382,31 +1362,29 @@ contains
 
     type (e_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, il, ie, ik, it, ig, ielo
 
     call zero_array(total)
-
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
-    !$OMP SHARED(lo, negrid, spec, weights, w, wl, g) &
+    !$OMP SHARED(lo, negrid, weights, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ielo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ielo)
        ig = ig_idx (lo,ielo)
        ik = ik_idx(lo,ielo)
        it = it_idx(lo,ielo)
-       is = is_idx(lo,ielo)
 !CMR: in e_lo il is lambda index, and isign is separate.
        il = il_idx(lo,ielo)
        !Perform local sum
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
-              total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(ie,ielo)
-          end do
-       end if
+       do ie=1, negrid
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(ie,ielo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1425,22 +1403,23 @@ contains
 
     type (lz_layout_type), intent (in) :: lo
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: is, ixi, il, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ilzlo)
        ig = ig_idx (lo,ilzlo)
        ik = ik_idx(lo,ilzlo)
        it = it_idx(lo,ilzlo)
        ie = ie_idx(lo,ilzlo)
-       is = is_idx(lo,ilzlo)
        !Perform local sum
 !CMR: in lz_lo il muxt be obtained from local index ixi, which includes isign.
 !CMR, 2/10/2013:
@@ -1450,13 +1429,11 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       if (spec(is)%type .NE. tracer_species) then
-          do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
-             total(ig, it, ik) = total(ig, it, ik) + &
-               weights(is)*w(ie,is)*wl(ig,il)*g(il,ilzlo)
-          end do
-       end if
+       do ixi=1, nxi+1
+          il = ixi_to_il(ig,ixi)
+          total(ig, it, ik) = total(ig, it, ik) + &
+               (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1481,24 +1458,24 @@ contains
 
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in) :: weights
+    real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
     integer :: ixi, ie, il, ile, ig, it, ik, is
 
     call zero_array(total)
+    where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, negrid, spec, weights, w, wl, g, ixi_to_il) &
+    !$OMP SHARED(lo, nxi, negrid, weights, w, wl, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
+       is = is_idx(lo,ile)
        ig = ig_idx (lo,ile)
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
-       is = is_idx (lo,ile)
 
-       if (spec(is)%type .NE. tracer_species) then
-          do ie=1, negrid
+       do ie=1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1506,12 +1483,12 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
-             do ixi=1, nxi+1
-                il = ixi_to_il(ig,ixi)
-                total(ig,it,ik) = total(ig,it,ik) + weights(is)*w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
-             end do
+          do ixi=1, nxi+1
+             il = ixi_to_il(ig,ixi)
+             total(ig,it,ik) = total(ig,it,ik) + &
+                  (weights(is)*w(ie,is)) * wl(ig,il) * g(ixi,ie,ile)
           end do
-       end if
+       end do
     end do
     !$OMP END PARALLEL DO
 !Sum over all procs to make integral over all velocity space and species
@@ -1694,60 +1671,6 @@ contains
     deallocate(lp1,lp2,lp3,zshift)
 
   end subroutine legendre_polynomials
-
-  !> FIXME : Add documentation
-  subroutine lagrange_interp (g, poly, istep, all)
-    !<DD>WARNING: THIS ROUTINE DOESN'T USE g0 FOR ANYTHING IS THIS CORRECT?
-    use theta_grid, only: ntgrid, bmag
-    use kt_grids, only: naky, ntheta0
-    use gs2_layouts, only: g_lo, idx, idx_local
-    use mp, only: sum_reduce, sum_allreduce, nproc
-
-    implicit none
-
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:,:), intent (out) :: poly
-    integer, optional, intent(in) :: all
-    integer, intent(in) :: istep
-    real :: ypt
-    integer :: il, ie, ik, it, iglo, ig
-
-    !Initialise to zero
-    poly = 0.
-    do ie = 1, negrid
-       do il = ng2+1, nlambda
-          do it = 1, ntheta0
-             do ik = 1, naky
-                iglo = idx (g_lo, ik, it, il, ie, 1)
-                if (idx_local (g_lo, iglo)) then
-                   do ig = -ntgrid, ntgrid
-                      !Do we need this if?
-                      if (.not. forbid(ig,il)) then
-                         ypt=sqrt(max(1.0 - bmag(ig)*al(il),0.0))                      
-                      else
-                         ypt=0.0
-                      end if
-                      poly(ig, it, ik, ie, :) = poly(ig, it, ik, ie, :) + &
-                           lgrnge(ig,il,:,1)*cos(0.1*istep*ypt+1.0) + &
-                           lgrnge(ig,il,:,2)*cos(-0.1*istep*ypt+1.0)
-                   end do
-                end if
-             end do
-          end do
-       end do
-    end do
-
-    !Do we really need this if?
-    if (nproc > 1) then
-       !Reduce integral across procs
-       if (present(all)) then
-          call sum_allreduce (poly)
-       else
-          call sum_reduce (poly, 0)
-       end if
-    end if
-
-  end subroutine lagrange_interp
 
   !> FIXME : Add documentation
   !!
@@ -2350,7 +2273,7 @@ contains
     use mp, only: proc0
     implicit none
 
-    integer :: tsize,is
+    integer :: is
     logical :: has_maxwellian_species
     integer :: unit
 
@@ -2380,8 +2303,6 @@ contains
     if (.not. has_maxwellian_species) write(*,*) &
         'Warning; no maxwellian species; collisions will fail'
     !call setvgrid (vcut, negrid, energy, w, nesub)
-    
-    tsize = 2*nterp-1
 
     dele(1,:) = energy(1,:)
     dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
@@ -2402,8 +2323,6 @@ contains
     allocate (is_ttp(-ntgrid:ntgrid,nlambda))
     allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
     allocate (can_be_ttp(nlambda))
-    allocate (lgrnge(-ntgrid:ntgrid,nlambda,tsize,2))
-    allocate (xloc(-ntgrid:ntgrid,tsize))
     if (grid_has_trapped_particles()) then
        al(ng2+1:nlambda) = 1.0/bset
     end if
@@ -3517,49 +3436,6 @@ contains
     end do
 
   end subroutine xigridset
-
-  !> FIXME : Add documentation  
-  subroutine lagrange_coefs (ig, nodes, lfac, xloc)
-    use theta_grid, only: bmag, bmax
-    implicit none
-
-    integer, intent (in) :: ig
-    real, dimension (:), intent (in) :: nodes
-    real, dimension (:,:,:), intent (out) :: lfac
-    real, dimension (:), intent (out) :: xloc
-
-    integer :: ix, il, j, icnt, tsize
-
-    xloc(1) = -sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    xloc(2*nterp-1) = sqrt(max(1.0-bmag(ig)/bmax,0.0))
-    do ix=2,2*nterp-1
-       xloc(ix) = xloc(1) + (ix-1)*(xloc(2*nterp-1)-xloc(1))/(2*nterp-2)
-    end do
-
-    lfac = 0.
-    icnt = 0
-
-    tsize = size(nodes)
-
-    do il=ng2+1,nlambda
-       if (.not. forbid(ig,il)) then
-          lfac(il,:,:) = 1.0
-          icnt = icnt + 1
-          if (icnt .eq. tsize-icnt+1) then
-             lfac(il,:,1) = 0.
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-             end do
-          else
-             do j=1,tsize
-                if (j /= icnt) lfac(il,:,2) = lfac(il,:,2)*(xloc - nodes(j))/(nodes(icnt)-nodes(j))
-                if (j /= tsize-icnt+1) lfac(il,:,1) = lfac(il,:,1)*(xloc - nodes(j))/(nodes(tsize-icnt+1)-nodes(j))
-             end do
-          end if
-       end if
-    end do
-
-  end subroutine lagrange_coefs
 
   !> FIXME : Add documentation
   !!
@@ -5102,7 +4978,7 @@ contains
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
     if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
-         jend, forbid, xx, lgrnge, xloc, speed, speed_maxw)
+         jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
     if (allocated(can_be_ttp)) deallocate(can_be_ttp)
@@ -5207,11 +5083,11 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: wfbbc_option
-    integer :: negrid, nesub, nesuper, ngauss, nmax, nterp
+    integer :: negrid, nesub, nesuper, ngauss, nmax
     logical :: genquad, new_trap_int, new_trap_int_split, radau_gauss_grid, split_passing_region, test, trapped_particles
     real :: bouncefuzz, vcut, wgt_fac
 
-    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, nterp, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
+    namelist /le_grids_knobs/ bouncefuzz, genquad, negrid, nesub, nesuper, new_trap_int, new_trap_int_split, npassing, ngauss, nmax, radau_gauss_grid, split_passing_region, test, trapped_particles, vcut, wfbbc_option, wgt_fac
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -5227,7 +5103,6 @@ contains
     npassing = self%npassing
     ngauss = self%ngauss
     nmax = self%nmax
-    nterp = self%nterp
     radau_gauss_grid = self%radau_gauss_grid
     split_passing_region = self%split_passing_region
     test = self%test
@@ -5251,7 +5126,6 @@ contains
     self%npassing = npassing
     self%ngauss = ngauss
     self%nmax = nmax
-    self%nterp = nterp
     self%radau_gauss_grid = radau_gauss_grid
     self%split_passing_region = split_passing_region
     self%test = test
@@ -5286,7 +5160,6 @@ contains
     call self%write_key_val("npassing", self%npassing, unit_internal)
     call self%write_key_val("ngauss", self%ngauss, unit_internal)
     call self%write_key_val("nmax", self%nmax, unit_internal)
-    call self%write_key_val("nterp", self%nterp, unit_internal)
     call self%write_key_val("radau_gauss_grid", self%radau_gauss_grid, unit_internal)
     call self%write_key_val("split_passing_region", self%split_passing_region, unit_internal)
     call self%write_key_val("test", self%test, unit_internal)
@@ -5323,7 +5196,6 @@ contains
     call broadcast(self%npassing)
     call broadcast(self%ngauss)
     call broadcast(self%nmax)
-    call broadcast(self%nterp)
     call broadcast(self%radau_gauss_grid)
     call broadcast(self%split_passing_region)
     call broadcast(self%test)

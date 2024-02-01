@@ -138,14 +138,17 @@ contains
   end subroutine single_get_sizes
 
   !> FIXME : Add documentation  
-  subroutine single_get_grids (aky_out, theta0_out, akx_out)
+  subroutine single_get_grids (aky_out, theta0_out, akx_out, ikx_out)
     implicit none
     real, dimension (:), intent (out) :: aky_out, akx_out
     real, dimension (:,:), intent (out) :: theta0_out
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx_out
 
     aky_out = aky
     theta0_out = theta0
     akx_out = akx
+    ikx_out = 0
   end subroutine single_get_grids
 
   !> FIXME : Add documentation  
@@ -573,13 +576,15 @@ contains
   end subroutine range_get_sizes
 
   !> FIXME : Add documentation  
-  subroutine range_get_grids (aky, theta0, akx)
+  subroutine range_get_grids (aky, theta0, akx, ikx)
     ! BD: Could add some logic here to set theta0 if akx is given?  When do we need what?
     use theta_grid, only: shat
     use mp, only: mp_abort
     implicit none
     real, dimension (:), intent (out) :: akx, aky
     real, dimension (:,:), intent (out) :: theta0
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx
 
     real :: dkx, dky, dtheta0
     integer :: i, j
@@ -643,6 +648,9 @@ contains
        akx = (/ (akx_min + dkx*real(i), i = 0,ntheta0-1) /)
     endif
 
+    do j = 1, ntheta0
+       ikx(j) = j - 1
+    end do
   end subroutine range_get_grids
 
   !> FIXME : Add documentation    
@@ -655,6 +663,7 @@ contains
     integer :: i, j
     real, dimension(:), allocatable:: aky, akx
     real, dimension(:,:), allocatable:: theta0
+    integer, dimension(:), allocatable :: ikx
 
     write (report_unit, *) 
     write (report_unit, fmt="('A range of k_perps will be evolved.')")
@@ -664,8 +673,8 @@ contains
     write (report_unit, *) 
 
     !<DD>Calculate the kt grids
-    allocate(aky(naky),theta0(ntheta0,naky),akx(ntheta0))
-    call range_get_grids(aky, theta0, akx)
+    allocate(aky(naky),theta0(ntheta0,naky),akx(ntheta0), ikx(ntheta0))
+    call range_get_grids(aky, theta0, akx, ikx)
 
     !Report grid values
     do j = 1, naky
@@ -992,11 +1001,13 @@ contains
  !> FIXME : Add documentation
  !>
  !> @todo : Consider moving the content of this routine to init_kt_grids_specified
- subroutine specified_get_grids (aky, theta0, akx, kt_grids_specified_element_config_in)
+ subroutine specified_get_grids (aky, theta0, akx, ikx, kt_grids_specified_element_config_in)
    use mp, only: proc0
    implicit none
    real, dimension (:), intent (out) :: akx, aky
    real, dimension (:,:), intent (out) :: theta0
+   !> Discrete kx wavenumber grid indices
+   integer, dimension (:), intent (out) :: ikx
    type(kt_grids_specified_element_config_type), intent(in), dimension(:), optional :: kt_grids_specified_element_config_in    
    real :: aky_dummy, theta0_dummy, akx_dummy
    integer :: i, naky, ntheta0, nmodes
@@ -1016,6 +1027,7 @@ contains
       if (i <= naky) aky(i) = aky_dummy
       if (i <= ntheta0) theta0(i,:) = theta0_dummy
       if (i <= ntheta0) akx(i) = akx_dummy
+      if (i <= ntheta0) ikx(i) = i - 1
     end do
     
   end subroutine specified_get_grids
@@ -1317,9 +1329,9 @@ module kt_grids_box
   
   real :: ly, y0, x0, rtwist, rhostar_box
   integer :: naky_private, ntheta0_private, nx_private, ny_private
-  integer :: nkpolar_private, n0
+  integer :: n0
   integer :: jtwist
-  integer :: naky, ntheta0, nx, ny, nkpolar
+  integer :: naky, ntheta0, nx, ny
   !> Are we being called from gryfx?
   logical :: gryfx
   logical :: parameters_read = .false.
@@ -1363,13 +1375,6 @@ module kt_grids_box
      !> allow values to be selected which are performant for the FFTs
      !> and provide a good range of sweetspots.
      integer :: naky = 0
-     !> FIXME: Add documentation
-     !>
-     !> Not used anywhere so should be removed.
-     !> If set to 0 (the default) then will be set to `int(real(naky-1.)*sqrt(2.))`
-     !>
-     !> @todo Consider for removal.
-     integer :: nkpolar = 0
      !> The actual number of theta0 modes. For nonlinear runs it is
      !> generally recommended to use `nx` instead. If set to 0 (the
      !> default) this will be automatically set to `1 + 2*(nx-1)/3`.
@@ -1465,7 +1470,6 @@ contains
     ly = kt_grids_box_config%ly
     n0 = kt_grids_box_config%n0
     naky = kt_grids_box_config%naky
-    nkpolar = kt_grids_box_config%nkpolar
     ntheta0 = kt_grids_box_config%ntheta0
     nx = kt_grids_box_config%nx
     ny = kt_grids_box_config%ny
@@ -1534,7 +1538,6 @@ contains
     if (naky == 0) naky = (ny-1)/3 + 1
     if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
     if (rtwist == 0.) rtwist = real(jtwist)
-    if (nkpolar == 0) nkpolar = int(real(naky-1.)*sqrt(2.))
 
     if (mod(ntheta0, 2) /= 1) then
        call mp_abort("ERROR: ntheta0 must be an odd number in box mode", .true.)
@@ -1603,7 +1606,6 @@ contains
        end if
     end if
 
-    nkpolar_private = nkpolar
     naky_private = naky
     ntheta0_private = ntheta0
     nx_private = nx
@@ -1631,7 +1633,7 @@ contains
   end subroutine wnml_kt_grids_box
 
   !> Get the various grid sizes
-  subroutine box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
+  subroutine box_get_sizes (naky, ntheta0, nx, ny)
     implicit none
     !> Number of \(k_y \rho\) modes. See [[kt_grids_box_parameters::naky]]
     integer, intent (out) :: naky
@@ -1641,13 +1643,10 @@ contains
     integer, intent (out) :: nx
     !> Number of y points in real space. See [[kt_grids_box_parameters::ny]]
     integer, intent (out) :: ny
-    !> See [[kt_grids_box_parameters::nkpolar]]
-    integer, intent (out) :: nkpolar
     naky = naky_private
     ntheta0 = ntheta0_private
     nx = nx_private
     ny = ny_private
-    nkpolar = nkpolar_private
   end subroutine box_get_sizes
 
   !> FIXME : Add documentation  
@@ -1664,7 +1663,7 @@ contains
   end subroutine box_set_overrides
 
   !> Calculate the grid of wavenumbers for box mode
-  subroutine box_get_grids (aky, theta0, akx, ikx, iky)
+  subroutine box_get_grids (aky, theta0, akx, ikx)
     use theta_grid, only: is_effectively_zero_shear, nperiod, shat
     use constants, only: pi
     use theta_grid, only: nperiod 
@@ -1675,10 +1674,8 @@ contains
     real, dimension (:), intent (out) :: aky
     !> The \(\theta_0(k_x, k_y)\) grid
     real, dimension (:,:), intent (out) :: theta0
-    !> Discrete wavenumber grids
-    !>
-    !> @todo: Remove these as unused
-    integer, dimension (:), intent (out) :: ikx, iky
+    !> Discrete kx wavenumber grid indices
+    integer, dimension (:), intent (out) :: ikx
 
     real :: dkx, dky, ratio
     integer :: i, naky, ntheta0
@@ -1719,7 +1716,6 @@ contains
     endif
 
     do i = 1, naky
-       iky(i) = i-1
        aky(i) = real(i-1)*dky
     end do
 
@@ -1876,11 +1872,11 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: jtwist, n0, naky, nkpolar, ntheta0, nx, ny
+    integer :: jtwist, n0, naky, ntheta0, nx, ny
     logical :: gryfx
     real :: ly, rhostar_box, rtwist, x0, y0
 
-    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, nkpolar, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
+    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -1891,7 +1887,6 @@ contains
     ly = self%ly
     n0 = self%n0
     naky = self%naky
-    nkpolar = self%nkpolar
     ntheta0 = self%ntheta0
     nx = self%nx
     ny = self%ny
@@ -1910,7 +1905,6 @@ contains
     self%ly = ly
     self%n0 = n0
     self%naky = naky
-    self%nkpolar = nkpolar
     self%ntheta0 = ntheta0
     self%nx = nx
     self%ny = ny
@@ -1940,7 +1934,6 @@ contains
     call self%write_key_val("ly", self%ly, unit_internal)
     call self%write_key_val("n0", self%n0, unit_internal)
     call self%write_key_val("naky", self%naky, unit_internal)
-    call self%write_key_val("nkpolar", self%nkpolar, unit_internal)
     call self%write_key_val("ntheta0", self%ntheta0, unit_internal)
     call self%write_key_val("nx", self%nx, unit_internal)
     call self%write_key_val("ny", self%ny, unit_internal)
@@ -1972,7 +1965,6 @@ contains
     call broadcast(self%ly)
     call broadcast(self%n0)
     call broadcast(self%naky)
-    call broadcast(self%nkpolar)
     call broadcast(self%ntheta0)
     call broadcast(self%nx)
     call broadcast(self%ny)
@@ -2013,8 +2005,7 @@ module kt_grids
   public :: set_overrides
   public :: aky, theta0, akx
   public :: naky, ntheta0, nx, ny, reality
-  public :: nkpolar 
-  public :: ikx, iky, jtwist_out
+  public :: ikx, jtwist_out
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
   public :: kwork_filter, kperp2, inv_kperp2
@@ -2032,10 +2023,8 @@ module kt_grids
   real, dimension (:), allocatable :: akx
   !> The \(k_y \rho\) grid
   real, dimension (:), allocatable :: aky
-  !> Discrete wavenumber grids
-  !>
-  !> @todo: Remove these as unused
-  integer, dimension(:), allocatable :: ikx, iky
+  !> Discrete kx grid index
+  integer, dimension(:), allocatable :: ikx
   !> Number of \(k_y \rho\) points
   integer :: naky
   !> Number of \(\theta_0\) points
@@ -2044,8 +2033,6 @@ module kt_grids
   integer :: nx
   !> Number of (real space) \(y\) points
   integer :: ny
-  !> @todo remove as unused
-  integer :: nkpolar
   !> Related to the box size in x. See
   !> [[kt_grids_box_parameters:jtwist]]
   integer :: jtwist_out
@@ -2111,8 +2098,6 @@ contains
     parameters_read = .true.
     
     call init_theta_grid
-    nkpolar = 0   ! will be set to non-zero value only in box case; only used for an MHD diagnostic
-    
     call read_parameters_internal(kt_grids_config_in)
 
     ! Read all namelists in case grid_option is overriden
@@ -2194,7 +2179,6 @@ contains
     call broadcast (reality)
     call broadcast (box)
     call broadcast (naky)
-    call broadcast (nkpolar)
     call broadcast (ntheta0)
     call broadcast (ny)
     call broadcast (nx)
@@ -2285,7 +2269,6 @@ contains
     allocate (aky(naky))
     allocate (theta0(ntheta0,naky))
     allocate (ikx(ntheta0))
-    allocate (iky(naky))
   end subroutine allocate_arrays
 
   !> FIXME : Add documentation  
@@ -2307,7 +2290,7 @@ contains
        call specified_get_sizes (naky, ntheta0, nx, ny)
     case (gridopt_box)
        call init_kt_grids_box
-       call box_get_sizes (naky, ntheta0, nx, ny, nkpolar)
+       call box_get_sizes (naky, ntheta0, nx, ny)
        reality = .true.
        box = .true.
     end select
@@ -2322,13 +2305,13 @@ contains
     implicit none
     select case (gridopt_switch)
     case (gridopt_single)
-       call single_get_grids (aky, theta0, akx)
+       call single_get_grids (aky, theta0, akx, ikx)
     case (gridopt_range)
-       call range_get_grids (aky, theta0, akx)
+       call range_get_grids (aky, theta0, akx, ikx)
     case (gridopt_specified)
-       call specified_get_grids (aky, theta0, akx)
+       call specified_get_grids (aky, theta0, akx, ikx)
     case (gridopt_box)
-       call box_get_grids (aky, theta0, akx, ikx, iky)
+       call box_get_grids (aky, theta0, akx, ikx)
     end select
   end subroutine get_grids
 
@@ -2376,7 +2359,7 @@ contains
 
     implicit none
 
-    if (allocated(aky)) deallocate (akx, aky, theta0, ikx, iky)
+    if (allocated(aky)) deallocate (akx, aky, theta0, ikx)
     if (allocated(kwork_filter)) deallocate(kwork_filter)
     if (allocated(kperp2)) deallocate(kperp2)
     if (allocated(inv_kperp2)) deallocate(inv_kperp2)

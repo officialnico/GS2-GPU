@@ -115,7 +115,7 @@ module nonlinear_terms
      !> GRYFX only. No documentation available
      real :: densfac = 1.
      !> Set the error threshold used to determine when the timestep should change if
-     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      real :: error_target = 0.1
      !> Flag for testing. If false do not include apar contribution to nonlinear term.
      logical :: include_apar = .true.
@@ -124,7 +124,7 @@ module nonlinear_terms
      !> Flag for testing. If false do not include phi contribution to nonlinear term.
      logical :: include_phi = .true.
      !> Set the first timestep for which the order based error checks are made if
-     !> [[nonlinear_terms_knobs::use_order_based_error]] is true.
+     !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      integer :: istep_error_start = 30
      !> If `true` (default) then forces the nonlinear source term to
      !> zero in the forbidden region.
@@ -817,7 +817,7 @@ contains
 
   !> Calculate the nonlinear term and part of the corresponding CFL condition
   subroutine add_nl (g_in, g1, phi, apar, bpar, adjust)
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, kxfac
     use gs2_layouts, only: g_lo, ik_idx, it_idx
     use dist_fn_arrays, only: g_adjust, from_g_gs2
     use gs2_transforms, only: transform2, inverse2
@@ -830,6 +830,9 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
+    !> Local array used to store the adjusted input dfn if needed. Saves
+    !> calling g_adjust twice.
+    complex, dimension (-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc) :: g2
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     logical, intent(in), optional :: adjust
     logical :: should_adjust
@@ -857,7 +860,8 @@ contains
     
     !Form g1=i*ky*g_wesson
     call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+    if (should_adjust) call g_adjust(g1, phi, bpar, direction = from_g_gs2)
+    call copy(g1, g2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik) &
@@ -901,32 +905,28 @@ contains
        call transform2 (g1, ba)
     end if
 
-    !Form g1=i*kx*g_wesson
-    call copy(g_in, g1)
-    if (should_adjust) call g_adjust(g1,phi,bpar, direction = from_g_gs2)
+    !Form g1=i*kx*g_wesson noting that g2 holds our starting g_wesson
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, it) &
-    !$OMP SHARED(g_lo, g1, akx) &
+    !$OMP SHARED(g_lo, g2, akx) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        it = it_idx(g_lo,iglo)
-       g1(:,:,iglo)=g1(:,:,iglo)*zi*akx(it)
+       g2(:,:,iglo) = g2(:,:,iglo) * zi * akx(it)
     enddo
     !$OMP END PARALLEL DO
-    
+
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, agb, ia)
+       call transform2 (g2, agb, ia)
     else
-       call transform2 (g1, gb)
+       call transform2 (g2, gb)
     end if
 
     call debug_message(verb, 'nonlinear_terms::add_nl calculated dg/dx')
 
-    if (use_cfl_limit) then
-       call get_max_vel(cflx)
-    end if
+    if (use_cfl_limit) call get_max_vel(cflx)
 
     call calculate_bracket(.false.)
     
@@ -939,6 +939,16 @@ contains
     else
        call inverse2 (bracket, g1)
     end if
+
+    ! Scale by kxfac
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo) &
+    !$OMP SHARED(g_lo, g1, kxfac) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       g1(:, :, iglo) = g1(:, :, iglo) * kxfac
+    end do
+    !$OMP END PARALLEL DO
 
     call debug_message(verb, &
       'nonlinear_terms::add_nl calculated nonlinear term')
@@ -1169,9 +1179,11 @@ contains
   end subroutine get_max_vel
 
   !> Calculate (d Chi /dx).(d g_wesson/dy) and store in bracket if is_first_term = .true.
-  !! else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  !> else calculate (d Chi /dy).(d g_wesson/dx) and subtract from bracket
+  !>
+  !> @note The final bracket value must be scaled by kxfac to produce
+  !> the correct value to be used.
   subroutine calculate_bracket(is_first_term)
-    use theta_grid, only: kxfac
     use gs2_layouts, only: accelx_lo, yxf_lo
     implicit none
     logical :: is_first_term
@@ -1180,19 +1192,19 @@ contains
        if (accelerated) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SHARED(accelx_lo, agb, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
-             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+             abracket(:, :, iyxf) = aba(:, :, iyxf)*agb(:, :, iyxf)
           end do
           !$OMP END PARALLEL DO
        else
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
-             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)*kxfac
+             bracket(:, iyxf) = ba(:, iyxf)*gb(:, iyxf)
           end do
           !$OMP END PARALLEL DO
        endif
@@ -1200,19 +1212,19 @@ contains
        if (accelerated) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(accelx_lo, agb, kxfac, aba, abracket) &
+          !$OMP SHARED(accelx_lo, agb, aba, abracket) &
           !$OMP SCHEDULE(static)
           do iyxf = accelx_lo%llim_proc, accelx_lo%ulim_proc
-             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)*kxfac
+             abracket(:, :, iyxf) = abracket(:, :, iyxf) - aba(:, :, iyxf)*agb(:, :, iyxf)
           end do
           !$OMP END PARALLEL DO
        else
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iyxf) &
-          !$OMP SHARED(yxf_lo, bracket, ba, gb, kxfac) &
+          !$OMP SHARED(yxf_lo, bracket, ba, gb) &
           !$OMP SCHEDULE(static)
           do iyxf = yxf_lo%llim_proc, yxf_lo%ulim_proc
-             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)*kxfac
+             bracket(:, iyxf) = bracket(:, iyxf) - ba(:, iyxf)*gb(:, iyxf)
           end do
           !$OMP END PARALLEL DO
        endif

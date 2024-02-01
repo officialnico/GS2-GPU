@@ -1,818 +1,179 @@
 !> FIXME : Add documentation
 module deq
-
+  use geo_utils, only: abstract_eqfile_cart_geo_type, geo_input_type
+  use splines, only: spline
   implicit none
 
   private
+  public :: deq_type
 
-  public :: dfit_init, dfitin, gradient, eqitem, bgradient, dfit_finish
-  public :: invR
-  public :: Rpos
-  public :: Zpos
-  public :: btori,    initialize_btori
-  public :: dbtori,   initialize_dbtori
-  public :: qfun,     initialize_q
-  public :: pfun,     initialize_pressure
-  public :: dpfun,    initialize_dpressure
-  public :: betafun,  initialize_beta
-  public :: bound,    initialize_bound
-  public :: psi,      initialize_psi
-  public :: rhofun,   initialize_rho
-
-  integer :: nw, nh, nbbbs, nrho
-
-  real, allocatable, dimension (:) :: psi_bar, fp, qsf, pressure, beta, spsi_bar
-  real, allocatable, dimension (:) :: dummy, dfit_R, dfit_Z, sdfit_R, sdfit_Z
-  real, allocatable, dimension (:) :: rho_mid, psi_mid
-  real, allocatable, dimension (:,:) :: dfit_psi
-  real, allocatable, dimension (:,:,:) :: dpm, dtm
-  real, allocatable, dimension (:) :: rbbbs, zbbbs, thetab, r_bound !boundary of plasma
-
-  real :: dfit_dR, dfit_dZ, psi_N
-
-  real :: R_mag, Z_mag, B_T0, aminor, beta_0
-
-  logical :: init_bound = .true.
-  logical :: init_btori = .true.
-  logical :: init_dbtori = .true.
-  logical :: init_q = .true.
-  logical :: init_pressure = .true.
-  logical :: init_dpressure = .true.
-  logical :: init_beta = .true.
-  logical :: init_rho = .true.
-  logical :: init_psi = .true.
+  type, extends(abstract_eqfile_cart_geo_type) :: deq_type
+     private
+     real, allocatable, dimension(:) :: rho_mid, psi_mid
+     type(spline) :: rho_spl
+   contains
+     procedure :: read_and_set, setup_special_splines, delete_special_splines
+     procedure :: rcenter, rhofun, dealloc_special_arrays
+  end type deq_type
 
 contains
 
-  !> This subroutine reads an DFIT output file containing 
-  !! the axisymmetric magnetic field geometry on a rectangular 
-  !! domain defined by the coordinates (R,Z).
-  !
-  !! dfit_R     R grid
-  !! dfit_Z     Z grid
-  !! fp    F on psibar grid
-  !! dfit_psi   psi on (R,Z) grid
-  !! R_mag        major radius of the magnetic axis
-  !! Z_mag        elevation of the magnetic axis
-  !! rwid       total width of the domain
-  !! rleft      position of leftmost point of domain
-  !! zhei       total height of domain
-  subroutine dfitin(eqfile, psi_0, psi_a, rmaj, B_T, amin, initeq, eqnormfile)
+  !> This subroutine reads an DFIT output file containing
+  !> the axisymmetric magnetic field geometry on a rectangular
+  !> domain defined by the coordinates (R,Z).
+  subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use constants, only: pi, twopi
+    use constants, only: twopi
     use splines, only: inter_cspl
+    use geo_utils, only: sort
     implicit none
-
-    character(len=80), intent(in) :: eqfile
-    character(len=80), intent(in) :: eqnormfile
-    real, intent(out) :: psi_0, psi_a, B_T, amin, rmaj
-    integer, intent(in) :: initeq
-    real :: p_0
-    real :: rwid, zhei
-    real :: bcentr
-    real :: delta_R, delta_Z
-    character(80) :: filename
-    
-    integer :: i, j, init, nhb, nwb
-    integer :: jmin, jmax
-
-    real :: lref, bref
+    class(deq_type), intent(in out) :: self
+    type(geo_input_type), intent(in) :: inputs
+    real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, eq_R, eq_Z, f, p, q
+    real, dimension(:, :), allocatable :: sdfit_psi
+    real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
+    integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
-
-!What is the following for?    
-    data init /1/
-    save init
-    
+    self%type_name = 'deq'
     ! Need to generalize initialization condition if equilibrium changes
-
-    ! WARNING: Exiting early without setting `nthg` may result in `nthg`
-    ! being uninitialised in the calling procedure. The value it gets set to
-    ! must be consistent with the value set at the end of this subroutine
-    ! when not exiting early or the calling procedure may end up with
-    ! inconsistently sized arrays. This is expected to affect `ideal_ball`
-    ! (unconfirmed) but not `gs2` (also unconfirmed).
-    if(initeq == 0) return
-    init=0
-
-    lref = 0.
-    bref = 0.
+    lref = 0. ; bref = 0.
     ! read eqnorm file if exists
-    inquire(file=trim(eqnormfile), exist = eqnorm_exists)
+    inquire(file = trim(inputs%eqnormfile), exist = eqnorm_exists)
     if (eqnorm_exists) then
-       open(unit=5,file=trim(eqnormfile),status='old',form='formatted')
-       read(5,*) lref, bref
-       close(5)
+       open(newunit = funit, file = trim(inputs%eqnormfile), status='old', form='formatted')
+       read(funit, *) lref, bref
+       close(funit)
     end if
 
-    i=index(eqfile,' ')-1
-    filename = eqfile(1:i)
-    open(unit=5,file=filename,status='old',form='formatted')
-    
+    self%filename = trim(adjustl(inputs%eqfile))
+    open(newunit = funit, file = self%filename, status='old', form='formatted')
+
     ! Read the data
+    read(funit, *) nw_in, nh_in, nrho
+    allocate (self%rho_mid(nrho), self%psi_mid(nrho))
+    allocate(spsi_bar(nw_in), sdfit_R(nw_in), sdfit_Z(nh_in), sdfit_psi(nw_in, nh_in))
+    allocate(eq_R(self%nw), eq_Z(self%nh), f(nw_in), p(nw_in), q(nw_in))
+    read(funit, 2020) rwid, zhei
+    read(funit, 2020) self%R_mag, self%Z_mag
+    read(funit, 2020) self%psi_0, self%psi_a, bcentr
+    f = 0 ; q = 0
+    read(funit, 2020) (p(j), j = 1, nw_in)  ! pressure read
+    read(funit, 2020) ((sdfit_psi(i,j) , i = 1, nw_in) , j = 1, nh_in)
 
-    read(5,*) nw, nh, nrho
+    ! Only needed for irho = 4
+    read (funit, 2020) (self%rho_mid(i), i = 1, nrho)
+    read (funit, 2020) (self%psi_mid(i), i = 1, nrho)
+    close(funit)
 
-    nwb = nw 
-    nhb = nh 
-
-    call alloc_module_arrays(nwb, nwb, nhb, nw, nh, nrho)
-
-    read(5,2020) rwid, zhei
-    read(5,2020) R_mag, Z_mag
-    read(5,2020) psi_0, psi_a, bcentr
-    !
-    ! pbar is defined by
-    ! pbar = (psi-psi_0)/(psi_a-psi_0)
+    ! pbar is defined by pbar = (psi-psi_0)/(psi_a-psi_0)
     ! fp and q are functions of pbar
-    !
-    do i=1,nw
-       spsi_bar(i) = float(i) / float(nw)
-       sdfit_R(i) = rwid * float(i) / float(nw)
-    enddo
+    do i = 1, nw_in
+       spsi_bar(i) = float(i - 1) / float(nw_in - 1)
+       sdfit_R(i) = rwid * float(i - 1) / float(nw_in - 1)
+    end do
 
-    do j=1,nh
-       sdfit_Z(j) = zhei*(float(j-1)/float(nh-1)-0.5)
-    enddo
-
-    do i=1,nwb
-       psi_bar(i) = float(i) / float(nwb)
-       dfit_R(i) = rwid * float(i) / float(nwb)
-    enddo
-
-    do j=1,nhb
-       dfit_Z(j) = zhei*(float(j-1)/float(nhb-1)-0.5)
-    enddo
-
-    read(5,2020) (dummy(j), j = 1, nw)  ! pressure read
-    call inter_cspl(nw, spsi_bar, dummy, nwb, psi_bar, pressure)
-    read(5,2020) ((dfit_psi(i,j) , i = 1, nw) , j = 1, nh)
-
-    read (5,2020) (rho_mid(i), i=1,nrho)
-    read (5,2020) (psi_mid(i), i=1,nrho)
-
-    fp = 0.
-    qsf = 0.
-
-    nw = nwb
-    nh = nhb
-
-    nbbbs = 2*(nw+nh)-5
+    do j = 1, nh_in
+       sdfit_Z(j) = (float(j - 1) / float(nh_in - 1) - 0.5) * zhei
+    end do
 
     ! stay away from edge of box
     delta_R = 1.02 ; delta_Z = 1.02
-    
-    allocate(rbbbs(nbbbs), zbbbs(nbbbs), thetab(nbbbs), r_bound(nbbbs))
-    jmin = 1
-    jmax = nh/2
-    do j=jmin, jmax
-       rbbbs(j) = (dfit_R(1)-0.5*rwid)/delta_R+0.5*rwid
-       zbbbs(j) = dfit_Z(j+nh/2)/delta_Z
+
+    nbbbs = 2 * (nw_in + nh_in) - 5
+    allocate(rbbbs(nbbbs), zbbbs(nbbbs))
+    jmin = 1 ; jmax = nh_in / 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(j + nh_in / 2) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + nw - 2
-    do j=jmin, jmax
-       rbbbs(j) = (dfit_R(j-jmin+2)-0.5*rwid)/delta_R+0.5*rwid
-       zbbbs(j) = dfit_Z(nh)/delta_Z
+    jmin = jmax + 1 ; jmax = jmax + nw_in - 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(j - jmin + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(nh_in) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + nh - 1
-    do j=jmin, jmax
-       rbbbs(j) = (dfit_R(nw)-0.5*rwid)/delta_R+0.5*rwid
-       zbbbs(j) = dfit_Z(jmax-j+2)/delta_Z
+    jmin = jmax + 1 ; jmax = jmax + nh_in - 1
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(nw_in) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(jmax - j + 2) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + nw - 1 
-    do j=jmin, jmax
-       rbbbs(j) = (dfit_R(jmax-j+2)-0.5*rwid)/delta_R+0.5*rwid
-       zbbbs(j) = dfit_Z(1)/delta_Z
+    jmin = jmax + 1 ; jmax = jmax + nw_in - 1
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(jmax - j + 2) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(1) / delta_Z
     end do
 
-    jmin = jmax + 1
-    jmax = jmax + nh/2    
-    do j=jmin, jmax
-       rbbbs(j) = (dfit_R(1)-0.5*rwid)/delta_R+0.5*rwid
-       zbbbs(j) = dfit_Z(j-jmin+2)/delta_Z
+    jmin = jmax + 1 ; jmax = jmax + nh_in / 2
+    do j = jmin, jmax
+       rbbbs(j) = (sdfit_R(1) - 0.5 * rwid) / delta_R + 0.5 * rwid
+       zbbbs(j) = sdfit_Z(j - jmin + 2) / delta_Z
     end do
 
-    do j=1,nbbbs-1
+    do j = 1, nbbbs-1
        if ((rbbbs(j) == rbbbs(j+1)) .and. (zbbbs(j) == zbbbs(j+1))) then
           write(*,*) 'duplicates: ',rbbbs(j),zbbbs(j)
        end if
     end do
 
-    ! get r_boundary(theta)
-    thetab = atan2 ((zbbbs-Z_mag), (rbbbs-R_mag))
-    r_bound = sqrt( (rbbbs - R_mag)**2 + (zbbbs - Z_mag)**2 )
-
-    call sort(thetab, r_bound, zbbbs, rbbbs)
-
-    ! Allow for duplicated points near +- pi:
-    if(thetab(1) == thetab(2)) then
-       thetab(1) = thetab(1) + twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
-
-    if(thetab(nbbbs-1) == thetab(nbbbs)) then
-       thetab(nbbbs) = thetab(nbbbs) - twopi
-       call sort(thetab, r_bound, zbbbs, rbbbs)
-    endif
-
-    ! It isn't likely that a duplicate point would exist near theta = 0, 
-    ! so I am not allowing this possibility for now.
-    do i=1,nbbbs-1
-       if(thetab(i) == thetab(i+1)) then
-          write(*,*) 'Duplicates near theta = 0 not allowed.'
-          write(*,*) i, i+1, ' Stopping.'
-          call mp_abort('Duplicates near theta = 0 not allowed.')
-       endif
-    enddo
-    deallocate (rbbbs, zbbbs)
+    ! Overwrite inputs with normalisations if provided
+    if (bref /= 0.) then
+       bcentr = bref
+       write(6,*) 'B_T0 = ', bref
+    end if
 
     if (lref /= 0.) then
-       aminor = lref
-       write(6,*) 'aminor = ', aminor, lref
+       self%aminor = lref
+       write(6,*) 'aminor = ', self%aminor, lref
     else
-       aminor=R_mag
+       self%aminor = self%R_mag
     end if
-    amin=aminor
 
-    close(5)
-
-
-    r_bound = r_bound / aminor
-
-    R_mag = R_mag / aminor
-    Z_mag = Z_mag / aminor
-
-    dfit_R = dfit_R / aminor
-    dfit_Z = dfit_Z / aminor
-    
-    ! should rmaj be R_mag? use R_mag for now.  
-    rmaj = R_mag
-    if (bref /= 0.) then
-       B_T0 = bref
-       write(6,*) 'B_T0 = ', B_T0, bref
-    else
-       B_T0 = abs(bcentr)
-    end if
-    B_T = B_T0
-    psi_a = psi_a / (B_T0*aminor**2)
-    psi_0 = psi_0 / (B_T0*aminor**2)
-    psi_N = psi_a - psi_0
-    
-    p_0=pressure(1)
-
-    fp = fp / (B_T0*aminor)
-
-    ! MKS: beta = 2 mu_0 p / B**2
-    beta = 8. * pi * pressure * 1.e-7 / B_T0**2
-    beta_0 = beta(1)
-
-    pressure = pressure / p_0
-    
-    dfit_psi = dfit_psi / (B_T0*aminor**2)
-    
-    dfit_dR = dfit_R(2) - dfit_R(1)
-    dfit_dZ = dfit_Z(2) - dfit_Z(1)
-
-    2020 format (5e16.8)
-
-  end subroutine dfitin
+    call self%shared_setup(nw_in, nh_in, spsi_bar, sdfit_R, sdfit_Z, f, p, q, sdfit_psi, &
+         nbbbs, rbbbs, zbbbs, bcentr, 0.0, rwid, -0.5*zhei, zhei, 1, .false.)
+2020 format (5e16.8)
+  end subroutine read_and_set
 
   !> FIXME : Add documentation
-  subroutine dfit_init
+  pure subroutine dealloc_special_arrays(self)
     implicit none
-    real, allocatable :: eqth(:,:)
-    integer :: i, j
-    
-    if (.not.allocated(eqth)) allocate(eqth(nw,nh))
+    class(deq_type), intent(in out) :: self
+    deallocate(self%rho_mid, self%psi_mid, self%thetab, self%r_bound)
+  end subroutine dealloc_special_arrays
 
-    do i = 1, nw
-       do j = 1,nh
-          if(dfit_Z(j) == Z_mag .and. dfit_R(i) == R_mag) then
-             eqth(i,j) = 0.  ! value should not matter
-          else
-             eqth(i,j) = atan2( (dfit_Z(j)-Z_mag), (dfit_R(i)-R_mag))
-          endif
-       enddo
-    enddo
-
-    call derm(dfit_psi, dpm)
-    call tderm(eqth, dtm)
-    
-    if (allocated(eqth)) deallocate(eqth)
-
-  end subroutine dfit_init
-
-  !> FIXME : Add documentation
-  !! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-  !! is therefore not completely general.  It is fine for DFIT output.    
-  subroutine tderm(f, dfm)
-    use constants, only: pi
-    implicit none
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    integer :: i, j
-    
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/dfit_dR
-    
-    i=nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))/dfit_dR
-   
-    j=1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))/dfit_dZ
-    
-    j=nh      
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))/dfit_dZ
-    
-    do i=2,nw-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))/dfit_dR
-    enddo
-    
-    do j=2,nh-1
-       do i = 1,nw
-          if(f(i,j+1)-f(i,j-1) > pi) then
-             dfm(i,j,2)=0.5*(f(i,j+1)-f(i,j-1)-2.*pi)/dfit_dZ
-          else
-             dfm(i,j,2)=0.5*(f(i,j+1)-f(i,j-1))/dfit_dZ
-          endif
-       enddo
-    enddo
-    
-  end subroutine tderm
-
-  !> FIXME : Add documentation
-  !! DFIT grid is equally spaced in R, Z -- this routine uses that fact and 
-  !! is therefore not completely general.  It is fine for DFIT output.    
-  subroutine derm(f, dfm)
-    implicit none
-    real, dimension(:,:), intent(in) :: f
-    real, dimension(:,:,:), intent(out) :: dfm
-    integer :: i, j
-
-    i=1
-    dfm(i,:,1) = -0.5*(3*f(i,:)-4*f(i+1,:)+f(i+2,:))/dfit_dR
-    
-    i=nw
-    dfm(i,:,1) = 0.5*(3*f(i,:)-4*f(i-1,:)+f(i-2,:))/dfit_dR
-   
-    j=1
-    dfm(:,j,2) = -0.5*(3*f(:,j)-4*f(:,j+1)+f(:,j+2))/dfit_dZ
-    
-    j=nh      
-    dfm(:,j,2) = 0.5*(3*f(:,j)-4*f(:,j-1)+f(:,j-2))/dfit_dZ
-    
-    do i=2,nw-1
-       dfm(i,:,1)=0.5*(f(i+1,:)-f(i-1,:))/dfit_dR
-    enddo
-    
-    do j=2,nh-1
-       dfm(:,j,2)=0.5*(f(:,j+1)-f(:,j-1))/dfit_dZ
-    enddo
-    
-  end subroutine derm
-
-  !> FIXME : Add documentation
-  subroutine gradient(rgrid, theta, grad, char, rp, nth, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    integer, intent(in) :: nth, ntm
-    real, dimension(-ntm:), intent(in) :: rgrid, theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    character(len=1), intent(in) :: char
-    real, intent(in) :: rp
-    real :: aa(1), daa(1), rpt(1)
-    integer :: i
-    
-    grad = 0.
-    do i=-nth, nth
-       call eqitem(rgrid(i), theta(i), dpm(:,:,1), grad(i,1))
-       call eqitem(rgrid(i), theta(i), dpm(:,:,2), grad(i,2))
-    enddo
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(nw, psi_bar, pressure, 1, rpt, aa, daa)
-       grad = grad*daa(1)*0.5* beta_0/psi_N
-    endif
-
-  end subroutine gradient
-
-  !> FIXME : Add documentation  
-  subroutine bgradient(rgrid, theta, grad, char, rp, nth_used, ntm)
-    use splines, only: inter_d_cspl
-    implicit none
-    integer, intent(in) :: nth_used, ntm
-    real, dimension(-ntm:), intent(in) :: rgrid, theta
-    real, dimension(-ntm:,:), intent(out) :: grad
-    character(len=1), intent(in) :: char
-    real, intent(in) :: rp
-    real :: tmp(2), aa(1), daa(1), rpt(1)
-    real, allocatable ::  dbish(:,:,:)
-    integer :: i
- 
-    if (.not.allocated(dbish)) allocate(dbish(nw,nh,2))
-
-    dbish(:,:,1) = sqrt(dpm(:,:,1)**2 + dpm(:,:,2)**2)
-    dbish(:,:,2) = 0.
-    
-    if(char == 'T') then  ! the order of the next two statements matters
-       dbish(:,:,2) = (dtm(:,:,2)*dpm(:,:,1)-dtm(:,:,1)*dpm(:,:,2))/dbish(:,:,1)
-       dbish(:,:,1) = (dtm(:,:,1)*dpm(:,:,1)+dtm(:,:,2)*dpm(:,:,2))/dbish(:,:,1)
-    endif
-
-    do i=-nth_used,-1
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), tmp(1))
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), tmp(2))
-       grad(i,1) = tmp(1)
-       grad(i,2) = tmp(2)
-    enddo
-
-    do i=0,nth_used
-       call eqitem(rgrid(i), theta(i), dbish(:,:,1), tmp(1))
-       call eqitem(rgrid(i), theta(i), dbish(:,:,2), tmp(2))
-       grad(i,1)=tmp(1)
-       grad(i,2)=tmp(2)
-    enddo
-
-    !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
-
-    if(char == 'R') then
-       rpt(1) = rp
-       call inter_d_cspl(nw, psi_bar, pressure, 1, rpt, aa, daa)
-       do i=-nth_used, nth_used
-          grad(i,1)=grad(i,1)*daa(1) * 0.5*beta_0/psi_N
-          grad(i,2)=grad(i,2)*daa(1) * 0.5*beta_0/psi_N
-       enddo
-    endif
-
-    if (allocated(dbish)) deallocate(dbish)
-
-  end subroutine bgradient
-
-  !> FIXME : Add documentation  
-  subroutine eqitem(r, thetin, f, fstar)
-    use mp, only: mp_abort
-    implicit none
-    real, intent (in) :: r, thetin, f(:,:)
-    real, intent (out) :: fstar
-    integer :: i, j, istar, jstar
-    real :: st, dt, sr, dr
-    real :: r_pos, z_pos
-    
-    r_pos = Rpos(r, thetin)
-    z_pos = Zpos(r, thetin)
-
-    ! find point on R mesh
-
-    if(r_pos >= dfit_R(nw) .or. r_pos <= dfit_R(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of R domain'
-       write(*,*) r, thetin, dfit_R(nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain')
-    endif
-
-    ! ensure point is on Z mesh
-
-    if(z_pos >= dfit_Z(nh) .or. z_pos <= dfit_Z(1)) then
-       write(*,*) 'No evaluation of eqitem allowed outside'
-       write(*,*) 'or on edge of Z domain'
-       write(*,*) r, thetin, dfit_Z(1), dfit_Z(nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain')
-    endif
-    
-    istar=0
-    do i=2,nw
-       if(istar /= 0) cycle
-       if(r_pos < dfit_R(i)) then
-          dr = r_pos - dfit_R(i-1)
-          sr = dfit_R(i) - r_pos
-          istar=i-1
-       endif
-    enddo
-      
-    ! Now do Z direction
-
-    jstar=0
-    do j=1,nh
-       if(jstar /= 0) cycle
-       if(z_pos < dfit_Z(j)) then
-          dt = z_pos - dfit_Z(j-1)
-          st = dfit_Z(j) - z_pos
-          jstar=j-1
-       endif
-    enddo
-      
-    ! use opposite area stencil to interpolate
-
-    fstar=f(istar    , jstar    ) * sr * st &
-         +f(istar + 1, jstar    ) * dr * st &
-         +f(istar    , jstar + 1) * sr * dt &
-         +f(istar + 1, jstar + 1) * dr * dt
-    fstar = fstar &
-         /abs(dfit_R(istar+1)-dfit_R(istar)) &
-         /(dfit_Z(jstar+1)-dfit_Z(jstar))
-  end subroutine eqitem
-
-  !> FIXME : Add documentation  
-  function Zpos (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: Zpos    
-    Zpos = Z_mag + r * sin(theta)
-  end function Zpos
-
-  !> FIXME : Add documentation  
-  function Rpos (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: Rpos
-    Rpos = R_mag + r * cos(theta)
-  end function Rpos
-
-  !> FIXME : Add documentation  
-  function invR (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: invR
-    invR = 1/(R_mag + r*cos(theta))
-  end function invR
-
-  !> FIXME : Add documentation  
-  function initialize_psi (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_psi    
-    init_psi = .false.
-    if(init == 1) init_psi = .true.
-    initialize_psi = 1
-  end function initialize_psi
-
-  !> FIXME : Add documentation  
-  function psi (r, theta)
-    implicit none
-    real, intent (in) :: r, theta
-    real :: f, psi
-
-    call eqitem(r, theta, dfit_psi, f)
-    psi = f
-  end function psi
-
-  !> FIXME : Add documentation  
-  function initialize_btori (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_btori
-    
-    init_btori = .false.
-    if(init == 1) init_btori = .true.
-    initialize_btori = 1
-  end function initialize_btori
-
-  !> FIXME : Add documentation  
-  function btori (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: btori
-    type (spline), save :: spl
-
-    if(init_btori) call new_spline(nw, psi_bar, fp, spl)
-
-    btori = splint(pbar, spl)
-  end function btori
-
-  !> FIXME : Add documentation  
-  function initialize_dbtori (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dbtori
-    
-    init_dbtori = .false.
-    if(init == 1) init_dbtori = .true.
-    initialize_dbtori = 1
-  end function initialize_dbtori
-
-  !> FIXME : Add documentation  
-  function dbtori (pbar)
-    use splines, only: new_spline, dsplint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: dbtori
-    type (spline), save :: spl
-
-    if(init_dbtori) call new_spline(nw, psi_bar, fp, spl)
-
-    dbtori = dsplint(pbar, spl)/psi_N
-  end function dbtori
-
-  !> FIXME : Add documentation  
-  function initialize_q (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_q
-    
-    init_q = .false.
-    if(init == 1) init_q = .true.
-    initialize_q = 1
-  end function initialize_q
-
-  !> FIXME : Add documentation    
-  function qfun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: qfun
-    type (spline), save :: spl
-
-    if(init_q) then
-       call new_spline(nw, psi_bar, qsf, spl)
-    endif
-
-    qfun = splint(pbar, spl)
-  end function qfun
-
-  !> FIXME : Add documentation    
-  function initialize_pressure (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_pressure
-    
-    init_pressure = .false.
-    if(init == 1) init_pressure = .true.
-    initialize_pressure = 1
-  end function initialize_pressure
-
-  !> FIXME : Add documentation    
-  function pfun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: pfun
-    type (spline), save :: spl
-
-    if(init_pressure) call new_spline(nw, psi_bar, pressure, spl)
-
-    pfun = splint(pbar, spl) * beta_0/2.
-  end function pfun
-
-  !> FIXME : Add documentation    
-  function initialize_dpressure (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_dpressure
-    
-    init_dpressure = .false.
-    if(init == 1) init_dpressure = .true.
-    initialize_dpressure = 1
-  end function initialize_dpressure
-
-  !> FIXME : Add documentation    
-  function dpfun (pbar)
-    use splines, only: new_spline, dsplint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: dpfun
-    type (spline), save :: spl
-
-    if(init_dpressure) call new_spline(nw, psi_bar, pressure, spl)
-
-    dpfun = dsplint(pbar, spl)/psi_N * beta_0/2.
-  end function dpfun
-
-  !> FIXME : Add documentation    
-  function initialize_beta (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_beta
-    
-    init_beta = .false.
-    if(init == 1) init_beta = .true.
-    initialize_beta = 1
-  end function initialize_beta
-
-  !> FIXME : Add documentation    
-  function betafun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: betafun
-    type (spline), save :: spl
-
-    if(init_beta) call new_spline(nw, psi_bar, beta, spl)
-
-    betafun = splint(pbar, spl)
-  end function betafun
-
-  !> FIXME : Add documentation    
-  function initialize_rho (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_rho
-    
-    init_rho = .false.
-    if(init == 1) init_rho = .true.
-    initialize_rho = 1
-  end function initialize_rho
-
-  !> FIXME : Add documentation    
-  function rhofun (pbar)
-    use splines, only: new_spline, splint, spline
-    implicit none
-    real, intent(in) :: pbar
-    real :: rhofun
-    type (spline), save :: spl
-
-    if(init_rho) call new_spline(nrho, psi_mid, rho_mid, spl)
-
-    rhofun = splint(pbar, spl)
-  end function rhofun
-
-  !> FIXME : Add documentation    
-  function initialize_bound (init)
-    implicit none
-    integer, intent(in) :: init
-    integer :: initialize_bound
-    
-    init_bound = .false.
-    if(init == 1) init_bound = .true.
-    initialize_bound = 1
-  end function initialize_bound
-
-  !> Find the value of the major radius on the plasma boundary
-  !> at given geometric theta.
-  function bound(theta) 
-    use splines, only: new_periodic_spline, periodic_splint, periodic_spline
+  subroutine setup_special_splines(self)
+    use splines, only: new_spline, new_periodic_spline
     use constants, only: twopi
     implicit none
-    real, intent(in) :: theta
-    real :: bound
-    type (periodic_spline), save :: spl
+    class(deq_type), intent(in out) :: self
+    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
+         self%rbound_spl, drop_last_point = .true.)
+    call new_spline(size(self%psi_mid), self%psi_mid, self%rho_mid, self%rho_spl)
+  end subroutine setup_special_splines
 
-    if(init_bound) call new_periodic_spline(nbbbs, thetab, r_bound, twopi, spl, drop_last_point = .true.)
-    init_bound = .false.
-    
-    bound = periodic_splint(theta, spl)
-  end function bound    
-
-  !> FIXME : Add documentation    
-  subroutine alloc_module_arrays(np, nw, nh, nws, nhs, nrho)
+  subroutine delete_special_splines(self)
+    use splines, only: delete_spline, delete_periodic_spline
     implicit none
-    integer, intent(in) :: np, nw, nh, nws, nhs, nrho
- 
-    allocate (rho_mid(nrho), psi_mid(nrho))
-    allocate (psi_bar(np), fp(np), qsf(np), pressure(np), beta(np))
-    allocate (dummy(nws), dfit_R(nw), dfit_Z(nh))
-    allocate (spsi_bar(nws), sdfit_R(nws), sdfit_Z(nhs))
-    allocate (dfit_psi(nw, nh))
-    allocate (dpm(nw, nh, 2), dtm(nw, nh, 2))
+    class(deq_type), intent(in out) :: self
+    call delete_periodic_spline(self%rbound_spl)
+    call delete_spline(self%rho_spl)
+  end subroutine delete_special_splines
 
-  end subroutine alloc_module_arrays
-
-  !> FIXME : Add documentation    
-  subroutine dealloc_module_arrays
+  !> FIXME : Add documentation   | Not implemented
+  real function rcenter (self, rp)
     implicit none
-    if(allocated(rho_mid)) deallocate(rho_mid,psi_mid)
-    if(allocated(psi_bar)) deallocate(psi_bar,fp,qsf,pressure,beta)
-    if(allocated(dummy)) deallocate(dummy,dfit_R,dfit_Z)
-    if(allocated(spsi_bar)) deallocate(spsi_bar,sdfit_R,sdfit_Z)
-    if(allocated(dfit_psi)) deallocate(dfit_psi)
-    if(allocated(dpm)) deallocate(dpm,dtm)
-    if(allocated(thetab)) deallocate(thetab, r_bound)    
-  end subroutine dealloc_module_arrays
-
-  !> FIXME : Add documentation    
-  subroutine dfit_finish
-    implicit none
-    call dealloc_module_arrays
-  end subroutine dfit_finish
+    class(deq_type), intent(in) :: self
+    real, intent (in) :: rp
+    rcenter = self%R_mag !Historic fallback
+  end function rcenter
 
   !> FIXME : Add documentation
-  !!
-  !! @note Could we use routines from the sorting module instead?
-  subroutine sort(a, b, c, d)
+  real function rhofun (self, pbar)
+    use splines, only: splint
     implicit none
-    real, dimension(:), intent(in out) :: a, b, c, d
-    real :: tmp
-    integer :: i, j, jmax
-
-    jmax = size(a)
-
-    do j=1,jmax
-       do i=1,jmax-j
-          if(a(i+1) < a(i)) then
-             tmp=a(i); a(i)=a(i+1); a(i+1)=tmp             
-             tmp=b(i); b(i)=b(i+1); b(i+1)=tmp
-             tmp=c(i); c(i)=c(i+1); c(i+1)=tmp
-             tmp=d(i); d(i)=d(i+1); d(i+1)=tmp
-          endif
-       enddo
-    enddo
-  end subroutine sort
+    class(deq_type), intent(in) :: self
+    real, intent(in) :: pbar
+    rhofun = splint(pbar, self%rho_spl)
+  end function rhofun
 end module deq

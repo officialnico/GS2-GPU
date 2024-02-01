@@ -1,0 +1,24 @@
+&theta_grid_eik_knobs
+  s_hat_input = 1.5
+  beta_prime_input = -1.0
+  bishop = 4
+  local_eq = T
+/
+
+&ballstab_knobs
+ n_beta = 11
+ n_shat = 3
+ shat_min = 0.5
+ shat_max = 2.5
+ beta_div = 100.0
+ beta_mul = 1.0
+ theta0 = 6.283
+/
+
+&ideal_ball_test
+ expect_unstable(1, :) = F,F,F,F,F,F,F,F,F,F,F
+ expect_unstable(2, :) = F,F,T,T,T,T,T,F,F,F,F
+ expect_unstable(3, :) = F,F,F,T,T,T,T,T,T,T,T
+/
+
+!include test_ideal_ball_base.in

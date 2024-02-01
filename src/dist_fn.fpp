@@ -67,7 +67,7 @@ module dist_fn
   public :: flux_dist
   public :: get_heat
   public :: omega0, gamma0
-  public :: write_f, write_poly
+  public :: write_f
   public :: M_class, N_class, i_class
   public :: l_links, r_links, itright, itleft, boundary
   public :: supercell_labels, n_supercells, n_cells
@@ -441,7 +441,7 @@ module dist_fn
      real :: vparknob = 1.0
      !> For debugging only. Sets the boundary value for the barely trapped/passing particle.
      real :: wfb = 1.0
-     !> Deprecated option, moved to [le_grids]. Setting
+     !> Deprecated option, moved to [[le_grids]]. Setting
      !> will lead to an error message and abort. To be removed
      !> entirely in future release
      character(len = 20) :: wfbbc_option = 'unset'
@@ -1792,20 +1792,21 @@ contains
     end do
   end subroutine init_wstar
 
-  !> FIXME : Add documentation  
+  !> Compute and store the Bessel functions required for future usage,
+  !> aj0 and aj1.
+  !>
+  !> @note j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)),
   subroutine init_bessel
     use dist_fn_arrays, only: aj0, aj1, aj0_gf, aj1_gf
     use kt_grids, only: kperp2
     use species, only: spec, nspec
     use theta_grid, only: ntgrid, bmag
-    use le_grids, only: energy,  al,negrid, nlambda
+    use le_grids, only: energy,  al,negrid, nlambda, forbid
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx, gf_lo
     use spfunc, only: j0, j1
     implicit none
-
-    integer :: ig, ik, it, il, ie, is
-    integer :: iglo, igf
-    real :: arg
+    integer :: ik, it, il, ie, is, iglo, igf
+    real, dimension(-ntgrid:ntgrid) :: arg
 
     if (bessinit) return
     bessinit = .true.
@@ -1815,7 +1816,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, arg) &
-    !$OMP SHARED(g_lo, ntgrid, spec, energy, al, bmag, kperp2, aj0, aj1) &
+    !$OMP SHARED(g_lo, spec, energy, al, bmag, kperp2, aj0, aj1, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        ik = ik_idx(g_lo,iglo)
@@ -1823,12 +1824,15 @@ contains
        il = il_idx(g_lo,iglo)
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do ig = -ntgrid, ntgrid
-          arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ig)*kperp2(ig,it,ik))
-          aj0(ig,iglo) = j0(arg)
-! CMR 17/1/06: BEWARE, j1 returns and aj1 stores J_1(x)/x (NOT J_1(x)), 
-          aj1(ig,iglo) = j1(arg)
-       end do
+       arg = spec(is)%bess_fac * spec(is)%smz * &
+            sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
+       where (forbid(:, il))
+          aj0(:, iglo) = 0.0
+          aj1(:, iglo) = 0.0
+       elsewhere
+          aj0(:, iglo) = j0(arg)
+          aj1(:, iglo) = j1(arg)
+       end where
     end do
     !$OMP END PARALLEL DO
 
@@ -1838,18 +1842,22 @@ contains
     if(gf_lo_integrate) then
        allocate (aj0_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
        allocate (aj1_gf(-ntgrid:ntgrid,nspec,negrid,nlambda,gf_lo%llim_proc:gf_lo%ulim_alloc))
-       
+
        do igf = gf_lo%llim_proc, gf_lo%ulim_proc
           ik = ik_idx(gf_lo,igf)
           it = it_idx(gf_lo,igf)
           do il = 1,gf_lo%nlambda
              do ie = 1,gf_lo%negrid
                 do is = 1,gf_lo%nspec
-                   do ig = -ntgrid, ntgrid
-                      arg = spec(is)%bess_fac*spec(is)%smz*sqrt(energy(ie,is)*al(il)/bmag(ig)*kperp2(ig,it,ik))
-                      aj0_gf(ig,is,ie,il,igf) = j0(arg)
-                      aj1_gf(ig,is,ie,il,igf) = j1(arg)
-                   end do
+                   arg = spec(is)%bess_fac * spec(is)%smz * &
+                        sqrt(energy(ie,is) * al(il) * kperp2(:,it,ik) / bmag)
+                   where (forbid(:, il))
+                      aj0_gf(:, is, ie, il, igf) = 0.0
+                      aj1_gf(:, is, ie, il, igf) = 0.0
+                   else where
+                      aj0_gf(:, is, ie, il, igf) = j0(arg)
+                      aj1_gf(:, is, ie, il, igf) = j1(arg)
+                   end where
                 end do
              end do
           end do
@@ -4045,20 +4053,20 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     integer, intent (in) :: istep
     integer, optional, intent (in) :: mode
-    integer,save :: istep_last=-1
+    integer, save :: istep_last = -1
     integer, parameter :: verb = 3
 
     !Calculate the explicit nonlinear terms
     if (split_nonlinear .and. nonlin) then
        ! If we're starting a new full step then advance just the nonlinear term
        ! by code_dt.
-       if (istep > 0 .and. istep /= istep_last) then       
+       if (istep > 0 .and. istep /= istep_last) then
           if (advance_nonadiabatic_dfn) then
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   calculate_potentials_from_nonadiabatic_dfn, &
                   calculate_current_nl_source_and_cfl_limit)
           else
-             call advance_nonlinear_term(istep, phi, apar, bpar, code_dt, &
+             call advance_nonlinear_term(g, istep, phi, apar, bpar, code_dt, &
                   get_fields_direct_from_dfn, calculate_current_nl_source_and_cfl_limit)
           end if
        end if
@@ -6179,17 +6187,8 @@ contains
     real, dimension (nspec) :: wgt
     integer :: isgn, iglo, ig
     logical :: local_local_only
-    integer :: it_llim, it_ulim, ik_llim, ik_ulim
 
     local_local_only = get_option_with_default(local_only, .false.)
-
-    if (local_local_only) then
-       it_llim = g_lo%it_min ; it_ulim = g_lo%it_max
-       ik_llim = g_lo%ik_min ; ik_ulim = g_lo%ik_max
-    else
-       it_llim = 1 ; it_ulim = ntheta0
-       ik_llim = 1 ; ik_ulim = naky
-    end if
 
     !Don't do this as integrate_species will fill in all values
     !    antot=0. ; antota=0. ; antotp=0.
@@ -6216,7 +6215,7 @@ contains
        call integrate_species (g_work, wgt, antot)
 
        if (afilter > epsilon(0.0)) antot = antot * exp(-afilter**4*kperp2**2/4.)
-       if(esv) call ensure_single_val_fields_pass(antot)
+       if (esv) call ensure_single_val_fields_pass(antot, force_all = .true.)
     end if
 
     if (has_apar) then
@@ -6236,7 +6235,7 @@ contains
        
        wgt = 2.0*beta*spec%z*spec%dens*sqrt(spec%temp/spec%mass)
        call integrate_species (g_work, wgt, antota)
-       if(esv) call ensure_single_val_fields_pass(antota)
+       if (esv) call ensure_single_val_fields_pass(antota, force_all = .true.)
     end if
 
     if (has_bpar) then
@@ -6256,7 +6255,7 @@ contains
 
        wgt = spec%temp*spec%dens
        call integrate_species (g_work, wgt, antotp)
-       if(esv) call ensure_single_val_fields_pass(antotp)
+       if (esv) call ensure_single_val_fields_pass(antotp, force_all = .true.)
     end if
 
   end subroutine getan_from_dfn
@@ -6310,7 +6309,7 @@ contains
 
     local_tolerance = get_option_with_default(tolerance, epsilon(0.0) * 1.0e2)
     id_message = get_option_with_default(identifier, '')
-    allocate(g_pass, mold = g_array)
+    allocate(g_pass(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     err = 0.0
 
@@ -8481,9 +8480,8 @@ contains
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
     use gs2_layouts, only: g_lo
     use gs2_layouts, only: it_idx, ik_idx, is_idx
-    use geometry, only: rhoc!Should this not be value from theta_grid_params?
     use theta_grid, only: ntgrid, bmag, gds21, gds22, qval, shat
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use kt_grids, only: aky, theta0
     use le_grids, only: integrate_volume, nlambda, negrid
     use le_grids, only: get_flux_vs_theta_vs_vpa
@@ -8600,8 +8598,7 @@ contains
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only:has_phi
     use constants, only: zi
-    use geometry, only: rhoc
-    use theta_grid, only: Rplot, Bpol
+    use theta_grid, only: Rplot, Bpol, rhoc
     use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi
@@ -9794,71 +9791,6 @@ contains
 
   end subroutine get_gtran
 
-  !> Write Lagrange interpolating function value at interpolating
-  !> points specified by `xloc` to text file with suffix `.interp`
-  subroutine write_poly (phi, bpar, last, istep)
-    use file_utils, only: open_output_file, close_output_file
-    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
-    use gs2_layouts, only: g_lo
-    use mp, only: proc0
-    use le_grids, only: nterp, negrid, lagrange_interp, xloc
-    use theta_grid, only: ntgrid
-    use kt_grids, only: ntheta0, naky
-
-    implicit none
-
-    !> Electrostatic potential and parallel magnetic field
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
-    !> If true, also close the file
-    logical, intent (in) :: last
-    !> Simulation timestep
-    integer, intent (in) :: istep
-
-    complex, dimension (:,:,:,:,:), allocatable :: lpoly
-    integer :: iglo, isgn, ix, ig, tsize
-    integer, save :: interp_unit
-
-    allocate(lpoly(-ntgrid:ntgrid,ntheta0,naky,negrid,2*nterp-1))
-
-    if (proc0) then
-       if (.not. lpolinit) then
-          call open_output_file (interp_unit, ".interp")
-          lpolinit = .true.
-       end if
-    end if
-
-    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
-
-! take gyro-average of h at fixed total position (not g.c. position)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          do ig=-ntgrid, ntgrid
-             g_work(ig,isgn,iglo) = aj0(ig,iglo)*gnew(ig,isgn,iglo)
-          end do
-       end do
-    end do
-
-! computes and returns lagrange interpolating polynomial for g_work
-!<DD>WARNING: THIS ROUTINE DOESN'T USE g_work FOR ANYTHING IS THIS CORRECT?
-    call lagrange_interp (g_work, lpoly, istep)
-
-    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
-
-    tsize = 2*nterp-1
-
-! write to file lagrange interpolating function value at interpolating pts specified by xloc
-    if (proc0) then
-       do ix = 1, tsize
-          write(interp_unit,*) xloc(0,ix), real(lpoly(0,1,1,1,ix)), cos(0.1*istep*xloc(0,ix)+1.0), ix
-       end do
-       write(interp_unit,*)
-       if (last) call close_output_file (interp_unit)
-    end if
-
-    deallocate(lpoly)
-
-  end subroutine write_poly
-
   !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine write_f (last)
     use mp, only: proc0, send, receive
@@ -9935,7 +9867,7 @@ contains
   !> "<runname>.yxdist"
   subroutine write_fyx (phi,bpar,last)
     use mp, only: proc0, send, receive, barrier
-    use file_utils, only: open_output_file, close_output_file, flush_output_file
+    use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
     use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
@@ -10128,7 +10060,7 @@ contains
        deallocate (grs, gzf)
     end if
 
-    if (proc0) call flush_output_file (unit)
+    if (proc0) flush (unit)
 
     if (proc0) then
        write(unit,*)

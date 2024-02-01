@@ -129,7 +129,6 @@ module diagnostics_config
      logical :: write_ascii
      logical :: write_gyx
      logical :: write_g
-     logical :: write_lpoly
      integer :: conv_nstep_av
      real :: conv_test_multiplier
      integer :: conv_min_step
@@ -159,7 +158,6 @@ module diagnostics_config
      logical :: write_zonal_transfer
      logical :: write_collisional
      logical :: write_omavg
-     logical :: write_gg
      logical :: ob_midplane
      logical :: write_avg_moments
      logical :: dump_check1
@@ -353,7 +351,6 @@ contains
     gnostics%write_fluxes_by_mode = new_gs2_diagnostics_config%write_fluxes_by_mode
     gnostics%write_full_moments_notgc = new_gs2_diagnostics_config%write_full_moments_notgc
     gnostics%write_g = new_gs2_diagnostics_config%write_g
-    gnostics%write_gg = new_gs2_diagnostics_config%write_gg
     gnostics%write_gs = new_gs2_diagnostics_config%write_gs
     gnostics%write_gyx = new_gs2_diagnostics_config%write_gyx
     gnostics%write_heating = new_gs2_diagnostics_config%write_heating
@@ -361,7 +358,6 @@ contains
     gnostics%write_kpar = new_gs2_diagnostics_config%write_kpar
     gnostics%write_line = new_gs2_diagnostics_config%write_line
     gnostics%write_lorentzian = new_gs2_diagnostics_config%write_lorentzian
-    gnostics%write_lpoly = new_gs2_diagnostics_config%write_lpoly
     gnostics%write_max_verr = new_gs2_diagnostics_config%write_max_verr
     gnostics%write_moments = new_gs2_diagnostics_config%write_moments
     gnostics%write_nl_flux_dist = new_gs2_diagnostics_config%write_nl_flux_dist

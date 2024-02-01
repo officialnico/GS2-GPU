@@ -35,6 +35,7 @@ module gs2_save
   public :: set_restart_file, include_explicit_source_in_restart
   public :: init_vnm, restart_writable, EigNetcdfID
   public :: init_eigenfunc_file, finish_eigenfunc_file, add_eigenpair_to_file
+  public :: gs2_save_slice
 
   interface gs2_restore
      module procedure gs2_restore_many
@@ -198,7 +199,8 @@ contains
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
 
     ! Decide if we are saving the fields
-    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0)
+    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0) &
+         .or. .not. is_one_file_per_processor
 
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
@@ -861,7 +863,135 @@ contains
          'WARNING: gs2_save_for_restart is called without netcdf library'
 # endif
   end subroutine gs2_save_for_restart
-  
+
+  !> Save g slices
+  subroutine gs2_save_slice(g_in, it, ik, il, ie, is, time,istatus, nout, fileopt, header)
+# ifdef NETCDF
+    use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
+    use gs2_metadata, only: create_metadata
+    use unit_tests, only: debug_message
+    use mp, only: iproc, proc0
+    use optionals, only: get_option_with_default
+    use convert, only: c2r
+    use kt_grids, only: aky, akx, naky, ntheta0
+    use le_grids, only: energy, al, negrid, nlambda
+    use species, only: nspec
+    use theta_grid, only: theta
+    use gs2_layouts, only: proc_id, idx
+# endif
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
+    use standard_header, only : standard_header_type
+    implicit none
+    !> The distribution function \(g\)
+    complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent (in) :: g_in
+    !> The indices of the slice to save
+    integer, intent(in) :: it, ik, il, ie, is
+    !> The current time
+    real, intent(in) :: time
+    !> Last netCDF status: zero on success, non-zero on failure
+    integer, intent (out) :: istatus
+    !> The current time output index
+    integer, intent(in), optional :: nout
+    !> Optional extra filename infix
+    character (len=*), intent (in), optional :: fileopt
+    !> Header for files with build and run information
+    type(standard_header_type), optional, intent(in) :: header
+# ifdef NETCDF
+    character (run_name_size) :: file_proc
+    integer :: the_iglo, the_proc
+    integer, parameter :: verb = 3
+    type(standard_header_type) :: local_header
+    character (len=*), parameter :: file_opt_base = '.slice'
+    logical :: appending, previous_file_exists
+    real, dimension(:, :, :), allocatable :: ri_gslice
+    integer, save :: nout_local = 1
+    logical :: error_exit
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
+
+    ! Sanity check the inputs
+    error_exit = .false.
+    if (it < 1 .or. it > ntheta0) error_exit = .true.
+    if (ik < 1 .or. ik > naky) error_exit = .true.
+    if (il < 1 .or. il > nlambda) error_exit = .true.
+    if (ie < 1 .or. ie > negrid) error_exit = .true.
+    if (is < 1 .or. is > nspec) error_exit = .true.
+    if (proc0 .and. error_exit) write(6,'("Error: Invalid index based to gs2_save_slice.")')
+    if (error_exit) return
+
+    the_iglo = idx(g_lo, ik, it, il, ie, is)
+    the_proc = proc_id(g_lo, the_iglo)
+
+    ! The proc which owns this slice is responsible for writing and
+    ! does the rest of the work so let us return if that's not this
+    ! proc
+    if (iproc /= the_proc) return
+
+    if (present(header)) then
+      local_header = header
+    else
+      local_header = standard_header_type()
+    end if
+
+    ! Open the file and define dimensions and variables
+    file_proc = get_file_proc(.false., file_opt_base // fileopt)
+
+    call debug_message(verb, 'gs2_save::gs2_save_slice opening file')
+    call debug_message(verb, 'file proc is')
+    call debug_message(verb, trim(adjustl(file_proc)))
+
+    nout_local = get_option_with_default(nout, nout_local)
+
+    ! See if the output file already exists, so we know how to open
+    ! the file.  This would be simpler if netCDF had a "open if it
+    ! exists, create if it doesn't" mode, but it doesn't so we have
+    ! to do this instead
+    inquire(file=trim(file_proc), exist=previous_file_exists)
+    appending = (previous_file_exists .and. nout_local > 1)
+
+    if (appending) then
+       ncid = neasyf_open(trim(file_proc), 'rw')
+    else
+       ncid = neasyf_open(trim(file_proc), 'w')
+       call create_metadata(ncid, "GS2 slice file", local_header)
+
+       call debug_message(verb, 'gs2_save::gs2_save_slice defining dimensions')
+       call neasyf_dim(ncid, "ri", dim_size = 2, long_name = "real/imaginary components")
+       call neasyf_dim(ncid, "theta", values = theta, long_name="Poloidal angle", units="rad")
+       call neasyf_dim(ncid, "sign",  dim_size = 2, long_name = "sign of v||")
+       call neasyf_dim(ncid, "t", unlimited = .true., long_name = "Time", units = "L/vt")
+
+       call debug_message(verb, 'gs2_save::gs2_save_slice defining constant variables')
+       call neasyf_write(ncid, "it", it)
+       call neasyf_write(ncid, "ik", ik)
+       call neasyf_write(ncid, "il", il)
+       call neasyf_write(ncid, "ie", ie)
+       call neasyf_write(ncid, "is", is)
+
+       call neasyf_write(ncid, "iglo", the_iglo)
+       call neasyf_write(ncid, "iproc", the_proc)
+
+       call neasyf_write(ncid, "kx", akx(it))
+       call neasyf_write(ncid, "ky", aky(ik))
+       call neasyf_write(ncid, "lambda", al(il))
+       call neasyf_write(ncid, "energy", energy(ie, is))
+    end if
+
+    call neasyf_write(ncid, "t", time, start = [nout_local])
+
+    ! Convert from complex to real
+    allocate(ri_gslice(2, size(theta), 2))
+    call c2r(g_in(:, :, the_iglo), ri_gslice)
+    call neasyf_write(ncid, "g_slice", ri_gslice, start = [1, 1, 1, nout_local])
+
+    ! Close the file
+    call neasyf_close(ncid)
+
+    nout_local = nout_local + 1
+# endif
+  end subroutine gs2_save_slice
+
   !> FIXME : Add documentation
   subroutine gs2_restore_many (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
