@@ -156,7 +156,7 @@ module geo_utils
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
      integer :: nw, nh
-     real, allocatable, dimension(:) :: thetab, r_bound
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent, shared_setup => shared_setup_cart
@@ -541,36 +541,35 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, eqpsi_sign, tps
-    real, dimension(size(f,2)) :: mtheta
-    real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
     eqpsi_sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
-    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :)
+    associate (dim_1 => eqpsi_sign * self%eqpsi , mtheta => self%eqth(1, :)) !Non-contiguous copy - slow?
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
 
-    if (.not. self%has_full_theta_range) then ! assume up-down symmetry
-       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
-       thet = abs(thet)
-    end if
+      if (.not. self%has_full_theta_range) then ! assume up-down symmetry
+         if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
+         thet = abs(thet)
+      end if
 
-    ! check for axis evaluation, no gradients available at axis, so do not get too close
-    if (r < dim_1(2)) then
-       write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
-       call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
-    end if
+      ! check for axis evaluation, no gradients available at axis, so do not get too close
+      if (r < dim_1(2)) then
+         write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
+         call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
+      end if
 
-    ! disallow evaluations on or outside the surface for now
-    if (r >= dim_1(self%nr)) then
-       write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
-       call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
-    end if
+      ! disallow evaluations on or outside the surface for now
+      if (r >= dim_1(self%nr)) then
+         write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
+         call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
+      end if
 
-    istar = find_lower_bound(r, dim_1, 0)
-    jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+      istar = find_lower_bound(r, dim_1, 0)
+      jstar = find_lower_bound(thet, mtheta, self%nt - 1)
+      fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+    end associate
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
@@ -766,29 +765,27 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, r_pos, z_pos
-    real, dimension(size(f, 1)) :: dim_1
-    real, dimension(size(f, 2)) :: dim_2
-    dim_1 = self%R_psi(:, 1) ; dim_2 = self%Z_psi(1, :)
+    associate(dim_1 => self%eq_R, dim_2 => self%eq_Z)
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in)
+      r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in)
-    r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
+      ! ensure point is on R mesh
+      if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
+         write(*,*) r, theta_in, dim_1(self%nw), r_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
+      end if
 
-    ! ensure point is on R mesh
-    if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
-       write(*,*) r, theta_in, dim_1(self%nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
-    end if
+      ! ensure point is on Z mesh
+      if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
+         write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
+      end if
 
-    ! ensure point is on Z mesh
-    if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
-       write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
-    end if
-
-    istar = find_lower_bound(r_pos, dim_1, 0)
-    jstar = find_lower_bound(z_pos, dim_2, 0)
-    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+      istar = find_lower_bound(r_pos, dim_1, 0)
+      jstar = find_lower_bound(z_pos, dim_2, 0)
+      fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+    end associate
   end function eqitem_cart
 
   pure integer function find_lower_bound(val, array, default) result(bound)
@@ -949,8 +946,9 @@ contains
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
-    do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i) ; self%Z_psi(i, :) = eq_Z
+    self%eq_R = eq_R ; self%eq_Z = eq_Z
+    do j = 1, self%nh
+       self%R_psi(:, j) = eq_R ; self%Z_psi(:, j) = eq_Z(j)
     end do
 
     self%B_T = abs(bcentr)
@@ -965,8 +963,8 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
-    do i = 1, self%nw
-       do j = 1, self%nh
+    do j = 1, self%nh
+       do i = 1, self%nw
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else
