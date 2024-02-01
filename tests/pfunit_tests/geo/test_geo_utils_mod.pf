@@ -187,9 +187,8 @@ contains
          [([(cos(j * theta_grid_spacing) * theta_grid_spacing, &
          i=1, nradius)], j=-ntheta, ntheta)], total_size)
 
-    base_test%drm = drm ; base_test%dzm = dzm
-    call base_test%eqdcart(drm, R_cylindrical)
-    call base_test%eqdcart(dzm, Z_cylindrical)
+    call base_test%eqdcart(drm, drm, dzm, R_cylindrical)
+    call base_test%eqdcart(dzm, drm, dzm, Z_cylindrical)
 
     R_cylindrical_expected(:,:,1) = 1.
     R_cylindrical_expected(:,:,2) = 0.
@@ -233,8 +232,8 @@ contains
     Z_cylindrical_expected(:,:,2) = 1.
 
     base_test%dpcart = dpcart
-    call base_test%eqdbish(R_cylindrical_in, R_cylindrical)
-    call base_test%eqdbish(Z_cylindrical_in, Z_cylindrical)
+    call base_test%eqdbish(R_cylindrical_in, dpcart, R_cylindrical)
+    call base_test%eqdbish(Z_cylindrical_in, dpcart, Z_cylindrical)
 
     ! why is the output only divided by the denominator on the r-range 2,nr?
     @assertEqual(R_cylindrical_expected(2:,:,1), R_cylindrical(2:,:,1), tolerance=value_tolerance)
