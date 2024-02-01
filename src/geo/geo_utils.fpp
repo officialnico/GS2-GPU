@@ -546,31 +546,32 @@ contains
     ! allow psi(r) to be a decreasing function
     eqpsi_sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
-    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :) !Non-contiguous copy - slow?
+    associate (dim_1 => eqpsi_sign * self%eqpsi , mtheta => self%eqth(1, :)) !Non-contiguous copy - slow?
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
 
-    if (.not. self%has_full_theta_range) then ! assume up-down symmetry
-       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
-       thet = abs(thet)
-    end if
+      if (.not. self%has_full_theta_range) then ! assume up-down symmetry
+         if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
+         thet = abs(thet)
+      end if
 
-    ! check for axis evaluation, no gradients available at axis, so do not get too close
-    if (r < dim_1(2)) then
-       write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
-       call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
-    end if
+      ! check for axis evaluation, no gradients available at axis, so do not get too close
+      if (r < dim_1(2)) then
+         write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
+         call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
+      end if
 
-    ! disallow evaluations on or outside the surface for now
-    if (r >= dim_1(self%nr)) then
-       write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
-       call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
-    end if
+      ! disallow evaluations on or outside the surface for now
+      if (r >= dim_1(self%nr)) then
+         write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
+         call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
+      end if
 
-    istar = find_lower_bound(r, dim_1, 0)
-    jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+      istar = find_lower_bound(r, dim_1, 0)
+      jstar = find_lower_bound(thet, mtheta, self%nt - 1)
+      fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+    end associate
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
