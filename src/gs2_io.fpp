@@ -1522,28 +1522,28 @@ contains
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 #ifdef NETCDF
-    call neasyf_write(file_id, "charge", spec%z, dim_names=["species"], &
+    call neasyf_write(file_id, "charge", (spec%z), dim_names=["species"], &
          long_name="Charge", units="e")
-    call neasyf_write(file_id, "mass", spec%mass, dim_names=["species"], &
+    call neasyf_write(file_id, "mass", (spec%mass), dim_names=["species"], &
          long_name="Atomic mass", units="AMU")
-    call neasyf_write(file_id, "dens", spec%dens, dim_names=["species"], &
+    call neasyf_write(file_id, "dens", (spec%dens), dim_names=["species"], &
          long_name="Normalised density", units="nref")
-    call neasyf_write(file_id, "temp", spec%temp, dim_names=["species"], &
+    call neasyf_write(file_id, "temp", (spec%temp), dim_names=["species"], &
          long_name="Normalised temperature", units="Tref")
-    call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
+    call neasyf_write(file_id, "tprim", (spec%tprim), dim_names=["species"], &
          long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
-    call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
+    call neasyf_write(file_id, "fprim", (spec%fprim), dim_names=["species"], &
          long_name="Normalised density gradient scale length -Lref/n dn/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim", (spec%uprim), dim_names=["species"], &
          long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
-    call neasyf_write(file_id, "vnewk", spec%vnewk, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim2", (spec%uprim2), dim_names=["species"])
+    call neasyf_write(file_id, "vnewk", (spec%vnewk), dim_names=["species"], &
          long_name="Collisionality", units="vtref/aref")
 
     ! FIXME: duplicated variable, old/new diagnostics
-    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"], &
+    call neasyf_write(file_id, "type_of_species", (spec%type), dim_names=["species"], &
          long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
-    call neasyf_write(file_id, "type", spec%type, dim_names=["species"], &
+    call neasyf_write(file_id, "type", (spec%type), dim_names=["species"], &
          long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
 #endif
   end subroutine nc_species
