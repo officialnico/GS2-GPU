@@ -1334,7 +1334,8 @@ contains
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
 #ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
-
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
     call neasyf_write(file_id, "h_energy", (h%energy), dim_names=[time_dim], start=[nout], &
          long_name="Total free (turbulent) energy")
     call neasyf_write(file_id, "h_energy_dot", (h%energy_dot), dim_names=[time_dim], start=[nout], &
@@ -1522,6 +1523,8 @@ contains
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 #ifdef NETCDF
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
     call neasyf_write(file_id, "charge", (spec%z), dim_names=["species"], &
          long_name="Charge", units="e")
     call neasyf_write(file_id, "mass", (spec%mass), dim_names=["species"], &
