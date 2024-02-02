@@ -279,7 +279,7 @@ contains
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    real :: nmesh
+    integer :: nmesh
 
     call neasyf_dim(file_id, trim(kx_dim), values=akx, &
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
