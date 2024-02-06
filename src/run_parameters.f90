@@ -15,7 +15,7 @@ module run_parameters
   public :: beta, zeff, tite, reset, immediate_reset, delt
   public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
   public :: nstep, max_sim_time, wstar_units, margin
-  public :: ieqzip, k0
+  public :: ieqzip, k0, ncheck_stop
   public :: delt_option_switch, delt_option_hand
   public :: delt_option_auto
   public :: avail_cpu_time, margin_cpu_time
@@ -49,7 +49,7 @@ module run_parameters
   real :: margin, delt
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
-  integer :: nstep, seed
+  integer :: ncheck_stop, nstep, seed
   logical :: reset=.false.
   logical :: immediate_reset
   logical :: wstar_units
@@ -82,7 +82,6 @@ module run_parameters
   type, extends(abstract_config_type) :: knobs_config_type
      ! namelist : knobs
      ! indexed : false     
-
      !> The maximum wall clock time available to GS2
      real :: avail_cpu_time = 1.0e10
      !> \(\beta\) is the ratio of the reference pressure to the reference
@@ -131,6 +130,9 @@ module run_parameters
      real :: margin_cpu_time = 300.0
      !> The simulation time after which the run should stop.
      real :: max_sim_time = 1.0e6
+     !> Sets the time step interval at which check for the existence
+     !> of the <runname>.stop file.
+     integer :: ncheck_stop = 5
      !> Lowflow only. If true, GS2 exits after writing out neoclassical
      !> quantities of interest
      logical :: neo_test = .false.
@@ -427,6 +429,7 @@ contains
     margin = knobs_config%margin
     margin_cpu_time = knobs_config%margin_cpu_time
     max_sim_time = knobs_config%max_sim_time
+    ncheck_stop = knobs_config%ncheck_stop
     neo_test = knobs_config%neo_test
     nstep = knobs_config%nstep
     rhostar = knobs_config%rhostar
@@ -573,13 +576,13 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 100000) :: user_comments
     character(len = 20) :: delt_option, eqzip_option
-    integer :: nstep, seed
+    integer :: ncheck_stop, nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
          trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, teti, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
-         save_init_times, save_timer_statistics, seed, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, ncheck_stop, neo_test, &
+         nstep, rhostar, save_init_times, save_timer_statistics, seed, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -600,6 +603,7 @@ contains
     margin = self%margin
     margin_cpu_time = self%margin_cpu_time
     max_sim_time = self%max_sim_time
+    ncheck_stop = self%ncheck_stop
     neo_test = self%neo_test
     nstep = self%nstep
     rhostar = self%rhostar
@@ -635,6 +639,7 @@ contains
     self%margin = margin
     self%margin_cpu_time = margin_cpu_time
     self%max_sim_time = max_sim_time
+    self%ncheck_stop = ncheck_stop
     self%neo_test = neo_test
     self%nstep = nstep
     self%rhostar = rhostar
@@ -681,6 +686,7 @@ contains
     call self%write_key_val("margin", self%margin, unit_internal)
     call self%write_key_val("margin_cpu_time", self%margin_cpu_time, unit_internal)
     call self%write_key_val("max_sim_time", self%max_sim_time, unit_internal)
+    call self%write_key_val("ncheck_stop", self%ncheck_stop, unit_internal)
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
     call self%write_key_val("nstep", self%nstep, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
@@ -729,6 +735,7 @@ contains
     call broadcast(self%margin)
     call broadcast(self%margin_cpu_time)
     call broadcast(self%max_sim_time)
+    call broadcast(self%ncheck_stop)
     call broadcast(self%neo_test)
     call broadcast(self%nstep)
     call broadcast(self%rhostar)
