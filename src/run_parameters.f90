@@ -44,7 +44,7 @@ module run_parameters
   public :: get_parameters_config
   
   real :: beta, zeff, tite
-  real :: fphi, fapar, fbpar, faperp
+  real :: fphi, fapar, fbpar
   logical :: has_phi, has_apar, has_bpar
   real :: delt
   real :: avail_cpu_time, margin_cpu_time
@@ -114,8 +114,6 @@ module run_parameters
      character(len = 20) :: eqzip_option = 'none'
      !> Multiplies \(A_\|\) throughout.
      real :: fapar = 0.0
-     !> Deprecated, synonym for `fapar`
-     real :: faperp = 0.0
      !> Multiplies \(B_\|\) throughout.
      real :: fbpar = -1.0
      !> Multiplies \(\phi\) throughout.
@@ -408,7 +406,6 @@ contains
     do_eigsolve = knobs_config%do_eigsolve
     eqzip_option = knobs_config%eqzip_option
     fapar = knobs_config%fapar
-    faperp = knobs_config%faperp
     fbpar = knobs_config%fbpar
     fphi = knobs_config%fphi
     immediate_reset = knobs_config%immediate_reset
@@ -433,12 +430,6 @@ contains
 
     ! Now handle inputs to calculate derived quantities
 
-    ! Allow faperp-style initialization for backwards compatibility.
-    ! Only fbpar is used outside of this subroutine.
-    if (fbpar == -1.) then
-       fbpar = faperp
-    end if
-    
     ! Override fapar, fbpar and beta if set inconsistently:
     
     !> If we have zero beta then disable apar and bpar fields
@@ -561,9 +552,9 @@ contains
     integer :: nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
          trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
-    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
+    real :: avail_cpu_time, beta, delt, fapar, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
          save_init_times, save_timer_statistics, seed, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
@@ -577,7 +568,6 @@ contains
     do_eigsolve = self%do_eigsolve
     eqzip_option = self%eqzip_option
     fapar = self%fapar
-    faperp = self%faperp
     fbpar = self%fbpar
     fphi = self%fphi
     immediate_reset = self%immediate_reset
@@ -610,7 +600,6 @@ contains
     self%do_eigsolve = do_eigsolve
     self%eqzip_option = eqzip_option
     self%fapar = fapar
-    self%faperp = faperp
     self%fbpar = fbpar
     self%fphi = fphi
     self%immediate_reset = immediate_reset
@@ -654,7 +643,6 @@ contains
     call self%write_key_val("do_eigsolve", self%do_eigsolve, unit_internal)
     call self%write_key_val("eqzip_option", self%eqzip_option, unit_internal)
     call self%write_key_val("fapar", self%fapar, unit_internal)
-    call self%write_key_val("faperp", self%faperp, unit_internal)
     call self%write_key_val("fbpar", self%fbpar, unit_internal)
     call self%write_key_val("fphi", self%fphi, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
@@ -700,7 +688,6 @@ contains
     call broadcast(self%do_eigsolve)
     call broadcast(self%eqzip_option)
     call broadcast(self%fapar)
-    call broadcast(self%faperp)
     call broadcast(self%fbpar)
     call broadcast(self%fphi)
     call broadcast(self%immediate_reset)
