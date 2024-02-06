@@ -150,9 +150,6 @@ module run_parameters
      !> default) then we don't set the seed and use the system default
      !> instead.
      integer :: seed = 0
-     !> Deprecated
-     !> This gets a smart default from parameters
-     real :: teti = -100.0
      !> Only used when there is an adiabatic species. Sets `n q ^2 / T` of the adiabatic
      !> species, normalised to the reference values.
      !> This gets a default from the parameters namelist.
@@ -195,8 +192,6 @@ module run_parameters
      real :: k0 = 1.0
      !> Normalised gyro-radius, only used for low flow builds
      real :: rhostar = 3.0e-3
-     !> Deprecated
-     real :: teti = -100.0
      !> See [[knobs:tite]].
      real :: tite = 1.0
      !> Custom description of run to be added to netcdf output (new diagnostics only)
@@ -379,7 +374,6 @@ contains
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
     integer :: ierr
-    real :: teti  ! for back-compatibility
 
     if (present(parameters_config_in)) parameters_config = parameters_config_in
 
@@ -389,7 +383,6 @@ contains
     beta = parameters_config%beta
     k0 = parameters_config%k0
     rhostar = parameters_config%rhostar
-    teti = parameters_config%teti
     tite = parameters_config%tite
     user_comments = parameters_config%user_comments
     zeff = parameters_config%zeff
@@ -403,7 +396,6 @@ contains
        knobs_config%beta = beta
        knobs_config%k0 = k0
        knobs_config%rhostar = rhostar
-       knobs_config%teti = teti
        knobs_config%tite = tite
        knobs_config%user_comments = user_comments
        knobs_config%zeff = zeff       
@@ -433,7 +425,6 @@ contains
     save_init_times = knobs_config%save_init_times
     save_timer_statistics = knobs_config%save_timer_statistics
     seed = knobs_config%seed
-    teti = knobs_config%teti
     tite = knobs_config%tite
     trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
     trinity_ql_fluxes = knobs_config%trinity_ql_fluxes
@@ -445,8 +436,6 @@ contains
     knexist = knobs_config%exist
 
     ! Now handle inputs to calculate derived quantities
-    
-    if (teti /= -100.0) tite = teti
 
     ! Allow faperp-style initialization for backwards compatibility.
     ! Only fbpar is used outside of this subroutine.
@@ -576,10 +565,10 @@ contains
     integer :: nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
          trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
-    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, teti, tite, zeff
+    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, tite, zeff
 
     namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
-         save_init_times, save_timer_statistics, seed, teti, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+         save_init_times, save_timer_statistics, seed, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -606,7 +595,6 @@ contains
     save_init_times = self%save_init_times
     save_timer_statistics = self%save_timer_statistics
     seed = self%seed
-    teti = self%teti
     tite = self%tite
     trinity_linear_fluxes = self%trinity_linear_fluxes
     trinity_ql_fluxes = self%trinity_ql_fluxes
@@ -641,7 +629,6 @@ contains
     self%save_init_times = save_init_times
     self%save_timer_statistics = save_timer_statistics
     self%seed = seed
-    self%teti = teti
     self%tite = tite
     self%trinity_linear_fluxes = trinity_linear_fluxes
     self%trinity_ql_fluxes = trinity_ql_fluxes
@@ -687,7 +674,6 @@ contains
     call self%write_key_val("save_init_times", self%save_init_times, unit_internal)
     call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
     call self%write_key_val("seed", self%seed, unit_internal)
-    call self%write_key_val("teti", self%teti, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
     call self%write_key_val("trinity_linear_fluxes", self%trinity_linear_fluxes, unit_internal)
     call self%write_key_val("trinity_ql_fluxes", self%trinity_ql_fluxes, unit_internal)
@@ -735,7 +721,6 @@ contains
     call broadcast(self%save_init_times)
     call broadcast(self%save_timer_statistics)
     call broadcast(self%seed)
-    call broadcast(self%teti)
     call broadcast(self%tite)
     call broadcast(self%trinity_linear_fluxes)
     call broadcast(self%trinity_ql_fluxes)
@@ -784,9 +769,9 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 100000) :: user_comments
-    real :: beta, k0, rhostar, teti, tite, zeff
+    real :: beta, k0, rhostar, tite, zeff
 
-    namelist /parameters/ beta, k0, rhostar, teti, tite, user_comments, zeff
+    namelist /parameters/ beta, k0, rhostar, tite, user_comments, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -795,7 +780,6 @@ contains
     beta = self%beta
     k0 = self%k0
     rhostar = self%rhostar
-    teti = self%teti
     tite = self%tite
     user_comments = self%user_comments
     zeff = self%zeff
@@ -808,7 +792,6 @@ contains
     self%beta = beta
     self%k0 = k0
     self%rhostar = rhostar
-    self%teti = teti
     self%tite = tite
     self%user_comments = user_comments
     self%zeff = zeff
@@ -832,7 +815,6 @@ contains
     call self%write_key_val("beta", self%beta, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
     call self%write_key_val("rhostar", self%rhostar, unit_internal)
-    call self%write_key_val("teti", self%teti, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
     call self%write_key_val("user_comments", self%user_comments, unit_internal)
     call self%write_key_val("zeff", self%zeff, unit_internal)
@@ -858,7 +840,6 @@ contains
     call broadcast(self%beta)
     call broadcast(self%k0)
     call broadcast(self%rhostar)
-    call broadcast(self%teti)
     call broadcast(self%tite)
     call broadcast(self%user_comments)
     call broadcast(self%zeff)
