@@ -56,7 +56,6 @@
  wstar_units = .false.
  fphi = 1.0
  fapar = 1.0
- faperp = 0.0
  fbpar = 1.0
  delt = 0.05
  nstep = 2
