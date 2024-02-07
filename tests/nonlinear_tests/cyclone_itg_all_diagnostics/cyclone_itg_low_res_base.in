@@ -19,7 +19,7 @@
 !==============================
 !GENERAL PARAMETERS
 !==============================
-&parameters
+&knobs
  beta = 0.1 ! Ratio of particle to magnetic pressure (reference Beta, not total beta):  beta=n_0 T_0 /( B^2 / (8 pi))
  zeff = 1.0 ! Effective ionic charge.
 /

@@ -1,9 +1,3 @@
-&parameters
- beta = 0.1
- zeff = 1.0
-/
-
-
 &kt_grids_knobs
  grid_option = "box"
 /
@@ -52,6 +46,8 @@
 /
 
 &knobs
+ beta = 0.1
+ zeff = 1.0
  use_old_diagnostics = .true.
  wstar_units = .false.
  fphi = 1.0
