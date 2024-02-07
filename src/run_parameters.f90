@@ -27,8 +27,7 @@ module run_parameters
   !> only and will eventually be removed. Please use
   !> the new diagnostics module!
   public :: use_old_diagnostics
-  public :: set_overrides, get_knobs_config, get_parameters_config
-  public :: knobs_config_type, parameters_config_type, set_run_parameters_config
+  public :: set_overrides, get_knobs_config, knobs_config_type, set_run_parameters_config
   
   real :: beta, zeff, tite, fphi, fapar, fbpar, k0, rhostar
   logical :: has_phi, has_apar, has_bpar, neo_test
@@ -38,7 +37,7 @@ module run_parameters
   logical :: immediate_reset, wstar_units, save_timer_statistics, save_init_times
   integer :: delt_option_switch
   integer, parameter :: delt_option_hand = 1, delt_option_auto = 2
-  logical :: rpexist, knexist
+  logical :: knexist
   logical :: trinity_ql_fluxes, trinity_linear_fluxes, do_eigsolve, use_old_diagnostics
   character(len=100000) :: user_comments
 
@@ -57,12 +56,10 @@ module run_parameters
   type, extends(abstract_config_type) :: knobs_config_type
      ! namelist : knobs
      ! indexed : false     
-
      !> The maximum wall clock time available to GS2
      real :: avail_cpu_time = 1.0e10
      !> \(\beta\) is the ratio of the reference pressure to the reference
-     !> magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).  This
-     !> gets a smart default from parameters
+     !> magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
      real :: beta = 0.0
      !> Initial timestep
      real :: delt = 0.1
@@ -96,7 +93,7 @@ module run_parameters
      !> Determines the behaviour when the CFL condition is broken in the nonlinear term:
      logical :: immediate_reset = .true.
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
-     !> moved to init_g namelist. This gets a smart default from [[parameters]].
+     !> moved to init_g namelist.
      real :: k0 = 1.0
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
      real :: margin_cpu_time = 300.0
@@ -108,7 +105,6 @@ module run_parameters
      !> Maximum number of steps to take
      integer :: nstep = 100
      !> Normalised gyro-radius, only used for low flow builds
-     !> This gets a smart default from parameters
      real :: rhostar = 3.0e-3
      !> If true then save init timer information to
      !> <run_name>.init_times.
@@ -123,7 +119,6 @@ module run_parameters
      integer :: seed = 0
      !> Only used when there is an adiabatic species. Sets `n q ^2 / T` of the adiabatic
      !> species, normalised to the reference values.
-     !> This gets a default from the parameters namelist.
      real :: tite = 1.0
      !> If true and running linearly, return linear diffusive flux estimates to Trinity.
      logical :: trinity_linear_fluxes = .false.
@@ -132,7 +127,6 @@ module run_parameters
      !> If true use original diagnostics rather than new form
      logical :: use_old_diagnostics = .false.
      !> Custom description of run to be added to netcdf output (new diagnostics only)
-     !> This gets a smart default from parameters
      character(len = 100000) :: user_comments = ''
      !> If true makes timestep proportional to ky*rho. Only sensible for linear runs.
      logical :: wstar_units = .false.
@@ -148,37 +142,6 @@ module run_parameters
   end type knobs_config_type
   
   type(knobs_config_type) :: knobs_config
-
-  !> Used to represent the input configuration of run_parameters through "parameters"
-  !>
-  !> @todo This should probably be merged with knobs. This is actually
-  !> implemented here by adding the contents of "parameters" to "knobs".
-  !> This should be documented clearly and eventually we should remove parameters
-  type, extends(abstract_config_type) :: parameters_config_type
-     ! namelist : parameters
-     ! indexed : false     
-     !> \(\beta\) is the ratio of the reference pressure to the reference magnetic energy density, \(\beta=2\mu_0n_{ref}T_{ref}/B^2_{ref}\).
-     real :: beta = 0.0
-     !> Unknown, only uses in [[init_g]] -- should be moved to init_g namelist.
-     real :: k0 = 1.0
-     !> Normalised gyro-radius, only used for low flow builds
-     real :: rhostar = 3.0e-3
-     !> See [[knobs:tite]].
-     real :: tite = 1.0
-     !> Custom description of run to be added to netcdf output (new diagnostics only)
-     character(len = 100000) :: user_comments = ''
-     !> Effective ionic charge appearing in electron collision frequency
-     real :: zeff = 1.0
-   contains
-     procedure, public :: read => read_parameters_config
-     procedure, public :: write => write_parameters_config
-     procedure, public :: reset => reset_parameters_config
-     procedure, public :: broadcast => broadcast_parameters_config
-     procedure, public, nopass :: get_default_name => get_default_name_parameters_config
-     procedure, public, nopass :: get_default_requires_index => get_default_requires_index_parameters_config
-  end type parameters_config_type
-  
-  type(parameters_config_type) :: parameters_config
 
 contains
 
@@ -262,14 +225,6 @@ contains
     implicit none
     integer, intent(in) :: unit
     logical, intent(in) :: electrons, collisions
-    if (rpexist) then
-       write (unit, *)
-       write (unit, fmt="(' &',a)") "parameters"
-       write (unit, fmt="(' beta = ',e17.10)") beta       ! if zero, fapar, fbpar should be zero
-       if (collisions) write (unit, fmt="(' zeff = ',e17.10)") zeff
-       if (.not. electrons)  write (unit, fmt="(' tite = ',e17.10)") tite
-       write (unit, fmt="(' /')")
-    endif
     if (knexist) then
        write (unit, *)
        write (unit, fmt="(' &',a)") "knobs"
@@ -287,21 +242,23 @@ contains
           ! nothing
        end select
        write (unit, fmt="(' immediate_reset = ',L1)") immediate_reset
+       write (unit, fmt="(' beta = ',e17.10)") beta       ! if zero, fapar, fbpar should be zero
+       if (collisions) write (unit, fmt="(' zeff = ',e17.10)") zeff
+       if (.not. electrons)  write (unit, fmt="(' tite = ',e17.10)") tite
        write (unit, fmt="(' /')")
     endif
   end subroutine wnml_run_parameters
 
   !> FIXME : Add documentation  
-  subroutine init_run_parameters(knobs_config_in, parameters_config_in)
+  subroutine init_run_parameters(knobs_config_in)
     use kt_grids, only: init_kt_grids, naky, nakx => ntheta0
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
-    type(parameters_config_type), intent(in), optional :: parameters_config_in
 
     if (initialized) return
     initialized = .true.
 
-    call read_parameters(knobs_config_in, parameters_config_in)
+    call read_parameters(knobs_config_in)
 
     call init_kt_grids
 
@@ -322,7 +279,7 @@ contains
   end subroutine init_run_parameters
 
   !> FIXME : Add documentation    
-  subroutine read_parameters(knobs_config_in, parameters_config_in)
+  subroutine read_parameters(knobs_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
     use text_options, only: text_option, get_option_value
@@ -330,7 +287,6 @@ contains
     use ran, only: set_seed_from_single_integer
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
-    type(parameters_config_type), intent(in), optional :: parameters_config_in
     
     type (text_option), dimension (4), parameter :: eqzipopts = &
          (/ text_option('none', eqzip_option_none), &
@@ -343,34 +299,15 @@ contains
             text_option('set_by_hand', delt_option_hand), &
             text_option('check_restart', delt_option_auto) /)
     character(20) :: delt_option
-    integer :: ierr
-
-    if (present(parameters_config_in)) parameters_config = parameters_config_in
-
-    call parameters_config%init(name = 'parameters', requires_index = .false.)
-
-    ! Copy out internal values into module level parameters
-    beta = parameters_config%beta
-    k0 = parameters_config%k0
-    rhostar = parameters_config%rhostar
-    tite = parameters_config%tite
-    user_comments = parameters_config%user_comments
-    zeff = parameters_config%zeff
-
-    rpexist = parameters_config%exist
-
-    if (present(knobs_config_in)) knobs_config = knobs_config_in
-
-    ! Set smart defaults
-    if (.not.knobs_config%is_initialised()) then    
-       knobs_config%beta = beta
-       knobs_config%k0 = k0
-       knobs_config%rhostar = rhostar
-       knobs_config%tite = tite
-       knobs_config%user_comments = user_comments
-       knobs_config%zeff = zeff       
+    integer :: ierr, in_file
+    logical :: rpexist
+    !> Identify if we need to warn about removal of parameters
+    if (proc0) then
+       in_file = input_unit_exist('parameters', rpexist)
+       if (rpexist) write(*, '("Warning: Input file contains namelist ",A," but this has been removed. Inputs have been migrated to ",A)') "'parameters'", "'knobs'"
     end if
     
+    if (present(knobs_config_in)) knobs_config = knobs_config_in
     call knobs_config%init(name = 'knobs', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
@@ -483,26 +420,21 @@ contains
 
     initialized = .false.
     call knobs_config%reset()
-    call parameters_config%reset()    
   end subroutine finish_run_parameters
 
 
   !> Set the module level config type
   !> Will abort if the module has already been initialised to avoid
   !> inconsistencies.
-  subroutine set_run_parameters_config(knobs_config_in, parameters_config_in)
+  subroutine set_run_parameters_config(knobs_config_in)
     use mp, only: mp_abort
     type(knobs_config_type), intent(in), optional :: knobs_config_in
-    type(parameters_config_type), intent(in), optional :: parameters_config_in    
     
     if (initialized) then
        call mp_abort("Trying to set run_parameters config when already initialized.", to_screen = .true.)
     end if
     if (present(knobs_config_in)) then
        knobs_config = knobs_config_in
-    end if
-    if (present(parameters_config_in)) then
-       parameters_config = parameters_config_in
     end if
   end subroutine set_run_parameters_config
 
@@ -705,120 +637,4 @@ contains
     type(knobs_config_type) :: get_knobs_config
     get_knobs_config = knobs_config
   end function get_knobs_config
-  
-  !---------------------------------------
-  ! Following is for the parameters config_type
-  !---------------------------------------
-  
-  !> Reads in the parameters namelist and populates the member variables
-  subroutine read_parameters_config(self)
-    use file_utils, only: input_unit_exist, get_indexed_namelist_unit
-    use mp, only: proc0
-    implicit none
-    class(parameters_config_type), intent(in out) :: self
-    logical :: exist
-    integer :: in_file
-
-    ! Note: When this routine is in the module where these variables live
-    ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.
-    character(len = 100000) :: user_comments
-    real :: beta, k0, rhostar, tite, zeff
-
-    namelist /parameters/ beta, k0, rhostar, tite, user_comments, zeff
-
-    ! Only proc0 reads from file
-    if (.not. proc0) return
-
-    ! First set local variables from current values
-    beta = self%beta
-    k0 = self%k0
-    rhostar = self%rhostar
-    tite = self%tite
-    user_comments = self%user_comments
-    zeff = self%zeff
-
-    ! Now read in the main namelist
-    in_file = input_unit_exist(self%get_name(), exist)
-    if (exist) read(in_file, nml = parameters)
-
-    ! Now copy from local variables into type members
-    self%beta = beta
-    self%k0 = k0
-    self%rhostar = rhostar
-    self%tite = tite
-    self%user_comments = user_comments
-    self%zeff = zeff
-
-    self%exist = exist
-  end subroutine read_parameters_config
-
-  !> Writes out a namelist representing the current state of the config object
-  subroutine write_parameters_config(self, unit)
-    implicit none
-    class(parameters_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
-    integer :: unit_internal
-
-    unit_internal = 6 ! @todo -- get stdout from file_utils
-    if (present(unit)) then
-       unit_internal = unit
-    endif
-
-    call self%write_namelist_header(unit_internal)
-    call self%write_key_val("beta", self%beta, unit_internal)
-    call self%write_key_val("k0", self%k0, unit_internal)
-    call self%write_key_val("rhostar", self%rhostar, unit_internal)
-    call self%write_key_val("tite", self%tite, unit_internal)
-    call self%write_key_val("user_comments", self%user_comments, unit_internal)
-    call self%write_key_val("zeff", self%zeff, unit_internal)
-    call self%write_namelist_footer(unit_internal)
-  end subroutine write_parameters_config
-
-  !> Resets the config object to the initial empty state
-  subroutine reset_parameters_config(self)
-    class(parameters_config_type), intent(in out) :: self
-    type(parameters_config_type) :: empty
-    select type (self)
-    type is (parameters_config_type)
-       self = empty
-    end select
-  end subroutine reset_parameters_config
-
-  !> Broadcasts all config parameters so object is populated identically on
-  !! all processors
-  subroutine broadcast_parameters_config(self)
-    use mp, only: broadcast
-    implicit none
-    class(parameters_config_type), intent(in out) :: self
-    call broadcast(self%beta)
-    call broadcast(self%k0)
-    call broadcast(self%rhostar)
-    call broadcast(self%tite)
-    call broadcast(self%user_comments)
-    call broadcast(self%zeff)
-
-    call broadcast(self%exist)
-  end subroutine broadcast_parameters_config
-  
-  !> Gets the default name for this namelist
-  function get_default_name_parameters_config()
-    implicit none
-    character(len = CONFIG_MAX_NAME_LEN) :: get_default_name_parameters_config
-    get_default_name_parameters_config = "parameters"
-  end function get_default_name_parameters_config
-
-  !> Gets the default requires index for this namelist
-  function get_default_requires_index_parameters_config()
-    implicit none
-    logical :: get_default_requires_index_parameters_config
-    get_default_requires_index_parameters_config = .false.
-  end function get_default_requires_index_parameters_config
-
-  !> Get the module level config instance
-  function get_parameters_config()
-    type(parameters_config_type) :: get_parameters_config
-    get_parameters_config = parameters_config
-  end function get_parameters_config
-
 end module run_parameters
