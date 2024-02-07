@@ -100,7 +100,6 @@
  wstar_units = .false. ! For linear runs only. Evolves each k_y with a different timestep.
  fphi = 1.0 ! Multiplies Phi (electrostatic potential).
  fapar = 1.0 ! Multiplies A_par. Use 1 for finite beta (electromagnetic), 0 otherwise (electrostatic)
- faperp = 0.0 ! Multiplies A_perp. Use 1 for high beta, 0 otherwise. Deprecated: use fbpar instead
  fbpar = 1.0
  delt = 0.05 ! Time step
  nstep = 200 ! Maximum number of timesteps
