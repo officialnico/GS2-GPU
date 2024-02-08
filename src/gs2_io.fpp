@@ -1545,9 +1545,9 @@ contains
 
     ! FIXME: duplicated variable, old/new diagnostics
     call neasyf_write(file_id, "type_of_species", (spec%type), dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
     call neasyf_write(file_id, "type", (spec%type), dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
 #endif
   end subroutine nc_species
   
