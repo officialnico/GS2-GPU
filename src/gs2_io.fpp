@@ -1548,6 +1548,10 @@ contains
          long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
     call neasyf_write(file_id, "type", (spec%type), dim_names=["species"], &
          long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
+
+    call neasyf_write(file_id, "f0type", (spec%f0type), dim_names=["species"], &
+         long_name="Species type: 1=Maxwellian, 2=Tabulated, 3=Analytic slowing down")
+
 #endif
   end subroutine nc_species
   
