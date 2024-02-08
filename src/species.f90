@@ -73,7 +73,6 @@ module species
   integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
 
-
   logical :: initialized = .false.
   logical :: exist
 
@@ -404,8 +403,6 @@ contains
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
-    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nu_h
-    real :: tperp0, tpar0, bess_fac, vcrit, vcprim
     character(20) :: type, f0type
     integer :: is, ierr
 
@@ -454,59 +451,38 @@ contains
        if (proc0) print*,"inconsistent number of config elements"
     endif
        
+    ierr = error_unit()
     do is = 1, nspec
        call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
        ! Copy out internal values into module level parameters
-       bess_fac = species_element_config(is)%bess_fac
-       dens = species_element_config(is)%dens
-       dens0 = species_element_config(is)%dens0
-       f0type = species_element_config(is)%f0type
-       fprim = species_element_config(is)%fprim
-       mass = species_element_config(is)%mass
-       nu_h = species_element_config(is)%nu_h
-       temp = species_element_config(is)%temp
-       tpar0 = species_element_config(is)%tpar0
-       tperp0 = species_element_config(is)%tperp0
-       tprim = species_element_config(is)%tprim
-       type = species_element_config(is)%type
-       u0 = species_element_config(is)%u0
-       uprim = species_element_config(is)%uprim
-       uprim2 = species_element_config(is)%uprim2
-       vcprim = species_element_config(is)%vcprim
-       vcrit = species_element_config(is)%vcrit
-       vnewk = species_element_config(is)%vnewk
-       z = species_element_config(is)%z
+       spec(is)%bess_fac = species_element_config(is)%bess_fac
+       spec(is)%dens = species_element_config(is)%dens
+       spec(is)%dens0 = species_element_config(is)%dens0
+       spec(is)%fprim = species_element_config(is)%fprim
+       spec(is)%mass = species_element_config(is)%mass
+       spec(is)%nu_h = species_element_config(is)%nu_h
+       spec(is)%temp = species_element_config(is)%temp
+       spec(is)%tpar0 = species_element_config(is)%tpar0
+       spec(is)%tperp0 = species_element_config(is)%tperp0
+       spec(is)%tprim = species_element_config(is)%tprim
+       spec(is)%u0 = species_element_config(is)%u0
+       spec(is)%uprim = species_element_config(is)%uprim
+       spec(is)%uprim2 = species_element_config(is)%uprim2
+       spec(is)%vcprim = species_element_config(is)%vcprim
+       spec(is)%vcrit = species_element_config(is)%vcrit
+       spec(is)%vnewk = species_element_config(is)%vnewk
+       spec(is)%z = species_element_config(is)%z
 
-       spec(is)%z = z
-       spec(is)%mass = mass
-       spec(is)%dens = dens
-       spec(is)%dens0 = dens0
-       spec(is)%u0 = u0
-       spec(is)%tperp0 = tperp0
-       spec(is)%tpar0 = tpar0
-       spec(is)%temp = temp
-       spec(is)%tprim = tprim
-       spec(is)%fprim = fprim
-       spec(is)%uprim = uprim
-       spec(is)%uprim2 = uprim2
-       spec(is)%vnewk = vnewk
-       spec(is)%nu_h = nu_h
-
-       spec(is)%stm = sqrt(temp/mass)
-       spec(is)%zstm = z/sqrt(temp*mass)
-       spec(is)%tz = temp/z
-       spec(is)%zt = z/temp
-       spec(is)%smz = abs(sqrt(temp*mass)/z)
-
-       spec(is)%bess_fac=bess_fac
-       spec(is)%vcrit=vcrit
-       spec(is)%vcprim=vcprim
-
-       ierr = error_unit()
-       call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-       call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
     end do
+
+    spec%stm = sqrt(spec%temp / spec%mass)
+    spec%zstm = spec%z / sqrt(spec%temp * spec%mass)
+    spec%tz = spec%temp / spec%z
+    spec%zt = spec%z / spec%temp
+    spec%smz = abs(sqrt(spec%temp * spec%mass) / spec%z)
 
     call broadcast(spec%z)
     call broadcast(spec%mass)
