@@ -406,10 +406,8 @@ contains
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
     real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nu_h
     real :: tperp0, tpar0, bess_fac, vcrit, vcprim
-    real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
-    integer :: is
-    integer :: ierr
+    integer :: is, ierr
 
     type (text_option), dimension (*), parameter :: typeopts = [ &
          text_option('default', ion_species), &
@@ -510,34 +508,30 @@ contains
        call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
     end do
 
-    !We use a temporary array here to allow us to broadcast all species data at once
-    !May be possible to avoid this by simply calling broadcast(spec%z) etc.
-    allocate(tmp_bcast(nspec))
-    tmp_bcast=spec%z ; call broadcast(tmp_bcast) ; spec%z=tmp_bcast
-    tmp_bcast=spec%mass ; call broadcast(tmp_bcast) ; spec%mass=tmp_bcast
-    tmp_bcast=spec%dens ; call broadcast(tmp_bcast) ; spec%dens=tmp_bcast
-    tmp_bcast=spec%dens0 ; call broadcast(tmp_bcast) ; spec%dens0=tmp_bcast
-    tmp_bcast=spec%u0 ; call broadcast(tmp_bcast) ; spec%u0=tmp_bcast
-    tmp_bcast=spec%tperp0 ; call broadcast(tmp_bcast) ; spec%tperp0=tmp_bcast
-    tmp_bcast=spec%tpar0 ; call broadcast(tmp_bcast) ; spec%tpar0=tmp_bcast
-    tmp_bcast=spec%temp ; call broadcast(tmp_bcast) ; spec%temp=tmp_bcast
-    tmp_bcast=spec%tprim ; call broadcast(tmp_bcast) ; spec%tprim=tmp_bcast
-    tmp_bcast=spec%fprim ; call broadcast(tmp_bcast) ; spec%fprim=tmp_bcast
-    tmp_bcast=spec%uprim ; call broadcast(tmp_bcast) ; spec%uprim=tmp_bcast
-    tmp_bcast=spec%uprim2 ; call broadcast(tmp_bcast) ; spec%uprim2=tmp_bcast
-    tmp_bcast=spec%vnewk ; call broadcast(tmp_bcast) ; spec%vnewk=tmp_bcast
-    tmp_bcast=spec%nu_h ; call broadcast(tmp_bcast) ; spec%nu_h=tmp_bcast
-    tmp_bcast=spec%stm ; call broadcast(tmp_bcast) ; spec%stm=tmp_bcast
-    tmp_bcast=spec%zstm ; call broadcast(tmp_bcast) ; spec%zstm=tmp_bcast
-    tmp_bcast=spec%tz ; call broadcast(tmp_bcast) ; spec%tz=tmp_bcast
-    tmp_bcast=spec%zt ; call broadcast(tmp_bcast) ; spec%zt=tmp_bcast
-    tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
-    tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
-    tmp_bcast=spec%f0type ; call broadcast(tmp_bcast) ; spec%f0type=int(tmp_bcast)
-    tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
-    tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
-    tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
-    deallocate(tmp_bcast)
+    call broadcast(spec%z)
+    call broadcast(spec%mass)
+    call broadcast(spec%dens)
+    call broadcast(spec%dens0)
+    call broadcast(spec%u0)
+    call broadcast(spec%tperp0)
+    call broadcast(spec%tpar0)
+    call broadcast(spec%temp)
+    call broadcast(spec%tprim)
+    call broadcast(spec%fprim)
+    call broadcast(spec%uprim)
+    call broadcast(spec%uprim2)
+    call broadcast(spec%vnewk)
+    call broadcast(spec%nu_h)
+    call broadcast(spec%stm)
+    call broadcast(spec%zstm)
+    call broadcast(spec%tz)
+    call broadcast(spec%zt)
+    call broadcast(spec%smz)
+    call broadcast(spec%type)
+    call broadcast(spec%f0type)
+    call broadcast(spec%bess_fac)
+    call broadcast(spec%vcrit)
+    call broadcast(spec%vcprim)
   end subroutine read_parameters
 
   !> FIXME : Add documentation
