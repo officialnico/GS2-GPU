@@ -399,7 +399,7 @@ contains
   subroutine read_parameters(species_config_in, species_elements_config_in)
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, mp_abort
+    use mp, only: proc0, mp_abort
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
@@ -483,31 +483,6 @@ contains
     spec%tz = spec%temp / spec%z
     spec%zt = spec%z / spec%temp
     spec%smz = abs(sqrt(spec%temp * spec%mass) / spec%z)
-
-    call broadcast(spec%z)
-    call broadcast(spec%mass)
-    call broadcast(spec%dens)
-    call broadcast(spec%dens0)
-    call broadcast(spec%u0)
-    call broadcast(spec%tperp0)
-    call broadcast(spec%tpar0)
-    call broadcast(spec%temp)
-    call broadcast(spec%tprim)
-    call broadcast(spec%fprim)
-    call broadcast(spec%uprim)
-    call broadcast(spec%uprim2)
-    call broadcast(spec%vnewk)
-    call broadcast(spec%nu_h)
-    call broadcast(spec%stm)
-    call broadcast(spec%zstm)
-    call broadcast(spec%tz)
-    call broadcast(spec%zt)
-    call broadcast(spec%smz)
-    call broadcast(spec%type)
-    call broadcast(spec%f0type)
-    call broadcast(spec%bess_fac)
-    call broadcast(spec%vcrit)
-    call broadcast(spec%vcprim)
   end subroutine read_parameters
 
   !> FIXME : Add documentation
