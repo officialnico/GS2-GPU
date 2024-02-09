@@ -115,7 +115,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
   ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
   ! le layout shaped arrays.
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpale
+  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpa_aj0_le
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -1245,12 +1245,12 @@ contains
        aj0le = real(ctmp)
        aj1le = aimag(ctmp)
 
-       if (.not. allocated(vpale)) then
-          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       if (.not. allocated(vpa_aj0_le)) then
+          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        end if
        z_big = vpa
        call gather (g2le, z_big, ctmp)
-       vpale = real(ctmp)
+       vpa_aj0_le = real(ctmp) * aj0le
 
        deallocate (ctmp, z_big)
     else
@@ -1837,13 +1837,13 @@ contains
           aj1le = aimag(ctmp)
        end if
 
-       if (.not. allocated(vpale)) then
+       if (.not. allocated(vpa_aj0_le)) then
           allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
           z_big = vpa
           call gather (g2le, z_big, ctmp)
           deallocate (z_big)
-          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          vpale = real(ctmp)
+          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          vpa_aj0_le = real(ctmp) * aj0le
        end if
 
        deallocate (ctmp)
@@ -2470,12 +2470,12 @@ contains
              aj0le = real(ctmp)
              aj1le = aimag(ctmp)
 
-             if (.not. allocated(vpale)) then
-                allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+             if (.not. allocated(vpa_aj0_le)) then
+                allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
              end if
              z_big = vpa
              call gather (g2le, z_big, ctmp)
-             vpale = real(ctmp)
+             vpa_aj0_le = real(ctmp) * aj0le
 
              deallocate (ctmp, z_big)
           endif
@@ -3423,9 +3423,9 @@ contains
 
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, isgn, il) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, ixi_to_il, ixi_to_isgn, gle, aj0le, vpale) &
+          !$OMP aparnew, beta, energy, nxi_lim, gle, vpa_aj0_le) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3440,10 +3440,7 @@ contains
                      * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
-                        tmp * aj0le(ixi,ie,ile) * vpale(ixi,ie,ile)
+                   gle(ixi, ie, ile) = gle(ixi, ie, ile) + tmp * vpa_aj0_le(ixi, ie, ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3463,7 +3460,7 @@ contains
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, il, isgn) &
           !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, gle, aj0le, vpale) &
+          !$OMP aparnew, beta, energy, nxi_lim, gle, vpa_aj0_le) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3478,8 +3475,7 @@ contains
                         * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                         / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
-                        tmp * aj0le(ixi,ie,ile) * vpale(ixi, ie, ile)
+                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * vpa_aj0_le(ixi, ie, ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3723,19 +3719,17 @@ contains
 
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, aj0le, gle) &
+       !$OMP PRIVATE(ile, it, ik, ixi, ie) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
+          if(kwork_filter(it, ik)) cycle
           do ie = 1, negrid
              do ixi = 1, nxi_lim
                 ! Should we use vpdiff here if conservative?
-                gtmp(ixi,ie,ile) =  vpale(ixi, ie, ile) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                gtmp(ixi, ie, ile) =  vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile)
              end do
           end do
        end do
@@ -3794,20 +3788,19 @@ contains
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, vnmult, vnew_D, tunits, aj0le, gle) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, vnmult, &
+       !$OMP vnew_D, tunits, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
           if(kwork_filter(it,ik)) cycle
           is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
                 !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpale(ixi, ie, ile) * &
-                     (vnmult(1)*vnew_D(1,ie,is)/tunits(1)) * tunits(ik) * &
-                     aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * &
+                     (vnmult(1)*vnew_D(1,ie,is) / tunits(1)) * tunits(ik) * gle(ixi, ie, ile)
              end do
           end do
        end do
@@ -4139,18 +4132,17 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
     !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, tunits, nxi_lim, gtmp, &
-    !$OMP vpale, aj0le, gle) &
+    !$OMP vpa_aj0_le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
-       do ie=1, negrid
-          delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
+       do ie = 1, negrid
+          delnu = (vnmult(2) * delvnew(1, ie, is) / tunits(1))
           do ixi = 1, nxi_lim
-             gtmp (ixi,ie,ile) = vpale(ixi, ie, ile) * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * tunits(ik) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4807,7 +4799,7 @@ contains
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
       if (allocated(aj1le)) deallocate(aj1le)
-      if (allocated(vpale)) deallocate(vpale)
+      if (allocated(vpa_aj0_le)) deallocate(vpa_aj0_le)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
       if (allocated(bz0le)) deallocate(bz0le)
