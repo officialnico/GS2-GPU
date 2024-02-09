@@ -4421,9 +4421,8 @@ contains
     integer :: ig, ik, il, is, je, it, ie
     integer :: nxi_scatt
 
-    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
-
     if (heating .and. present(diagnostics)) then
+       allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4501,6 +4500,7 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
+       deallocate(tmp)
     end if
 
     ! solve for gle row by row
@@ -4588,8 +4588,6 @@ contains
        end do
     end do
     !$OMP END PARALLEL DO
-    deallocate (tmp)
-    
   end subroutine solfp_lorentz_le_layout
 
   !> Energy diffusion subroutine used with energy layout (not le_layout)
