@@ -4312,13 +4312,12 @@ contains
     !$OMP glz, special_wfb_lorentz, ql, c1, betaa) &
     !$OMP SCHEDULE(static)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-
+       is = is_idx(lz_lo,ilz)
        ik = ik_idx(lz_lo,ilz)
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        it = it_idx(lz_lo,ilz)
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)) cycle
-       is = is_idx(lz_lo,ilz)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ie = ie_idx(lz_lo,ilz)
        ig = ig_idx(lz_lo,ilz)
 
@@ -4508,12 +4507,12 @@ contains
     !$OMP vpar_zero_mean, negrid, gle, qle, betaale, c1le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
+       is = is_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
        if (ieqzip(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(le_lo,ile)
 
 !CMRDDGC, 10/2/1014: 
