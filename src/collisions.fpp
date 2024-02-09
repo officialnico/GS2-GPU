@@ -4590,7 +4590,6 @@ contains
   !> this is always the case when initializing the conserving terms,
   !> otherwise is the case if use_le_layout is no specified in the input file.
   subroutine solfp_ediffuse_standard_layout (g)
-    use species, only: spec
     use theta_grid, only: ntgrid
     use le_grids, only: negrid, forbid
     use le_grids, only: energy_map
@@ -4615,16 +4614,15 @@ contains
     ! solve for ged row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
-    !$OMP SHARED(e_lo, kwork_filter, ieqzip, spec, force_collisions, forbid, negrid, ged, eql, ec1, ebetaa) &
+    !$OMP SHARED(e_lo, kwork_filter, ieqzip, vnew, force_collisions, forbid, negrid, ged, eql, ec1, ebetaa) &
     !$OMP SCHEDULE(static)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
-
-       it = it_idx(e_lo,ielo)       
+       is = is_idx(e_lo,ielo)
        ik = ik_idx(e_lo,ielo)
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(e_lo,ielo)
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)) cycle
-       is = is_idx(e_lo,ielo)
-       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        ig = ig_idx(e_lo,ielo)
        il = il_idx(e_lo,ielo)
        if (forbid(ig,il)) cycle
@@ -4650,7 +4648,6 @@ contains
 
   !> FIXME : Add documentation
   subroutine solfp_ediffuse_le_layout (gle)
-    use species, only: spec
     use le_grids, only: nxi, negrid, forbid, ixi_to_il, ng2
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
     use run_parameters, only: ieqzip
@@ -4675,15 +4672,14 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SHARED(le_lo, spec, force_collisions, kwork_filter, ieqzip, ixi_to_il, forbid, gle, negrid, &
+    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, ixi_to_il, forbid, gle, negrid, &
     !$OMP eqle, ec1le, ebetaale, nxi_lim) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-
        is = is_idx(le_lo,ile)
-       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
+       ik = ik_idx(le_lo,ile)
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        it=it_idx(le_lo,ile)
-       ik=ik_idx(le_lo,ile)
        if (kwork_filter(it,ik)) cycle
        if (ieqzip(it,ik)) cycle
        ig = ig_idx(le_lo,ile)
