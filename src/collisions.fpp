@@ -4237,13 +4237,11 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gc, gh
     integer, optional, intent (in) :: diagnostics
-
     complex, dimension (:,:), allocatable :: glz, glzc
-    integer :: ilz
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, it, je, ie
-    integer :: nxi_scatt
+    integer :: ig, ik, il, is, it, je, ie, nxi_scatt, ilz
+    logical :: is_wfb
 
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
@@ -4309,7 +4307,7 @@ contains
     ! solve for glz row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
-    !$OMP il, gwfb, delta) &
+    !$OMP il, gwfb, delta, is_wfb) &
     !$OMP SHARED(lz_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, vpar_zero_mean, &
     !$OMP glz, special_wfb_lorentz, ql, c1, betaa) &
     !$OMP SCHEDULE(static)
@@ -4332,6 +4330,7 @@ contains
 !  je-1 = #physical xi values removing unphysical/duplicate extra point
        je=max(2*jend(ig),2*ng2+1)
        nxi_scatt=je-1
+       is_wfb = il_is_wfb(jend(ig))
        
        if (je==2*jend(ig) .and. vpar_zero_mean) then 
           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
@@ -4343,7 +4342,7 @@ contains
        endif 
        
        glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
+       if (is_wfb .and. special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
@@ -4352,7 +4351,7 @@ contains
 ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
           glz(ng2+1:je-2,ilz) = glz(ng2+2:je-1,ilz)
           nxi_scatt=nxi_scatt-1
-       endif
+       end if
 !CMRDDGCend
 
        ! right and left sweeps for tridiagonal solve:
@@ -4375,7 +4374,7 @@ contains
 !       ! and insert this point into glz
        ! interpolation described above mysteriously causing numerical instability
        ! stabilized by using old (pre-collision) value of g for wfb
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
+       if (is_wfb .and. special_wfb_lorentz) then
           glz(ng2+2:je-1,ilz) = glz(ng2+1:je-2,ilz)
           glz(ng2+1,ilz) = gwfb
        end if
@@ -4413,13 +4412,11 @@ contains
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
-
     complex, dimension (:), allocatable :: tmp
-    integer :: ile
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, je, it, ie
-    integer :: nxi_scatt
+    integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
+    logical :: is_wfb
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
@@ -4506,7 +4503,7 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
-    !$OMP gwfb, delta) &
+    !$OMP gwfb, delta, is_wfb) &
     !$OMP SHARED(le_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, special_wfb_lorentz, &
     !$OMP vpar_zero_mean, negrid, gle, qle, betaale, c1le) &
     !$OMP SCHEDULE(static)
@@ -4525,9 +4522,9 @@ contains
 !  je-1 = #physical xi values removing duplicate vpar=0 point
        je=max(2*jend(ig),2*ng2+1)
        nxi_scatt=je-1
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-          nxi_scatt=nxi_scatt-1
-       endif
+       is_wfb = il_is_wfb(jend(ig))
+       if (is_wfb .and. special_wfb_lorentz) nxi_scatt = nxi_scatt - 1
+
 ! These fixes address previous comment by CMR: 
 ! "surely wfb's bounce point should be handled like any other trapped bp?"
 !CMR, 1/11/2013:
@@ -4544,7 +4541,7 @@ contains
              gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
           endif 
           gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
-          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
+          if (is_wfb .and. special_wfb_lorentz) then
 !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
 !          remove wfb from collisions, reinsert later
 !
@@ -4552,7 +4549,7 @@ contains
              gwfb = gle(ng2+1,ie,ile)
 ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
              gle(ng2+1:je-2,ie,ile) = gle(ng2+2:je-1,ie,ile)
-          endif
+          end if
 !CMRDDGCend
 
           ! right and left sweeps for tridiagonal solve:
@@ -4573,7 +4570,7 @@ contains
 !       ! and insert this point into glz
           ! interpolation described above mysteriously causing numerical instability
           ! stabilized by using old (pre-collision) value of g for wfb
-          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
+          if (is_wfb .and. special_wfb_lorentz) then
              gle(ng2+2:je-1,ie,ile)=gle(ng2+1:je-2,ie,ile)
              gle(ng2+1,ie,ile)=gwfb
 !          gle(ng2+1,ie,ile) = 0.5*(gle(ng2,ie,ile)+gle(ng2+1,ie,ile))
