@@ -115,7 +115,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
   ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
   ! le layout shaped arrays.
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpa_aj0_le
+  real, dimension (:,:,:), allocatable :: aj0le, vperp_aj1le, vpa_aj0_le
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -657,14 +657,15 @@ contains
 
   !> Communicate Bessel functions from g_lo to le_lo
   subroutine init_le_bessel
-    use gs2_layouts, only: g_lo, le_lo
+    use gs2_layouts, only: g_lo, le_lo, ig_idx
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: negrid, nxi, g2le
+    use le_grids, only: negrid, nxi, g2le, ixi_to_il, energy => energy_maxw, al
     use theta_grid, only: ntgrid
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
     implicit none
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
+    integer :: ile, ig, ie, ixi, il
 
     allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -680,11 +681,26 @@ contains
 
     if (.not. allocated(aj0le)) then
        allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (vperp_aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     end if
 
     aj0le = real(ctmp)
-    aj1le = aimag(ctmp)
+    vperp_aj1le = aimag(ctmp)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ile, ig, ixi, ie, il) &
+    !$OMP SHARED(le_lo, negrid, ixi_to_il, vperp_aj1le, energy, al) &
+    !$OMP SCHEDULE(static)
+    do ile = le_lo%llim_proc, le_lo%ulim_proc
+       ig = ig_idx(le_lo, ile)
+       do ie = 1, negrid
+          do ixi = 1, nxi + 1
+             il = ixi_to_il(ig, ixi)
+             vperp_aj1le(ixi, ie, ile) = vperp_aj1le(ixi, ie, ile) * energy(ie) * al(il)
+          end do
+       end do
+    end do
+    !$OMP END PARALLEL DO
 
     z_big = vpa
     call gather (g2le, z_big, ctmp)
@@ -3507,7 +3523,7 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
+    use le_grids, only: speed => speed_maxw, nxi, ng2
     use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx
@@ -3669,7 +3685,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, aj1le, energy, al, gle) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, vperp_aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -3681,8 +3697,8 @@ contains
           do ixi=1, nxi_lim
              il = ixi_to_il(ig,ixi)
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,ie,ile) &
-                  * energy(ie) * al(il) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * vperp_aj1le(ixi,ie,ile) &
+                  * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -3881,7 +3897,7 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
+    use le_grids, only: integrate_moment, negrid, ixi_to_il, nxi, ng2
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
@@ -4006,7 +4022,7 @@ contains
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, energy, al, aj1le, gle) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, vperp_aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4017,7 +4033,7 @@ contains
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * energy(ie) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4632,7 +4648,7 @@ contains
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
-      if (allocated(aj1le)) deallocate(aj1le)
+      if (allocated(vperp_aj1le)) deallocate(vperp_aj1le)
       if (allocated(vpa_aj0_le)) deallocate(vpa_aj0_le)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
