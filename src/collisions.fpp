@@ -1908,9 +1908,8 @@ contains
     use theta_grid, only: ntgrid
     use run_parameters, only: zeff, delt_option_switch, delt_option_auto
     use gs2_time, only: tunits
-    use constants, only: pi
+    use constants, only: pi, sqrt_pi
     use gs2_save, only: init_vnm
-    use spfunc, only: erf => erf_ext
     real, dimension (:), intent (out) :: hee
     real,dimension (negrid)::heevth, hsg, hsgvth
     integer :: ik, ie, is, it, ig
@@ -1945,7 +1944,7 @@ contains
 !heevth is hee but using only thermal velocity (energy independent)
 
     do ie = 1, negrid
-       heevth(ie) = exp(-1.0)/sqrt(pi) + 0.5*erf(1.0)
+       heevth(ie) = exp(-1.0)/sqrt_pi + 0.5*erf(1.0)
 
 !>MAB
 ! hsg is the G of Helander and Sigmar
@@ -2059,7 +2058,7 @@ contains
              dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
           
              vnew_E(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*dv2l*hsg_func(vl) &
-                  - vr*exp(-vr**2)*dv2r*hsg_func(vr)) / (sqrt(pi)*w(ie))
+                  - vr*exp(-vr**2)*dv2r*hsg_func(vr)) / (sqrt_pi*w(ie))
              delvnew(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*hsg_func(vl) &
                      - vr*exp(-vr**2)*hsg_func(vr)) / (sqrt(pi*energy(ie))*w(ie))
           end do
@@ -2069,7 +2068,7 @@ contains
           dv2r = (energy(2) - energy(1)) / (sqrt(energy(2)) - sqrt(energy(1)))
 
           vnew_E(:,1,is) = -spec(is)%vnewk*tunits*vr*exp(-vr**2)*hsg_func(vr)*dv2r &
-               / (sqrt(pi)*w(1))
+               / (sqrt_pi*w(1))
           delvnew(:,1,is) = -spec(is)%vnewk*tunits*vr*exp(-vr**2)*hsg_func(vr) &
                / (sqrt(pi*energy(1))*w(1))
 
@@ -2078,7 +2077,7 @@ contains
           dv2l = (energy(negrid) - energy(negrid-1)) / (sqrt(energy(negrid)) - sqrt(energy(negrid-1)))
 
           vnew_E(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl)*dv2l &
-               / (sqrt(pi)*w(negrid))
+               / (sqrt_pi*w(negrid))
           delvnew(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl) &
                / (sqrt(pi*energy(negrid))*w(negrid))
 
@@ -2106,18 +2105,11 @@ contains
   end subroutine init_vnew
 
   !> FIXME : Add documentation  
-  function hsg_func (vel)
-
-    use constants, only: pi
-    use spfunc, only: erf => erf_ext
-
+  elemental real function hsg_func (vel)
+    use constants, only: sqrt_pi
     implicit none
-
     real, intent (in) :: vel
-    real :: hsg_func
-
-    hsg_func = 0.5*erf(vel)/vel**2-exp(-vel**2)/(sqrt(pi)*vel)
-
+    hsg_func = 0.5 * erf(vel) / vel**2 - exp(-vel**2) / (sqrt_pi * vel)
   end function hsg_func
 
   !> FIXME : Add documentation
@@ -2241,8 +2233,7 @@ contains
     use species, only: spec
     use theta_grid, only: bmag
     use le_grids, only: al, negrid, w=>w_maxw
-    use spfunc, only: erf => erf_ext
-    use constants, only: pi
+    use constants, only: sqrt_pi
     use kt_grids, only: kperp2
     use gs2_time, only: code_dt, tunits
 
@@ -2272,8 +2263,8 @@ contains
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
          
-          capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/(xer*sqrt(pi))
-          capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/(xel*sqrt(pi))
+          capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/(xer*sqrt_pi)
+          capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/(xel*sqrt_pi)
           
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
@@ -2297,7 +2288,7 @@ contains
        
        xer = (xe1 + xe2)*0.5
        
-       capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer/sqrt(pi)
+       capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer/sqrt_pi
        
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
@@ -2318,7 +2309,7 @@ contains
        
        xel = (xe1 + xe0)*0.5
        
-       capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel/sqrt(pi)
+       capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel/sqrt_pi
 
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
@@ -2345,8 +2336,8 @@ contains
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
           
-          capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
-          capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
+          capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer
+          capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel
           
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
@@ -2370,7 +2361,7 @@ contains
        
        xer = (xe1 + xe2)*0.5
        
-       capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
+       capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer
        
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
@@ -2391,7 +2382,7 @@ contains
        
        xel = (xe1 + xe0)*0.5
        
-       capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
+       capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel
        
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
