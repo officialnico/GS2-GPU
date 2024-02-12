@@ -651,7 +651,49 @@ contains
        call init_ediffuse
        if (conserve_moments) call init_diffuse_conserve
     end if
+
+    if (use_le_layout .and. (conserve_moments .or. drag)) call init_le_bessel
   end subroutine init_arrays
+
+  !> Communicate Bessel functions from g_lo to le_lo
+  subroutine init_le_bessel
+    use gs2_layouts, only: g_lo, le_lo
+    use dist_fn_arrays, only: aj0, aj1, vpa
+    use le_grids, only: negrid, nxi, g2le
+    use theta_grid, only: ntgrid
+    use redistribute, only: gather, scatter
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension (:,:,:), allocatable :: ctmp, z_big
+
+    allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    ! We need to initialise ctmp as it is used as receiving buffer in
+    ! g2le redistribute, which doesn't populate all elements
+    call zero_array(ctmp)
+
+    ! next set aj0le & aj1l
+    z_big(:,1,:) = cmplx(aj0,aj1)
+    z_big(:,2,:) = z_big(:,1,:)
+
+    call gather (g2le, z_big, ctmp)
+
+    if (.not. allocated(aj0le)) then
+       allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+
+    aj0le = real(ctmp)
+    aj1le = aimag(ctmp)
+
+    z_big = vpa
+    call gather (g2le, z_big, ctmp)
+    deallocate(z_big)
+    if (.not. allocated(vpa_aj0_le)) then
+       allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+    vpa_aj0_le = real(ctmp) * aj0le
+  end subroutine init_le_bessel
 
   !> Precompute three quantities needed for momentum and energy conservation:
   !> z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
@@ -1230,27 +1272,6 @@ contains
        if (.not. allocated(z0le)) allocate (z0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        z0le = real(ctmp)
 
-       ! next set aj0le & aj1l
-       z_big(:,1,:) = cmplx(aj0,aj1)
-       z_big(:,2,:) = z_big(:,1,:)
-
-       call gather (g2le, z_big, ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-
-       aj0le = real(ctmp)
-       aj1le = aimag(ctmp)
-
-       if (.not. allocated(vpa_aj0_le)) then
-          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-       z_big = vpa
-       call gather (g2le, z_big, ctmp)
-       vpa_aj0_le = real(ctmp) * aj0le
-
        deallocate (ctmp, z_big)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1822,29 +1843,6 @@ contains
        deallocate (bz0tmp)
        if (.not. allocated(bz0le)) allocate (bz0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        bz0le = real(ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          ! next set aj0le & aj1l
-          z_big(:,1,:) = cmplx(aj0,aj1)
-          z_big(:,2,:) = z_big(:,1,:)
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          aj0le = real(ctmp)
-          aj1le = aimag(ctmp)
-       end if
-
-       if (.not. allocated(vpa_aj0_le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          z_big = vpa
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          vpa_aj0_le = real(ctmp) * aj0le
-       end if
-
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -2446,40 +2444,6 @@ contains
     call init_vpdiff
 
     if(use_le_layout) then
-
-       !Make sure aj0le is available if drag term included
-       if(drag)then
-          if(.not.allocated(aj0le))then
-             allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-             allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             ! We need to initialise ctmp as it is used as receiving buffer in
-             ! g2le redistribute, which doesn't populate all elements
-             call zero_array(ctmp)
-
-             ! next set aj0le & aj1l
-             z_big(:,1,:) = cmplx(aj0,aj1)
-             z_big(:,2,:) = z_big(:,1,:)
-
-             call gather (g2le, z_big, ctmp)
-
-             allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             aj0le = real(ctmp)
-             aj1le = aimag(ctmp)
-
-             if (.not. allocated(vpa_aj0_le)) then
-                allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             end if
-             z_big = vpa
-             call gather (g2le, z_big, ctmp)
-             vpa_aj0_le = real(ctmp) * aj0le
-
-             deallocate (ctmp, z_big)
-          endif
-       endif
-
        if (heating .and. .not. allocated(glec)) then
           allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
           call zero_array(glec)
