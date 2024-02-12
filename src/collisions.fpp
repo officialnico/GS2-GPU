@@ -3687,7 +3687,7 @@ contains
     complex, dimension (:,:,:), allocatable :: gtmp
 
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa_nud
+    real :: vpa_nud, nud
     integer :: ig, isgn, ik, ie, il, is, it
     integer :: ile, ixi
     integer :: nxi_lim
@@ -3787,7 +3787,7 @@ contains
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud) &
        !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, vnmult, &
        !$OMP vnew_D, tunits, gle) &
        !$OMP SCHEDULE(static)
@@ -3797,10 +3797,10 @@ contains
           if(kwork_filter(it,ik)) cycle
           is = is_idx(le_lo,ile)
           do ie = 1, negrid
+             nud =  (vnmult(1) * vnew_D(1,ie,is) / tunits(1)) * tunits(ik)
              do ixi = 1, nxi_lim
                 !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * &
-                     (vnmult(1)*vnew_D(1,ie,is) / tunits(1)) * tunits(ik) * gle(ixi, ie, ile)
+                gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * nud * gle(ixi, ie, ile)
              end do
           end do
        end do
