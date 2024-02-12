@@ -689,7 +689,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, ixi, ie, il) &
-    !$OMP SHARED(le_lo, negrid, ixi_to_il, vperp_aj1le, energy, al) &
+    !$OMP SHARED(le_lo, negrid, nxi, ixi_to_il, vperp_aj1le, energy, al) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ig = ig_idx(le_lo, ile)
