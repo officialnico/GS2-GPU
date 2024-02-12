@@ -2687,7 +2687,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
 
-    if (proc0 .and. collisions_heating) then
+    if (proc0 .and. collisions_heating .and. allocated(c_rate)) then
 
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
