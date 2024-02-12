@@ -564,8 +564,19 @@ contains
     call get_option_value &
          (ediff_scheme, eschemeopts, ediff_switch, &
          ierr, "ediff_scheme in collisions_knobs",.true.)
+
+    has_lorentz = .false. ; has_diffuse = .false.
+    select case (collision_model_switch)
+    case (collision_model_full)
+       has_lorentz = .true. ; has_diffuse = .true.
+    case (collision_model_lorentz,collision_model_lorentz_test)
+       has_lorentz = .true.
+    case (collision_model_ediffuse)
+       has_diffuse = .true.
+    end select
     
-    drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
+    drag = has_lorentz .and. resistivity .and. (beta > epsilon(0.0)) &
+         .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
   !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
@@ -616,16 +627,6 @@ contains
        colls = .false.
        return
     end if
-
-    has_lorentz = .false. ; has_diffuse = .false.
-    select case (collision_model_switch)
-    case (collision_model_full)
-       has_lorentz = .true. ; has_diffuse = .true.
-    case (collision_model_lorentz,collision_model_lorentz_test)
-       has_lorentz = .true.
-    case (collision_model_ediffuse)
-       has_diffuse = .true.
-    end select
 
     if( .not. use_le_layout ) then
        if (has_lorentz) use_lz_layout = .true.
