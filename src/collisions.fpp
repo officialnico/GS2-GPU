@@ -588,21 +588,23 @@ contains
     use dist_fn_arrays, only: c_rate
     use array_utils, only: zero_array
     implicit none
-
     real, dimension (negrid) :: hee
-    logical :: use_lz_layout = .false.
-    logical :: use_e_layout = .false.
+    logical :: use_lz_layout, use_e_layout
 ! lowflow terms include higher-order corrections to GK equation
 ! such as parallel nonlinearity that require derivatives in v-space.
 ! most efficient way to take these derivatives is to go from g_lo to le_lo,
 ! i.e., bring all energies and lambdas onto each processor
 !<DD>Note the user can still disable use_le_layout in the input file
 !    this just changes the default.
+!>@note, not clear the above is true -- init_map will always be called with
+!le layout when lowflow active here. Given use_le_layout = T is default we
+!might be able to get rid of this conditional compilation now?
 # ifdef LOWFLOW
     use_le_layout = .true.
 # endif
+    use_lz_layout = .false. ; use_e_layout = .false.
 
-    !<DD>This (potentially large) array should only be needed if 
+    !<DD>This (potentially large) array should only be needed if
     !write_heating (gs2_diagnostics) is true.
     if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
