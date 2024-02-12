@@ -2427,12 +2427,9 @@ contains
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
-    use redistribute, only: gather
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0, aj1, vpa
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
-
     implicit none
 
     real, intent (in), optional :: vnmult_target
