@@ -86,7 +86,7 @@ module collisions
   real :: vnfac, vnslow
   real :: etol, ewindow, etola, ewindowa
   integer :: timesteps_between_collisions
-  logical :: force_collisions
+  logical :: force_collisions, has_lorentz, has_diffuse
   real, dimension (2) :: vnm_init = 1.0
 
   real, dimension (:,:,:), allocatable :: dtot
@@ -617,16 +617,19 @@ contains
        return
     end if
 
+    has_lorentz = .false. ; has_diffuse = .false.
+    select case (collision_model_switch)
+    case (collision_model_full)
+       has_lorentz = .true. ; has_diffuse = .true.
+    case (collision_model_lorentz,collision_model_lorentz_test)
+       has_lorentz = .true.
+    case (collision_model_ediffuse)
+       has_diffuse = .true.
+    end select
+
     if( .not. use_le_layout ) then
-       select case (collision_model_switch)
-       case (collision_model_full)
-          use_lz_layout = .true.
-          use_e_layout = .true.
-       case (collision_model_lorentz,collision_model_lorentz_test)
-          use_lz_layout = .true.
-       case (collision_model_ediffuse)
-          use_e_layout = .true.
-       end select
+       if (has_lorentz) use_lz_layout = .true.
+       if (has_diffuse) use_e_layout = .true.
     end if
 
     call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
@@ -638,22 +641,15 @@ contains
        return
     end if
 
-    select case (collision_model_switch)
-    case (collision_model_full)
-       call init_lorentz
-       call init_ediffuse
-       if (conserve_moments) then
-          call init_lorentz_conserve
-          call init_diffuse_conserve
-       end if
-    case (collision_model_lorentz,collision_model_lorentz_test)
+    if (has_lorentz) then
        call init_lorentz
        if (conserve_moments) call init_lorentz_conserve
-    case (collision_model_ediffuse)
+    end if
+
+    if (has_diffuse) then
        call init_ediffuse
        if (conserve_moments) call init_diffuse_conserve
-    end select
-
+    end if
   end subroutine init_arrays
 
   !> Precompute three quantities needed for momentum and energy conservation:
@@ -3253,9 +3249,6 @@ contains
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter, kperp2
     use optionals, only: get_option_with_default
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc1, gc2
@@ -3268,39 +3261,17 @@ contains
 !CMR   to map g_lo to collision_lo, and collision_lo to g_lo.
 !CMR   All redistributes are performed by default.
 !CMR  
-
     logical :: g_to_c, c_to_g
 
     g_to_c = get_option_with_default(gtoc, .true.)
     c_to_g = get_option_with_default(ctog, .true.)
 
-
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
-    select case (collision_model_switch)
-    case (collision_model_full)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
+    if (has_diffuse) then
        call solfp_ediffuse_standard_layout (g)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (g, g1)
+    end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
-
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
@@ -3327,68 +3298,9 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
        call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
-
        if (conserve_moments) call conserve_lorentz (g, g1)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
-          !$OMP SHARED(g_lo, spec, kwork_filter, g, ieqzip, vnmult, code_dt, &
-          !$OMP vpa, kperp2, aparnew, aj0, beta, energy) &
-          !$OMP SCHEDULE(static)
-          do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             is = is_idx(g_lo,iglo)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(g_lo,iglo)
-             ik = ik_idx(g_lo,iglo)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ie = ie_idx(g_lo,iglo)
-             do isgn = 1, 2
-                g(:,isgn,iglo) = g(:,isgn,iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
-                     * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
-                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-       
-       call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (g, g1)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_standard_layout (g)
-       if (conserve_moments) call conserve_diffuse (g, g1)
-
-    end select
-   
+    end if
   end subroutine solfp1_standard_layout
 
   !> FIXME : Add documentation  
@@ -3415,14 +3327,13 @@ contains
     else
         nxi_lim = nxi
     endif
-    
-    select case (collision_model_switch)
-    case (collision_model_full)
 
+    if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
-
        if (conserve_moments) call conserve_diffuse (gle)
+    end if
 
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
@@ -3453,52 +3364,8 @@ contains
        end if
 
        call solfp_lorentz (gle, diagnostics)
-
        if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, il, isgn) &
-          !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, gle, vpa_aj0_le) &
-          !$OMP SCHEDULE(static)
-          do ile = le_lo%llim_proc, le_lo%ulim_proc
-             is = is_idx(le_lo,ile)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(le_lo,ile)
-             ik = ik_idx(le_lo,ile)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ig = ig_idx(le_lo,ile)
-             do ie = 1, negrid
-                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                do ixi = 1, nxi_lim
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * vpa_aj0_le(ixi, ie, ile)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-                end do
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-
-       call solfp_lorentz (gle, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_le_layout (gle)
-
-       if (conserve_moments) call conserve_diffuse (gle)
-
-    end select
-   
+    end if
   end subroutine solfp1_le_layout
 
   !> FIXME : Add documentation
