@@ -101,9 +101,6 @@ module collisions
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
-  complex, dimension (:,:,:), allocatable :: glec
-  ! (2*nlambda+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)
-
   ! only for hyper-diffusive collisions
   real, dimension (:,:,:,:), allocatable :: vnewh
   ! (-ntgrid:ntgrid,ntheta0,naky,nspec) replicated
@@ -2451,10 +2448,6 @@ contains
     call init_vpdiff
 
     if(use_le_layout) then
-       if (heating .and. .not. allocated(glec)) then
-          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          call zero_array(glec)
-       end if
        if (.not.allocated(c1le)) then
           allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -4242,6 +4235,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
+    complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
@@ -4249,6 +4243,8 @@ contains
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4326,7 +4322,7 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-       deallocate(tmp)
+       deallocate(tmp, glec)
     end if
 
     ! solve for gle row by row
@@ -4631,7 +4627,6 @@ contains
          if (heating) deallocate (d1le, h1le)
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
-      if (allocated(glec)) deallocate (glec)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
