@@ -1966,7 +1966,6 @@ contains
        allocate (vnew_E(naky,negrid,nspec))
        allocate (delvnew(naky,negrid,nspec))
     end if
-    if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
     do is = 1, nspec
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
@@ -2095,6 +2094,7 @@ contains
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
+          if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
           k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
@@ -2103,8 +2103,6 @@ contains
                 end do
              end do
           end do
-       else
-          vnewh = 0.
        end if
     end do
     
@@ -2638,15 +2636,11 @@ contains
     use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-
     implicit none
-
     real, dimension (:), intent (out) :: aa, bb, cc, dd, hh
     integer, intent (in) :: ig, ik, it, ie, is
-
     integer :: il, je, te, te2, teh
-    real :: slb0, slb1, slb2, slbl, slbr, vn, vnh, vnc, ee
-    real deltaxi
+    real :: slb0, slb1, slb2, slbl, slbr, vhyp, vn, vnh, vnc, ee, deltaxi
 
     je = jend(ig)
 !
@@ -2690,14 +2684,19 @@ contains
        vnc = 0.
        vnh = 0.
     else
-       if (hypermult) then
-          vn = vnmult(1)*vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)*vnc
+       if (hyper_colls) then
+          vhyp = vnewh(ig, it, ik, is)
        else
-          vn = vnmult(1)*vnew(ik,ie,is)+vnewh(ig,it,ik,is)
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)
+          vhyp = 0.0
+       end if
+       ! vnc and vnh only needed when heating is true
+       vnc = vnmult(1) * vnew(ik, ie, is)
+       if (hypermult) then
+          vn = vnmult(1) * vnew(ik, ie, is) * (1 + vhyp)
+          vnh = vhyp * vnc
+       else
+          vn = vnmult(1) * vnew(ik, ie, is) + vhyp
+          vnh = vhyp
        end if
     end if
 
