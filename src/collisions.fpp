@@ -53,7 +53,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .true.
+  logical :: use_le_layout
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
@@ -629,11 +629,8 @@ contains
        return
     end if
 
-    if( .not. use_le_layout ) then
-       if (has_lorentz) use_lz_layout = .true.
-       if (has_diffuse) use_e_layout = .true.
-    end if
-
+    use_lz_layout = has_lorentz .and. .not. use_le_layout
+    use_e_layout = has_diffuse .and. .not. use_le_layout
     call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
 
     call init_vnew (hee)
