@@ -419,7 +419,7 @@ contains
     use init_g, only: init_init_g
     use gs2_io, only: init_gs2_io
     use gs2_heating, only: init_htype
-    use collisions, only: collision_model_switch, init_lorentz_error
+    use collisions, only: collision_model_switch, init_lorentz_error, heating
     use mp, only: broadcast, proc0, mp_abort
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
@@ -465,6 +465,13 @@ contains
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
     if (write_verr .and. proc0) call init_weights
+
+    if (write_heating .and. .not. heating) then
+       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
+       write_heating = .false.
+    else if (heating .and. .not. write_heating) then
+       heating = .false.
+    end if
 
     ! allocate heating diagnostic data structures
     if (write_heating) then
