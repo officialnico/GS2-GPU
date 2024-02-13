@@ -730,7 +730,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
-    logical, parameter :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -844,7 +844,7 @@ contains
        end do
        !$OMP END PARALLEL DO
 
-       call integrate_moment (gtmp, dtmp, all) ! v0z0
+       call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
@@ -905,7 +905,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
@@ -995,7 +995,7 @@ contains
     end do
     !OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -1040,7 +1040,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1148,7 +1148,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1192,7 +1192,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1231,7 +1231,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -1323,7 +1323,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
-    logical, parameter :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -1365,7 +1365,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 !    else
 !       do is = 1, nspec
 !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
@@ -1452,7 +1452,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+    call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
@@ -1494,7 +1494,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
     !    else
     !       do is = 1, nspec
     !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
@@ -1592,7 +1592,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -1631,7 +1631,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1728,7 +1728,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1766,7 +1766,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1805,7 +1805,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -3348,7 +3348,7 @@ contains
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
 
     integer :: isgn, iglo, ik, ie, il, is, it
-    logical, parameter :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3376,7 +3376,7 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (gtmp, v0y0, all)    ! v0y0
+       call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3429,7 +3429,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3472,7 +3472,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -3722,7 +3722,7 @@ contains
 
     integer :: isgn, iglo, ik, ie, il, is, it 
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
-    logical, parameter :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3758,7 +3758,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v0y0, all)    ! v0y0
+    call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3800,7 +3800,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3843,7 +3843,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
