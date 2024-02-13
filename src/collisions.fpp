@@ -1979,11 +1979,6 @@ contains
                      * hsg(ie) * 4.0 * tunits(:)
                 vnew_D(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
                      * hee(ie) * tunits(:)
-                if (.not. conservative) then
-                   vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
-                        (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
-                   delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
-                end if
              end do
           else
              do ie = 1, negrid
@@ -1992,11 +1987,6 @@ contains
                 vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
                      * hsg(ie) * 4.0 * tunits(:)
                 vnew_D(:, ie, is) = 2.0 * vnew(:, ie, is)
-                if (.not. conservative) then
-                   vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
-                        (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
-                   delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
-                end if
              end do
           end if
        end do
@@ -2033,6 +2023,14 @@ contains
                / (sqrt_pi*w(negrid))
           delvnew(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl) &
                / (sqrt(pi*energy(negrid))*w(negrid))
+       end do
+    else
+       do is = 1, nspec
+          do ie = 2, negrid-1
+             vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
+                  (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
+             delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
+          end do
        end do
     end if
 
