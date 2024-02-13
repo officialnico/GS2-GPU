@@ -565,16 +565,17 @@ contains
          (ediff_scheme, eschemeopts, ediff_switch, &
          ierr, "ediff_scheme in collisions_knobs",.true.)
 
-    has_lorentz = .false. ; has_diffuse = .false.
     select case (collision_model_switch)
     case (collision_model_full)
-       has_lorentz = .true. ; has_diffuse = .true.
+       has_lorentz = .true.  ; has_diffuse = .true.
     case (collision_model_lorentz,collision_model_lorentz_test)
-       has_lorentz = .true.
+       has_lorentz = .true.  ; has_diffuse = .false.
     case (collision_model_ediffuse)
-       has_diffuse = .true.
+       has_lorentz = .false. ; has_diffuse = .true.
+    case default
+       has_lorentz = .false. ; has_diffuse = .false.
     end select
-    
+
     drag = has_lorentz .and. resistivity .and. (beta > epsilon(0.0)) &
          .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
