@@ -765,104 +765,108 @@ contains
              vns(ik,:,is,3) = vnmult(1)*spec(is)%vnewk*tunits(ik)/energy**1.5
           end do
        end do
-    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-                if ( .not. forbid(ig,il) ) then
-                   if (conservative) then
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                           * speed(ie)*aj0(ig,iglo)
+       if(conserve_forbid_zero) then ! MRH
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
+          !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             ik = ik_idx(g_lo,iglo)
+             ie = ie_idx(g_lo,iglo)
+             il = il_idx(g_lo,iglo)
+             is = is_idx(g_lo,iglo)
+             do isgn = 1, 2
+                do ig=-ntgrid,ntgrid
+                   ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+                   if ( .not. forbid(ig,il) ) then
+                      if (conservative) then
+                         z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
+                              * speed(ie)*aj0(ig,iglo)
+                      else
+                         z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
+                      end if
                    else
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
-                   end if
-                else
-                   z0tmp(ig,isgn,iglo) = 0.
-                endif
+                      z0tmp(ig,isgn,iglo) = 0.
+                   endif
+                end do
              end do
           end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
-       !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-             if (conservative) then
-                z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
-                     * speed(ie)*aj0(:,iglo)
-             else
-                z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
-             end if
+          !$OMP END PARALLEL DO
+       else
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+          !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             ik = ik_idx(g_lo,iglo)
+             ie = ie_idx(g_lo,iglo)
+             il = il_idx(g_lo,iglo)
+             is = is_idx(g_lo,iglo)
+             do isgn = 1, 2
+                ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+                if (conservative) then
+                   z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
+                        * speed(ie)*aj0(:,iglo)
+                else
+                   z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
+                end if
+             end do
           end do
-       end do
-       !$OMP END PARALLEL DO
-    endif
+          !$OMP END PARALLEL DO
+       endif
 
-    call zero_out_passing_hybrid_electrons(z0tmp)
+       call zero_out_passing_hybrid_electrons(z0tmp)
 
-    if(use_le_layout) then
-       call gather (g2le, z0tmp, ctmp)
-       call solfp_lorentz (ctmp)
-       call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
-    else
-       call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
-    end if
+       if(use_le_layout) then
+          call gather (g2le, z0tmp, ctmp)
+          call solfp_lorentz (ctmp)
+          call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
+       else
+          call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
+       end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, isgn) &
-    !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
-    !$OMP COLLAPSE(2) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, isgn) &
+       !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          do isgn = 1, 2
+             ! v0 = vpa J0 f0
+             gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+       call integrate_moment (gtmp, dtmp, all) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
-    !$OMP SHARED(g_lo, z0tmp, dtmp) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+       !$OMP SHARED(g_lo, z0tmp, dtmp) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
+
+    else
+       !If drag is false vns(...,3) is zero and hence z0tmp is zero here.
+       call zero_array(z0tmp)
+    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     all = .true.
