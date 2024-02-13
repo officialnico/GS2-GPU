@@ -730,7 +730,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
-    logical :: all = .true.
+    logical, parameter :: all = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -869,7 +869,6 @@ contains
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    all = .true.
 
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
@@ -1324,7 +1323,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
-    logical :: all
+    logical, parameter :: all = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -1366,7 +1365,6 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
 !    else
 !       do is = 1, nspec
@@ -1496,7 +1494,6 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
     call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
     !    else
     !       do is = 1, nspec
@@ -3351,7 +3348,7 @@ contains
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
 
     integer :: isgn, iglo, ik, ie, il, is, it
-    logical :: all = .true. 
+    logical, parameter :: all = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3725,7 +3722,7 @@ contains
 
     integer :: isgn, iglo, ik, ie, il, is, it 
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
-    logical :: all = .true.
+    logical, parameter :: all = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
