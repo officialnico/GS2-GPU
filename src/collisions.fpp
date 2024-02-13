@@ -53,7 +53,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .true.
+  logical :: use_le_layout
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
@@ -86,7 +86,7 @@ module collisions
   real :: vnfac, vnslow
   real :: etol, ewindow, etola, ewindowa
   integer :: timesteps_between_collisions
-  logical :: force_collisions
+  logical :: force_collisions, has_lorentz, has_diffuse
   real, dimension (2) :: vnm_init = 1.0
 
   real, dimension (:,:,:), allocatable :: dtot
@@ -101,9 +101,6 @@ module collisions
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
-  complex, dimension (:,:,:), allocatable :: glec
-  ! (2*nlambda+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)
-
   ! only for hyper-diffusive collisions
   real, dimension (:,:,:,:), allocatable :: vnewh
   ! (-ntgrid:ntgrid,ntheta0,naky,nspec) replicated
@@ -115,7 +112,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
   ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
   ! le layout shaped arrays.
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpa_aj0_le
+  real, dimension (:,:,:), allocatable :: aj0le, vperp_aj1le, vpa_aj0_le
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -564,8 +561,20 @@ contains
     call get_option_value &
          (ediff_scheme, eschemeopts, ediff_switch, &
          ierr, "ediff_scheme in collisions_knobs",.true.)
-    
-    drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
+
+    select case (collision_model_switch)
+    case (collision_model_full)
+       has_lorentz = .true.  ; has_diffuse = .true.
+    case (collision_model_lorentz,collision_model_lorentz_test)
+       has_lorentz = .true.  ; has_diffuse = .false.
+    case (collision_model_ediffuse)
+       has_lorentz = .false. ; has_diffuse = .true.
+    case default
+       has_lorentz = .false. ; has_diffuse = .false.
+    end select
+
+    drag = has_lorentz .and. resistivity .and. (beta > epsilon(0.0)) &
+         .and. (nspec > 1) .and. (fapar.gt.0)
   end subroutine read_parameters
 
   !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
@@ -623,37 +632,78 @@ contains
        call zero_array(c_rate)
     end if
 
-    if( .not. use_le_layout ) then
-       select case (collision_model_switch)
-       case (collision_model_full)
-          use_lz_layout = .true.
-          use_e_layout = .true.
-       case (collision_model_lorentz,collision_model_lorentz_test)
-          use_lz_layout = .true.
-       case (collision_model_ediffuse)
-          use_e_layout = .true.
-       end select
-    end if
-
+    use_lz_layout = has_lorentz .and. .not. use_le_layout
+    use_e_layout = has_diffuse .and. .not. use_le_layout
     call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
 
-    select case (collision_model_switch)
-    case (collision_model_full)
-       call init_lorentz
-       call init_ediffuse
-       if (conserve_moments) then
-          call init_lorentz_conserve
-          call init_diffuse_conserve
-       end if
-    case (collision_model_lorentz,collision_model_lorentz_test)
+    if (has_lorentz) then
        call init_lorentz
        if (conserve_moments) call init_lorentz_conserve
-    case (collision_model_ediffuse)
+    end if
+
+    if (has_diffuse) then
        call init_ediffuse
        if (conserve_moments) call init_diffuse_conserve
-    end select
+    end if
 
+    if (use_le_layout .and. (conserve_moments .or. drag)) call init_le_bessel
   end subroutine init_arrays
+
+  !> Communicate Bessel functions from g_lo to le_lo
+  subroutine init_le_bessel
+    use gs2_layouts, only: g_lo, le_lo, ig_idx
+    use dist_fn_arrays, only: aj0, aj1, vpa
+    use le_grids, only: negrid, nxi, g2le, ixi_to_il, energy => energy_maxw, al
+    use theta_grid, only: ntgrid
+    use redistribute, only: gather, scatter
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension (:,:,:), allocatable :: ctmp, z_big
+    integer :: ile, ig, ie, ixi, il
+
+    allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    ! We need to initialise ctmp as it is used as receiving buffer in
+    ! g2le redistribute, which doesn't populate all elements
+    call zero_array(ctmp)
+
+    ! next set aj0le & aj1l
+    z_big(:,1,:) = cmplx(aj0,aj1)
+    z_big(:,2,:) = z_big(:,1,:)
+
+    call gather (g2le, z_big, ctmp)
+
+    if (.not. allocated(aj0le)) then
+       allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (vperp_aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+
+    aj0le = real(ctmp)
+    vperp_aj1le = aimag(ctmp)
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ile, ig, ixi, ie, il) &
+    !$OMP SHARED(le_lo, negrid, nxi, ixi_to_il, vperp_aj1le, energy, al) &
+    !$OMP SCHEDULE(static)
+    do ile = le_lo%llim_proc, le_lo%ulim_proc
+       ig = ig_idx(le_lo, ile)
+       do ie = 1, negrid
+          do ixi = 1, nxi + 1
+             il = ixi_to_il(ig, ixi)
+             vperp_aj1le(ixi, ie, ile) = vperp_aj1le(ixi, ie, ile) * energy(ie) * al(il)
+          end do
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    z_big = vpa
+    call gather (g2le, z_big, ctmp)
+    deallocate(z_big)
+    if (.not. allocated(vpa_aj0_le)) then
+       allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+    vpa_aj0_le = real(ctmp) * aj0le
+  end subroutine init_le_bessel
 
   !> Precompute three quantities needed for momentum and energy conservation:
   !> z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
@@ -687,9 +737,6 @@ contains
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
     end if
-
-! TO DO:
-! tunits not included anywhere yet
 
     allocate(s0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(w0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1232,27 +1279,6 @@ contains
        if (.not. allocated(z0le)) allocate (z0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        z0le = real(ctmp)
 
-       ! next set aj0le & aj1l
-       z_big(:,1,:) = cmplx(aj0,aj1)
-       z_big(:,2,:) = z_big(:,1,:)
-
-       call gather (g2le, z_big, ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-
-       aj0le = real(ctmp)
-       aj1le = aimag(ctmp)
-
-       if (.not. allocated(vpa_aj0_le)) then
-          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-       z_big = vpa
-       call gather (g2le, z_big, ctmp)
-       vpa_aj0_le = real(ctmp) * aj0le
-
        deallocate (ctmp, z_big)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1308,9 +1334,6 @@ contains
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
     end  if
-
-! TO DO:
-! tunits not included anywhere yet
 
     allocate(bs0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(bw0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1824,29 +1847,6 @@ contains
        deallocate (bz0tmp)
        if (.not. allocated(bz0le)) allocate (bz0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        bz0le = real(ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          ! next set aj0le & aj1l
-          z_big(:,1,:) = cmplx(aj0,aj1)
-          z_big(:,2,:) = z_big(:,1,:)
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          aj0le = real(ctmp)
-          aj1le = aimag(ctmp)
-       end if
-
-       if (.not. allocated(vpa_aj0_le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          z_big = vpa
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          vpa_aj0_le = real(ctmp) * aj0le
-       end if
-
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1951,14 +1951,15 @@ contains
 !<MAB
     end do                                                                  
 
-    if(.not.allocated(vnew)) then
+    if (.not.allocated(vnew)) then
+       ! Here the ky dependence is just to allow us to scale by tunits.
+       ! This saves some operations in later use at expense of more memory
        allocate (vnew(naky,negrid,nspec))
        allocate (vnew_s(naky,negrid,nspec))
        allocate (vnew_D(naky,negrid,nspec))
        allocate (vnew_E(naky,negrid,nspec))
        allocate (delvnew(naky,negrid,nspec))
     end if
-    if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
     do is = 1, nspec
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
@@ -2087,6 +2088,7 @@ contains
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
+          if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
           k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
@@ -2095,8 +2097,6 @@ contains
                 end do
              end do
           end do
-       else
-          vnewh = 0.
        end if
     end do
     
@@ -2415,12 +2415,9 @@ contains
     use gs2_layouts, only: le_lo
     use gs2_layouts, only: lz_lo, g_lo
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
-    use redistribute, only: gather
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0, aj1, vpa
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
-
     implicit none
 
     real, intent (in), optional :: vnmult_target
@@ -2448,44 +2445,6 @@ contains
     call init_vpdiff
 
     if(use_le_layout) then
-
-       !Make sure aj0le is available if drag term included
-       if(drag)then
-          if(.not.allocated(aj0le))then
-             allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-             allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             ! We need to initialise ctmp as it is used as receiving buffer in
-             ! g2le redistribute, which doesn't populate all elements
-             call zero_array(ctmp)
-
-             ! next set aj0le & aj1l
-             z_big(:,1,:) = cmplx(aj0,aj1)
-             z_big(:,2,:) = z_big(:,1,:)
-
-             call gather (g2le, z_big, ctmp)
-
-             allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             aj0le = real(ctmp)
-             aj1le = aimag(ctmp)
-
-             if (.not. allocated(vpa_aj0_le)) then
-                allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             end if
-             z_big = vpa
-             call gather (g2le, z_big, ctmp)
-             vpa_aj0_le = real(ctmp) * aj0le
-
-             deallocate (ctmp, z_big)
-          endif
-       endif
-
-       if (heating .and. .not. allocated(glec)) then
-          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          call zero_array(glec)
-       end if
        if (.not.allocated(c1le)) then
           allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2667,15 +2626,11 @@ contains
     use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-
     implicit none
-
     real, dimension (:), intent (out) :: aa, bb, cc, dd, hh
     integer, intent (in) :: ig, ik, it, ie, is
-
     integer :: il, je, te, te2, teh
-    real :: slb0, slb1, slb2, slbl, slbr, vn, vnh, vnc, ee
-    real deltaxi
+    real :: slb0, slb1, slb2, slbl, slbr, vhyp, vn, vnh, vnc, ee, deltaxi
 
     je = jend(ig)
 !
@@ -2719,14 +2674,19 @@ contains
        vnc = 0.
        vnh = 0.
     else
-       if (hypermult) then
-          vn = vnmult(1)*vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)*vnc
+       if (hyper_colls) then
+          vhyp = vnewh(ig, it, ik, is)
        else
-          vn = vnmult(1)*vnew(ik,ie,is)+vnewh(ig,it,ik,is)
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)
+          vhyp = 0.0
+       end if
+       ! vnc and vnh only needed when heating is true
+       vnc = vnmult(1) * vnew(ik, ie, is)
+       if (hypermult) then
+          vn = vnmult(1) * vnew(ik, ie, is) * (1 + vhyp)
+          vnh = vhyp * vnc
+       else
+          vn = vnmult(1) * vnew(ik, ie, is) + vhyp
+          vnh = vhyp
        end if
     end if
 
@@ -3252,9 +3212,6 @@ contains
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter, kperp2
     use optionals, only: get_option_with_default
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc1, gc2
@@ -3267,39 +3224,17 @@ contains
 !CMR   to map g_lo to collision_lo, and collision_lo to g_lo.
 !CMR   All redistributes are performed by default.
 !CMR  
-
     logical :: g_to_c, c_to_g
 
     g_to_c = get_option_with_default(gtoc, .true.)
     c_to_g = get_option_with_default(ctog, .true.)
 
-
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
-    select case (collision_model_switch)
-    case (collision_model_full)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
+    if (has_diffuse) then
        call solfp_ediffuse_standard_layout (g)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (g, g1)
+    end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
-
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
@@ -3326,68 +3261,9 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
        call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
-
        if (conserve_moments) call conserve_lorentz (g, g1)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
-          !$OMP SHARED(g_lo, spec, kwork_filter, g, ieqzip, vnmult, code_dt, &
-          !$OMP vpa, kperp2, aparnew, aj0, beta, energy) &
-          !$OMP SCHEDULE(static)
-          do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             is = is_idx(g_lo,iglo)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(g_lo,iglo)
-             ik = ik_idx(g_lo,iglo)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ie = ie_idx(g_lo,iglo)
-             do isgn = 1, 2
-                g(:,isgn,iglo) = g(:,isgn,iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
-                     * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
-                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-       
-       call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (g, g1)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_standard_layout (g)
-       if (conserve_moments) call conserve_diffuse (g, g1)
-
-    end select
-   
+    end if
   end subroutine solfp1_standard_layout
 
   !> FIXME : Add documentation  
@@ -3414,14 +3290,13 @@ contains
     else
         nxi_lim = nxi
     endif
-    
-    select case (collision_model_switch)
-    case (collision_model_full)
 
+    if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
-
        if (conserve_moments) call conserve_diffuse (gle)
+    end if
 
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
@@ -3452,52 +3327,8 @@ contains
        end if
 
        call solfp_lorentz (gle, diagnostics)
-
        if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, il, isgn) &
-          !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, gle, vpa_aj0_le) &
-          !$OMP SCHEDULE(static)
-          do ile = le_lo%llim_proc, le_lo%ulim_proc
-             is = is_idx(le_lo,ile)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(le_lo,ile)
-             ik = ik_idx(le_lo,ile)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ig = ig_idx(le_lo,ile)
-             do ie = 1, negrid
-                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                do ixi = 1, nxi_lim
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + tmp * vpa_aj0_le(ixi, ie, ile)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-                end do
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-
-       call solfp_lorentz (gle, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_le_layout (gle)
-
-       if (conserve_moments) call conserve_diffuse (gle)
-
-    end select
-   
+    end if
   end subroutine solfp1_le_layout
 
   !> FIXME : Add documentation
@@ -3674,14 +3505,13 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
+    use le_grids, only: speed => speed_maxw, nxi, ng2
     use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx
     use redistribute, only: scatter
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3767,7 +3597,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
        !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
-       !$OMP speed, vnmult, vnew_D, tunits, gtmp, aj0le, gle) &
+       !$OMP speed, vnmult, vnew_D, gtmp, aj0le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3779,9 +3609,8 @@ contains
              do ixi = 1, nxi_lim
                 il = ixi_to_il(ig,ixi)
                 isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) &
-                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
+                gtmp(ixi,ie,ile) = vpa_nud * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -3790,7 +3619,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud) &
        !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, vnmult, &
-       !$OMP vnew_D, tunits, gle) &
+       !$OMP vnew_D, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3798,9 +3627,8 @@ contains
           if(kwork_filter(it,ik)) cycle
           is = is_idx(le_lo,ile)
           do ie = 1, negrid
-             nud =  (vnmult(1) * vnew_D(1,ie,is) / tunits(1)) * tunits(ik)
+             nud =  vnmult(1) * vnew_D(ik, ie, is)
              do ixi = 1, nxi_lim
-                !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
                 gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * nud * gle(ixi, ie, ile)
              end do
           end do
@@ -3836,7 +3664,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, aj1le, energy, al, gle) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, vperp_aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
@@ -3848,8 +3676,8 @@ contains
           do ixi=1, nxi_lim
              il = ixi_to_il(ig,ixi)
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,ie,ile) &
-                  * energy(ie) * al(il) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * vperp_aj1le(ixi,ie,ile) &
+                  * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4048,13 +3876,12 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
+    use le_grids, only: integrate_moment, negrid, ixi_to_il, nxi, ng2
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
     use redistribute, only: scatter
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -4132,7 +3959,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, tunits, nxi_lim, gtmp, &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, gtmp, &
     !$OMP vpa_aj0_le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
@@ -4141,9 +3968,9 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        do ie = 1, negrid
-          delnu = (vnmult(2) * delvnew(1, ie, is) / tunits(1))
+          delnu = vnmult(2) * delvnew(ik, ie, is)
           do ixi = 1, nxi_lim
-             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * tunits(ik) * gle(ixi,ie,ile)
+             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4173,7 +4000,7 @@ contains
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, energy, al, aj1le, gle) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, vperp_aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -4184,7 +4011,7 @@ contains
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * energy(ie) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4405,6 +4232,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
+    complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
@@ -4412,6 +4240,8 @@ contains
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4489,7 +4319,7 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-       deallocate(tmp)
+       deallocate(tmp, glec)
     end if
 
     ! solve for gle row by row
@@ -4794,12 +4624,11 @@ contains
          if (heating) deallocate (d1le, h1le)
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
-      if (allocated(glec)) deallocate (glec)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
-      if (allocated(aj1le)) deallocate(aj1le)
+      if (allocated(vperp_aj1le)) deallocate(vperp_aj1le)
       if (allocated(vpa_aj0_le)) deallocate(vpa_aj0_le)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
