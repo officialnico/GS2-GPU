@@ -2002,31 +2002,33 @@ contains
              dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
              dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
 
-             vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * (vl * exp(-vl**2) * &
-                  dv2l * hsg_func(vl) - vr * exp(-vr**2) * dv2r * hsg_func(vr)) / &
-                  (sqrt_pi * w(ie))
-             delvnew(:, ie, is) = spec(is)%vnewk * tunits * (vl * exp(-vl**2) * &
-                  hsg_func(vl) - vr * exp(-vr**2) * hsg_func(vr)) / &
-                  (sqrt_pi * sqrt(energy(ie)) * w(ie))
+             vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+                  vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+             delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+                  delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
           end do
 
           ! boundary at v = 0
-          vr = 0.5 * (sqrt(energy(2)) + sqrt(energy(1)))
-          dv2r = (energy(2) - energy(1)) / (sqrt(energy(2)) - sqrt(energy(1)))
-
-          vnew_E(:, 1, is) =  -spec(is)%vnewk * tunits * vr * exp(-vr**2) * hsg_func(vr) * &
-               dv2r / (sqrt_pi * w(1))
-          delvnew(:, 1, is) = -spec(is)%vnewk * tunits * vr * exp(-vr**2) * hsg_func(vr) &
-               / (sqrt_pi * sqrt(energy(1)) * w(1))
+          ie = 1
+          vr = 0.5 * (sqrt(energy(ie+1)) + sqrt(energy(ie)))
+          vl = 0.0
+          dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
+          dv2l = 0.0
+          vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+               vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+          delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+               delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
 
           ! boundary at v -> infinity
-          vl = 0.5 * (sqrt(energy(negrid)) + sqrt(energy(negrid-1)))
-          dv2l = (energy(negrid) - energy(negrid-1)) / (sqrt(energy(negrid)) - sqrt(energy(negrid-1)))
-
-          vnew_E(:, negrid, is) = spec(is)%vnewk * tunits * vl * exp(-vl**2) * &
-               hsg_func(vl) * dv2l / (sqrt_pi * w(negrid))
-          delvnew(:, negrid, is) = spec(is)%vnewk * tunits * vl * exp(-vl**2) * &
-               hsg_func(vl) / (sqrt_pi * sqrt(energy(negrid)) * w(negrid))
+          ie = negrid
+          vr = 0.0
+          vl = 0.5 * (sqrt(energy(ie)) + sqrt(energy(ie-1)))
+          dv2r = 0.0
+          dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
+          vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+               vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+          delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+               delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
        end do
     else
        do is = 1, nspec
@@ -2054,6 +2056,17 @@ contains
           end do
        end do
     end if
+
+  contains
+    elemental real function vnew_E_conservative(vr, vl, dv2r, dv2l) result(vnE)
+      real, intent(in) :: vr, vl, dv2l, dv2r
+      vnE = (vl * exp(-vl**2) * dv2l * hsg_func(vl) - vr * exp(-vr**2) * dv2r * hsg_func(vr))
+    end function vnew_E_conservative
+
+    elemental real function delvnew_conservative(vr, vl) result(delVn)
+      real, intent(in) :: vr, vl
+      delVn = (vl * exp(-vl**2) * hsg_func(vl) - vr * exp(-vr**2) * hsg_func(vr))
+    end function delvnew_conservative
 
   end subroutine init_vnew
 
