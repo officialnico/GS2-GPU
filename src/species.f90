@@ -5,27 +5,16 @@ module species
   implicit none
 
   private
-  public :: init_species, finish_species
-
+  public :: init_species, finish_species, wnml_species, check_species
   public :: write_trinity_parameters
-  public :: wnml_species, check_species
-  public :: nspec, specie, spec
-  public :: tracer_species
+  public :: nspec, specie, spec, tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species, has_hybrid_electron_species
-  public :: is_electron_species, is_hybrid_electron_species
-  public :: calculate_slowingdown_parameters
-  public :: ions, electrons, impurity
-  public :: set_overrides
-  public :: determine_species_order
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
-  public :: nonmaxw_corr, f0_values, dlnf0drho
-  
-  public :: species_config_type
-  public :: species_element_config_type
-  public :: set_species_config
-  public :: get_species_config
-  public :: get_species_element_config
+  public :: nonmaxw_corr, f0_values, dlnf0drho, set_overrides
+  public :: species_config_type, species_element_config_type
+  public :: set_species_config, get_species_config, get_species_element_config
 
   !> FIXME : Add documentation 
   type :: specie
@@ -60,8 +49,8 @@ module species
                         f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
 
   ! FIXME
-  !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
-  !! adiabatic
+  !> Various quantities needed in the calculation of the
+  !> slowing-down distribution in case electrons are adiabatic
   real:: me, ZI_fac
   
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
@@ -69,8 +58,6 @@ module species
 
   integer :: nspec
   type (specie), dimension (:), allocatable :: spec
-
-  integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
 
   logical :: initialized = .false.
@@ -991,39 +978,6 @@ contains
     if (allocated(species_element_config)) deallocate(species_element_config)
     initialized = .false.
   end subroutine finish_species
-
-  !> This routine is used only for Trinity
-  subroutine determine_species_order
-    use mp, only: broadcast, proc0, mp_abort
-
-    implicit none
-
-    integer is
-     if (nspec == 1) then
-        ions = 1
-        electrons = 0
-        impurity = 0
-     else
-        ! if 2 or more species in GS2 calculation, figure out which is main ion
-        ! and which is electron via mass (main ion mass assumed to be one)
-        do is = 1, nspec
-           if (abs(spec(is)%mass-1.0) <= epsilon(0.0)) then
-              ions = is
-           else if (spec(is)%mass < 0.3) then
-              ! for electrons, assuming electrons are at least a factor of 3 less massive
-              ! than main ion and other ions are no less than 30% the mass of the main ion
-              electrons = is
-           else if (spec(is)%mass > 1.0 + epsilon(0.0)) then
-              impurity = is
-           else
-              if (proc0) write (*,*) &
-                   "Error: TRINITY requires the main ions to have mass 1", &
-                   "and the secondary ions to be impurities (mass > 1)"
-              call mp_abort("Error: TRINITY requires the main ions to have mass 1 and the secondary ions to be impurities (mass > 1)")
-           end if
-        end do
-     end if
-  end subroutine determine_species_order
 
   !> FIXME : Add documentation   
   subroutine set_overrides(prof_ov)
