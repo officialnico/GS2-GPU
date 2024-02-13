@@ -887,7 +887,6 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
@@ -902,13 +901,9 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-
-       call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
-
-!       do is = 1, nspec
-!          duinv(:,:,:,is) = vnmult(1)*spec(is)%vnewk*sqrt(2./pi)
-!       end do
     end if
+
+    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
