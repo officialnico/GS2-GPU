@@ -2075,7 +2075,11 @@ contains
     use constants, only: sqrt_pi
     implicit none
     real, intent (in) :: vel
-    hsg_func = 0.5 * erf(vel) / vel**2 - exp(-vel**2) / (sqrt_pi * vel)
+    if (abs(vel) <= epsilon(0.0)) then
+       hsg_func = 0.0
+    else
+       hsg_func = 0.5 * erf(vel) / vel**2 - exp(-vel**2) / (sqrt_pi * vel)
+    end if
   end function hsg_func
 
   !> FIXME : Add documentation
