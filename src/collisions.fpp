@@ -101,9 +101,6 @@ module collisions
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
-  complex, dimension (:,:,:), allocatable :: glec
-  ! (2*nlambda+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)
-
   ! only for hyper-diffusive collisions
   real, dimension (:,:,:,:), allocatable :: vnewh
   ! (-ntgrid:ntgrid,ntheta0,naky,nspec) replicated
@@ -741,9 +738,6 @@ contains
        call zero_array(ctmp)
     end if
 
-! TO DO:
-! tunits not included anywhere yet
-
     allocate(s0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(w0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(z0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1340,9 +1334,6 @@ contains
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
     end  if
-
-! TO DO:
-! tunits not included anywhere yet
 
     allocate(bs0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(bw0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1960,14 +1951,15 @@ contains
 !<MAB
     end do                                                                  
 
-    if(.not.allocated(vnew)) then
+    if (.not.allocated(vnew)) then
+       ! Here the ky dependence is just to allow us to scale by tunits.
+       ! This saves some operations in later use at expense of more memory
        allocate (vnew(naky,negrid,nspec))
        allocate (vnew_s(naky,negrid,nspec))
        allocate (vnew_D(naky,negrid,nspec))
        allocate (vnew_E(naky,negrid,nspec))
        allocate (delvnew(naky,negrid,nspec))
     end if
-    if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
     do is = 1, nspec
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
@@ -2096,6 +2088,7 @@ contains
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
+          if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
           k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
@@ -2104,8 +2097,6 @@ contains
                 end do
              end do
           end do
-       else
-          vnewh = 0.
        end if
     end do
     
@@ -2454,10 +2445,6 @@ contains
     call init_vpdiff
 
     if(use_le_layout) then
-       if (heating .and. .not. allocated(glec)) then
-          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          call zero_array(glec)
-       end if
        if (.not.allocated(c1le)) then
           allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2639,15 +2626,11 @@ contains
     use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-
     implicit none
-
     real, dimension (:), intent (out) :: aa, bb, cc, dd, hh
     integer, intent (in) :: ig, ik, it, ie, is
-
     integer :: il, je, te, te2, teh
-    real :: slb0, slb1, slb2, slbl, slbr, vn, vnh, vnc, ee
-    real deltaxi
+    real :: slb0, slb1, slb2, slbl, slbr, vhyp, vn, vnh, vnc, ee, deltaxi
 
     je = jend(ig)
 !
@@ -2691,14 +2674,19 @@ contains
        vnc = 0.
        vnh = 0.
     else
-       if (hypermult) then
-          vn = vnmult(1)*vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)*vnc
+       if (hyper_colls) then
+          vhyp = vnewh(ig, it, ik, is)
        else
-          vn = vnmult(1)*vnew(ik,ie,is)+vnewh(ig,it,ik,is)
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)
+          vhyp = 0.0
+       end if
+       ! vnc and vnh only needed when heating is true
+       vnc = vnmult(1) * vnew(ik, ie, is)
+       if (hypermult) then
+          vn = vnmult(1) * vnew(ik, ie, is) * (1 + vhyp)
+          vnh = vhyp * vnc
+       else
+          vn = vnmult(1) * vnew(ik, ie, is) + vhyp
+          vnh = vhyp
        end if
     end if
 
@@ -3524,7 +3512,6 @@ contains
     use redistribute, only: scatter
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3610,7 +3597,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
        !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
-       !$OMP speed, vnmult, vnew_D, tunits, gtmp, aj0le, gle) &
+       !$OMP speed, vnmult, vnew_D, gtmp, aj0le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3622,9 +3609,8 @@ contains
              do ixi = 1, nxi_lim
                 il = ixi_to_il(ig,ixi)
                 isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) &
-                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
+                gtmp(ixi,ie,ile) = vpa_nud * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
           end do
        end do
@@ -3633,7 +3619,7 @@ contains
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud) &
        !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, vnmult, &
-       !$OMP vnew_D, tunits, gle) &
+       !$OMP vnew_D, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
@@ -3641,9 +3627,8 @@ contains
           if(kwork_filter(it,ik)) cycle
           is = is_idx(le_lo,ile)
           do ie = 1, negrid
-             nud =  (vnmult(1) * vnew_D(1,ie,is) / tunits(1)) * tunits(ik)
+             nud =  vnmult(1) * vnew_D(ik, ie, is)
              do ixi = 1, nxi_lim
-                !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
                 gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * nud * gle(ixi, ie, ile)
              end do
           end do
@@ -3897,7 +3882,6 @@ contains
     use redistribute, only: scatter
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
@@ -3975,7 +3959,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, tunits, nxi_lim, gtmp, &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, gtmp, &
     !$OMP vpa_aj0_le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
@@ -3984,9 +3968,9 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        do ie = 1, negrid
-          delnu = (vnmult(2) * delvnew(1, ie, is) / tunits(1))
+          delnu = vnmult(2) * delvnew(ik, ie, is)
           do ixi = 1, nxi_lim
-             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * tunits(ik) * gle(ixi,ie,ile)
+             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * gle(ixi,ie,ile)
           end do
        end do
     end do
@@ -4248,6 +4232,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
+    complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
@@ -4255,6 +4240,8 @@ contains
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4332,7 +4319,7 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-       deallocate(tmp)
+       deallocate(tmp, glec)
     end if
 
     ! solve for gle row by row
@@ -4637,7 +4624,6 @@ contains
          if (heating) deallocate (d1le, h1le)
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
-      if (allocated(glec)) deallocate (glec)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
