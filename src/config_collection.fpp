@@ -32,7 +32,6 @@ module config_collection
   use normalisations, only: normalisations_config_type
   use optimisation_config, only: optimisation_config_type
   use run_parameters, only: knobs_config_type
-  use run_parameters, only: parameters_config_type
   use parameter_scan, only: parameter_scan_config_type
   use gs2_reinit, only: reinit_config_type
   use dist_fn, only: source_config_type
@@ -81,7 +80,6 @@ module config_collection
      type(nonlinear_terms_config_type) :: nonlinear_terms_config
      type(normalisations_config_type) :: normalisations_config
      type(optimisation_config_type) :: optimisation_config
-     type(parameters_config_type) :: parameters_config
      type(parameter_scan_config_type) :: parameter_scan_config
      type(reinit_config_type) :: reinit_config
      type(source_config_type) :: source_config
@@ -182,7 +180,6 @@ contains
     call self%nonlinear_terms_config%write(local_output_unit)
     call self%normalisations_config%write(local_output_unit)
     call self%optimisation_config%write(local_output_unit)
-    call self%parameters_config%write(local_output_unit)
     call self%parameter_scan_config%write(local_output_unit)
     call self%reinit_config%write(local_output_unit)
     call self%source_config%write(local_output_unit)
@@ -254,7 +251,7 @@ contains
     use nonlinear_terms, only: get_nonlinear_terms_config
     use normalisations, only: get_normalisations_config
     use optimisation_config, only: get_optimisation_config_config
-    use run_parameters, only: get_knobs_config, get_parameters_config
+    use run_parameters, only: get_knobs_config
     use parameter_scan, only: get_parameter_scan_config
     use gs2_reinit, only: get_gs2_reinit_config
     use species, only: get_species_config, get_species_element_config
@@ -299,7 +296,6 @@ contains
     self%normalisations_config = get_normalisations_config()
     self%optimisation_config = get_optimisation_config_config()
     self%knobs_config = get_knobs_config()
-    self%parameters_config = get_parameters_config()
     self%parameter_scan_config = get_parameter_scan_config()
     self%reinit_config = get_gs2_reinit_config()
     self%source_config = get_source_config()
