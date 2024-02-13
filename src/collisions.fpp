@@ -2399,16 +2399,23 @@ contains
 
     end select
   contains
+    pure real function capg_kernel(xe)
+      use constants, only: sqrt_pi
+      real, intent(in) :: xe
+      ! This is the same as hsg_func(xe) * 2 * xe**2
+      capg_kernel =  erf(xe) - 2 * xe * exp(-xe**2) / sqrt_pi
+    end function capg_kernel
+
     pure real function capg(xe)
       use constants, only: sqrt_pi
       real, intent(in) :: xe
-      capg = 2 * exp(-xe**2) * (erf(xe)-2*xe*exp(-xe**2)/sqrt_pi) / (xe * sqrt_pi)
+      capg = 2 * exp(-xe**2) * capg_kernel(xe) / (xe * sqrt_pi)
     end function capg
 
     pure real function capg_old(xeA, xeB)
       use constants, only: sqrt_pi
       real, intent(in) :: xeA, xeB
-      capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * (erf(xeB) - 2 * xeB * exp(-xeB**2)/sqrt_pi)/xeB
+      capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * capg_kernel(xeB) / xeB
     end function capg_old
 
   end subroutine get_ediffuse_matrix
