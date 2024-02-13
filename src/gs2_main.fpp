@@ -1134,7 +1134,8 @@ contains
   subroutine prepare_initial_values_overrides(state)
     use overrides, only: init_initial_values_overrides
     use fields, only: force_maxwell_reinit
-    use gs2_init, only: in_memory, init, init_level_list
+    use gs2_init, only: init, init_level_list
+    use gs2_reinit, only: in_memory
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid

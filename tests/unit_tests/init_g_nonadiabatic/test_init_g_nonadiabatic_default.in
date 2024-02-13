@@ -2,9 +2,6 @@
   fphi = 1.0
   fapar = 1.0
   fbpar = 1.0
-  /
-
-  &parameters
   beta = 0.1
   /
 
