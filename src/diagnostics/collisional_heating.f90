@@ -103,7 +103,7 @@ contains
     call g_adjust(g0,phi,bpar, direction = from_g_gs2)   !< transforms g into h (minus boltzmann response), anyway fbpar=0
 
     call hyper_diff(g0,phi) !< assigns values to hypervisc_filter
-    if (heating) then
+    if (heating .and. allocated(c_rate)) then
        do is = 1, nspec
           do ik = 1, naky
              fac = 0.5

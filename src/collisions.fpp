@@ -604,17 +604,23 @@ contains
 # endif
     use_lz_layout = .false. ; use_e_layout = .false.
 
+    if (collision_model_switch == collision_model_none) then
+       colls = .false.
+       return
+    end if
+
+    call init_vnew (hee)
+    if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0)) .and. .not. force_collisions) then
+       collision_model_switch = collision_model_none
+       colls = .false.
+       return
+    end if
+
     !<DD>This (potentially large) array should only be needed if
     !write_heating (gs2_diagnostics) is true.
     if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        call zero_array(c_rate)
-    end if
-
-    !<DD>Should probably put this first
-    if (collision_model_switch == collision_model_none) then
-       colls = .false.
-       return
     end if
 
     if( .not. use_le_layout ) then
@@ -630,13 +636,6 @@ contains
     end if
 
     call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
-
-    call init_vnew (hee)
-    if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0)) .and. .not. force_collisions) then
-       collision_model_switch = collision_model_none
-       colls = .false.
-       return
-    end if
 
     select case (collision_model_switch)
     case (collision_model_full)

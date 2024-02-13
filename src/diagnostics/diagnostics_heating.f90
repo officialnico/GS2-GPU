@@ -94,7 +94,7 @@ contains
     call zero_htype(h)
     call zero_htype(hk)
     
-    if (proc0 .and. heating) then
+    if (proc0 .and. heating .and. allocated(c_rate)) then
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
