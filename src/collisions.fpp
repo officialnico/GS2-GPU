@@ -101,9 +101,6 @@ module collisions
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
-  complex, dimension (:,:,:), allocatable :: glec
-  ! (2*nlambda+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)
-
   ! only for hyper-diffusive collisions
   real, dimension (:,:,:,:), allocatable :: vnewh
   ! (-ntgrid:ntgrid,ntheta0,naky,nspec) replicated
@@ -1966,7 +1963,6 @@ contains
        allocate (vnew_E(naky,negrid,nspec))
        allocate (delvnew(naky,negrid,nspec))
     end if
-    if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
     do is = 1, nspec
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
@@ -2095,6 +2091,7 @@ contains
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
+          if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
           k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
@@ -2103,8 +2100,6 @@ contains
                 end do
              end do
           end do
-       else
-          vnewh = 0.
        end if
     end do
     
@@ -2453,10 +2448,6 @@ contains
     call init_vpdiff
 
     if(use_le_layout) then
-       if (heating .and. .not. allocated(glec)) then
-          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          call zero_array(glec)
-       end if
        if (.not.allocated(c1le)) then
           allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2638,15 +2629,11 @@ contains
     use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-
     implicit none
-
     real, dimension (:), intent (out) :: aa, bb, cc, dd, hh
     integer, intent (in) :: ig, ik, it, ie, is
-
     integer :: il, je, te, te2, teh
-    real :: slb0, slb1, slb2, slbl, slbr, vn, vnh, vnc, ee
-    real deltaxi
+    real :: slb0, slb1, slb2, slbl, slbr, vhyp, vn, vnh, vnc, ee, deltaxi
 
     je = jend(ig)
 !
@@ -2690,14 +2677,19 @@ contains
        vnc = 0.
        vnh = 0.
     else
-       if (hypermult) then
-          vn = vnmult(1)*vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)*vnc
+       if (hyper_colls) then
+          vhyp = vnewh(ig, it, ik, is)
        else
-          vn = vnmult(1)*vnew(ik,ie,is)+vnewh(ig,it,ik,is)
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)
+          vhyp = 0.0
+       end if
+       ! vnc and vnh only needed when heating is true
+       vnc = vnmult(1) * vnew(ik, ie, is)
+       if (hypermult) then
+          vn = vnmult(1) * vnew(ik, ie, is) * (1 + vhyp)
+          vnh = vhyp * vnc
+       else
+          vn = vnmult(1) * vnew(ik, ie, is) + vhyp
+          vnh = vhyp
        end if
     end if
 
@@ -4243,6 +4235,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
+    complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
@@ -4250,6 +4243,8 @@ contains
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4327,7 +4322,7 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
-       deallocate(tmp)
+       deallocate(tmp, glec)
     end if
 
     ! solve for gle row by row
@@ -4632,7 +4627,6 @@ contains
          if (heating) deallocate (d1le, h1le)
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
-      if (allocated(glec)) deallocate (glec)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
