@@ -726,9 +726,8 @@ contains
     implicit none
 
     complex, dimension (1,1,1) :: dum1 = 0., dum2 = 0.
-    complex, dimension (:,:,:), allocatable :: gtmp
-    complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
-    real, dimension (:,:,:,:), allocatable :: vns
+    real, dimension (:,:,:), allocatable :: gtmp
+    real, dimension (:,:,:,:), allocatable :: duinv, dtmp, vns
     integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
@@ -842,7 +841,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*z0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -994,7 +993,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*s0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(s0tmp(:,isgn,iglo))
        end do
     end do
     !OMP END PARALLEL DO
@@ -1035,10 +1034,10 @@ contains
           ! v1 = nu_D vpa J0
           if (conservative) then
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*s0tmp(:,isgn,iglo)
+                  * aj0(:,iglo) * real(s0tmp(:,isgn,iglo))
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * s0tmp(:,isgn,iglo)
+                  * real(s0tmp(:,isgn,iglo))
           end if
        end do
     end do
@@ -1147,7 +1146,7 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*w0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(w0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1187,10 +1186,10 @@ contains
           ! v1 = nud vpa J0 f0
           if (conservative) then
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*w0tmp(:,isgn,iglo)
+                  * aj0(:,iglo) * real(w0tmp(:,isgn,iglo))
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * w0tmp(:,isgn,iglo)
+                  * real(w0tmp(:,isgn,iglo))
           end if
        end do
     end do
@@ -1230,7 +1229,7 @@ contains
        do isgn = 1, 2
           ! v2 = nud vperp J1 f0
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * w0tmp(:,isgn,iglo)
+               * real(w0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1322,9 +1321,8 @@ contains
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
     implicit none
-
-    complex, dimension (:,:,:), allocatable :: gtmp
-    complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
+    real, dimension (:,:,:), allocatable :: gtmp
+    real, dimension (:,:,:,:), allocatable :: duinv, dtmp
     real, dimension (:,:,:,:), allocatable :: vns
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
@@ -1453,8 +1451,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0 f_0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bz0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vnmult(2) * vnew_E(ik,ie,is) * aj0(:,iglo) &
+               * real(bz0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1595,7 +1593,7 @@ contains
        do isgn = 1, 2
           ! v0 = nu_E E J0
           gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bs0tmp(:,isgn,iglo)
+               * real(bs0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1634,7 +1632,7 @@ contains
        do isgn = 1, 2
           ! v1 = (nu_s - nu_D) vpa J0
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * bs0tmp(:,isgn,iglo)
+               * real(bs0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1731,7 +1729,7 @@ contains
        do isgn = 1, 2
           ! v0 = nu_E E J0
           gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+               * real(bw0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1769,7 +1767,7 @@ contains
        do isgn = 1, 2
           ! v1 = (nus-nud) vpa J0 f0
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+               * real(bw0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1808,7 +1806,7 @@ contains
        do isgn = 1, 2
           ! v2 = (nus-nud) vperp J1 f0
           gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+               * real(bw0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
