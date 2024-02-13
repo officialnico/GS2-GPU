@@ -1952,6 +1952,8 @@ contains
     end if
 
     do is = 1, nspec
+    if (hyper_colls .and. .not. allocated(vnewh)) &
+         allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
        ! Correct collision frequency if applying collisions only every nth timestep:
        !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
@@ -2046,7 +2048,6 @@ contains
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
        if (hyper_colls) then
-          if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
           k4max = (maxval(kperp2))**2 
           do ik = 1, naky
              do it = 1, ntheta0
