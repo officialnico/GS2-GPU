@@ -7422,7 +7422,6 @@ contains
     use le_grids, only: integrate_species, g2gf, negrid, nlambda, w, wl
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
-    use spfunc, only: j0, j1
     use kt_grids, only: kwork_filter, kperp2, naky, ntheta0
     use redistribute, only: gather
     use mp, only: barrier

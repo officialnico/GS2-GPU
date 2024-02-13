@@ -614,7 +614,6 @@ contains
   subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
     use constants, only: pi
     use mp, only: mp_abort
-    use spfunc, only: erf => erf_ext
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
