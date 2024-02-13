@@ -2349,9 +2349,7 @@ contains
     use iso_fortran_env, only: output_unit
     use theta_grid, only: ntgrid, bmag, bmax
     use species, only: nspec
-    ! Note in fortran 2008 we could just use the erf intrinsic
-    use spfunc, only: erf_ext
-    use constants, only: pi
+    use constants, only: sqrt_pi
     implicit none
 
     integer, intent(in), optional :: unit_in
@@ -2446,7 +2444,7 @@ contains
     ! Integral_0^vcut{v^2 exp(-v^2)/sqrt(pi) dv}
     ! Which has result:
     ! (1/4) [ erf(vcut) - 2 vcut exp(-vcut^2)/sqrt(pi)]
-    expected_energy_sub = 0.25 * ( erf_ext(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt(pi))
+    expected_energy_sub = 0.25 * ( erf(vcut) - 2*vcut*exp(-vcut*vcut)/sqrt_pi)
     do is = 1, nspec
        energy_sub_error(is) = expected_energy_sub - sum(w(:nesub,is))
     end do
@@ -2466,7 +2464,7 @@ contains
        ! Integral_0^infinity{sqrt(y+vcut^2) * exp(-(vcut^2)) * exp(-y) dy}/2
        ! Which has result:
        ! [sqrt(pi)*erfc(vcut)/2 + vcut*exp(-vcut^2)]/(2*sqrt(pi))
-       expected_energy_super =  0.5*(sqrt(pi)*(1-erf_ext(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt(pi)
+       expected_energy_super =  0.5*(sqrt_pi*(1-erf(vcut))/2 + vcut*exp(-vcut*vcut))/sqrt_pi
        do is = 1, nspec
           energy_super_error(is) = expected_energy_super - sum(w(nesub+1:,is))
        end do
