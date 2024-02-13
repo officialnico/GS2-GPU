@@ -1907,7 +1907,7 @@ contains
     use constants, only: pi
     use gs2_save, only: init_vnm
     use spfunc, only: erf => erf_ext
-    real, dimension(negrid):: hee, hsg
+    real, dimension(negrid):: hee, hsg, local_energy
     integer :: ik, ie, is, it, ig
     integer :: istatus
     real :: k4max
@@ -1927,21 +1927,20 @@ contains
     end if
 
     if (const_v) then
-       do ie = 1, negrid
-          hee(ie) = exp(-1.0)/sqrt_pi + 0.5*erf(1.0)
-          hsg(ie) = hsg_func(1.0)
-       end do
+       local_energy = 1.0
     else
-       do ie = 1, negrid
-          hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
-               + (1.0 - 0.5/energy(ie))*erf(sqrt(energy(ie)))
-          !>MAB
-          ! hsg is the G of Hirshman and Sigmar
-          ! added to allow for momentum conservation with energy diffusion
-          hsg(ie) = hsg_func(sqrt(energy(ie)))
-          !<MAB
-       end do
+       local_energy = energy
     end if
+
+    do ie = 1, negrid
+       hee(ie) = exp(-local_energy(ie))/sqrt(pi*local_energy(ie)) &
+            + (1.0 - 0.5/local_energy(ie))*erf(sqrt(local_energy(ie)))
+       !>MAB
+       ! hsg is the G of Hirshman and Sigmar
+       ! added to allow for momentum conservation with energy diffusion
+       hsg(ie) = hsg_func(sqrt(local_energy(ie)))
+       !<MAB
+    end do
 
     if (.not.allocated(vnew)) then
        ! Here the ky dependence is just to allow us to scale by tunits.
@@ -1961,72 +1960,40 @@ contains
           do ie = 1, negrid
              do ik = 1, naky
                 if (ei_coll_only) then
-                   if (const_v) then
-                      vnew(ik,ie,is) = spec(is)%vnewk &
-                           *zeff*0.5*tunits(ik)
-                   else
-                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *zeff*0.5*tunits(ik)
-                   endif
+                   vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
+                        *zeff*0.5*tunits(ik)
 
                    vnew_s(ik,ie,is)=0.
                    vnew_D(ik,ie,is)=0.
                    vnew_E(ik,ie,is)=0.
                    delvnew(ik,ie,is)=0.
                 else
-                   if (const_v) then
-                      vnew(ik,ie,is) = spec(is)%vnewk &
-                           *(zeff+hee(ie))*0.5*tunits(ik)
-                      vnew_s(ik,ie,is) = spec(is)%vnewk &
-                           *hsg(ie)*4.0*tunits(ik)
-                      vnew_D(ik,ie,is) = spec(is)%vnewk &
-                           *hee(ie)*tunits(ik)
-                      if (.not. conservative) then
-                         vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
-                              - 2.0*vnew_D(ik,ie,is)
-                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                      end if
-                   else
-                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *(zeff + hee(ie))*0.5*tunits(ik)
-                      vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
-                           *hsg(ie)*4.0*tunits(ik)
-                      vnew_D(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *hee(ie)*tunits(ik)
-                      if (.not. conservative) then
-                         vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
-                              - 2.0*vnew_D(ik,ie,is))
-                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                      end if
+                   vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
+                        *(zeff + hee(ie))*0.5*tunits(ik)
+                   vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(local_energy(ie)) &
+                        *hsg(ie)*4.0*tunits(ik)
+                   vnew_D(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
+                        *hee(ie)*tunits(ik)
+                   if (.not. conservative) then
+                      vnew_E(ik,ie,is) = local_energy(ie)*(vnew_s(ik,ie,is) * &
+                           (2.0-0.5/local_energy(ie)) - 2.0*vnew_D(ik,ie,is))
+                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
                    end if
-                endif
+                end if
              end do
           end do
        else
           do ie = 1, negrid
              do ik = 1, naky
-                if (const_v) then
-                   vnew(ik,ie,is) = spec(is)%vnewk &
-                        *hee(ie)*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk &
-                        *hsg(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
-                           - 2.0*vnew_D(ik,ie,is)
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                else
-                   vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                        *hee(ie)*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
-                        *hsg(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
-                           - 2.0*vnew_D(ik,ie,is))
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
+                vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
+                     *hee(ie)*0.5*tunits(ik)
+                vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(local_energy(ie)) &
+                     *hsg(ie)*4.0*tunits(ik)
+                vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
+                if (.not. conservative) then
+                   vnew_E(ik,ie,is) = local_energy(ie)*(vnew_s(ik,ie,is) * &
+                        (2.0-0.5/local_energy(ie)) - 2.0*vnew_D(ik,ie,is))
+                   delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
                 end if
                 if (ei_coll_only) then
                    vnew(ik,ie,is) = 0.
@@ -2034,12 +2001,12 @@ contains
                    vnew_D(ik,ie,is)=0.
                    vnew_E(ik,ie,is)=0.
                    delvnew(ik,ie,is)=0.
-                endif
+                end if
              end do
           end do
        end if
 
-       if (conservative) then !Presumably not compatible with const_v
+       if (conservative) then !Presumably not compatible with const_v so we use energy
 
           do ie = 2, negrid-1
              vr = 0.5*(sqrt(energy(ie+1)) + sqrt(energy(ie)))
