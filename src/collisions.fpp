@@ -1968,15 +1968,19 @@ contains
        end do
     else
        do is = 1, nspec
-       ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
-       ! Correct collision frequency if applying collisions only every nth timestep:
-       !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
+          ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
+          ! Correct collision frequency if applying collisions only every nth timestep:
+          !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
+
+          do ie = 1, negrid
+             vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
+                  * hsg(ie) * 4.0 * tunits(:)
+          end do
+
           if (is_electron_species(spec(is))) then
              do ie = 1, negrid
                 vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
                      * (zeff + hee(ie)) * 0.5 * tunits(:)
-                vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
-                     * hsg(ie) * 4.0 * tunits(:)
                 vnew_D(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
                      * hee(ie) * tunits(:)
              end do
@@ -1984,8 +1988,6 @@ contains
              do ie = 1, negrid
                 vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
                      * hee(ie) * 0.5 * tunits(:)
-                vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
-                     * hsg(ie) * 4.0 * tunits(:)
                 vnew_D(:, ie, is) = 2.0 * vnew(:, ie, is)
              end do
           end if
