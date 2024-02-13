@@ -419,7 +419,7 @@ contains
     use init_g, only: init_init_g
     use gs2_io, only: init_gs2_io
     use gs2_heating, only: init_htype
-    use collisions, only: collision_model_switch, init_lorentz_error, heating
+    use collisions, only: collision_model_switch, init_lorentz_error
     use mp, only: broadcast, proc0, mp_abort
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
@@ -465,13 +465,6 @@ contains
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
     if (write_verr .and. proc0) call init_weights
-
-    if (write_heating .and. .not. heating) then
-       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
-       write_heating = .false.
-    else if (heating .and. .not. write_heating) then
-       heating = .false.
-    end if
 
     ! allocate heating diagnostic data structures
     if (write_heating) then
@@ -581,6 +574,7 @@ contains
     use mp, only: proc0
     use standard_header, only: standard_header_type
     use diagnostics_fluxes, only: init_diagnostics_fluxes
+    use collisions, only: heating
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -692,6 +686,8 @@ contains
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
     use antenna, only: no_driver
+    use collisions, only: heating
+    use mp, only: proc0
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -830,6 +826,13 @@ contains
 
     if (.not. save_for_restart) nsave = -1
     write_avg_moments = write_avg_moments
+
+    if (write_heating .and. .not. heating) then
+       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
+       write_heating = .false.
+    else if (heating .and. .not. write_heating) then
+       heating = .false.
+    end if
 
     write_any = write_line .or. write_omega     .or. write_omavg &
          .or. write_flux_line .or. write_fluxes .or. write_fluxes_by_mode  &
