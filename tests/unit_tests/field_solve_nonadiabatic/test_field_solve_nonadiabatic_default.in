@@ -3,9 +3,6 @@
   fapar = 1.0
   fbpar = 1.0
   seed = 10203040
-/
-
-&parameters
   beta = 0.1
 /
 

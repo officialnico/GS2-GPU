@@ -13,7 +13,7 @@ header() {
 
 add_to_local_makefile() {
     header "Adding to Makefile.local"
-    echo ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
+    echo -e ${GK_MAKEFILE_LOCAL_EXTRA_FLAGS} >> Makefile.local
     cat Makefile.local
 }
 

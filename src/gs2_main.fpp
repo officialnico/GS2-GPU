@@ -665,7 +665,7 @@ contains
     use mp, only: proc0, scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
     use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
-    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics
+    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics, ncheck_stop
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use nonlinear_terms, only: gryfx_zonal
@@ -820,7 +820,7 @@ contains
             reset = .false.
          end if
 
-         if ((mod(istep,5) == 0) .and. (.not.state%exit)) &
+         if ((mod(istep, ncheck_stop) == 0) .and. (.not.state%exit)) &
               call checkstop(state%exit,state%exit_reason)
          if (state%exit) call debug_message(state%verb+1, &
               'gs2_main::evolve_equations exit true after checkstop')
@@ -1134,7 +1134,8 @@ contains
   subroutine prepare_initial_values_overrides(state)
     use overrides, only: init_initial_values_overrides
     use fields, only: force_maxwell_reinit
-    use gs2_init, only: in_memory, init, init_level_list
+    use gs2_init, only: init, init_level_list
+    use gs2_reinit, only: in_memory
     use gs2_layouts, only: g_lo
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
