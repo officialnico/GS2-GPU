@@ -3995,7 +3995,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
     !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, &
-    !$OPM delvnew, vperp_aj1le, gle, vnmult) &
+    !$OMP delvnew, vperp_aj1le, gle, vnmult) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
