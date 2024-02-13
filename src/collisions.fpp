@@ -591,13 +591,12 @@ contains
   !> FIXME : Add documentation
   subroutine init_arrays
     use species, only: nspec
-    use le_grids, only: negrid, init_map
+    use le_grids, only: init_map
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
     use array_utils, only: zero_array
     implicit none
-    real, dimension (negrid) :: hee
     logical :: use_lz_layout, use_e_layout
 ! lowflow terms include higher-order corrections to GK equation
 ! such as parallel nonlinearity that require derivatives in v-space.
@@ -618,7 +617,7 @@ contains
        return
     end if
 
-    call init_vnew (hee)
+    call init_vnew
     if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0)) .and. .not. force_collisions) then
        collision_model_switch = collision_model_none
        colls = .false.
@@ -1898,7 +1897,7 @@ contains
   end subroutine zero_out_passing_hybrid_electrons
 
   !> FIXME : Add documentation
-  subroutine init_vnew (hee)
+  subroutine init_vnew
     use species, only: nspec, spec, is_electron_species
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
@@ -1908,8 +1907,7 @@ contains
     use constants, only: pi
     use gs2_save, only: init_vnm
     use spfunc, only: erf => erf_ext
-    real, dimension (:), intent (out) :: hee
-    real,dimension (negrid)::heevth, hsg, hsgvth
+    real, dimension(negrid):: hee, heevth, hsg, hsgvth
     integer :: ik, ie, is, it, ig
     integer :: istatus
     real :: k4max
