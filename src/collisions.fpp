@@ -604,7 +604,6 @@ contains
 # endif
     use_lz_layout = .false. ; use_e_layout = .false.
 
-    !<DD>Should probably put this first
     if (collision_model_switch == collision_model_none) then
        colls = .false.
        return
