@@ -14,7 +14,7 @@ module run_parameters
   public :: write_trinity_parameters
   public :: beta, zeff, tite, reset, immediate_reset, delt
   public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
-  public :: nstep, max_sim_time, wstar_units, margin
+  public :: nstep, max_sim_time, wstar_units
   public :: ieqzip, k0
   public :: delt_option_switch, delt_option_hand
   public :: delt_option_auto
@@ -46,7 +46,7 @@ module run_parameters
   real :: beta, zeff, tite
   real :: fphi, fapar, fbpar, faperp
   logical :: has_phi, has_apar, has_bpar
-  real :: margin, delt
+  real :: delt
   real :: avail_cpu_time, margin_cpu_time
   real :: max_sim_time
   integer :: nstep, seed
@@ -125,8 +125,6 @@ module run_parameters
      !> Used in [[init_g_knobs:ginit_option]] "harris" and "convect". Should be
      !> moved to init_g namelist. This gets a smart default from [[parameters]].
      real :: k0 = 1.0
-     !> Not used anywhere -- to be removed.
-     real :: margin = 0.05
      !> How close to avail_cpu_time can we go before trying to stop the run cleanly
      real :: margin_cpu_time = 300.0
      !> The simulation time after which the run should stop.
@@ -309,7 +307,6 @@ contains
        write (unit, fmt="(' max_sim_time = ',e17.10)") max_sim_time
        write (unit, fmt="(' nstep = ',i8)") nstep
        write (unit, fmt="(' wstar_units = ',L1)") wstar_units
-       write (unit, fmt="(' margin = ',e17.10)") margin
        select case (delt_option_switch)
        case (delt_option_auto)
           write (unit, fmt="(' delt_option = ',a)") '"check_restart"'
@@ -416,7 +413,6 @@ contains
     fphi = knobs_config%fphi
     immediate_reset = knobs_config%immediate_reset
     k0 = knobs_config%k0
-    margin = knobs_config%margin
     margin_cpu_time = knobs_config%margin_cpu_time
     max_sim_time = knobs_config%max_sim_time
     neo_test = knobs_config%neo_test
@@ -565,9 +561,9 @@ contains
     integer :: nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
          trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
-    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin, margin_cpu_time, max_sim_time, rhostar, tite, zeff
+    real :: avail_cpu_time, beta, delt, fapar, faperp, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
 
-    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
+    namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, faperp, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, neo_test, nstep, rhostar, &
          save_init_times, save_timer_statistics, seed, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
@@ -586,7 +582,6 @@ contains
     fphi = self%fphi
     immediate_reset = self%immediate_reset
     k0 = self%k0
-    margin = self%margin
     margin_cpu_time = self%margin_cpu_time
     max_sim_time = self%max_sim_time
     neo_test = self%neo_test
@@ -620,7 +615,6 @@ contains
     self%fphi = fphi
     self%immediate_reset = immediate_reset
     self%k0 = k0
-    self%margin = margin
     self%margin_cpu_time = margin_cpu_time
     self%max_sim_time = max_sim_time
     self%neo_test = neo_test
@@ -665,7 +659,6 @@ contains
     call self%write_key_val("fphi", self%fphi, unit_internal)
     call self%write_key_val("immediate_reset", self%immediate_reset, unit_internal)
     call self%write_key_val("k0", self%k0, unit_internal)
-    call self%write_key_val("margin", self%margin, unit_internal)
     call self%write_key_val("margin_cpu_time", self%margin_cpu_time, unit_internal)
     call self%write_key_val("max_sim_time", self%max_sim_time, unit_internal)
     call self%write_key_val("neo_test", self%neo_test, unit_internal)
@@ -712,7 +705,6 @@ contains
     call broadcast(self%fphi)
     call broadcast(self%immediate_reset)
     call broadcast(self%k0)
-    call broadcast(self%margin)
     call broadcast(self%margin_cpu_time)
     call broadcast(self%max_sim_time)
     call broadcast(self%neo_test)
