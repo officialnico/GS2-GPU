@@ -181,10 +181,11 @@ module le_grids
   
   interface integrate_moment
      module procedure integrate_moment_c34
+     module procedure integrate_moment_r34
      module procedure integrate_moment_lec
      module procedure integrate_moment_le
      module procedure integrate_moment_r33
-     module procedure integrate_moment_lz 
+     module procedure integrate_moment_lz
      module procedure integrate_moment_e
   end interface
 
@@ -1779,6 +1780,110 @@ contains
     deallocate(total_small)
 
   end subroutine integrate_moment_c34
+
+  !> FIXME : Add documentation
+  !>
+  !> returns results to PE 0 [or to all processors if 'all' is present in input arg list]
+  !> NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
+  !> is over all velocity space
+  subroutine integrate_moment_r34 (g, total, all, full_arr)
+    use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx, il_idx,intmom_sub
+    use theta_grid, only: ntgrid
+    use mp, only: sum_reduce, sum_allreduce_sub, nproc, sum_allreduce, sum_reduce_sub
+    use array_utils, only: zero_array, copy
+    implicit none
+    real, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g
+    real, dimension (-ntgrid:,:,:,:), intent (out) :: total
+    real, dimension(:,:,:,:),allocatable :: total_small
+    logical, optional, intent(in) :: all
+    logical, optional, intent(in) :: full_arr
+    logical :: local_full_arr, local_all
+    integer :: is, il, ie, ik, it, iglo
+
+    !Do we want to know the full result?
+    local_full_arr=.false.
+    if(present(full_arr)) local_full_arr=full_arr
+
+    ! Do all processors need to know the result?
+    local_all = .false.
+    if(present(all)) local_all = all
+
+    !NOTE: Currently we're lazy and force the full_arr approach to reduce
+    !over the whole array. Really we should still use the sub-communicator
+    !approach and then gather the remaining data as we do for integrate_species
+
+    !Allocate array and ensure is zero
+    if(intmom_sub.and.local_all.and.(.not.local_full_arr))then !If we're using reduce then we don't want to make array smaller
+!       total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=0.
+       allocate(total_small(-ntgrid:ntgrid,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max))
+    else
+!       total=0.
+       allocate(total_small(-ntgrid:ntgrid,g_lo%ntheta0,g_lo%naky,g_lo%nspec))
+    endif
+
+    call zero_array(total_small)
+
+    !Integrate over local velocity space
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, it, ik, ie, il, is) &
+    !$OMP SHARED(g_lo, w, wl, g) &
+    !$OMP REDUCTION(+ : total_small) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       ik = ik_idx(g_lo,iglo)
+       it = it_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+
+       !Perform local sum
+       total_small(:, it, ik, is) = total_small(:, it, ik, is) + &
+            w(ie,is)*wl(:,il)*(g(:,1,iglo)+g(:,2,iglo))
+    end do
+    !$OMP END PARALLEL DO
+
+    !Not sure that we really need to limit this to nproc>1 as if
+    !we run with 1 proc MPI calls should still work ok
+    if (nproc > 1) then
+       if (local_all) then
+         if (local_full_arr) then
+            call sum_allreduce (total_small)
+         else
+           !Complete integral over distributed velocity space and ensure all procs in sub communicator know the result
+           !Note: fi intmom_sub=.false. then xysblock_comm==mp_comm  | This is why total_small must be the same size on
+           !all procs in this case.
+           call sum_allreduce_sub (total_small,g_lo%xysblock_comm)
+         end if
+       else
+         !if (local_full_arr) then
+            !call sum_reduce (total_small, 0)
+         !else
+           !Complete integral over distributed velocity space
+           !Note: fi intmom_sub=.false. then xysblock_comm==mp_comm  | This is why total_small must be the same size on
+           !all procs in this case.
+           !call sum_reduce_sub (total_small,g_lo%xysblock_comm)
+         !end if
+
+          !Complete integral over distributed velocity space but only proc0 knows the answer
+          call sum_reduce (total_small, 0)
+       end if
+    end if
+
+    !Copy data into output array
+    !Note: When not using sub-comms this is an added expense which will mean
+    !this routine is more expensive than original version just using total.
+    !In practice we should have two integrate_moment_c34 routines, one for sub-comms
+    !and one for world-comms.
+    if(intmom_sub.and.local_all.and.(.not.local_full_arr))then
+       total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=total_small
+    else
+       call copy(total_small, total)
+    endif
+
+    !Deallocate
+    deallocate(total_small)
+
+  end subroutine integrate_moment_r34
 
   !> FIXME : Add documentation
   !!
