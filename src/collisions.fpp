@@ -1907,7 +1907,7 @@ contains
     use constants, only: pi
     use gs2_save, only: init_vnm
     use spfunc, only: erf => erf_ext
-    real, dimension(negrid):: hee, heevth, hsg, hsgvth
+    real, dimension(negrid):: hee, hsg
     integer :: ik, ie, is, it, ig
     integer :: istatus
     real :: k4max
@@ -1926,28 +1926,22 @@ contains
        vnmult = vnm_init
     end if
 
-    do ie = 1, negrid
-       hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
-            + (1.0 - 0.5/energy(ie))*erf(sqrt(energy(ie)))
-
-!>MAB
-! hsg is the G of Hirshman and Sigmar
-! added to allow for momentum conservation with energy diffusion
-       hsg(ie) = hsg_func(sqrt(energy(ie)))
-!<MAB
-    end do
-
-!heevth is hee but using only thermal velocity (energy independent)
-
-    do ie = 1, negrid
-       heevth(ie) = exp(-1.0)/sqrt(pi) + 0.5*erf(1.0)
-
-!>MAB
-! hsg is the G of Helander and Sigmar
-! added to allow for momentum conservation with energy diffusion
-       hsgvth(ie) = hsg_func(1.0)
-!<MAB
-    end do                                                                  
+    if (const_v) then
+       do ie = 1, negrid
+          hee(ie) = exp(-1.0)/sqrt_pi + 0.5*erf(1.0)
+          hsg(ie) = hsg_func(1.0)
+       end do
+    else
+       do ie = 1, negrid
+          hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
+               + (1.0 - 0.5/energy(ie))*erf(sqrt(energy(ie)))
+          !>MAB
+          ! hsg is the G of Hirshman and Sigmar
+          ! added to allow for momentum conservation with energy diffusion
+          hsg(ie) = hsg_func(sqrt(energy(ie)))
+          !<MAB
+       end do
+    end if
 
     if (.not.allocated(vnew)) then
        ! Here the ky dependence is just to allow us to scale by tunits.
@@ -1982,11 +1976,11 @@ contains
                 else
                    if (const_v) then
                       vnew(ik,ie,is) = spec(is)%vnewk &
-                           *(zeff+heevth(ie))*0.5*tunits(ik)
+                           *(zeff+hee(ie))*0.5*tunits(ik)
                       vnew_s(ik,ie,is) = spec(is)%vnewk &
-                           *hsgvth(ie)*4.0*tunits(ik)
+                           *hsg(ie)*4.0*tunits(ik)
                       vnew_D(ik,ie,is) = spec(is)%vnewk &
-                           *heevth(ie)*tunits(ik)
+                           *hee(ie)*tunits(ik)
                       if (.not. conservative) then
                          vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
                               - 2.0*vnew_D(ik,ie,is)
@@ -2013,9 +2007,9 @@ contains
              do ik = 1, naky
                 if (const_v) then
                    vnew(ik,ie,is) = spec(is)%vnewk &
-                        *heevth(ie)*0.5*tunits(ik)
+                        *hee(ie)*0.5*tunits(ik)
                    vnew_s(ik,ie,is) = spec(is)%vnewk &
-                        *hsgvth(ie)*4.0*tunits(ik)
+                        *hsg(ie)*4.0*tunits(ik)
                    vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
                    if (.not. conservative) then
                       vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
@@ -2045,7 +2039,7 @@ contains
           end do
        end if
 
-       if (conservative) then
+       if (conservative) then !Presumably not compatible with const_v
 
           do ie = 2, negrid-1
              vr = 0.5*(sqrt(energy(ie+1)) + sqrt(energy(ie)))
