@@ -34,10 +34,6 @@
                                write_omega =  F
 /
 
-&init_knobs
-                                 in_memory =  F
-/
-
 &init_g_knobs
                                  chop_side =  F
                                 clean_init =  T

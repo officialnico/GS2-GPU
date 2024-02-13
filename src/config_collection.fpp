@@ -13,7 +13,6 @@ module config_collection
 #endif
   use fields, only: fields_config_type
   use gs2_diagnostics, only: gs2_diagnostics_config_type
-  use gs2_init, only: init_config_type
   use gs2_layouts, only: layouts_config_type
   use hyper, only: hyper_config_type
   use ingen_mod, only: ingen_config_type
@@ -63,7 +62,6 @@ module config_collection
      type(gs2_diagnostics_config_type) :: gs2_diagnostics_config
      type(hyper_config_type) :: hyper_config
      type(ingen_config_type) :: ingen_config
-     type(init_config_type) :: init_config
      type(init_g_config_type) :: init_g_config
      type(knobs_config_type) :: knobs_config
      type(kt_grids_config_type) :: kt_grids_config
@@ -154,7 +152,6 @@ contains
 #endif
     call self%hyper_config%write(local_output_unit)
     call self%ingen_config%write(local_output_unit)
-    call self%init_config%write(local_output_unit)
     call self%init_g_config%write(local_output_unit)
     call self%knobs_config%write(local_output_unit)
     call self%kt_grids_config%write(local_output_unit)
@@ -234,7 +231,6 @@ contains
 #endif
     use fields, only: get_fields_config
     use gs2_diagnostics, only: get_gs2_diagnostics_config
-    use gs2_init, only: get_gs2_init_config
     use gs2_layouts, only: get_gs2_layouts_config
     use hyper, only: get_hyper_config
     use ingen_mod, only: get_ingen_mod_config
@@ -277,7 +273,6 @@ contains
 #endif
     self%fields_config = get_fields_config()
     self%gs2_diagnostics_config = get_gs2_diagnostics_config()
-    self%init_config = get_gs2_init_config()
     self%layouts_config = get_gs2_layouts_config()
     self%hyper_config = get_hyper_config()
     self%ingen_config = get_ingen_mod_config()
