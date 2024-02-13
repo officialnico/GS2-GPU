@@ -2254,27 +2254,27 @@ contains
     select case (ediff_switch)
 
     case (ediff_scheme_default)
-       
+
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-          
+
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
-         
-          capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/(xer*sqrt_pi)
-          capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/(xel*sqrt_pi)
-          
+
+          capgr = capg(xer)
+          capgl = capg(xel)
+
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-          
+
           ! coefficients for tridiagonal matrix:
           cc(ie) = -0.25*vn*code_dt*capgr/(w(ie)*(xe2 - xe1))
           aa(ie) = -0.25*vn*code_dt*capgl/(w(ie)*(xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-          
+
              ! coefficients for entropy heating calculation
 !             if (heating) then
 !                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
@@ -2285,19 +2285,19 @@ contains
        ! boundary at v = 0
        xe1 = xe(1)
        xe2 = xe(2)
-       
+
        xer = (xe1 + xe2)*0.5
-       
-       capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer/sqrt_pi
-       
+
+       capgr = capg(xer)
+
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-       
+
        cc(1) = -0.25*vn*code_dt*capgr/(w(1)*(xe2 - xe1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*code_dt
-       
+
 !          if (heating) then
 !             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
 !             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
@@ -2306,48 +2306,48 @@ contains
        ! boundary at v = infinity
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-       
+
        xel = (xe1 + xe0)*0.5
-       
-       capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel/sqrt_pi
+
+       capgl = capg(xel)
 
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-       
+
        cc(negrid) = 0.0
        aa(negrid) = -0.25*vn*code_dt*capgl/(w(negrid)*(xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-       
+
 !          if (heating) then
 !             dd(negrid) =vnc*ee
 !             hh(negrid) =vnh*ee
 !          end if
 
     case (ediff_scheme_old)
-       
+
        ! non-conservative scheme
-       
+
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-          
+
           xel = (xe0 + xe1)*0.5
           xer = (xe1 + xe2)*0.5
-          
-          capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer
-          capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel
-          
+
+          capgr = capg_old(xe1, xer)
+          capgl = capg_old(xe1, xel)
+
           ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
                / (bmag(ig)*spec(is)%zstm)**2 &
                * kperp2(ig,it,ik)*cfac
-          
+
           ! coefficients for tridiagonal matrix:
           cc(ie) = -vn*code_dt*capgr/((xer-xel)*(xe2 - xe1))
           aa(ie) = -vn*code_dt*capgl/((xer-xel)*(xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-          
+
           ! coefficients for entropy heating calculation
 !             if (heating) then
 !                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
@@ -2358,19 +2358,19 @@ contains
        ! boundary at xe = 0
        xe1 = xe(1)
        xe2 = xe(2)
-       
+
        xer = (xe1 + xe2)*0.5
-       
-       capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt_pi)/xer
-       
+
+       capgr = capg_old(xe1, xer)
+
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-       
+
        cc(1) = -vn*code_dt*capgr/(xer*(xe2 - xe1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee*code_dt
-       
+
 !          if (heating) then
 !             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
 !             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
@@ -2379,15 +2379,15 @@ contains
        ! boundary at xe = 1
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-       
+
        xel = (xe1 + xe0)*0.5
-       
-       capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt_pi)/xel
-       
+
+       capgl = capg_old(xe1, xel)
+
        ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
             / (bmag(ig)*spec(is)%zstm)**2 &
             * kperp2(ig,it,ik)*cfac
-       
+
        cc(negrid) = 0.0
        aa(negrid) = -vn*code_dt*capgl/((1.0-xel)*(xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
@@ -2398,6 +2398,18 @@ contains
 !          end if
 
     end select
+  contains
+    pure real function capg(xe) result(capg)
+      use constants, only: sqrt_pi
+      real, intent(in) :: xe
+      capg = 2 * exp(-xe**2) * (erf(xe)-2*xe*exp(-xe**2)/sqrt_pi) / (xe * sqrt_pi)
+    end function capg
+
+    pure real function capg_old(xeA, xeB) result(capg)
+      use constants, only: sqrt_pi
+      real, intent(in) :: xeA, xeB
+      capg = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * (erf(xeB) - 2 * xeB * exp(-xeB**2)/sqrt_pi)/xeB
+    end function capg_old
 
   end subroutine get_ediffuse_matrix
 
