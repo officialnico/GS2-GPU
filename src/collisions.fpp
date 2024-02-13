@@ -1951,74 +1951,69 @@ contains
        allocate (delvnew(naky,negrid,nspec))
     end if
 
-    do is = 1, nspec
     if (hyper_colls .and. .not. allocated(vnewh)) &
          allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
+
+    if (ei_coll_only) then
+       vnew_s = 0 ; vnew_D = 0 ; vnew_E = 0 ; delvnew = 0.
+       do is = 1, nspec
+          if (is_electron_species(spec(is))) then
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                        * zeff * 0.5 * tunits(:)
+             end do
+          else
+             vnew(:, :, is) = 0.0
+          end if
+       end do
+    else
+       do is = 1, nspec
        ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
        ! Correct collision frequency if applying collisions only every nth timestep:
        !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
-       if (is_electron_species(spec(is))) then
-          do ie = 1, negrid
-             do ik = 1, naky
-                if (ei_coll_only) then
-                   vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
-                        *zeff*0.5*tunits(ik)
-
-                   vnew_s(ik,ie,is)=0.
-                   vnew_D(ik,ie,is)=0.
-                   vnew_E(ik,ie,is)=0.
-                   delvnew(ik,ie,is)=0.
-                else
-                   vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
-                        *(zeff + hee(ie))*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(local_energy(ie)) &
-                        *hsg(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
-                        *hee(ie)*tunits(ik)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = local_energy(ie)*(vnew_s(ik,ie,is) * &
-                           (2.0-0.5/local_energy(ie)) - 2.0*vnew_D(ik,ie,is))
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                end if
-             end do
-          end do
-       else
-          do ie = 1, negrid
-             do ik = 1, naky
-                vnew(ik,ie,is) = spec(is)%vnewk/local_energy(ie)**1.5 &
-                     *hee(ie)*0.5*tunits(ik)
-                vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(local_energy(ie)) &
-                     *hsg(ie)*4.0*tunits(ik)
-                vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
+          if (is_electron_species(spec(is))) then
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * (zeff + hee(ie)) * 0.5 * tunits(:)
+                vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
+                     * hsg(ie) * 4.0 * tunits(:)
+                vnew_D(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * hee(ie) * tunits(:)
                 if (.not. conservative) then
-                   vnew_E(ik,ie,is) = local_energy(ie)*(vnew_s(ik,ie,is) * &
-                        (2.0-0.5/local_energy(ie)) - 2.0*vnew_D(ik,ie,is))
-                   delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                end if
-                if (ei_coll_only) then
-                   vnew(ik,ie,is) = 0.
-                   vnew_s(ik,ie,is)=0.
-                   vnew_D(ik,ie,is)=0.
-                   vnew_E(ik,ie,is)=0.
-                   delvnew(ik,ie,is)=0.
+                   vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
+                        (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
+                   delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
                 end if
              end do
-          end do
-       end if
+          else
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * hee(ie) * 0.5 * tunits(:)
+                vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
+                     * hsg(ie) * 4.0 * tunits(:)
+                vnew_D(:, ie, is) = 2.0 * vnew(:, ie, is)
+                if (.not. conservative) then
+                   vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
+                        (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
+                   delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
+                end if
+             end do
+          end if
+       end do
+    end if
 
-       if (conservative) then !Presumably not compatible with const_v so we use energy
-
+    if (conservative) then !Presumably not compatible with const_v so we use energy
+       do is = 1, nspec
           do ie = 2, negrid-1
              vr = 0.5*(sqrt(energy(ie+1)) + sqrt(energy(ie)))
              vl = 0.5*(sqrt(energy(ie  )) + sqrt(energy(ie-1)))
              dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
              dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
-          
+
              vnew_E(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*dv2l*hsg_func(vl) &
                   - vr*exp(-vr**2)*dv2r*hsg_func(vr)) / (sqrt_pi*w(ie))
              delvnew(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*hsg_func(vl) &
-                     - vr*exp(-vr**2)*hsg_func(vr)) / (sqrt(pi*energy(ie))*w(ie))
+                  - vr*exp(-vr**2)*hsg_func(vr)) / (sqrt(pi*energy(ie))*w(ie))
           end do
 
           ! boundary at v = 0
@@ -2038,27 +2033,26 @@ contains
                / (sqrt_pi*w(negrid))
           delvnew(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl) &
                / (sqrt(pi*energy(negrid))*w(negrid))
-
-       end if
+       end do
+    end if
 
        ! add hyper-terms inside collision operator
 !BD: Warning!
-!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90 
+!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90
 !BD: because kperp2 /= akx**2 + aky**2;  there are cross terms that are dropped in hyper.f90
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
-       if (hyper_colls) then
-          k4max = (maxval(kperp2))**2 
+    if (hyper_colls) then
+       k4max = (maxval(kperp2))**2
+       do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
-                do ig=-ntgrid,ntgrid
-                   vnewh(ig,it,ik,is) = spec(is)%nu_h * kperp2(ig,it,ik)**2/k4max
-                end do
+                vnewh(:,it,ik,is) = spec(is)%nu_h * kperp2(:,it,ik)**2/k4max
              end do
           end do
-       end if
-    end do
-    
+       end do
+    end if
+
   end subroutine init_vnew
 
   !> FIXME : Add documentation  
