@@ -1781,11 +1781,9 @@ contains
 
   end subroutine integrate_moment_c34
 
-  !> FIXME : Add documentation
-  !>
+  !> Takes f = f(theta, sigma ; x, y, z, lambda, E, species) and
+  !> returns int f, where the integral is over all velocity space
   !> returns results to PE 0 [or to all processors if 'all' is present in input arg list]
-  !> NOTE: Takes f = f(x, y, z, sigma, lambda, E, species) and returns int f, where the integral
-  !> is over all velocity space
   subroutine integrate_moment_r34 (g, total, all, full_arr)
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx, il_idx,intmom_sub
     use theta_grid, only: ntgrid
@@ -1814,7 +1812,6 @@ contains
 
     !Allocate array and ensure is zero
     if(intmom_sub.and.local_all.and.(.not.local_full_arr))then !If we're using reduce then we don't want to make array smaller
-!       total(:,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max)=0.
        allocate(total_small(-ntgrid:ntgrid,g_lo%it_min:g_lo%it_max,g_lo%ik_min:g_lo%ik_max,g_lo%is_min:g_lo%is_max))
     else
 !       total=0.
