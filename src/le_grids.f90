@@ -3463,7 +3463,7 @@ contains
     use theta_grid, only: ntgrid, bmag
     implicit none
 
-    integer :: ig, je, ixi
+    integer :: ig, je, ixi, il
 
     if (.not. allocated(xi)) allocate (xi(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
