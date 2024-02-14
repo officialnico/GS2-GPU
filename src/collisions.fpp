@@ -726,7 +726,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
-    logical :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -761,107 +761,110 @@ contains
              vns(ik,:,is,3) = vnmult(1)*spec(is)%vnewk*tunits(ik)/energy**1.5
           end do
        end do
-    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-                if ( .not. forbid(ig,il) ) then
-                   if (conservative) then
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                           * speed(ie)*aj0(ig,iglo)
+       if(conserve_forbid_zero) then ! MRH
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
+          !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             ik = ik_idx(g_lo,iglo)
+             ie = ie_idx(g_lo,iglo)
+             il = il_idx(g_lo,iglo)
+             is = is_idx(g_lo,iglo)
+             do isgn = 1, 2
+                do ig=-ntgrid,ntgrid
+                   ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+                   if ( .not. forbid(ig,il) ) then
+                      if (conservative) then
+                         z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
+                              * speed(ie)*aj0(ig,iglo)
+                      else
+                         z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
+                      end if
                    else
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
-                   end if
-                else
-                   z0tmp(ig,isgn,iglo) = 0.
-                endif
+                      z0tmp(ig,isgn,iglo) = 0.
+                   endif
+                end do
              end do
           end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
-       !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-             if (conservative) then
-                z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
-                     * speed(ie)*aj0(:,iglo)
-             else
-                z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
-             end if
+          !$OMP END PARALLEL DO
+       else
+          !$OMP PARALLEL DO DEFAULT(none) &
+          !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
+          !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
+          !$OMP SCHEDULE(static)
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             ik = ik_idx(g_lo,iglo)
+             ie = ie_idx(g_lo,iglo)
+             il = il_idx(g_lo,iglo)
+             is = is_idx(g_lo,iglo)
+             do isgn = 1, 2
+                ! u0 = -2 nu_D^{ei} vpa J0 dt f0
+                if (conservative) then
+                   z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(:,isgn,il) &
+                        * speed(ie)*aj0(:,iglo)
+                else
+                   z0tmp(:,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(:,isgn,iglo)*aj0(:,iglo)
+                end if
+             end do
           end do
-       end do
-       !$OMP END PARALLEL DO
-    endif
+          !$OMP END PARALLEL DO
+       endif
 
-    call zero_out_passing_hybrid_electrons(z0tmp)
+       call zero_out_passing_hybrid_electrons(z0tmp)
 
-    if(use_le_layout) then
-       call gather (g2le, z0tmp, ctmp)
-       call solfp_lorentz (ctmp)
-       call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
-    else
-       call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
-    end if
+       if(use_le_layout) then
+          call gather (g2le, z0tmp, ctmp)
+          call solfp_lorentz (ctmp)
+          call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
+       else
+          call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
+       end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, isgn) &
-    !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
-    !$OMP COLLAPSE(2) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, isgn) &
+       !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          do isgn = 1, 2
+             ! v0 = vpa J0 f0
+             gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+       call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
-    !$OMP SHARED(g_lo, z0tmp, dtmp) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+       !$OMP SHARED(g_lo, z0tmp, dtmp) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
+
+    else
+       !If drag is false vns(...,3) is zero and hence z0tmp is zero here.
+       call zero_array(z0tmp)
+    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    all = .true.
 
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
@@ -898,7 +901,7 @@ contains
        !$OMP END PARALLEL DO
     end if
 
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
@@ -988,7 +991,7 @@ contains
     end do
     !OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -1033,7 +1036,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1141,7 +1144,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1185,7 +1188,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1224,7 +1227,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -1316,7 +1319,7 @@ contains
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
-    logical :: all
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -1358,8 +1361,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 !    else
 !       do is = 1, nspec
 !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
@@ -1446,7 +1448,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+    call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
@@ -1488,8 +1490,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
     !    else
     !       do is = 1, nspec
     !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
@@ -1587,7 +1588,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -1626,7 +1627,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1723,7 +1724,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1761,7 +1762,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1800,7 +1801,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -3325,7 +3326,7 @@ contains
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
 
     integer :: isgn, iglo, ik, ie, il, is, it
-    logical :: all = .true. 
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3353,7 +3354,7 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (gtmp, v0y0, all)    ! v0y0
+       call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3406,7 +3407,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3449,7 +3450,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -3699,7 +3700,7 @@ contains
 
     integer :: isgn, iglo, ik, ie, il, is, it 
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
-    logical :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3735,7 +3736,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v0y0, all)    ! v0y0
+    call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3777,7 +3778,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3820,7 +3821,7 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
