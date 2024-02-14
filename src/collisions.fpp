@@ -3970,7 +3970,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, ie, ixi, delnu) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, delnu) &
     !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, &
     !$OMP delvnew, vperp_aj1le, gle, vnmult) &
     !$OMP SCHEDULE(static)
@@ -3979,7 +3979,6 @@ contains
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
        do ie = 1, negrid
           delnu = vnmult(2) * delvnew(ik, ie, is)
           do ixi = 1, nxi_lim
