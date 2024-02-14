@@ -1409,8 +1409,8 @@ contains
     call zero_array(total)
     where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, weights, w, wl, g, ixi_to_il) &
+    !$OMP PRIVATE(ilzlo, ig, it, ik, il, ie, is, ixi) &
+    !$OMP SHARED(lo, nxi, weights, w, wxi, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -1428,17 +1428,16 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       do ixi=1, nxi+1
+       do ixi = 1, nxi + 1
           il = ixi_to_il(ixi, ig)
-          total(ig, it, ik) = total(ig, it, ik) + &
-               (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
+          total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
+               * wxi(ixi, ig) * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
        end do
     end do
     !$OMP END PARALLEL DO
-!Sum over all procs to make integral over all velocity space and species
+    !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_lz
-
 
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
   !! which we have ensured that all of velocity space is local. As such
