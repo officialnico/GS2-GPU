@@ -3360,7 +3360,6 @@ contains
        !$OMP PRIVATE(iglo, it, ik, is, isgn) &
        !$OMP SHARED(g_lo, kwork_filter, g1, g, ieqzip, v0y0, z0) &
        !$OMP SCHEDULE(static)
-
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3380,7 +3379,7 @@ contains
 ! Now get v1y1
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
+    !$OMP PRIVATE(iglo, it, ik, il, ie, is, isgn) &
     !$OMP SHARED(g_lo, kwork_filter, conservative, gtmp, vns, speed, vpdiff, aj0, g1, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -3392,6 +3391,7 @@ contains
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0, y1 = g1
           if (conservative) then
+             il = il_idx(g_lo,iglo)
              gtmp(:, isgn, iglo) = vns(ik, ie, is) * speed(ie) * vpdiff(:, isgn, il) &
                   * aj0(:, iglo) * g1(:, isgn, iglo)
           else
