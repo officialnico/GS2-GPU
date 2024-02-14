@@ -1996,7 +1996,7 @@ contains
     call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, nxi, ixi_to_il, w, wl, g) &
+    !$OMP SHARED(lo, nxi, ixi_to_il, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -2014,10 +2014,10 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
-       do ixi=1, nxi+1
+       do ixi = 1, nxi + 1
           il = ixi_to_il(ixi, ig)
-          total(ig, it, ik, is) = total(ig, it, ik, is) + &
-            w(ie,is)*wl(ig,il)*g(il,ilzlo)
+          total(ig, it, ik, is) = total(ig, it, ik, is) + w(ie, is) * wxi(ixi, ig) &
+             * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
        end do
     end do
     !$OMP END PARALLEL DO
