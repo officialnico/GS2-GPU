@@ -3321,10 +3321,8 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
-
     real, dimension (:,:,:), allocatable :: vns
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
-
     integer :: isgn, iglo, ik, ie, il, is, it
     logical, parameter :: all_procs = .true.
 
@@ -3334,7 +3332,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (vns(naky,negrid,nspec))
-    vns = vnmult(1)*vnew_D
+    vns = vnmult(1) * vnew_D
 
     if (drag) then
 
@@ -3350,7 +3348,7 @@ contains
           if(kwork_filter(it,ik))cycle
           do isgn = 1, 2
              ! v0 = vpa J0 f0, y0 = g
-             gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*g(:,isgn,iglo)
+             gtmp(:, isgn, iglo) = vpa(:, isgn, iglo) * aj0(:, iglo) * g(:, isgn, iglo)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -3370,21 +3368,19 @@ contains
           if(ieqzip(it,ik)) cycle
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * z0(:,isgn,iglo)
+             g1(:, isgn, iglo) = g(:, isgn, iglo) - v0y0(:, it, ik, is) * z0(:, isgn, iglo)
           end do
        end do
        !$OMP END PARALLEL DO
     else
-
        call copy(g, g1)
-
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP PRIVATE(iglo, it, ik, ie, is, isgn) &
     !$OMP SHARED(g_lo, kwork_filter, conservative, gtmp, vns, speed, vpdiff, aj0, g1, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -3392,16 +3388,15 @@ contains
        it = it_idx(g_lo,iglo)
        if(kwork_filter(it,ik))cycle
        ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0, y1 = g1
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*g1(:,isgn,iglo)
+             gtmp(:, isgn, iglo) = vns(ik, ie, is) * speed(ie) * vpdiff(:, isgn, il) &
+                  * aj0(:, iglo) * g1(:, isgn, iglo)
           else
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * g1(:,isgn,iglo)
+             gtmp(:, isgn, iglo) = vns(ik, ie, is) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+                  * g1(:, isgn, iglo)
           end if
        end do
     end do
@@ -3423,7 +3418,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * s0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g1(:, isgn, iglo) - v1y1(:, it, ik, is) * s0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3444,8 +3439,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = nud vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*energy(ie)*al(il)*aj1(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * energy(ie) * al(il) * aj1(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3466,7 +3461,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * w0(:,isgn,iglo)
+          g(:, isgn, iglo) = g1(:, isgn, iglo) - v2y2(:, it, ik, is) * w0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
