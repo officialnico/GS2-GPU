@@ -1404,13 +1404,13 @@ contains
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
     real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
-    integer :: is, ixi, il, ie, ik, it, ig, ilzlo
+    integer :: is, ixi, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
     where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, ig, it, ik, il, ie, is, ixi) &
-    !$OMP SHARED(lo, nxi, weights, w, wxi, g, ixi_to_il) &
+    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, is, ixi) &
+    !$OMP SHARED(lo, nxi, weights, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -1429,9 +1429,8 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
        do ixi = 1, nxi + 1
-          il = ixi_to_il(ixi, ig)
           total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
-               * wxi(ixi, ig) * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
+               * wxi(ixi, ig) * g(ixi, ilzlo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1990,12 +1989,12 @@ contains
     complex, dimension (:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
     integer, optional, intent(in) :: all
-    integer :: is, ixi, il, ie, ik, it, ig, ilzlo
+    integer :: is, ixi, ie, ik, it, ig, ilzlo
 
     call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, nxi, ixi_to_il, w, wxi, g) &
+    !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi) &
+    !$OMP SHARED(lo, nxi, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -2014,9 +2013,8 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
        do ixi = 1, nxi + 1
-          il = ixi_to_il(ixi, ig)
           total(ig, it, ik, is) = total(ig, it, ik, is) + w(ie, is) * wxi(ixi, ig) &
-             * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
+             * g(ixi, ilzlo)
        end do
     end do
     !$OMP END PARALLEL DO
