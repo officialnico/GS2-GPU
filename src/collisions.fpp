@@ -2753,7 +2753,7 @@ contains
        ! to it at each appearance compared to what the weight should be  
        ! as calculated in the continuum of points xi = (-1,1)
        if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il_is_wfb(il)) then
-          deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
+          deltaxi=xi(ng2, ig)-xi(ng2 + 2, ig)
        endif
        cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(deltaxi*(slb2 - slb1))
        aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(deltaxi*(slb1 - slb0))

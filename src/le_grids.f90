@@ -493,7 +493,7 @@ contains
        allocate (is_bounce_point(-ntgrid:ntgrid,nlambda))
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
-       allocate (xi(-ntgrid:ntgrid, 2*nlambda))
+       allocate (xi(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
     end if
@@ -3470,7 +3470,7 @@ contains
 
     integer :: ig, je, ixi
 
-    if (.not. allocated(xi)) allocate (xi(-ntgrid:ntgrid,2*nlambda))
+    if (.not. allocated(xi)) allocate (xi(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_isgn)) allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
 
@@ -3481,15 +3481,9 @@ contains
     ! xi is vpa / v and goes from 1 --> -1
     xi = 0.0
     do ig = -ntgrid, ntgrid
-       xi(ig,:jend(ig)) = sqrt(max(1.0 - al(:jend(ig))*spread(bmag(ig),1,jend(ig)),0.0))
-       xi(ig,jend(ig)+1:2*jend(ig)-1) = -xi(ig,jend(ig)-1:1:-1)
-!       do ixi = 1, nxi
-!          write (*,*) 'xi', xi(ig,ixi)
-!       end do
+       xi(:jend(ig), ig) = sqrt(max(1.0 - al(:jend(ig))*spread(bmag(ig),1,jend(ig)),0.0))
+       xi(jend(ig)+1:2*jend(ig)-1, ig) = -xi(jend(ig)-1:1:-1, ig)
     end do
-
-!    xi = max(xi,0.0)
-!    xi = sqrt(xi)
     
     ! get mapping from ixi (which runs between 1 and 2*nlambda) and il (runs between 1 and nlambda)
     do ig = -ntgrid, ntgrid

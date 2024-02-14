@@ -442,7 +442,8 @@ contains
     if (.not. allocated(xi)) allocate (xi(ntheta,nxi))
     if (.not. allocated(forbid)) allocate(forbid(ntheta,nxi))
     forbid = .false. ; xi = 0.0
-
+    !Note, xi is not the same order as le_grids version. Should we just use le_grids
+    ! one? If so would need to reorder indexing elsewhere in this module
     ! get xi=vpar/v from lambda=(mu/E)*Bnorm
     do il = 1, nlambda-1
        do ig = 1, ntheta
