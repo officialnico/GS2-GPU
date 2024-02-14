@@ -3487,9 +3487,7 @@ contains
 
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
     real :: vpa_nud, nud
-    integer :: ig, isgn, ik, ie, il, is, it
-    integer :: ile, ixi
-    integer :: nxi_lim
+    integer :: ig, isgn, ik, ie, il, is, it, ile, ixi, nxi_lim
 
     ! The nxi > 2 * ng2 check appears to be checking if we have
     ! trapped particles or not so could be replaced with grid_has_trapped_particles()
@@ -3510,7 +3508,6 @@ contains
     call zero_array(gtmp)
 
     if (drag) then
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! First get v0y0
 
@@ -3549,7 +3546,7 @@ contains
           if(ieqzip(it,ik)) cycle
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                gle(ixi,ie,ile) = gle(ixi,ie,ile) - z0le(ixi,ie,ile) * v0y0(ile)
+                gle(ixi, ie, ile) = gle(ixi, ie, ile) - z0le(ixi, ie, ile) * v0y0(ile)
              end do
           end do
        end do
@@ -3577,8 +3574,8 @@ contains
              do ixi = 1, nxi_lim
                 il = ixi_to_il(ixi, ig)
                 isgn = ixi_to_isgn(ixi, ig)
-                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
-                gtmp(ixi,ie,ile) = vpa_nud * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                vpa_nud = vpdiff(ig, isgn, il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
+                gtmp(ixi, ie, ile) = vpa_nud * aj0le(ixi, ie, ile) * gle(ixi, ie, ile)
              end do
           end do
        end do
@@ -3597,7 +3594,7 @@ contains
           do ie = 1, negrid
              nud =  vnmult(1) * vnew_D(ik, ie, is)
              do ixi = 1, nxi_lim
-                gtmp(ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * nud * gle(ixi, ie, ile)
+                gtmp(ixi,ie,ile) = nud * vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile)
              end do
           end do
        end do
@@ -3620,7 +3617,7 @@ contains
        if(ieqzip(it,ik)) cycle
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - s0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi, ie, ile) = gle(ixi, ie, ile) - s0le(ixi, ie, ile) * v1y1(ile)
           end do
        end do
     end do
@@ -3631,21 +3628,20 @@ contains
 ! Now get v2y2
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, vperp_aj1le, gle) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, nud) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, &
+    !$OMP vnmult, vnew_D, vperp_aj1le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        it = it_idx(le_lo,ile)
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
        do ie = 1, negrid
-          do ixi=1, nxi_lim
-             il = ixi_to_il(ixi, ig)
+          nud = vnmult(1) * vnew_D(ik, ie, is)
+          do ixi = 1, nxi_lim
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * vperp_aj1le(ixi,ie,ile) &
-                  * gle(ixi,ie,ile)
+             gtmp(ixi, ie, ile) = nud * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile)
           end do
        end do
     end do
@@ -3664,9 +3660,9 @@ contains
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+       do ie = 1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - w0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi, ie, ile) = gle(ixi, ie, ile) - w0le(ixi, ie, ile) * v2y2(ile)
           end do
        end do
     end do
