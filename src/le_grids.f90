@@ -2045,30 +2045,29 @@ contains
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (lo%llim_proc:), intent (out) :: total
-    integer :: ixi, ie, il, ile, ig, it, ik, is
-    integer :: nxup
+    integer :: ixi, ie, il, ile, ig, it, ik, is, nxup
     call zero_array(total)
-    if (nxi .gt. 2*ng2) then
-       nxup=nxi+1
+    if (nxi > 2 * ng2) then !Could be grid_has_trapped_particles?
+       nxup = nxi + 1
     else
-       nxup=nxi
-    endif
+       nxup = nxi
+    end if
+
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
     !$OMP SHARED(lo, kwork_filter, negrid, nxup, ixi_to_il, w, wl, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
-       is = is_idx (lo,ile)
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
-       if(kwork_filter(it,ik)) cycle
+       if (kwork_filter(it, ik)) cycle
+       is = is_idx (lo,ile)
        ig = ig_idx (lo,ile)
-       do ie=1, negrid
+       do ie = 1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -2076,9 +2075,9 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
-          do ixi=1, nxup
-             il = ixi_to_il(ig,ixi)
-             total(ile) = total(ile) + w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
+          do ixi = 1, nxup
+             il = ixi_to_il(ig, ixi)
+             total(ile) = total(ile) + w(ie, is) * wl(ig, il) * g(ixi, ie, ile)
           end do
        end do
     end do
