@@ -4035,14 +4035,11 @@ contains
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
-    if (heating .and. present(diagnostics)) then
-       allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-       call zero_array(glzc)
-    end if
-
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
+       allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
+       call zero_array(glzc)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
        !$OMP SHARED(lz_lo, jend, ng2, glz, glzc, d1) &
@@ -4091,6 +4088,7 @@ contains
 
           call scatter (lambda_map, glzc, gh)
        end if
+       if (allocated(glzc)) deallocate (glzc)
     end if
 
     ! solve for glz row by row
@@ -4181,10 +4179,7 @@ contains
     !$OMP END PARALLEL DO
 
     call scatter (lambda_map, glz, g)
-
     deallocate (glz)
-    if (allocated(glzc)) deallocate (glzc)
-
   end subroutine solfp_lorentz_standard_layout
 
   !> FIXME : Add documentation
