@@ -1914,11 +1914,11 @@ contains
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
-    integer :: ixi, ie, il, ile, ig, it, ik, is
+    integer :: ixi, ie, ile, ig, it, ik, is
     call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, kwork_filter, negrid, nxi, ixi_to_il, w, wl, g) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi) &
+    !$OMP SHARED(lo, kwork_filter, negrid, nxi, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -1927,7 +1927,7 @@ contains
        if(kwork_filter(it,ik)) cycle
        ig = ig_idx (lo,ile)
        is = is_idx (lo,ile)
-       do ie=1, negrid
+       do ie = 1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1935,9 +1935,9 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
-          do ixi=1, nxi+1
-             il = ixi_to_il(ixi, ig)
-             total(ig,it,ik,is) = total(ig,it,ik,is) + w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
+          do ixi = 1, nxi + 1
+             total(ig, it, ik, is) = total(ig, it, ik, is) + &
+                  w(ie, is) * wl(ixi, ig) * g(ixi, ie, ile)
           end do
        end do
     end do
