@@ -185,16 +185,12 @@ module le_grids
      module procedure integrate_moment_lec
      module procedure integrate_moment_le
      module procedure integrate_moment_r33
-     module procedure integrate_moment_lz
-     module procedure integrate_moment_e
   end interface
 
   interface integrate_species
      module procedure integrate_species_master
      module procedure integrate_species_gf_nogather
      module procedure integrate_species_le
-     module procedure integrate_species_lz 
-     module procedure integrate_species_e
   end interface
 
   interface integrate_volume
@@ -1349,95 +1345,6 @@ contains
     deallocate(total_flat)
   end subroutine integrate_species_master
 
-  !> Integrate over velocity space whilst in e_lo_LAYOUT. 
-  subroutine integrate_species_e (lo, g, weights, total)
-    use layouts_type, only: e_layout_type
-    use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
-    use theta_grid, only: ntgrid
-    use mp, only: sum_reduce, sum_allreduce
-    use species, only: spec, tracer_species
-    use array_utils, only: zero_array
-    implicit none
-
-    type (e_layout_type), intent (in) :: lo
-    complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in out) :: weights
-    complex, dimension (-ntgrid:,:,:), intent (out) :: total
-    integer :: is, il, ie, ik, it, ig, ielo
-
-    call zero_array(total)
-    where (spec%type == tracer_species) weights = 0
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ielo, ig, it, ik, ie, il, is) &
-    !$OMP SHARED(lo, negrid, weights, w, wl, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(static)
-    do ielo = lo%llim_proc, lo%ulim_proc
-       is = is_idx(lo,ielo)
-       ig = ig_idx (lo,ielo)
-       ik = ik_idx(lo,ielo)
-       it = it_idx(lo,ielo)
-!CMR: in e_lo il is lambda index, and isign is separate.
-       il = il_idx(lo,ielo)
-       !Perform local sum
-       do ie=1, negrid
-          total(ig, it, ik) = total(ig, it, ik) + &
-               (weights(is)*w(ie,is))*wl(ig,il)*g(ie,ielo)
-       end do
-    end do
-    !$OMP END PARALLEL DO
-!Sum over all procs to make integral over all velocity space and species
-    call sum_allreduce (total)
-  end subroutine integrate_species_e
-
-  !> Integrate over velocity space whilst in lz_lo_LAYOUT. 
-  subroutine integrate_species_lz (lo, g, weights, total)
-    use layouts_type, only: lz_layout_type
-    use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
-    use theta_grid, only: ntgrid
-    use mp, only: sum_reduce, sum_allreduce
-    use species, only: spec, tracer_species
-    use array_utils, only: zero_array
-    implicit none
-
-    type (lz_layout_type), intent (in) :: lo
-    complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in out) :: weights
-    complex, dimension (-ntgrid:,:,:), intent (out) :: total
-    integer :: is, ixi, ie, ik, it, ig, ilzlo
-
-    call zero_array(total)
-    where (spec%type == tracer_species) weights = 0
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, is, ixi) &
-    !$OMP SHARED(lo, nxi, weights, w, wxi, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(static)
-    do ilzlo = lo%llim_proc, lo%ulim_proc
-       is = is_idx(lo,ilzlo)
-       ig = ig_idx (lo,ilzlo)
-       ik = ik_idx(lo,ilzlo)
-       it = it_idx(lo,ilzlo)
-       ie = ie_idx(lo,ilzlo)
-       !Perform local sum
-!CMR: in lz_lo il muxt be obtained from local index ixi, which includes isign.
-!CMR, 2/10/2013:
-!   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
-!   corresponding to g_lo (il=nlambda, isign=2).
-!   This MUST contribute to the v-space integral, but is NOT
-!   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
-!   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       do ixi = 1, nxi + 1
-          total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
-               * wxi(ixi, ig) * g(ixi, ilzlo)
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    !Sum over all procs to make integral over all velocity space and species
-    call sum_allreduce (total)
-  end subroutine integrate_species_lz
-
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
   !! which we have ensured that all of velocity space is local. As such
   !! we don't need any calls to MPI reduction routines. Note that this means
@@ -1930,103 +1837,6 @@ contains
     end if
 
   end subroutine integrate_moment_r33
-
-  !> Integrate over velocity space whilst in e_lo_LAYOUT. 
-  subroutine integrate_moment_e (lo, g, total, all)
-    use layouts_type, only: e_layout_type
-    use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, il_idx
-    use theta_grid, only: ntgrid
-    use mp, only: sum_reduce, sum_allreduce
-    use array_utils, only: zero_array
-    implicit none
-
-    type (e_layout_type), intent (in) :: lo
-    complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
-    integer, optional, intent(in) :: all
-    integer :: is, il, ie, ik, it, ig, ielo
-
-    call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ielo, is, it, ik, ig, ie, il) &
-    !$OMP SHARED(lo, negrid, w, wl, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(static)
-    do ielo = lo%llim_proc, lo%ulim_proc
-       ig = ig_idx (lo,ielo)
-       ik = ik_idx(lo,ielo)
-       it = it_idx(lo,ielo)
-       is = is_idx(lo,ielo)
-!CMR: in e_lo il is lambda index, and isign is separate.
-       il = il_idx(lo,ielo)
-       !Perform local sum
-       do ie=1, negrid
-           total(ig, it, ik, is) = total(ig, it, ik, is) + &
-            w(ie,is)*wl(ig,il)*g(ie,ielo)
-       end do
-    end do
-    !$OMP END PARALLEL DO
-
-    if (present(all)) then
-       !Complete vspace integral and get result to all procs
-       call sum_allreduce (total)
-    else
-       !Complete vspace integral, sending result to proc0
-       call sum_reduce (total, 0)
-    end if
-  end subroutine integrate_moment_e
-
-  !> Integrate over velocity space whilst in lz_lo_LAYOUT. 
-  subroutine integrate_moment_lz (lo, g, total, all)
-    use layouts_type, only: lz_layout_type
-    use gs2_layouts, only: is_idx, ik_idx, it_idx, ig_idx, ie_idx
-    use theta_grid, only: ntgrid
-    use mp, only: sum_reduce, sum_allreduce
-    use array_utils, only: zero_array
-    implicit none
-
-    type (lz_layout_type), intent (in) :: lo
-    complex, dimension (:,lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
-    integer, optional, intent(in) :: all
-    integer :: is, ixi, ie, ik, it, ig, ilzlo
-
-    call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi) &
-    !$OMP SHARED(lo, nxi, w, wxi, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(static)
-    do ilzlo = lo%llim_proc, lo%ulim_proc
-       ig = ig_idx (lo,ilzlo)
-       ik = ik_idx(lo,ilzlo)
-       it = it_idx(lo,ilzlo)
-       ie = ie_idx(lo,ilzlo)
-       is = is_idx(lo,ilzlo)
-       !Perform local sum
-!CMR: in lz_lo il muxt be obtained from local index ixi, which includes isign.
-!CMR, 2/10/2013:
-!   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
-!   corresponding to g_lo (il=nlambda, isign=2).
-!   This MUST contribute to the v-space integral, but is NOT
-!   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
-!   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
-       do ixi = 1, nxi + 1
-          total(ig, it, ik, is) = total(ig, it, ik, is) + w(ie, is) * wxi(ixi, ig) &
-             * g(ixi, ilzlo)
-       end do
-    end do
-    !$OMP END PARALLEL DO
-
-    if (present(all)) then
-       !Complete vspace integral and get result to all procs
-       call sum_allreduce (total)
-    else
-       !Complete vspace integral, sending result to proc0
-       call sum_reduce (total, 0)
-    end if
-  end subroutine integrate_moment_lz
 
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
   !! which we have ensured that all of velocity space is local. As such
