@@ -3859,11 +3859,8 @@ contains
 
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex, dimension (:,:,:), allocatable :: gtmp
-
-    real :: delnu
-    integer :: ig, ik, ie, il, is, it
-    integer :: ile, ixi
-    integer :: nxi_lim
+    real :: delnu, vnE
+    integer :: ig, ik, ie, il, is, it, ile, ixi, nxi_lim
     complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
 
     ! We only use one of these at a time so could just use a single array.
@@ -3891,7 +3888,7 @@ contains
 ! First get v0y0
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, vnE) &
     !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vnmult, vnew_E, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
@@ -3899,9 +3896,10 @@ contains
        it = it_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
-       do ie=1, negrid
+       do ie = 1, negrid
+          vnE = vnmult(2) * vnew_E(ik,ie,is)
           do ixi = 1, nxi_lim
-             gtmp(ixi,ie,ile) = vnmult(2) * vnew_E(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi, ie, ile) = vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile)
           end do
        end do
     end do
@@ -3920,9 +3918,9 @@ contains
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+       do ie = 1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - v0y0(ile) * bz0le(ixi,ie,ile)
+             gle(ixi, ie, ile) = gle(ixi, ie, ile) - v0y0(ile) * bz0le(ixi, ie, ile)
           end do
        end do
     end do
@@ -3943,7 +3941,7 @@ contains
        do ie = 1, negrid
           delnu = vnmult(2) * delvnew(ik, ie, is)
           do ixi = 1, nxi_lim
-             gtmp (ixi,ie,ile) = vpa_aj0_le(ixi, ie, ile) * delnu * gle(ixi,ie,ile)
+             gtmp(ixi, ie, ile) = vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile)
           end do
        end do
     end do
@@ -3962,9 +3960,9 @@ contains
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+       do ie = 1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bs0le(ixi,ie,ile) * v1y1(ile)
+             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bs0le(ixi, ie, ile) * v1y1(ile)
           end do
        end do
     end do
@@ -3972,8 +3970,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, &
+    !$OMP PRIVATE(ile, it, ik, is, ig, ie, ixi, delnu) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, &
     !$OMP delvnew, vperp_aj1le, gle, vnmult) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
@@ -3982,10 +3980,10 @@ contains
        if(kwork_filter(it,ik)) cycle
        is = is_idx(le_lo,ile)
        ig = ig_idx(le_lo,ile)
-       do ie=1, negrid
+       do ie = 1, negrid
+          delnu = vnmult(2) * delvnew(ik, ie, is)
           do ixi = 1, nxi_lim
-             il = ixi_to_il(ixi, ig)
-             gtmp(ixi,ie,ile) = vnmult(2) * delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi, ie, ile) = delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile)
           end do
        end do
     end do
@@ -4004,9 +4002,9 @@ contains
        ik = ik_idx(le_lo,ile)
        if(kwork_filter(it,ik)) cycle
        if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+       do ie = 1, negrid
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bw0le(ixi,ie,ile) * v2y2(ile)
+             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bw0le(ixi, ie, ile) * v2y2(ile)
           end do
        end do
     end do
