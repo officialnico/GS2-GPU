@@ -1937,7 +1937,7 @@ contains
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi = 1, nxi + 1
              total(ig, it, ik, is) = total(ig, it, ik, is) + &
-                  w(ie, is) * wl(ixi, ig) * g(ixi, ie, ile)
+                  w(ie, is) * wxi(ixi, ig) * g(ixi, ie, ile)
           end do
        end do
     end do
