@@ -221,7 +221,7 @@ module le_grids
   real, dimension (:), allocatable :: energy_maxw, w_maxw, speed_maxw 
   real, dimension (:,:), allocatable :: energy, w, speed, dele
   real, dimension (:), allocatable :: al, delal ! (nlambda)
-  real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
+  real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
   logical, dimension (:), allocatable :: can_be_ttp
@@ -470,9 +470,7 @@ contains
     use species, only: nspec
     use egrid, only: init_egrid, zeroes_maxw, x0_maxw
     use theta_grid, only: ntgrid
-
     implicit none
-
     call broadcast (lmax)
     call broadcast (ng2)
     call broadcast (nlambda)
@@ -496,6 +494,7 @@ contains
        allocate (xi(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
+       allocate (wxi(2*nlambda, -ntgrid:ntgrid))
     end if
 
     call init_egrid (negrid)
@@ -523,9 +522,8 @@ contains
     call broadcast(xi)
     call broadcast(ixi_to_il)
     call broadcast(ixi_to_isgn)
-
+    call broadcast(wxi)
     call broadcast (sgn)
-
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
@@ -3473,6 +3471,7 @@ contains
     if (.not. allocated(xi)) allocate (xi(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_isgn)) allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
+    if (.not. allocated(wxi)) allocate (wxi(2*nlambda, -ntgrid:ntgrid))
 
     ! define array 'sgn' that returns sign of vpa associated with isgn=1,2
     sgn(1) = 1
@@ -3528,6 +3527,13 @@ contains
        end if
     end do
 
+    wxi = 0.0
+    do ig = -ntgrid, ntgrid
+       do ixi = 1, 2*nlambda
+          il = ixi_to_il(ixi, ig)
+          wxi(ixi, ig) = wl(ig, il)
+       end do
+    end do
   end subroutine xigridset
 
   !> FIXME : Add documentation
@@ -5087,6 +5093,7 @@ contains
     if (allocated(xi)) deallocate (xi)
     if (allocated(ixi_to_il)) deallocate (ixi_to_il)
     if (allocated(ixi_to_isgn)) deallocate (ixi_to_isgn)
+    if (allocated(wxi)) deallocate (wxi)
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
 
