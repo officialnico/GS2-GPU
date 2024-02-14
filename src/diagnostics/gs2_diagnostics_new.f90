@@ -43,6 +43,7 @@ contains
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
     use collisional_heating, only: init_collisional
+    use collisions, only: heating
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -114,6 +115,14 @@ contains
     !<DD>This is only correct if running in box mode surely?
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     if(aky(1)==0.0) gnostics%fluxfac(1) = 1.0
+
+    if (gnostics%write_heating .and. .not. heating) then
+       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
+       gnostics%write_heating = .false.
+    else if (heating .and. .not. &
+       (gnostics%write_heating .or. gnostics%write_collisional)) then
+       heating = .false.
+    end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!! Open Text Files (if required)
