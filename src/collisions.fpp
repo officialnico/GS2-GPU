@@ -720,7 +720,6 @@ contains
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (1,1,1) :: dum1 = 0., dum2 = 0.
     real, dimension (:,:,:), allocatable :: gtmp
     real, dimension (:,:,:,:), allocatable :: duinv, dtmp, vns
@@ -1313,8 +1312,7 @@ contains
     use array_utils, only: zero_array
     implicit none
     real, dimension (:,:,:), allocatable :: gtmp
-    real, dimension (:,:,:,:), allocatable :: duinv, dtmp
-    real, dimension (:,:,:,:), allocatable :: vns
+    real, dimension (:,:,:,:), allocatable :: duinv, dtmp, vns
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
@@ -3974,7 +3972,8 @@ contains
 ! Now get v2y2
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, vperp_aj1le, gle) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, &
+    !$OMP delvnew, vperp_aj1le, gle, vnmult) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo,ile)
@@ -3985,7 +3984,7 @@ contains
        do ie=1, negrid
           do ixi = 1, nxi_lim
              il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
+             gtmp(ixi,ie,ile) = vnmult(2) * delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
     end do
