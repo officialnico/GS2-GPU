@@ -2044,7 +2044,7 @@ contains
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (lo%llim_proc:), intent (out) :: total
-    integer :: ixi, ie, il, ile, ig, it, ik, is, nxup
+    integer :: ixi, ie, ile, ig, it, ik, is, nxup
     call zero_array(total)
     if (nxi > 2 * ng2) then !Could be grid_has_trapped_particles?
        nxup = nxi + 1
@@ -2053,8 +2053,8 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, kwork_filter, negrid, nxup, ixi_to_il, w, wl, g) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi) &
+    !$OMP SHARED(lo, kwork_filter, negrid, nxup, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -2072,8 +2072,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi = 1, nxup
-             il = ixi_to_il(ixi, ig)
-             total(ile) = total(ile) + w(ie, is) * wl(ig, il) * g(ixi, ie, ile)
+             total(ile) = total(ile) + w(ie, is) * wxi(ixi, ig) * g(ixi, ie, ile)
           end do
        end do
     end do
