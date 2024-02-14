@@ -3695,9 +3695,7 @@ contains
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
-
     real, dimension (:,:,:), allocatable :: vns
-
     integer :: isgn, iglo, ik, ie, il, is, it 
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
     logical, parameter :: all_procs = .true.
@@ -3706,8 +3704,8 @@ contains
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v2y2(-ntgrid:ntgrid, ntheta0, naky, nspec))
 
-    allocate (vns(naky,negrid,nspec))
-    allocate (gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (vns(naky, negrid, nspec))
+    allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     vns = vnmult(2)*delvnew
 
@@ -3730,8 +3728,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0 f0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * g(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * g(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3752,7 +3750,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * bz0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g(:, isgn, iglo) - v0y0(:, it, ik, is) * bz0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3772,8 +3770,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nus-nud) vpa J0 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3794,7 +3792,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * bs0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g1(:, isgn, iglo) - v1y1(:, it, ik, is) * bs0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3815,8 +3813,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = (nus-nud) vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*energy(ie)*al(il)*aj1(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * energy(ie) * al(il) * aj1(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3837,7 +3835,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * bw0(:,isgn,iglo)
+          g(:, isgn, iglo) = g1(:, isgn, iglo) - v2y2(:, it, ik, is) * bw0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
