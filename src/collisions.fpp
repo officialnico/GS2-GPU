@@ -688,7 +688,7 @@ contains
        ig = ig_idx(le_lo, ile)
        do ie = 1, negrid
           do ixi = 1, nxi + 1
-             il = ixi_to_il(ig, ixi)
+             il = ixi_to_il(ixi, ig)
              vperp_aj1le(ixi, ie, ile) = vperp_aj1le(ixi, ie, ile) * energy(ie) * al(il)
           end do
        end do
@@ -2134,7 +2134,7 @@ contains
           is = is_idx(le_lo, ile)
           ig = ig_idx(le_lo, ile)
           do ixi=1, nxi_lim
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              if (forbid(ig,il)) cycle
              call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
              ec1le(ixi,:,ile) = cc
@@ -3244,7 +3244,7 @@ contains
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, ng2
+    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ng2
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -3580,8 +3580,8 @@ contains
           ig = ig_idx(le_lo,ile)
           do ie = 1, negrid
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
+                il = ixi_to_il(ixi, ig)
+                isgn = ixi_to_isgn(ixi, ig)
                 vpa_nud = vpdiff(ig,isgn,il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
                 gtmp(ixi,ie,ile) = vpa_nud * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
              end do
@@ -3647,7 +3647,7 @@ contains
        ig = ig_idx(le_lo,ile)
        do ie = 1, negrid
           do ixi=1, nxi_lim
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
              gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * vperp_aj1le(ixi,ie,ile) &
                   * gle(ixi,ie,ile)
@@ -3984,7 +3984,7 @@ contains
        ig = ig_idx(le_lo,ile)
        do ie=1, negrid
           do ixi = 1, nxi_lim
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              gtmp(ixi,ie,ile) = vnmult(2) * delvnew(ik,ie,is) * vperp_aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
           end do
        end do
@@ -4482,7 +4482,7 @@ contains
        ig = ig_idx(le_lo,ile)
 
        do ixi = 1, nxi_lim
-          il = ixi_to_il(ig,ixi)
+          il = ixi_to_il(ixi, ig)
           if (forbid(ig,il)) cycle
 
           delta(1) = gle(ixi,1,ile)

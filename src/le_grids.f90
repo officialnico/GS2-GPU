@@ -494,8 +494,8 @@ contains
        allocate (can_be_ttp(nlambda))
        allocate (xx(ng2))
        allocate (xi(-ntgrid:ntgrid, 2*nlambda))
-       allocate (ixi_to_il(-ntgrid:ntgrid, 2*nlambda))
-       allocate (ixi_to_isgn(-ntgrid:ntgrid, 2*nlambda))
+       allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
+       allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
     end if
 
     call init_egrid (negrid)
@@ -1431,7 +1431,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
        do ixi=1, nxi+1
-          il = ixi_to_il(ig,ixi)
+          il = ixi_to_il(ixi, ig)
           total(ig, it, ik) = total(ig, it, ik) + &
                (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
        end do
@@ -1485,7 +1485,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
           do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              total(ig,it,ik) = total(ig,it,ik) + &
                   (weights(is)*w(ie,is)) * wl(ig,il) * g(ixi,ie,ile)
           end do
@@ -2018,7 +2018,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
        do ixi=1, nxi+1
-          il = ixi_to_il(ig,ixi)
+          il = ixi_to_il(ixi, ig)
           total(ig, it, ik, is) = total(ig, it, ik, is) + &
             w(ie,is)*wl(ig,il)*g(il,ilzlo)
        end do
@@ -2076,7 +2076,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi = 1, nxup
-             il = ixi_to_il(ig, ixi)
+             il = ixi_to_il(ixi, ig)
              total(ile) = total(ile) + w(ie, is) * wl(ig, il) * g(ixi, ie, ile)
           end do
        end do
@@ -2128,7 +2128,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi=1, nxi+1
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              total(ig,it,ik,is) = total(ig,it,ik,is) + w(ie,is) * wl(ig,il) * g(ixi,ie,ile)
           end do
        end do
@@ -3471,8 +3471,8 @@ contains
     integer :: ig, je, ixi
 
     if (.not. allocated(xi)) allocate (xi(-ntgrid:ntgrid,2*nlambda))
-    if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(-ntgrid:ntgrid,2*nlambda))
-    if (.not. allocated(ixi_to_isgn)) allocate (ixi_to_isgn(-ntgrid:ntgrid,2*nlambda))
+    if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
+    if (.not. allocated(ixi_to_isgn)) allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
 
     ! define array 'sgn' that returns sign of vpa associated with isgn=1,2
     sgn(1) = 1
@@ -3498,11 +3498,11 @@ contains
        if (je == 0) then
           do ixi = 1, 2*nlambda
              if (ixi > nlambda) then
-                ixi_to_isgn(ig,ixi) = 2
-                ixi_to_il(ig,ixi) = 2*nlambda - ixi + 1
+                ixi_to_isgn(ixi, ig) = 2
+                ixi_to_il(ixi, ig) = 2*nlambda - ixi + 1
              else
-                ixi_to_isgn(ig,ixi) = 1
-                ixi_to_il(ig,ixi) = ixi
+                ixi_to_isgn(ixi, ig) = 1
+                ixi_to_il(ixi, ig) = ixi
              end if
           end do
        else
@@ -3518,17 +3518,17 @@ contains
 
           do ixi = 1, 2*nlambda
              if (ixi >= nlambda + je + 1) then
-                ixi_to_isgn(ig,ixi) = 2
-                ixi_to_il(ig,ixi) = 2*nlambda + je + 1 - ixi
+                ixi_to_isgn(ixi, ig) = 2
+                ixi_to_il(ixi, ig) = 2*nlambda + je + 1 - ixi
              else if (ixi >= 2*je) then
-                ixi_to_isgn(ig,ixi) = 1
-                ixi_to_il(ig,ixi) = ixi - je
+                ixi_to_isgn(ixi, ig) = 1
+                ixi_to_il(ixi, ig) = ixi - je
              else if (ixi >= je) then
-                ixi_to_isgn(ig,ixi) = 2
-                ixi_to_il(ig,ixi) = 2*je - ixi
+                ixi_to_isgn(ixi, ig) = 2
+                ixi_to_il(ixi, ig) = 2*je - ixi
              else
-                ixi_to_isgn(ig,ixi) = 1
-                ixi_to_il(ig,ixi) = ixi
+                ixi_to_isgn(ixi, ig) = 1
+                ixi_to_il(ixi, ig) = ixi
              end if
           end do
        end if
@@ -4185,8 +4185,8 @@ contains
        is = is_idx(le_lo,ile)
        do ie = 1, negrid
           do ixi = 1, 2*nlambda
-             isgn = ixi_to_isgn(ig,ixi)
-             il = ixi_to_il(ig,ixi)
+             isgn = ixi_to_isgn(ixi, ig)
+             il = ixi_to_il(ixi, ig)
              if (int(real(letmp(ixi,ie,ile))) /= rule(ig,isgn,ik,it,il,ie,is)) &
                   write (ierr,'(a,8i6)') 'ERROR: gather by g2le broken!', iproc
           end do
@@ -5037,8 +5037,8 @@ contains
           is = is_idx(le_lo, ile)
           do ie = 1, negrid
              do ixi = 1, nxi
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
+                il = ixi_to_il(ixi, ig)
+                isgn = ixi_to_isgn(ixi, ig)
                 if (idx_local (le_lo, ig, ik, it, is)) then
                    if (proc0) then
                       gtmp = dist(ixi,ie,ile)

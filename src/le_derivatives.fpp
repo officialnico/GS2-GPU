@@ -207,7 +207,7 @@ contains
        dvp = spec(is)%zstm*dphidth(ig+ntgrid+1)*gradpar(ig)*0.5*code_dt
        do ie = 1, negrid
           do ixi = 1, nxi
-             il = ixi_to_il(ig,ixi)
+             il = ixi_to_il(ixi, ig)
              if (.not. forbid(ig,il)) &
                   call get_gvpa (gtmp, dvp, ig, il, ixi, ie, gle(ixi,ie,ile))
           end do
