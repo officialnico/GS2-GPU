@@ -1346,10 +1346,15 @@ contains
   end subroutine integrate_species_master
 
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
-  !! which we have ensured that all of velocity space is local. As such
-  !! we don't need any calls to MPI reduction routines. Note that this means
-  !! the processors for different distributed spatial points (x,y) don't know
-  !! the results at other points.
+  !> which we have ensured that all of velocity space is local. As such
+  !> we don't need any calls to MPI reduction routines. Note that this means
+  !> the processors for different distributed spatial points (x,y) don't know
+  !> the results at other points.
+  !>
+  !> @note This is currently unused but _could_ be useful to calculate
+  !> the input to the field solve in collisional runs whilst in le_lo. Note that
+  !> we still need communication to reduce over species. We _could_ use a suitable
+  !> subcommunicator for this to reduce participants, but currently it is global
   subroutine integrate_species_le (lo, g, weights, total)
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
@@ -1357,9 +1362,7 @@ contains
     use mp, only: sum_allreduce
     use species, only: tracer_species, spec
     use array_utils, only: zero_array
-
     implicit none
-
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     real, dimension (:), intent (in out) :: weights
@@ -1894,10 +1897,13 @@ contains
   end subroutine integrate_moment_lec
 
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
-  !! which we have ensured that all of velocity space is local. As such
-  !! we don't need any calls to MPI reduction routines. Note that this means
-  !! the processors for different distributed spatial points (x,y) don't know
-  !! the results at other points.
+  !> which we have ensured that all of velocity space is local. As such
+  !> we don't need any calls to MPI reduction routines. Note that this means
+  !> the processors for different distributed spatial points (x,y) don't know
+  !> the results at other points.
+  !>
+  !> @note : The main difference to [[integrate_moment_lec]] is the shape of the
+  !> output. This method provides total[theta,kx,ky,species].
   subroutine integrate_moment_le (lo, g, total)
     use layouts_type, only: le_layout_type
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
@@ -1905,7 +1911,6 @@ contains
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
