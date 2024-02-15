@@ -158,7 +158,7 @@ module le_grids
   public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
-  public :: xx, new_trap_int, vcut, genquad
+  public :: xx, new_trap_int, vcut
   public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
