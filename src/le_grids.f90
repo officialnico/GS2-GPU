@@ -153,11 +153,11 @@ module le_grids
   private
 
   public :: init_le_grids, finish_le_grids, wnml_le_grids
-  public :: integrate_species, write_mpdist, write_mpdist_le
+  public :: integrate_species
   public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi
-  public :: xx, new_trap_int
+  public :: new_trap_int
   public :: init_weights, legendre_transform
   public :: finish_weights
   public :: eint_error, lint_error, trap_error, wdim
