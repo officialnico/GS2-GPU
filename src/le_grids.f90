@@ -155,7 +155,7 @@ module le_grids
   public :: init_le_grids, finish_le_grids
   public :: read_parameters, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
-  public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
+  public :: energy, energy_maxw, speed_maxw, al, jend, forbid, dele, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, new_trap_int, vcut, genquad
@@ -213,7 +213,7 @@ module le_grids
 
   real, dimension (:), allocatable :: energy_maxw, w_maxw, speed_maxw 
   real, dimension (:,:), allocatable :: energy, w, speed, dele
-  real, dimension (:), allocatable :: al, delal ! (nlambda)
+  real, dimension (:), allocatable :: al ! (nlambda)
   real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
@@ -475,7 +475,7 @@ contains
        allocate(energy_maxw(negrid))
        allocate(speed_maxw(negrid))
        allocate(dele(negrid,nspec))
-       allocate (al(nlambda), delal(nlambda))
+       allocate (al(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
        allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
@@ -496,7 +496,6 @@ contains
     call broadcast (zeroes_maxw)
 
     call broadcast (al)
-    call broadcast (delal)
     call broadcast (ittp)
     call broadcast (jend)
  
@@ -2114,7 +2113,7 @@ contains
        lmax = nlambda
     end if
     nxi = max(2*nlambda-1, 2*ng2)
-    allocate (al(nlambda), delal(nlambda))
+    allocate (al(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
     allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
@@ -2126,8 +2125,6 @@ contains
        al(ng2+1:nlambda) = 1.0/bset
     end if
     call lgridset
-    delal(1) = al(1)
-    delal(2:) = al(2:) - al(:nlambda-1)
 
     if (proc0) then
        call open_output_file(unit, '.vspace_integration_error')
@@ -4784,7 +4781,6 @@ contains
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
     if (allocated(w)) deallocate (w,w_maxw)
-    if (allocated(delal)) deallocate (delal)
     if (allocated(lpl)) deallocate (lpl, lpe)
     if (allocated(lpt)) deallocate (lpt)
     if (allocated(wlmod)) deallocate (wlmod)
