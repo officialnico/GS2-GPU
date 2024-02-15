@@ -152,8 +152,7 @@ module le_grids
 
   private
 
-  public :: init_le_grids, finish_le_grids
-  public :: read_parameters, wnml_le_grids
+  public :: init_le_grids, finish_le_grids, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
