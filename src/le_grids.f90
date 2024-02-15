@@ -183,14 +183,12 @@ module le_grids
      module procedure integrate_moment_c34
      module procedure integrate_moment_r34
      module procedure integrate_moment_lec
-     module procedure integrate_moment_le
      module procedure integrate_moment_r33
   end interface
 
   interface integrate_species
      module procedure integrate_species_master
      module procedure integrate_species_gf_nogather
-     module procedure integrate_species_le
   end interface
 
   interface integrate_volume
@@ -1345,63 +1343,6 @@ contains
     deallocate(total_flat)
   end subroutine integrate_species_master
 
-  !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
-  !> which we have ensured that all of velocity space is local. As such
-  !> we don't need any calls to MPI reduction routines. Note that this means
-  !> the processors for different distributed spatial points (x,y) don't know
-  !> the results at other points.
-  !>
-  !> @note This is currently unused but _could_ be useful to calculate
-  !> the input to the field solve in collisional runs whilst in le_lo. Note that
-  !> we still need communication to reduce over species. We _could_ use a suitable
-  !> subcommunicator for this to reduce participants, but currently it is global
-  subroutine integrate_species_le (lo, g, weights, total)
-    use layouts_type, only: le_layout_type
-    use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
-    use theta_grid, only: ntgrid
-    use mp, only: sum_allreduce
-    use species, only: tracer_species, spec
-    use array_utils, only: zero_array
-    implicit none
-    type (le_layout_type), intent (in) :: lo
-    complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
-    real, dimension (:), intent (in out) :: weights
-    complex, dimension (-ntgrid:,:,:), intent (out) :: total
-    integer :: ixi, ie, ile, ig, it, ik, is
-
-    call zero_array(total)
-    where (spec%type == tracer_species) weights = 0
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, ig, it, ik, ie, is, ixi) &
-    !$OMP SHARED(lo, nxi, negrid, weights, w, wxi, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(static)
-    do ile = lo%llim_proc, lo%ulim_proc
-       is = is_idx(lo,ile)
-       ig = ig_idx (lo,ile)
-       it = it_idx (lo,ile)
-       ik = ik_idx (lo,ile)
-
-       do ie = 1, negrid
-!CMR, 2/10/2013:
-!   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
-!   corresponding to g_lo (il=nlambda, isign=2).
-!   This MUST contribute to the v-space integral, but is NOT
-!   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
-!   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
-          do ixi = 1, nxi + 1
-             total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
-                  * wxi(ixi, ig) * g(ixi, ie, ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-!Sum over all procs to make integral over all velocity space and species
-    call sum_allreduce (total)
-
-  end subroutine integrate_species_le
-
   !> FIXME : Add documentation
   !>
   !> @note This routine depends on the values stored in [[xx]] as input
@@ -1895,56 +1836,6 @@ contains
     ! --- ile contains necessary and sufficient information for (ig,it,ik,is)
 
   end subroutine integrate_moment_lec
-
-  !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
-  !> which we have ensured that all of velocity space is local. As such
-  !> we don't need any calls to MPI reduction routines. Note that this means
-  !> the processors for different distributed spatial points (x,y) don't know
-  !> the results at other points.
-  !>
-  !> @note : The main difference to [[integrate_moment_lec]] is the shape of the
-  !> output. This method provides total[theta,kx,ky,species].
-  subroutine integrate_moment_le (lo, g, total)
-    use layouts_type, only: le_layout_type
-    use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
-    use theta_grid, only: ntgrid
-    use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
-    implicit none
-    type (le_layout_type), intent (in) :: lo
-    complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: total
-    integer :: ixi, ie, ile, ig, it, ik, is
-    call zero_array(total)
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi) &
-    !$OMP SHARED(lo, kwork_filter, negrid, nxi, w, wxi, g) &
-    !$OMP REDUCTION(+ : total) &
-    !$OMP SCHEDULE(guided)
-    do ile = lo%llim_proc, lo%ulim_proc
-       it = it_idx (lo,ile)
-       ik = ik_idx (lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       ig = ig_idx (lo,ile)
-       is = is_idx (lo,ile)
-       do ie = 1, negrid
-!CMR, 2/10/2013:
-!   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
-!   corresponding to g_lo (il=nlambda, isign=2).
-!   This MUST contribute to the v-space integral, but is NOT
-!   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
-!   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
-!MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
-          do ixi = 1, nxi + 1
-             total(ig, it, ik, is) = total(ig, it, ik, is) + &
-                  w(ie, is) * wxi(ixi, ig) * g(ixi, ie, ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    ! No need for communication since all velocity grid points are together
-    ! and each prcessor does not touch the unset place
-  end subroutine integrate_moment_le
 
   !> FIXME : Add documentation
   !!
