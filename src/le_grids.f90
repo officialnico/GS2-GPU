@@ -165,7 +165,6 @@ module le_grids
   public :: integrate_kysum, integrate_volume
   public :: get_flux_vs_theta_vs_vpa
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
-  public :: integrate_species_sub !<DD>
   public :: hermite_prob
   public :: is_passing_hybrid_electron
   public :: setup_trapped_lambda_grids_old_finite_difference
