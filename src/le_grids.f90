@@ -155,7 +155,7 @@ module le_grids
   public :: init_le_grids, finish_le_grids
   public :: read_parameters, wnml_le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
-  public :: energy, energy_maxw, speed_maxw, al, jend, forbid, dele, wl, w, w_maxw
+  public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
   public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
   public :: xx, new_trap_int, vcut, genquad
@@ -212,7 +212,7 @@ module le_grids
   real, dimension (:,:,:,:), allocatable, save :: lpt
 
   real, dimension (:), allocatable :: energy_maxw, w_maxw, speed_maxw 
-  real, dimension (:,:), allocatable :: energy, w, speed, dele
+  real, dimension (:,:), allocatable :: energy, w, speed
   real, dimension (:), allocatable :: al ! (nlambda)
   real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
@@ -474,7 +474,6 @@ contains
        allocate(w_maxw(negrid))
        allocate(energy_maxw(negrid))
        allocate(speed_maxw(negrid))
-       allocate(dele(negrid,nspec))
        allocate (al(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
        allocate (ittp(-ntgrid:ntgrid))
@@ -502,7 +501,6 @@ contains
     call broadcast (energy_maxw)
     call broadcast (speed)
     call broadcast (speed_maxw)
-    call broadcast (dele)
     call broadcast (w_maxw)
 
     call broadcast(wl)
@@ -2078,7 +2076,7 @@ contains
     call init_theta_grid
     call init_species
 
-    allocate (dele(negrid,nspec),speed(negrid,nspec),speed_maxw(negrid),w_maxw(negrid),energy_maxw(negrid))
+    allocate (speed(negrid,nspec),speed_maxw(negrid),w_maxw(negrid),energy_maxw(negrid))
 
     w_maxw = 0.0
     energy_maxw = 0.0
@@ -2101,9 +2099,6 @@ contains
     if (.not. has_maxwellian_species) write(*,*) &
         'Warning; no maxwellian species; collisions will fail'
     !call setvgrid (vcut, negrid, energy, w, nesub)
-
-    dele(1,:) = energy(1,:)
-    dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
 
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
@@ -4773,7 +4768,7 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
+    if (allocated(energy)) deallocate (energy, energy_maxw, al, wl, ittp, &
          jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
