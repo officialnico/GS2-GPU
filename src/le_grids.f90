@@ -157,7 +157,7 @@ module le_grids
   public :: integrate_species, write_mpdist, write_mpdist_le
   public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
   public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
+  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi
   public :: xx, new_trap_int, vcut
   public :: init_weights, legendre_transform
   public :: finish_weights
