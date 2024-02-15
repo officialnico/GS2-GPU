@@ -153,29 +153,19 @@ module le_grids
   private
 
   public :: init_le_grids, finish_le_grids, wnml_le_grids
-  public :: integrate_species
-  public :: energy, energy_maxw, speed_maxw, al, jend, forbid, wl, w, w_maxw
-  public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi
-  public :: new_trap_int
-  public :: init_weights, legendre_transform
-  public :: finish_weights
-  public :: eint_error, lint_error, trap_error, wdim
-  public :: integrate_kysum, integrate_volume
-  public :: get_flux_vs_theta_vs_vpa
+  public :: integrate_species, integrate_moment, integrate_kysum, integrate_volume
+  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, w_maxw, sgn
+  public :: negrid, nlambda, ng2, nxi, lmax, nesub, ixi_to_il, ixi_to_isgn, xi
+  public :: init_weights, finish_weights, legendre_transform, hermite_prob
+  public :: eint_error, lint_error, trap_error, wdim, get_flux_vs_theta_vs_vpa
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
-  public :: hermite_prob
-  public :: is_passing_hybrid_electron
-  public :: setup_trapped_lambda_grids_old_finite_difference
-  public :: setup_passing_lambda_grids
-  public :: passing_wfb, trapped_wfb, mixed_wfb
+  public :: setup_passing_lambda_grids, setup_trapped_lambda_grids_old_finite_difference
+  public :: new_trap_int, passing_wfb, trapped_wfb, mixed_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
-  public :: il_is_wfb, can_be_ttp, is_ttp
+  public :: il_is_wfb, can_be_ttp, is_ttp, is_passing_hybrid_electron
   public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
-  public :: le_grids_config_type
-  public :: set_le_grids_config
-  public :: get_le_grids_config
+  public :: le_grids_config_type, set_le_grids_config, get_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
