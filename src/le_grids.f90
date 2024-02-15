@@ -204,7 +204,7 @@ module le_grids
   real, dimension (:,:), allocatable :: energy, w, speed
   real, dimension (:), allocatable :: al ! (nlambda)
   real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
-  integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
+  integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
   logical, dimension (:), allocatable :: can_be_ttp
 
@@ -465,7 +465,6 @@ contains
        allocate(speed_maxw(negrid))
        allocate (al(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
-       allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
        allocate (is_ttp(-ntgrid:ntgrid,nlambda))
@@ -484,7 +483,6 @@ contains
     call broadcast (zeroes_maxw)
 
     call broadcast (al)
-    call broadcast (ittp)
     call broadcast (jend)
  
     call broadcast (energy_maxw)
@@ -2099,7 +2097,6 @@ contains
     nxi = max(2*nlambda-1, 2*ng2)
     allocate (al(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
-    allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
     allocate (is_ttp(-ntgrid:ntgrid,nlambda))
@@ -2344,7 +2341,7 @@ contains
 
     ! Calculate the ittp values indicating which pitch angles are
     ! considered totally trapped.
-    call calculate_ittp(ittp, can_be_ttp, is_ttp)
+    call calculate_ittp(can_be_ttp, is_ttp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -3100,13 +3097,12 @@ contains
 
   !> Determine which lambda grid point is totally trapped at this
   !> theta grid point.
-  subroutine calculate_ittp(ittp_indices, can_be_ttp_flag, is_ttp_value)
+  subroutine calculate_ittp(can_be_ttp_flag, is_ttp_value)
     use theta_grid, only: ntgrid
-
     implicit none
-    integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
     logical, dimension(nlambda), intent(out) :: can_be_ttp_flag
     logical, dimension(-ntgrid:ntgrid, nlambda), intent(out) :: is_ttp_value
+    integer, dimension(-ntgrid:ntgrid) :: ittp_indices
     integer :: ig, il
     ittp_indices = nlambda+1
     can_be_ttp_flag = .false.
@@ -4757,7 +4753,7 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw, al, wl, ittp, &
+    if (allocated(energy)) deallocate (energy, energy_maxw, al, wl, &
          jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
