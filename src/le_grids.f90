@@ -154,8 +154,8 @@ module le_grids
 
   public :: init_le_grids, finish_le_grids, wnml_le_grids
   public :: integrate_species, integrate_moment, integrate_kysum, integrate_volume
-  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, w_maxw, sgn
-  public :: negrid, nlambda, ng2, nxi, lmax, nesub, ixi_to_il, ixi_to_isgn, xi
+  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, w_maxw, vcut
+  public :: negrid, nlambda, ng2, nxi, lmax, nesub, ixi_to_il, ixi_to_isgn, xi, sgn
   public :: init_weights, finish_weights, legendre_transform, hermite_prob
   public :: eint_error, lint_error, trap_error, wdim, get_flux_vs_theta_vs_vpa
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
@@ -971,7 +971,6 @@ contains
     !Reduce sum across all procs to make integral over all velocity space and species
     call sum_allreduce (total) 
   end subroutine integrate_species_original
-
 
   !> Integrate species on xy subcommunicator - NO GATHER
   subroutine integrate_species_sub (g, weights, total)
