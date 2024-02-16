@@ -3848,13 +3848,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     real :: delnu, vnE
     integer :: ig, ik, ie, il, is, it, ile, ixi, nxi_lim
-    complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-
-    ! We only use one of these at a time so could just use a single array.
-    ! We keep all three here for clarity and note that these should be small.
-    allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(v0y0)
-    allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(v1y1)
-    allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(v2y2)
+    complex :: v0y0, v1y1, v2y2
 
     ! The nxi > 2 * ng2 check appears to be checking if we have
     ! trapped particles or not so could be replaced with grid_has_trapped_particles()
@@ -3864,132 +3858,82 @@ contains
         nxi_lim = nxi
     end if
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! First get v0y0
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! First get v0y0 and then y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, vnE) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, w, wxi, v0y0, vnmult, vnew_E, aj0le, gle) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, vnE, v0y0) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, w, wxi, ieqzip, bz0le, vnmult, vnew_E, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo, ile)
        it = it_idx(le_lo, ile)
        if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
        is = is_idx(le_lo, ile)
        ig = ig_idx(le_lo, ile)
+       v0y0 = 0.0
        do ie = 1, negrid
           vnE = vnmult(2) * vnew_E(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             v0y0(ile) = v0y0(ile) + vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
+             v0y0 = v0y0 + vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bz0le(:, :, ile) * v0y0
     end do
     !$OMP END PARALLEL DO
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v1y1 and then y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, v0y0, bz0le) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie = 1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - v0y0(ile) * bz0le(ixi, ie, ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v1y1
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, v1y1, &
-    !$OMP vpa_aj0_le, gle, w, wxi) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi, v1y1) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, &
+    !$OMP bs0le, vpa_aj0_le, gle, w, wxi, ieqzip) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo, ile)
        it = it_idx(le_lo, ile)
        if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
        is = is_idx(le_lo, ile)
        ig = ig_idx(le_lo, ile)
+       v1y1 = 0.0
        do ie = 1, negrid
           delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             v1y1(ile) = v1y1(ile) + vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile) * wxi(ixi, ig)
+             v1y1 = v1y1 + vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bs0le(:, :, ile) * v1y1
     end do
     !$OMP END PARALLEL DO
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v2y2 and then get x = y2 - v2y2 * w2 / (1 + v2w2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bs0le, v1y1) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie = 1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bs0le(ixi, ie, ile) * v1y1(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v2y2
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, delnu) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, v2y2, &
-    !$OMP delvnew, vperp_aj1le, gle, vnmult, w, wxi) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, delnu, v2y2) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ieqzip, &
+    !$OMP bw0le, delvnew, vperp_aj1le, gle, vnmult, w, wxi) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ik = ik_idx(le_lo, ile)
        it = it_idx(le_lo, ile)
        if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
        is = is_idx(le_lo, ile)
        ig = ig_idx(le_lo, ile)
+       v2y2 = 0.0
        do ie = 1, negrid
           delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             v2y2(ile) = v2y2(ile) + delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
+             v2y2 = v2y2 + delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bw0le(:, :, ile) * v2y2
     end do
     !$OMP END PARALLEL DO
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bw0le, v2y2) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie = 1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bw0le(ixi, ie, ile) * v2y2(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate (v0y0, v1y1, v2y2)
-
   end subroutine conserve_diffuse_le_layout
 
   !> FIXME : Add documentation
