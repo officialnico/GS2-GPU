@@ -3837,13 +3837,10 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
+    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
     use le_grids, only: wxi, w, negrid, nxi, ng2
     use run_parameters, only: ieqzip
-    use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
-    use redistribute, only: scatter
     use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     real :: delnu, vnE
