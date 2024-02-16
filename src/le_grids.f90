@@ -154,7 +154,7 @@ module le_grids
 
   public :: init_le_grids, finish_le_grids, wnml_le_grids
   public :: integrate_species, integrate_moment, integrate_kysum, integrate_volume
-  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, w_maxw, vcut
+  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, wxi, w_maxw, vcut
   public :: negrid, nlambda, ng2, nxi, lmax, nesub, ixi_to_il, ixi_to_isgn, xi, sgn
   public :: init_weights, finish_weights, legendre_transform, hermite_prob
   public :: eint_error, lint_error, trap_error, wdim, get_flux_vs_theta_vs_vpa
