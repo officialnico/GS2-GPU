@@ -3474,8 +3474,7 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
-    use le_grids, only: speed => speed_maxw, nxi, ng2, w, wxi
-    use le_grids, only: ixi_to_il, ixi_to_isgn, negrid
+    use le_grids, only: speed => speed_maxw, nxi, ng2, w, wxi, negrid
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
@@ -3527,8 +3526,8 @@ contains
     ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, nud, v1y1) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
+       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, vpdiffle, &
        !$OMP speed, vnmult, vnew_D, aj0le, gle, s0le, w, wxi) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
@@ -3542,9 +3541,7 @@ contains
           do ie = 1, negrid
              nud = speed(ie) * vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ixi, ig)
-                isgn = ixi_to_isgn(ixi, ig)
-                v1y1 = v1y1 + vpdiff(ig, isgn, il) * nud * aj0le(ixi, ie, ile) * &
+                v1y1 = v1y1 + vpdiffle(ixi, ig) * nud * aj0le(ixi, ie, ile) * &
                      gle(ixi, ie, ile) * wxi(ixi, ig)
              end do
           end do
