@@ -3527,7 +3527,7 @@ contains
     if (conservative) then
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, vpdiffle, &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, vpdiffle, &
        !$OMP speed, vnmult, vnew_D, aj0le, gle, s0le, w, wxi) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
