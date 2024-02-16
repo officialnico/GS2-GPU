@@ -98,6 +98,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: vnew, vnew_s, vnew_D, vnew_E, delvnew
   ! (naky,negrid,nspec) replicated
 
+  real, dimension (:,:), allocatable :: vpdiffle
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
@@ -4348,12 +4349,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none
 
-    integer :: il, ig, je, te
+    integer :: il, isgn, ixi, ig, je, te
     real :: slb0, slb1, slb2, slbl, slbr
 
     if (.not. allocated(vpdiff) .and. conservative) then
@@ -4402,7 +4403,18 @@ contains
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
           
        end do
-       
+
+       if (use_le_layout) then
+          allocate(vpdiffle(nxi + 1, -ntgrid:ntgrid))
+
+          do ig = -ntgrid, ntgrid
+             do ixi = 1, nxi + 1
+                il = ixi_to_il(ixi, ig)
+                isgn = ixi_to_isgn(ixi, ig)
+                vpdiffle(ixi, ig) = vpdiff(ig, isgn, il)
+             end do
+          end do
+       end if
     end if
     
   end subroutine init_vpdiff
@@ -4461,6 +4473,7 @@ contains
       if (allocated(ec1)) deallocate (ec1, ebetaa, eql)
     end if
     if (allocated(vpdiff)) deallocate (vpdiff)
+    if (allocated(vpdiffle)) deallocate (vpdiffle)
     if (allocated(dtot)) deallocate (dtot, fdf, fdb)
 
     call collisions_config%reset()
