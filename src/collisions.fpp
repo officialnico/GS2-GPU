@@ -4356,48 +4356,53 @@ contains
 
     if (.not. allocated(vpdiff) .and. conservative) then
 
-       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda)) ; call zero_array(vpdiff)
+       allocate (vpdiff(-ntgrid:ntgrid, 2, nlambda)) ; call zero_array(vpdiff)
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)
-          if (il_is_passing(je) .or. il_is_wfb(je)) then
+          if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz)) then
              te = ng2
           else
              te = je
           end if
           do il = 2, te-1
-             slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-             slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
+             slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+             slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
              
-             slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-             slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
+             slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+             slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(ig, il)
           end do
 
           ! boundary at xi = 1
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
-          slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+          slbr = 0.5 * (slb1 + slb2)
+          vpdiff(ig, 1, 1) = (1.0 - slbr**2) / pitch_weights(ig, 1)
           
           ! boundary at xi = 0
           il = te
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          if (te == ng2) then
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          if (te == ng2) then ! Passing
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
              slb2 = -slb1
           else
              slb1 = 0.0
              slb2 = -slb0
           end if
           
-          slbl = (slb1 + slb0)*0.5
-          slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+          slbl = (slb1 + slb0) * 0.5
+          slbr = (slb1 + slb2) * 0.5
+
+          if (abs(pitch_weights(ig, il)) <= epsilon(0.0)) then
+             vpdiff(ig, 1, il) = 0.0
+          else
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(ig, il)
+          end if
           
-          vpdiff(ig,2,:) = -vpdiff(ig,1,:)
+          vpdiff(ig, 2, :) = -vpdiff(ig, 1, :)
           
        end do
 
