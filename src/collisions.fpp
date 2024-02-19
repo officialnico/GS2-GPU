@@ -4389,6 +4389,8 @@ contains
              slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
              slb2 = -slb1
           else
+             ! We would expect safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 here so could just
+             ! use slb1 = safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 for both branches?
              slb1 = 0.0
              slb2 = -slb0
           end if
