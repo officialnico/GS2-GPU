@@ -183,7 +183,6 @@ module collisions
      !> - `'lorentz-test'` : Only pitch angle scattering. For testing,
      !> disables some components of the operator.
      !> - `'ediffuse'` : Only energy diffusion.
-     !> - `'krook'` : "Home made" Krook operator (this is not recommended).
      !>
      !> If no species have a non-zero collision frequency, `vnewk`, then
      !> the collision operator is also automatically disabled.
