@@ -1912,16 +1912,12 @@ contains
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use array_utils, only: zero_array
-
     implicit none
-
     real, intent (in), optional :: vnmult_target
-
     integer :: ie, is, ik, il, ig, it, ile, ixi, ielo
     real, dimension (:), allocatable :: aa, bb, cc, xe
 
-    allocate (aa(negrid), bb(negrid), cc(negrid))
-    allocate (xe(negrid))
+    allocate (aa(negrid), bb(negrid), cc(negrid), xe(negrid))
 
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
@@ -1953,16 +1949,16 @@ contains
           it = it_idx(le_lo, ile)
           is = is_idx(le_lo, ile)
           ig = ig_idx(le_lo, ile)
-          do ixi=1, nxi_lim
+          do ixi = 1, nxi_lim
              il = ixi_to_il(ixi, ig)
-             if (forbid(ig,il)) cycle
+             if (forbid(ig, il)) cycle
              call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-             ec1le(ixi,:,ile) = cc
-             ebetaale(ixi,1,ile) = 1.0 / bb(1)
-             do ie = 1, negrid-1
-                eqle(ixi,ie+1,ile) = aa(ie+1) * ebetaale(ixi,ie,ile)
-                ebetaale(ixi,ie+1,ile) = 1.0 / ( bb(ie+1) - eqle(ixi,ie+1,ile) &
-                     * ec1le(ixi,ie,ile) )
+             ec1le(ixi, :, ile) = cc
+             ebetaale(ixi, 1, ile) = 1.0 / bb(1)
+             do ie = 1,  negrid - 1
+                eqle(ixi, ie+1, ile) = aa(ie+1) * ebetaale(ixi, ie, ile)
+                ebetaale(ixi, ie+1, ile) = 1.0 / ( bb(ie+1) - eqle(ixi, ie+1, ile) &
+                     * ec1le(ixi, ie, ile) )
              end do
           end do
        end do
@@ -1986,20 +1982,19 @@ contains
        do ielo = e_lo%llim_proc, e_lo%ulim_proc
           il = il_idx(e_lo, ielo)
           ig = ig_idx(e_lo, ielo)
-          if (forbid(ig,il)) cycle
+          if (forbid(ig, il)) cycle
           is = is_idx(e_lo, ielo)
           ik = ik_idx(e_lo, ielo)
           it = it_idx(e_lo, ielo)
           call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-          ec1(:,ielo) = cc
+          ec1(:, ielo) = cc
 
           ! fill in the arrays for the tridiagonal
-          ebetaa(1,ielo) = 1.0/bb(1)
-          do ie = 1, negrid-1
-             eql(ie+1,ielo) = aa(ie+1)*ebetaa(ie,ielo)
-             ebetaa(ie+1,ielo) = 1.0/(bb(ie+1)-eql(ie+1,ielo)*ec1(ie,ielo))
+          ebetaa(1, ielo) = 1.0 / bb(1)
+          do ie = 1, negrid - 1
+             eql(ie+1, ielo) = aa(ie+1) * ebetaa(ie, ielo)
+             ebetaa(ie+1, ielo) = 1.0 / (bb(ie+1) - eql(ie+1, ielo) * ec1(ie, ielo))
           end do
-
        end do
        !$OMP END PARALLEL DO
     end if
@@ -2024,180 +2019,134 @@ contains
     real, dimension (:), intent (out) :: aa, bb, cc
 
     integer :: ie
-    real :: vn, slb1, xe0, xe1, xe2, xel, xer
-    real :: capgr, capgl, ee
+    real :: vn, slb1, xe0, xe1, xe2, xel, xer, capgr, capgl, ee
 
-    vn = vnmult(2)*spec(is)%vnewk*tunits(ik)
+    vn = vnmult(2) * spec(is)%vnewk * tunits(ik)
 
     slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))     ! xi_j
 
     select case (ediff_switch)
-
     case (ediff_scheme_default)
-
-       do ie = 2, negrid-1
+       do ie = 2, negrid - 1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
 
-          xel = (xe0 + xe1)*0.5
-          xer = (xe1 + xe2)*0.5
+          xel = (xe0 + xe1) * 0.5
+          xer = (xe1 + xe2) * 0.5
 
           capgr = capg(xer)
           capgl = capg(xel)
 
-          ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
+          ee = 0.125 * (1 - slb1**2) * vnew_s(ik,ie,is) * kperp2(ig,it,ik)*cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
 
           ! coefficients for tridiagonal matrix:
-          cc(ie) = -0.25*vn*code_dt*capgr/(w(ie)*(xe2 - xe1))
-          aa(ie) = -0.25*vn*code_dt*capgl/(w(ie)*(xe1 - xe0))
+          cc(ie) = -0.25 * vn * code_dt * capgr / (w(ie) * (xe2 - xe1))
+          aa(ie) = -0.25 * vn * code_dt * capgl / (w(ie) * (xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-
-             ! coefficients for entropy heating calculation
-!             if (heating) then
-!                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!                hh(ie) =vnh*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!             end if
        end do
 
        ! boundary at v = 0
        xe1 = xe(1)
        xe2 = xe(2)
-
-       xer = (xe1 + xe2)*0.5
+       xer = (xe1 + xe2) * 0.5
 
        capgr = capg(xer)
 
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,1,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
 
-       cc(1) = -0.25*vn*code_dt*capgr/(w(1)*(xe2 - xe1))
+       cc(1) = -0.25 * vn * code_dt * capgr / (w(1) * (xe2 - xe1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*code_dt
-
-!          if (heating) then
-!             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!          end if
+       bb(1) = 1.0 - cc(1) + ee * code_dt
 
        ! boundary at v = infinity
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
 
-       xel = (xe1 + xe0)*0.5
+       xel = (xe1 + xe0) * 0.5
 
        capgl = capg(xel)
 
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
+       ee = 0.125 * (1.-slb1**2) * vnew_s(ik,negrid,is) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
 
        cc(negrid) = 0.0
-       aa(negrid) = -0.25*vn*code_dt*capgl/(w(negrid)*(xe1 - xe0))
+       aa(negrid) = -0.25 * vn * code_dt * capgl / (w(negrid) * (xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-
-!          if (heating) then
-!             dd(negrid) =vnc*ee
-!             hh(negrid) =vnh*ee
-!          end if
 
     case (ediff_scheme_old)
 
        ! non-conservative scheme
-
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
 
-          xel = (xe0 + xe1)*0.5
-          xer = (xe1 + xe2)*0.5
+          xel = (xe0 + xe1) * 0.5
+          xer = (xe1 + xe2) * 0.5
 
           capgr = capg_old(xe1, xer)
           capgl = capg_old(xe1, xel)
 
-          ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
+          ee = 0.125 * (1 - slb1**2) * vnew_s(ik,ie,is) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
 
           ! coefficients for tridiagonal matrix:
-          cc(ie) = -vn*code_dt*capgr/((xer-xel)*(xe2 - xe1))
-          aa(ie) = -vn*code_dt*capgl/((xer-xel)*(xe1 - xe0))
-          bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-
-          ! coefficients for entropy heating calculation
-!             if (heating) then
-!                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!                hh(ie) =vnh*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!             end if
+          cc(ie) = -vn * code_dt * capgr / ((xer-xel) * (xe2 - xe1))
+          aa(ie) = -vn * code_dt * capgl / ((xer-xel) * (xe1 - xe0))
+          bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee * code_dt
        end do
 
        ! boundary at xe = 0
        xe1 = xe(1)
        xe2 = xe(2)
-
-       xer = (xe1 + xe2)*0.5
+       xer = (xe1 + xe2) * 0.5
 
        capgr = capg_old(xe1, xer)
 
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,1,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
 
-       cc(1) = -vn*code_dt*capgr/(xer*(xe2 - xe1))
+       cc(1) = -vn * code_dt * capgr / (xer * (xe2 - xe1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*code_dt
-
-!          if (heating) then
-!             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!          end if
+       bb(1) = 1.0 - cc(1) + ee * code_dt
 
        ! boundary at xe = 1
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-
-       xel = (xe1 + xe0)*0.5
+       xel = (xe1 + xe0) * 0.5
 
        capgl = capg_old(xe1, xel)
 
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,negrid,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
 
        cc(negrid) = 0.0
-       aa(negrid) = -vn*code_dt*capgl/((1.0-xel)*(xe1 - xe0))
-       bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-
-!          if (heating) then
-!             dd(negrid) =vnc*ee
-!             hh(negrid) =vnh*ee
-!          end if
-
+       aa(negrid) = -vn * code_dt * capgl / ((1.0-xel) * (xe1 - xe0))
+       bb(negrid) = 1.0 - aa(negrid) + ee * code_dt
     end select
+
   contains
-    pure real function capg_kernel(xe)
+    elemental real function capg_kernel(xe)
       use constants, only: sqrt_pi
       real, intent(in) :: xe
       ! This is the same as hsg_func(xe) * 2 * xe**2
       capg_kernel =  erf(xe) - 2 * xe * exp(-xe**2) / sqrt_pi
     end function capg_kernel
 
-    pure real function capg(xe)
+    elemental real function capg(xe)
       use constants, only: sqrt_pi
       real, intent(in) :: xe
       capg = 2 * exp(-xe**2) * capg_kernel(xe) / (xe * sqrt_pi)
     end function capg
 
-    pure real function capg_old(xeA, xeB)
+    elemental real function capg_old(xeA, xeB)
       use constants, only: sqrt_pi
       real, intent(in) :: xeA, xeB
       capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * capg_kernel(xeB) / xeB
     end function capg_old
-
   end subroutine get_ediffuse_matrix
 
   !> FIXME : Add documentation
