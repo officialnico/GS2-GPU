@@ -3728,7 +3728,7 @@ contains
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
-       allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
+       allocate (glzc(nxi + 1, lz_lo%llim_proc:lz_lo%ulim_alloc))
        call zero_array(glzc)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
