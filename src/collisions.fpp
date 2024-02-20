@@ -623,8 +623,6 @@ contains
        return
     end if
 
-    !<DD>This (potentially large) array should only be needed if
-    !write_heating (gs2_diagnostics) is true.
     if (heating .and. .not. allocated(c_rate)) then
        allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
        call zero_array(c_rate)
