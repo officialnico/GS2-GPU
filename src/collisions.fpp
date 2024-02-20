@@ -2373,40 +2373,29 @@ contains
 !CMR, 17/2/2014:
 !         te, te2, teh: indices in xi, which runs from +1 -> -1.
 !         te   :  index of minimum xi value >= 0.
-!         te2  :  total #xi values = index of minimum xi value (= -1) 
-!         teh  :  index of minimum xi value > 0.  
+!         te2  :  total #xi values = index of minimum xi value (= -1)
+!         teh  :  index of minimum xi value > 0.
 !                 teh = te if no bouncing particle at this location
 !              OR teh = te-1 if there is a bouncing particle
 !
-    if (special_wfb_lorentz) then
-!CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with 
-!         SPECIAL (unphysical) treatment of wfb at its bounce point
-       if (il_is_passing(je) .or. il_is_wfb(je)) then
-          te = ng2
-          te2 = 2*ng2
-          teh = ng2
-       else
-          te = je
-          te2 = 2*je-1
-          teh = je-1
-       end if
+    if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz)) then
+       !CMRDDGC, 17/2/2014:
+       !   This clause is appropriate for Lorentz collisons with
+       !         SPECIAL (unphysical) treatment of wfb at its bounce point
+       te = ng2
+       te2 = 2*ng2
+       teh = ng2
     else
-!CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with 
-!         STANDARD treatment of wfb at its bounce point
-       if (il_is_passing(je)) then
-          te = ng2
-          te2 = 2*ng2
-          teh = ng2
-       else
-          te = je
-          te2 = 2*je-1
-          teh = je-1
-       end if
-    endif 
+       !CMRDDGC, 17/2/2014:
+       !   This clause is appropriate for Lorentz collisons with
+       !         STANDARD treatment of wfb at its bounce point
+       te = je
+       te2 = 2*je-1
+       teh = je-1
+    end if
+
     if (collision_model_switch == collision_model_lorentz_test) then
-       vn = vnmult(1)*abs(spec(is)%vnewk)*tunits(ik)
+       vn = vnmult(1) * abs(spec(is)%vnewk) * tunits(ik)
        vnc = 0.
        vnh = 0.
     else
@@ -2429,186 +2418,185 @@ contains
     aa = 0.0 ; bb = 0.0 ; cc = 0.0 ; dd = 0.0 ; hh = 0.0
 
     select case (lorentz_switch)
-       
-    case (lorentz_scheme_default)          
-       
+    case (lorentz_scheme_default)
+
        do il = 2, te-1
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
-          
-          slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-          slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-          
-          ee = 0.5*energy(ie)*(1+slb1**2) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
+
+          slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+          slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
+
+          ee = 0.5 * energy(ie)*(1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,il)*(slb2 - slb1))
-          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(pitch_weights(ig,il)*(slb1 - slb0))
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-          
+          cc(il) = 2.0 * vn * code_dt * (1 - slbr**2) / &
+               (pitch_weights(ig, il) * (slb2 - slb1))
+          aa(il) = 2.0 * vn * code_dt * (1 - slbl**2) / &
+               (pitch_weights(ig, il) * (slb1 - slb0))
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
-             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
+             dd(il) = vnc * (-2.0 * (1 - slbr**2) / &
+                  (pitch_weights(ig, il) * (slb2 - slb1)) + ee)
+             hh(il) = vnh * (-2.0 * (1 - slbr**2) / &
+                  (pitch_weights(ig, il) * (slb2 - slb1)) + ee)
           end if
        end do
-       
+
        ! boundary at xi = 1
-       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
-       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
-       
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,1)*(slb2 - slb1))
+       slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+       slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = 2.0 * vn * code_dt * (1.0 - slbr**2) &
+            / (pitch_weights(ig, 1) * (slb2 - slb1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*vn*code_dt
-       
+       bb(1) = 1.0 - cc(1) + ee * vn * code_dt
+
        if (heating) then
-          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
-          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
+          dd(1) = vnc * (-2.0 * (1 - slbr**2) &
+               / (pitch_weights(ig, 1) * (slb2 - slb1)) + ee)
+          hh(1) = vnh * (-2.0 * (1 - slbr**2) &
+               / (pitch_weights(ig, 1) * (slb2 - slb1)) + ee)
        end if
-       
+
        ! boundary at xi = 0
        il = te
-       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+       slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
        if (te == ng2) then
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-!
-!CMR, 6/3/2014:  
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+!CMR, 6/3/2014:
 ! STANDARD treatment of pitch angle scattering must resolve T-P boundary.
-! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point 
+! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point
 !     (special_wfb= .true. AVOIDS TP boundary at wfb bounce point)
 !
-! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107 
+! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107
 ! (2009), with pitch angle weights to enhance accuracy in derivatives.
-! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite, 
+! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite,
 !    because weight wl(ig,il)=0 at wfb bounce point.
 !    UNPHYSICAL as d/dxi ((1-xi^2)g) IS NOT resolved numerically for wl=0.
-! MUST accept limitations of the grid resolution and USE FINITE coefficients! 
-! FIX here by setting a FINITE width of the trapped region at wfb B-P 
+! MUST accept limitations of the grid resolution and USE FINITE coefficients!
+! FIX here by setting a FINITE width of the trapped region at wfb B-P
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
-       deltaxi=pitch_weights(ig,il)
-       if (te == je) deltaxi = 2.*deltaxi ! MRH vpar =0 fix 
+       deltaxi = pitch_weights(ig, il)
+       if (te == je) deltaxi = 2 * deltaxi ! MRH vpar = 0 fix
        ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
-       ! factor of 2 required above because xi=0 is a repeated point 
-       ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated 
-       ! to it at each appearance compared to what the weight should be  
+       ! factor of 2 required above because xi=0 is a repeated point
+       ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated
+       ! to it at each appearance compared to what the weight should be
        ! as calculated in the continuum of points xi = (-1,1)
-       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il_is_wfb(il)) then
-          deltaxi=xi(ng2, ig)-xi(ng2 + 2, ig)
+       if ((.not. special_wfb_lorentz) .and. (deltaxi == 0) .and. il_is_wfb(il)) then
+          deltaxi = xi(ng2, ig) - xi(ng2 + 2, ig)
        endif
-       cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(deltaxi*(slb2 - slb1))
-       aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(deltaxi*(slb1 - slb0))
-       bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-       
+       cc(il) = 2.0 * vn * code_dt * (1 - slbr**2) / (deltaxi * (slb2 - slb1))
+       aa(il) = 2.0 * vn * code_dt * (1 - slbl**2) / (deltaxi * (slb1 - slb0))
+       bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
        if (heating) then
-          dd(il) =vnc*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
-          hh(il) =vnh*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
+          dd(il) = vnc * (-2.0 * (1.0 - slbr**2) / (deltaxi * (slb2 - slb1)) + ee)
+          hh(il) = vnh * (-2.0 * (1.0 - slbr**2) / (deltaxi * (slb2 - slb1)) + ee)
        end if
 !CMRend
 
     case (lorentz_scheme_old)
-       
        do il = 2, te-1
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
-          
-          slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-          slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-          
-          ee = 0.5*energy(ie)*(1+slb1**2) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
+
+          slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+          slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
+
+          ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-          aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-          
+          cc(il) = -vn * code_dt * (1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1))
+          aa(il) = -vn * code_dt * (1 - slbl**2) / ((slbr - slbl) * (slb1 - slb0))
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-             hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+             dd(il) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+             hh(il) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
           end if
        end do
-       
+
        ! boundary at xi = 1
        slb0 = 1.0
-       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
-       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = -vn*code_dt*(-1.0 - slbr)/(slb2-slb1)
+       slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+       slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = -vn * code_dt * (-1.0 - slbr) / (slb2 - slb1)
        aa(1) = 0.0
-       bb(1) = 1.0 - (aa(1) + cc(1)) + ee*vn*code_dt
-       
+       bb(1) = 1.0 - (aa(1) + cc(1)) + ee * vn * code_dt
+
        if (heating) then
-          dd(1) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-          hh(1) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          dd(1) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+          hh(1) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
        end if
-       
+
        ! boundary at xi = 0
        il = te
-       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+       slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
        if (te == ng2) then
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-       aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-       bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-       
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(il) = -vn * code_dt * (1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1))
+       aa(il) = -vn * code_dt * (1 - slbl**2) / ((slbr - slbl) * (slb1 - slb0))
+       bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
        if (heating) then
-          dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-          hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          dd(il) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+          hh(il) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
        end if
-       
+
     end select
 
     ! assuming symmetry in xi, fill in the rest of the arrays.
     aa(te+1:te2) = cc(teh:1:-1)
     bb(te+1:te2) = bb(teh:1:-1)
     cc(te+1:te2) = aa(teh:1:-1)
-       
+
     if (heating) then
        dd(te+1:te2) = dd(teh:1:-1)
        hh(te+1:te2) = hh(teh:1:-1)
@@ -2618,7 +2606,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz_error
-
     use le_grids, only: jend, al, ng2, nlambda, &
          il_is_wfb, il_is_passing, il_is_trapped
     use theta_grid, only: ntgrid, bmag
