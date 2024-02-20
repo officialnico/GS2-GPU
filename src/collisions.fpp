@@ -144,8 +144,6 @@ module collisions
 
   logical :: hypermult
   logical :: initialized = .false.
-  logical :: ediffinit = .false.
-  logical :: lzinit = .false., leinit = .false.
   logical :: accelerated_x = .false.
   logical :: accelerated_v = .false.
   logical :: exist
@@ -4229,7 +4227,6 @@ contains
     vnmult = -1.0
 
     accelerated_x = .false. ; accelerated_v = .false.
-    ediffinit = .false. ; lzinit = .false. ; leinit = .false.
     initialized = .false.  
 
     if (allocated(c_rate)) deallocate (c_rate)
