@@ -120,7 +120,7 @@ module collisions
   ! finish
 
   real :: cfac
-
+  integer :: nxi_lim !< Sets the upper xi index which we consider in loops
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
   ! only for lorentz
@@ -487,6 +487,7 @@ contains
     use text_options, only: text_option, get_option_value
     use run_parameters, only: beta, fapar
     use species, only: nspec
+    use le_grids, only: nxi, ng2
     implicit none
     type(collisions_config_type), intent(in), optional :: collisions_config_in
     
@@ -570,6 +571,14 @@ contains
 
     drag = has_lorentz .and. resistivity .and. (beta > epsilon(0.0)) &
          .and. (nspec > 1) .and. (fapar.gt.0)
+
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
+    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+       nxi_lim = nxi + 1
+    else
+       nxi_lim = nxi
+    endif
   end subroutine read_parameters
 
   !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
@@ -1911,8 +1920,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
-    use le_grids, only: negrid, nxi, ng2
-    use le_grids, only: forbid, ixi_to_il
+    use le_grids, only: negrid, nxi, forbid, ixi_to_il
     use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
@@ -1922,22 +1930,11 @@ contains
 
     real, intent (in), optional :: vnmult_target
 
-    integer :: ie, is, ik, il, ig, it
+    integer :: ie, is, ik, il, ig, it, ile, ixi, ielo
     real, dimension (:), allocatable :: aa, bb, cc, xe
-    integer :: ile, ixi
-    integer :: ielo
-    integer :: nxi_lim
 
     allocate (aa(negrid), bb(negrid), cc(negrid))
     allocate (xe(negrid))
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-       nxi_lim = nxi + 1
-    else
-       nxi_lim = nxi
-    endif
 
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
@@ -1947,7 +1944,6 @@ contains
     if (present(vnmult_target)) then
        vnmult(2) = max (vnmult_target, 1.0)
     end if
-
 
     if(use_le_layout) then
 
@@ -3081,7 +3077,7 @@ contains
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ng2
+    use le_grids, only: energy => energy_maxw, negrid, ixi_to_il
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -3091,15 +3087,6 @@ contains
     integer, optional, intent (in) :: diagnostics
     complex :: tmp
     integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
-    integer :: nxi_lim
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
 
     if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
@@ -3310,22 +3297,14 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
-    use le_grids, only: speed => speed_maxw, nxi, ng2, w, wxi, negrid
+    use le_grids, only: speed => speed_maxw, w, wxi, negrid
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex :: v0y0, v1y1, v2y2
     real :: vpa_nud, nud
-    integer :: ig, isgn, ik, ie, il, is, it, ile, ixi, nxi_lim
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if (le_nxilim_fix .and. nxi > 2 * ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    end if
+    integer :: ig, isgn, ik, ie, il, is, it, ile, ixi
 
     if (drag) then
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3605,22 +3584,14 @@ contains
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
     use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
-    use le_grids, only: wxi, w, negrid, nxi, ng2
+    use le_grids, only: wxi, w, negrid
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     real :: delnu, vnE
-    integer :: ig, ik, ie, il, is, it, ile, ixi, nxi_lim
+    integer :: ig, ik, ie, il, is, it, ile, ixi
     complex :: v0y0, v1y1, v2y2
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if (le_nxilim_fix .and. nxi > 2 * ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! First get v0y0 and then y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3703,13 +3674,11 @@ contains
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, ng2, lambda_map, nxi, il_is_wfb
-    use gs2_layouts, only: g_lo
-    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx
+    use le_grids, only: nlambda, jend, lambda_map, il_is_wfb, nxi, ng2
+    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-    use gs2_layouts, only: lz_lo
     use array_utils, only: zero_array
 
     implicit none
@@ -3737,9 +3706,9 @@ contains
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
-          je = 2*jend(ig)          
+          je = 2*jend(ig)
           if (je == 0) then
-             je = 2*ng2 
+             je = 2 * ng2
           end if
 
 ! when il=je-1 below, and we have trapped particles, glz is evaluated at glz(2*jend(ig),ilz).
@@ -4125,26 +4094,14 @@ contains
 
   !> FIXME : Add documentation
   subroutine solfp_ediffuse_le_layout (gle)
-    use le_grids, only: nxi, negrid, forbid, ixi_to_il, ng2
+    use le_grids, only: negrid, forbid, ixi_to_il
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-
-    integer :: ie, is, ig, il
+    integer :: ie, is, ig, il, ile, ixi, ik, it
     complex, dimension (negrid) :: delta
-    integer :: ile, ixi, ik, it
-    integer :: nxi_lim
-    
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
     
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
