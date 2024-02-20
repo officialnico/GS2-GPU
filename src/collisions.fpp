@@ -994,7 +994,7 @@ contains
 ! Now get w0
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-    !$OMP SHARED(g_lo, ntgrid, forbid, conservative, w0tmp, vns, energy, al , aj1, code_dt, &
+    !$OMP SHARED(g_lo, ntgrid, forbid, w0tmp, vns, energy, al , aj1, code_dt, &
     !$OMP spec, kperp2, duinv, bmag, conserve_forbid_zero) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -1007,16 +1007,10 @@ contains
           do ig=-ntgrid,ntgrid
              ! u2 = -3 dt J1 vperp vus a f0 / du
              if ( .not. (forbid(ig,il) .and. conserve_forbid_zero) ) then
-                if (conservative) then
-                   w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                        * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                        / bmag(ig)
-                else
-                   !This is identical to the other branch, should it be?
-                   w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                        * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                        / bmag(ig)
-                end if
+                ! Note no conservative branch here, is that right?
+                w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
+                     * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
+                     / bmag(ig)
              else
                 w0tmp(ig,isgn,iglo) = 0.
              endif
