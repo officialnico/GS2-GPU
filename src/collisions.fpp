@@ -2151,25 +2151,16 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
-    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids, &
-         il_is_passing, il_is_wfb
-    use gs2_layouts, only: le_lo
-    use gs2_layouts, only: lz_lo, g_lo
-    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
+    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al, il_is_passing, il_is_wfb
+    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
+    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, g_lo, le_lo
     use theta_grid, only: ntgrid
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
     implicit none
-
     real, intent (in), optional :: vnmult_target
-
-    integer :: ig, il, it, ik, ie, is, je, te2
-    real, dimension (:), allocatable :: aa, bb, cc
-    real, dimension (:), allocatable :: dd, hh
-    integer :: ile
-    integer :: ilz
-    complex, dimension (:,:,:), allocatable :: ctmp, z_big
+    integer :: ig, ixi, it, ik, ie, is, je, te2, ile, ilz
+    real, dimension (:), allocatable :: aa, bb, cc, dd, hh
 
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
 
@@ -2207,10 +2198,10 @@ contains
           vnmult(1) = max (vnmult_target, 1.0)
        end if
 
-
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
-       !$OMP SHARED(le_lo, jend, special_wfb_lorentz, ng2, negrid, spec, c1le, d1le, h1le, qle, betaale) &
+       !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, ixi) &
+       !$OMP SHARED(le_lo, jend, special_wfb_lorentz, ng2, negrid, spec, c1le, &
+       !$OMP d1le, h1le, qle, betaale) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
@@ -2222,12 +2213,16 @@ contains
           ! MRH the above line is likely the original cause of the wfb bug in collisions
           ! by treating collisions arrays here as if there are only passing particles
           ! when there are only passing particles plus wfb (and no other trapped particles)
-          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
-          ! Fixed below
+          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
+          ! Fixed below.
+          ! Here te2 is the total number of unique valid xi at this point.
+          ! For passing particles this is 2*ng2 whilst for trapped we subtract one
+          ! from the number of valid pitch angles due to the "degenerate" duplicate
+          ! vpar = 0 point.
           if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
-             te2 = 2*ng2
+             te2 = 2 * ng2
           else
-             te2 = 2*je-1
+             te2 = 2 * je - 1
           end if
           do ie = 1, negrid
 
@@ -2235,22 +2230,22 @@ contains
 
              if (has_hybrid_electron_species(spec)) &
                   call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
-             
-             c1le(:,ie,ile) = cc
+
+             c1le(:, ie, ile) = cc
              if (allocated(d1le)) then
-                d1le(:,ie,ile) = dd
-                h1le(:,ie,ile) = hh
+                d1le(:, ie, ile) = dd
+                h1le(:, ie, ile) = hh
              end if
 
-             qle(1,ie,ile) = 0.0
-             betaale(1,ie,ile) = 1.0/bb(1)
-             do il = 1, te2-1
-                qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
-                betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
-                     * c1le(il,ie,ile) )
+             qle(1, ie, ile) = 0.0
+             betaale(1, ie, ile) = 1.0 / bb(1)
+             do ixi = 1, te2-1
+                qle(ixi+1, ie, ile) = aa(ixi+1) * betaale(ixi, ie, ile)
+                betaale(ixi+1, ie, ile) = 1.0 / ( bb(ixi+1) - qle(ixi+1, ie, ile) &
+                     * c1le(ixi, ie, ile) )
              end do
-             qle(te2+1,ie,ile) = 0.0
-             betaale(te2+1,ie,ile) = 0.0
+             qle(te2+1:, ie, ile) = 0.0
+             betaale(te2+1:, ie, ile) = 0.0
           end do
        end do
        !$OMP END PARALLEL DO
@@ -2278,7 +2273,7 @@ contains
        end if
 
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, ixi) &
        !$OMP SHARED(lz_lo, jend, special_wfb_lorentz, spec, c1, d1, h1, betaa, ql, ng2) &
        !$OMP SCHEDULE(static)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
@@ -2295,9 +2290,9 @@ contains
           ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
           ! Fixed below
           if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
-             te2 = 2*ng2
+             te2 = 2 * ng2
           else
-             te2 = 2*je-1
+             te2 = 2 * je - 1
           end if
 
           call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
@@ -2305,22 +2300,21 @@ contains
           if (has_hybrid_electron_species(spec)) &
                call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
 
-          c1(:,ilz) = cc
+          c1(:, ilz) = cc
           if (allocated(d1)) then
-             d1(:,ilz) = dd
-             h1(:,ilz) = hh
+             d1(:, ilz) = dd
+             h1(:, ilz) = hh
           end if
 
-          betaa(1,ilz) = 1.0/bb(1)
-          do il = 1, te2-1
-             ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
-             betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
+          ql(1, ilz) = 0.0
+          betaa(1, ilz) = 1.0 / bb(1)
+          do ixi = 1, te2-1
+             ql(ixi+1, ilz) = aa(ixi+1) * betaa(ixi, ilz)
+             betaa(ixi+1, ilz) = 1.0 / (bb(ixi+1) - ql(ixi+1, ilz) * c1(ixi, ilz))
           end do
-
-          ql(1,ilz) = 0.0
-          ql(te2+1:,ilz) = 0.0
-          c1(te2+1:,ilz) = 0.0
-          betaa(te2+1:,ilz) = 0.0
+          ql(te2+1:, ilz) = 0.0
+          c1(te2+1:, ilz) = 0.0
+          betaa(te2+1:, ilz) = 0.0
        end do
        !$OMP END PARALLEL DO
     end if
