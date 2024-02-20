@@ -581,7 +581,7 @@ contains
   !> consider adding a debug check to abort/warn if the passed value
   !> is too negative (i.e. if it looks like an error rather than small
   !> round off).
-  pure real function safe_sqrt(arg)
+  elemental real function safe_sqrt(arg)
     implicit none
     real, intent(in) :: arg
     safe_sqrt = sqrt(max(0.0, arg))
