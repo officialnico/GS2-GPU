@@ -3026,6 +3026,8 @@ contains
              if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
+                ! Note here we may need aparnew from {it, ik} not owned by this
+                ! processor in g_lo.
                 tmp = vnmult(1)*spec(is)%vnewk*code_dt &
                      * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
