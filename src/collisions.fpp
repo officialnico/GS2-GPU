@@ -1,8 +1,11 @@
-!> Routines for implementing the model collision operator
-!! defined by Barnes, Abel et al. 2009. The collision operator causes
-!! physically motivated smoothing of structure in velocity space which
-!! is necessary to prevent buildup of structure at fine scales in
-!! velocity space, while conserving energy and momentum.
+!> Routines for implementing the model collision operator defined by
+!> [Barnes, Abel et
+!> al. 2009](https://pubs.aip.org/aip/pop/article/16/7/072107/263154/Linearized-model-Fokker-Planck-collision-operators)
+!> or on [arxiv](https://arxiv.org/abs/0809.3945v2).
+!> The collision operator causes physically motivated smoothing of
+!> structure in velocity space which is necessary to prevent buildup
+!> of structure at fine scales in velocity space, while conserving
+!> energy and momentum.
 module collisions
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
