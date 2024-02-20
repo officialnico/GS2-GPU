@@ -212,12 +212,11 @@ end subroutine override_profiles_subroutine
 
 subroutine le_grids_subroutine(current, going_up)
   use le_grids, only: init_le_grids, finish_le_grids
-  logical :: dummy1, dummy2
   type(init_type), intent(in) :: current
   logical, intent(in) :: going_up
   UNUSED_DUMMY(current)
   if (going_up) then
-    call init_le_grids(dummy1, dummy2)
+    call init_le_grids
   else
     call finish_le_grids
   end if

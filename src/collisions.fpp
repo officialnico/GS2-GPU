@@ -457,7 +457,6 @@ contains
     use mp, only: nproc, iproc
     implicit none
     type(collisions_config_type), intent(in), optional :: collisions_config_in
-    logical :: accel_x, accel_y
     if (initialized) return
     initialized = .true.
     call init_gs2_layouts
@@ -468,7 +467,7 @@ contains
 
     call init_theta_grid
     call init_kt_grids
-    call init_le_grids (accel_x, accel_v)
+    call init_le_grids
     call init_run_parameters
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     call read_parameters(collisions_config_in)

@@ -322,7 +322,6 @@ contains
 #endif
     implicit none
     type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
-    logical :: dum1, dum2
     logical, parameter :: debug=.false.
 
     if (initialized) return
@@ -335,7 +334,7 @@ contains
     if (debug) write(6,*) "init_nonlinear_terms: init_kt_grids"
     call init_kt_grids
     if (debug) write(6,*) "init_nonlinear_terms: init_le_grids"
-    call init_le_grids (dum1, dum2)
+    call init_le_grids
     if (debug) write(6,*) "init_nonlinear_terms: init_species"
     call init_species
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
