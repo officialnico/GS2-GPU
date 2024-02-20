@@ -675,7 +675,7 @@ contains
     end if
 
     aj0le = real(ctmp)
-    vperp_aj1le = aimag(ctmp)
+    vperp_aj1le = aimag(ctmp) !< Currently just aj1
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, ixi, ie, il) &
@@ -849,7 +849,6 @@ contains
           do isgn = 1, 2
              gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
                   * vpdiff(:,isgn,il)*speed(ie)
-             !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
           end do
        end do
        !$OMP END PARALLEL DO
@@ -942,8 +941,7 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          s0tmp(:,isgn,iglo) = s0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) &
-               * z0tmp(:,isgn,iglo)
+          s0tmp(:,isgn,iglo) = s0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) * z0tmp(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
