@@ -1008,9 +1008,14 @@ contains
              ! u2 = -3 dt J1 vperp vus a f0 / du
              if ( .not. (forbid(ig,il) .and. conserve_forbid_zero) ) then
                 ! Note no conservative branch here, is that right?
-                w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                     * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                     / bmag(ig)
+                ! Note: energy * al * smz^2 * kperp2 / bmag is alpha^2 where
+                ! alpha is the argument to the Bessel function, i.e. aj1 = J1(alpha) / alpha
+                ! This appears to leave us with alpha * J1(alpha) whilst Barnes' paper
+                ! only includes terms with J1(alpha). Note that alpha = vperp kperp smz/B
+                ! so alpha * J1(alpha) = (kperp * smz / B) * vperp J1
+                w0tmp(ig, isgn, iglo) = -vns(ik, ie, is, 1) * energy(ie) * al(il) &
+                     * aj1(ig, iglo) * code_dt * spec(is)%smz**2 * kperp2(ig, it, ik) * &
+                     duinv(ig, it, ik, is) / bmag(ig)
              else
                 w0tmp(ig,isgn,iglo) = 0.
              endif
@@ -1122,8 +1127,14 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = nud vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * real(w0tmp(:,isgn,iglo))
+          ! Note : aj1 = J1(alpha) / alpha, where we have
+          ! alpha^2 = energy * al * smz^2 * kperp2 / bmag = vperp^2 smz^2 kperp2 / bmag^2
+          ! so energy * al * aj1 = (B / [kperp2 * smz^2]) alpha^2 aj1
+          ! = (B / [kperp2 * smz^2]) alpha J1 = vperp J1 / (kperp * smz). As w0tmp
+          ! appears to have an extra factor of kperp * smz / B this _may_ work out to
+          ! (vperp J1 / B) * ... Is there an extra factor of 1 / B here?
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * energy(ie) * al(il) * aj1(:, iglo) &
+               * real(w0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1246,8 +1257,6 @@ contains
     vns(:,:,:,2) = vnmult(2)*vnew_s
 
     ! first obtain 1/du
-    !    if (conservative) then
-
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
     !$OMP SHARED(g_lo, gtmp, energy, vnmult, vnew_E) &
@@ -1263,16 +1272,11 @@ contains
     !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
-!    else
-!       do is = 1, nspec
-!          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
-!       end do
-!    end if
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
        !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-       duinv = 1./duinv  ! now it is 1/du
+       duinv = 1 / duinv  ! now it is 1/du
     end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1355,8 +1359,6 @@ contains
     ! redefine dq = du (for momentum-conserving terms)
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
-    !    if (conservative) then
-
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
     !$OMP SHARED(g_lo, gtmp, vns, vpa) &
@@ -1366,25 +1368,17 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo)**2
-          !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
-
+          gtmp(:, isgn, iglo)  = vns(ik, ie, is, 1) * vpa(:, isgn, iglo)**2
        end do
     end do
     !$OMP END PARALLEL DO
 
     call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
-    !    else
-    !       do is = 1, nspec
-    !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
-    !       end do
-    !    end if
-
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
        !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-       duinv = 1./duinv  ! now it is 1/du
+       duinv = 1 / duinv  ! now it is 1/du
     end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1400,13 +1394,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! u1 = -3 nu_s vpa dt J0 f_0 / du
-          !          if (conservative) then
-          bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-               * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-          !          else
-          !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-          !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-          !          end if
+          bs0tmp(:, isgn, iglo) = -vns(ik, ie, is, 1) * vpa(:, isgn, iglo) &
+               * aj0(:, iglo) * code_dt * duinv(:, it, ik, is)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1434,8 +1423,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * real(bs0tmp(:,isgn,iglo))
+          gtmp(:, isgn, iglo) = vnmult(2)  *vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * real(bs0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1454,8 +1443,8 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bs0tmp(:,isgn,iglo) = bs0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) &
-               * bz0tmp(:,isgn,iglo)
+          bs0tmp(:, isgn, iglo) = bs0tmp(:, isgn, iglo) - dtmp(:, it, ik, is) &
+               * bz0tmp(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1473,8 +1462,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nu_s - nu_D) vpa J0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * real(bs0tmp(:,isgn,iglo))
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * real(bs0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1493,7 +1482,7 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bs0tmp(:,isgn,iglo) = bs0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          bs0tmp(:, isgn, iglo) = bs0tmp(:, isgn, iglo) / (1.0 + dtmp(:, it, ik, is))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1515,11 +1504,16 @@ contains
           do ig=-ntgrid,ntgrid
              ! u0 = -3 dt J1 vperp vus a f0 / du
              if ( .not. (forbid(ig,il) .and. conserve_forbid_zero)) then
-                bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                     * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                     / bmag(ig)
+                ! Note: energy * al * smz^2 * kperp2 / bmag is alpha^2 where
+                ! alpha is the argument to the Bessel function, i.e. aj1 = J1(alpha) / alpha
+                ! This appears to leave us with alpha * J1(alpha) whilst Barnes' paper
+                ! only includes terms with J1(alpha). Note that alpha = vperp kperp smz/B
+                ! so alpha * J1(alpha) = (kperp * smz / B) * vperp J1
+                bw0tmp(ig, isgn, iglo) = -vns(ik, ie, is, 1) * energy(ie) * al(il) &
+                     * aj1(ig, iglo) * code_dt * spec(is)%smz**2 * kperp2(ig, it, ik) * &
+                     duinv(ig, it, ik, is) / bmag(ig)
              else
-                bw0tmp(ig,isgn,iglo) = 0.
+                bw0tmp(ig, isgn, iglo) = 0.
              endif
           end do
        end do
@@ -1549,8 +1543,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * real(bw0tmp(:,isgn,iglo))
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1568,8 +1562,9 @@ contains
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bz0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
+       do isgn = 1, 2
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) - bz0tmp(:, isgn, iglo) &
+               * dtmp(:, it, ik, is)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1587,8 +1582,8 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nus-nud) vpa J0 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * real(bw0tmp(:,isgn,iglo))
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1606,8 +1601,9 @@ contains
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bs0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
+       do isgn = 1, 2
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) - bs0tmp(:, isgn, iglo) &
+               * dtmp(:, it, ik, is)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1626,8 +1622,14 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = (nus-nud) vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * real(bw0tmp(:,isgn,iglo))
+          ! Note : aj1 = J1(alpha) / alpha, where we have
+          ! alpha^2 = energy * al * smz^2 * kperp2 / bmag = vperp^2 smz^2 kperp2 / bmag^2
+          ! so energy * al * aj1 = (B / [kperp2 * smz^2]) alpha^2 aj1
+          ! = (B / [kperp2 * smz^2]) alpha J1 = vperp J1 / (kperp * smz). As w0tmp
+          ! appears to have an extra factor of kperp * smz / B this _may_ work out to
+          ! (vperp J1 / B) * ... Is there an extra factor of 1 / B here?
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * energy(ie) * al(il) * aj1(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1646,7 +1648,7 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) / (1.0 + dtmp(:, it, ik, is))
        end do
     end do
     !$OMP END PARALLEL DO
