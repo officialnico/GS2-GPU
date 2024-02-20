@@ -14,22 +14,14 @@ module collisions
 
   private 
 
-  public :: init_collisions, finish_collisions
+  public :: init_collisions, finish_collisions, reset_init
   public :: read_parameters, wnml_collisions, check_collisions
-  public :: solfp1
-  public :: reset_init
-  public :: dtot, fdf, fdb, vnmult, vnfac
-  public :: ncheck, vnslow, vary_vnew
-  public :: etol, ewindow, etola, ewindowa
-  public :: timesteps_between_collisions
-  public :: init_lorentz, init_ediffuse
-  public :: init_lorentz_conserve, init_diffuse_conserve
-  public :: init_lorentz_error, collision_model_switch
-  public :: colls, hyper_colls, heating, adjust
-  public :: use_le_layout, collision_model_ediffuse
-  public :: collision_model_lorentz, collision_model_none
-  public :: collision_model_lorentz_test, collision_model_full
-  public :: split_collisions
+  public :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew
+  public :: etol, ewindow, etola, ewindowa, init_lorentz_error
+  public :: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
+  public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
+  public :: collision_model_switch, collision_model_lorentz, collision_model_none
+  public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
 
   public :: collisions_config_type
   public :: set_collisions_config
