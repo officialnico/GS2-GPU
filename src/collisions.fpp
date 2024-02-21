@@ -3935,59 +3935,52 @@ contains
   !> otherwise is the case if use_le_layout is no specified in the input file.
   subroutine solfp_ediffuse_standard_layout (g)
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid, forbid
-    use le_grids, only: energy_map
+    use le_grids, only: negrid, forbid, energy_map
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, il_idx, is_idx, e_lo, g_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
-
-    integer :: ie, is, ig, il, it, ik
+    integer :: ie, is, ig, il, it, ik, ielo
     complex, dimension (negrid) :: delta
     complex, dimension (:,:), allocatable :: ged
-    integer :: ielo
 
     allocate (ged(negrid+1,e_lo%llim_proc:e_lo%ulim_alloc)) ; call zero_array(ged)
-
     call gather (energy_map, g, ged)
 
     ! solve for ged row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
-    !$OMP SHARED(e_lo, kwork_filter, ieqzip, vnew, force_collisions, forbid, negrid, ged, eql, ec1, ebetaa) &
+    !$OMP SHARED(e_lo, kwork_filter, ieqzip, vnew, force_collisions, forbid, negrid, &
+    !$OMP ged, eql, ec1, ebetaa) &
     !$OMP SCHEDULE(static)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
-       is = is_idx(e_lo,ielo)
-       ik = ik_idx(e_lo,ielo)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       it = it_idx(e_lo,ielo)
-       if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)) cycle
-       ig = ig_idx(e_lo,ielo)
-       il = il_idx(e_lo,ielo)
-       if (forbid(ig,il)) cycle
+       is = is_idx(e_lo, ielo)
+       ik = ik_idx(e_lo, ielo)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(e_lo, ielo)
+       if (kwork_filter(it, ik))cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(e_lo, ielo)
+       il = il_idx(e_lo, ielo)
+       if (forbid(ig, il)) cycle
 
-       delta(1) = ged(1,ielo)
+       delta(1) = ged(1, ielo)
        do ie = 1, negrid-1
-          delta(ie+1) = ged(ie+1,ielo) - eql(ie+1,ielo)*delta(ie)
+          delta(ie+1) = ged(ie+1, ielo) - eql(ie+1, ielo) * delta(ie)
        end do
        
-       ged(negrid+1,ielo) = 0.0
+       ged(negrid+1, ielo) = 0.0
        do ie = negrid, 1, -1
-          ged(ie,ielo) = (delta(ie) - ec1(ie,ielo)*ged(ie+1,ielo))*ebetaa(ie,ielo)
+          ged(ie, ielo) = (delta(ie) - ec1(ie, ielo) * ged(ie+1, ielo)) * ebetaa(ie, ielo)
        end do
-
     end do
     !$OMP END PARALLEL DO
 
     call scatter (energy_map, ged, g)
-
     deallocate (ged)
-
   end subroutine solfp_ediffuse_standard_layout
 
   !> FIXME : Add documentation
@@ -4004,31 +3997,31 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, ixi_to_il, forbid, gle, negrid, &
-    !$OMP eqle, ec1le, ebetaale, nxi_lim) &
+    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, ixi_to_il, &
+    !$OMP forbid, gle, negrid, eqle, ec1le, ebetaale, nxi_lim) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       it=it_idx(le_lo,ile)
-       if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)) cycle
-       ig = ig_idx(le_lo,ile)
+       is = is_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(le_lo, ile)
 
        do ixi = 1, nxi_lim
           il = ixi_to_il(ixi, ig)
-          if (forbid(ig,il)) cycle
+          if (forbid(ig, il)) cycle
 
-          delta(1) = gle(ixi,1,ile)
-          do ie = 1, negrid-1
-             delta(ie+1) = gle(ixi,ie+1,ile) - eqle(ixi,ie+1,ile)*delta(ie)
+          delta(1) = gle(ixi, 1, ile)
+          do ie = 1, negrid - 1
+             delta(ie+1) = gle(ixi, ie+1, ile) - eqle(ixi, ie+1, ile) * delta(ie)
           end do
 
-          gle(ixi,negrid+1,ile) = 0.0
+          gle(ixi, negrid+1, ile) = 0.0
           do ie = negrid, 1, -1
-             gle(ixi,ie,ile) = (delta(ie) - ec1le(ixi,ie,ile)*gle(ixi,ie+1,ile)) &
-                  * ebetaale(ixi,ie,ile)
+             gle(ixi, ie, ile) = (delta(ie) - ec1le(ixi, ie, ile) * gle(ixi, ie+1, ile)) &
+                  * ebetaale(ixi, ie, ile)
           end do
        end do
     end do
