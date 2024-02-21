@@ -3985,20 +3985,20 @@ contains
 
   !> FIXME : Add documentation
   subroutine solfp_ediffuse_le_layout (gle)
-    use le_grids, only: negrid, forbid, ixi_to_il
+    use le_grids, only: negrid, jend, ng2
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-    integer :: ie, is, ig, il, ile, ixi, ik, it
+    integer :: ie, is, ig, ile, ixi, ik, it, max_xi
     complex, dimension (negrid) :: delta
     
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, ixi_to_il, &
-    !$OMP forbid, gle, negrid, eqle, ec1le, ebetaale, nxi_lim) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ixi, max_xi, ie, delta) &
+    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, jend, ng2, &
+    !$OMP forbid, gle, negrid, eqle, ec1le, ebetaale) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        is = is_idx(le_lo, ile)
@@ -4008,11 +4008,8 @@ contains
        if (kwork_filter(it, ik)) cycle
        if (ieqzip(it, ik)) cycle
        ig = ig_idx(le_lo, ile)
-
-       do ixi = 1, nxi_lim
-          il = ixi_to_il(ixi, ig)
-          if (forbid(ig, il)) cycle
-
+       max_xi = max(2 * jend(ig), 2 * ng2)
+       do ixi = 1, max_xi
           delta(1) = gle(ixi, 1, ile)
           do ie = 1, negrid - 1
              delta(ie+1) = gle(ixi, ie+1, ile) - eqle(ixi, ie+1, ile) * delta(ie)
