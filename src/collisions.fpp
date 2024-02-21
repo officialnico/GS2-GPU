@@ -1423,7 +1423,7 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0
-          gtmp(:, isgn, iglo) = vnmult(2)  *vnew_E(ik, ie, is) * aj0(:, iglo) &
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
                * real(bs0tmp(:, isgn, iglo))
        end do
     end do
