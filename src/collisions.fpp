@@ -3051,17 +3051,14 @@ contains
   subroutine conserve_lorentz_standard_layout (g, g1)
     use theta_grid, only: ntgrid
     use species, only: nspec
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
          integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
-    use kt_grids, only: kwork_filter
     use array_utils, only: copy
-    
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
     real, dimension (:,:,:), allocatable :: vns
@@ -3340,15 +3337,13 @@ contains
   subroutine conserve_diffuse_standard_layout (g, g1)
     use theta_grid, only: ntgrid
     use species, only: nspec
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
-    use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
     real, dimension (:,:,:), allocatable :: vns
@@ -3594,20 +3589,18 @@ contains
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, jend, lambda_map, il_is_wfb, nxi, ng2
-    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx, g_lo, lz_lo
+    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
-
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gc, gh
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:,:), allocatable :: glz, glzc
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, it, je, ie, nxi_scatt, ilz
+    integer :: ig, ik, il, is, it, je, nxi_scatt, ilz, cur_jend
     logical :: is_wfb
 
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
@@ -3671,8 +3664,8 @@ contains
 
     ! solve for glz row by row
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
-    !$OMP il, gwfb, delta, is_wfb) &
+    !$OMP PRIVATE(ilz, ik, it, is, ig, je, nxi_scatt, &
+    !$OMP il, gwfb, delta, is_wfb, cur_jend) &
     !$OMP SHARED(lz_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, vpar_zero_mean, &
     !$OMP glz, special_wfb_lorentz, ql, c1, betaa) &
     !$OMP SCHEDULE(static)
@@ -3683,40 +3676,46 @@ contains
        it = it_idx(lz_lo,ilz)
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)) cycle
-       ie = ie_idx(lz_lo,ilz)
        ig = ig_idx(lz_lo,ilz)
 
-!CMRDDGC, 10/2/2014: 
-! Fixes for wfb treatment below, use same je definition in ALL cases
-!   je  = #physical xi values + 1 
-!       NB +1 above WITH TRAPPED is duplicate xi=vpar=0 point with isign=2
-!          +1 above WITHOUT TRAPPED is entirely unphysical extra grid point
-!  je-1 = #physical xi values removing unphysical/duplicate extra point
-       je=max(2*jend(ig),2*ng2+1)
-       nxi_scatt=je-1
-       is_wfb = il_is_wfb(jend(ig))
-       
-       if (je==2*jend(ig) .and. vpar_zero_mean) then 
+       !CMRDDGC, 10/2/2014:
+       ! Fixes for wfb treatment below, use same je definition in ALL cases
+       !   je  = #physical (unique) xi values + 1
+       !       NB +1 above WITH TRAPPED is duplicate xi=vpar=0 point with isign=2
+       !          +1 above WITHOUT TRAPPED is entirely unphysical extra grid point
+       !  je-1 = #physical xi values removing unphysical/duplicate extra point
+       cur_jend = jend(ig)
+       je = max(2 * cur_jend, 2 * ng2 + 1)
+       nxi_scatt = je - 1
+       is_wfb = il_is_wfb(cur_jend)
+
+       if (je == 2 * cur_jend .and. vpar_zero_mean) then
           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
           ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
           ! this turns out to be necessary to suppress numerical instability
           ! when we handle pitch angle scattering physically at theta = +/- pi
           ! by setting special_wfb_lorentz =.false.
-          glz(jend(ig),ilz)=(glz(jend(ig),ilz)+glz(2*jend(ig),ilz))/2.0
-       endif 
-       
-       glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
-       if (is_wfb .and. special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
-!          remove wfb from collisions, reinsert later
-!
-! first save gwfb for reinsertion later
-          gwfb = glz(ng2+1,ilz) 
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
-          glz(ng2+1:je-2,ilz) = glz(ng2+2:je-1,ilz)
-          nxi_scatt=nxi_scatt-1
+          glz(cur_jend, ilz) = (glz(cur_jend, ilz) + glz(2 * cur_jend, ilz)) / 2.0
        end if
-!CMRDDGCend
+
+       ! zero unphysical/duplicate extra point. This shouldn't be needed
+       glz(je, ilz) = 0.0
+
+       if (is_wfb .and. special_wfb_lorentz) then
+          !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+          !          remove wfb from collisions, reinsert later
+          !
+          ! first save gwfb for reinsertion later
+          ! Note we don't save both sigma values as we force g(v||=0)_+ == g(v||=0)_-
+          ! at the end of the loop anyway.
+          gwfb = glz(ng2+1, ilz)
+          ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+          !The above is referring to the conservative scheme coefficients which involve
+          !1/pitch_weight but pitch_weight = 0 for the WFB at the WFB bounce point.
+          !Special_wfb_lorentz is a way to avoid this issue by ignoring the WFB pitch angle
+          glz(ng2+1:je-2, ilz) = glz(ng2+2:je-1, ilz)
+          nxi_scatt = nxi_scatt - 1
+       end if
 
        ! right and left sweeps for tridiagonal solve:
 
@@ -3724,34 +3723,19 @@ contains
        do il = 1, nxi_scatt
           delta(il+1) = glz(il+1,ilz) - ql(il+1,ilz)*delta(il)
        end do
-       
-!CMR, 5/9/14:
-! Correction to next line fixes a bug introduced at r2699 which
-! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t        
-       glz(nxi_scatt+1,ilz) = delta(nxi_scatt+1)*betaa(nxi_scatt+1,ilz)
+
+       glz(nxi_scatt+1,ilz) = delta(nxi_scatt+1) * betaa(nxi_scatt+1, ilz)
        do il = nxi_scatt, 1, -1
           glz(il,ilz) = (delta(il) - c1(il,ilz)*glz(il+1,ilz))*betaa(il,ilz)
        end do
 
-!       ! interpolate to obtain glz(vpa = 0) point for wfb
-!       ! and insert this point into glz
-       ! interpolation described above mysteriously causing numerical instability
-       ! stabilized by using old (pre-collision) value of g for wfb
        if (is_wfb .and. special_wfb_lorentz) then
-          glz(ng2+2:je-1,ilz) = glz(ng2+1:je-2,ilz)
-          glz(ng2+1,ilz) = gwfb
+          glz(ng2+2:je-1, ilz) = glz(ng2+1:je-2, ilz)
+          glz(ng2+1, ilz) = gwfb
        end if
 
-!
-! bug fixed 4.14.03
-! was only a problem with collisions but with no trapped particles
-! because of an array index out of bounds 
-! Overall, this was a rare bug.
-!
-
-       ! update the duplicate vpar=0 point with the post pitch angle scattering value 
-       if (jend(ig) /= 0) glz(2*jend(ig),ilz) = glz(jend(ig),ilz)
+       ! update the duplicate vpar=0 point with the post pitch angle scattering value
+       if (cur_jend /= 0) glz(2 * cur_jend,ilz) = glz(cur_jend,ilz)
 
     end do
     !$OMP END PARALLEL DO
