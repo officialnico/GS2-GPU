@@ -3754,14 +3754,13 @@ contains
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
     complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile
+    integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile, cur_jend
     logical :: is_wfb
 
     if (heating .and. present(diagnostics)) then
@@ -3851,84 +3850,80 @@ contains
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
-    !$OMP gwfb, delta, is_wfb) &
+    !$OMP gwfb, delta, is_wfb, cur_jend) &
     !$OMP SHARED(le_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, special_wfb_lorentz, &
     !$OMP vpar_zero_mean, negrid, gle, qle, betaale, c1le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       is = is_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       it = it_idx(le_lo,ile)
-       if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)) cycle
-       ig = ig_idx(le_lo,ile)
+       is = is_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(le_lo, ile)
 
-!CMRDDGC, 10/2/1014: 
-! Fixes for wfb treatment below, use same je definition in ALL cases
-!   je  = #physical xi values at location, includes duplicate point at vpar=0
-!  je-1 = #physical xi values removing duplicate vpar=0 point
-       je=max(2*jend(ig),2*ng2+1)
-       nxi_scatt=je-1
-       is_wfb = il_is_wfb(jend(ig))
+       !CMRDDGC, 10/2/1014:
+       ! Fixes for wfb treatment below, use same je definition in ALL cases
+       !   je  = #physical xi values at location, includes duplicate point at vpar=0
+       !  je-1 = #physical xi values removing duplicate vpar=0 point
+       cur_jend = jend(ig)
+       je = max(2 * cur_jend, 2 * ng2 + 1)
+       nxi_scatt = je - 1
+       is_wfb = il_is_wfb(cur_jend)
        if (is_wfb .and. special_wfb_lorentz) nxi_scatt = nxi_scatt - 1
 
-! These fixes address previous comment by CMR: 
-! "surely wfb's bounce point should be handled like any other trapped bp?"
-!CMR, 1/11/2013:
-! Numerical instability referred to below more likely arises from wfb failing
-! to satisfy trapping condition after invert_rhs.
-!
        do ie = 1, negrid
-          if (je==2*jend(ig) .and. vpar_zero_mean) then
+          if (je == 2 * cur_jend .and. vpar_zero_mean) then
              ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
              ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
              ! this turns out to be necessary to suppress numerical instability
              ! when we handle pitch angle scattering physically at theta = +/- pi
              ! by setting special_wfb_lorentz =.false.
-             gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
-          endif 
-          gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
-          if (is_wfb .and. special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
-!          remove wfb from collisions, reinsert later
-!
-! first save gwfb for reinsertion later
-             gwfb = gle(ng2+1,ie,ile)
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
-             gle(ng2+1:je-2,ie,ile) = gle(ng2+2:je-1,ie,ile)
+             gle(cur_jend, ie, ile) = (gle(cur_jend, ie, ile) + &
+                  gle(2 * cur_jend, ie, ile)) / 2.0
           end if
-!CMRDDGCend
+
+          ! zero redundant duplicate xi, isign=2 for vpar=0! This shouldn't be needed
+          gle(je, ie, ile) = 0.0d0
+
+          if (is_wfb .and. special_wfb_lorentz) then
+             !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+             !          remove wfb from collisions, reinsert later
+             !
+             ! first save gwfb for reinsertion later
+             ! Note we don't save both sigma values as we force g(v||=0)_+ == g(v||=0)_-
+             ! at the end of the loop anyway.
+             gwfb = gle(ng2 + 1, ie, ile)
+             ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+             !The above is referring to the conservative scheme coefficients which involve
+             !1/pitch_weight but pitch_weight = 0 for the WFB at the WFB bounce point.
+             !Special_wfb_lorentz is a way to avoid this issue by ignoring the WFB pitch angle
+             gle(ng2+1:je-2, ie, ile) = gle(ng2+2:je-1, ie, ile)
+             ! Zero out the gle value not overwritten in the above. Shouldn't be needed
+             gle(je - 1, ie, ile) = 0.0
+          end if
 
           ! right and left sweeps for tridiagonal solve:
-          
-          delta(1) = gle(1,ie,ile)
+          delta(1) = gle(1, ie, ile)
           do il = 1, nxi_scatt
-             delta(il+1) = gle(il+1,ie,ile) - qle(il+1,ie,ile)*delta(il)
+             delta(il+1) = gle(il+1, ie, ile) - qle(il+1, ie, ile) * delta(il)
           end do
-!CMR, 5/9/14:
-! Correction to next line fixes a bug introduced at r2699 which
-! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t        
-          gle(nxi_scatt+1,ie,ile) = delta(nxi_scatt+1)*betaale(nxi_scatt+1,ie,ile)
+
+          gle(nxi_scatt+1, ie, ile) = delta(nxi_scatt+1) * betaale(nxi_scatt+1, ie, ile)
           do il = nxi_scatt, 1, -1
-             gle(il,ie,ile) = (delta(il) - c1le(il,ie,ile)*gle(il+1,ie,ile))*betaale(il,ie,ile)
+             gle(il, ie, ile) = (delta(il) - c1le(il, ie, ile) * gle(il+1, ie, ile)) * &
+                  betaale(il, ie, ile)
           end do
-!       ! interpolate to obtain glz(vpa = 0) point for wfb
-!       ! and insert this point into glz
-          ! interpolation described above mysteriously causing numerical instability
-          ! stabilized by using old (pre-collision) value of g for wfb
+
           if (is_wfb .and. special_wfb_lorentz) then
-             gle(ng2+2:je-1,ie,ile)=gle(ng2+1:je-2,ie,ile)
-             gle(ng2+1,ie,ile)=gwfb
-!          gle(ng2+1,ie,ile) = 0.5*(gle(ng2,ie,ile)+gle(ng2+1,ie,ile))
+             gle(ng2+2:je-1, ie, ile) = gle(ng2+1:je-2, ie, ile)
+             gle(ng2+1, ie, ile) = gwfb
           end if
 
-!CMR, 1/11/2013:
-! next line ensures bounce condition is satisfied after lorentz collisions
-! this is right thing to do, but it would mask any prior bug in trapping condition!
-          ! update the duplicate vpar=0 point with the post pitch angle scattering value 
-          if (jend(ig) /= 0) gle(2*jend(ig),ie,ile) = gle(jend(ig),ie,ile)
+          ! next line ensures bounce condition is satisfied after lorentz collisions
+          ! this is right thing to do, but it would mask any prior bug in trapping condition!
+          if (cur_jend /= 0) gle(2 * cur_jend, ie, ile) = gle(cur_jend, ie, ile)
 
        end do
     end do
