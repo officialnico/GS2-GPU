@@ -3714,19 +3714,20 @@ contains
           !1/pitch_weight but pitch_weight = 0 for the WFB at the WFB bounce point.
           !Special_wfb_lorentz is a way to avoid this issue by ignoring the WFB pitch angle
           glz(ng2+1:je-2, ilz) = glz(ng2+2:je-1, ilz)
+          ! Zero out the glz value not overwritten in the above. Shouldn't be needed
+          glz(je - 1, ilz) = 0.0
           nxi_scatt = nxi_scatt - 1
        end if
 
        ! right and left sweeps for tridiagonal solve:
-
-       delta(1) = glz(1,ilz)
+       delta(1) = glz(1, ilz)
        do il = 1, nxi_scatt
-          delta(il+1) = glz(il+1,ilz) - ql(il+1,ilz)*delta(il)
+          delta(il+1) = glz(il+1, ilz) - ql(il+1, ilz) * delta(il)
        end do
 
-       glz(nxi_scatt+1,ilz) = delta(nxi_scatt+1) * betaa(nxi_scatt+1, ilz)
+       glz(nxi_scatt+1, ilz) = delta(nxi_scatt+1) * betaa(nxi_scatt+1, ilz)
        do il = nxi_scatt, 1, -1
-          glz(il,ilz) = (delta(il) - c1(il,ilz)*glz(il+1,ilz))*betaa(il,ilz)
+          glz(il, ilz) = (delta(il) - c1(il, ilz) * glz(il+1, ilz)) * betaa(il, ilz)
        end do
 
        if (is_wfb .and. special_wfb_lorentz) then
@@ -3735,8 +3736,7 @@ contains
        end if
 
        ! update the duplicate vpar=0 point with the post pitch angle scattering value
-       if (cur_jend /= 0) glz(2 * cur_jend,ilz) = glz(cur_jend,ilz)
-
+       if (cur_jend /= 0) glz(2 * cur_jend, ilz) = glz(cur_jend, ilz)
     end do
     !$OMP END PARALLEL DO
 
