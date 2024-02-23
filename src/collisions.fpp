@@ -3677,6 +3677,8 @@ contains
           ! by setting special_wfb_lorentz =.false.
           ! Note : This can give large change in g_wfb when it is not treated as a trapped
           ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+          ! Note : We don't apply this treatment to other trapped particles as we assume
+          ! g has a unique value at the bounce point for those particles.
           glz(cur_jend, ilz) = (glz(cur_jend, ilz) + glz(2 * cur_jend, ilz)) / 2.0
        end if
 
@@ -3864,6 +3866,8 @@ contains
              ! by setting special_wfb_lorentz =.false.
              ! Note : This can give large change in g_wfb when it is not treated as a trapped
              ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+             ! Note : We don't apply this treatment to other trapped particles as we assume
+             ! g has a unique value at the bounce point for those particles.
              gle(cur_jend, ie, ile) = (gle(cur_jend, ie, ile) + &
                   gle(2 * cur_jend, ie, ile)) / 2.0
           end if
