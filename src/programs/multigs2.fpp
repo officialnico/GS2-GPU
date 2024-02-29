@@ -20,8 +20,7 @@ program multigs2
   integer, dimension(:), allocatable :: subset_in_charge
   character(len = run_name_size), dimension(:), allocatable :: files, my_files
   real, dimension(2) :: main_timer, job_timer
-  ! Set default options
-  nbatch = 1 ; debug = .false. ; main_timer = 0. ; job_timer = 0.
+  main_timer = 0. ; job_timer = 0.
   call parse_command_line()
   call init_mp
   if (proc0) write(*, '("Run started at ",A)') date_iso8601()
@@ -124,6 +123,9 @@ contains
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
     logical :: skip
+    ! Set default options
+    nbatch = 1 ; debug = .false.
+
     arg_count = command_argument_count()
     skip = .false.
     do arg_n = 1, arg_count
