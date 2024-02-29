@@ -15,8 +15,7 @@ program multigs2
   logical :: debug
   ! End of command line options
   type(gs2_program_state_type) :: state
-  integer :: sub_comm, file_unit, nfiles, ierr, nproc_per_batch
-  integer :: local_iproc, num_my_jobs, batch_id, i
+  integer :: sub_comm, nfiles, nproc_per_batch, local_iproc, num_my_jobs, batch_id, i
   logical :: no_work_for_this_proc, local_proc0
   integer, dimension(:), allocatable :: subset_in_charge
   character(len = run_name_size), dimension(:), allocatable :: files, my_files
@@ -29,25 +28,7 @@ program multigs2
 
   call time_message(.false., main_timer, '')
 
-  if (proc0) then
-     open(newunit = file_unit, file = set_file, action = 'read')
-     ! First count how many jobs we have, based on how many lines in file
-     nfiles = 0 ; ierr = 0
-     do while (ierr == 0)
-        read(unit = file_unit, fmt = *, iostat = ierr)
-        nfiles = nfiles + 1
-     end do
-     nfiles = nfiles - 1
-     ! Reset to start of file
-     rewind(unit = file_unit)
-
-     ! Read in each line as store in files array
-     allocate(files(nfiles))
-     do i = 1, nfiles
-        read(unit = file_unit, fmt = '(a)') files(i)
-     end do
-     close(file_unit)
-  end if
+  if (proc0) call parse_set_file_to_files(set_file, nfiles, files)
 
   ! Ensure all processors know how many files there are
   call broadcast(nfiles)
@@ -181,5 +162,30 @@ contains
     end if
 
   end subroutine parse_command_line
+
+  subroutine parse_set_file_to_files(set_file, nfiles, files)
+    implicit none
+    character(len = *), intent(in) :: set_file
+    integer, intent(out) :: nfiles
+    character(len = run_name_size), allocatable, dimension(:), intent(out) :: files
+    integer :: file_unit, ierr, i
+    open(newunit = file_unit, file = set_file, action = 'read')
+    ! First count how many jobs we have, based on how many lines in file
+    nfiles = 0 ; ierr = 0
+    do while (ierr == 0)
+       read(unit = file_unit, fmt = *, iostat = ierr)
+       nfiles = nfiles + 1
+    end do
+    nfiles = nfiles - 1
+    ! Reset to start of file
+    rewind(unit = file_unit)
+
+    ! Read in each line as store in files array
+    allocate(files(nfiles))
+    do i = 1, nfiles
+       read(unit = file_unit, fmt = '(a)') files(i)
+    end do
+    close(file_unit)
+  end subroutine parse_set_file_to_files
 
 end program multigs2
