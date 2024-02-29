@@ -119,7 +119,6 @@ contains
   !> Parse the command line to determine user options
   subroutine parse_command_line()
     integer :: arg_count, arg_n
-    integer :: arg_length
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
     logical :: skip
@@ -134,36 +133,34 @@ contains
           cycle
        end if
 
-       call get_command_argument(arg_n, length=arg_length)
-       if (allocated(argument)) deallocate(argument)
-       allocate(character(len=arg_length)::argument)
-       call get_command_argument(arg_n, argument)
+       call get_arg(arg_n, argument)
 
        if ((argument == "--nbatch") .or. (argument == "-n")) then
-          if (arg_n == arg_count) then
-             error stop "Missing nbatch value"
-          end if
-
-          call get_command_argument(arg_n + 1, length=arg_length)
-          deallocate(argument)
-          allocate(character(len=arg_length)::argument)
-          call get_command_argument(arg_n + 1, argument)
+          if (arg_n == arg_count) error stop "Missing nbatch value"
+          call get_arg(arg_n + 1, argument)
           read(argument, *) nbatch
           skip = .true.
        else if ((argument == "--debug") .or. (argument == "-d")) then
           debug = .true.
        else
-          call get_command_argument(arg_n, length=arg_length)
-          allocate(character(len=arg_length)::set_file)
-          call get_command_argument(arg_n, set_file)
+          call get_arg(arg_n, set_file)
        end if
     end do
 
     if (.not. allocated(set_file)) then
        error stop 'No set_file found when parsing command line'
     end if
-
   end subroutine parse_command_line
+
+  subroutine get_arg(arg_n, arg)
+    integer, intent(in) :: arg_n
+    character(len=:), allocatable, intent(in out) :: arg
+    integer :: arg_length
+    call get_command_argument(arg_n, length=arg_length)
+    if (allocated(arg)) deallocate(arg)
+    allocate(character(len=arg_length)::arg)
+    call get_command_argument(arg_n, arg)
+  end subroutine get_arg
 
   subroutine parse_set_file_to_files(set_file, nfiles, files)
     implicit none
