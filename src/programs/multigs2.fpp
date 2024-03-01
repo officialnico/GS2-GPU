@@ -105,13 +105,13 @@ program multigs2
      call time_message(.false., job_timer, '')
      call run_gs2(state, quiet = .true.)
      if (debug .and. local_proc0) &
-          write(*, '("Batch : ",I0," Done job ",I0," of ",I0," : ",A," in ",0pF9.3,"s")') &
+          write(*, '("Batch : ",I0," Done job ",I0," of ",I0," : ",A," in ",0pF9.3," s")') &
           batch_id, i, num_my_jobs, trim(state%run_name), job_timer(1)
   end do
   call time_message(.false., main_timer, '')
   call free_comm(sub_comm)
   if (debug .and. local_proc0) &
-       write(*, '("Batch : ",I0," finished in ",0pF9.3,"s")') batch_id, main_timer(1)
+       write(*, '("Batch : ",I0," finished in ",0pF9.3," s")') batch_id, main_timer(1)
   call finish_mp
   ! Hacky way to get a single processor to print after we've finished mpi
   if (local_proc0 .and. batch_id == 1) write(*, '("Run finished at ",A)') date_iso8601()
