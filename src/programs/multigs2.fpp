@@ -3,7 +3,7 @@
 !> in a single process. Limited features right now (e.g.
 !> no load balancing etc.) but can still be useful.
 program multigs2
-  use mp, only: init_mp, mp_comm, finish_mp, proc0, nproc, time_message
+  use mp, only: init_mp, mp_comm, finish_mp, proc0, nproc, time_message, barrier
   use mp, only: broadcast, iproc, mp_undefined, split, rank_comm, free_comm
   use gs2_main, only : run_gs2, gs2_program_state_type
   use constants, only: run_name_size
@@ -112,6 +112,7 @@ program multigs2
   call free_comm(sub_comm)
   if (debug .and. local_proc0) &
        write(*, '("Batch : ",I0," finished in ",0pF9.3," s")') batch_id, main_timer(1)
+  call barrier
   call finish_mp
   ! Hacky way to get a single processor to print after we've finished mpi
   if (local_proc0 .and. batch_id == 1) write(*, '("Run finished at ",A)') date_iso8601()
