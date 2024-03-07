@@ -171,22 +171,29 @@ contains
     character(len = *), intent(in) :: set_file
     integer, intent(out) :: nfiles
     character(len = run_name_size), allocatable, dimension(:), intent(out) :: files
+    character(len = run_name_size) :: line
     integer :: file_unit, ierr, i
     open(newunit = file_unit, file = set_file, action = 'read')
     ! First count how many jobs we have, based on how many lines in file
     nfiles = 0 ; ierr = 0
     do while (ierr == 0)
-       read(unit = file_unit, fmt = *, iostat = ierr)
-       nfiles = nfiles + 1
+       read(unit = file_unit, fmt = *, iostat = ierr) line
+       line = strip_comment_and_space(line)
+       if (len_trim(line) > 0 .and. ierr == 0) nfiles = nfiles + 1
     end do
-    nfiles = nfiles - 1
+
     ! Reset to start of file
     rewind(unit = file_unit)
 
     ! Read in each line as store in files array
-    allocate(files(nfiles))
-    do i = 1, nfiles
-       read(unit = file_unit, fmt = '(a)') files(i)
+    allocate(files(nfiles)) ; i = 0
+    do while (i < nfiles)
+       read(unit = file_unit, fmt = '(a)') line
+       line = strip_comment_and_space(line)
+       if (len_trim(line) > 0) then
+          i = i + 1
+          files(i) = trim(line)
+       end if
     end do
     close(file_unit)
   end subroutine parse_set_file_to_files
