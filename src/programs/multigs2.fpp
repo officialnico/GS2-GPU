@@ -113,7 +113,7 @@ program multigs2
           batch_id, i, num_my_jobs, trim(state%run_name), job_timer(1)
   end do
   call time_message(.false., main_timer, '')
-  call free_comm(sub_comm)
+  if (.not. no_work_for_this_proc) call free_comm(sub_comm)
   if (debug .and. local_proc0) &
        write(*, '("Batch : ",I0," finished in ",0pF9.3," s")') batch_id, main_timer(1)
   call barrier(original_comm_world)
