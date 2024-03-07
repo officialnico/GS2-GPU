@@ -191,4 +191,17 @@ contains
     close(file_unit)
   end subroutine parse_set_file_to_files
 
+  pure function strip_comment_and_space(line) result(clean_line)
+    character(len=*), intent(in) :: line
+    character(len=:), allocatable :: clean_line
+    integer :: first_comment
+    first_comment = scan(line, '!')
+    if (first_comment == 0) then
+       clean_line = line
+    else
+       clean_line = line(1 : first_comment - 1)
+    end if
+    clean_line = trim(adjustl(clean_line))
+  end function strip_comment_and_space
+
 end program multigs2
