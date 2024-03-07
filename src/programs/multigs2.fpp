@@ -40,6 +40,7 @@ program multigs2
      write(*,'("Warning: nbatch (",I0,") > nproc (",I0,") -- reducing nbatch")') nbatch, nproc
   end if
   nbatch = min(nbatch, nproc)
+  nbatch = min(nbatch, nfiles)
 
   ! Distribute file list to all processors
   if (.not. proc0) allocate(files(nfiles))
