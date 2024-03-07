@@ -16,6 +16,7 @@ program multigs2
   ! End of command line options
   type(gs2_program_state_type) :: state
   integer :: sub_comm, nfiles, nproc_per_batch, local_iproc, num_my_jobs, batch_id, i
+  integer :: original_comm_world
   logical :: no_work_for_this_proc, local_proc0, actual_proc0
   integer, dimension(:), allocatable :: subset_in_charge
   character(len = run_name_size), dimension(:), allocatable :: files, my_files
@@ -24,6 +25,7 @@ program multigs2
   call parse_command_line()
   call init_mp
   actual_proc0 = proc0
+  original_comm_world = mp_comm
   if (proc0) write(*, '("Run started at ",A)') date_iso8601()
 
   call time_message(.false., main_timer, '')
@@ -113,7 +115,7 @@ program multigs2
   call free_comm(sub_comm)
   if (debug .and. local_proc0) &
        write(*, '("Batch : ",I0," finished in ",0pF9.3," s")') batch_id, main_timer(1)
-  call barrier
+  call barrier(original_comm_world)
   call finish_mp
   if (actual_proc0) write(*, '("Run finished at ",A)') date_iso8601()
 contains
