@@ -152,31 +152,20 @@ module le_grids
 
   private
 
-  public :: init_le_grids, finish_le_grids
-  public :: read_parameters, wnml_le_grids
-  public :: integrate_species, write_mpdist, write_mpdist_le
-  public :: energy, energy_maxw, speed_maxw, al, delal, jend, forbid, dele, wl, w, w_maxw
-  public :: negrid, nlambda, ng2, nxi, lmax, integrate_moment, nesub
-  public :: sgn, ixi_to_il, ixi_to_isgn, speed, xi, ittp
-  public :: xx, new_trap_int, vcut, genquad
-  public :: init_weights, legendre_transform
-  public :: finish_weights
-  public :: eint_error, lint_error, trap_error, wdim
-  public :: integrate_kysum, integrate_volume
-  public :: get_flux_vs_theta_vs_vpa
+  public :: init_le_grids, finish_le_grids, wnml_le_grids
+  public :: integrate_species, integrate_moment, integrate_kysum, integrate_volume
+  public :: energy, energy_maxw, speed, speed_maxw, al, jend, forbid, wl, w, w_maxw, vcut
+  public :: negrid, nlambda, ng2, nxi, lmax, nesub, ixi_to_il, ixi_to_isgn, xi, sgn
+  public :: init_weights, finish_weights, legendre_transform, hermite_prob
+  public :: eint_error, lint_error, trap_error, wdim, get_flux_vs_theta_vs_vpa
   public :: lambda_map, energy_map, g2le, g2gf, init_map, init_g2gf
-  public :: hermite_prob
-  public :: is_passing_hybrid_electron
-  public :: setup_trapped_lambda_grids_old_finite_difference
-  public :: setup_passing_lambda_grids
-  public :: passing_wfb, trapped_wfb, mixed_wfb
+  public :: setup_passing_lambda_grids, setup_trapped_lambda_grids_old_finite_difference
+  public :: new_trap_int, passing_wfb, trapped_wfb, mixed_wfb
   public :: grid_has_trapped_particles, il_is_trapped, il_is_passing
-  public :: il_is_wfb, can_be_ttp, is_ttp
+  public :: il_is_wfb, can_be_ttp, is_ttp, is_passing_hybrid_electron
   public :: is_bounce_point, is_lower_bounce_point, is_upper_bounce_point
 
-  public :: le_grids_config_type
-  public :: set_le_grids_config
-  public :: get_le_grids_config
+  public :: le_grids_config_type, set_le_grids_config, get_le_grids_config
   
   interface integrate_moment
      module procedure integrate_moment_c34
@@ -212,10 +201,10 @@ module le_grids
   real, dimension (:,:,:,:), allocatable, save :: lpt
 
   real, dimension (:), allocatable :: energy_maxw, w_maxw, speed_maxw 
-  real, dimension (:,:), allocatable :: energy, w, speed, dele
-  real, dimension (:), allocatable :: al, delal ! (nlambda)
+  real, dimension (:,:), allocatable :: energy, w, speed
+  real, dimension (:), allocatable :: al ! (nlambda)
   real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
-  integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
+  integer, dimension (:), allocatable :: jend ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
   logical, dimension (:), allocatable :: can_be_ttp
 
@@ -474,10 +463,8 @@ contains
        allocate(w_maxw(negrid))
        allocate(energy_maxw(negrid))
        allocate(speed_maxw(negrid))
-       allocate(dele(negrid,nspec))
-       allocate (al(nlambda), delal(nlambda))
+       allocate (al(nlambda))
        allocate (wl(-ntgrid:ntgrid,nlambda))
-       allocate (ittp(-ntgrid:ntgrid))
        allocate (jend(-ntgrid:ntgrid))
        allocate (forbid(-ntgrid:ntgrid,nlambda))
        allocate (is_ttp(-ntgrid:ntgrid,nlambda))
@@ -496,14 +483,11 @@ contains
     call broadcast (zeroes_maxw)
 
     call broadcast (al)
-    call broadcast (delal)
-    call broadcast (ittp)
     call broadcast (jend)
  
     call broadcast (energy_maxw)
     call broadcast (speed)
     call broadcast (speed_maxw)
-    call broadcast (dele)
     call broadcast (w_maxw)
 
     call broadcast(wl)
@@ -987,7 +971,6 @@ contains
     !Reduce sum across all procs to make integral over all velocity space and species
     call sum_allreduce (total) 
   end subroutine integrate_species_original
-
 
   !> Integrate species on xy subcommunicator - NO GATHER
   subroutine integrate_species_sub (g, weights, total)
@@ -2079,7 +2062,7 @@ contains
     call init_theta_grid
     call init_species
 
-    allocate (dele(negrid,nspec),speed(negrid,nspec),speed_maxw(negrid),w_maxw(negrid),energy_maxw(negrid))
+    allocate (speed(negrid,nspec),speed_maxw(negrid),w_maxw(negrid),energy_maxw(negrid))
 
     w_maxw = 0.0
     energy_maxw = 0.0
@@ -2103,9 +2086,6 @@ contains
         'Warning; no maxwellian species; collisions will fail'
     !call setvgrid (vcut, negrid, energy, w, nesub)
 
-    dele(1,:) = energy(1,:)
-    dele(2:,:) = energy(2:,:)-energy(:negrid-1,:)
-
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
        lmax = nlambda-1
@@ -2114,9 +2094,8 @@ contains
        lmax = nlambda
     end if
     nxi = max(2*nlambda-1, 2*ng2)
-    allocate (al(nlambda), delal(nlambda))
+    allocate (al(nlambda))
     allocate (wl(-ntgrid:ntgrid,nlambda))
-    allocate (ittp(-ntgrid:ntgrid))
     allocate (jend(-ntgrid:ntgrid))
     allocate (forbid(-ntgrid:ntgrid,nlambda))
     allocate (is_ttp(-ntgrid:ntgrid,nlambda))
@@ -2126,8 +2105,6 @@ contains
        al(ng2+1:nlambda) = 1.0/bset
     end if
     call lgridset
-    delal(1) = al(1)
-    delal(2:) = al(2:) - al(:nlambda-1)
 
     if (proc0) then
        call open_output_file(unit, '.vspace_integration_error')
@@ -2363,7 +2340,7 @@ contains
 
     ! Calculate the ittp values indicating which pitch angles are
     ! considered totally trapped.
-    call calculate_ittp(ittp, can_be_ttp, is_ttp)
+    call calculate_ittp(can_be_ttp, is_ttp)
 
     ! Setup the xi (v||/v) grid used in collisions
     call xigridset
@@ -3119,13 +3096,12 @@ contains
 
   !> Determine which lambda grid point is totally trapped at this
   !> theta grid point.
-  subroutine calculate_ittp(ittp_indices, can_be_ttp_flag, is_ttp_value)
+  subroutine calculate_ittp(can_be_ttp_flag, is_ttp_value)
     use theta_grid, only: ntgrid
-
     implicit none
-    integer, dimension(-ntgrid:ntgrid), intent(out) :: ittp_indices
     logical, dimension(nlambda), intent(out) :: can_be_ttp_flag
     logical, dimension(-ntgrid:ntgrid, nlambda), intent(out) :: is_ttp_value
+    integer, dimension(-ntgrid:ntgrid) :: ittp_indices
     integer :: ig, il
     ittp_indices = nlambda+1
     can_be_ttp_flag = .false.
@@ -4776,7 +4752,7 @@ contains
     real, dimension(1,1,1) :: tmpvflx
 
     if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
-    if (allocated(energy)) deallocate (energy, energy_maxw,dele, al, wl, ittp, &
+    if (allocated(energy)) deallocate (energy, energy_maxw, al, wl, &
          jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)
     if (allocated(is_ttp)) deallocate(is_ttp)
@@ -4784,7 +4760,6 @@ contains
     if (allocated(integration_work)) deallocate (integration_work)
     if (allocated(wlterr)) deallocate (wlterr)
     if (allocated(w)) deallocate (w,w_maxw)
-    if (allocated(delal)) deallocate (delal)
     if (allocated(lpl)) deallocate (lpl, lpe)
     if (allocated(lpt)) deallocate (lpt)
     if (allocated(wlmod)) deallocate (wlmod)
