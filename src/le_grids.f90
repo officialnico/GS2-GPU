@@ -221,7 +221,7 @@ module le_grids
   real, dimension (:), allocatable :: energy_maxw, w_maxw, speed_maxw 
   real, dimension (:,:), allocatable :: energy, w, speed, dele
   real, dimension (:), allocatable :: al, delal ! (nlambda)
-  real, dimension (:,:), allocatable :: wl ! (nlambda,-ntgrid:ntgrid)
+  real, dimension (:,:), allocatable :: wl, wxi ! (nlambda,-ntgrid:ntgrid)
   integer, dimension (:), allocatable :: jend, ittp ! (-ntgrid:ntgrid)
   logical, dimension (:,:), allocatable :: forbid, is_ttp, is_bounce_point ! (-ntgrid:ntgrid,nlambda)
   logical, dimension (:), allocatable :: can_be_ttp
@@ -470,9 +470,7 @@ contains
     use species, only: nspec
     use egrid, only: init_egrid, zeroes_maxw, x0_maxw
     use theta_grid, only: ntgrid
-
     implicit none
-
     call broadcast (lmax)
     call broadcast (ng2)
     call broadcast (nlambda)
@@ -496,6 +494,7 @@ contains
        allocate (xi(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
        allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
+       allocate (wxi(2*nlambda, -ntgrid:ntgrid))
     end if
 
     call init_egrid (negrid)
@@ -523,9 +522,8 @@ contains
     call broadcast(xi)
     call broadcast(ixi_to_il)
     call broadcast(ixi_to_isgn)
-
+    call broadcast(wxi)
     call broadcast (sgn)
-
   end subroutine broadcast_results
 
   !> FIXME : Add documentation  
@@ -1411,8 +1409,8 @@ contains
     call zero_array(total)
     where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilzlo, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, weights, w, wl, g, ixi_to_il) &
+    !$OMP PRIVATE(ilzlo, ig, it, ik, il, ie, is, ixi) &
+    !$OMP SHARED(lo, nxi, weights, w, wxi, g, ixi_to_il) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -1430,17 +1428,16 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018
-       do ixi=1, nxi+1
+       do ixi = 1, nxi + 1
           il = ixi_to_il(ixi, ig)
-          total(ig, it, ik) = total(ig, it, ik) + &
-               (weights(is)*w(ie,is))*wl(ig,il)*g(il,ilzlo)
+          total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
+               * wxi(ixi, ig) * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
        end do
     end do
     !$OMP END PARALLEL DO
-!Sum over all procs to make integral over all velocity space and species
+    !Sum over all procs to make integral over all velocity space and species
     call sum_allreduce (total)
   end subroutine integrate_species_lz
-
 
   !> Perform an integral over velocity space whilst in the LE_LAYOUT in 
   !! which we have ensured that all of velocity space is local. As such
@@ -1461,13 +1458,13 @@ contains
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     real, dimension (:), intent (in out) :: weights
     complex, dimension (-ntgrid:,:,:), intent (out) :: total
-    integer :: ixi, ie, il, ile, ig, it, ik, is
+    integer :: ixi, ie, ile, ig, it, ik, is
 
     call zero_array(total)
     where (spec%type == tracer_species) weights = 0
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, ig, it, ik, ie, il, is, ixi) &
-    !$OMP SHARED(lo, nxi, negrid, weights, w, wl, g, ixi_to_il) &
+    !$OMP PRIVATE(ile, ig, it, ik, ie, is, ixi) &
+    !$OMP SHARED(lo, nxi, negrid, weights, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -1476,7 +1473,7 @@ contains
        it = it_idx (lo,ile)
        ik = ik_idx (lo,ile)
 
-       do ie=1, negrid
+       do ie = 1, negrid
 !CMR, 2/10/2013:
 !   nxi+1 limit on do loop below is CRUCIAL, as its stores phase space point
 !   corresponding to g_lo (il=nlambda, isign=2).
@@ -1484,10 +1481,9 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018   
-          do ixi=1, nxi+1
-             il = ixi_to_il(ixi, ig)
-             total(ig,it,ik) = total(ig,it,ik) + &
-                  (weights(is)*w(ie,is)) * wl(ig,il) * g(ixi,ie,ile)
+          do ixi = 1, nxi + 1
+             total(ig, it, ik) = total(ig, it, ik) + (weights(is) * w(ie, is)) &
+                  * wxi(ixi, ig) * g(ixi, ie, ile)
           end do
        end do
     end do
@@ -1999,7 +1995,7 @@ contains
     call zero_array(total)
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ilzlo, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, nxi, ixi_to_il, w, wl, g) &
+    !$OMP SHARED(lo, nxi, ixi_to_il, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(static)
     do ilzlo = lo%llim_proc, lo%ulim_proc
@@ -2017,10 +2013,10 @@ contains
 !   needed in collision operator as EQUIVALENT to g_lo(il=nlambda, isign=2).
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018!  
-       do ixi=1, nxi+1
+       do ixi = 1, nxi + 1
           il = ixi_to_il(ixi, ig)
-          total(ig, it, ik, is) = total(ig, it, ik, is) + &
-            w(ie,is)*wl(ig,il)*g(il,ilzlo)
+          total(ig, it, ik, is) = total(ig, it, ik, is) + w(ie, is) * wxi(ixi, ig) &
+             * g(il, ilzlo) !<This looks wrong - surely g(ixi, ilzlo)?!
        end do
     end do
     !$OMP END PARALLEL DO
@@ -2048,7 +2044,7 @@ contains
     type (le_layout_type), intent (in) :: lo
     complex, dimension (:,:,lo%llim_proc:), intent (in) :: g
     complex, dimension (lo%llim_proc:), intent (out) :: total
-    integer :: ixi, ie, il, ile, ig, it, ik, is, nxup
+    integer :: ixi, ie, ile, ig, it, ik, is, nxup
     call zero_array(total)
     if (nxi > 2 * ng2) then !Could be grid_has_trapped_particles?
        nxup = nxi + 1
@@ -2057,8 +2053,8 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi, il) &
-    !$OMP SHARED(lo, kwork_filter, negrid, nxup, ixi_to_il, w, wl, g) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ie, ixi) &
+    !$OMP SHARED(lo, kwork_filter, negrid, nxup, w, wxi, g) &
     !$OMP REDUCTION(+ : total) &
     !$OMP SCHEDULE(guided)
     do ile = lo%llim_proc, lo%ulim_proc
@@ -2076,8 +2072,7 @@ contains
 !   (In collisions at ig=0, both of these points are EXACTLY equivalent, xi=0.)
 !MRH actually nxi+1 is needed in the collision operator for consistency 16/08/2018  
           do ixi = 1, nxup
-             il = ixi_to_il(ixi, ig)
-             total(ile) = total(ile) + w(ie, is) * wl(ig, il) * g(ixi, ie, ile)
+             total(ile) = total(ile) + w(ie, is) * wxi(ixi, ig) * g(ixi, ie, ile)
           end do
        end do
     end do
@@ -3468,11 +3463,12 @@ contains
     use theta_grid, only: ntgrid, bmag
     implicit none
 
-    integer :: ig, je, ixi
+    integer :: ig, je, ixi, il
 
     if (.not. allocated(xi)) allocate (xi(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_il)) allocate (ixi_to_il(2*nlambda, -ntgrid:ntgrid))
     if (.not. allocated(ixi_to_isgn)) allocate (ixi_to_isgn(2*nlambda, -ntgrid:ntgrid))
+    if (.not. allocated(wxi)) allocate (wxi(2*nlambda, -ntgrid:ntgrid))
 
     ! define array 'sgn' that returns sign of vpa associated with isgn=1,2
     sgn(1) = 1
@@ -3528,6 +3524,13 @@ contains
        end if
     end do
 
+    wxi = 0.0
+    do ig = -ntgrid, ntgrid
+       do ixi = 1, 2*nlambda
+          il = ixi_to_il(ixi, ig)
+          wxi(ixi, ig) = wl(ig, il)
+       end do
+    end do
   end subroutine xigridset
 
   !> FIXME : Add documentation
@@ -5087,6 +5090,7 @@ contains
     if (allocated(xi)) deallocate (xi)
     if (allocated(ixi_to_il)) deallocate (ixi_to_il)
     if (allocated(ixi_to_isgn)) deallocate (ixi_to_isgn)
+    if (allocated(wxi)) deallocate (wxi)
     if (allocated(recvcnts_intspec)) deallocate (recvcnts_intspec)
     if (allocated(displs_intspec)) deallocate (displs_intspec)
 
