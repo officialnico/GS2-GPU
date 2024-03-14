@@ -122,10 +122,22 @@ program multigs2
 contains
   !> Parse the command line to determine user options
   subroutine parse_command_line()
+    use git_version_mod, only: get_git_version
     integer :: arg_count, arg_n
     character(len=:), allocatable :: argument
     character(len=*), parameter :: nl = new_line('a')
+    character(len=*), parameter :: usage = &
+         "multigs2 [--version|-v] [--help|-h] [--nbatch <n>] [--debug] [input file]" // nl // nl // &
+         "Wrapper for GS2 to run multiple jobs in a single execution" // nl // &
+         "For more help, see the documentation at https://gyrokinetics.gitlab.io/gs2/" // nl // &
+         "or create an issue https://bitbucket.org/gyrokinetics/gs2/issues?status=open" // nl // &
+         nl // &
+         "  -h, --help           Print this message" // nl // &
+         "  -v, --version        Print the GS2 version" // nl // &
+         "  --nbatch <n>         Sets the number of simultaneous jobs to use" // nl // &
+         "  --debug              Enables more verbose screen output"
     logical :: skip
+
     ! Set default options
     nbatch = 1 ; debug = .false.
 
@@ -139,7 +151,13 @@ contains
 
        call get_arg(arg_n, argument)
 
-       if ((argument == "--nbatch") .or. (argument == "-n")) then
+       if ((argument == "--help") .or. (argument == "-h")) then
+          write(*, '(a)') usage
+          stop
+       else if ((argument == "--version") .or. (argument == "-v")) then
+          write(*, '("GS2 version ", a)') get_git_version()
+          stop
+       else if ((argument == "--nbatch") .or. (argument == "-n")) then
           if (arg_n == arg_count) error stop "Missing nbatch value"
           call get_arg(arg_n + 1, argument)
           read(argument, *) nbatch
