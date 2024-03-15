@@ -792,7 +792,6 @@ contains
     use theta_grid, only: init_theta_grid, ntgrid
     use gs2_time, only: init_gs2_time
     implicit none
-    logical :: accelx=.false., accelv=.false.
     logical, parameter :: debug=.false.
     integer :: is
 
@@ -820,7 +819,7 @@ if (debug) write(6,*) 'get_namelists: kt_grids'
     call init_kt_grids
 
 if (debug) write(6,*) 'get_namelists: le_grids'
-    call init_le_grids(accelx, accelv)
+    call init_le_grids
 
 if (debug) write(6,*) 'get_namelists: nonlinear terms'
     call nonlinear_terms_read_parameters

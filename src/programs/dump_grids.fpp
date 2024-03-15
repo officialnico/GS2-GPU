@@ -11,7 +11,6 @@ program dump_grids
 
   implicit none
   logical :: list
-  logical :: accel_x, accel_y
   logical, parameter :: quiet=.false.
   character (len=500) :: filename
   real :: time_measure(2)
@@ -83,7 +82,7 @@ program dump_grids
      write(*,'("Init le_grids   ")',advance='no')
   endif
   call time_message(.false.,time_measure,'init-le')
-  call init_le_grids(accel_x,accel_y)
+  call init_le_grids
   call time_message(.false.,time_measure,'init-le')
   if(proc0.and.(.not.quiet)) then
      write(*,'("  --> Done in : ",F12.6," seconds")') time_measure(1)

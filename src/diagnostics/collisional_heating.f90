@@ -28,7 +28,7 @@ contains
     use mp, only: nproc, iproc
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
-    logical :: accel_x, accel_v
+    logical :: accel_x
 
     if(.not. gnostics%write_collisional .or. initialized) return
     initialized = .true.
@@ -36,7 +36,7 @@ contains
 !!!calls every initiation routine we need: le_grids for integration, init_gs2 transforms to initiate fourier transforms routines...
     
     ! benefit: calls init_theta_grid, init_kt_grids, init_gs2_layouts and init_species for later use
-    call init_le_grids(accel_x, accel_v)
+    call init_le_grids
     ! in order to use fft transform routines
     call init_transforms(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, accel_x)
     call init_dist_fn_layouts(ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
