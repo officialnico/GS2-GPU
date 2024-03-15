@@ -98,6 +98,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: vnew, vnew_s, vnew_D, vnew_E, delvnew
   ! (naky,negrid,nspec) replicated
 
+  real, dimension (:,:), allocatable :: vpdiffle
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
 
@@ -3472,203 +3473,133 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: speed => speed_maxw, nxi, ng2
-    use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
+    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
+    use le_grids, only: speed => speed_maxw, nxi, ng2, w, wxi, negrid
     use run_parameters, only: ieqzip
-    use gs2_layouts, only: le_lo, ig_idx
-    use redistribute, only: scatter
     use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-    complex, dimension (:,:,:), allocatable :: gtmp
-
-    complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
+    complex :: v0y0, v1y1, v2y2
     real :: vpa_nud, nud
     integer :: ig, isgn, ik, ie, il, is, it, ile, ixi, nxi_lim
 
     ! The nxi > 2 * ng2 check appears to be checking if we have
     ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+    if (le_nxilim_fix .and. nxi > 2 * ng2 ) then
         nxi_lim = nxi + 1
     else
         nxi_lim = nxi
-    endif
-
-    ! We only need one of these at a time so could just reuse one allocation.
-    ! We'll keep two for now to help with code clarity and note that these
-    ! should not be large arrays.
-    allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
-
-    ! Let's work on gle directly instead of g for the moment
-    allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-    call zero_array(gtmp)
+    end if
 
     if (drag) then
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! First get v0y0
-
-       allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! First get v0y0 and y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, it, ik, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, gle) &
+       !$OMP PRIVATE(ile, it, ik, ixi, ie, is, ig, v0y0) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, &
+       !$OMP z0le, w, wxi, vpa_aj0_le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
-          if(kwork_filter(it, ik)) cycle
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
+          is = is_idx(le_lo, ile)
+          ig = ig_idx(le_lo, ile)
+          v0y0 = 0.0
           do ie = 1, negrid
              do ixi = 1, nxi_lim
                 ! Should we use vpdiff here if conservative?
-                gtmp(ixi, ie, ile) =  vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile)
+                v0y0 = v0y0 + vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile) * w(ie, is) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - z0le(:, :, ile) * v0y0
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
-
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, it, ik, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, z0le, v0y0) &
-       !$OMP SCHEDULE(static)
-       do ile = le_lo%llim_proc, le_lo%ulim_proc
-          it = it_idx(le_lo,ile)
-          ik = ik_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          if(ieqzip(it,ik)) cycle
-          do ie = 1, negrid
-             do ixi = 1, nxi_lim
-                gle(ixi, ie, ile) = gle(ixi, ie, ile) - z0le(ixi, ie, ile) * v0y0(ile)
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-       deallocate(v0y0)
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v1y1
+! Now get v1y1 and y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
     ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
-       !$OMP speed, vnmult, vnew_D, gtmp, aj0le, gle) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, vpdiffle, &
+       !$OMP speed, vnmult, vnew_D, aj0le, gle, s0le, w, wxi) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
           is = is_idx(le_lo,ile)
           ig = ig_idx(le_lo,ile)
+          v1y1 = 0.0
           do ie = 1, negrid
+             nud = speed(ie) * vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ixi, ig)
-                isgn = ixi_to_isgn(ixi, ig)
-                vpa_nud = vpdiff(ig, isgn, il) * speed(ie) * vnmult(1) * vnew_D(ik, ie, is)
-                gtmp(ixi, ie, ile) = vpa_nud * aj0le(ixi, ie, ile) * gle(ixi, ie, ile)
+                v1y1 = v1y1 + vpdiffle(ixi, ig) * nud * aj0le(ixi, ie, ile) * &
+                     gle(ixi, ie, ile) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - s0le(:, :, ile) * v1y1
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpa_aj0_le, vnmult, &
-       !$OMP vnew_D, gle) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, vpa_aj0_le, vnmult, &
+       !$OMP vnew_D, gle, w, wxi, s0le) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
-          ik = ik_idx(le_lo,ile)
-          it = it_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          is = is_idx(le_lo,ile)
+          ik = ik_idx(le_lo, ile)
+          it = it_idx(le_lo, ile)
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
+          is = is_idx(le_lo, ile)
+          ig = ig_idx(le_lo, ile)
+          v1y1 = 0.0
           do ie = 1, negrid
-             nud =  vnmult(1) * vnew_D(ik, ie, is)
+             nud =  vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
              do ixi = 1, nxi_lim
-                gtmp(ixi,ie,ile) = nud * vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile)
+                v1y1 = v1y1 + nud * vpa_aj0_le(ixi, ie, ile) * &
+                     gle(ixi, ie, ile) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - s0le(:, :, ile) * v1y1
        end do
        !$OMP END PARALLEL DO
     end if
 
-    call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v2y2 and x = y2 - v2y2 * w2 / (1 + v2w2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, s0le, v1y1) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, nud, v2y2) &
+    !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, &
+    !$OMP vnmult, vnew_D, vperp_aj1le, gle, w, wxi, w0le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - s0le(ixi, ie, ile) * v1y1(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate(v1y1)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v2y2
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, nud) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, &
-    !$OMP vnmult, vnew_D, vperp_aj1le, gle) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
+       it = it_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v2y2 = 0.0
        do ie = 1, negrid
-          nud = vnmult(1) * vnew_D(ik, ie, is)
+          nud = vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
              ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-             gtmp(ixi, ie, ile) = nud * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile)
+             v2y2 = v2y2 + nud * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - w0le(:, :, ile) * v2y2
     end do
     !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, w0le, v2y2) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie = 1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - w0le(ixi, ie, ile) * v2y2(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate (gtmp, v2y2)
-
   end subroutine conserve_lorentz_le_layout
 
   !> FIXME : Add documentation
@@ -3837,168 +3768,100 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: integrate_moment, negrid, ixi_to_il, nxi, ng2
+    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
+    use le_grids, only: wxi, w, negrid, nxi, ng2
     use run_parameters, only: ieqzip
-    use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
-    use redistribute, only: scatter
     use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-    complex, dimension (:,:,:), allocatable :: gtmp
     real :: delnu, vnE
     integer :: ig, ik, ie, il, is, it, ile, ixi, nxi_lim
-    complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-
-    ! We only use one of these at a time so could just use a single array.
-    ! We keep all three here for clarity and note that these should be small.
-    allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
-
-    allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-    !This is needed to to ensure the it,ik values we don't set aren't included
-    !in the integral (can also be enforced in integrate_moment routine)
-    !if(any(kwork_filter)) gtmp=0.
-    call zero_array(gtmp)
+    complex :: v0y0, v1y1, v2y2
 
     ! The nxi > 2 * ng2 check appears to be checking if we have
     ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+    if (le_nxilim_fix .and. nxi > 2 * ng2 ) then
         nxi_lim = nxi + 1
     else
         nxi_lim = nxi
-    endif
+    end if
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! First get v0y0
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, vnE) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vnmult, vnew_E, aj0le, gle) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       do ie = 1, negrid
-          vnE = vnmult(2) * vnew_E(ik,ie,is)
-          do ixi = 1, nxi_lim
-             gtmp(ixi, ie, ile) = vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! First get v0y0 and then y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, v0y0, bz0le) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, vnE, v0y0) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, w, wxi, ieqzip, bz0le, vnmult, vnew_E, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v0y0 = 0.0
        do ie = 1, negrid
+          vnE = vnmult(2) * vnew_E(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - v0y0(ile) * bz0le(ixi, ie, ile)
+             v0y0 = v0y0 + vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bz0le(:, :, ile) * v0y0
     end do
     !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v1y1
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v1y1 and then y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, gtmp, &
-    !$OMP vpa_aj0_le, gle) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi, v1y1) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, &
+    !$OMP bs0le, vpa_aj0_le, gle, w, wxi, ieqzip) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v1y1 = 0.0
        do ie = 1, negrid
-          delnu = vnmult(2) * delvnew(ik, ie, is)
+          delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gtmp(ixi, ie, ile) = vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile)
+             v1y1 = v1y1 + vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bs0le(:, :, ile) * v1y1
     end do
     !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v2y2 and then get x = y2 - v2y2 * w2 / (1 + v2w2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bs0le, v1y1) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, delnu, v2y2) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ieqzip, &
+    !$OMP bw0le, delvnew, vperp_aj1le, gle, vnmult, w, wxi) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v2y2 = 0.0
        do ie = 1, negrid
+          delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bs0le(ixi, ie, ile) * v1y1(ile)
+             v2y2 = v2y2 + delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bw0le(:, :, ile) * v2y2
     end do
     !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v2y2
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ixi, delnu) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, &
-    !$OMP delvnew, vperp_aj1le, gle, vnmult) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       do ie = 1, negrid
-          delnu = vnmult(2) * delvnew(ik, ie, is)
-          do ixi = 1, nxi_lim
-             gtmp(ixi, ie, ile) = delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bw0le, v2y2) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie = 1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi, ie, ile) = gle(ixi, ie, ile) - bw0le(ixi, ie, ile) * v2y2(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate (v0y0, v1y1, v2y2, gtmp)
-
   end subroutine conserve_diffuse_le_layout
 
   !> FIXME : Add documentation
@@ -4483,12 +4346,12 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none
 
-    integer :: il, ig, je, te
+    integer :: il, isgn, ixi, ig, je, te
     real :: slb0, slb1, slb2, slbl, slbr
 
     if (.not. allocated(vpdiff) .and. conservative) then
@@ -4537,7 +4400,18 @@ contains
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
           
        end do
-       
+
+       if (use_le_layout) then
+          allocate(vpdiffle(nxi + 1, -ntgrid:ntgrid))
+
+          do ig = -ntgrid, ntgrid
+             do ixi = 1, nxi + 1
+                il = ixi_to_il(ixi, ig)
+                isgn = ixi_to_isgn(ixi, ig)
+                vpdiffle(ixi, ig) = vpdiff(ig, isgn, il)
+             end do
+          end do
+       end if
     end if
     
   end subroutine init_vpdiff
@@ -4596,6 +4470,7 @@ contains
       if (allocated(ec1)) deallocate (ec1, ebetaa, eql)
     end if
     if (allocated(vpdiff)) deallocate (vpdiff)
+    if (allocated(vpdiffle)) deallocate (vpdiffle)
     if (allocated(dtot)) deallocate (dtot, fdf, fdb)
 
     call collisions_config%reset()
