@@ -2141,18 +2141,20 @@ contains
     real, intent (in), optional :: vnmult_target
     integer :: ig, ixi, it, ik, ie, is, je, te2, ile, ilz
     real, dimension (:), allocatable :: aa, bb, cc, dd, hh
-
+    real, dimension (:, :), allocatable :: local_weights
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
 
     if (.not. allocated(pitch_weights)) then
        ! Start by just copying the existing weights
-       allocate(pitch_weights(-ntgrid:ntgrid, nlambda))
-       pitch_weights = 0.0
+       allocate(local_weights(-ntgrid:ntgrid, nlambda))
+       local_weights = 0.0
        ! We have to recaculate the passing weights here as when Radau-Gauss
        ! grids are used the WFB (il=ng2+1) is treated as both passing and
        ! trapped. Otherwise we could just copy the passing weights from wl.
-       call setup_passing_lambda_grids(al, pitch_weights)
-       call setup_trapped_lambda_grids_old_finite_difference(al, pitch_weights)
+       call setup_passing_lambda_grids(al, local_weights)
+       call setup_trapped_lambda_grids_old_finite_difference(al, local_weights)
+       allocate(pitch_weights(nlambda, -ntgrid:ntgrid))
+       pitch_weights = transpose(local_weights)
     end if
 
     call init_vpdiff
@@ -2413,17 +2415,17 @@ contains
 
           ! coefficients for tridiagonal matrix:
           cc(il) = 2.0 * vn * code_dt * (1 - slbr**2) / &
-               (pitch_weights(ig, il) * (slb2 - slb1))
+               (pitch_weights(il, ig) * (slb2 - slb1))
           aa(il) = 2.0 * vn * code_dt * (1 - slbl**2) / &
-               (pitch_weights(ig, il) * (slb1 - slb0))
+               (pitch_weights(il, ig) * (slb1 - slb0))
           bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
 
           ! coefficients for entropy heating calculation
           if (heating) then
              dd(il) = vnc * (-2.0 * (1 - slbr**2) / &
-                  (pitch_weights(ig, il) * (slb2 - slb1)) + ee)
+                  (pitch_weights(il, ig) * (slb2 - slb1)) + ee)
              hh(il) = vnh * (-2.0 * (1 - slbr**2) / &
-                  (pitch_weights(ig, il) * (slb2 - slb1)) + ee)
+                  (pitch_weights(il, ig) * (slb2 - slb1)) + ee)
           end if
        end do
 
@@ -2437,15 +2439,15 @@ contains
             / (bmag(ig) * spec(is)%zstm)**2
 
        cc(1) = 2.0 * vn * code_dt * (1.0 - slbr**2) &
-            / (pitch_weights(ig, 1) * (slb2 - slb1))
+            / (pitch_weights(1, ig) * (slb2 - slb1))
        aa(1) = 0.0
        bb(1) = 1.0 - cc(1) + ee * vn * code_dt
 
        if (heating) then
           dd(1) = vnc * (-2.0 * (1 - slbr**2) &
-               / (pitch_weights(ig, 1) * (slb2 - slb1)) + ee)
+               / (pitch_weights(1, ig) * (slb2 - slb1)) + ee)
           hh(1) = vnh * (-2.0 * (1 - slbr**2) &
-               / (pitch_weights(ig, 1) * (slb2 - slb1)) + ee)
+               / (pitch_weights(1, ig) * (slb2 - slb1)) + ee)
        end if
 
        ! boundary at xi = 0
@@ -2480,7 +2482,7 @@ contains
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
-       deltaxi = pitch_weights(ig, il)
+       deltaxi = pitch_weights(il, ig)
        if (te == je) deltaxi = 2 * deltaxi ! MRH vpar = 0 fix
        ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
        ! factor of 2 required above because xi=0 is a repeated point
@@ -4042,14 +4044,14 @@ contains
              slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
              slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(il, ig)
           end do
 
           ! boundary at xi = 1
           slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
           slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
           slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
+          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(1, ig)
           
           ! boundary at xi = 0
           il = te
@@ -4064,7 +4066,7 @@ contains
           
           slbl = (slb1 + slb0)*0.5
           slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(il, ig)
           
           vpdiff(ig,2,:) = -vpdiff(ig,1,:)
        end do
