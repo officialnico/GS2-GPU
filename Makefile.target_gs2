@@ -17,7 +17,7 @@ endif
 # dependencies. `fortdep` searches for module `use` statements, and
 # we`re deliberately _not_ using a module for `git_hash`, otherwise
 # basically the entire project needs to be rebuilt on new commits.
-needs_git_hash := gs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester box_to_ballooning_space
+needs_git_hash := gs2 multigs2 ingen write_default_input_file dump_grids dump_response generate_fftw_wisdom ffttester box_to_ballooning_space
 ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
@@ -40,6 +40,14 @@ $(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
 
 .PHONY: gs2.x
 gs2.x: $(BINDIR)/gs2.x
+
+#Multi-gs2 runner
+$(BINDIR)/multigs2: $(multigs2_mod) | $(BINDIR)
+	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
+	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
+
+.PHONY: multigs2
+multigs2: $(BINDIR)/multigs2
 
 #Mat inv benchmark
 $(BINDIR)/mat_inv_benchmark: $(mat_inv_benchmark_mod) | $(BINDIR)

@@ -1601,7 +1601,7 @@ contains
   !>
   !> This pattern is also useful if you want to run many GS2
   !> simulations in the same process.
-  subroutine run_gs2(state, finalize)
+  subroutine run_gs2(state, finalize, quiet)
     use exit_codes, only: EXIT_NSTEP, EXIT_NOT_REQUESTED
     use mp, only: proc0, init_mp
     use standard_header, only: standard_header_type
@@ -1620,12 +1620,14 @@ contains
     !> then you MUST pass in `state` and call [[finish_gs2]] with that
     !> state object to ensure GS2 is finalised correctly.
     logical, optional, intent(in) :: finalize
+    !> Optional passed through to intialize/finalize gs2 methods to suppress printing
+    logical, optional, intent(in) :: quiet
     logical :: local_finalize
     type(standard_header_type) :: local_header
 
     local_finalize = get_option_with_default(finalize, .true.)
 
-    call initialize_gs2(state, header_out=local_header)
+    call initialize_gs2(state, header_out=local_header, quiet = quiet)
     call initialize_equations(state)
     call initialize_diagnostics(state, header=local_header)
 
@@ -1644,7 +1646,7 @@ contains
 
     if (local_finalize) then
       state%print_times = .true.
-      call finish_gs2(state)
+      call finish_gs2(state, quiet = quiet)
     end if
   end subroutine run_gs2
 

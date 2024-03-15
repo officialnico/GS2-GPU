@@ -223,8 +223,6 @@ module le_grids
   logical :: genquad
 
   integer :: nlambda, ng2, lmax, nxi
-  logical :: accel_x = .false.
-  logical :: accel_v = .false.
   logical :: test = .false.
   logical :: trapped_particles = .true.
   logical :: new_trap_int = .false.
@@ -235,7 +233,6 @@ module le_grids
   ! and including the passing-trapped boundary (wfb). The grid gives finite weight to
   ! the class of particles which bounce at theta = +/- pi (wfb) in the passing integral
   ! Note that the old gauss-legendre is used in the case that trapped_particles =.false.
-  logical :: intinit = .false.
   logical :: slintinit = .false.
   logical :: lintinit = .false.
   logical :: eintinit = .false.
@@ -385,7 +382,7 @@ contains
   end subroutine wnml_le_grids
 
   !> FIXME : Add documentation  
-  subroutine init_le_grids (accelerated_x, accelerated_v, le_grid_config_in)
+  subroutine init_le_grids (le_grid_config_in)
     use mp, only: proc0, finish_mp
     use species, only: init_species
     use theta_grid, only: init_theta_grid
@@ -393,7 +390,6 @@ contains
     use gs2_layouts, only: init_gs2_layouts
     use egrid, only: setvgrid
     implicit none
-    logical, intent (out) :: accelerated_x, accelerated_v
     type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     integer :: il, ie
 
@@ -412,9 +408,6 @@ contains
     end if
     call broadcast_results
     call init_integrations
-
-    accelerated_x = accel_x
-    accelerated_v = accel_v
 
     if (test) then
        if (proc0) then
@@ -593,21 +586,6 @@ contains
     character (1) :: char
 
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
-
-    if (.not. intinit) then
-       intinit = .true.
-       call pe_layout (char)
-       if (char == 'x') then
-          accel_x = mod(ntheta0*naky*nspec, nproc) == 0
-          accel_v = .false.
-       end if
-       if (char == 'v') then
-          accel_x = .false.
-          accel_v = mod(negrid*nlambda*nspec, nproc) == 0
-       end if
-    end if
-          
-
   end subroutine init_integrations
 
   !> Returns true if there are trapped particles on the current
@@ -4785,12 +4763,11 @@ contains
     !Free internal saved arrays
     call get_flux_vs_theta_vs_vpa(tmpf,tmpvflx,.true.)
 
-    accel_x = .false. ; accel_v = .false.
     test = .false. ; trapped_particles = .true.
     new_trap_int = .false.
     new_trap_int_split = .false.
 
-    intinit = .false. ; slintinit = .false. ; lintinit = .false. ; eintinit = .false.
+    slintinit = .false. ; lintinit = .false. ; eintinit = .false.
 
     leinit = .false.
     gfinit = .false.

@@ -144,8 +144,6 @@ module dist_fn
   logical :: zero_forbid
   logical :: gf_lo_integrate
   logical :: mult_imp
-  logical :: accelerated_x = .false.
-  logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
   logical :: increase = .true., decrease = .false. 
 
@@ -910,7 +908,7 @@ contains
     call init_kt_grids
 
     if (debug) write(6,*) "init_dist_fn: init_le_grids"
-    call init_le_grids (accelerated_x, accelerated_v)
+    call init_le_grids
 
     if (debug) write(6,*) "init_dist_fn: read_parameters"
     call read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
@@ -1107,8 +1105,6 @@ contains
     implicit none
     if (.not. initialized_dist_fn_level_1) return
     initialized_dist_fn_level_1 = .false.
-
-    accelerated_x = .false. ; accelerated_v = .false.
     no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
