@@ -3669,12 +3669,16 @@ contains
        nxi_scatt = je - 1
        is_wfb = il_is_wfb(cur_jend)
 
-       if (je == 2 * cur_jend .and. vpar_zero_mean) then
+       if (je == 2 * cur_jend .and. is_wfb .and. vpar_zero_mean) then
           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
           ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
           ! this turns out to be necessary to suppress numerical instability
           ! when we handle pitch angle scattering physically at theta = +/- pi
           ! by setting special_wfb_lorentz =.false.
+          ! Note : This can give large change in g_wfb when it is not treated as a trapped
+          ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+          ! Note : We don't apply this treatment to other trapped particles as we assume
+          ! g has a unique value at the bounce point for those particles.
           glz(cur_jend, ilz) = (glz(cur_jend, ilz) + glz(2 * cur_jend, ilz)) / 2.0
        end if
 
@@ -3854,12 +3858,16 @@ contains
        if (is_wfb .and. special_wfb_lorentz) nxi_scatt = nxi_scatt - 1
 
        do ie = 1, negrid
-          if (je == 2 * cur_jend .and. vpar_zero_mean) then
+          if (je == 2 * cur_jend .and. is_wfb .and. vpar_zero_mean) then
              ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
              ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
              ! this turns out to be necessary to suppress numerical instability
              ! when we handle pitch angle scattering physically at theta = +/- pi
              ! by setting special_wfb_lorentz =.false.
+             ! Note : This can give large change in g_wfb when it is not treated as a trapped
+             ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+             ! Note : We don't apply this treatment to other trapped particles as we assume
+             ! g has a unique value at the bounce point for those particles.
              gle(cur_jend, ie, ile) = (gle(cur_jend, ie, ile) + &
                   gle(2 * cur_jend, ie, ile)) / 2.0
           end if
