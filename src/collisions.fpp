@@ -61,7 +61,6 @@ module collisions
   logical :: special_wfb_lorentz
   logical :: vpar_zero_mean
   logical :: conserve_forbid_zero
-  logical :: le_nxilim_fix
   
   integer, parameter :: collision_model_lorentz = 1      ! if this changes, check gs2_diagnostics
   integer, parameter :: collision_model_none = 3
@@ -281,24 +280,6 @@ module collisions
      !> kperp2 * kperp2` (where `kperp2` here is normalised to the
      !> maximum `kperp2`).
      logical :: hypermult = .false.
-     !> This flag controls the limit of ixi loops in the le_layout
-     !> decomposition.  When true (default) the limit is set to `nxi +
-     !> 1`, which has been observed to remove numerical instabilities.
-     !>
-     !> @note The "old" behavior was a limit of `nxi`, which is
-     !> incorrect. With this limit and trapped particles, there are
-     !> numerical instabilities caused by missing terms for totally
-     !> trapped particles. By changing the limit to `nxi + 1` these
-     !> numerical instabilities are removed and the le_layout gives
-     !> the same result as the standard layout. The limit `nxi + 1`
-     !> should used as we then include the `ixi` index for the
-     !> duplicate `vpar=0` point which must be included For velocity
-     !> integration to give the correct value.
-     !>
-     !> @todo Consider removing this flag and just use the correct
-     !> limit.  The motivation for retaining this flag is to allow old
-     !> results to be reproduced.
-     logical :: le_nxilim_fix = .true.
      !> Controls how the coefficients in the matrix representing the
      !> pitch angle scattering operator are obtained. Can be one of
      !>
@@ -523,7 +504,6 @@ contains
     force_collisions = collisions_config%force_collisions
     heating = collisions_config%heating
     hypermult = collisions_config%hypermult
-    le_nxilim_fix = collisions_config%le_nxilim_fix
     lorentz_scheme = collisions_config%lorentz_scheme
     ncheck = collisions_config%ncheck
     resistivity = collisions_config%resistivity
@@ -569,11 +549,11 @@ contains
 
     ! The nxi > 2 * ng2 check appears to be checking if we have
     ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
+    if (nxi > 2 * ng2 ) then
        nxi_lim = nxi + 1
     else
        nxi_lim = nxi
-    endif
+    end if
   end subroutine read_parameters
 
   !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
@@ -4191,11 +4171,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: collision_model, ediff_scheme, lorentz_scheme
     integer :: ncheck, timesteps_between_collisions
-    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, force_collisions, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
+    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, force_collisions, heating, hypermult, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
     logical :: vary_vnew, vpar_zero_mean
     real :: cfac, etol, etola, ewindow, ewindowa, vnfac, vnslow
     
-    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, force_collisions, heating, hypermult, le_nxilim_fix, &
+    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, force_collisions, heating, hypermult, &
          lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
 
     ! Only proc0 reads from file
@@ -4218,7 +4198,6 @@ contains
     force_collisions = self%force_collisions
     heating = self%heating
     hypermult = self%hypermult
-    le_nxilim_fix = self%le_nxilim_fix
     lorentz_scheme = self%lorentz_scheme
     ncheck = self%ncheck
     resistivity = self%resistivity
@@ -4253,7 +4232,6 @@ contains
     self%force_collisions = force_collisions
     self%heating = heating
     self%hypermult = hypermult
-    self%le_nxilim_fix = le_nxilim_fix
     self%lorentz_scheme = lorentz_scheme
     self%ncheck = ncheck
     self%resistivity = resistivity
@@ -4299,7 +4277,6 @@ contains
     call self%write_key_val("force_collisions", self%force_collisions, unit_internal)
     call self%write_key_val("heating", self%heating, unit_internal)
     call self%write_key_val("hypermult", self%hypermult, unit_internal)
-    call self%write_key_val("le_nxilim_fix", self%le_nxilim_fix, unit_internal)
     call self%write_key_val("lorentz_scheme", self%lorentz_scheme, unit_internal)
     call self%write_key_val("ncheck", self%ncheck, unit_internal)
     call self%write_key_val("resistivity", self%resistivity, unit_internal)
@@ -4347,7 +4324,6 @@ contains
     call broadcast(self%force_collisions)
     call broadcast(self%heating)
     call broadcast(self%hypermult)
-    call broadcast(self%le_nxilim_fix)
     call broadcast(self%lorentz_scheme)
     call broadcast(self%ncheck)
     call broadcast(self%resistivity)
