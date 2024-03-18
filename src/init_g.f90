@@ -4251,7 +4251,6 @@ contains
     use gs2_layouts, only: g_lo, it_idx, is_idx
     use constants
     use geometry, only : surf, geom !< Should be Rplot from theta_grid instead of geom%Rpos?
-    use spfunc, only: j0
     use array_utils, only: copy
     implicit none
 

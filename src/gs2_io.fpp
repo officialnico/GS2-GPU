@@ -279,7 +279,7 @@ contains
     !> Create the dimensions for the extended correlation diagnostics
     logical, intent(in) :: create_extended_correlation
 # ifdef NETCDF
-    real :: nmesh
+    integer :: nmesh
 
     call neasyf_dim(file_id, trim(kx_dim), values=akx, &
          long_name="Wavenumber perpendicular to flux surface", units="1/rho_r")
@@ -1334,42 +1334,43 @@ contains
     type(heating_diagnostics), dimension(:,:), intent (in) :: hk
 #ifdef NETCDF
     real, dimension (ntheta0, naky, nspec) :: tmps
-
-    call neasyf_write(file_id, "h_energy", h%energy, dim_names=[time_dim], start=[nout], &
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
+    call neasyf_write(file_id, "h_energy", (h%energy), dim_names=[time_dim], start=[nout], &
          long_name="Total free (turbulent) energy")
-    call neasyf_write(file_id, "h_energy_dot", h%energy_dot, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_energy_dot", (h%energy_dot), dim_names=[time_dim], start=[nout], &
          long_name="Time derivative of total free energy")
-    call neasyf_write(file_id, "h_antenna", h%antenna, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_antenna", (h%antenna), dim_names=[time_dim], start=[nout], &
          long_name="Energy injection from antenna")
-    call neasyf_write(file_id, "h_eapar", h%eapar, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_eapar", (h%eapar), dim_names=[time_dim], start=[nout], &
          long_name="Free energy in perpendicular magnetic field")
-    call neasyf_write(file_id, "h_ebpar", h%ebpar, dim_names=[time_dim], start=[nout], &
+    call neasyf_write(file_id, "h_ebpar", (h%ebpar), dim_names=[time_dim], start=[nout], &
          long_name="Free energy in parallel magnetic field")
-    call neasyf_write(file_id, "h_delfs2", h%delfs2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_delfs2", (h%delfs2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Total free energy dfs^2")
-    call neasyf_write(file_id, "h_hs2", h%hs2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hs2", (h%hs2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Non-adiabatic free energy hs^2")
-    call neasyf_write(file_id, "h_phis2", h%phis2, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_phis2", (h%phis2), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Adiabatic free energy phi_bar^2")
-    call neasyf_write(file_id, "h_hypervisc", h%hypervisc, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hypervisc", (h%hypervisc), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from hyperviscosity")
-    call neasyf_write(file_id, "h_hyperres", h%hyperres, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hyperres", (h%hyperres), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from hyperresitivity")
-    call neasyf_write(file_id, "h_collisions", h%collisions, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_collisions", (h%collisions), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from collisions -[h C(h) * T_0]")
-    call neasyf_write(file_id, "h_gradients", h%gradients, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_gradients", (h%gradients), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Heating from gradient")
-    call neasyf_write(file_id, "h_imp_colls", h%imp_colls, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_imp_colls", (h%imp_colls), dim_names=flux_dims, start=starts(2, nout), &
          long_name="[h_(i+1)*h_*]/2 * C[h_(i+1)] * T_0")
-    call neasyf_write(file_id, "h_hypercoll", h%hypercoll, dim_names=flux_dims, start=starts(2, nout))
-    call neasyf_write(file_id, "h_heating", h%heating, dim_names=flux_dims, start=starts(2, nout), &
+    call neasyf_write(file_id, "h_hypercoll", (h%hypercoll), dim_names=flux_dims, start=starts(2, nout))
+    call neasyf_write(file_id, "h_heating", (h%heating), dim_names=flux_dims, start=starts(2, nout), &
          long_name="Total heating by species")
 
-    call neasyf_write(file_id, "hk_energy", hk%energy, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_energy_dot", hk%energy_dot, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_antenna", hk%antenna, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_eapar", hk%eapar, dim_names=mode_dims, start=starts(3, nout))
-    call neasyf_write(file_id, "hk_ebpar", hk%ebpar, dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_energy", (hk%energy), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_energy_dot", (hk%energy_dot), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_antenna", (hk%antenna), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_eapar", (hk%eapar), dim_names=mode_dims, start=starts(3, nout))
+    call neasyf_write(file_id, "hk_ebpar", (hk%ebpar), dim_names=mode_dims, start=starts(3, nout))
 
     call hk_repack (hk, 1, tmps)
     call neasyf_write(file_id, "hk_hypervisc", tmps, dim_names=fluxk_dims, start=starts(4, nout))
@@ -1522,29 +1523,47 @@ contains
     !> NetCDF ID of the file to write to
     integer, intent(in) :: file_id
 #ifdef NETCDF
-    call neasyf_write(file_id, "charge", spec%z, dim_names=["species"], &
+    ! Note: Here parentheses around variables passed to neasyf_write are an intentional
+    ! workaround to a gfortran bug https://gcc.gnu.org/bugzilla/show_bug.cgi?id=105658
+    call neasyf_write(file_id, "charge", (spec%z), dim_names=["species"], &
          long_name="Charge", units="e")
-    call neasyf_write(file_id, "mass", spec%mass, dim_names=["species"], &
+    call neasyf_write(file_id, "mass", (spec%mass), dim_names=["species"], &
          long_name="Atomic mass", units="AMU")
-    call neasyf_write(file_id, "dens", spec%dens, dim_names=["species"], &
+    call neasyf_write(file_id, "dens", (spec%dens), dim_names=["species"], &
          long_name="Normalised density", units="nref")
-    call neasyf_write(file_id, "temp", spec%temp, dim_names=["species"], &
+    call neasyf_write(file_id, "temp", (spec%temp), dim_names=["species"], &
          long_name="Normalised temperature", units="Tref")
-    call neasyf_write(file_id, "tprim", spec%tprim, dim_names=["species"], &
+    call neasyf_write(file_id, "tprim", (spec%tprim), dim_names=["species"], &
          long_name="Normalised temperature gradient scale length -1/rho dT/drho", units="1/aref")
-    call neasyf_write(file_id, "fprim", spec%fprim, dim_names=["species"], &
+    call neasyf_write(file_id, "fprim", (spec%fprim), dim_names=["species"], &
          long_name="Normalised density gradient scale length -Lref/n dn/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim", spec%uprim, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim", (spec%uprim), dim_names=["species"], &
          long_name="Normalised parallel velocity gradient scale length -1/v_t du_par/drho", units="1/aref")
-    call neasyf_write(file_id, "uprim2", spec%uprim2, dim_names=["species"])
-    call neasyf_write(file_id, "vnewk", spec%vnewk, dim_names=["species"], &
+    call neasyf_write(file_id, "uprim2", (spec%uprim2), dim_names=["species"])
+    call neasyf_write(file_id, "vnewk", (spec%vnewk), dim_names=["species"], &
          long_name="Collisionality", units="vtref/aref")
 
     ! FIXME: duplicated variable, old/new diagnostics
-    call neasyf_write(file_id, "type_of_species", spec%type, dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
-    call neasyf_write(file_id, "type", spec%type, dim_names=["species"], &
-         long_name="Species type: 1=ion, 2=electron, 3=slowing down, 4=trace")
+    call neasyf_write(file_id, "type_of_species", (spec%type), dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
+    call neasyf_write(file_id, "type", (spec%type), dim_names=["species"], &
+         long_name="Species type: 1=ion, 2=electron, 3=trace, 4=hybrid_electron")
+
+    call neasyf_write(file_id, "f0type", (spec%f0type), dim_names=["species"], &
+         long_name="Species type: 1=Maxwellian, 2=Tabulated, 3=Analytic slowing down")
+    call neasyf_write(file_id, "nu_h", (spec%nu_h), dim_names=["species"], &
+         long_name="Hypervicsous collision factor")
+    call neasyf_write(file_id, "bess_fac", (spec%bess_fac), dim_names=["species"], &
+         long_name="Artificial factor scaling Bessel function arguments")
+    ! Parameters used in slowing down calculation
+    call neasyf_write(file_id, "vcrit", (spec%vcrit), dim_names=["species"])
+    call neasyf_write(file_id, "vcprim", (spec%vcprim), dim_names=["species"])
+    ! Parameters only used for certain initialisation options
+    call neasyf_write(file_id, "dens0", (spec%dens0), dim_names=["species"])
+    call neasyf_write(file_id, "u0", (spec%u0), dim_names=["species"])
+    call neasyf_write(file_id, "tpar0", (spec%tpar0), dim_names=["species"])
+    call neasyf_write(file_id, "tperp0", (spec%tperp0), dim_names=["species"])
+
 #endif
   end subroutine nc_species
   

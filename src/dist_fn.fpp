@@ -144,8 +144,6 @@ module dist_fn
   logical :: zero_forbid
   logical :: gf_lo_integrate
   logical :: mult_imp
-  logical :: accelerated_x = .false.
-  logical :: accelerated_v = .false.
 !Not sure why these are module level as only used in one routine
   logical :: increase = .true., decrease = .false. 
 
@@ -915,7 +913,7 @@ contains
     call init_kt_grids
 
     if (debug) write(6,*) "init_dist_fn: init_le_grids"
-    call init_le_grids (accelerated_x, accelerated_v)
+    call init_le_grids
 
     if (debug) write(6,*) "init_dist_fn: read_parameters"
     call read_parameters(dist_fn_config_in, source_config_in, dist_fn_species_config_in)
@@ -1112,8 +1110,6 @@ contains
     implicit none
     if (.not. initialized_dist_fn_level_1) return
     initialized_dist_fn_level_1 = .false.
-
-    accelerated_x = .false. ; accelerated_v = .false.
     no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
@@ -7457,7 +7453,6 @@ contains
     use le_grids, only: integrate_species, g2gf, negrid, nlambda, w, wl
     use run_parameters, only: beta, has_phi, has_apar, has_bpar
     use gs2_layouts, only: g_lo, it_idx,ik_idx, gf_lo, proc_id, idx, ie_idx, is_idx, il_idx
-    use spfunc, only: j0, j1
     use kt_grids, only: kwork_filter, kperp2, naky, ntheta0
     use redistribute, only: gather
     use mp, only: barrier

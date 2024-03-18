@@ -87,20 +87,6 @@ module geo_utils
      real, allocatable, dimension(:,:) :: R_psi, Z_psi, B_psi
      !> 2D maps of theta and eqpsi
      real, allocatable, dimension(:,:) :: eqth, eqpsi_2d
-     ! The following quantities represent changes between adjacent grid
-     ! points. The first two dimensions are minor radius and theta,
-     ! respectively. The last dimension is the difference along either
-     ! the (minor) radial or theta directions, respectively
-     !> Major radius differences on theta, minor radius grids
-     real, allocatable, dimension (:,:,:) :: drm
-     !> Vertical differences on theta, minor radius grids
-     real, allocatable, dimension (:,:,:) :: dzm
-     !> Minor radius differences on theta, minor radius grids, note: `dpm(:,:,2) == 0.0`
-     real, allocatable, dimension (:,:,:) :: dpm
-     !> Theta differences on theta, minor radius grids, note: `dtm(:,:,1) == 0.0`
-     real, allocatable, dimension (:,:,:) :: dtm
-     !> Magnetic field differences on theta, minor radius grids
-     real, allocatable, dimension (:,:,:) :: dbm
      !> Minor radius gradient in cylindrical coordinates \((\hat{e}_R,
      !> \hat{e}_Z, \hat{e}_\zeta)\)
      real, allocatable, dimension (:,:,:) :: dpcart
@@ -170,7 +156,7 @@ module geo_utils
 
   type, abstract, extends(abstract_eqfile_geo_type) :: abstract_eqfile_cart_geo_type
      integer :: nw, nh
-     real, allocatable, dimension(:) :: thetab, r_bound
+     real, allocatable, dimension(:) :: thetab, r_bound, eq_R, eq_Z
      type(periodic_spline) :: rbound_spl
    contains
      procedure :: bound => bound_eqfile_cart, rfun, zbrent, shared_setup => shared_setup_cart
@@ -255,8 +241,6 @@ contains
     integer :: nr, nt
     nr = self%nr ; nt = self%nt
     allocate(self%R_psi(nr, nt), self%Z_psi(nr, nt), self%B_psi(nr, nt))
-    allocate(self%drm(nr, nt, 2), self%dzm(nr, nt, 2))
-    allocate(self%dpm(nr, nt, 2), self%dtm(nr, nt, 2), self%dbm(nr, nt, 2))
     allocate(self%dpcart(nr, nt, 2), self%dbcart(nr, nt, 2), self%dbbish(nr, nt, 2))
     allocate(self%dtcart(nr, nt, 2), self%dpbish(nr, nt, 2), self%dtbish(nr, nt, 2))
     allocate(self%eqpsi(nr), self%pressure(nr), self%eqth(nr, nt), self%eqpsi_2d(nr, nt))
@@ -265,10 +249,9 @@ contains
 
   pure subroutine dealloc_common_arrays(self)
     class(abstract_geo_type), intent(in out) :: self
-    deallocate(self%R_psi, self%Z_psi, self%drm, self%dzm, self%dpm, self%dtm, self%dpcart)
-    deallocate(self%eqth, self%dtcart, self%dpbish, self%dtbish, self%eqpsi, self%pressure)
-    deallocate(self%eqpsi_2d, self%dbm, self%dbcart, self%dbbish, self%B_psi)
-    deallocate(self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
+    deallocate(self%R_psi, self%Z_psi, self%B_psi, self%eqth, self%eqpsi, self%pressure)
+    deallocate(self%dpcart, self%dpbish, self%dtcart, self%dtbish, self%dbcart, self%dbbish)
+    deallocate(self%eqpsi_2d, self%psi_bar, self%fp, self%qsf, self%beta, self%rc, self%diam)
   end subroutine dealloc_common_arrays
 
   !> Given theta, R, Z, B and psi on 2D grids calculate the index space
@@ -277,40 +260,55 @@ contains
   pure subroutine calculate_gradients(self)
     implicit none
     class(abstract_geo_type), intent(in out) :: self
-    call self%derm(self%eqth, self%dtm, 'T')
-    call self%derm(self%R_psi, self%drm, 'E')
-    call self%derm(self%Z_psi, self%dzm, 'O')
-    call self%derm(self%B_psi, self%dbm, 'E')
-    call self%derm(self%eqpsi_2d, self%dpm, 'E')
+    ! The following quantities represent changes between adjacent grid
+    ! points. The first two dimensions are usually minor radius and theta,
+    ! respectively. The last dimension is the difference along either
+    ! the (minor) radial or theta directions, respectively
+    !> Major radius differences on theta, minor radius grids
+    real, allocatable, dimension (:,:,:) :: drm
+    !> Vertical differences on theta, minor radius grids
+    real, allocatable, dimension (:,:,:) :: dzm
+    !> Temporary version used to hold minor radius(psi), theta or B index space derivatives
+    real, allocatable, dimension (:,:,:) :: dtmp_m
+
+    ! Need drm and dzm for all eqdcart calls
+    allocate(drm(self%nr, self%nt, 2), dzm(self%nr, self%nt, 2))
+    call self%derm(self%R_psi, drm, 'E')
+    call self%derm(self%Z_psi, dzm, 'O')
 
     ! grad(psi) in cartesian and bishop form
-    call self%eqdcart(self%dpm, self%dpcart)
-    call self%eqdbish(self%dpcart, self%dpbish)
+    allocate(dtmp_m(self%nr, self%nt, 2))
+    call self%derm(self%eqpsi_2d, dtmp_m, 'E')
+    call self%eqdcart(dtmp_m, drm, dzm, self%dpcart)
+    call self%eqdbish(self%dpcart, self%dpcart, self%dpbish)
 
     ! grad(B) in cartesian and bishop form
-    call self%eqdcart(self%dbm, self%dbcart)
-    call self%eqdbish(self%dbcart, self%dbbish)
+    call self%derm(self%B_psi, dtmp_m, 'E')
+    call self%eqdcart(dtmp_m, drm, dzm, self%dbcart)
+    call self%eqdbish(self%dbcart, self%dpcart, self%dbbish)
 
     ! grad(theta) in cartesian and bishop form
-    call self%eqdcart(self%dtm, self%dtcart)
-    call self%eqdbish(self%dtcart, self%dtbish)
+    call self%derm(self%eqth, dtmp_m, 'T')
+    call self%eqdcart(dtmp_m, drm, dzm, self%dtcart)
+    call self%eqdbish(self%dtcart, self%dpcart, self%dtbish)
+    deallocate(dtmp_m, drm, dzm)
   end subroutine calculate_gradients
 
   !> Converts derivatives w.r.t. (psi_index,theta_index) to derivatives
   !> w.r.t. (R,Z). Note that `dfcart(1, :, :)` is not valid
-  pure subroutine eqdcart(self, dfm, dfcart)
+  pure subroutine eqdcart(self, dfm, drm, dzm, dfcart)
     implicit none
     class(abstract_geo_type), intent(in) :: self
     !> dfm(:,:,1) is deriv w.r.t. psi_index (i.e. (df/dpsi)_theta * delta psi);
     !> dfm(:,:,2) is deriv w.r.t. theta_index
-    real, dimension (:,:,:), intent(in)  :: dfm
+    real, dimension (:,:,:), intent(in)  :: dfm, drm, dzm
     !> dfcart(:,:,1) is deriv w.r.t. R;
     !> dfcart(:,:,2) is deriv w.r.t. Z
     real, dimension (:,:,:), intent(out) :: dfcart
     real, dimension (size(dfm, 1), size(dfm, 2)) :: denom
-    denom = self%drm(:,:,1) * self%dzm(:,:,2) - self%drm(:,:,2) * self%dzm(:,:,1)
-    dfcart(:,:,1) =   dfm(:,:,1) * self%dzm(:,:,2) - self%dzm(:,:,1) * dfm(:,:,2)
-    dfcart(:,:,2) = - dfm(:,:,1) * self%drm(:,:,2) + self%drm(:,:,1) * dfm(:,:,2)
+    denom = drm(:,:,1) * dzm(:,:,2) - drm(:,:,2) * dzm(:,:,1)
+    dfcart(:,:,1) =   dfm(:,:,1) * dzm(:,:,2) - dzm(:,:,1) * dfm(:,:,2)
+    dfcart(:,:,2) = - dfm(:,:,1) * drm(:,:,2) + drm(:,:,1) * dfm(:,:,2)
     ! Skips first point in first dimension because it's likely exactly on the
     ! magnetic axis, which means the Jacobian is zero.
     dfcart(2:, :, 1) = dfcart(2:, :, 1) / denom(2:, :)
@@ -319,12 +317,12 @@ contains
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form.
   !> Note that `dbish(1, :, :)` is not valid
-  pure subroutine eqdbish(self, dcart, dbish)
+  pure subroutine eqdbish(self, dcart, dpcart, dbish)
     implicit none
     class(abstract_geo_type), intent(in) :: self
     !> dcart(:,:,1) is gradient of f w.r.t. R;
     !> dcart(:,:,2) is gradient of f w.r.t. Z
-    real, dimension(:, :, :), intent (in) :: dcart
+    real, dimension(:, :, :), intent (in) :: dcart, dpcart
     !> dbish(:,:,1) is set to (df/dR dpsi/dR + df/dZ dpsi/dZ)/|grad psi|;
     !> dbish(:,:,2) is set to (-df/dR dpsi/dZ + df/dZ dpsi/dR)/|grad psi|.
     !> Note that in the special case where f=psi:
@@ -332,9 +330,9 @@ contains
     real, dimension(:, :, :), intent(out) :: dbish
     real, dimension(size(dcart, 1) - 1, size(dcart, 2)) :: denom
     ! denom is |grad psi|
-    denom = hypot(self%dpcart(2:,:,1), self%dpcart(2:,:,2))
-    dbish(:,:,1) = dcart(:,:,1) * self%dpcart(:,:,1) + dcart(:,:,2) * self%dpcart(:,:,2)
-    dbish(:,:,2) =-dcart(:,:,1) * self%dpcart(:,:,2) + dcart(:,:,2) * self%dpcart(:,:,1)
+    denom = hypot(dpcart(2:,:,1), dpcart(2:,:,2))
+    dbish(:,:,1) = dcart(:,:,1) * dpcart(:,:,1) + dcart(:,:,2) * dpcart(:,:,2)
+    dbish(:,:,2) =-dcart(:,:,1) * dpcart(:,:,2) + dcart(:,:,2) * dpcart(:,:,1)
     dbish(2:, :, 1) = dbish(2:, :, 1) / denom
     dbish(2:, :, 2) = dbish(2:, :, 2) / denom
   end subroutine eqdbish
@@ -543,36 +541,35 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, eqpsi_sign, tps
-    real, dimension(size(f,2)) :: mtheta
-    real, dimension(size(f,1)) :: dim_1
     ! allow psi(r) to be a decreasing function
     eqpsi_sign = 1.
     if (self%eqpsi(2) < self%eqpsi(1)) eqpsi_sign = -1.
-    dim_1 = eqpsi_sign * self%eqpsi ; mtheta = self%eqth(1, :)
+    associate (dim_1 => eqpsi_sign * self%eqpsi , mtheta => self%eqth(1, :)) !Non-contiguous copy - slow?
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in) ; tps = 1.
 
-    if (.not. self%has_full_theta_range) then ! assume up-down symmetry
-       if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
-       thet = abs(thet)
-    end if
+      if (.not. self%has_full_theta_range) then ! assume up-down symmetry
+         if (char == 'Z' .and. abs(thet) >= 1.e-10) tps = sign(1.0, thet)
+         thet = abs(thet)
+      end if
 
-    ! check for axis evaluation, no gradients available at axis, so do not get too close
-    if (r < dim_1(2)) then
-       write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
-       call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
-    end if
+      ! check for axis evaluation, no gradients available at axis, so do not get too close
+      if (r < dim_1(2)) then
+         write(*,*) r, theta_in, eqpsi_sign, dim_1(1), dim_1(2)
+         call mp_abort('no evaluation too close to or inside axis allowed in eqitem', .true.)
+      end if
 
-    ! disallow evaluations on or outside the surface for now
-    if (r >= dim_1(self%nr)) then
-       write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
-       call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
-    end if
+      ! disallow evaluations on or outside the surface for now
+      if (r >= dim_1(self%nr)) then
+         write(*,*) r, theta_in, dim_1(self%nr), eqpsi_sign
+         call mp_abort('No evaluation of eqitem allowed on or outside surface', .true.)
+      end if
 
-    istar = find_lower_bound(r, dim_1, 0)
-    jstar = find_lower_bound(thet, mtheta, self%nt - 1)
-    fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+      istar = find_lower_bound(r, dim_1, 0)
+      jstar = find_lower_bound(thet, mtheta, self%nt - 1)
+      fstar = tps * bilinear_interpolate(f, dim_1, mtheta, istar, jstar, r, thet)
+    end associate
   end function eqitem_eqfile
 
   subroutine setup_splines_eqfile(self)
@@ -768,29 +765,27 @@ contains
     character(1), intent(in) :: char
     integer :: istar, jstar
     real :: r, thet, r_pos, z_pos
-    real, dimension(size(f, 1)) :: dim_1
-    real, dimension(size(f, 2)) :: dim_2
-    dim_1 = self%R_psi(:, 1) ; dim_2 = self%Z_psi(1, :)
+    associate(dim_1 => self%eq_R, dim_2 => self%eq_Z)
+      !Copy input r to avoid any modification
+      r = r_in ; thet = mod2pi(theta_in)
+      r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
 
-    !Copy input r to avoid any modification
-    r = r_in ; thet = mod2pi(theta_in)
-    r_pos = self%Rpos(r, thet) ; z_pos = self%Zpos(r, thet)
+      ! ensure point is on R mesh
+      if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
+         write(*,*) r, theta_in, dim_1(self%nw), r_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
+      end if
 
-    ! ensure point is on R mesh
-    if (r_pos >= dim_1(self%nw) .or. r_pos <= dim_1(1)) then
-       write(*,*) r, theta_in, dim_1(self%nw), r_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of R domain', .true.)
-    end if
+      ! ensure point is on Z mesh
+      if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
+         write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
+         call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
+      end if
 
-    ! ensure point is on Z mesh
-    if (z_pos >= dim_2(self%nh) .or. z_pos <= dim_2(1)) then
-       write(*,*) r, theta_in, dim_2(1), dim_2(self%nh), z_pos
-       call mp_abort('No evaluation of eqitem allowed outside or on edge of Z domain', .true.)
-    end if
-
-    istar = find_lower_bound(r_pos, dim_1, 0)
-    jstar = find_lower_bound(z_pos, dim_2, 0)
-    fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+      istar = find_lower_bound(r_pos, dim_1, 0)
+      jstar = find_lower_bound(z_pos, dim_2, 0)
+      fstar = bilinear_interpolate(f, dim_1, dim_2, istar, jstar, r_pos, z_pos)
+    end associate
   end function eqitem_cart
 
   pure integer function find_lower_bound(val, array, default) result(bound)
@@ -951,8 +946,9 @@ contains
     self%R_mag = self%R_mag / self%aminor
     self%Z_mag = self%Z_mag / self%aminor
     eq_R = eq_R / self%aminor ; eq_Z = eq_Z / self%aminor
-    do i = 1, self%nw
-       self%R_psi(i, :) = eq_R(i) ; self%Z_psi(i, :) = eq_Z
+    self%eq_R = eq_R ; self%eq_Z = eq_Z
+    do j = 1, self%nh
+       self%R_psi(:, j) = eq_R ; self%Z_psi(:, j) = eq_Z(j)
     end do
 
     self%B_T = abs(bcentr)
@@ -967,8 +963,8 @@ contains
     self%beta_0 = self%beta(1)
     self%pressure = self%pressure / self%pressure(1)
 
-    do i = 1, self%nw
-       do j = 1, self%nh
+    do j = 1, self%nh
+       do i = 1, self%nw
           if (eq_Z(j) == self%Z_mag .and. eq_R(i) == self%R_mag) then
              self%eqth(i, j) = 0.  ! value should not matter
           else

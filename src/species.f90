@@ -5,27 +5,16 @@ module species
   implicit none
 
   private
-  public :: init_species, finish_species
-
+  public :: init_species, finish_species, wnml_species, check_species
   public :: write_trinity_parameters
-  public :: wnml_species, check_species
-  public :: nspec, specie, spec
-  public :: tracer_species
+  public :: nspec, specie, spec, tracer_species
   public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species, has_hybrid_electron_species
-  public :: is_electron_species, is_hybrid_electron_species
-  public :: calculate_slowingdown_parameters
-  public :: ions, electrons, impurity
-  public :: set_overrides
-  public :: determine_species_order
+  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
-  public :: nonmaxw_corr, f0_values, dlnf0drho
-  
-  public :: species_config_type
-  public :: species_element_config_type
-  public :: set_species_config
-  public :: get_species_config
-  public :: get_species_element_config
+  public :: nonmaxw_corr, f0_values, dlnf0drho, set_overrides
+  public :: species_config_type, species_element_config_type
+  public :: set_species_config, get_species_config, get_species_element_config
 
   !> FIXME : Add documentation 
   type :: specie
@@ -60,8 +49,8 @@ module species
                         f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
 
   ! FIXME
-  !> Various quantities needed in the calculation of the slowing-down distribution in case electrons are
-  !! adiabatic
+  !> Various quantities needed in the calculation of the
+  !> slowing-down distribution in case electrons are adiabatic
   real:: me, ZI_fac
   
   !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
@@ -69,10 +58,7 @@ module species
 
   integer :: nspec
   type (specie), dimension (:), allocatable :: spec
-
-  integer :: ions, electrons, impurity
   real, dimension (:,:), allocatable :: nonmaxw_corr, f0_values, dlnf0drho
-
 
   logical :: initialized = .false.
   logical :: exist
@@ -400,16 +386,12 @@ contains
   subroutine read_parameters(species_config_in, species_elements_config_in)
     use file_utils, only: input_unit, error_unit, get_indexed_namelist_unit, input_unit_exist
     use text_options, only: text_option, get_option_value
-    use mp, only: proc0, broadcast, mp_abort
+    use mp, only: proc0, mp_abort
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
-    real :: z, mass, dens, dens0, u0, temp, tprim, fprim, uprim, uprim2, vnewk, nu_h
-    real :: tperp0, tpar0, bess_fac, vcrit, vcprim
-    real, dimension(:), allocatable :: tmp_bcast
     character(20) :: type, f0type
-    integer :: is
-    integer :: ierr
+    integer :: is, ierr
 
     type (text_option), dimension (*), parameter :: typeopts = [ &
          text_option('default', ion_species), &
@@ -456,88 +438,38 @@ contains
        if (proc0) print*,"inconsistent number of config elements"
     endif
        
+    ierr = error_unit()
     do is = 1, nspec
        call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
        ! Copy out internal values into module level parameters
-       bess_fac = species_element_config(is)%bess_fac
-       dens = species_element_config(is)%dens
-       dens0 = species_element_config(is)%dens0
-       f0type = species_element_config(is)%f0type
-       fprim = species_element_config(is)%fprim
-       mass = species_element_config(is)%mass
-       nu_h = species_element_config(is)%nu_h
-       temp = species_element_config(is)%temp
-       tpar0 = species_element_config(is)%tpar0
-       tperp0 = species_element_config(is)%tperp0
-       tprim = species_element_config(is)%tprim
-       type = species_element_config(is)%type
-       u0 = species_element_config(is)%u0
-       uprim = species_element_config(is)%uprim
-       uprim2 = species_element_config(is)%uprim2
-       vcprim = species_element_config(is)%vcprim
-       vcrit = species_element_config(is)%vcrit
-       vnewk = species_element_config(is)%vnewk
-       z = species_element_config(is)%z
+       spec(is)%bess_fac = species_element_config(is)%bess_fac
+       spec(is)%dens = species_element_config(is)%dens
+       spec(is)%dens0 = species_element_config(is)%dens0
+       spec(is)%fprim = species_element_config(is)%fprim
+       spec(is)%mass = species_element_config(is)%mass
+       spec(is)%nu_h = species_element_config(is)%nu_h
+       spec(is)%temp = species_element_config(is)%temp
+       spec(is)%tpar0 = species_element_config(is)%tpar0
+       spec(is)%tperp0 = species_element_config(is)%tperp0
+       spec(is)%tprim = species_element_config(is)%tprim
+       spec(is)%u0 = species_element_config(is)%u0
+       spec(is)%uprim = species_element_config(is)%uprim
+       spec(is)%uprim2 = species_element_config(is)%uprim2
+       spec(is)%vcprim = species_element_config(is)%vcprim
+       spec(is)%vcrit = species_element_config(is)%vcrit
+       spec(is)%vnewk = species_element_config(is)%vnewk
+       spec(is)%z = species_element_config(is)%z
 
-       spec(is)%z = z
-       spec(is)%mass = mass
-       spec(is)%dens = dens
-       spec(is)%dens0 = dens0
-       spec(is)%u0 = u0
-       spec(is)%tperp0 = tperp0
-       spec(is)%tpar0 = tpar0
-       spec(is)%temp = temp
-       spec(is)%tprim = tprim
-       spec(is)%fprim = fprim
-       spec(is)%uprim = uprim
-       spec(is)%uprim2 = uprim2
-       spec(is)%vnewk = vnewk
-       spec(is)%nu_h = nu_h
-
-       spec(is)%stm = sqrt(temp/mass)
-       spec(is)%zstm = z/sqrt(temp*mass)
-       spec(is)%tz = temp/z
-       spec(is)%zt = z/temp
-       spec(is)%smz = abs(sqrt(temp*mass)/z)
-
-       spec(is)%bess_fac=bess_fac
-       spec(is)%vcrit=vcrit
-       spec(is)%vcprim=vcprim
-
-       ierr = error_unit()
-       call get_option_value (type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-       call get_option_value (f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
     end do
 
-    !We use a temporary array here to allow us to broadcast all species data at once
-    !May be possible to avoid this by simply calling broadcast(spec%z) etc.
-    allocate(tmp_bcast(nspec))
-    tmp_bcast=spec%z ; call broadcast(tmp_bcast) ; spec%z=tmp_bcast
-    tmp_bcast=spec%mass ; call broadcast(tmp_bcast) ; spec%mass=tmp_bcast
-    tmp_bcast=spec%dens ; call broadcast(tmp_bcast) ; spec%dens=tmp_bcast
-    tmp_bcast=spec%dens0 ; call broadcast(tmp_bcast) ; spec%dens0=tmp_bcast
-    tmp_bcast=spec%u0 ; call broadcast(tmp_bcast) ; spec%u0=tmp_bcast
-    tmp_bcast=spec%tperp0 ; call broadcast(tmp_bcast) ; spec%tperp0=tmp_bcast
-    tmp_bcast=spec%tpar0 ; call broadcast(tmp_bcast) ; spec%tpar0=tmp_bcast
-    tmp_bcast=spec%temp ; call broadcast(tmp_bcast) ; spec%temp=tmp_bcast
-    tmp_bcast=spec%tprim ; call broadcast(tmp_bcast) ; spec%tprim=tmp_bcast
-    tmp_bcast=spec%fprim ; call broadcast(tmp_bcast) ; spec%fprim=tmp_bcast
-    tmp_bcast=spec%uprim ; call broadcast(tmp_bcast) ; spec%uprim=tmp_bcast
-    tmp_bcast=spec%uprim2 ; call broadcast(tmp_bcast) ; spec%uprim2=tmp_bcast
-    tmp_bcast=spec%vnewk ; call broadcast(tmp_bcast) ; spec%vnewk=tmp_bcast
-    tmp_bcast=spec%nu_h ; call broadcast(tmp_bcast) ; spec%nu_h=tmp_bcast
-    tmp_bcast=spec%stm ; call broadcast(tmp_bcast) ; spec%stm=tmp_bcast
-    tmp_bcast=spec%zstm ; call broadcast(tmp_bcast) ; spec%zstm=tmp_bcast
-    tmp_bcast=spec%tz ; call broadcast(tmp_bcast) ; spec%tz=tmp_bcast
-    tmp_bcast=spec%zt ; call broadcast(tmp_bcast) ; spec%zt=tmp_bcast
-    tmp_bcast=spec%smz ; call broadcast(tmp_bcast) ; spec%smz=tmp_bcast
-    tmp_bcast=spec%type ; call broadcast(tmp_bcast) ; spec%type=int(tmp_bcast)
-    tmp_bcast=spec%f0type ; call broadcast(tmp_bcast) ; spec%f0type=int(tmp_bcast)
-    tmp_bcast=spec%bess_fac ; call broadcast(tmp_bcast) ; spec%bess_fac=tmp_bcast
-    tmp_bcast=spec%vcrit ; call broadcast(tmp_bcast) ; spec%vcrit=tmp_bcast
-    tmp_bcast=spec%vcprim ; call broadcast(tmp_bcast) ; spec%vcprim=tmp_bcast
-    deallocate(tmp_bcast)
+    spec%stm = sqrt(spec%temp / spec%mass)
+    spec%zstm = spec%z / sqrt(spec%temp * spec%mass)
+    spec%tz = spec%temp / spec%z
+    spec%zt = spec%z / spec%temp
+    spec%smz = abs(sqrt(spec%temp * spec%mass) / spec%z)
   end subroutine read_parameters
 
   !> FIXME : Add documentation
@@ -682,7 +614,6 @@ contains
   subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
     use constants, only: pi
     use mp, only: mp_abort
-    use spfunc, only: erf => erf_ext
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
@@ -1046,39 +977,6 @@ contains
     if (allocated(species_element_config)) deallocate(species_element_config)
     initialized = .false.
   end subroutine finish_species
-
-  !> This routine is used only for Trinity
-  subroutine determine_species_order
-    use mp, only: broadcast, proc0, mp_abort
-
-    implicit none
-
-    integer is
-     if (nspec == 1) then
-        ions = 1
-        electrons = 0
-        impurity = 0
-     else
-        ! if 2 or more species in GS2 calculation, figure out which is main ion
-        ! and which is electron via mass (main ion mass assumed to be one)
-        do is = 1, nspec
-           if (abs(spec(is)%mass-1.0) <= epsilon(0.0)) then
-              ions = is
-           else if (spec(is)%mass < 0.3) then
-              ! for electrons, assuming electrons are at least a factor of 3 less massive
-              ! than main ion and other ions are no less than 30% the mass of the main ion
-              electrons = is
-           else if (spec(is)%mass > 1.0 + epsilon(0.0)) then
-              impurity = is
-           else
-              if (proc0) write (*,*) &
-                   "Error: TRINITY requires the main ions to have mass 1", &
-                   "and the secondary ions to be impurities (mass > 1)"
-              call mp_abort("Error: TRINITY requires the main ions to have mass 1 and the secondary ions to be impurities (mass > 1)")
-           end if
-        end do
-     end if
-  end subroutine determine_species_order
 
   !> FIXME : Add documentation   
   subroutine set_overrides(prof_ov)
