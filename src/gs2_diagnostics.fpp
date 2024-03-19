@@ -980,7 +980,6 @@ contains
   !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays
     use mp, only: proc0
-    use job_manage, only: trin_reset, trin_restart
     use gs2_heating, only: del_htype
     use diagnostics_fluxes, only: finish_diagnostics_fluxes
     implicit none
@@ -998,10 +997,10 @@ contains
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
     if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
 
-    if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
-    if (.not. trin_restart .and. allocated(omega)) deallocate(omega, omegaavg)
+    if (allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg)
+    if (allocated(omega)) deallocate(omega, omegaavg)
 
-    if (proc0 .and. trin_reset .and. allocated(conv_heat)) deallocate (conv_heat)
+    if (proc0 .and. allocated(conv_heat)) deallocate (conv_heat)
 
     if (proc0 .and. allocated(domega)) deallocate(domega)
   end subroutine deallocate_arrays
@@ -2609,12 +2608,10 @@ contains
   end subroutine flush_files
 
   !> Trinity convergence condition - simple and experimental
-  !! look for the averaged differential of the summed averaged heat flux to drop below a threshold
+  !> look for the averaged differential of the summed averaged heat flux to drop below a threshold
   subroutine check_nonlin_convergence(istep, heat_flux, exit)
-    use job_manage, only: trin_job
     use gs2_time, only: user_time
-    use mp, only: proc0, broadcast
-
+    use mp, only: proc0, broadcast, job
     logical, intent(inout) :: exit
     integer, intent(in) :: istep
     real, intent(in) :: heat_flux
@@ -2633,15 +2630,15 @@ contains
        place = mod(trin_istep,conv_nstep_av)/nwrite
        conv_heat(place) = heat_flux
 
-       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',job, &
             ' time = ',user_time, ' step = ',trin_istep
-       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
             ' heat = ',heat_flux, ' heatsumav = ',heat_av
 
        if (trin_istep .ge. conv_nstep_av) then
           heat_av_new = sum(conv_heat) / nwrite_av
           heat_av_diff = heat_av_new - heat_av
-          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
                ' heat_sum_av_diff = ',heat_sum_av
           heat_av = heat_av_new
           ! Convergence test - needs to be met conv_nsteps_converged/nwrite times in succession
@@ -2654,13 +2651,13 @@ contains
 
           if ((conv_isteps_converged .ge. conv_nsteps_converged/nwrite) .and. &
                (trin_istep .ge. conv_min_step)) then
-             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &  
+             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',job, &
                   ' Reached convergence condition after step ',trin_istep
              exit = .true. .and. exit_when_converged
           endif
 
           if(trin_istep .gt. conv_max_step) then
-             write(6,'(A,I5,A,I7)') '*** Warning. Job ',trin_job, &
+             write(6,'(A,I5,A,I7)') '*** Warning. Job ',job, &
                   ' did not meet the convergence condition after ',trin_istep
              exit = .true. .and. exit_when_converged
           endif

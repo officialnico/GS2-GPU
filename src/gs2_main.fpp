@@ -322,8 +322,8 @@ contains
   subroutine initialize_gs2(state, header_in, header_out, quiet)
     use file_utils, only: init_file_utils, run_name, run_name_target
     use gs2_init, only: init_gs2_init
-    use job_manage, only: checktime, time_message, job_fork
-    use job_manage, only: init_checktime, checktime_initialized
+    use job_manage, only: time_message, job_fork
+    use job_manage, only: init_checktime
     use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
     use mp, only: use_nproc, included, mp_comm, mp_comm_null
     use redistribute, only: using_measure_scatter
@@ -393,7 +393,7 @@ contains
     call debug_message(state%verb, 'gs2_main::initialize_gs2 initialized mp')
 
     call reset_timers(state%timers)
-    if (.not. checktime_initialized) call init_checktime ! <doc> Initialize timer </doc>
+    call init_checktime ! <doc> Initialize timer </doc>
     call debug_message(state%verb, &
       'gs2_main::initialize_gs2 called init_checktime')
   

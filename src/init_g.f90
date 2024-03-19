@@ -1277,7 +1277,6 @@ contains
     use file_utils, only: input_unit, error_unit, run_name, input_unit_exist
     use text_options, only: text_option, get_option_value
     use gs2_save, only: read_many, include_explicit_source_in_restart, proc_to_save_fields
-    use job_manage, only: trin_restart
     implicit none
     type(init_g_config_type), intent(in), optional :: init_g_config_in
 
@@ -1399,8 +1398,6 @@ contains
     zf_init = init_g_config%zf_init
 
     exist = init_g_config%exist
-    
-    if(trin_restart) ginit_option='many'
     
     ierr = error_unit()
     call get_option_value &
