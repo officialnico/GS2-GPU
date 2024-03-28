@@ -5279,29 +5279,27 @@ contains
       bdfac_p = 1 + bd * sgn
       bdfac_m = 1 - bd * sgn
 
-      if(has_apar)then
+      if (has_apar) then
          do ig = -ntgrid, ntgrid-1
-            phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
-            phi_m = phigavg(ig+1)-phigavg(ig)
-            ! RN> bdfac factors seem missing for apar_p
-            apar_p = apargavg(ig+1)+apargavg(ig)
-            apar_m = (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) + &
-                 (aparnew(ig,it,ik) - apar(ig,it,ik))
+            phi_m = -phigavg(ig) + phigavg(ig+1)
+            phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
+            apar_m = -apar(ig,it,ik) - apar(ig+1,it,ik) + aparnew(ig,it,ik) + aparnew(ig+1, it, ik)
+            apar_p = apargavg(ig) + apargavg(ig+1)
 
-            source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
-                 phi_p*source_coeffs(2,ig,isgn,iglo)+&
-                 apar_m*source_coeffs(3,ig,isgn,iglo)+&
-                 apar_p*source_coeffs(4,ig,isgn,iglo)
+            source(ig, isgn) = phi_m * source_coeffs(1, ig, isgn, iglo) + &
+                 phi_p * source_coeffs(2, ig, isgn, iglo) + &
+                 apar_m * source_coeffs(3, ig, isgn, iglo) + &
+                 apar_p * source_coeffs(4, ig, isgn, iglo)
          end do
       else
          do ig = -ntgrid, ntgrid-1
-            phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
-            phi_m = phigavg(ig+1)-phigavg(ig)
+            phi_m = -phigavg(ig) + phigavg(ig+1)
+            phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
             
-            source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
-                 phi_p*source_coeffs(2,ig,isgn,iglo)
+            source(ig, isgn) = phi_m * source_coeffs(1, ig, isgn, iglo) + &
+                 phi_p * source_coeffs(2, ig, isgn, iglo)
          end do
-      endif
+      end if
 
       ! add in explicit terms
       if (include_explicit) then
