@@ -5283,7 +5283,8 @@ contains
          do ig = -ntgrid, ntgrid-1
             phi_m = -phigavg(ig) + phigavg(ig+1)
             phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
-            apar_m = -apar(ig,it,ik) - apar(ig+1,it,ik) + aparnew(ig,it,ik) + aparnew(ig+1, it, ik)
+            apar_m = -apar(ig,it,ik) - apar(ig+1,it,ik) + &
+                 aparnew(ig,it,ik) + aparnew(ig+1, it, ik)
             apar_p = apargavg(ig) + apargavg(ig+1)
 
             source(ig, isgn) = phi_m * source_coeffs(1, ig, isgn, iglo) + &
