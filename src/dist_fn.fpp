@@ -5271,12 +5271,13 @@ contains
       implicit none
       complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
-
+      integer :: sgn
 ! try fixing bkdiff dependence
       bd = bkdiff(1)
 
-      bdfac_p = 1.+bd*(3.-2.*real(isgn))
-      bdfac_m = 1.-bd*(3.-2.*real(isgn))
+      sgn = 3 - 2 * isgn
+      bdfac_p = 1 + bd * sgn
+      bdfac_m = 1 - bd * sgn
 
       if(has_apar)then
          do ig = -ntgrid, ntgrid-1
