@@ -190,7 +190,8 @@ module dist_fn
   real, dimension(:,:), allocatable :: ufac
 
   ! set_source_opt
-  complex, dimension (:,:,:,:), allocatable :: source_coeffs
+  complex, dimension (:,:,:), allocatable :: source_coeffs_phim, source_coeffs_phip
+  complex, dimension (:,:,:), allocatable :: source_coeffs_aparm, source_coeffs_aparp
 
   ! getfieldeq1
   real, allocatable, dimension(:,:) :: awgt
@@ -1076,7 +1077,11 @@ contains
 
     call finish_dist_fn_level_1
     if (allocated(g)) deallocate (g, gnew, g_work)
-    if (allocated(source_coeffs)) deallocate(source_coeffs)
+    if (allocated(source_coeffs_phim)) deallocate(source_coeffs_phim)
+    if (allocated(source_coeffs_phip)) deallocate(source_coeffs_phip)
+    if (allocated(source_coeffs_aparm)) deallocate(source_coeffs_aparm)
+    if (allocated(source_coeffs_aparp)) deallocate(source_coeffs_aparp)
+
 #ifndef SHMEM
     if (allocated(gexp_1)) deallocate (gexp_1, gexp_2, gexp_3)
 #else
@@ -2224,11 +2229,12 @@ contains
     !for information on these terms.
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ie, il, ik, it, is, isgn, ig) &
-    !$OMP SHARED(g_lo, ntgrid, source_coeffs, vpar, &
+    !$OMP SHARED(g_lo, ntgrid, source_coeffs_phim, source_coeffs_phip, &
 #ifdef LOWFLOW
     !$OMP wdfac, wstarfac, vparterm, &
 #endif
-    !$OMP vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
+    !$OMP vpar, vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
+    !$OMP source_coeffs_aparm, source_coeffs_aparp, &
     !$OMP spec, has_apar, aj0, D_res, nonmaxw_corr, wstar, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo=g_lo%llim_proc,g_lo%ulim_proc
@@ -2241,18 +2247,18 @@ contains
           do ig=-ntgrid,ntgrid-1
 #ifdef LOWFLOW
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2*vparterm(ig,isgn,iglo)
+             source_coeffs_phim(ig,isgn,iglo)=-2*vparterm(ig,isgn,iglo)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdfac(ig,isgn,iglo) &
+             source_coeffs_phip(ig,isgn,iglo)=-zi*wdfac(ig,isgn,iglo) &
               + zi*(wstarfac(ig,isgn,iglo) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
+                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
                      vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstarfac(ig,isgn,iglo) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
@@ -2261,18 +2267,18 @@ contains
 #else
 
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
+             source_coeffs_phim(ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
+             source_coeffs_phip(ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
+                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
                      -spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstar(ik,ie,is) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
@@ -3964,10 +3970,11 @@ contains
        call zero_array(g_h)
 
        if(opt_source)then
+          allocate (source_coeffs_phim(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+          allocate (source_coeffs_phip(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           if(has_apar)then
-             allocate (source_coeffs(4,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
-          else
-             allocate (source_coeffs(2,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+             allocate (source_coeffs_aparm(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+             allocate (source_coeffs_aparp(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           endif
        endif
 #ifdef LOWFLOW
@@ -5287,18 +5294,18 @@ contains
                  aparnew(ig,it,ik) + aparnew(ig+1, it, ik)
             apar_p = apargavg(ig) + apargavg(ig+1)
 
-            source(ig, isgn) = phi_m * source_coeffs(1, ig, isgn, iglo) + &
-                 phi_p * source_coeffs(2, ig, isgn, iglo) + &
-                 apar_m * source_coeffs(3, ig, isgn, iglo) + &
-                 apar_p * source_coeffs(4, ig, isgn, iglo)
+            source(ig, isgn) = phi_m * source_coeffs_phim(ig, isgn, iglo) + &
+                 phi_p * source_coeffs_phip(ig, isgn, iglo) + &
+                 apar_m * source_coeffs_aparm(ig, isgn, iglo) + &
+                 apar_p * source_coeffs_aparp(ig, isgn, iglo)
          end do
       else
          do ig = -ntgrid, ntgrid-1
             phi_m = -phigavg(ig) + phigavg(ig+1)
             phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
             
-            source(ig, isgn) = phi_m * source_coeffs(1, ig, isgn, iglo) + &
-                 phi_p * source_coeffs(2, ig, isgn, iglo)
+            source(ig, isgn) = phi_m * source_coeffs_phim(ig, isgn, iglo) + &
+                 phi_p * source_coeffs_phip(ig, isgn, iglo)
          end do
       end if
 
