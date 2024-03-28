@@ -5128,26 +5128,33 @@ contains
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
+    real :: fac, fac_now, fac_next
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
 
     !Temporally weighted fields
     if (has_phi) then
-      phigavg = (fexp(is) * phi(:,it,ik) + (1.0-fexp(is)) * phinew(:,it,ik)) &
-                *aj0(:,iglo)*fphi
+       fac = fphi
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       phigavg = (fac_now * phi(:,it,ik) + fac_next * phinew(:,it,ik)) &
+                * aj0(:,iglo)
     else
       phigavg = 0.0
     end if
 
-    if(has_bpar)then
-       phigavg=phigavg+&
-            (fexp(is)*bpar(:,it,ik) + (1.0-fexp(is))*bparnew(:,it,ik))&
-            *aj1(:,iglo)*fbpar*2.0*vperp2(:,iglo)*spec(is)%tz
-    endif
+    if (has_bpar) then
+       fac = fbpar * 2 * spec(is)%tz
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       phigavg = phigavg + &
+            (fac_now * bpar(:,it,ik) + fac_next * bparnew(:,it,ik))&
+            * aj1(:,iglo) * vperp2(:,iglo)
+    end if
 
-    if(has_apar)then
-       apargavg = (fexp(is)*apar(:,it,ik)  + (1.0-fexp(is))*aparnew(:,it,ik)) &
-            *aj0(:,iglo)*fapar
-    endif
+    if (has_apar) then
+       fac = fapar
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       apargavg = (fac_now * apar(:,it,ik)  + fac_next * aparnew(:,it,ik)) &
+            * aj0(:,iglo)
+    end if
 
     !Initialise to zero in case where we don't call set_source_opt
     if(il>lmax)then
