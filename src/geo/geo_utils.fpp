@@ -575,12 +575,12 @@ contains
   subroutine setup_splines_eqfile(self)
     use splines, only: new_spline
     class(abstract_eqfile_geo_type), intent(in out) :: self
-    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
-    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
-    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    call new_spline(self%eqpsi, self%diam, self%diam_spl)
+    call new_spline(self%eqpsi, self%rc, self%rcenter_spl)
+    call new_spline(self%psi_bar, self%fp, self%btori_spl)
+    call new_spline(self%psi_bar, self%qsf, self%qsf_spl)
+    call new_spline(self%psi_bar, self%pressure, self%pressure_spl)
+    call new_spline(self%psi_bar, self%beta, self%beta_spl)
     call self%setup_special_splines
   end subroutine setup_splines_eqfile
 
@@ -1029,7 +1029,7 @@ contains
     if (debug) write(6,fmt='("ztmp=",5f8.4)') ztmp
     if (debug) write(6,fmt='("Z_mag=",f8.4)') Z_mag
 
-    call new_spline(nz, ztmp, rtmp, spl)
+    call new_spline(ztmp, rtmp, spl)
     r1 = splint(Z_mag, spl)
     call delete_spline(spl)
 
@@ -1075,7 +1075,7 @@ contains
     if (debug) write(6,fmt='("a_minor: rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("a_minor: ztmp=",5f8.4)') ztmp
 
-    call new_spline(nz, ztmp, rtmp, spl)
+    call new_spline(ztmp, rtmp, spl)
     r2 = splint(Z_mag, spl)
     call delete_spline(spl)
 

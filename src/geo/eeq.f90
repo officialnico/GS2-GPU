@@ -239,7 +239,7 @@ contains
     use constants, only: twopi
     implicit none
     class(eeq_base_type), intent(in out) :: self
-    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
+    call new_periodic_spline(self%thetab, self%r_bound, twopi, &
          self%rbound_spl, drop_last_point = .true.)
   end subroutine setup_special_splines
 
