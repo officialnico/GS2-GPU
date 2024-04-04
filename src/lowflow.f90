@@ -1053,7 +1053,7 @@ contains
     integer :: ngrid_per_rad
     integer, save :: neo_unit, neof_unit, neophi_unit
 
-    real, dimension (:), allocatable :: tmp, neo_coefs, dum, neo_phi, dneo_phi
+    real, dimension (:), allocatable :: tmp, neo_coefs, neo_phi, dneo_phi
     real, dimension (:), allocatable :: theta_neo_ext,neo_coefs_ext, neo_phi_ext, dneo_phi_ext !JPL
     ntheta = size(theta)
 
@@ -1106,7 +1106,6 @@ contains
 
     if (.not. allocated(tmp)) allocate (tmp(ngrid_per_rad*nrad_neo))
     if (.not. allocated(neo_coefs)) allocate (neo_coefs(ntheta_neo), neo_phi(ntheta_neo), dneo_phi(ntheta_neo))
-    if (.not. allocated(dum)) allocate (dum(ntheta))
     if (.not. allocated(coefs)) allocate (coefs(nrad_neo,ntheta,0:nxi_neo,0:nenergy_neo-1,nspec_neo))
     if (.not. allocated(phineo)) allocate (phineo(nrad_neo,ntheta))
     if (.not. allocated(dphidth)) allocate (dphidth(ntheta))
@@ -1229,7 +1228,7 @@ contains
        end do
     end do
 
-    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi, dum)
+    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi)
     if (proc0 .and. (ptheta_neo .gt. 1)) then
        deallocate (neo_coefs_ext, theta_neo_ext, neo_phi_ext, dneo_phi_ext)
     endif
