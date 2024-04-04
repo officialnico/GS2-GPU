@@ -385,7 +385,7 @@ contains
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     ! Could use self%dpfun if took pbar rather than rp?
     if (char == 'R') then !Only actually used if bishop == 0
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, [rp], p_eqpsi, dp_deqpsi)
+       call inter_d_cspl(self%eqpsi, self%pressure, [rp], p_eqpsi, dp_deqpsi)
        do i = -nth_used, nth_used
           grad(i, 1:2) = grad(i, 1:2) * dp_deqpsi(1) * 0.5 * self%beta_0
        end do
@@ -886,9 +886,9 @@ contains
     do i = 1, self%nw
        self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
     end do
-    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
-    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
+    call inter_cspl(spsi_bar, f, self%psi_bar, self%fp)
+    call inter_cspl(spsi_bar, p, self%psi_bar, self%pressure)
+    call inter_cspl(spsi_bar, q, self%psi_bar, self%qsf)
 
     allocate(eq_R(self%nw), eq_Z(self%nh))
     do i = 1, self%nw
