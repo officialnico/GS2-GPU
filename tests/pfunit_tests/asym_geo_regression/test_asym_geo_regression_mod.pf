@@ -641,7 +641,7 @@ contains
     type(spline_type) :: spline
     integer :: i
 
-    call new_spline(new_theta, var, spline)
+    spline = new_spline(new_theta, var)
     do i = 1, grid_size
       interpolate(i) = splint(old_theta(i), spline)
     end do

@@ -107,7 +107,7 @@ contains
     real, dimension(:), intent(in) :: var
     real, dimension(33) :: spl_fit
     integer :: i
-    call new_spline(theta, var, spl)
+    spl = new_spline(theta, var)
     do i = 1,33
       spl_fit(i) = splint(theta_rslt(i), spl)
     end do
