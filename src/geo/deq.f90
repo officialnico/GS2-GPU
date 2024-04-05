@@ -146,9 +146,9 @@ contains
     use constants, only: twopi
     implicit none
     class(deq_type), intent(in out) :: self
-    call new_periodic_spline(self%thetab, self%r_bound, twopi, &
-         self%rbound_spl, drop_last_point = .true.)
-    call new_spline(self%psi_mid, self%rho_mid, self%rho_spl)
+    self%rbound_spl = new_periodic_spline(self%thetab, self%r_bound, twopi, &
+         drop_last_point = .true.)
+    self%rho_spl = new_spline(self%psi_mid, self%rho_mid)
   end subroutine setup_special_splines
 
   subroutine delete_special_splines(self)

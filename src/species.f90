@@ -707,7 +707,7 @@ contains
 
        do while (.not. acceptable_spline)
           ! Generate spline parameters
-          call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points
@@ -739,7 +739,7 @@ contains
 
        do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get F0 at grid points
@@ -756,7 +756,7 @@ contains
           end if
 
           ! Generate spline parameters for df0/dE
-          call new_spline(egrid_dat, df0dE_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points
@@ -778,7 +778,7 @@ contains
 
        do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get F0 at grid points
@@ -798,7 +798,7 @@ contains
           end if
 
           ! Generate spline parameters for df0/drho
-          call new_spline(egrid_dat, df0drho_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0prim at grid points
@@ -817,7 +817,7 @@ contains
 
        do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get F0 at grid points
@@ -834,7 +834,7 @@ contains
           end if
 
           ! Generate spline parameters for df0/dE
-          call new_spline(egrid_dat, df0dE_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points
@@ -845,7 +845,7 @@ contains
           call delete_spline(spl)
 
           ! Generate spline parameters for df0/drho
-          call new_spline(egrid_dat, df0drho_dat, spl, tension = sigma)
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points

@@ -296,7 +296,7 @@ contains
       integer :: i, lower, upper
 
       ! Spline the old data
-      call new_spline(x_orig, y_orig, the_spline)
+      the_spline = new_spline(x_orig, y_orig)
       lower = lbound(x_new, 1) ; upper = ubound(x_new, 1)
 
       allocate(y_new(lower:upper))

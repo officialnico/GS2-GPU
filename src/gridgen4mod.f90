@@ -340,7 +340,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       use file_utils, only: open_output_file
       implicit none
       integer :: i
-      call new_periodic_spline(thetain, bmagin, npi, bmagspl, &
+      bmagspl = new_periodic_spline(thetain, bmagin, npi, &
            drop_last_point = .true., tension = tension)
 
       nstart = 0
