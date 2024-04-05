@@ -694,7 +694,7 @@ contains
     sigma_fac = 2.0
     acceptable_spline = .false.
 
-    if (mode .EQ. 1) then
+    if (mode == 1) then
        ! Read f0 values
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie)
@@ -705,7 +705,7 @@ contains
        ! If F0 ends up being negative or zero anywhere on the grid, double the tension
        ! factor and try again
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters
           call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
 
@@ -721,7 +721,7 @@ contains
 
           call delete_spline(spl)
 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
@@ -730,14 +730,14 @@ contains
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 2) then
+    else if (mode == 2) then
        ! Read both f0 and df0/dE
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
           call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
 
@@ -747,6 +747,13 @@ contains
           end do
 
           call delete_spline(spl)
+
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+             cycle
+          end if
 
           ! Generate spline parameters for df0/dE
           call new_spline(egrid_dat, df0dE_dat, spl, tension = sigma)
@@ -758,24 +765,18 @@ contains
           end do
 
           call delete_spline(spl)
-
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then
-             acceptable_spline = .true.
-          else
-             sigma = sigma * sigma_fac
-          end if
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 3) then
+    else if (mode == 3) then
        ! Read f0 and df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
           call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
 
@@ -789,6 +790,13 @@ contains
 
           call delete_spline(spl)
 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+             cycle
+          end if
+
           ! Generate spline parameters for df0/drho
           call new_spline(egrid_dat, df0drho_dat, spl, tension = sigma)
 
@@ -798,22 +806,16 @@ contains
           end do
 
           call delete_spline(spl)
-
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then
-             acceptable_spline = .true.
-          else
-             sigma = sigma * sigma_fac
-          end if
        end do
 
-    else if (mode .EQ. 4) then
+    else if (mode == 4) then
        ! Read f0, df0/dE, df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
           call new_spline(egrid_dat, f0_values_dat, spl, tension = sigma)
 
@@ -823,6 +825,13 @@ contains
           end do
 
           call delete_spline(spl)
+
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
+             acceptable_spline = .true.
+          else
+             sigma = sigma * sigma_fac
+             cycle
+          end if
 
           ! Generate spline parameters for df0/dE
           call new_spline(egrid_dat, df0dE_dat, spl, tension = sigma)
@@ -844,13 +853,6 @@ contains
           end do
 
           call delete_spline(spl)
-
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then
-             acceptable_spline = .true.
-          else
-             sigma = sigma * sigma_fac
-          end if
-
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
