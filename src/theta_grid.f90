@@ -270,7 +270,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     type (spline) :: spl
     integer :: i
 
-    call new_spline (x(-nold:nold), y(-nold:nold), spl)
+    call new_spline (x(-nold:nold), y(-nold:nold), spl, tension = regrid_tension)
 
     do i = -nnew, nnew
        y(i) = splint(xnew(i), spl)
