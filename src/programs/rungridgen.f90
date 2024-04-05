@@ -1,7 +1,7 @@
 !> FIXME : Add documentation  
 program rungridgen
   use file_utils
-  use gridgen4mod
+  use gridgen4mod, only: gridgen4_1
   use constants, only: pi, twopi
   use mp, only: init_mp, finish_mp
   implicit none

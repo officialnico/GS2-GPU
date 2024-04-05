@@ -41,7 +41,9 @@
 !! @todo : This file/module needs tidying/pruning. More consistent usage of tolerance comparisons would help
 !! Testing may be tricky but would be very helpful.
 module gridgen4mod
-
+  implicit none
+  private
+  public :: gridgen4_1, gridgen4_2
 contains
 
   !> FIXME : Add documentation
