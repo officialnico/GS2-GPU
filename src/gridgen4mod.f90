@@ -47,6 +47,7 @@ module gridgen4mod
 contains
 
   !> FIXME : Add documentation
+  !> @note Currently unused
   subroutine gridgen4read (filename,ntheta,nperiod,ntgrid,nlambda,theta,alambda, &
        gbdrift,gradpar,cvdrift,gds2,bmag,gds21,gds22,cvdrift0,gbdrift0)
     use mp, only: mp_abort
@@ -60,33 +61,10 @@ contains
     real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift, gds2, bmag
     real, dimension (-ntgrid:ntgrid), intent(out) :: gds21, gds22
     real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift0, gbdrift0
-
-    integer :: nthetain, nperiodin, ntgridin, nlambdain
-    integer :: i
-    integer :: unit
-    logical :: od
+    integer :: nthetain, nperiodin, ntgridin, nlambdain, i, unit
     character(run_name_size) :: line
 
-!CMR, August 2010:
-!  (i) modify inquire to use opened instead of read, write and readwrite
-!   needed for gfortran compiler: TT adopted same solution in file_utils
-!  (ii) terminate with error message if no free LUN found
-!CMRend
-
-    unit=0
-    do i = 10,100
-       inquire (unit=i,opened=od)
-       if ( .not. od ) then
-          unit=i
-          exit
-       end if
-    end do
-    if (unit .eq. 0) then
-       call mp_abort("gridgen4read:  no free LUN between 10,100 => force quit",.true.)
-    endif
-
-    open (unit=unit, file=filename, status="old")
-    
+    open (newunit=unit, file=filename, status="old")
     read (unit=unit, fmt="(a)") line
     read (unit=unit, fmt=*) nlambdain
     if (nlambdain > nlambda) then
