@@ -397,7 +397,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          bprime(i) = bmagp(thetain(i))
       end do
 
-! Find all extrema.
+      ! Find all extrema. - Note we skip the first point and later
+      ! assume that this is an extrema (at theta = -pi). We _could_
+      ! just make the loop go over i = 1, nbmag - 1 instead.
       nextr = 0
       do i = 2, nbmag-2
          if (bprime(i) == 0.0) then
@@ -405,8 +407,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             bextr(i) = bmagin(i)
             thetaextr(i) = thetain(i)
             nextr = nextr + 1
-         else if (bprime(i) < 0.0 .and. bprime(i+1) > 0.0 ) then
-            ! Change in derivative - minima between grid points
+         else if (bprime(i) * bprime(i+1) < 0.0 ) then
+            ! Change in derivative - extrema between grid points
             thetal = thetain(i) ; thetar = thetain(i+1)
             !Bisect to find extrema. Note we don't check actually found
             do j = 1, maxiter
@@ -432,39 +434,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             thetaextr(i) = theta0
             bextr(i) = bmagint(theta0)
             nextr = nextr + 1
-         else if (bprime(i) > 0.0 .and. bprime(i+1) < 0.0) then
-            ! Change in derivative - maxima between grid points
-            thetal = thetain(i) ; thetar = thetain(i+1)
-            !Bisect to find extrema. Note we don't check actually found
-            do j = 1, maxiter
-               theta0 = 0.5*(thetal+thetar)
-               bprime0 = bmagp(theta0)
-               if (bprime0 > 0.0) then
-                  thetal = theta0
-               else if (bprime0 < 0.0) then
-                  thetar = theta0
-               else
-                  exit
-               end if
-            end do
-            !If extrema close enough to bounding grid points just
-            !say derivative is zero on the grid point.
-            if (theta0-thetain(i) < epsknob) then
-               theta0 = thetain(i)
-               bprime(i) = 0.0
-            else if (thetain(i+1)-theta0 < epsknob) then
-               theta0 = thetain(i+1)
-               bprime(i+1) = 0.0
-            end if
-            thetaextr(i) = theta0
-            bextr(i) = bmagint(theta0)
-            nextr = nextr + 1
          end if
       end do
 
-! Collect -pi, all local extrema, original grid points, points between
-! original grid points
-      nstart = 1 + nextr + (nbmag-1)*(1+npadd)
+      ! Collect -pi, all local extrema, original grid points, points between
+      ! original grid points
+      nstart = 1 + nextr + (nbmag - 1) * (1 + npadd)
 
       allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
       essentialstart(:1+nextr) = .true.
