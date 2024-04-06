@@ -1315,15 +1315,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: n
       real, dimension (:), intent (in) :: x, y
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,2(g25.18,1x))") i, x(i), y(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,2(g25.18,1x))") i, x(i), y(i)
+      end do
     end subroutine gg4debug
 
     !> FIXME : Add documentation    
@@ -1333,16 +1330,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       real, dimension (:), intent (in) :: x
       integer, dimension (:), intent (in) :: i1, i2
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,g25.18,1x,i4,1x,i10)") &
-                 i, x(i), i1(i), i2(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,g25.18,1x,i4,1x,i10)") i, x(i), i1(i), i2(i)
+      end do
     end subroutine gg4debugi
 
     !> FIXME : Add documentation    
@@ -1351,33 +1344,26 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: n
       logical, dimension (:), intent (in) :: x
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt=*) &
-                 i, x(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = *) i, x(i)
+      end do
     end subroutine gg4debugl
 
     !> FIXME : Add documentation    
-    subroutine gg4debug4 (n, x, y, p,q, label)
+    subroutine gg4debug4 (n, x, y, p, q, label)
       implicit none
       integer, intent (in) :: n
-      real, dimension (:), intent (in) :: x, y,p,q
+      real, dimension (:), intent (in) :: x, y, p, q
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (verbose_debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,4(g22.15,1x))") i, x(i), y(i), p(i), q(i)
-         end do
-      end if
+      if (.not. verbose_debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,4(g22.15,1x))") i, x(i), y(i), p(i), q(i)
+      end do
     end subroutine gg4debug4
 
     !> FIXME : Add documentation    
