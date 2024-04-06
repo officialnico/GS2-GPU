@@ -382,10 +382,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4start (n)
       implicit none
       integer, intent (in) :: n
-      integer :: i, j
-      real :: thetal, thetar, theta0
-      real :: bprime0
-      integer :: nextr
+      integer :: i, j, nextr
+      real :: thetal, thetar, theta0, bprime0
       
       allocate (bmin(nbmag-1),bmax(nbmag-1),bextr(nbmag-1),thetaextr(nbmag-1))
       allocate (bprime(nbmag))
@@ -393,7 +391,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       bmax = max(bmagin(1:nbmag-1),bmagin(2:nbmag))
       bextr = 0.0
       thetaextr = 0.0
-      
+
+      ! Evaluate dB/dtheta on the input theta grid from the spline of B
       do i = 1, nbmag
          bprime(i) = bmagp(thetain(i))
       end do
@@ -402,14 +401,16 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       nextr = 0
       do i = 2, nbmag-2
          if (bprime(i) == 0.0) then
+            ! Exactly zero derivative on grid
             bextr(i) = bmagin(i)
             thetaextr(i) = thetain(i)
             nextr = nextr + 1
-         else if (bprime(i) < 0.0 .and. bprime(i+1) > 0.0) then
-            thetal = thetain(i)
-            thetar = thetain(i+1)
+         else if (bprime(i) < 0.0 .and. bprime(i+1) > 0.0 ) then
+            ! Change in derivative - minima between grid points
+            thetal = thetain(i) ; thetar = thetain(i+1)
+            !Bisect to find extrema. Note we don't check actually found
             do j = 1, maxiter
-               theta0 = 0.5*(thetal+thetar)
+               theta0 = 0.5 * (thetal + thetar)
                bprime0 = bmagp(theta0)
                if (bprime0 < 0.0) then
                   thetal = theta0
@@ -419,7 +420,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   exit
                end if
             end do
-            if (theta0-thetain(i) < epsknob) then
+            !If extrema close enough to bounding grid points just
+            !say derivative is zero on the grid point.
+            if (theta0 - thetain(i) < epsknob) then
                theta0 = thetain(i)
                bprime(i) = 0.0
             else if (thetain(i+1)-theta0 < epsknob) then
@@ -430,8 +433,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             bextr(i) = bmagint(theta0)
             nextr = nextr + 1
          else if (bprime(i) > 0.0 .and. bprime(i+1) < 0.0) then
-            thetal = thetain(i)
-            thetar = thetain(i+1)
+            ! Change in derivative - maxima between grid points
+            thetal = thetain(i) ; thetar = thetain(i+1)
+            !Bisect to find extrema. Note we don't check actually found
             do j = 1, maxiter
                theta0 = 0.5*(thetal+thetar)
                bprime0 = bmagp(theta0)
@@ -443,6 +447,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   exit
                end if
             end do
+            !If extrema close enough to bounding grid points just
+            !say derivative is zero on the grid point.
             if (theta0-thetain(i) < epsknob) then
                theta0 = thetain(i)
                bprime(i) = 0.0
@@ -455,7 +461,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             nextr = nextr + 1
          end if
       end do
-    
+
 ! Collect -pi, all local extrema, original grid points, points between
 ! original grid points
       nstart = 1 + nextr + (nbmag-1)*(1+npadd)
