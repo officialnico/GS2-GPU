@@ -1389,18 +1389,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end function bmagint
 
     !> FIXME : Add documentation    
-    function bmagp (theta)
+    real function bmagp (theta)
+      use splines, only: periodic_dsplint
       implicit none
       real, intent (in) :: theta
-      real :: bmagp
-      real, parameter :: diff = 1e-5
-
-      real :: th1, th2, bm1, bm2
-      th1 = theta + 0.5*diff
-      th2 = theta - 0.5*diff
-      bm1 = bmagint (th1)
-      bm2 = bmagint (th2)
-      bmagp = (bm1-bm2)/diff
+      bmagp = periodic_dsplint(theta, bmagspl)
     end function bmagp
 
     !> FIXME : Add documentation    
