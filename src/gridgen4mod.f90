@@ -468,23 +468,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4collect
       use mp, only: mp_abort
       implicit none
-      integer :: i, iset, j
-      integer :: nsetsetmax
+      integer :: i, iset, j, nsetsetmax
       real :: thetai, bmagi
       
-! Estimate upper bound on number of points.
-!    nsetsetmax = count( &
-!     (spread(bmagstart,2,nbmag-1) >= spread(bmin,1,nstart) &
-!      .and. spread(bmagstart,2,nbmag-1) <= spread(bmax,1,nstart))) &
-!             + 2*count( &
-!     (spread(bextr,1,nstart) /= 0 &
-!      .and. &
-!       ((spread(bmagstart,2,nbmag-1) >= spread(bmax,1,nstart) &
-!         .and. spread(bmagstart,2,nbmag-1) <= spread(bextr,1,nstart)) &
-!        .or. &
-!        (spread(bmagstart,2,nbmag-1) <= spread(bmin,1,nstart) &
-!         .and. spread(bmagstart,2,nbmag-1) >= spread(bextr,1,nstart)))))
-
+      ! Estimate upper bound on number of points.
       nsetsetmax = 0
       do i = 1, nbmag-1
          do j = 1, nstart
@@ -499,7 +486,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                  nsetsetmax = nsetsetmax + 2
          end do
       end do
-! End of Liu's fix.
 
 ! Allocate
       allocate (thetasetset(nsetsetmax))
@@ -519,7 +505,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 !       near the extremum from this set.
                   where (ibmagsetset(1:nsetset) == i &
                        .and. abs(thetasetset(1:nsetset)-thetai) < epsknob)
-                  ibmagsetset(1:nsetset) = 0
+                     ibmagsetset(1:nsetset) = 0
                   end where
 ! 1.1.2 Attach the extremum to this set.
                   call add_setset (thetai, i, 112)
@@ -746,14 +732,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       real, intent (in) :: thetal, thetag, bmagi
       integer, intent (in) :: ibmag, icoll
-
       real :: thl, thg, theta0, bmag0
       integer :: i
-      
-      thl = thetal
-      thg = thetag
+      !Bisect between thl and thg to find theta such that B(theta0) = bmagi
+      thl = thetal ; thg = thetag
       do i = 1, maxiter
-         theta0 = 0.5*(thl+thg)
+         theta0 = 0.5 * (thl + thg)
          bmag0 = bmagint(theta0)
          if (bmag0 > bmagi) then
             thg = theta0
@@ -856,11 +840,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: iset
       real, intent (out) :: thetares
-
-      integer :: i, ileft, iright
-      real :: dthetal, dthetar, dtheta_tmp !MRH
-      real :: res
-      integer :: npts
+      integer :: i, ileft, iright, npts
+      real :: res, dthetal, dthetar, dtheta_tmp !MRH
 
 ! 1 Return large value for essential sets with odd number of points or
 !   for set containing -pi.
@@ -952,11 +933,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: iset
       real, intent (out) :: alambdares
-
-      integer :: i, iplus, iminus
-      real :: al, alplus, alminus, dalplus, dalminus, dal_tmp !MRH
-      real :: res
-      integer :: npts
+      integer :: i, iplus, iminus, npts
+      real :: res, al, alplus, alminus, dalplus, dalminus, dal_tmp !MRH
       
       al = 1.0/bmagset(iset)
       do i = 1, nset
@@ -1028,7 +1006,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer :: idel, i
       integer :: ntheta_left, nlambda_left
       integer, dimension (nset) :: work
-      
       real, dimension (nset) :: resolution_metric ! MRH to address machine dependence
       
       nlambda_left = nset
@@ -1089,83 +1066,81 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          !work(1:1) = minloc(thetares(1:nset)+alknob*alambdares(1:nset), &
          !     bmagset(1:nset) /= 0.0)
          idel = work(1)
-        if (debug) then 
+         if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             ! MRH if one follows this debug output one sees that:
 ! MRH whilst there are duplicate theta values remaining to be considered in the thetasetset grid
 ! MRH the values of the resolution_metric are initially all 0 (whilst every grid point has a duplicate)
 ! MRH and as the duplicates are deleted (every element of the list that is deleted is a duplicate until we reach midway)
 ! MRH more values of resolution_metric steadily become non 0.
-! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ 
+! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ
 ! MRH only at machine precision
 ! MRH this is because after all of the duplicate pairs have been deleted but before any more pairs have been deleted
 ! MRH the resolution metric is calculated based on the difference between almost equally spaced theta grid points
-! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points 
-! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset 
+! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points
+! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset
 ! MRH - in this way one can keep track of which pairs are being deleted)
 ! MRH the bug that I have fixed was that depending on the machine, the resolution_metric at this stage in the computation
-! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be 
-! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed 
+! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be
+! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed
 ! MRH from machine to machine.
 ! MRH By making the comparison in minimum_index with a bias, we avoid a machine dependent theta grid
             if (debug_output) write (unit=debug_unit, fmt=*) "gg4remove idel ",idel
-            call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")       
-        endif    
+            call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")
+         end if
 ! 2 Delete the set just found.
 ! MRH the subroutine delete_set deletes the iset value that the above lines just found
 ! MRH it does this by setting bmagset (idel) =0.0 so that when gg4results computes the final field and theta grid
 ! MRH this value of iset is ignored. Finally the metrics are computed taking into account that the point has been deleted
          if (idel == 0) then
-            print *, "gridgen4.f:gg4remove:2: This cannot happen."
-            call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.")
+            call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.", .true.)
          end if
          call delete_set (idel, work, ntheta_left)
          nlambda_left = nlambda_left - 1
       end do
     end subroutine gg4remove
-    
+
     !> FIXME : Add documentation
-    function minimum_index (n, array, mask, machine_error)
-    ! MRH the function minimum_index has been written to have the same features as minloc
-    ! MRH n is the length of the array and mask
-    ! MRH array is the array from which we want the index of the minimum value in the array
-    ! MRH mask is an array of logicals of the same dimension as array.
-    ! MRH we consider values in array for which mask is true. If all values of mask are false minimum_index is 0
-    ! MRH machine_error is a control parameter in case we are comparing numbers which are identical in size
-    ! MRH this function returns the 1st minimum in array element order if there are multiple minimum of the same size
-    
-    ! MRH minimum_index has all the documented features of minloc for a 1D array
-    ! MRH with the added feature of the final machine_error variable
-    ! MRH this variable gives a definite truth value to (array(i) < array (j) - machine_error) 
-    ! MRH in the case that array(i) is identical to array(j).
-    ! MRH This ensures the minimum_index returns the 1st minimum index in array order
-        implicit none
+    pure integer function minimum_index (n, array, mask, machine_error)
+      ! MRH the function minimum_index has been written to have the same features as minloc
+      ! MRH n is the length of the array and mask
+      ! MRH array is the array from which we want the index of the minimum value in the array
+      ! MRH mask is an array of logicals of the same dimension as array.
+      ! MRH we consider values in array for which mask is true. If all values of mask are false minimum_index is 0
+      ! MRH machine_error is a control parameter in case we are comparing numbers which are identical in size
+      ! MRH this function returns the 1st minimum in array element order if there are multiple minimum of the same size
+
+      ! MRH minimum_index has all the documented features of minloc for a 1D array
+      ! MRH with the added feature of the final machine_error variable
+      ! MRH this variable gives a definite truth value to (array(i) < array (j) - machine_error)
+      ! MRH in the case that array(i) is identical to array(j).
+      ! MRH This ensures the minimum_index returns the 1st minimum index in array order
+      implicit none
         real, dimension (:), intent (in) :: array
         logical, dimension (:), intent (in) :: mask
         integer, intent (in) :: n
         real, intent (in) :: machine_error
-        integer :: i, minimum_index
+        integer :: i
         real :: minimum_value
-        
+
         minimum_index = 0
         if (all (.not. mask)) return ! MRH if all of mask is false there are no values to consider in the array and so we return with 0 as the minimum index
         ! MRH get a starting value for the minimum-above we confirmed above there is at least one value in the array
         do i=1,n
             if (mask(i)) then
                 minimum_value = array(i)
-                minimum_index =i
+                minimum_index = i
                 exit
-            endif
-        enddo
+            end if
+        end do
         ! MRH now go through all the values in the array to find the minimum
 
         do i=1,n
             if (mask (i) .and. (array (i) < minimum_value- machine_error )) then !
                 minimum_value = array (i)
                 minimum_index =i
-            endif
-        enddo
-        
+            end if
+        end do
     end function minimum_index
 
     !> FIXME : Add documentation    
@@ -1174,7 +1149,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: idel
       integer, intent (in out), dimension (nset) :: work
       integer, intent (out) :: ntheta_left
-
       integer :: i, j
       
       work = 0
