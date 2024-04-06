@@ -1397,11 +1397,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end function bmagp
 
     !> FIXME : Add documentation    
-    real function tfunc (theta)
+    elemental real function tfunc (theta)
       implicit none
-      real :: theta
-      tfunc = 1.0 + deltaw*(1.0/(1.0+(theta-thetamax)**2/widthw**2) &
-           +1.0/(1.0+(theta+thetamax)**2/widthw**2))
+      real, intent(in) :: theta
+      tfunc = 1.0 + deltaw * ( &
+           1.0 / (1.0 + (theta - thetamax)**2 / widthw**2) + &
+           1.0 / (1.0 + (theta + thetamax)**2 / widthw**2))
     end function tfunc
     
   end subroutine gridgen4_2
