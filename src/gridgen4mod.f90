@@ -169,31 +169,32 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real :: npi
     integer, parameter :: maxiter = 100
-    logical :: debug_output = .true., verbose_debug_output = .false. ! MRH verbose_debug_output prints out the resolution_metric to debug_unit for every iteration of gg4remove to debug the point using procedure    
-
-    real, parameter :: precision_bound = 1.0e3*epsilon (0.0)! MRH a number used to take into account machine error in floatingpoint arithmetic
+    !> MRH verbose_debug_output prints out the resolution_metric to
+    !> debug_unit for every iteration of gg4remove to debug the point
+    !> using procedure
+    logical :: debug_output = .true., verbose_debug_output = .false.
+    !> MRH a number used to take into account machine error in
+    !> floatingpoint arithmetic
+    real, parameter :: precision_bound = 1.0e3*epsilon (0.0)
     type(periodic_spline) :: bmagspl
 
     integer :: nstart
     real, allocatable, dimension (:) :: thetastart, bmagstart
     logical, allocatable, dimension (:) :: essentialstart
-    real, allocatable, dimension (:) :: bmin, bmax, bextr, thetaextr
-    real, allocatable, dimension (:) :: bprime
+    real, allocatable, dimension (:) :: bmin, bmax, bextr, thetaextr, bprime
 
     integer :: nset, nsetset
     real, allocatable, dimension (:) :: thetasetset, bmagset
-    real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted ! MRH for debugging
+    !> MRH for debugging
+    real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
     integer, allocatable, dimension (:) :: ibmagsetset, icollsetset
     logical, allocatable, dimension (:) :: essentialset
     
     integer, allocatable, dimension (:) :: ithetasort, ibmagsort
-    
     real, allocatable, dimension (:) :: thetares, alambdares
     
-    integer :: nthetaout, nlambdaout
-    integer :: itheta !MRH
-    integer :: debug_unit
-    logical, parameter :: debug=.false.!.true.!
+    integer :: nthetaout, nlambdaout, itheta, debug_unit
+    logical, parameter :: debug=.false.!.true.
     npi = n * twopi
 
     ! Disable debug output when iproc /= 0 and make sure debug_output
@@ -316,7 +317,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     !> FIXME : Add documentation  
     subroutine gg4init
       use splines, only: new_periodic_spline
-      use mp, only: mp_abort
       use file_utils, only: open_output_file
       implicit none
       integer :: i
@@ -353,25 +353,18 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       use splines, only: delete_periodic_spline
       implicit none
       
-      if (debug_output) then
-         call close_output_file(debug_unit)
-      end if
+      if (debug_output) call close_output_file(debug_unit)
       call delete_periodic_spline(bmagspl)
-      deallocate (thetastart)
-      deallocate (bmagstart)
+      deallocate (thetastart, bmagstart, essentialstart)
       deallocate (bmin,bmax,bextr,thetaextr,bprime)
-      deallocate (essentialstart)
 
-      deallocate (thetasetset, bmagset)
+      deallocate (thetasetset, bmagset, essentialset)
       deallocate (ibmagsetset, icollsetset)
-      deallocate (essentialset)
-      
       deallocate (ithetasort, ibmagsort)
-
       deallocate (thetares, alambdares)
 
       if (mod(nthetaout,2) /= 1) then
-         print *, "gridgen4_1:gg4results:nthetaout=",nthetaout
+         print *, "gridgen4_1:gg4results:nthetaout=", nthetaout
          print *, "nthetaout is not odd, so there is a problem with gridgen"
          print *, "This can sometimes happen if this file is not compiled with promotion to double precision."
          call mp_abort('gridgen has finished with an odd ntheta. This suggests something has gone wrong so abort. Consider changing the gridgen input flags or ntheta.', .true.)
