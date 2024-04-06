@@ -376,7 +376,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: n
       integer :: i, j, nextr
-      real :: thetal, thetar, theta0, bprime0
+      real :: thetal, thetar, theta0, bprime0, dtheta
       
       allocate (bmin(nbmag-1),bmax(nbmag-1),bextr(nbmag-1),thetaextr(nbmag-1))
       allocate (bprime(nbmag))
@@ -391,9 +391,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
 
       ! Find all extrema. - Note we skip the first point and later
-      ! assume that this is an extrema (at theta = -pi). We _could_
+      ! assume that this is an extrema (at theta = -pi*n). We _could_
       ! just make the loop go over i = 1, nbmag - 1 instead.
-      nextr = 0
+      ! Here we start with one extrema corresponding to the assumed
+      ! extrema at the start of the grid
+      nextr = 1
       do i = 2, nbmag-2
          if (bprime(i) == 0.0) then
             ! Exactly zero derivative on grid
@@ -432,25 +434,32 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
       ! Collect -pi, all local extrema, original grid points, points between
       ! original grid points
-      nstart = 1 + nextr + (nbmag - 1) * (1 + npadd)
+      nstart = nextr + (nbmag - 1) * (1 + npadd)
 
       allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
-      essentialstart(:1+nextr) = .true.
-      essentialstart(2+nextr:) = .false.
+      essentialstart(:nextr) = .true.
+      essentialstart(nextr+1:) = .false.
       thetastart(1) = -pi*n
-      thetastart(2:nextr+1) = pack(thetaextr,bextr /= 0.0)
+      thetastart(2:nextr) = pack(thetaextr,bextr /= 0.0)
       
-      nstart = nextr + 1
+      nstart = nextr
       do i = 1, nbmag-1
+         dtheta = (thetain(i+1)-thetain(i))
          do j = 0, npadd
+            ! For j=0 add thetagrid(i) point, for j > 0 try to add extra theta grid
+            ! points inbetween thetagrid(i) and thetagrid(i+1). Only actually keep
+            ! the points if they are more than epsknob far away from all previously
+            ! added points. As such epsknob sets the minimum theta grid spacing
+            ! allowed here.
             thetastart(nstart+1) &
-                 = thetain(i) + real(j)/real(npadd+1)*(thetain(i+1)-thetain(i))
+                 = thetain(i) + dtheta * real(j)/real(npadd+1)
             if (all(abs(thetastart(nstart+1)-thetastart(1:nstart)) > epsknob)) then
                nstart = nstart + 1
             end if
          end do
       end do
-      
+
+      ! Get B on the new theta grid point through spline interpolation
       do i = 1, nstart
          bmagstart(i) = bmagint(thetastart(i))
       end do
