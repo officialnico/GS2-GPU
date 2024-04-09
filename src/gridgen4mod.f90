@@ -435,7 +435,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
       essentialstart(:nextr) = .true.
       essentialstart(nextr+1:) = .false.
-      thetastart(1) = -pi*n
+      thetastart(1) = -pi*n !Should this be thetain(1)?
       thetastart(2:nextr) = pack(thetaextr,bextr /= 0.0)
       
       nstart = nextr
@@ -1331,6 +1331,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     elemental real function tfunc (theta)
       implicit none
       real, intent(in) :: theta
+      ! The brackets multiplied by deltaw looks like a smooth function
+      ! with peaks located at theta = +/- thetamax and peaks widths
+      ! controlled by widthw.  As the return of tfunc is used to
+      ! determine this theta grid point's contribution to the
+      ! resolution metric it seems that the intent of this form is to
+      ! allow the user to bias the resolution metric to be larger at
+      ! theta = +/- thetamax and hence to preferentially keep points
+      ! in this area.
       tfunc = 1.0 + deltaw * ( &
            1.0 / (1.0 + (theta - thetamax)**2 / widthw**2) + &
            1.0 / (1.0 + (theta + thetamax)**2 / widthw**2))
