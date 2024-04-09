@@ -181,7 +181,7 @@ contains
     integer :: nstart
     real, allocatable, dimension (:) :: thetastart, bmagstart
     logical, allocatable, dimension (:) :: essentialstart
-    real, allocatable, dimension (:) :: bmin, bmax, bextr, thetaextr, bprime
+    real, allocatable, dimension (:) :: bextr, thetaextr, bprime
 
     integer :: nset, nsetset
     real, allocatable, dimension (:) :: thetasetset, bmagset
@@ -356,7 +356,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       if (debug_output) call close_output_file(debug_unit)
       call delete_periodic_spline(bmagspl)
       deallocate (thetastart, bmagstart, essentialstart)
-      deallocate (bmin,bmax,bextr,thetaextr,bprime)
+      deallocate (bextr,thetaextr,bprime)
 
       deallocate (thetasetset, bmagset, essentialset)
       deallocate (ibmagsetset, icollsetset)
@@ -378,12 +378,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer :: i, j, nextr
       real :: thetal, thetar, theta0, bprime0, dtheta
       
-      allocate (bmin(nbmag-1),bmax(nbmag-1),bextr(nbmag-1),thetaextr(nbmag-1))
-      allocate (bprime(nbmag))
-      bmin = min(bmagin(1:nbmag-1),bmagin(2:nbmag))
-      bmax = max(bmagin(1:nbmag-1),bmagin(2:nbmag))
-      bextr = 0.0
-      thetaextr = 0.0
+      allocate(bextr(nbmag-1), thetaextr(nbmag-1), bprime(nbmag))
+      bextr = 0.0 ; thetaextr = 0.0
 
       ! Evaluate dB/dtheta on the input theta grid from the spline of B
       do i = 1, nbmag
@@ -470,14 +466,28 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer :: i, iset, j, nsetsetmax
       real :: thetai, bmagi
+      real, dimension(:), allocatable :: bmin, bmax
+      allocate(bmin(nbmag-1), bmax(nbmag-1))
+
+      ! For each pair of neighboring points pick the smaller and larger
+      ! Used here as part of estimate the number of sets/points -- determine
+      ! if starting points B lie between B on neighboring input grid or not
+      bmin = min(bmagin(1:nbmag-1), bmagin(2:nbmag))
+      bmax = max(bmagin(1:nbmag-1), bmagin(2:nbmag))
       
       ! Estimate upper bound on number of points.
       nsetsetmax = 0
       do i = 1, nbmag-1
          do j = 1, nstart
+            ! Does start point lie between input grid points? If so add one
             if (bmagstart(j) >= bmin(i) &
                  .and. bmagstart(j) <= bmax(i)) &
                  nsetsetmax = nsetsetmax + 1
+            ! Does starting point lie above / below input grid points but not beyond
+            ! the local extrema? If so add two.
+            ! Note we may not have set bextr different from zero at all input grid points
+            ! so bextr(i) may be zero in many places. This might lead to an unintentional
+            ! impact here?
             if (bextr(i) /= 0 &
                  .and. ((bmagstart(j) >= bmax(i) &
                  .and. bmagstart(j) <= bextr(i)) &
@@ -486,7 +496,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                  nsetsetmax = nsetsetmax + 2
          end do
       end do
-
+      deallocate(bmin, bmax)
 ! Allocate
       allocate (thetasetset(nsetsetmax))
       allocate (ibmagsetset(nsetsetmax))
