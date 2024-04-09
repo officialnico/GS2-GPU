@@ -398,7 +398,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: n
       integer :: i, j, nextr
       real :: thetal, thetar, theta0, bprime0, dtheta
-      
+      logical :: skip_point
       allocate(bextr(nbmag-1), thetaextr(nbmag-1), bprime(nbmag))
       bextr = 0.0 ; thetaextr = 0.0
 
@@ -413,7 +413,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! Here we start with one extrema corresponding to the assumed
       ! extrema at the start of the grid
       nextr = 1
+      skip_point = .false.
       do i = 2, nbmag-2
+         if (skip_point) cycle
+         skip_point = .false.
          if (bprime(i) == 0.0) then
             ! Exactly zero derivative on grid
             bextr(i) = bmagin(i)
@@ -441,7 +444,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                bprime(i) = 0.0
             else if (thetain(i+1)-theta0 < epsknob) then
                ! @Note: If this triggers then on the next iteration the bprime(i)==0 test
-               ! should pass and we will end up adding this extremum twice!
+               ! should pass and we will end up adding this extremum twice, so mark as
+               ! needing to skip next iteration.
+               skip_point = .true.
                theta0 = thetain(i+1)
                bprime(i+1) = 0.0
             end if
