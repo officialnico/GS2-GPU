@@ -1,4 +1,24 @@
-!> FIXME : Add more documentation
+!> Given B{theta_i} attempt to produce an optimal set of theta values
+!> with the same size as the input {theta_i}. The output {theta} set
+!> should include all extrema (global and local) and as many other
+!> grid points as required to meet the requested number.
+!>
+!> The general approach is to:
+!>    1. Generate a periodic interpolating spline of B(theta).
+!>    2. Find all extrema (essential points).
+!>    3. Evaluate the spline on a finer theta mesh, controlled by npadd.
+!>    4. Construct a set of B values consisted of all extrema and values on the fine mesh.
+!>    5. For each unique B value find all values of theta for which this B appears (setset).
+!>    6. Eliminate B values, removing the corresponding values of theta, until we have
+!>       the required number of theta grid points. We choose which B values to remove based
+!>       on (user controllable) theta and lambda grid resolution metrics. We strongly bias
+!>       towards keeping extrema.
+!>
+!> @note Instead of splining and evaluating on a finer mesh we could instead pass a higher
+!> resolution B(theta) calculated in geometry when ntheta_geometry > ntheta.
+!>
+!> @note Instead of packing extra theta points in step 3, it might make more sense to
+!> finely sample B between the global min and max values?
 !>
 !> MRH 15/11/2017
 !> Previous versions of gridgen4_2  produced different theta grids on different machines
