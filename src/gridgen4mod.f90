@@ -440,6 +440,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                theta0 = thetain(i)
                bprime(i) = 0.0
             else if (thetain(i+1)-theta0 < epsknob) then
+               ! @Note: If this triggers then on the next iteration the bprime(i)==0 test
+               ! should pass and we will end up adding this extremum twice!
                theta0 = thetain(i+1)
                bprime(i+1) = 0.0
             end if
