@@ -31,16 +31,21 @@ module theta_grid_gridgen
      !>
      !> FIXME: What does this mean?
      real :: bpknob = 1.e-8
-     !> Parameter for weighted resolution in theta?
-     !>
-     !> FIXME: What does this mean?
+     !> Parameter for weighted resolution in theta. Each theta grid point
+     !> contributes to the resolution metric according to the function
+     !> $$ 1 + deltaw *[ 1 / (1 + [theta-thetamax]**2/widthw**2) +
+     !>                  1 / (1 + [theta+thetamax]**2/widthw**2)] $$
+     !> which has peaks at theta = +/- thetamax and deltaw controls the
+     !> relative weighting of the theta dependent contribution.
      real :: deltaw = 0.0
      !> Maximum difference between neighbouring points for determining
      !> if a point is an extremum.
      real :: epsknob = 1e-5
-     !> Something to do with scaling the theta resolution?
-     !>
-     !> FIXME: What does this mean?
+     !> Used to set a "bonus" contribtion to resolution at B extrema with an
+     !> even number of theta grid points. Those with an odd number of points
+     !> and the assumed extrema at -pi have a metric of 1e20. Here extrknob
+     !> can be used to bias the algorithm towards keeping extrema with an
+     !> even number of points.
      real :: extrknob = 0.0
      !> Number of points between original grid points to oversample \(\theta\) by
      integer :: npadd = 2
@@ -55,13 +60,18 @@ module theta_grid_gridgen
      logical :: skip_gridgen = .false.
      !> Tension for \(B\) spline
      real :: tension = 1.0
-     !> Parameter for weighted resolution in theta?
-     !>
-     !> FIXME: What does this mean?
+     !> Parameter for weighted resolution in theta. Each theta grid point
+     !> contributes to the resolution metric according to the function
+     !> $$ 1 + deltaw *[ 1 / (1 + [theta-thetamax]**2/widthw**2) +
+     !>                  1 / (1 + [theta+thetamax]**2/widthw**2)] $$
+     !> which has peaks at theta = +/- thetamax.
      real :: thetamax = 0.0
-     !> Parameter for weighted resolution in theta?
-     !>
-     !> FIXME: What does this mean?
+     !> Parameter for weighted resolution in theta. Each theta grid point
+     !> contributes to the resolution metric according to the function
+     !> $$ 1 + deltaw *[ 1 / (1 + [theta-thetamax]**2/widthw**2) +
+     !>                  1 / (1 + [theta+thetamax]**2/widthw**2)] $$
+     !> which has peaks at theta = +/- thetamax and widthw controls the
+     !> scale length of the peaks.
      real :: widthw = 1.0
    contains
      procedure, public :: read => read_theta_grid_gridgen_config
