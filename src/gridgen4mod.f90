@@ -432,9 +432,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             do j = 1, maxiter
                theta0 = 0.5 * (thetal + thetar)
                bprime0 = bmagp(theta0)
-               if (bprime0 < 0.0) then
+               if (bprime0 * bprime(i) > 0.0) then
+                  !If no B' sign change set left theta bound to mid-point
                   thetal = theta0
-               else if (bprime0 > 0.0) then
+               else if (bprime0 * bprime(i) < 0.0) then
+                  !If B' sign change set right theta bound to mid-point
                   thetar = theta0
                else
                   exit
