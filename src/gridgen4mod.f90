@@ -442,10 +442,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             end do
             !If extrema close enough to bounding grid points just
             !say derivative is zero on the grid point.
-            if (theta0 - thetain(i) < epsknob) then
+            if (theta0 - thetain(i) <= epsknob) then
                theta0 = thetain(i)
                bprime(i) = 0.0
-            else if (thetain(i+1)-theta0 < epsknob) then
+            else if (thetain(i+1)-theta0 <= epsknob) then
                ! @Note: If this triggers then on the next iteration the bprime(i)==0 test
                ! should pass and we will end up adding this extremum twice, so mark as
                ! needing to skip next iteration.
@@ -511,11 +511,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 1 For extrema, check previous sets to attach to.
          if (essentialstart(iset)) then
             do i = 1, iset-1
-               if (abs(bmagstart(i)-bmagi) < epsknob) then
+               if (abs(bmagstart(i)-bmagi) <= epsknob) then
 ! 1.1.1 If the extremum does belong in this set, eliminate points
 !       near the extremum from this set.
                   where (ibmagsetset(1:nsetset) == i &
-                       .and. abs(thetasetset(1:nsetset)-thetai) < epsknob)
+                       .and. abs(thetasetset(1:nsetset)-thetai) <= epsknob)
                      ibmagsetset(1:nsetset) = 0
                   end where
 ! 1.1.2 Attach the extremum to this set.
@@ -713,7 +713,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       icollsetset = [icollsetset, icoll]
       nsetset = size(thetasetset)
       if (any(ibmagsetset(1:nsetset-1) == ibmag .and. &
-           abs(thetasetset(1:nsetset-1)-theta) < epsknob)) &
+           abs(thetasetset(1:nsetset-1)-theta) <= epsknob)) &
            then
          ibmagsetset(nsetset) = 0
       end if
