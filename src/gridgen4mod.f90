@@ -525,10 +525,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end do
       deallocate(bmin, bmax)
-! Allocate
-      allocate (thetasetset(nsetsetmax))
-      allocate (ibmagsetset(nsetsetmax))
-      allocate (icollsetset(nsetsetmax))
+
+      ! Allocate
+      allocate (thetasetset(0))
+      allocate (ibmagsetset(0))
+      allocate (icollsetset(0))
 
       nsetset = 0
       starting_points: do iset = 1, nstart
@@ -735,29 +736,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       real, intent (in) :: theta
       integer, intent (in) :: ibmag, icoll
-
-      real, allocatable, dimension (:) :: thetatmp
-      integer, allocatable, dimension (:) :: ibmagtmp, icolltmp
-
-      if (nsetset >= size(thetasetset)) then
-         allocate (thetatmp(nsetset))
-         allocate (ibmagtmp(nsetset), icolltmp(nsetset))
-         thetatmp = thetasetset(1:nsetset)
-         ibmagtmp = ibmagsetset(1:nsetset)
-         icolltmp = icollsetset(1:nsetset)
-         deallocate (thetasetset, ibmagsetset, icollsetset)
-         allocate (thetasetset(nsetset+nbmag*(2+npadd)))
-         allocate (ibmagsetset(nsetset+nbmag*(2+npadd)))
-         allocate (icollsetset(nsetset+nbmag*(2+npadd)))
-         thetasetset(1:nsetset) = thetatmp
-         ibmagsetset(1:nsetset) = ibmagtmp
-         icollsetset(1:nsetset) = icolltmp
-         deallocate (thetatmp, ibmagtmp, icolltmp)
-      end if
-      nsetset = nsetset + 1
-      thetasetset(nsetset) = theta
-      ibmagsetset(nsetset) = ibmag
-      icollsetset(nsetset) = icoll
+      thetasetset = [thetasetset, theta]
+      ibmagsetset = [ibmagsetset, ibmag]
+      icollsetset = [icollsetset, icoll]
+      nsetset = size(thetasetset)
       if (any(ibmagsetset(1:nsetset-1) == ibmag .and. &
            abs(thetasetset(1:nsetset-1)-theta) < epsknob)) &
            then
