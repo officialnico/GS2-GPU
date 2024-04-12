@@ -415,8 +415,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       nextr = 1
       skip_point = .false.
       do i = 2, nbmag-2
-         if (skip_point) cycle
-         skip_point = .false.
+         if (skip_point) then
+            skip_point = .false.
+            cycle
+         end if
+
          if (bprime(i) == 0.0) then
             ! Exactly zero derivative on grid
             bextr(i) = bmagin(i)
