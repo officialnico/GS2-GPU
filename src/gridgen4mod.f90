@@ -492,39 +492,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4collect
       use mp, only: mp_abort
       implicit none
-      integer :: i, iset, j, nsetsetmax
+      integer :: i, iset, j
       real :: thetai, bmagi
-      real, dimension(:), allocatable :: bmin, bmax
-      allocate(bmin(nbmag-1), bmax(nbmag-1))
-
-      ! For each pair of neighboring points pick the smaller and larger
-      ! Used here as part of estimate the number of sets/points -- determine
-      ! if starting points B lie between B on neighboring input grid or not
-      bmin = min(bmagin(1:nbmag-1), bmagin(2:nbmag))
-      bmax = max(bmagin(1:nbmag-1), bmagin(2:nbmag))
-      
-      ! Estimate upper bound on number of points.
-      nsetsetmax = 0
-      do i = 1, nbmag-1
-         do j = 1, nstart
-            ! Does start point lie between input grid points? If so add one
-            if (bmagstart(j) >= bmin(i) &
-                 .and. bmagstart(j) <= bmax(i)) &
-                 nsetsetmax = nsetsetmax + 1
-            ! Does starting point lie above / below input grid points but not beyond
-            ! the local extrema? If so add two.
-            ! Note we may not have set bextr different from zero at all input grid points
-            ! so bextr(i) may be zero in many places. This might lead to an unintentional
-            ! impact here?
-            if (bextr(i) /= 0 &
-                 .and. ((bmagstart(j) >= bmax(i) &
-                 .and. bmagstart(j) <= bextr(i)) &
-                 .or. (bmagstart(j) <= bmin(i) &
-                 .and. bmagstart(j) >= bextr(i)))) &
-                 nsetsetmax = nsetsetmax + 2
-         end do
-      end do
-      deallocate(bmin, bmax)
 
       ! Allocate
       allocate (thetasetset(0))
