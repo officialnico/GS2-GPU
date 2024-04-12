@@ -409,12 +409,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
       ! Find all extrema. - Note we skip the first point and later
       ! assume that this is an extrema (at theta = -pi*n). We _could_
-      ! just make the loop go over i = 1, nbmag - 1 instead.
-      ! Here we start with one extrema corresponding to the assumed
-      ! extrema at the start of the grid
-      nextr = 1
+      ! just make the loop go over i = 1, nbmag - 1 instead. This might be difficult
+      ! currently if the B'==0 point isn't exactly on the grid. We would need to bisect across
+      ! the periodic boundary and might find that we end up without a grid point
+      ! at +/- n pi in the end. Here we start with one extrema corresponding to the assumed
+      ! extrema at the start of the grid for simplicity.
+      nextr = 1 ; thetaextr(1) = thetain(1) ; bextr(1) = bmagin(1)
       skip_point = .false.
-      do i = 2, nbmag-2
+      do i = 2, nbmag - 2
          if (skip_point) then
             skip_point = .false.
             cycle
@@ -468,8 +470,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
       essentialstart(:nextr) = .true.
       essentialstart(nextr+1:) = .false.
-      thetastart(1) = -pi*n !Should this be thetain(1)?
-      thetastart(2:nextr) = pack(thetaextr,bextr /= 0.0)
+      thetastart(:nextr) = pack(thetaextr, bextr /= 0.0)
+      thetastart(nextr+1:) = -123456.789
+      bmagstart = 0.0
       
       nstart = nextr
       do i = 1, nbmag-1
