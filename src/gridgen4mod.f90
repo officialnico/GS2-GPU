@@ -468,13 +468,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! Collect -pi, all local extrema, original grid points, points between
       ! original grid points
       nstart = nextr + (nbmag - 1) * (1 + npadd)
-
-      allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
-      essentialstart(:nextr) = .true.
-      essentialstart(nextr+1:) = .false.
+      allocate (thetastart(nstart))
       thetastart(:nextr) = pack(thetaextr, bextr /= 0.0)
       thetastart(nextr+1:) = -123456.789
-      bmagstart = 0.0
       
       nstart = nextr
       do i = 1, nbmag-1
@@ -493,7 +489,15 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end do
 
+      ! Resize thetastart in case nstart has changed
+      thetastart = thetastart(:nstart)
+
+      allocate (essentialstart(nstart))
+      essentialstart(:nextr) = .true.
+      essentialstart(nextr+1:) = .false.
+
       ! Get B on the new theta grid point through spline interpolation
+      allocate (bmagstart(nstart))
       do i = 1, nstart
          bmagstart(i) = bmagint(thetastart(i))
       end do
@@ -701,13 +705,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do starting_points
 
 ! 4 Compatibility with the old gg4collect.
-      allocate (bmagset(nstart))
-      allocate (essentialset(nstart))
-
       nset = nstart
-      bmagset = bmagstart(1:nstart)
-      essentialset = essentialstart(1:nstart)
-
+      bmagset = bmagstart
+      essentialset = essentialstart
     end subroutine gg4collect
 
     !> FIXME : Add documentation    
