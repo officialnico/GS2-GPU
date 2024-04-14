@@ -424,6 +424,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
          if (bprime(i) == 0.0) then
             ! Exactly zero derivative on grid
+            if (debug) write(6, *) 'Extrema on grid at theta = ',thetain(i),', index = ',i
             bextr(i) = bmagin(i)
             thetaextr(i) = thetain(i)
             nextr = nextr + 1
@@ -458,6 +459,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                bprime(i+1) = 0.0
             end if
             thetaextr(i) = theta0
+            if (debug) write(6, *) 'Extrema between grid at theta = ',theta0,', index = ',i
             bextr(i) = bmagint(theta0)
             nextr = nextr + 1
          end if
