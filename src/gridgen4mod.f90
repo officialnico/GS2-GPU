@@ -755,8 +755,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4sort
       implicit none
       allocate (ithetasort(nsetset), ibmagsort(nset))
-      call heapsort (nsetset, thetasetset(1:nsetset), ithetasort)
-      call heapsort (nset, bmagset(1:nset), ibmagsort)
+      call heapsort (nsetset, thetasetset, ithetasort)
+      call heapsort (nset, bmagset, ibmagsort)
     end subroutine gg4sort
 
     !MRH
