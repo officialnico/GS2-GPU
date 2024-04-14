@@ -719,6 +719,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ibmagsetset = [ibmagsetset, ibmag]
       icollsetset = [icollsetset, icoll]
       nsetset = size(thetasetset)
+      ! Exclude passed point if it is too close to an existing point in
+      ! this set. Perhaps we could just not add it to the arrays?
       if (any(ibmagsetset(1:nsetset-1) == ibmag .and. &
            abs(thetasetset(1:nsetset-1)-theta) <= epsknob)) &
            then
