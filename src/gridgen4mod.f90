@@ -766,12 +766,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4sort
       use sorting, only: quicksort
       implicit none
+      ! As our keys are real the array we sort has to be real as well, even though
+      ! it will only hold integers. We convert back to integer after.
       real, dimension(:), allocatable :: inds
       integer :: i
       thetasetset_sorted = thetasetset ; inds = [(i, i=1, nsetset)]
-      call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = inds
+      call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = int(inds)
       bmagset_sorted = bmagset ; inds = [(i, i=1, nset)]
-      call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = inds
+      call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = int(inds)
     end subroutine gg4sort
 
     !> FIXME : Add documentation    
