@@ -700,14 +700,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call add_setset (thetain(i), iset, 331)
                end if
 ! 3.3.2 Check if there is another matching target bmag in the interval.
-               if (bprime(i) > 0.0 .and. bmagin(i+1) < bmagi &
-                    .and. i /= 1 .and. i /= nbmag-1) then
+               if (i == 1 .or. i == nbmag-1) cycle grid_interval
+               if (bprime(i) > 0.0 .and. bmagin(i+1) < bmagi) then
                   call add_setset_root (thetain(i+1),thetain(i),bmagi,iset,3321)
-                  cycle grid_interval
-               else if (bprime(i) < 0.0 .and. bmagin(i+1) > bmagi &
-                    .and. i /= 1 .and. i /= nbmag-1) then
+               else if (bprime(i) < 0.0 .and. bmagin(i+1) > bmagi) then
                   call add_setset_root (thetain(i),thetain(i+1),bmagi,iset,3322)
-                  cycle grid_interval
                end if
             end if
 
