@@ -759,6 +759,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end subroutine add_setset_root
 
     !> FIXME : Add documentation    
+    !> Get an index map with which we could sort thetasetset and bmagset
+    !> such that do i = 1, size(map) ; print*,bmagset(map(i)) ; done
+    !> would print bmag in a sorted sense. Equivalent to sort([i=1,size(arr)], key = arr)
     subroutine gg4sort
       implicit none
       allocate (ithetasort(nsetset), ibmagsort(nset))
