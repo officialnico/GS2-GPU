@@ -1031,11 +1031,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
         ! MRH we always remove the theta pair corresponding to the 1st value (in array
         ! MRH element order) of resolution_metric when the values of resolution_metric
         ! MRH are identical up to machine precision
-         resolution_metric = thetares+alknob*alambdares
-         work(1:1) = minimum_index (nset, resolution_metric, bmagset(1:nset) /= 0.0, precision_bound)
-         !work(1:1) = minloc(thetares(1:nset)+alknob*alambdares(1:nset), &
-         !     bmagset(1:nset) /= 0.0)
-         idel = work(1)
+         resolution_metric = thetares + alknob * alambdares
+         idel = minimum_index(nset, resolution_metric, bmagset /= 0.0, precision_bound)
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             ! MRH if one follows this debug output one sees that:
@@ -1109,7 +1106,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end if
       end do
       ! Might this whole routine be written as
-      ! minimum_value = minval(array)
+      ! minimum_value = minval(array, mask = mask)
       ! minimum_index = findloc(array < minimum_value + machine_error, .true., &
       ! dim = 1, mask = mask)
     end function minimum_index
@@ -1118,7 +1115,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine delete_set (idel, work, ntheta_left)
       implicit none
       integer, intent (in) :: idel
-      integer, intent (in out), dimension (nset) :: work
+      integer, intent (out), dimension (nset) :: work
       integer, intent (out) :: ntheta_left
       integer :: i, j
       
