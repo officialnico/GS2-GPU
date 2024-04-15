@@ -491,6 +491,17 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       do i = 1, nstart
          bmagstart(i) = bmagint(thetastart(i))
       end do
+
+      ! Remove any points with a duplicated B value from consideration, unless
+      ! they are an essentialstart point.
+      do i = 2, nstart
+         if (essentialstart(i)) cycle
+         ! We should introduced a parameter instead of 1e-10 here.
+         ! This is the range around a value for which we consider nearby
+         ! values to be equivalent. In some places we use epsknob for this,
+         ! but not everywhere.
+         if (any(abs(bmagstart(i) - bmagstart(:i-1)) < 1.0e-10)) bmagstart(i) = 0
+      end do
     end subroutine gg4start
 
     subroutine gg4collect
@@ -508,7 +519,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       starting_points: do iset = 1, nstart
          thetai = thetastart(iset)
          bmagi = bmagstart(iset)
-         
+         ! Skip points we've marked as removed
+         if (bmagi == 0) cycle
 ! 1 For extrema, check previous sets to attach to.
          if (essentialstart(iset)) then
             do i = 1, iset-1
