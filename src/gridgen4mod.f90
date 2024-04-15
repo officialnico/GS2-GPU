@@ -542,16 +542,17 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
 ! 3 Check each original grid interval for matching bmag.
          grid_interval: do i = 1, nbmag-1
-! 3.0.1 Stoopid problems near -pi.
-! 'original' coding:
-!            if (iset == 1 .and. i == 1) cycle grid_interval
-! modification 5.16.02:
+! 3.0.1 Because we force a point at -pi we can hit issues if we try to
+!       treat this in the same way as other points, so skip first and last theta
             if (iset == 1 .and. (i == 1 .or. i == nbmag-1)) cycle grid_interval
             if (bmagin(i) > bmagi .and. thetain(i) /= thetai) then
 ! 3.1 Consider when the left grid point is greater than the target bmag.
-!    Then, there are three cases in which there are matching points.
+!    Then, there are three cases in which there are matching points which
+!    we need to collect here.
 !    (1) The right grid point is equal to the target bmag, and the slope
-!        at the right point is positive.
+!        at the right point is positive. This implies a local minimum and
+!        hence a point between theta(i) and theta(i+1). We capture the actual
+!        point on the grid at theta(i+1) in the next iteration.
 !    (2) The right gridpoint is less than the target bmag.
 !    (3) The right grid point is greater than the target bmag,
 !        and the interval is concave down, and the minimum in
@@ -578,15 +579,18 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 3.1.3.1 If not, skip to the next interval.
                if (bprime(i) >= 0.0 .or. bprime(i+1) <= 0.0) cycle grid_interval
 ! 3.1.3.2 Consider the case where the starting theta point is within
-!         this interval.
+!         this interval. If so there _could_ be one more matching point
+!         if there is a local minimum in the interval.
                if (thetai > thetain(i) .and. thetai < thetain(i+1)) then
 ! 3.1.3.2.1 If the starting point is an extremum, skip to next interval.
                   if (essentialstart(iset)) cycle grid_interval
 ! 3.1.3.2.2 Otherwise, the other target point is right of the starting
-!           point is the slope is negative, and left if positive.
+!           point if the slope is negative, and left if positive.
                   if (bprime(i) < 0.0) then
                      call add_setset_root (thetai,thetain(i+1),bmagi,iset,313221)
                   else
+                     ! Not sure we can ever hit this branch as it implies a local
+                     ! maxmium present and bmag(i), bmag(i+1) both > bmagi
                      call add_setset_root (thetai,thetain(i),bmagi,iset,313222)
                   end if
                   cycle grid_interval
@@ -608,8 +612,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call mp_abort("gridgen4.f90:gg4collect:3.1.3.3.2: missing extremum")
                end if
 ! 3.1.3.3.2.1 If the minimum is greater than the target bmag, skip to
-!             the next interval.
-               if (bextr(i) > bmagi) cycle grid_interval
+!             the next interval. If equal then we've already handled this.
+               if (bextr(i) >= bmagi) cycle grid_interval
 ! 3.1.3.3.2.2 Collect the point left of the minimum.
                call add_setset_root (thetaextr(i),thetain(i),bmagi,iset,313322)
 ! 3.1.3.3.2.3 Collect the point right of the minimum.
@@ -617,9 +621,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                cycle grid_interval
             else if (bmagin(i) < bmagi .and. thetain(i) /= thetai) then
 ! 3.2 Consider then the left grid point is less than the target bmag.
-!     Then, there are three cases in which there are matching points.
+!     Then, there are three cases in which there are matching points which
+!     we need to collect here.
 !     (1) The right grid point is equal to the target bmag, and the
-!         slope at the right point is negative.
+!         slope at the right point is negative.  This implies a local maximum and
+!         hence a point between theta(i) and theta(i+1). We capture the actual
+!         point on the grid at theta(i+1) in the next iteration.
 !     (2) The right grid point is greater than the target bmag.
 !     (3) The right grid point is less than the target bmag,
 !         and the interval is concave up, and the maximum in
@@ -646,7 +653,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 3.2.3.1 If not, skip to the next interval.
                if (bprime(i) <= 0.0 .or. bprime(i+1) >= 0.0) cycle grid_interval
 ! 3.2.3.2 Consider the case where the starting theta point is within
-!         this interval.
+!         this interval. If so there _could_ be one more matching point
+!         if there is a local maximum in the interval.
                if (thetai > thetain(i) .and. thetai < thetain(i+1)) then
 ! 3.2.3.2.1 If the starting point is an extremum, skip to next interval.
                   if (essentialstart(iset)) cycle grid_interval
@@ -655,6 +663,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   if (bprime(i) > 0.0) then
                      call add_setset_root (thetain(i+1),thetai,bmagi,iset,323221)
                   else
+                     ! Not sure we can ever hit this branch as it implies a local
+                     ! minimium present and bmag(i), bmag(i+1) both < bmagi
                      call add_setset_root (thetain(i),thetai,bmagi,iset,323222)
                   end if
                   cycle grid_interval
@@ -676,7 +686,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call mp_abort("gridgen4.f90:gg4collect:3.2.3.3.2: missing extremum")
                end if
 ! 3.2.3.3.2.1 If the maximum is less than the target bmag, skip to
-!             the next interval.
+!             the next interval. If equal then we've already handled this.
                if (bextr(i) <= bmagi) cycle grid_interval
 ! 3.2.3.3.2.2 Collect the point left of the maximum.
                call add_setset_root (thetain(i),thetaextr(i),bmagi,iset,323322)
