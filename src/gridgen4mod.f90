@@ -206,8 +206,8 @@ contains
 
     integer :: nset, nsetset
     real, allocatable, dimension (:) :: thetasetset, bmagset
-    !> MRH for debugging
     real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
+    !> MRH for debugging
     integer, allocatable, dimension (:) :: ibmagsetset, icollsetset
     logical, allocatable, dimension (:) :: essentialset
     
@@ -281,20 +281,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4debug"
 if (debug) write(6,*) "gridgen4_2: call gg4debug"
     call gg4debugi (nset, bmagset, ibmagsort, ibmagsort, "gg4sort - bmagset ibmagsort ibmagsort")
 if (debug) then
-    allocate (thetasetset_sorted(nsetset))
-    allocate (bmagset_sorted(nset))
-    do itheta=1,nsetset
-        thetasetset_sorted(itheta) = thetasetset(ithetasort(itheta))
-    enddo
-    do itheta=1,nset
-        bmagset_sorted(itheta) = bmagset(ibmagsort(itheta))
-    enddo
-
     call gg4debug (nset, bmagset_sorted, bmagset, "gg4sort - bmagset_sorted bmagset")
 
     call gg4debug (nsetset,thetasetset_sorted,thetasetset,"gg4sort - thetasetset_sorted thetasetset")
-    deallocate(thetasetset_sorted)
-    deallocate(bmagset_sorted)
 ! MRH essentialset is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)    
     call gg4debugl (nstart, essentialset, "gg4sort - essentialset")
 endif
@@ -380,6 +369,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       deallocate (bextr,thetaextr,bprime)
 
       deallocate (thetasetset, bmagset, essentialset)
+      deallocate (thetasetset_sorted, bmagset_sorted)
       deallocate (ibmagsetset, icollsetset)
       deallocate (ithetasort, ibmagsort)
       deallocate (thetares, alambdares)
@@ -764,12 +754,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4sort
       use sorting, only: quicksort
       implicit none
-      real, dimension(:), allocatable :: key, inds
+      real, dimension(:), allocatable :: inds
       integer :: i
-      key = thetasetset ; inds = [(i, i=1, nsetset)]
-      call quicksort(nsetset, key, inds) ; ithetasort = inds
-      key = bmagset ; inds = [(i, i=1, nset)]
-      call quicksort(nset, key, inds) ; ibmagsort = inds
+      thetasetset_sorted = thetasetset ; inds = [(i, i=1, nsetset)]
+      call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = inds
+      bmagset_sorted = bmagset ; inds = [(i, i=1, nset)]
+      call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = inds
     end subroutine gg4sort
 
     !> FIXME : Add documentation    
