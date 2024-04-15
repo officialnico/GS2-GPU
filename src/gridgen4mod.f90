@@ -758,74 +758,19 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       call add_setset (theta0, ibmag, icoll)
     end subroutine add_setset_root
 
-    !> FIXME : Add documentation    
     !> Get an index map with which we could sort thetasetset and bmagset
     !> such that do i = 1, size(map) ; print*,bmagset(map(i)) ; done
     !> would print bmag in a sorted sense. Equivalent to sort([i=1,size(arr)], key = arr)
     subroutine gg4sort
+      use sorting, only: quicksort
       implicit none
-      allocate (ithetasort(nsetset), ibmagsort(nset))
-      call heapsort (nsetset, thetasetset, ithetasort)
-      call heapsort (nset, bmagset, ibmagsort)
+      real, dimension(:), allocatable :: key, inds
+      integer :: i
+      key = thetasetset ; inds = [(i, i=1, nsetset)]
+      call quicksort(nsetset, key, inds) ; ithetasort = inds
+      key = bmagset ; inds = [(i, i=1, nset)]
+      call quicksort(nset, key, inds) ; ibmagsort = inds
     end subroutine gg4sort
-
-    !MRH
-    !bset(n) = bmagset(ibmagsort(i))
-    !The above line comes from GG4results
-    ! For that line to make sense index here must be:
-    ! A map which takes the new position of an element in the sorted list
-    ! Returns the index of the old position of the same element in the unsorted list
-    ! MRH
-
-    !> FIXME : Add documentation    
-    subroutine heapsort (n, v, index)
-      implicit none
-      integer, intent (in) :: n
-      real, dimension (n), intent (in) :: v
-      integer, dimension (n), intent (out) :: index
-      integer :: i, j, l, ir, ira
-      
-      index = (/ (i, i=1,n) /)
-      !if (debug) write(6,*) "heapsort index", index !MRH
-      l = n/2+1
-      ir = n
-      
-      do
-         if (l > 1) then
-            l = l - 1
-            ira = index(l)
-         else
-            ira = index(ir)
-            index(ir) = index(1)
-            ir = ir - 1
-            if (ir == 1) then
-               index(1) = ira
-               return
-            end if
-         end if
-         i = l
-         j = l + l
-         do while (j <= ir)
-            if (j < ir) then
-               if (v(index(j)) < v(index(j+1))-precision_bound) j = j + 1 ! precision_bound =1.0e3*epsilon(0.0)
-            ! MRH the epsilon number in the inequality has been inserted so that the logical operator gives a 
-            ! MRH well-defined result across machines when v(index(j))==v(index(j+1))
-               !if (v(index(j+1)) - v(index(j)) >= 0.0) j = j + 1 !MRH
-            end if
-            if (v(ira) < v(index(j))-precision_bound) then ! precision_bound = 1.0e3*epsilon(0.0)
-            ! MRH the epsilon number in the inequality has been inserted so that the logical operator gives a 
-            ! MRH well-defined result across machines when v(ira)==v(index(j))
-            !if (v(index(j))-v(ira) >=0.0) then !MRH
-               index(i) = index(j)
-               i = j
-               j = j + j
-            else
-               j = ir + 1
-            end if
-         end do
-         index(i) = ira
-      end do
-    end subroutine heapsort
 
     !> FIXME : Add documentation    
     subroutine gg4metrics
