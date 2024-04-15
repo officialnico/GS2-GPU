@@ -975,7 +975,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer :: idel, i
       integer :: ntheta_left, nlambda_left
-      integer, dimension (nset) :: work
       real, dimension (nset) :: resolution_metric ! MRH to address machine dependence
       
       nlambda_left = nset
@@ -1062,7 +1061,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          if (idel == 0) then
             call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.", .true.)
          end if
-         call delete_set (idel, work, ntheta_left)
+         call delete_set (idel, ntheta_left)
          nlambda_left = nlambda_left - 1
       end do
     end subroutine gg4remove
@@ -1112,11 +1111,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end function minimum_index
 
     !> FIXME : Add documentation    
-    subroutine delete_set (idel, work, ntheta_left)
+    subroutine delete_set (idel, ntheta_left)
       implicit none
       integer, intent (in) :: idel
-      integer, intent (out), dimension (nset) :: work
       integer, intent (out) :: ntheta_left
+      integer, dimension (nset) :: work
       integer :: i, j
       
       work = 0
