@@ -196,7 +196,7 @@ contains
     logical :: debug_output = .true., verbose_debug_output = .false.
     !> MRH a number used to take into account machine error in
     !> floatingpoint arithmetic
-    real, parameter :: precision_bound = 1.0e3*epsilon (0.0)
+    real, parameter :: precision_bound = 1.0e3 * epsilon(0.0)
     type(periodic_spline) :: bmagspl
 
     integer :: nstart
@@ -207,14 +207,13 @@ contains
     integer :: nset, nsetset
     real, allocatable, dimension (:) :: thetasetset, bmagset
     real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
-    !> MRH for debugging
     integer, allocatable, dimension (:) :: ibmagsetset, icollsetset
     logical, allocatable, dimension (:) :: essentialset
     
     integer, allocatable, dimension (:) :: ithetasort, ibmagsort
     real, allocatable, dimension (:) :: thetares, alambdares
     
-    integer :: nthetaout, nlambdaout, itheta, debug_unit
+    integer :: nthetaout, nlambdaout, debug_unit
     logical, parameter :: debug=.false.!.true.
     npi = n * twopi
 
@@ -872,14 +871,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       !MRH machine precision size numbers differ from machine to machine 
       !MRH and so lead to different data grids on different machines 
          dtheta_tmp = abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(ileft)))
-         if (dtheta_tmp < precision_bound) then !1.0e3*epsilon(0.0)
+         if (dtheta_tmp < precision_bound) then
             dthetal =0.0
          else 
             dthetal=dtheta_tmp
          endif
          
          dtheta_tmp = abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(iright)))
-         if (dtheta_tmp < precision_bound) then !1.0e3*epsilon(0.0)
+         if (dtheta_tmp < precision_bound) then
             dthetar=0.0
          else
             dthetar=dtheta_tmp
@@ -941,13 +940,13 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       !MRH machine precision size numbers differ from machine to machine 
       !MRH and so lead to different data grids on different machines 
          dal_tmp = abs(sqrt(max(1.0-alplus*bmagin(i),0.0))-sqrt(max(1.0-al*bmagin(i),0.0))) 
-         if (dal_tmp< precision_bound) then !1.0e5*epsilon(0.0)
+         if (dal_tmp< precision_bound) then
             dalplus = 0.0 
          else
             dalplus=dal_tmp
          endif
          dal_tmp = abs(sqrt(max(1.0-alminus*bmagin(i),0.0))-sqrt(max(1.0-al*bmagin(i),0.0)))
-         if (dal_tmp < precision_bound) then !1.0e5*epsilon(0.0)
+         if (dal_tmp < precision_bound) then
             dalminus = 0.0
          else
             dalminus = dal_tmp 
@@ -1035,22 +1034,22 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             ! MRH if one follows this debug output one sees that:
-! MRH whilst there are duplicate theta values remaining to be considered in the thetasetset grid
-! MRH the values of the resolution_metric are initially all 0 (whilst every grid point has a duplicate)
-! MRH and as the duplicates are deleted (every element of the list that is deleted is a duplicate until we reach midway)
-! MRH more values of resolution_metric steadily become non 0.
-! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ
-! MRH only at machine precision
-! MRH this is because after all of the duplicate pairs have been deleted but before any more pairs have been deleted
-! MRH the resolution metric is calculated based on the difference between almost equally spaced theta grid points
-! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points
-! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset
-! MRH - in this way one can keep track of which pairs are being deleted)
-! MRH the bug that I have fixed was that depending on the machine, the resolution_metric at this stage in the computation
-! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be
-! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed
-! MRH from machine to machine.
-! MRH By making the comparison in minimum_index with a bias, we avoid a machine dependent theta grid
+            ! MRH whilst there are duplicate theta values remaining to be considered in the thetasetset grid
+            ! MRH the values of the resolution_metric are initially all 0 (whilst every grid point has a duplicate)
+            ! MRH and as the duplicates are deleted (every element of the list that is deleted is a duplicate until we reach midway)
+            ! MRH more values of resolution_metric steadily become non 0.
+            ! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ
+            ! MRH only at machine precision
+            ! MRH this is because after all of the duplicate pairs have been deleted but before any more pairs have been deleted
+            ! MRH the resolution metric is calculated based on the difference between almost equally spaced theta grid points
+            ! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points
+            ! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset
+            ! MRH - in this way one can keep track of which pairs are being deleted)
+            ! MRH the bug that I have fixed was that depending on the machine, the resolution_metric at this stage in the computation
+            ! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be
+            ! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed
+            ! MRH from machine to machine.
+            ! MRH By making the comparison in minimum_index with a bias, we avoid a machine dependent theta grid
             if (debug_output) write (unit=debug_unit, fmt=*) "gg4remove idel ",idel
             call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")
          end if
