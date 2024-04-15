@@ -511,8 +511,18 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       real :: thetai, bmagi
 
       ! Allocate
+      !> Used to records all theta grid points at which B is equal
+      !> to one of our unique bmagstart values (our "set" of B). Each
+      !> value of B has a corresponding set of theta points. Hence "setset"
+      !> refers to the fact we have a set of theta grid points for each
+      !> entry in our set of B.
       allocate (thetasetset(0))
+      !> Used to map from a given theta point to the corresponding set,
+      !> in other words, all points with the same value of B should have
+      !> the same ibmagsetset which is in the range [1, nstart]
       allocate (ibmagsetset(0))
+      !> Used for debugging, indicates which add_setset* call added a
+      !> given point to the set of points.
       allocate (icollsetset(0))
 
       nsetset = 0
@@ -533,6 +543,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   end where
 ! 1.1.2 Attach the extremum to this set.
                   call add_setset (thetai, i, 112)
+                  ! Set the bmag value to zero to essentially delete this duplicate
+                  ! set (unique value of B).
                   bmagstart(iset) = 0.0
                   cycle starting_points
                end if
@@ -780,7 +792,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4metrics
       implicit none
       integer :: i
-      
       allocate (thetares(nset), alambdares(nset))
       
       do i = 1, nset
@@ -792,7 +803,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             alambdares(i) = 0.0
          end if
       end do
-      
     end subroutine gg4metrics
 
     !> FIXME : Add documentation    
