@@ -1086,31 +1086,32 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! MRH in the case that array(i) is identical to array(j).
       ! MRH This ensures the minimum_index returns the 1st minimum index in array order
       implicit none
-        real, dimension (:), intent (in) :: array
-        logical, dimension (:), intent (in) :: mask
-        integer, intent (in) :: n
-        real, intent (in) :: machine_error
-        integer :: i
-        real :: minimum_value
+      real, dimension (n), intent (in) :: array
+      logical, dimension (n), intent (in) :: mask
+      integer, intent (in) :: n
+      real, intent (in) :: machine_error
+      integer :: i, lower_bound
+      real :: minimum_value
 
-        minimum_index = 0
-        if (all (.not. mask)) return ! MRH if all of mask is false there are no values to consider in the array and so we return with 0 as the minimum index
-        ! MRH get a starting value for the minimum-above we confirmed above there is at least one value in the array
-        do i=1,n
-            if (mask(i)) then
-                minimum_value = array(i)
-                minimum_index = i
-                exit
-            end if
-        end do
-        ! MRH now go through all the values in the array to find the minimum
+      ! Find the first location where mask is true
+      minimum_index = findloc(mask, .true., dim = 1)
+      if (minimum_index == 0) return !No values to consider
+      minimum_value = array(minimum_index)
+      lower_bound = minimum_index
 
-        do i=1,n
-            if (mask (i) .and. (array (i) < minimum_value- machine_error )) then !
-                minimum_value = array (i)
-                minimum_index =i
-            end if
-        end do
+      ! Now go through all the values starting at the point after the
+      ! current lower_bound to find the minimum
+      do i = lower_bound + 1, n
+         if (.not. mask(i)) cycle
+         if (array(i) < minimum_value - machine_error ) then
+            minimum_value = array(i)
+            minimum_index = i
+         end if
+      end do
+      ! Might this whole routine be written as
+      ! minimum_value = minval(array)
+      ! minimum_index = findloc(array < minimum_value + machine_error, .true., &
+      ! dim = 1, mask = mask)
     end function minimum_index
 
     !> FIXME : Add documentation    
