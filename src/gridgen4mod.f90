@@ -786,8 +786,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       
       do i = 1, nset
          if (bmagset(i) /= 0.0) then
-            call get_thetares (i, thetares(i))
-            call get_lambdares (i, alambdares(i))
+            thetares(i) = get_thetares(i)
+            alambdares(i) = get_lambdares(i)
          else
             thetares(i) = 0.0
             alambdares(i) = 0.0
@@ -796,10 +796,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end subroutine gg4metrics
 
     !> FIXME : Add documentation    
-    subroutine get_thetares (iset, thetares)
+    elemental real function get_thetares (iset) result(thetares)
       implicit none
       integer, intent (in) :: iset
-      real, intent (out) :: thetares
       integer :: i, ileft, iright, npts
       real :: res, dthetal, dthetar, dtheta_tmp !MRH
 
@@ -887,13 +886,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       else
          thetares = res
       end if
-    end subroutine get_thetares
+    end function get_thetares
     
     !> FIXME : Add documentation
-    subroutine get_lambdares (iset, alambdares)
+    elemental real function get_lambdares (iset) result(alambdares)
       implicit none
       integer, intent (in) :: iset
-      real, intent (out) :: alambdares
       integer :: i, iplus, iminus, npts
       real :: res, al, alplus, alminus, dalplus, dalminus, dal_tmp !MRH
       
@@ -958,7 +956,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       else
          alambdares = res
       end if
-    end subroutine get_lambdares
+    end function get_lambdares
 
     !> FIXME : Add documentation    
     subroutine gg4remove
@@ -1165,8 +1163,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 4 Recalculate resolution metric for affected sets.
       do i = 1, nset
          if (work(i) /= 0) then
-            call get_thetares (work(i), thetares(work(i)))
-            call get_lambdares (work(i), alambdares(work(i)))
+            thetares(work(i)) = get_thetares(work(i))
+            alambdares(work(i)) = get_lambdares(work(i))
          end if
       end do
     end subroutine delete_set
