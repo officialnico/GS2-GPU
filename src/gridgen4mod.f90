@@ -1103,12 +1103,19 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
     !> FIXME : Add documentation    
     subroutine delete_set (idel, ntheta_left)
+      use mp, only: mp_abort
       implicit none
       integer, intent (in) :: idel
       integer, intent (out) :: ntheta_left
       integer, dimension (nset) :: work
-      integer :: i, j
+      integer :: i, j, ntheta_first, ntheta_to_remove, ntheta_expected
       if (debug) write(6,*) "Deleting set with index",idel,"and bmag =",bmagset(idel)
+      if (debug) then
+         ! Check how many points we think we have and how many we will be removing
+         ntheta_first = count(ibmagsetset /= 0)
+         ntheta_to_remove = count(ibmagsetset == idel)
+         ntheta_expected = ntheta_first - ntheta_to_remove
+      end if
 
       work = 0
 ! 1 Mark neighboring lambda sets to be recalculated.
@@ -1165,6 +1172,15 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       where(ibmagsetset == idel)
          ibmagsetset = 0
       end where
+
+      if (debug) then
+         if (ntheta_first - ntheta_to_remove /= ntheta_left) then
+            write(6,'(A,I0,A,I0,"(",I0,", ",I0,")")') "Error: After deleting set have ", &
+                 " theta points left but expected ", ntheta_left, &
+                 ntheta_expected, ntheta_first, ntheta_to_remove
+            call mp_abort("Inconsistency in gridgen:delete_set", .true.)
+         end if
+      end if
 
 ! 4 Recalculate resolution metric for affected sets.
       do i = 1, nset
