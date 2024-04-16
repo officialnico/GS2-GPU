@@ -967,52 +967,26 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             nlambda_left = nlambda_left - 1
          end if
       end do
-! 1 Find the set with the minimum resolution metric. !MRH Actually we are looking for a set of maximal resolution_metric values
+! 1 Whilst we have too many points find the set with the minimum resolution metric and delete
       do while (ntheta_left > ntheta .or. nlambda_left > nbset)
-         
-         ! ! ! resolution_metric = thetares+alknob*alambdares 
-        ! ! ! ! MRH since we want to delete the iset value for which the resolution_metric is minimum
-        ! ! ! ! MRH we do not change the result by subtracting the minimum value of the resolution_metric array from
-        ! ! ! ! MRH from itself for all array values. We need to do this because resolution_metric is filled with either zeros
-        ! ! ! ! MRH or pairs of values that identical to machine precision
-        ! ! ! ! MRH the Fortran intrinsic minloc should pick the 1st minimum value in array element order when there are multiple minimum values
-        ! ! ! ! MRH however depending on the compiler it seems to have trouble doing this for nonzero values of the minimum.
-        ! ! ! ! MRH This is likely because for finite R,L L==R (when displayed) L-R ~ epsilon(0.0) the machine precision 
-        ! ! ! ! MRH machine precision size numbers differ from machine to machine 
-        ! ! ! ! MRH and so this leads to different theta grids on different machines 
-        ! ! ! ! MRH ==> therefore we insure here that the minimum value is always exactly 0.
-        
-         ! ! ! ! MRH the following line subtracts the minimum value 
-         ! ! ! ! MRH for which the mask bmagset(1:nset) /= 0.0 is true (i.e. we have not already deleted this value of iset)
-         ! ! ! resolution_metric = resolution_metric - minval(resolution_metric,bmagset(1:nset) /= 0.0)
-         ! ! ! ! MRH we then ensure that for every value which is minimum, the entry is exactly 0
-         ! ! ! ! MRH this is so that minloc selects the 1st minimum value in array element order
-         ! ! ! do i =1,nset
-            ! ! ! if(resolution_metric(i)< precision_bound ) then !1.0e5*epsilon(0.0)
-                ! ! ! resolution_metric(i)=0.0
-            ! ! ! endif
-         ! ! ! enddo
-         ! MRH this line then gives us the next element to delete
-         
-         ! ! !work(1:1) = minloc(resolution_metric(1:nset),bmagset(1:nset) /= 0.0)
-         
-         ! MRH I have improved the above fix by making it more transparent-
-        ! MRH I have written my own version of the intrinsic function minloc
-        ! MRH minimum_index has all the documented features of minloc for a 1D array
-        ! MRH with the added feature of the final machine_error variable
-        ! MRH this variable gives a definite truth value to (array(i) < array (j) - machine_error) 
-        ! MRH in the case that array(i) is identical to array(j).
-        ! MRH This ensures the minimum_index returns the 1st minimum index in array order
-        ! MRH this turns out to be necessary because in the 1st iteration in this loopafter all of the duplicate 
-        ! MRH theta grid pairs have been deleted the resolution metric is calculated for the 
-        ! MRH remaining theta grid which is made of almost equally spaced points, and as a
-        ! MRH consequence the resolution_metric contains values which are almost
-        ! MRH identical-differing only by machine precision- 
-        ! MRH this leads to a random choice in which theta grid points to keep
-        ! MRH in order to make this choice consistently across machines
-        ! MRH we always remove the theta pair corresponding to the 1st value (in array
-        ! MRH element order) of resolution_metric when the values of resolution_metric
-        ! MRH are identical up to machine precision
+         ! minimum_index has all the documented features of minloc for
+         ! a 1D array with the added feature of the final
+         ! machine_error variable this variable gives a definite truth
+         ! value to (array(i) < array (j) - machine_error) in the case
+         ! that array(i) is identical to array(j). This ensures the
+         ! minimum_index returns the 1st minimum index in array order.
+         ! This turns out to be necessary because initially the
+         ! resolution metric is calculated for the starting theta grid
+         ! which is typically made of almost equally spaced points,
+         ! and as a consequence the resolution_metric contains values
+         ! which are almost identical, differing only by machine
+         ! precision. This leads to a random choice in which theta
+         ! grid points to keep. In order to make this choice
+         ! consistently across machines we always remove the theta
+         ! pair corresponding to the 1st value (in array element
+         ! order) of resolution_metric when the values of
+         ! resolution_metric are identical up to precision_bound.
+
          resolution_metric = thetares + alknob * alambdares
          idel = minimum_index(nset, resolution_metric, bmagset /= 0.0, precision_bound)
 
