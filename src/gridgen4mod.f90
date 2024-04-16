@@ -252,18 +252,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4debug"
 if (debug) write(6,*) "gridgen4_2: call gg4debugi"
     call gg4debugi (nsetset,thetasetset,ibmagsetset,icollsetset," gg4collect - thetasetset ibmagsetset icollsetset")
 
-! MRH bmagset seems not to differ from bmagstart
+! ibmagsetset is an array that is paired with thetasetset and contains
+! the index of bmagset corresponding to the theta value stored in thetasetset
+! so thetasetset (i), bmagset(ibmagset(i)) are the paired values of (theta, B(theta))
 
-! MRH thetasetset contains paired elements of the theta grid with the same magnetic field strength except 
-! MRH for the 1st 2 elements which are still -pi and 0
-! MRH note that this grid contains some redundancy, every theta point appears 
-! MRH in a (- theta, theta) pair and these pairs appear twice.
-
-! MRH ibmagsetset is an array that is paired with thetasetset and contains 
-! MRH the index of bmagset corresponding to the theta value stored in thetasetset
-! MRH so thetasetset (i), bmagset(ibmagset(i)) are the paired values of (theta, B(theta)) 
-
-! MRH icollsetset seems to be a debugging label which is not used outside of gg4collect
+! icollsetset is a debugging label which is not used outside of gg4collect and gg4debugi
 
 ! 3 Sort collected grids.
 if (debug) write(6,*) "gridgen4_2: call gg4sort"
