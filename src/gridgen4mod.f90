@@ -486,10 +486,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       essentialstart(nextr+1:) = .false.
 
       ! Get B on the new theta grid point through spline interpolation
-      allocate (bmagstart(nstart))
-      do i = 1, nstart
-         bmagstart(i) = bmagint(thetastart(i))
-      end do
+      bmagstart = [(bmagint(thetastart(i)), i = 1, nstart)]
 
       ! Remove any points with a duplicated B value from consideration, unless
       ! they are an essentialstart point.
