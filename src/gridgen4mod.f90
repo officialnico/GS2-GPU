@@ -525,12 +525,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 1 For extrema, check previous sets to attach to.
          if (essentialstart(iset)) then
             do i = 1, iset-1
-               if (abs(bmagstart(i)-bmagi) <= epsknob) then
+               if (abs(bmagstart(i) - bmagi) <= epsknob) then
 ! 1.1.1 If the extremum does belong in this set, eliminate points
 !       near the extremum from this set.
-                  where (ibmagsetset(1:nsetset) == i &
-                       .and. abs(thetasetset(1:nsetset)-thetai) <= epsknob)
-                     ibmagsetset(1:nsetset) = 0
+                  where (ibmagsetset == i .and. abs(thetasetset - thetai) <= epsknob)
+                     ibmagsetset = 0
                   end where
 ! 1.1.2 Attach the extremum to this set.
                   call add_setset (thetai, i, 112)
@@ -814,8 +813,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end if
 ! 1.2 Sets with odd number of points.
 ! 1.2.1 Count points.
-!       npts = count(ibmagsetset == iset)
-         npts = count(ibmagsetset(1:nsetset) == iset)
+         npts = count(ibmagsetset == iset)
          if (mod(npts,2) == 1) then
             thetares = 1e20
             return
@@ -973,7 +971,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       nlambda_left = nset
       ntheta_left = nsetset
       do i = 1, nset
-         if (.not. any(ibmagsetset(1:nsetset) == i)) then
+         if (.not. any(ibmagsetset == i)) then
             nlambda_left = nlambda_left - 1
          end if
       end do
@@ -1025,6 +1023,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
         ! MRH are identical up to machine precision
          resolution_metric = thetares + alknob * alambdares
          idel = minimum_index(nset, resolution_metric, bmagset /= 0.0, precision_bound)
+
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             ! MRH if one follows this debug output one sees that:
