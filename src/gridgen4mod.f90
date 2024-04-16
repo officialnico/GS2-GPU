@@ -447,6 +447,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                theta0 = thetain(i+1)
                bprime(i+1) = 0.0
             end if
+
             thetaextr(i) = theta0
             if (debug) write(6, *) 'Extrema between grid at theta = ',theta0,', index = ',i
             bextr(i) = bmagint(theta0)
@@ -1096,7 +1097,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do
       ! Might this whole routine be written as
       ! minimum_value = minval(array, mask = mask)
-      ! minimum_index = findloc(array < minimum_value + machine_error, .true., &
+      ! minimum_index = findloc(array <= minimum_value + machine_error, .true., &
       ! dim = 1, mask = mask)
     end function minimum_index
 
@@ -1107,7 +1108,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (out) :: ntheta_left
       integer, dimension (nset) :: work
       integer :: i, j
-      
+      if (debug) write(6,*) "Deleting set with index",idel,"and bmag =",bmagset(idel)
+
       work = 0
 ! 1 Mark neighboring lambda sets to be recalculated.
       do i = 1, nset
