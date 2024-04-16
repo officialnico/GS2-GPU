@@ -1107,6 +1107,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: idel
       integer, intent (out) :: ntheta_left
+      !> Will contain the bmag set index of any theta grid points immediately
+      !> next to points which have been deleted. This allows us to limit the
+      !> metric recalculation to only those points for which it is expected to
+      !> have changed.
       integer, dimension (nset) :: work
       integer :: i, j, ntheta_first, ntheta_to_remove, ntheta_expected
       if (debug) write(6,*) "Deleting set with index",idel,"and bmag =",bmagset(idel)
@@ -1174,6 +1178,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end where
 
       if (debug) then
+         ! If this ever triggers something has probably gone badly wrong
          if (ntheta_first - ntheta_to_remove /= ntheta_left) then
             write(6,'(A,I0,A,I0,"(",I0,", ",I0,")")') "Error: After deleting set have ", &
                  " theta points left but expected ", ntheta_left, &
