@@ -1159,8 +1159,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          end do
       end do
 
-! 3 Delete this set.
+! 3 Delete this set by setting bmagset(idel) = 0.
       bmagset(idel) = 0.0
+      ! Also set ibmagsetset to zero for all theta points in this set
+      where(ibmagsetset == idel)
+         ibmagsetset = 0
+      end where
 
 ! 4 Recalculate resolution metric for affected sets.
       do i = 1, nset
