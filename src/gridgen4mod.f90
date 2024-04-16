@@ -868,21 +868,23 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       !MRH machine precision size numbers differ from machine to machine 
       !MRH and so lead to different data grids on different machines 
          dtheta_tmp = abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(ileft)))
+         ! Should we use epsknob here instead? This is used in some places to decide
+         ! when two points are effectively equal.
          if (dtheta_tmp < precision_bound) then
-            dthetal =0.0
+            dthetal = 0.0
          else 
-            dthetal=dtheta_tmp
+            dthetal = dtheta_tmp
          endif
          
          dtheta_tmp = abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(iright)))
+         ! Should we use epsknob here instead? This is used in some places to decide
+         ! when two points are effectively equal.
          if (dtheta_tmp < precision_bound) then
-            dthetar=0.0
+            dthetar = 0.0
          else
-            dthetar=dtheta_tmp
+            dthetar = dtheta_tmp
          endif
-        !MRH
-         !dthetal=abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(ileft)))
-         !dthetar=abs(thetasetset(ithetasort(i))-thetasetset(ithetasort(iright)))
+
          res = res + tfunc(thetasetset(ithetasort(i)))*dthetal*dthetar &
               /(dthetal+dthetar+1e-20)
          npts = npts + 1
