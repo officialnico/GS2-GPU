@@ -406,7 +406,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
          if (bprime(i) == 0.0) then
             ! Exactly zero derivative on grid
-            if (debug) write(6, *) 'Extrema on grid at theta = ',thetain(i),', index = ',i
+            if (debug) write(6, *) 'Extrema on grid at theta      = ',thetain(i),', index = ',i
             bextr(i) = bmagin(i)
             thetaextr(i) = thetain(i)
             nextr = nextr + 1
@@ -992,33 +992,16 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
-            ! MRH if one follows this debug output one sees that:
-            ! MRH whilst there are duplicate theta values remaining to be considered in the thetasetset grid
-            ! MRH the values of the resolution_metric are initially all 0 (whilst every grid point has a duplicate)
-            ! MRH and as the duplicates are deleted (every element of the list that is deleted is a duplicate until we reach midway)
-            ! MRH more values of resolution_metric steadily become non 0.
-            ! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ
-            ! MRH only at machine precision
-            ! MRH this is because after all of the duplicate pairs have been deleted but before any more pairs have been deleted
-            ! MRH the resolution metric is calculated based on the difference between almost equally spaced theta grid points
-            ! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points
-            ! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset
-            ! MRH - in this way one can keep track of which pairs are being deleted)
-            ! MRH the bug that I have fixed was that depending on the machine, the resolution_metric at this stage in the computation
-            ! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be
-            ! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed
-            ! MRH from machine to machine.
-            ! MRH By making the comparison in minimum_index with a bias, we avoid a machine dependent theta grid
             if (debug_output) write (unit=debug_unit, fmt=*) "gg4remove idel ",idel
-            call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")
+            call gg4debug4 (nset, thetares, alambdares, bmagset, resolution_metric, &
+                 "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")
          end if
 ! 2 Delete the set just found.
 ! MRH the subroutine delete_set deletes the iset value that the above lines just found
 ! MRH it does this by setting bmagset (idel) =0.0 so that when gg4results computes the final field and theta grid
 ! MRH this value of iset is ignored. Finally the metrics are computed taking into account that the point has been deleted
-         if (idel == 0) then
-            call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.", .true.)
-         end if
+         if (idel == 0) call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.", .true.)
+
          call delete_set (idel, ntheta_left)
          nlambda_left = nlambda_left - 1
       end do
@@ -1175,6 +1158,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          if (bmagset(ibmagsetset(ithetasort(i))) == 0.0) cycle
          n = n + 1
          thetagrid(n) = thetasetset(ithetasort(i))
+         ! Note this makes sure that all points in this set
+         ! have identical values of B. This might not be guaranteed
+         ! if we were to interpolate, e.g. bmaggrid(n) = bmagint(thetagrid(n))
          bmaggrid(n) = bmagset(ibmagsetset(ithetasort(i)))
       end do
       
