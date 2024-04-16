@@ -386,7 +386,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: n
       integer :: i, j, nextr
-      real :: thetal, thetar, theta0, bprime0, dtheta
+      real :: thetal, thetar, theta0, bprime0, dtheta, new_theta_start
       logical :: skip_point
       allocate(bextr(nbmag-1), thetaextr(nbmag-1), bprime(nbmag))
       bextr = 0.0 ; thetaextr = 0.0
@@ -439,7 +439,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             if (theta0 - thetain(i) <= epsknob) then
                theta0 = thetain(i)
                bprime(i) = 0.0
-            else if (thetain(i+1)-theta0 <= epsknob) then
+            else if (thetain(i+1) - theta0 <= epsknob) then
                ! @Note: If this triggers then on the next iteration the bprime(i)==0 test
                ! should pass and we will end up adding this extremum twice, so mark as
                ! needing to skip next iteration.
@@ -457,9 +457,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! Collect -pi, all local extrema, original grid points, points between
       ! original grid points
       nstart = nextr + (nbmag - 1) * (1 + npadd)
-      allocate (thetastart(nstart))
-      thetastart(:nextr) = pack(thetaextr, bextr /= 0.0)
-      thetastart(nextr+1:) = -123456.789
+      thetastart = pack(thetaextr, bextr /= 0.0)
       
       nstart = nextr
       do i = 1, nbmag-1
@@ -470,16 +468,13 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
             ! the points if they are more than epsknob far away from all previously
             ! added points. As such epsknob sets the minimum theta grid spacing
             ! allowed here.
-            thetastart(nstart+1) &
-                 = thetain(i) + dtheta * real(j)/real(npadd+1)
-            if (all(abs(thetastart(nstart+1)-thetastart(1:nstart)) > epsknob)) then
+            new_theta_start = thetain(i) + dtheta * real(j) / real(npadd + 1)
+            if (all(abs(new_theta_start - thetastart) > epsknob)) then
+               thetastart = [thetastart, new_theta_start]
                nstart = nstart + 1
             end if
          end do
       end do
-
-      ! Resize thetastart in case nstart has changed
-      thetastart = thetastart(:nstart)
 
       allocate (essentialstart(nstart))
       essentialstart(:nextr) = .true.
