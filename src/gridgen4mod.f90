@@ -233,13 +233,11 @@ contains
 
     call debug_message(gk_verb, "gridgen4_2: call gg4init")
     call gg4init
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nbmag, thetain, bmagin, "gg4init - input grid - thetain bmagin ")
 
 ! 1 Set up starting grid.
     call debug_message(gk_verb, "gridgen4_2: call gg4start")
     call gg4start (n)
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nstart, thetastart, thetastart, "gg4start - starting grid - thetastart thetastart")
 ! MRH thetastart is the array containing the theta grid on a finer grid, after a spline fit of the 
 ! MRH magnetic field has been done in gg4init and some obscure manipulations in gg4start
@@ -249,16 +247,13 @@ contains
 ! MRH and is on the same grid as thetastart with the -pi and 0 elements as the 1st 2 elements. 
 
 ! MRH essentialstart is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nstart, bmagstart, bmagstart, "gg4start - starting field - bmagstart bmagstart")
     call gg4debugl (nstart, essentialstart, "gg4start - essentialstart")
 !MRH
 ! 2 Collect all bounce points associated with starting grid.
     call debug_message(gk_verb, "gridgen4_2: call gg4collect")
     call gg4collect
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nset, bmagset, bmagset, " gg4collect - bmagset bmagset")
-    call debug_message(gk_verb, "gridgen4_2: call gg4debugi")
     call gg4debugi (nsetset,thetasetset,ibmagsetset,icollsetset," gg4collect - thetasetset ibmagsetset icollsetset")
 
 ! ibmagsetset is an array that is paired with thetasetset and contains
@@ -277,9 +272,7 @@ contains
 
 ! MRH ibmagsort is the corresponding array for the magnetic field sort
 ! MRH thetasetset_sorted and bmagset_sorted are the monotonically increasing sorted arrays for debugging
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debugi (nsetset, thetasetset, ithetasort, ithetasort, "gg4sort - thetasetset ithetasort ithetasort")
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debugi (nset, bmagset, ibmagsort, ibmagsort, "gg4sort - bmagset ibmagsort ibmagsort")
     if (debug) then
        call gg4debug (nset, bmagset_sorted, bmagset, "gg4sort - bmagset_sorted bmagset")
@@ -301,7 +294,6 @@ contains
     ! MRH The metrics are recalculated after a pair of points is deleted within gg4remove
     ! MRH Points are deleted by setting their corresponding magnetic field strength bmagset = 0.0 
     ! MRH so that it is ignored when reconstructing the grid and field in gg4results
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nset, thetares, alambdares, "gg4metrics - thetares alambdares")
 
 ! 5 Remove sets until the number of points is small enough.
@@ -311,9 +303,7 @@ contains
 ! 6 Build output grids.
     call debug_message(gk_verb, "gridgen4_2: call gg4results")
     call gg4results (n)
-    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nthetaout, thetagrid, bmaggrid, "gg4results - output grid - thetagrid thetagrid")
-    call debug_message(gk_verb, "gridgen4_2: call gg4debugi")
     call gg4debug (nlambdaout, bset, bset, "gg4results - output 1/lambda - bset bset")
 
     ntheta = 2*(nthetaout/2)
