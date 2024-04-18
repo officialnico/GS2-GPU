@@ -173,7 +173,7 @@ contains
     alambdagrid(1:nlambda) = 1.0/alambdagrid(1:nlambda)
   end subroutine gridgen4_1
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine gridgen4_2 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
        ntheta,nbset,thetagrid,bmaggrid,bset)
@@ -194,27 +194,74 @@ contains
     real :: npi
     !> Maximum number of iterations allowed in bisection algorithm
     integer, parameter :: maxiter = 100
-    !> MRH verbose_debug_output prints out the resolution_metric to
+    !> Verbose_debug_output prints out the resolution_metric to
     !> debug_unit for every iteration of gg4remove to debug the point
     !> using procedure
     logical :: debug_output = .true., verbose_debug_output = .false.
-    !> MRH a number used to take into account machine error in
-    !> floatingpoint arithmetic
+    !> A number used to take into account machine error in
+    !> floating point arithmetic
     real, parameter :: precision_bound = 1.0e3 * epsilon(0.0)
+    !> A periodic spline of the input B(theta)
     type(periodic_spline) :: bmagspl
-
+    !> The number of grid points included in the fine "starting" mesh
+    !> of theta points stored in thetastart
     integer :: nstart
-    real, allocatable, dimension (:) :: thetastart, bmagstart
-    logical, allocatable, dimension (:) :: essentialstart
+    !> thetastart is the array containing the theta grid on a finer
+    !> grid, after a spline fit of the magnetic field has been done in
+    !> gg4init. The 1st element is forced to be -pi where there is an
+    !> assumed extremum.
+    real, allocatable, dimension (:) :: thetastart
+    !> bmagstart contains interpolated values from the periodic spline
+    !> fit of the magnetic field on the thetastart grid. bmagset is
+    !> identical to bmagstart
+    real, allocatable, dimension (:) :: bmagstart, bmagset
+    !> essentialstart is an array containing logicals indicating which
+    !> elements of the thetastart grid are considered essential -- these
+    !> are currently just any local extrema that have been identified alongside
+    !> the assumed extremum at -pi. Duplicated into essentialset
+    logical, allocatable, dimension (:) :: essentialstart, essentialset
     real, allocatable, dimension (:) :: bextr, thetaextr, bprime
-
-    integer :: nset, nsetset
-    real, allocatable, dimension (:) :: thetasetset, bmagset
+    !> nset is the number of values of B we consider
+    integer :: nset
+    !> nsetset is the number of thetagrid points that we consider, equal to nstart
+    integer :: nsetset
+    !> A collection of all theta grid points where B(theta) is found in
+    !> the collection of starting B values (bmagstart).
+    real, allocatable, dimension (:) :: thetasetset
+    !> Sorted forms of thetasetset and bmagset. Currently only used for debug
     real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
-    integer, allocatable, dimension (:) :: ibmagsetset, icollsetset
-    logical, allocatable, dimension (:) :: essentialset
-    
+    !> ibmagsetset is an array that is paired with thetasetset and
+    !> contains the index of bmagset corresponding to the value of B
+    !> found at the corresponding theta value stored in thetasetset so
+    !> thetasetset(i), bmagset(ibmagsetset(i)) are the paired values
+    !> of (theta, B(theta)). In other words bmagset(ibmagsetset(i)) ==
+    !> bmagint(thetasetset(i))
+    integer, allocatable, dimension (:) :: ibmagsetset
+    !> icollsetset is a debugging label which is not used outside of
+    !> gg4collect and gg4debugi. Records which call to add_setset(_root)
+    !> was responsible for adding a theta point to a set of points.
+    integer, allocatable, dimension (:) :: icollsetset
+    !> ithetasort is an array which contains an index such that for a given index s
+    !> of the monotonically increasing theta grid, the theta value can be attained by
+    !> thetasetset_sorted(s) = thetasetset(ithetasort(s)). In other words these
+    !> provide the indices which would sort thetasetset to be monotonically increasing.
+    !> ibmagsort is the corresponding array for the magnetic field sort, i.e.
+    !> bmagset_sorted(s) = bmagset(ibmagsort(s))
     integer, allocatable, dimension (:) :: ithetasort, ibmagsort
+    !> The thetares and alambdares arrays store computed resolution
+    !> metrics for each set of points (i.e. size nset, one metric
+    !> value for each unique B). The larger the value of the total
+    !> metric, thetares + alknob * alambdares, the more valuable the
+    !> point is. A set of theta grid points (i.e. unique value of B)
+    !> is deleted when it is the least valuable member of the
+    !> superset. The process of reducing to a less fine grid is
+    !> iterative and sets of theta points are deleted one at a time
+    !> The metrics are recalculated (only for sets of points
+    !> neighbouring in theta or B) after each set of theta points is
+    !> deleted within gg4remove. Points are deleted by setting their
+    !> corresponding magnetic field strength bmagset = 0.0 so that it
+    !> is ignored when reconstructing the grid and field in gg4results
+    !> and when obtaining the set with minimum metric.
     real, allocatable, dimension (:) :: thetares, alambdares
     
     integer :: nthetaout, nlambdaout, debug_unit
@@ -233,83 +280,65 @@ contains
 
     call debug_message(gk_verb, "gridgen4_2: call gg4init")
     call gg4init
-    call gg4debug (nbmag, thetain, bmagin, "gg4init - input grid - thetain bmagin ")
+    call gg4debug (nbmag, thetain, bmagin, &
+         "gg4init - input grid - thetain bmagin ")
 
-! 1 Set up starting grid.
+    ! 1 Set up starting grid.
     call debug_message(gk_verb, "gridgen4_2: call gg4start")
     call gg4start (n)
-    call gg4debug (nstart, thetastart, thetastart, "gg4start - starting grid - thetastart thetastart")
-! MRH thetastart is the array containing the theta grid on a finer grid, after a spline fit of the 
-! MRH magnetic field has been done in gg4init and some obscure manipulations in gg4start
-! MRH quirkily the 1st element is - pi and the 2nd element is 0, the rest of the elements increase monotonically from - pi to pi
+    call gg4debug (nstart, thetastart, thetastart, &
+         "gg4start - starting grid - thetastart thetastart")
+    call gg4debug (nstart, bmagstart, bmagstart, &
+         "gg4start - starting field - bmagstart bmagstart")
+    call gg4debugl (nstart, essentialstart, &
+         "gg4start - essentialstart")
 
-! MRH bmagstart Contains a spline fit of the magnetic field, although a different one to gg4init
-! MRH and is on the same grid as thetastart with the -pi and 0 elements as the 1st 2 elements. 
-
-! MRH essentialstart is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)
-    call gg4debug (nstart, bmagstart, bmagstart, "gg4start - starting field - bmagstart bmagstart")
-    call gg4debugl (nstart, essentialstart, "gg4start - essentialstart")
-!MRH
-! 2 Collect all bounce points associated with starting grid.
+    ! 2 Collect all bounce points associated with starting grid.
     call debug_message(gk_verb, "gridgen4_2: call gg4collect")
     call gg4collect
-    call gg4debug (nset, bmagset, bmagset, " gg4collect - bmagset bmagset")
-    call gg4debugi (nsetset,thetasetset,ibmagsetset,icollsetset," gg4collect - thetasetset ibmagsetset icollsetset")
+    call gg4debug (nset, bmagset, bmagset, &
+         " gg4collect - bmagset bmagset")
+    call gg4debugi (nsetset, thetasetset, ibmagsetset, icollsetset, &
+         " gg4collect - thetasetset ibmagsetset icollsetset")
 
-! ibmagsetset is an array that is paired with thetasetset and contains
-! the index of bmagset corresponding to the theta value stored in thetasetset
-! so thetasetset (i), bmagset(ibmagset(i)) are the paired values of (theta, B(theta))
-
-! icollsetset is a debugging label which is not used outside of gg4collect and gg4debugi
-
-! 3 Sort collected grids.
+    ! 3 Sort collected grids.
     call debug_message(gk_verb, "gridgen4_2: call gg4sort")
     call gg4sort
-! MRH ithetasort is an array which contains an index such that for a given index s 
-! MRH of the monotonically increasing theta grid, the grid value for 
-! MRH the monotonically increasing theta growth can be attained by 
-! MRH thetasetset_sorted(s) = thetasetset(ithetasort(s))
-
-! MRH ibmagsort is the corresponding array for the magnetic field sort
-! MRH thetasetset_sorted and bmagset_sorted are the monotonically increasing sorted arrays for debugging
-    call gg4debugi (nsetset, thetasetset, ithetasort, ithetasort, "gg4sort - thetasetset ithetasort ithetasort")
-    call gg4debugi (nset, bmagset, ibmagsort, ibmagsort, "gg4sort - bmagset ibmagsort ibmagsort")
+    call gg4debugi (nsetset, thetasetset, ithetasort, ithetasort, &
+         "gg4sort - thetasetset ithetasort ithetasort")
+    call gg4debugi (nset, bmagset, ibmagsort, ibmagsort, &
+         "gg4sort - bmagset ibmagsort ibmagsort")
     if (debug) then
-       call gg4debug (nset, bmagset_sorted, bmagset, "gg4sort - bmagset_sorted bmagset")
-
-       call gg4debug (nsetset,thetasetset_sorted,thetasetset,"gg4sort - thetasetset_sorted thetasetset")
-       ! MRH essentialset is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)    
-       call gg4debugl (nstart, essentialset, "gg4sort - essentialset")
+       call gg4debug (nset, bmagset_sorted, bmagset, &
+            "gg4sort - bmagset_sorted bmagset")
+       call gg4debug (nsetset,thetasetset_sorted,thetasetset, &
+            "gg4sort - thetasetset_sorted thetasetset")
+       call gg4debugl (nstart, essentialset, &
+            "gg4sort - essentialset") !Note essentialset is not sorted
     end if
 
-! 4 Calculate spacing and resolution metrics.
+    ! 4 Calculate spacing and resolution metrics.
     call debug_message(gk_verb, "gridgen4_2: call gg4metrics")
     call gg4metrics
+    call gg4debug (nset, thetares, alambdares, &
+         "gg4metrics - thetares alambdares")
 
-    ! MRH are the metrics used to determine which points of the larger fine grid (thetasetset-with redundant points)
-    ! MRH to keep as one reduces to the required grid size
-    ! MRH the larger the value of the metric the more valuable the point is
-    ! MRH A pair of points is deleted when it is the least valuable member of the set
-    ! MRH the process of reducing to less fine grid is iterative and pairs of points are deleted one at a time
-    ! MRH The metrics are recalculated after a pair of points is deleted within gg4remove
-    ! MRH Points are deleted by setting their corresponding magnetic field strength bmagset = 0.0 
-    ! MRH so that it is ignored when reconstructing the grid and field in gg4results
-    call gg4debug (nset, thetares, alambdares, "gg4metrics - thetares alambdares")
-
-! 5 Remove sets until the number of points is small enough.
+    ! 5 Remove sets until the number of points is small enough.
     call debug_message(gk_verb, "gridgen4_2: call gg4remove")
     call gg4remove
 
-! 6 Build output grids.
+    ! 6 Build output grids.
     call debug_message(gk_verb, "gridgen4_2: call gg4results")
     call gg4results (n)
-    call gg4debug (nthetaout, thetagrid, bmaggrid, "gg4results - output grid - thetagrid thetagrid")
-    call gg4debug (nlambdaout, bset, bset, "gg4results - output 1/lambda - bset bset")
+    call gg4debug (nthetaout, thetagrid, bmaggrid, &
+         "gg4results - output grid - thetagrid thetagrid")
+    call gg4debug (nlambdaout, bset, bset, &
+         "gg4results - output 1/lambda - bset bset")
 
     ntheta = 2*(nthetaout/2)
     nbset = nlambdaout
 
-! 7 Clean up.
+    ! 7 Clean up.
     call debug_message(gk_verb, "gridgen4_2: call gg4finish")
     call gg4finish
 
