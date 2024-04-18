@@ -985,7 +985,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          ! resolution_metric are identical up to precision_bound.
 
          resolution_metric = thetares + alknob * alambdares
-         idel = minimum_index(nset, resolution_metric, bmagset /= 0.0, precision_bound)
+         idel = minimum_index(resolution_metric, bmagset /= 0.0, precision_bound)
 
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
@@ -1005,7 +1005,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end subroutine gg4remove
 
     !> FIXME : Add documentation
-    pure integer function minimum_index (n, array, mask, machine_error)
+    pure integer function minimum_index (array, mask, machine_error)
       ! MRH the function minimum_index has been written to have the same features as minloc
       ! MRH n is the length of the array and mask
       ! MRH array is the array from which we want the index of the minimum value in the array
@@ -1020,11 +1020,10 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! MRH in the case that array(i) is identical to array(j).
       ! MRH This ensures the minimum_index returns the 1st minimum index in array order
       implicit none
-      real, dimension (n), intent (in) :: array
-      logical, dimension (n), intent (in) :: mask
-      integer, intent (in) :: n
+      real, dimension (:), intent (in) :: array
+      logical, dimension (:), intent (in) :: mask
       real, intent (in) :: machine_error
-      integer :: i, lower_bound
+      integer :: n, i, lower_bound
       real :: minimum_value
 
       ! Find the first location where mask is true
@@ -1032,6 +1031,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       if (minimum_index == 0) return !No values to consider
       minimum_value = array(minimum_index)
       lower_bound = minimum_index
+      n = size(array)
 
       ! Now go through all the values starting at the point after the
       ! current lower_bound to find the minimum
