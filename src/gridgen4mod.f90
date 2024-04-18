@@ -1027,6 +1027,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       real :: minimum_value
 
       ! Find the first location where mask is true
+      ! To reverse order we could use:
+      ! minimum_index = findloc(mask, .true., dim = 1, back = .true.)
       minimum_index = findloc(mask, .true., dim = 1)
       if (minimum_index == 0) return !No values to consider
       minimum_value = array(minimum_index)
@@ -1035,6 +1037,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
       ! Now go through all the values starting at the point after the
       ! current lower_bound to find the minimum
+      ! To reverse order this loop would become
+      ! do i = lower_bound - 1, 1 , -1
       do i = lower_bound + 1, n
          if (.not. mask(i)) cycle
          if (array(i) < minimum_value - machine_error ) then
@@ -1046,6 +1050,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       ! minimum_value = minval(array, mask = mask)
       ! minimum_index = findloc(array <= minimum_value + machine_error, .true., &
       ! dim = 1, mask = mask)
+      ! Where to reverse order we just add back = .true. to findloc
     end function minimum_index
 
     !> FIXME : Add documentation    
