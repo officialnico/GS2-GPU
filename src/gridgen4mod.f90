@@ -180,6 +180,7 @@ contains
     use constants, only: pi, twopi
     use mp, only: proc0
     use splines, only: periodic_spline
+    use unit_tests, only: debug_message
     implicit none
     integer, intent (in) :: n
     integer, intent (in) :: nbmag
@@ -191,6 +192,7 @@ contains
     real, dimension (ntheta+1), intent (out) :: thetagrid, bmaggrid
     real, dimension (nbset), intent (out) :: bset
     real :: npi
+    !> Maximum number of iterations allowed in bisection algorithm
     integer, parameter :: maxiter = 100
     !> MRH verbose_debug_output prints out the resolution_metric to
     !> debug_unit for every iteration of gg4remove to debug the point
@@ -217,22 +219,27 @@ contains
     
     integer :: nthetaout, nlambdaout, debug_unit
     logical, parameter :: debug=.false.!.true.
+    integer :: gk_verb
     npi = n * twopi
+
+    ! Set default verbosity and lower this if debug is active
+    gk_verb = 2
+    if (debug) gk_verb = 0
 
     ! Disable debug output when iproc /= 0 and make sure debug_output
     ! active if verbose_debug_output
     verbose_debug_output = verbose_debug_output .and. proc0
     debug_output = (debug_output .or. verbose_debug_output) .and. proc0
 
-if (debug) write(6,*) "gridgen4_2: call gg4init"
+    call debug_message(gk_verb, "gridgen4_2: call gg4init")
     call gg4init
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nbmag, thetain, bmagin, "gg4init - input grid - thetain bmagin ")
 
 ! 1 Set up starting grid.
-if (debug) write(6,*) "gridgen4_2: call gg4start"
+    call debug_message(gk_verb, "gridgen4_2: call gg4start")
     call gg4start (n)
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nstart, thetastart, thetastart, "gg4start - starting grid - thetastart thetastart")
 ! MRH thetastart is the array containing the theta grid on a finer grid, after a spline fit of the 
 ! MRH magnetic field has been done in gg4init and some obscure manipulations in gg4start
@@ -242,16 +249,16 @@ if (debug) write(6,*) "gridgen4_2: call gg4debug"
 ! MRH and is on the same grid as thetastart with the -pi and 0 elements as the 1st 2 elements. 
 
 ! MRH essentialstart is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nstart, bmagstart, bmagstart, "gg4start - starting field - bmagstart bmagstart")
     call gg4debugl (nstart, essentialstart, "gg4start - essentialstart")
 !MRH
 ! 2 Collect all bounce points associated with starting grid.
-if (debug) write(6,*) "gridgen4_2: call gg4collect"
+    call debug_message(gk_verb, "gridgen4_2: call gg4collect")
     call gg4collect
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nset, bmagset, bmagset, " gg4collect - bmagset bmagset")
-if (debug) write(6,*) "gridgen4_2: call gg4debugi"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debugi")
     call gg4debugi (nsetset,thetasetset,ibmagsetset,icollsetset," gg4collect - thetasetset ibmagsetset icollsetset")
 
 ! ibmagsetset is an array that is paired with thetasetset and contains
@@ -261,7 +268,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4debugi"
 ! icollsetset is a debugging label which is not used outside of gg4collect and gg4debugi
 
 ! 3 Sort collected grids.
-if (debug) write(6,*) "gridgen4_2: call gg4sort"
+    call debug_message(gk_verb, "gridgen4_2: call gg4sort")
     call gg4sort
 ! MRH ithetasort is an array which contains an index such that for a given index s 
 ! MRH of the monotonically increasing theta grid, the grid value for 
@@ -270,50 +277,50 @@ if (debug) write(6,*) "gridgen4_2: call gg4sort"
 
 ! MRH ibmagsort is the corresponding array for the magnetic field sort
 ! MRH thetasetset_sorted and bmagset_sorted are the monotonically increasing sorted arrays for debugging
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debugi (nsetset, thetasetset, ithetasort, ithetasort, "gg4sort - thetasetset ithetasort ithetasort")
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debugi (nset, bmagset, ibmagsort, ibmagsort, "gg4sort - bmagset ibmagsort ibmagsort")
-if (debug) then
-    call gg4debug (nset, bmagset_sorted, bmagset, "gg4sort - bmagset_sorted bmagset")
+    if (debug) then
+       call gg4debug (nset, bmagset_sorted, bmagset, "gg4sort - bmagset_sorted bmagset")
 
-    call gg4debug (nsetset,thetasetset_sorted,thetasetset,"gg4sort - thetasetset_sorted thetasetset")
-! MRH essentialset is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)    
-    call gg4debugl (nstart, essentialset, "gg4sort - essentialset")
-endif
-!MRH
+       call gg4debug (nsetset,thetasetset_sorted,thetasetset,"gg4sort - thetasetset_sorted thetasetset")
+       ! MRH essentialset is an array containing logicals indicating which elements of the thetastart grid are essential (it's the 1st 2 only)    
+       call gg4debugl (nstart, essentialset, "gg4sort - essentialset")
+    end if
+
 ! 4 Calculate spacing and resolution metrics.
-if (debug) write(6,*) "gridgen4_2: call gg4metrics"
+    call debug_message(gk_verb, "gridgen4_2: call gg4metrics")
     call gg4metrics
-!MRH
-! MRH are the metrics used to determine which points of the larger fine grid (thetasetset-with redundant points)
-! MRH to keep as one reduces to the required grid size
-! MRH the larger the value of the metric the more valuable the point is
-! MRH A pair of points is deleted when it is the least valuable member of the set
-! MRH the process of reducing to less fine grid is iterative and pairs of points are deleted one at a time
-! MRH The metrics are recalculated after a pair of points is deleted within gg4remove
-! MRH Points are deleted by setting their corresponding magnetic field strength bmagset = 0.0 
-! MRH so that it is ignored when reconstructing the grid and field in gg4results
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+
+    ! MRH are the metrics used to determine which points of the larger fine grid (thetasetset-with redundant points)
+    ! MRH to keep as one reduces to the required grid size
+    ! MRH the larger the value of the metric the more valuable the point is
+    ! MRH A pair of points is deleted when it is the least valuable member of the set
+    ! MRH the process of reducing to less fine grid is iterative and pairs of points are deleted one at a time
+    ! MRH The metrics are recalculated after a pair of points is deleted within gg4remove
+    ! MRH Points are deleted by setting their corresponding magnetic field strength bmagset = 0.0 
+    ! MRH so that it is ignored when reconstructing the grid and field in gg4results
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nset, thetares, alambdares, "gg4metrics - thetares alambdares")
-!MRH
+
 ! 5 Remove sets until the number of points is small enough.
-if (debug) write(6,*) "gridgen4_2: call gg4metrics"
+    call debug_message(gk_verb, "gridgen4_2: call gg4remove")
     call gg4remove
 
 ! 6 Build output grids.
-if (debug) write(6,*) "gridgen4_2: call gg4results"
+    call debug_message(gk_verb, "gridgen4_2: call gg4results")
     call gg4results (n)
-if (debug) write(6,*) "gridgen4_2: call gg4debug"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debug")
     call gg4debug (nthetaout, thetagrid, bmaggrid, "gg4results - output grid - thetagrid thetagrid")
-if (debug) write(6,*) "gridgen4_2: call gg4debugi"
+    call debug_message(gk_verb, "gridgen4_2: call gg4debugi")
     call gg4debug (nlambdaout, bset, bset, "gg4results - output 1/lambda - bset bset")
 
     ntheta = 2*(nthetaout/2)
     nbset = nlambdaout
 
 ! 7 Clean up.
-if (debug) write(6,*) "gridgen4_2: call gg4finish"
+    call debug_message(gk_verb, "gridgen4_2: call gg4finish")
     call gg4finish
 
   contains
@@ -347,7 +354,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          write (unit=debug_unit, fmt=*) "tension=", tension
          write (unit=debug_unit, fmt=*) "ntheta,nlambda=", ntheta, nbset
       end if
-      if (debug) write(6,*) 'gg4init: end'
+      call debug_message(gk_verb, 'gg4init: end')
     end subroutine gg4init
 
     !> FIXME : Add documentation    
