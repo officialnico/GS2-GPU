@@ -24,7 +24,6 @@
 !> Previous versions of gridgen4_2  produced different theta grids on different machines
 !> In this version of gridgen4mod I have corrected this bug by making changes in the
 !> following subroutines (in gridgen4_2):
-!> heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
 !> get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
 !> (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and
 !> the output should be identically 0.
