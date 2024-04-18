@@ -410,10 +410,20 @@ contains
       deallocate (thetares, alambdares)
 
       if (mod(nthetaout,2) /= 1) then
-         print *, "gridgen4_1:gg4results:nthetaout=", nthetaout
+         ! To end up with an even number of theta grid points I think we have to have
+         ! deleted an odd number of sets with an odd number of theta grid points.
+         ! Due to peridioicity I _think_ we expect the only sets which have an odd
+         ! number of theta grid points to be ones which include local extrema. Given we
+         ! bias the resolution metric heavily for essentialset = true (extrema) for sets
+         ! with an odd number of points it is surprising if we would ever remove these.
+         ! As such an even nthetaout does suggest some sort of unexpected behaviour which
+         ! we should investigate very carefully.
+         print *, "gridgen4_1:gg4finish:nthetaout=", nthetaout
          print *, "nthetaout is not odd, so there is a problem with gridgen"
          print *, "This can sometimes happen if this file is not compiled with promotion to double precision."
-         call mp_abort('gridgen has finished with an odd ntheta. This suggests something has gone wrong so abort. Consider changing the gridgen input flags or ntheta.', .true.)
+         print *, "This can also happen when B(theta) has local extrema which have been"
+         print *, "removed. Try setting extrknob = 1e2."
+         call mp_abort('gridgen has finished with an odd ntheta. This suggests something has gone wrong so abort. Consider changing the gridgen input flags (e.g. extrknob) or ntheta.', .true.)
       end if
     end subroutine gg4finish
 
