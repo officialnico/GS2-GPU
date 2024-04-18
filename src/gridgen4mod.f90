@@ -182,15 +182,30 @@ contains
     use splines, only: periodic_spline
     use unit_tests, only: debug_message
     implicit none
+    !> Number of two pi domains included in the input grids
     integer, intent (in) :: n
+    !> Size of the input theta and bmag grids
     integer, intent (in) :: nbmag
+    !> Initial theta and bmag grids
     real, dimension (nbmag), intent (in) :: thetain, bmagin
+    !> Number of additional points to insert between the input theta
+    !> grid points when determining the starting points
     integer, intent (in) :: npadd
+    !> Numerical parameters controlling various choices (see gridgen namelist docs)
     real, intent (in) :: alknob, epsknob, bpknob, extrknob
     real, intent (in) :: thetamax, deltaw, widthw, tension
+    !> On entry ntheta = nbmag - 1, on exit ntheta is the number of theta grid
+    !> points in the final grid. We expect this to be unchanged.
+    !> On entry nbset is the upper limit on the number of unique B values, i.e.
+    !> nbset = ntheta / 2 + 1. On exit nbset is the number of unique B values
+    !> in the output grid.
     integer, intent (in out) :: ntheta, nbset
+    !> The optimisied theta grid and corresponding B values
     real, dimension (ntheta+1), intent (out) :: thetagrid, bmaggrid
+    !> The ordered set of unique B values on the optimised grid
     real, dimension (nbset), intent (out) :: bset
+    !> Expected theta extent determined by input [n], npi = twopi * n
+    !> Should we just determine this from the input theta grid?
     real :: npi
     !> Maximum number of iterations allowed in bisection algorithm
     integer, parameter :: maxiter = 100
@@ -285,7 +300,7 @@ contains
 
     ! 1 Set up starting grid.
     call debug_message(gk_verb, "gridgen4_2: call gg4start")
-    call gg4start (n)
+    call gg4start
     call gg4debug (nstart, thetastart, thetastart, &
          "gg4start - starting grid - thetastart thetastart")
     call gg4debug (nstart, bmagstart, bmagstart, &
@@ -403,9 +418,8 @@ contains
     end subroutine gg4finish
 
     !> FIXME : Add documentation    
-    subroutine gg4start (n)
+    subroutine gg4start
       implicit none
-      integer, intent (in) :: n
       integer :: i, j, nextr
       real :: thetal, thetar, theta0, bprime0, dtheta, new_theta_start
       logical :: skip_point
