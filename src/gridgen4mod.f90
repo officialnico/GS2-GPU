@@ -22,45 +22,48 @@
 !>
 !> MRH 15/11/2017
 !> Previous versions of gridgen4_2  produced different theta grids on different machines
-!> In this version of gridgen4mod I have corrected this bug by making changes in the following subroutines (in gridgen4_2):
+!> In this version of gridgen4mod I have corrected this bug by making changes in the
+!> following subroutines (in gridgen4_2):
 !> heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
 !> get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
-!> (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and the output should be identically 0.
-!> get_lambdares-corrected this routine in the same manner as get_thetares, the output is 0 when it should be identically 0.
-!> gg4remove- modification of the inequalities used to choose which points to delete from the superset of theta points.
+!> (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and
+!> the output should be identically 0.
+!> get_lambdares - corrected this routine in the same manner as get_thetares, the output is
+!> 0 when it should be identically 0.
+!> gg4remove- modification of the inequalities used to choose which points to delete from
+!> the superset of theta points.
 !>
-!> The function of this module seems to be to optimise the choice of theta grid points.
-!> It does this by taking the input magnetic field and theta grid (usually generated in the geometry module)
-!> and spline fitting the magnetic field on a fine-mesh theta grid.
+!> The function of this module is to optimise the choice of theta grid points.
+!> It does this by taking the input magnetic field and theta grid
+!> (usually generated in the geometry module)
+!> and spline fitting the magnetic field to interpolate onto a fine-mesh theta grid.
 !>
 !> By using the metrics defined in get_lambdares and get_thetares
-!> the subroutine gg4remove removes points from the fine-mesh theta grid iteratively until the required number of points remain.
-!> The theta grid pair with the lowest value for the metric is deleted at each iteration.
-!> The reason for the bug was that these metrics were calculated in a sloppy manner,
-!> and the routine for finding the lowest value in the metric did not allow for the
-!> case that the metrics were identical up to machine precision:
-!> -In the 1st iteration of gg4remove all of the metrics should be identically 0 but were not
-!> -The 1st theta grid pair were deleted based on a decision made with machine precision sized values of the metric-this led to random behaviour
-!> -When all duplicate values of the theta grid pairs
-!> ----- (theta grid superset contains duplicate values of the theta grid pairs for reasons unbeknownst to me)
-!> had all been deleted, because the fine-mesh theta grid had almost equally spaced points
-!> the values for the metrics for the theta grid pairs near theta =0 were almost exactly equal.
-!> -Depending on the machine, the metric would be slightly lower for one pair of points than another
-!> and therefore the choice of which pair of points to delete 1st from the non-duplicate set was random.
-!> This behaviour led to different theta grids between different machines.
+!> the subroutine gg4remove removes points from the fine-mesh theta grid iteratively
+!> until the required number of points remain.The theta grid pair with the lowest value
+!> for the metric is deleted at each iteration.The reason for the bug was that these
+!> metrics were calculated in a sloppy manner, and the routine for finding the lowest
+!> value in the metric did not allow for the case that the metrics were identical up to
+!> machine precision:
+!> - Because the fine-mesh theta grid has almost equally spaced points the values for the
+!> metrics for the theta grid pairs near theta = 0 were almost exactly equal.
+!> -Depending on the machine, the metric would be slightly lower for one pair of points
+!> than another and therefore the choice of which pair of points to delete 1st from the
+!> non-duplicate set was random (actually ~reproducible for the same setup but variable
+!> between machines/configs).This behaviour led to different theta grids between different
+!> machines.
 !>
-!> I fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid pair in array element order
-!> (of the sorted theta grid superset array) in the case that the metrics were equal up to machine error.
-!> The variable precision_bound controls this behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
+!> MRH fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid
+!> pair in array element order (of the sorted theta grid superset array) in the case that
+!> the metrics were equal up to machine error. The variable precision_bound controls this
+!> behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
 !> Finite but small precision_bound is enough to remove machine dependence.
-!> I biased heapsort in a similar manner to enable debugging - the sorting algorithm
-!> was also machine dependent because of the duplicate theta grid points in the superset.
 !>
 !> run_name.gridgen.200 contains the debug output from this module
-!> To see verbose output ensure that debug_output =.true.and verbose_debug_output =.true.
+!> To see verbose output ensure that debug_output =.true. and verbose_debug_output =.true.
 !>
-!> @todo : This file/module needs tidying/pruning. More consistent usage of tolerance comparisons would help
-!> Testing may be tricky but would be very helpful.
+!> @todo : This file/module needs tidying/pruning. More consistent usage of tolerance
+!> comparisons would help. Testing may be tricky but would be very helpful.
 module gridgen4mod
   implicit none
   private
