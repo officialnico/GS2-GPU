@@ -138,8 +138,8 @@ contains
   end subroutine nc_get_grid_scalars
   
   !> Write scalar geometry data to the output netCDF file
-  subroutine nc_write_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
-    real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj
+  subroutine nc_write_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj, B_T, aminor, grhoavg, surfarea)
+    real, intent(in), optional :: shat, drhodpsi, kxfac, qval, rmaj, B_T, aminor, grhoavg, surfarea
 # ifdef NETCDF
     if (.not.proc0) return
     if (present(drhodpsi)) call neasyf_write(ncid, "drhodpsi", drhodpsi)
@@ -147,6 +147,10 @@ contains
     if (present(shat)) call neasyf_write(ncid, "shat", shat)
     if (present(kxfac)) call neasyf_write(ncid, "kxfac", kxfac)
     if (present(qval)) call neasyf_write(ncid, "q", qval)
+    if (present(B_T)) call neasyf_write(ncid, "B_T", B_T)
+    if (present(aminor)) call neasyf_write(ncid, "aminor", aminor)
+    if (present(grhoavg)) call neasyf_write(ncid, "grhoavg", grhoavg)
+    if (present(surfarea)) call neasyf_write(ncid, "surfarea", surfarea)
 # else
     call mp_abort("nc_write_grid_scalars does not work without NetCDF")
 # endif
