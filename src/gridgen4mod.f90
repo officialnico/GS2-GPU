@@ -1028,14 +1028,19 @@ contains
       integer :: idel, i
       integer :: ntheta_left, nlambda_left
       real, dimension (nset) :: resolution_metric ! MRH to address machine dependence
-      
+      integer, dimension(nset) :: npts_set
       nlambda_left = nset
       ntheta_left = nsetset
       do i = 1, nset
+         ! If there are no valid points in this set then we have one less
+         ! valid unique value of B (and hence lambda) so update counter
          if (.not. any(ibmagsetset == i)) then
             nlambda_left = nlambda_left - 1
          end if
+         ! Count how many theta grid points are associated with each set
+         npts_set(i) = count(ibmagsetset == i)
       end do
+
 ! 1 Whilst we have too many points find the set with the minimum resolution metric and delete
       do while (ntheta_left > ntheta .or. nlambda_left > nbset)
          ! minimum_index has all the documented features of minloc for
@@ -1063,7 +1068,7 @@ contains
          ! if this is going to cause an issue. In the future we could then choose to
          ! (re-)find a minimum only where the set doesn't contain too many points.
          ! This _could_ result in us not finding a valid match and hence aborting here.
-         if (count(ibmagsetset == idel) > ntheta_left - ntheta) then
+         if (npts_set(idel) > ntheta_left - ntheta) then
             write(6, *) "Warning going to remove set with too many points - expect abort"
          end if
 
