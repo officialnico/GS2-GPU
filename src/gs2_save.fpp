@@ -7,15 +7,15 @@ module gs2_save
 # ifdef NETCDF
 # ifdef NETCDF_PARALLEL
   use netcdf, only: NF90_MPIIO
-  use netcdf, only: nf90_var_par_access, NF90_COLLECTIVE
+  use netcdf, only: nf90_var_par_access
   use netcdf, only: nf90_put_att, NF90_GLOBAL, nf90_get_att
   use netcdf, only: nf90_create_par
 # endif
   use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR, NF90_NETCDF4
-  use netcdf, only: nf90_create, nf90_open, nf90_sync, nf90_close, nf90_enddef
-  use netcdf, only: nf90_put_var, nf90_get_var, nf90_strerror
+  use netcdf, only: nf90_create, nf90_open, nf90_close
+  use netcdf, only: nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
-  use netcdf, only: nf90_inq_varid, nf90_inquire_variable
+  use netcdf, only: nf90_inq_varid
   
   use netcdf_utils, only: get_netcdf_code_precision
   use netcdf_utils, only: check_netcdf_file_precision
@@ -70,15 +70,11 @@ module gs2_save
   real, allocatable, dimension(:) :: stmp, atmp
   ! Netcdf ids for quantities referenced in multiple routines.
   integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
-  integer (kind_nf) :: phir_id, phii_id, aparr_id, apari_id, bparr_id, bpari_id
-  integer (kind_nf) :: t0id, gr_id, gi_id, vnm1id, vnm2id
+  integer (kind_nf) :: t0id, vnm1id, vnm2id
   integer (kind_nf) :: delt0id, delt1id, delt2id, delt_max_id
   integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
   integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
-  integer (kind_nf) :: layout_id, kx_shift_id, theta0_shift_id
-  integer (kind_nf) :: current_scan_parameter_value_id
-  integer (kind_nf) :: a_antr_id, b_antr_id, a_anti_id, b_anti_id
   !> Do we save the scan parameter or not?
   logical, parameter :: include_parameter_scan = .true.
   !> Open new netCDF files with netCDF-4 model, and overwrite existing files
@@ -95,6 +91,10 @@ module gs2_save
   logical, parameter :: has_netcdf_parallel = .false.
 #endif
 #endif
+
+  !> Names of dimensions for distribution-sized variables in netCDF files
+  character(len=5), dimension(*), parameter :: g_dim_names = ["theta", "sign ", "glo  "]
+  character(len=5), dimension(*), parameter :: field_dim_names = ["theta", "akx  ", "aky  "]
 contains
 
   !> Create and fill the restart files
@@ -110,6 +110,8 @@ contains
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
     use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
     use gs2_metadata, only: create_metadata
+    use netcdf, only: nf90_collective
+    use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
 # else
     use mp, only: proc0
 # endif    
@@ -156,7 +158,7 @@ contains
     !> Arrays holding information about the layout for plotting
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
-    integer :: i, n_elements, ierr
+    integer :: n_elements, ierr
     integer :: total_elements
     integer, dimension(3) :: start_pos, counts
     integer, parameter :: tmpunit = 348
@@ -167,12 +169,8 @@ contains
     integer, parameter :: verb = 3
     integer :: iglo
     ! Netcdf ids for variables only handled in this routine
-    integer (kind_nf) :: iglo_kykxsel_id, procid_kykxsel_id, iglo_llim_proc_id
-    integer (kind_nf) :: theta_grid_id, kx_grid_id, ky_grid_id, jtwist_id
-    integer (kind_nf) :: egridid,lgridid, vpa_id, vperp2_id
-    integer (kind_nf) :: energy_id, lambda_id
-    integer (kind_nf) :: nspecid, spec_id, char5_dim
-    integer (kind_nf) :: ntheta0_id, naky_id, nlambda_id, negrid_id, nspec_id
+    integer (kind_nf) :: egridid,lgridid
+    integer (kind_nf) :: nspecid, spec_id
 
     type(standard_header_type) :: local_header
 
@@ -210,7 +208,7 @@ contains
     call debug_message(verb, trim(adjustl(file_proc)))
 
     if (is_one_file_per_processor) then
-       istatus = nf90_create (file_proc, create_file_mode, ncid)
+       ncid = neasyf_open(file_proc, "w")
     else
        call debug_message(verb, &
             'gs2_save::gs2_save_for_restart calling barrier before delete file')
@@ -228,13 +226,8 @@ contains
             'gs2_save::gs2_save_for_restart called barrier before opening')
 
 # ifdef NETCDF_PARALLEL          
-       istatus = nf90_create_par (file_proc, ior(create_file_mode, NF90_MPIIO), ncid=ncid, comm=mp_comm, info=mp_info)
+       ncid = neasyf_open(file_proc, "w", comm=mp_comm, info=mp_info)
 # endif          
-    end if
-
-    if (istatus /= NF90_NOERR) then
-       write(ierr,*) "nf90_create error: ", nf90_strerror(istatus)
-       goto 1
     end if
 
     call create_metadata(ncid, "GS2 restart file", local_header)
@@ -242,10 +235,6 @@ contains
     if (.not.is_one_file_per_processor) then
 # ifdef NETCDF_PARALLEL
        istatus = nf90_put_att(ncid, NF90_GLOBAL, 'layout', layout)
-       if (istatus /= NF90_NOERR) then
-          write(ierr,*) "nf90_put_attr error: ", nf90_strerror(istatus)
-          goto 1
-       end if
 # endif
     end if
 
@@ -275,93 +264,8 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
 
-    call ensure_netcdf_dim_exists(ncid, "char5", 5, char5_dim)
-
-    call ensure_netcdf_var_exists(ncid, "layout", nf90_char, char5_dim, layout_id)
-    call ensure_netcdf_var_exists(ncid, "ntheta0", netcdf_int, ntheta0_id)
-    call ensure_netcdf_var_exists(ncid, "naky", netcdf_int, naky_id)
-    call ensure_netcdf_var_exists(ncid, "nlambda", netcdf_int, nlambda_id)
-    call ensure_netcdf_var_exists(ncid, "negrid", netcdf_int, negrid_id)
-    call ensure_netcdf_var_exists(ncid, "nspec", netcdf_int, nspec_id)
-
-    call ensure_netcdf_var_exists(ncid, "t0", netcdf_real, t0id)
-    call ensure_netcdf_var_exists(ncid, "delt0", netcdf_real, delt0id)
-    call ensure_netcdf_var_exists(ncid, "delt1", netcdf_real, delt1id)
-    call ensure_netcdf_var_exists(ncid, "delt2", netcdf_real, delt2id)
-    call ensure_netcdf_var_exists(ncid, "delt_max", netcdf_real, delt_max_id)
-
-    if (include_parameter_scan) then
-       call ensure_netcdf_var_exists(ncid, "current_scan_parameter_value", &
-            netcdf_real, current_scan_parameter_value_id)
-    end if
-
-    call ensure_netcdf_var_exists(ncid, "vnm1", netcdf_real, vnm1id)
-    call ensure_netcdf_var_exists(ncid, "vnm2", netcdf_real, vnm2id)
-
     if (ant_on) then
-       call ensure_netcdf_dim_exists(ncid, "nk_stir", nk_stir, nk_stir_dim)
-       call ensure_netcdf_var_exists(ncid, "a_ant_r", netcdf_real, nk_stir_dim, a_antr_id)
-       call ensure_netcdf_var_exists(ncid, "a_ant_i", netcdf_real, nk_stir_dim, a_anti_id)
-       call ensure_netcdf_var_exists(ncid, "b_ant_r", netcdf_real, nk_stir_dim, b_antr_id)
-       call ensure_netcdf_var_exists(ncid, "b_ant_i", netcdf_real, nk_stir_dim, b_anti_id)
-    end if
-
-    call ensure_netcdf_var_exists(ncid, "gr", netcdf_real, &
-         [thetaid, signid, gloid], gr_id)
-    call ensure_netcdf_var_exists(ncid, "gi", netcdf_real, &
-         [thetaid, signid, gloid], gi_id)
-
-    if(include_explicit_source_in_restart) then
-
-#ifndef SHMEM
-       has_gexp_1 = allocated(gexp_1)
-#else
-       has_gexp_1 = associated(gexp_1)
-#endif
-
-       if (has_gexp_1) then
-          call ensure_netcdf_var_exists(ncid, "gexp_1_r", netcdf_real, &
-               [thetaid, signid, gloid], gexp_1_r_id)
-          call ensure_netcdf_var_exists(ncid, "gexp_1_i", netcdf_real, &
-               [thetaid, signid, gloid], gexp_1_i_id)
-       endif
-
-       if(allocated(gexp_2)) then
-          call ensure_netcdf_var_exists(ncid, "gexp_2_r", netcdf_real, &
-               [thetaid, signid, gloid], gexp_2_r_id)
-          call ensure_netcdf_var_exists(ncid, "gexp_2_i", netcdf_real, &
-               [thetaid, signid, gloid], gexp_2_i_id)
-       endif
-
-       if(allocated(gexp_3)) then
-          call ensure_netcdf_var_exists(ncid, "gexp_3_r", netcdf_real, &
-               [thetaid, signid, gloid], gexp_3_r_id)
-          call ensure_netcdf_var_exists(ncid, "gexp_3_i", netcdf_real, &
-               [thetaid, signid, gloid], gexp_3_i_id)
-       endif
-    end if
-
-    if (this_proc_saves_fields) then
-       if (has_phi) then
-          call ensure_netcdf_var_exists(ncid, "phi_r", netcdf_real, &
-               [thetaid, kxid, kyid], phir_id)
-          call ensure_netcdf_var_exists(ncid, "phi_i", netcdf_real, &
-               [thetaid, kxid, kyid], phii_id)
-       end if
-
-       if (has_apar) then
-          call ensure_netcdf_var_exists(ncid, "apar_r", netcdf_real, &
-               [thetaid, kxid, kyid], aparr_id)
-          call ensure_netcdf_var_exists(ncid, "apar_i", netcdf_real, &
-               [thetaid, kxid, kyid], apari_id)
-       end if
-
-       if (has_bpar) then
-          call ensure_netcdf_var_exists(ncid, "bpar_r", netcdf_real, &
-               [thetaid, kxid, kyid], bparr_id)
-          call ensure_netcdf_var_exists(ncid, "bpar_i", netcdf_real, &
-               [thetaid, kxid, kyid], bpari_id)
-       end if
+       call neasyf_dim(ncid, "nk_stir", dim_size=nk_stir)
     end if
 
     !For saving distribution function
@@ -380,195 +284,50 @@ contains
              procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
                   ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = proc_id(g_lo,iglo)
           end do
-
-          !define layout information for plotting
-          call ensure_netcdf_var_exists(ncid, "iglo_kykxsel", netcdf_int, &
-               [kyid, kxid, nspecid, egridid, lgridid], iglo_kykxsel_id)
-          call ensure_netcdf_var_exists(ncid, "procid_kykxsel", netcdf_int, &
-               [kyid, kxid, nspecid, egridid, lgridid], procid_kykxsel_id)
        endif
-
-       call ensure_netcdf_var_exists(ncid, "iglo_llim_proc", netcdf_int, iglo_llim_proc_id)
 
        ! only store layout information on processor 0
        if(should_define_single_entry_variables) then
-          call ensure_netcdf_var_exists(ncid, "jtwist", netcdf_int, jtwist_id)
-          call ensure_netcdf_var_exists(ncid, "theta_grid", netcdf_real, [thetaid], theta_grid_id)
-          call ensure_netcdf_var_exists(ncid, "ky_grid", netcdf_real, [kyid], ky_grid_id)
-          call ensure_netcdf_var_exists(ncid, "kx_grid", netcdf_real, [kxid], kx_grid_id)
-          call ensure_netcdf_var_exists(ncid, "energy", netcdf_real, [egridid], energy_id)
-          call ensure_netcdf_var_exists(ncid, "lambda", netcdf_real, [lgridid], lambda_id)
           call ensure_netcdf_var_exists(ncid, "species", netcdf_real, [nspecid], spec_id)
        endif
 
     END IF
 
-    if(save_velocities_info) then
-       call ensure_netcdf_var_exists(ncid, "vpa", netcdf_real, &
-            [thetaid, signid, gloid], vpa_id)
-
-       call ensure_netcdf_var_exists(ncid, "vperp2", netcdf_real, &
-            [thetaid, gloid], vperp2_id)
-    endif
-
-    ! Because we want to be able to restart using exb shear from a
-    ! case which does not have exb shear we always add kx_shift and
-    ! theta0_shift even if no exb shear present in simulation)
-    call ensure_netcdf_var_exists(ncid, "kx_shift", netcdf_real, &
-         [kyid], kx_shift_id)
-    call ensure_netcdf_var_exists(ncid, "theta0_shift", netcdf_real, &
-         [kyid], theta0_shift_id)
-
-    ! Now we've finished defining things switch to put mode
-    call debug_message(verb, 'gs2_save::gs2_save_for_restart nf90_enddef')
-    istatus = nf90_enddef (ncid)
-    if (istatus /= NF90_NOERR) then
-       write (ierr,*) "nf90_enddef error: ", nf90_strerror(istatus)
-       goto 1
-    end if
-
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
     
     if (is_one_file_per_processor .or. proc0) then
-
-       istatus = nf90_put_var (ncid, delt0id, code_dt)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, delt1id, code_dt_prev1)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var delt1 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, delt2id, code_dt_prev2)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var delt2 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, delt_max_id, code_dt_max)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var delt0 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, t0id, t0)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var t0 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, layout_id, layout)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var layout error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, ntheta0_id, ntheta0)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var ntheta0 error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, naky_id, naky)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var naky error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, nlambda_id, nlambda)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var nlambda error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, negrid_id, negrid)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var negrid error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, nspec_id, nspec)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var nspec error: ", nf90_strerror(istatus)
-          goto 1
-       end if
+       call neasyf_write(ncid, "delt0", code_dt)
+       call neasyf_write(ncid, "delt1", code_dt_prev1)
+       call neasyf_write(ncid, "delt2", code_dt_prev2)
+       call neasyf_write(ncid, "delt_max", code_dt_max)
+       call neasyf_write(ncid, "t0", t0)
+       call neasyf_write(ncid, "layout", layout)
+       call neasyf_write(ncid, "ntheta0", ntheta0)
+       call neasyf_write(ncid, "naky", naky)
+       call neasyf_write(ncid, "nlambda", nlambda)
+       call neasyf_write(ncid, "negrid", negrid)
+       call neasyf_write(ncid, "nspec", nspec)
 
        if (include_parameter_scan) then
-          ! <EGH see parameter_scan.f90
-          istatus = nf90_put_var (ncid, &
-               current_scan_parameter_value_id, current_scan_parameter_value)
-          if (istatus /= NF90_NOERR) then
-             write (ierr,*) "nf90_put_var current_scan_parameter_value error: ", nf90_strerror(istatus)
-             goto 1
-          end if
-          ! EGH>
+          call neasyf_write(ncid, "current_scan_parameter_value", current_scan_parameter_value)
        end if
 
-       istatus = nf90_put_var (ncid, vnm1id, vnm(1))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var vnm(1) error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
-       istatus = nf90_put_var (ncid, vnm2id, vnm(2))
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var vnm(2) error: ", nf90_strerror(istatus)
-          goto 1
-       end if
-
+       call neasyf_write(ncid, "vnm1", vnm(1))
+       call neasyf_write(ncid, "vnm2", vnm(2))
     endif
-
-    ! Here is the label which we head to if we detect an error at any point before here.
-    ! Note this appears mid-way through our variable put phase, which seems a little odd.
-    ! We therefore don't exit early if we encounter an error in later put statements.
-1   continue
-
-    if (istatus /= NF90_NOERR) then
-       call debug_message(verb, 'gs2_save::gs2_save_for_restart closing file at the continue point')
-       i = nf90_close (ncid)
-
-       ! Deallocate module arrays
-       call deallocate_arrays
-
-       return
-    end if
 
     if (ant_on) then
 
        if (.not. allocated(atmp)) allocate (atmp(nk_stir))
        atmp = real(a_ant)
-       istatus = nf90_put_var (ncid, a_antr_id, atmp)
-
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var a_antr error: ", &
-               nf90_strerror(istatus), ' ', iproc
-       end if
-
+       call neasyf_write(ncid, "a_ant_r", atmp, dim_names=["nk_stir"])
        atmp = aimag(a_ant)
-       istatus = nf90_put_var (ncid, a_anti_id, atmp)
-
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var a_anti error: ", &
-               nf90_strerror(istatus), ' ', iproc
-       end if
+       call neasyf_write(ncid, "a_ant_i", atmp, dim_names=["nk_stir"])
 
        atmp = real(b_ant)
-       istatus = nf90_put_var (ncid, b_antr_id, atmp)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var b_antr error: ", &
-               nf90_strerror(istatus), ' ', iproc
-       end if
-
+       call neasyf_write(ncid, "b_ant_r", atmp, dim_names=["nk_stir"])
        atmp = aimag(b_ant)
-       istatus = nf90_put_var (ncid, b_anti_id, atmp)
-       if (istatus /= NF90_NOERR) then
-          write (ierr,*) "nf90_put_var b_anti error: ", &
-               nf90_strerror(istatus), ' ', iproc
-       end if
+       call neasyf_write(ncid, "b_ant_i", atmp, dim_names=["nk_stir"])
        deallocate (atmp)
     end if
 
@@ -580,32 +339,23 @@ contains
 
 
     if (is_one_file_per_processor) then
-       istatus = nf90_put_var (ncid, gr_id, tmpr)
+       call neasyf_write(ncid, "gr", tmpr, dim_names=g_dim_names)
     else
-#ifdef NETCDF_PARALLEL       
-       istatus = nf90_var_par_access(ncid, gr_id, NF90_COLLECTIVE)
-       istatus = nf90_var_par_access(ncid, gi_id, NF90_COLLECTIVE)
-# endif
        start_pos = (/1,1,g_lo%llim_proc+1/)
        counts = (/2*ntgrid+1, 2, n_elements/)
 
-       istatus = nf90_put_var (ncid, gr_id, tmpr, start=start_pos, count=counts)
+       call neasyf_write(ncid, "gr", tmpr, dim_names=g_dim_names, &
+            start=start_pos, count=counts, par_access=nf90_collective)
     endif
-
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id, &
-         var='gr put')
 
     tmpr = aimag(g)
 
     if (is_one_file_per_processor) then
-       istatus = nf90_put_var (ncid, gi_id, tmpr)
+       call neasyf_write(ncid, "gi", tmpr, dim_names=g_dim_names)
     else
-       istatus = nf90_put_var (ncid, gi_id, tmpr, start=start_pos, count=counts)
+       call neasyf_write(ncid, "gi", tmpr, dim_names=g_dim_names, &
+            start=start_pos, count=counts, par_access=nf90_collective)
     endif
-
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id, &
-         var = 'gi put')
-
 
     if (include_explicit_source_in_restart) then
        !Explicit source term gexp_1
@@ -615,67 +365,48 @@ contains
        has_gexp_1 = associated(gexp_1)
 #endif
 
+       start_pos = [1, 1, g_lo%llim_proc+1]
+       counts = [2 * ntgrid + 1, 2, n_elements]
+
        if (has_gexp_1) then
           tmpr = real(gexp_1)
 
           if (is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr)
+             call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names)
           else
-#ifdef NETCDF_PARALLEL
-             istatus = nf90_var_par_access(ncid, gexp_1_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_1_i_id, NF90_COLLECTIVE)
-#endif             
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             
-             istatus = nf90_put_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id, &
-               var='gexp_1_r put')
           
           tmpr = aimag(gexp_1)
 
           if (is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr)
+             call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names)
           else
-             istatus = nf90_put_var (ncid, gexp_1_i_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           endif
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id, &
-               var = 'gexp_1_i put')
        end if
 
        !Explicit source term gexp_2
        if(allocated(gexp_2)) then
           tmpr = real(gexp_2)
           
-          if(is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr)
+          if (is_one_file_per_processor) then
+             call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names)
           else
-#ifdef NETCDF_PARALLEL             
-             istatus = nf90_var_par_access(ncid, gexp_2_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_2_i_id, NF90_COLLECTIVE)
-#endif             
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             
-             istatus = nf90_put_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           endif
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id, &
-               var='gexp_2_r put')
 
           tmpr = aimag(gexp_2)
 
           if (is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr)
+             call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names)
           else
-             istatus = nf90_put_var (ncid, gexp_2_i_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           endif
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id, &
-               var = 'gexp_2_i put')
        end if
 
        !Explicit source term gexp_3
@@ -683,31 +414,20 @@ contains
           tmpr = real(gexp_3)
 
           if (is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr)
+             call neasyf_write(ncid, "gexp_3_r", tmpr, dim_names=g_dim_names)
           else
-#ifdef NETCDF_PARALLEL            
-             istatus = nf90_var_par_access(ncid, gexp_3_r_id, NF90_COLLECTIVE)
-             istatus = nf90_var_par_access(ncid, gexp_3_i_id, NF90_COLLECTIVE)
-# endif
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             
-             istatus = nf90_put_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_3_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           end if
 
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id, &
-               var='gexp_3_r put')
-          
           tmpr = aimag(gexp_3)
 
           if (is_one_file_per_processor) then
-             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr)
+             call neasyf_write(ncid, "gexp_3_i", tmpr, dim_names=g_dim_names)
           else
-             istatus = nf90_put_var (ncid, gexp_3_i_id, tmpr, start=start_pos, count=counts)
+             call neasyf_write(ncid, "gexp_3_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=nf90_collective)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id, &
-               var = 'gexp_3_i put')
        end if
     end if
 
@@ -715,78 +435,27 @@ contains
     if (save_glo_info_and_grids_local) then
        ! Fill processor and layout information for plotting purposes
        if (proc0) then
-          istatus = nf90_put_var (ncid, iglo_kykxsel_id, iglo_kykxsel)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, iglo_kykxsel_id)
-
-
-          istatus = nf90_put_var (ncid, procid_kykxsel_id, procid_kykxsel)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, procid_kykxsel_id)
+          call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
+               dim_names=[character(len=7)::"aky", "akx", "nspec", "negrid", "nlambda"])
+          call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
+               dim_names=[character(len=7)::"aky", "akx", "nspec", "negrid", "nlambda"])
        end if
 
-       !Store variable iglo_llim_proc
-       istatus = nf90_put_var (ncid, iglo_llim_proc_id, g_lo%llim_proc)
-
-       !Check store was successful
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, iglo_llim_proc_id)
+       call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc)
 
        if (proc0) then ! only save grids on proc0
-          !Store variable jtwist
-          istatus = nf90_put_var (ncid, jtwist_id, jtwist_out)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, jtwist_id)
-
-          !Store variable theta_grid
-          istatus = nf90_put_var (ncid, theta_grid_id, theta)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, theta_grid_id)
-
-          !Store variable ky_grid
-          istatus = nf90_put_var (ncid, ky_grid_id, aky)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, ky_grid_id)
-
-          !Store variable kx_grid
-          istatus = nf90_put_var (ncid, kx_grid_id, akx)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, kx_grid_id)
-          ! Fill energy and lambda information
-
-          !Store variable energy
-          istatus = nf90_put_var (ncid, energy_id, energy)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, energy_id)
-
-          !Store variable lambda
-          istatus = nf90_put_var (ncid, lambda_id, al)
-
-          !Check store was successful
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, lambda_id)
+          call neasyf_write(ncid, "jtwist", jtwist_out)
+          call neasyf_write(ncid, "theta_grid", theta)
+          call neasyf_write(ncid, "ky_grid", aky)
+          call neasyf_write(ncid, "kx_grid", akx)
+          call neasyf_write(ncid, "energy", energy)
+          call neasyf_write(ncid, "lambda", al)
        end if
     end if
 
-    if(save_velocities_info) then
-       !Fill velocity variables
-
-       !Store variable vpa
-       istatus = nf90_put_var (ncid, vpa_id, vpa)
-
-       !Check store was successful
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, vpa_id)
-
-       !Store variable vperp2
-       istatus = nf90_put_var (ncid, vperp2_id, vperp2)
-
-       !Check store was successful
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, vperp2_id)
+    if (save_velocities_info) then
+       call neasyf_write(ncid, "vpa", vpa, dim_names=["theta", "sign ", "glo  "])
+       call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "])
     end if
 
     if (is_one_file_per_processor .or. proc0) then
@@ -795,61 +464,51 @@ contains
        if (this_proc_saves_fields) then
           if (has_phi) then
              ftmpr = real(phinew)
-             istatus = nf90_put_var (ncid, phir_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phir_id, &
-                  var = 'phir put')
-
+             call neasyf_write(ncid, "phi_r", ftmpr, dim_names=field_dim_names)
+             
              ftmpr = aimag(phinew)
-             istatus = nf90_put_var (ncid, phii_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, phii_id, &
-                  var = 'phir put')
+             call neasyf_write(ncid, "phi_i", ftmpr, dim_names=field_dim_names)
           end if
 
           if (has_apar) then
              ftmpr = real(aparnew)
-             istatus = nf90_put_var (ncid, aparr_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
-
+             call neasyf_write(ncid, "apar_r", ftmpr, dim_names=field_dim_names)
+             
              ftmpr = aimag(aparnew)
-             istatus = nf90_put_var (ncid, apari_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
+             call neasyf_write(ncid, "apar_i", ftmpr, dim_names=field_dim_names)
           end if
 
           if (has_bpar) then
              ftmpr = real(bparnew)
-             istatus = nf90_put_var (ncid, bparr_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
-
+             call neasyf_write(ncid, "bpar_r", ftmpr, dim_names=field_dim_names)
+             
              ftmpr = aimag(bparnew)
-             istatus = nf90_put_var (ncid, bpari_id, ftmpr)
-             if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
+             call neasyf_write(ncid, "bpar_i", ftmpr, dim_names=field_dim_names)
           end if
        end if
 
        if (.not. allocated(stmp)) allocate (stmp(naky))
+
+       ! Because we want to be able to restart using exb shear from a
+       ! case which does not have exb shear we always add kx_shift and
+       ! theta0_shift even if no exb shear present in simulation)
        if (allocated(kx_shift)) then
           stmp = kx_shift
        else
           stmp = 0.
        end if
-       istatus = nf90_put_var (ncid, kx_shift_id, stmp)
-       if (istatus /= NF90_NOERR) call netcdf_error &
-            (istatus, ncid, kx_shift_id, var = 'kx_shift put')
-
+       call neasyf_write(ncid, "kx_shift", stmp, dim_names=["aky"])
+       
        if (allocated(theta0_shift)) then
           stmp = theta0_shift
        else
           stmp = 0.
        end if
-       istatus = nf90_put_var (ncid, theta0_shift_id, stmp)
-       if (istatus /= NF90_NOERR) call netcdf_error &
-            (istatus, ncid, theta0_shift_id, var = 'theta0_shift put')
+       call neasyf_write(ncid, "theta0_shift", stmp, dim_names=["aky"])
     end if
 
     ! Close the file
-    i = nf90_close (ncid)
-    if (i /= NF90_NOERR) &
-         call netcdf_error (istatus, message='nf90_close error')
+    call neasyf_close(ncid)
 
     ! Deallocate local arrays
     if (allocated(iglo_kykxsel)) deallocate(iglo_kykxsel)
@@ -865,7 +524,7 @@ contains
   end subroutine gs2_save_for_restart
 
   !> Save g slices
-  subroutine gs2_save_slice(g_in, it, ik, il, ie, is, time,istatus, nout, fileopt, header)
+  subroutine gs2_save_slice(g_in, it, ik, il, ie, is, time, nout, fileopt, header)
 # ifdef NETCDF
     use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
     use gs2_metadata, only: create_metadata
@@ -889,8 +548,6 @@ contains
     integer, intent(in) :: it, ik, il, ie, is
     !> The current time
     real, intent(in) :: time
-    !> Last netCDF status: zero on success, non-zero on failure
-    integer, intent (out) :: istatus
     !> The current time output index
     integer, intent(in), optional :: nout
     !> Optional extra filename infix
@@ -1002,6 +659,7 @@ contains
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0
     use gs2_layouts, only: layout
+    use neasyf, only: neasyf_open, neasyf_read, neasyf_close
 # endif
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
@@ -1042,15 +700,10 @@ contains
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
     if (is_one_file_per_processor) then
-       istatus = nf90_open (file_proc, NF90_NOWRITE, ncid)
+       ncid = neasyf_open(file_proc, "r")
     else
-# ifdef NETCDF_PARALLEL          
-       ! If using netcdf version 4.1.2 deleted NF90_MPIIO and the associated IOR
-       istatus = nf90_open (file_proc, IOR(NF90_NOWRITE, NF90_MPIIO), ncid, comm=mp_comm, info=mp_info)
-# endif          
+       ncid = neasyf_open(file_proc, "r", comm=mp_comm, info=mp_info)
     end if
-
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, file=file_proc)
 
     call check_netcdf_file_precision (ncid)
 
@@ -1104,41 +757,6 @@ contains
          abort=abort_on_restart_fail)
     if (i /= ntheta0) write(*,*) 'Restart error: ntheta0=? ',i,' : ',ntheta0,' : ',iproc
 
-    if (this_proc_reads_fields) then
-       if (has_phi) then
-          istatus = nf90_inq_varid (ncid, "phi_r", phir_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_r')
-
-          istatus = nf90_inq_varid (ncid, "phi_i", phii_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='phi_i')
-       end if
-
-       if (has_apar) then
-          istatus = nf90_inq_varid (ncid, "apar_r", aparr_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_r')
-
-          istatus = nf90_inq_varid (ncid, "apar_i", apari_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='apar_i')
-       end if
-
-       if (has_bpar) then
-          istatus = nf90_inq_varid (ncid, "bpar_r", bparr_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_r')
-
-          istatus = nf90_inq_varid (ncid, "bpar_i", bpari_id)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='bpar_i')
-       end if
-    end if
-
-    if (allocated(kx_shift)) then   ! MR begin
-       istatus = nf90_inq_varid (ncid, "kx_shift", kx_shift_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='kx_shift')
-    endif   ! MR end
-
-    if (allocated(theta0_shift)) then
-       istatus = nf90_inq_varid (ncid, "theta0_shift", theta0_shift_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='theta0_shift')
-    endif
 
     if (include_explicit_source_in_restart) then
        has_explicit_source_terms = .true.
@@ -1188,23 +806,7 @@ contains
        has_explicit_source_terms = .false.
     end if
 
-    istatus = nf90_inq_varid (ncid, "gr", gr_id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gr',&
-         abort=abort_on_restart_fail)
-
-    istatus = nf90_inq_varid (ncid, "gi", gi_id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='gi',&
-         abort=abort_on_restart_fail)
-
-    istatus = nf90_inq_varid (ncid, "layout", layout_id)
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='layout_r')
-
-    istatus = nf90_get_var (ncid, layout_id, restart_layout)
-
-    if (istatus /= NF90_NOERR) then
-       call netcdf_error (istatus, ncid, layout_id, message=' in gs2_restore_many')
-       restart_layout = layout
-    endif
+    call neasyf_read(ncid, "layout", restart_layout)
 
     ! Abort if the layouts don't match
     if(restart_layout /= layout) then
@@ -1218,26 +820,21 @@ contains
 
     call zero_array(tmpr); call zero_array(tmpi)
 
+    start_pos = [1, 1, g_lo%llim_proc+1]
+    counts = [2*ntgrid+1, 2, n_elements]
+
     if (is_one_file_per_processor) then
-       istatus = nf90_get_var (ncid, gr_id, tmpr)
+       call neasyf_read(ncid, "gr", tmpr)
     else
-       start_pos = (/1,1,g_lo%llim_proc+1/)
-       counts = (/2*ntgrid+1, 2, n_elements/)
-       istatus = nf90_get_var (ncid, gr_id, tmpr, start=start_pos, count=counts)
+       call neasyf_read(ncid, "gr", tmpr, start=start_pos, count=counts)
     end if
-
-   if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gr_id,&
-         abort=abort_on_restart_fail, var='gr')
-
+   
     if(is_one_file_per_processor) then
-       istatus = nf90_get_var (ncid, gi_id, tmpi)
+       call neasyf_read(ncid, "gi", tmpi)
     else
-       istatus = nf90_get_var (ncid, gi_id, tmpi, start=start_pos, count=counts)
+       call neasyf_read(ncid, "gi", tmpi, start=start_pos, count=counts)
     end if
-
-    if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gi_id,&
-         abort=abort_on_restart_fail, var='gi')
-
+    
     g = cmplx(tmpr, tmpi)
 
     if (include_explicit_source_in_restart .and. has_explicit_source_terms) then
@@ -1250,95 +847,64 @@ contains
 
        if (has_gexp_1) then
           if (is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr)
+             call neasyf_read(ncid, "gexp_1_r", tmpr)
           else
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             istatus = nf90_get_var (ncid, gexp_1_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_1_r", tmpr, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_r_id,&
-               var='gexp_1_r')
-
+          
           if(is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi)
+             call neasyf_read(ncid, "gexp_1_i", tmpi)
           else
-             istatus = nf90_get_var (ncid, gexp_1_i_id, tmpi, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_1_i", tmpi, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_1_i_id,&
-               var='gexp_1_i')
-
+          
           gexp_1 = cmplx(tmpr, tmpi)
-
        endif
 
        ! Explicit source term
        if(allocated(gexp_2)) then
           if (is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr)
+             call neasyf_read(ncid, "gexp_2_r", tmpr)
           else
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             istatus = nf90_get_var (ncid, gexp_2_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_2_r", tmpr, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_r_id,&
-               var='gexp_2_r')
-
+          
           if(is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi)
+             call neasyf_read(ncid, "gexp_2_i", tmpi)
           else
-             istatus = nf90_get_var (ncid, gexp_2_i_id, tmpi, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_2_i", tmpi, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_2_i_id,&
-               var='gexp_2_i')
-
+          
           gexp_2 = cmplx(tmpr, tmpi)
-
        endif
 
        ! Explicit source term
        if(allocated(gexp_3)) then
           if (is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr)
+             call neasyf_read(ncid, "gexp_3_r", tmpr)
           else
-             start_pos = (/1,1,g_lo%llim_proc+1/)
-             counts = (/2*ntgrid+1, 2, n_elements/)
-             istatus = nf90_get_var (ncid, gexp_3_r_id, tmpr, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_3_r", tmpr, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_r_id,&
-               var='gexp_3_r')
-
+          
           if (is_one_file_per_processor) then
-             istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi)
+             call neasyf_read(ncid, "gexp_3_i", tmpi)
           else
-             istatus = nf90_get_var (ncid, gexp_3_i_id, tmpi, start=start_pos, count=counts)
+             call neasyf_read(ncid, "gexp_3_i", tmpi, start=start_pos, count=counts)
           end if
-
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, gexp_3_i_id,&
-               var='gexp_3_i')
-
+          
           gexp_3 = cmplx(tmpr, tmpi)
-
        endif
     end if
 
     if (allocated(kx_shift)) then   ! MR begin
        if (.not. allocated(stmp)) allocate (stmp(naky))   ! MR 
-       istatus = nf90_get_var (ncid, kx_shift_id, stmp)
-       if (istatus /= NF90_NOERR) &
-         call netcdf_error (istatus, ncid, kx_shift_id, var='kx_shift')
+       call neasyf_read(ncid, "kx_shift", stmp)
        kx_shift = stmp
     endif   ! MR end
 
     if (allocated(theta0_shift)) then
        if (.not. allocated(stmp)) allocate (stmp(naky))
-       istatus = nf90_get_var (ncid, theta0_shift_id, stmp)
-       if (istatus /= NF90_NOERR) &
-         call netcdf_error (istatus, ncid, theta0_shift_id, var='theta0_shift')
+       call neasyf_read(ncid, "theta0_shift", stmp)
        theta0_shift = stmp
     endif
 
@@ -1347,34 +913,20 @@ contains
        if (.not. allocated(ftmpi)) allocate (ftmpi(2*ntgrid+1,ntheta0,naky))
 
        if (has_phi) then
-          istatus = nf90_get_var (ncid, phir_id, ftmpr)
-          if (istatus /= NF90_NOERR) &
-               call netcdf_error (istatus, ncid, phir_id, var= 'phir')
-
-          istatus = nf90_get_var (ncid, phii_id, ftmpi)
-          if (istatus /= NF90_NOERR) &
-               call netcdf_error (istatus, ncid, phii_id, var='phii')
-
+          call neasyf_read(ncid, "phi_r", ftmpr)
+          call neasyf_read(ncid, "phi_i", ftmpi)
           phinew = cmplx(ftmpr, ftmpi)
        end if
 
        if (has_apar) then
-          istatus = nf90_get_var (ncid, aparr_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, aparr_id)
-
-          istatus = nf90_get_var (ncid, apari_id, ftmpi)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, apari_id)
-
+          call neasyf_read(ncid, "apar_r", ftmpr)
+          call neasyf_read(ncid, "apar_i", ftmpi)
           aparnew = cmplx(ftmpr, ftmpi)
        end if
 
        if (has_bpar) then
-          istatus = nf90_get_var (ncid, bparr_id, ftmpr)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bparr_id)
-
-          istatus = nf90_get_var (ncid, bpari_id, ftmpi)
-          if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, bpari_id)
-
+          call neasyf_read(ncid, "bpar_r", ftmpr)
+          call neasyf_read(ncid, "bpar_i", ftmpi)
           bparnew = cmplx(ftmpr, ftmpi)
        end if
     end if
@@ -1402,11 +954,7 @@ contains
        bparnew = bparnew*fac
     end if
 
-    ! RN 2008/05/23: this was commented out. why? HJL 2013/05/15 Because it stops future writing to the file, it's now back in after setting initialized to false
-    istatus = nf90_close (ncid)
-    if (istatus /= NF90_NOERR) then
-       write(error_unit(),*) "nf90_close error: ", nf90_strerror(istatus),' ',iproc
-    end if
+    call neasyf_close(ncid)
 
     ! Deallocate modul level arrays
     call deallocate_arrays
@@ -1422,10 +970,12 @@ contains
   subroutine gs2_save_response(resp, fname, code_dt, condition, header)
     use file_utils, only: error_unit
     use standard_header, only: standard_header_type
+    use optionals, only: get_option_with_default
 #ifdef NETCDF
     use convert, only: c2r
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
     use gs2_metadata, only: create_metadata
+    use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
 #else
     use file_utils, only: get_unused_unit
 #endif
@@ -1439,8 +989,7 @@ contains
 
     integer :: sz
 #ifdef NETCDF
-    real :: condition_local
-    integer :: ierr, ax1id,ax2id,riid, respid,dtid, condition_id, ncid
+    integer :: ncid
     real, dimension(:,:,:), allocatable :: ri_resp
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
@@ -1464,45 +1013,24 @@ contains
       local_header = standard_header_type()
     end if
 
-    !/Make file
-    ierr=nf90_create(fname, create_file_mode, ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
-
+    ncid = neasyf_open(fname, "w")
     call create_metadata(ncid, "GS2 response matrix", local_header)
 
-    !/Define dimensions
-    call ensure_netcdf_dim_exists(ncid, "ri", 2, riid)
-    call ensure_netcdf_dim_exists(ncid, "ax1", sz, ax1id)
-    call ensure_netcdf_dim_exists(ncid, "ax2", sz, ax2id)
+    call neasyf_dim(ncid, "ri", dim_size=2)
+    call neasyf_dim(ncid, "ax1", dim_size=sz)
+    call neasyf_dim(ncid, "ax2", dim_size=sz)
 
-    !/Define variables
-    call ensure_netcdf_var_exists(ncid, "response", netcdf_real, [riid,ax1id,ax2id], respid)
-    call ensure_netcdf_var_exists(ncid, "dt", netcdf_real, dtid)
-    call ensure_netcdf_var_exists(ncid, "condition", netcdf_real, condition_id)
-
-    !End definitions
-    ierr=nf90_enddef(ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
-
-    !Now we can place our data in the file
-    ierr=nf90_put_var(ncid,dtid,code_dt)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
-
-    condition_local = -1.0
-    if(present(condition)) condition_local = condition
-    ierr=nf90_put_var(ncid,condition_id,condition_local)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condtion")
+    call neasyf_write(ncid, "dt", code_dt)
+    call neasyf_write(ncid, "condition", get_option_with_default(condition, -1.0))
 
     !/Convert complex to ri and write
     allocate(ri_resp(2,sz,sz))
     call c2r(resp,ri_resp)
-    ierr=nf90_put_var(ncid,respid,ri_resp)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
+    call neasyf_write(ncid, "response", ri_resp, dim_names=["ri ", "ax1", "ax2"])
     deallocate(ri_resp)
 
     !/Now close the file
-    ierr=nf90_close(ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
+    call neasyf_close(ncid)
 
 #else
 !Fall back on binary output if no NETCDF
@@ -1521,6 +1049,7 @@ contains
   subroutine gs2_restore_response(resp, fname, code_dt, condition)
     use file_utils, only: error_unit
 #ifdef NETCDF
+    use neasyf, only: neasyf_open, neasyf_close, neasyf_read
     use convert, only: r2c
 #else
     use file_utils, only: get_unused_unit
@@ -1532,7 +1061,7 @@ contains
     real, intent(out), optional :: condition
     integer :: sz
 #ifdef NETCDF
-    integer :: ierr, respid, ncid, condition_id, dt_id
+    integer :: ncid
     real, dimension(:,:,:), allocatable :: ri_resp
 #else
     integer :: unit
@@ -1548,45 +1077,29 @@ contains
     endif
 
 #ifdef NETCDF
-
-    !/Open file
-    ierr=nf90_open(fname,NF90_NOWRITE,ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
-
-    !/Get variable id
-    ierr=nf90_inq_varid(ncid,"response",respid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
+    ncid = neasyf_open(fname, "r")
 
     !/Read and convert ri to complex
     allocate(ri_resp(2,sz,sz))
-    ierr=nf90_get_var(ncid,respid,ri_resp)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="response")
+    call neasyf_read(ncid, "response", ri_resp)
     call r2c(resp,ri_resp)
     deallocate(ri_resp)
 
     !/Get the time step
-    ierr = nf90_inq_varid(ncid, "dt", dt_id)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr, var="dt")
-    ierr=nf90_get_var(ncid, dt_id, code_dt)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="dt")
+    call neasyf_read(ncid, "dt", code_dt)
 
     !/Get the condition number
     if (present(condition)) then
-       ierr = nf90_inq_varid(ncid, "condition", condition_id)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr, var="condition")
-       ierr=nf90_get_var(ncid, condition_id, condition)
-       if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="condition")
+       call neasyf_read(ncid, "condition", condition)
     end if
 
     !/Now close the file
-    ierr=nf90_close(ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
-
+    call neasyf_close(ncid)
 #else
 !Fall back on binary output if no NETCDF
     !Get a free unit
     call get_unused_unit(unit)
-    
+
     !Open file and write
     open(unit=unit,file=fname,form="unformatted")
     read(unit) resp
@@ -1596,63 +1109,25 @@ contains
 
   !> Initialises a file for saving output of eigensolver to netcdf
   subroutine init_eigenfunc_file(fname, has_phi, has_apar, has_bpar, IDs)
-    use file_utils, only: error_unit
-    use theta_grid, only: ntgrid, theta
 #ifdef NETCDF
+    use theta_grid, only: theta
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
+    use neasyf, only: neasyf_open, neasyf_dim
 #endif
     implicit none
     character(len=*), intent(in) :: fname
     type(EigNetcdfID), intent(inout) :: IDs
     logical, intent(in) :: has_phi, has_apar, has_bpar
-#ifdef NETCDF
-    integer :: ierr
-#endif
 
     !Set nconv counter to 0
     IDs%nconv_count=0
 
 #ifdef NETCDF
-    !/Make file
-    ierr=nf90_create(fname, create_file_mode, IDs%ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
+    IDs%ncid = neasyf_open(fname, "w")
 
-    !/Define dimensions
-    call ensure_netcdf_dim_exists(IDs%ncid, "ri", 2, IDs%ri_dim_id)
-    call ensure_netcdf_dim_exists(IDs%ncid, "theta", 2*ntgrid+1, IDs%theta_dim_id)
-    call ensure_netcdf_dim_exists(IDs%ncid, "nconv", NF90_UNLIMITED, IDs%conv_dim_id)
-
-    !/Define variables
-    !Dimensions
-    call ensure_netcdf_var_exists(IDs%ncid, "theta", netcdf_real, &
-         IDs%theta_dim_id, IDs%theta_var_id)
-    call ensure_netcdf_var_exists(IDs%ncid, "conv", netcdf_real, &
-         IDs%conv_dim_id, IDs%conv_var_id)
-    !Fields
-    if(has_phi)then
-       call ensure_netcdf_var_exists(IDs%ncid, "phi", netcdf_real, &
-            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%phi_var_id)
-    endif
-    if(has_apar)then
-       call ensure_netcdf_var_exists(IDs%ncid, "apar", netcdf_real, &
-            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%apar_var_id)
-    endif
-    if(has_bpar)then
-       call ensure_netcdf_var_exists(IDs%ncid, "bpar", netcdf_real, &
-            [IDs%ri_dim_id, IDs%theta_dim_id, IDs%conv_dim_id], IDs%bpar_var_id)
-    endif
-    !Omega
-    call ensure_netcdf_var_exists(IDs%ncid, "omega", netcdf_real, &
-         [IDs%ri_dim_id, IDs%conv_dim_id], IDs%omega_var_id)
-    
-    !End definitions
-    ierr=nf90_enddef(IDs%ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,file=fname)
-
-    !Now we can place some data in the file
-    ierr=nf90_put_var(IDs%ncid,IDs%theta_var_id,theta)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr,var="theta")
-
+    call neasyf_dim(IDs%ncid, "ri", dim_size=2)
+    call neasyf_dim(IDs%ncid, "theta", theta)
+    call neasyf_dim(IDs%ncid, "conv", unlimited=.true.)
 #endif
   end subroutine init_eigenfunc_file
 
@@ -1661,6 +1136,9 @@ contains
     use fields_arrays, only: phinew, aparnew, bparnew
     use convert, only: c2r
     use theta_grid, only: ntgrid
+#ifdef NETCDF
+    use neasyf, only: neasyf_write
+#endif
     complex, intent(in) :: eval !Note just use fields to get eigenvectors
     real, intent(in), optional :: my_conv
     type(EigNetcdfID), intent(inout) :: IDs
@@ -1669,19 +1147,16 @@ contains
     real, dimension(2) :: ri_omega
     real, dimension(:,:), allocatable :: ri_field
     integer, dimension(3) :: start_field, count_field
-    integer, dimension(2) :: start_omega
-    integer :: ierr
     real :: local_conv
+    character(*), dimension(*), parameter :: eigen_field_dim_names = [character(len=5)::"ri", "theta", "conv"]
 #endif
 
     !First increment counter
     IDs%nconv_count=IDs%nconv_count+1
 
 #ifdef NETCDF
-    !Now we make start values
-    start_field(1)=1 ; start_field(2)=1 ; start_field(3)=IDs%nconv_count
-    count_field(1)=2 ; count_field(2)=2*ntgrid+1 ; count_field(3)=1
-    start_omega(1)=1 ; start_omega(2)=IDs%nconv_count
+    start_field = [1, 1, IDs%nconv_count]
+    count_field = [2, 2*ntgrid+1, 1]
 
     !Set the conv value
     if(present(my_conv))then
@@ -1692,31 +1167,30 @@ contains
 
     !Now we can write data
     !/Conv
-    ierr=nf90_put_var(IDs%ncid,IDs%conv_var_id,local_conv, start=(/IDs%nconv_count/))!,count=(/1/))
-    if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%conv_var_id)
+    call neasyf_write(IDs%ncid, "conv", local_conv, start=[IDs%nconv_count])
 
     !/Omega
     ri_omega(1)=real(eval)
     ri_omega(2)=aimag(eval)
-    ierr=nf90_put_var(IDs%ncid,IDs%omega_var_id,ri_omega, start=start_omega,count=(/2,1/))
-    if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%omega_var_id)
+    call neasyf_write(IDs%ncid, "omega", ri_omega, dim_names=["ri  ", "conv"], &
+         start=[1, IDs%nconv_count], count=[2,1])
 
     !/Fields
     allocate(ri_field(2,2*ntgrid+1))
     if(has_phi)then
        call c2r(phinew(:,1,1),ri_field)
-       ierr=nf90_put_var(IDs%ncid,IDs%phi_var_id,ri_field, start=start_field,count=count_field)
-       if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%phi_var_id)
+       call neasyf_write(IDs%ncid, "phi", ri_field, dim_names=eigen_field_dim_names, &
+            start=start_field, count=count_field)
     endif
     if(has_apar)then
        call c2r(aparnew(:,1,1),ri_field)
-       ierr=nf90_put_var(IDs%ncid,IDs%apar_var_id,ri_field, start=start_field,count=count_field)
-       if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%apar_var_id)
+       call neasyf_write(IDs%ncid, "apar", ri_field, dim_names=eigen_field_dim_names, &
+            start=start_field, count=count_field)
     endif
     if(has_bpar)then
        call c2r(bparnew(:,1,1),ri_field)
-       ierr=nf90_put_var(IDs%ncid,IDs%bpar_var_id,ri_field, start=start_field,count=count_field)
-       if(ierr/=NF90_NOERR) call netcdf_error (ierr, IDs%ncid, IDs%bpar_var_id)
+       call neasyf_write(IDs%ncid, "bpar", ri_field, dim_names=eigen_field_dim_names, &
+            start=start_field, count=count_field)
     endif
     deallocate(ri_field)       
 #endif
@@ -1724,14 +1198,13 @@ contains
 
   !> Close the eigenfunction file
   subroutine finish_eigenfunc_file(IDs)
+#ifdef NETCDF
+    use neasyf, only: neasyf_close
+#endif
     implicit none
     type(EigNetcdfID), intent(inout) :: IDs
 #ifdef NETCDF
-    integer :: ierr
-
-    !/Now close the file
-    ierr=nf90_close(IDs%ncid)
-    if(ierr/=NF90_NOERR) call netcdf_error(ierr)
+    call neasyf_close(IDs%ncid)
 #endif
   end subroutine finish_eigenfunc_file
 
@@ -1862,9 +1335,9 @@ contains
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
+    use neasyf, only: neasyf_open, neasyf_read, neasyf_close
 # endif
     implicit none
-    integer :: istatus, current_scan_parameter_value_id_local
     integer :: ncid_local
     real, intent (out) :: current_scan_parameter_value
 # ifdef NETCDF
@@ -1878,24 +1351,9 @@ contains
     if (proc0) then
        file_proc = get_file_proc(is_one_file_per_processor)
 
-       istatus = nf90_open (file_proc, NF90_NOWRITE, ncid_local)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus,file=file_proc)
-       istatus = nf90_inq_varid (ncid_local, &
-            "current_scan_parameter_value", &
-            current_scan_parameter_value_id_local)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus,&
-            var='current_scan_parameter_value_id')
-
-       istatus = nf90_get_var (ncid_local, &
-                                 current_scan_parameter_value_id_local, &
-                                 current_scan_parameter_value)
-       
-       if (istatus /= NF90_NOERR) then
-          call netcdf_error (istatus, ncid_local,&
-               current_scan_parameter_value_id_local)          
-       endif
-        
-       istatus = nf90_close (ncid_local)
+       ncid_local = neasyf_open(file_proc, "r")
+       call neasyf_read(ncid_local, "current_scan_parameter_value", current_scan_parameter_value)
+       call neasyf_close(ncid_local)
     endif
 
     call broadcast (current_scan_parameter_value)
@@ -1903,12 +1361,13 @@ contains
 # endif
   end subroutine restore_current_scan_parameter_value
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_dt (delt0, delt1, delt2, delt_max, istatus, not_set_value)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
     use optionals, only: get_option_with_default
+    use neasyf, only: neasyf_open, neasyf_read, neasyf_close
 # endif
     implicit none
     real, intent (in out) :: delt0, delt1, delt2, delt_max
@@ -2046,6 +1505,7 @@ contains
 # ifdef NETCDF
     use file_utils, only: error_unit
     use constants, only: zi
+    use neasyf, only: neasyf_read, neasyf_close
 # endif
     use mp, only: proc0
     implicit none
@@ -2075,45 +1535,29 @@ contains
 
        istatus = nf90_inq_dimid (ncid, "nk_stir", nk_stir_dim)
        if (istatus /= NF90_NOERR) call netcdf_error (istatus, dim='nk_stir')
-       
+
        istatus = nf90_inquire_dimension (ncid, nk_stir_dim, len=i)
        if (istatus /= NF90_NOERR) &
             call netcdf_error (istatus, ncid, dimid=nk_stir_dim)
        if (i /= nk_stir) write(*,*) 'Restart error: nk_stir=? ',i,' : ',nk_stir
 
-       istatus = nf90_inq_varid (ncid, "a_ant_r", a_antr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='a_ant_r')
-
-       istatus = nf90_inq_varid (ncid, "a_ant_i", a_anti_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='a_ant_i')
-
-       istatus = nf90_inq_varid (ncid, "b_ant_r", b_antr_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='b_ant_r')
-
-       istatus = nf90_inq_varid (ncid, "b_ant_i", b_anti_id)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, var='b_ant_i')
-
        if (.not. allocated(atmp)) allocate (atmp(nk_stir))
        atmp = 0.
 
-       istatus = nf90_get_var (ncid, a_antr_id, atmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, a_antr_id)
+       call neasyf_read(ncid, "a_ant_r", atmp)
        a_ant = atmp
 
-       istatus = nf90_get_var (ncid, a_anti_id, atmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, a_anti_id)
+       call neasyf_read(ncid, "a_ant_i", atmp)
        a_ant = a_ant + zi * atmp
 
-       istatus = nf90_get_var (ncid, b_antr_id, atmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, b_antr_id)
+       call neasyf_read(ncid, "b_ant_r", atmp)
        b_ant = atmp
 
-       istatus = nf90_get_var (ncid, b_anti_id, atmp)
-       if (istatus /= NF90_NOERR) call netcdf_error (istatus, ncid, b_anti_id)
+       call neasyf_read(ncid, "b_ant_i", atmp)
        b_ant = b_ant + zi * atmp
 
        deallocate (atmp)
-       istatus = nf90_close (ncid)
+       call neasyf_close(ncid)
     endif
 
 # else
@@ -2124,7 +1568,7 @@ contains
 
   end subroutine init_ant_amp
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine read_t0_from_restart_file (tstart, istatus)
 # ifdef NETCDF
     use mp, only: proc0, broadcast
