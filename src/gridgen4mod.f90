@@ -1070,6 +1070,9 @@ contains
          ! This _could_ result in us not finding a valid match and hence aborting here.
          if (npts_set(idel) > ntheta_left - ntheta) then
             write(6, *) "Warning going to remove set with too many points - expect abort"
+            ! Could do the following to try to find an alternative:
+            !idel = minimum_index(resolution_metric, bmagset /= 0.0 .and. &
+            !npts_set <= ntheta_left-ntheta, precision_bound)
          end if
 
          if (debug) then
