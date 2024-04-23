@@ -1059,6 +1059,14 @@ contains
          resolution_metric = thetares + alknob * alambdares
          idel = minimum_index(resolution_metric, bmagset /= 0.0, precision_bound)
 
+         ! For now we just check how many points we're expecting to delete and warn
+         ! if this is going to cause an issue. In the future we could then choose to
+         ! (re-)find a minimum only where the set doesn't contain too many points.
+         ! This _could_ result in us not finding a valid match and hence aborting here.
+         if (count(ibmagsetset == idel) > ntheta_left - ntheta) then
+            write(6, *) "Warning going to remove set with too many points - expect abort"
+         end if
+
          if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             if (debug_output) write (unit=debug_unit, fmt=*) "gg4remove idel ",idel
