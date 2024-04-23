@@ -544,7 +544,7 @@ contains
     subroutine gg4collect
       use mp, only: mp_abort
       implicit none
-      integer :: i, iset, j
+      integer :: i, iset, j, nessential_tot
       real :: thetai, bmagi
 
       ! Allocate
@@ -765,6 +765,26 @@ contains
       nset = nstart
       bmagset = bmagstart
       essentialset = essentialstart
+
+      ! Count number of theta grid points associated with essential sets
+      nessential_tot = 0
+      do i = 1, nsetset
+         iset = ibmagsetset(i)
+         if (.not. essentialset(iset)) cycle
+         if (bmagset(iset) == 0) cycle
+         nessential_tot = nessential_tot + 1
+      end do
+
+      if (debug) write(6, '("Number of theta grid associated with essential sets is ",I0)') &
+           nessential_tot
+
+      ! Provide a warning if an excess of grid points associated with extrema.
+      if (nessential_tot >= ntheta) then
+         write(6, '("The number of theta grid points associated with extrema (",I0,") greater or equal than requested size of theta grid (",I0,").")') nessential_tot, ntheta
+         write(6, '("This can severely constrain the choice of the theta grid and may lead to an incorrectly sized output grid and related errors.")')
+         write(6, '("Consider increasing ntheta or the tension input.")')
+      end if
+
     end subroutine gg4collect
 
     !> FIXME : Add documentation    
