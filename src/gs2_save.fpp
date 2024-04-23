@@ -6,21 +6,17 @@ module gs2_save
 
 # ifdef NETCDF
 # ifdef NETCDF_PARALLEL
-  use netcdf, only: NF90_MPIIO
-  use netcdf, only: nf90_var_par_access
-  use netcdf, only: nf90_put_att, NF90_GLOBAL, nf90_get_att
-  use netcdf, only: nf90_create_par
+  use netcdf, only: nf90_put_att, NF90_GLOBAL
 # endif
-  use netcdf, only: NF90_NOWRITE, NF90_CLOBBER, NF90_NOERR, NF90_UNLIMITED, NF90_CHAR, NF90_NETCDF4
+  use netcdf, only: NF90_NOWRITE, NF90_NOERR
   use netcdf, only: nf90_create, nf90_open, nf90_close
   use netcdf, only: nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
   
-  use netcdf_utils, only: get_netcdf_code_precision
   use netcdf_utils, only: check_netcdf_file_precision
   use netcdf_utils, only: netcdf_error
-  use netcdf_utils, only: netcdf_real, netcdf_int, kind_nf
+  use netcdf_utils, only: netcdf_real, kind_nf
 # endif
 
   implicit none
@@ -77,8 +73,6 @@ module gs2_save
   integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
   !> Do we save the scan parameter or not?
   logical, parameter :: include_parameter_scan = .true.
-  !> Open new netCDF files with netCDF-4 model, and overwrite existing files
-  integer, parameter :: create_file_mode = ior(NF90_NETCDF4, NF90_CLOBBER)
 
   !> The NETCDF_PARALLEL directives include code for parallel
   !> netcdf using HDF5 to write the output to a single restart file
