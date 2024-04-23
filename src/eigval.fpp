@@ -1095,8 +1095,7 @@ contains
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_r,ierr)
        call MatCreateVecs(my_operator,PETSC_NULL_VEC,eig_vec_i,ierr)
 #endif
-       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", &
-            has_phi, has_apar, has_bpar, io_ids)
+       if(proc0)call init_eigenfunc_file(trim(run_name)//"_eig.out.nc", io_ids)
 
        !Now loop over converged values
        do ieig=0,n_converged-1

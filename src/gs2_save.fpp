@@ -1108,7 +1108,7 @@ contains
   end subroutine gs2_restore_response
 
   !> Initialises a file for saving output of eigensolver to netcdf
-  subroutine init_eigenfunc_file(fname, has_phi, has_apar, has_bpar, IDs)
+  subroutine init_eigenfunc_file(fname, IDs)
 #ifdef NETCDF
     use theta_grid, only: theta
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
@@ -1117,7 +1117,6 @@ contains
     implicit none
     character(len=*), intent(in) :: fname
     type(EigNetcdfID), intent(inout) :: IDs
-    logical, intent(in) :: has_phi, has_apar, has_bpar
 
     !Set nconv counter to 0
     IDs%nconv_count=0
