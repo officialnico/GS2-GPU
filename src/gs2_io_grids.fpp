@@ -123,8 +123,8 @@ contains
   end subroutine nc_get_lambda_grid_size
 
   !> Read scalar geometry data from the input netCDF file
-  subroutine nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj)
-    real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj
+  subroutine nc_get_grid_scalars(shat, drhodpsi, kxfac, qval, rmaj, B_T, aminor, grhoavg, surfarea)
+    real, intent(out), optional :: shat, drhodpsi, kxfac, qval, rmaj, B_T, aminor, grhoavg, surfarea
 # ifdef NETCDF
     if (.not.proc0) return
     if (present(drhodpsi)) call neasyf_read(ncid, "drhodpsi", drhodpsi)
@@ -132,6 +132,10 @@ contains
     if (present(shat)) call neasyf_read(ncid, "shat", shat)
     if (present(kxfac)) call neasyf_read(ncid, "kxfac", kxfac)
     if (present(qval)) call neasyf_read(ncid, "q", qval)
+    if (present(B_T)) call neasyf_read(ncid, "B_T", B_T)
+    if (present(aminor)) call neasyf_read(ncid, "aminor", aminor)
+    if (present(grhoavg)) call neasyf_read(ncid, "grhoavg", grhoavg)
+    if (present(surfarea)) call neasyf_read(ncid, "surfarea", surfarea)
 # else
     call mp_abort("nc_get_grid_scalars does not work without NetCDF")
 # endif
