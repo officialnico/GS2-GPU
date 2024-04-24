@@ -1063,21 +1063,24 @@ contains
 
     !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
     !               to determine r2 on inboard mid-plane
-    do i = 1, nz
+    index = i1 - half_nz + k
+    rtmp(i) = r(index)
+    ztmp(i) = z(index)
+
+    do i = 2, nz
        index = i1 - half_nz + i - 1 + k
-       rtmp(i) = r(index) ; ztmp(i) = z(index)
-       if ( i > 1 ) then
-          ! If we find a duplicate point then we increase the
-          ! duplicate point counter in k, used to offset index and
-          ! store the next value instead Note, here we assume we can't
-          ! get three duplicate values. A better approach may be to
-          ! instead use a while loop where we keep going until we've
-          ! found enough points.
-          if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
-             k = k + 1
-             if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(index + 1) ; ztmp(i) = z(index + 1)
-          end if
+       rtmp(i) = r(index)
+       ztmp(i) = z(index)
+       ! If we find a duplicate point then we increase the
+       ! duplicate point counter in k, used to offset index and
+       ! store the next value instead Note, here we assume we can't
+       ! get three duplicate values. A better approach may be to
+       ! instead use a while loop where we keep going until we've
+       ! found enough points.
+       if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
+         k = k + 1
+         if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
+         rtmp(i) = r(index + 1) ; ztmp(i) = z(index + 1)
        end if
     end do
 
