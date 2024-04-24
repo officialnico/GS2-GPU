@@ -1160,7 +1160,8 @@ contains
 
     !Now we can write data
     !/Conv
-    call neasyf_write(IDs%ncid, "conv", local_conv, start=[IDs%nconv_count])
+    call neasyf_write(IDs%ncid, "conv", local_conv, dim_names=["conv"], &
+         start=[IDs%nconv_count])
 
     !/Omega
     ri_omega(1)=real(eval)
