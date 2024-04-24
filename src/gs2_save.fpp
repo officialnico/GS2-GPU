@@ -39,10 +39,8 @@ module gs2_save
 
   !> A custom type to look after the netcdf ids for the eigenvalue file
   type EigNetcdfID
-     integer :: ncid, conv_dim_id, theta_dim_id, ri_dim_id
-     integer :: omega_var_id, theta_var_id, phi_var_id
-     integer :: apar_var_id, bpar_var_id, conv_var_id
-     integer :: nconv_count
+     integer :: ncid            !< File handle
+     integer :: nconv_count     !< Current size of `conv` dimension
   end type EigNetcdfID
 
   !> Read and write single or multiple restart files.
@@ -1052,6 +1050,7 @@ contains
     use theta_grid, only: ntgrid
 #ifdef NETCDF
     use neasyf, only: neasyf_write
+    use optionals, only: get_option_with_default
 #endif
     complex, intent(in) :: eval !Note just use fields to get eigenvectors
     real, intent(in), optional :: my_conv
@@ -1072,15 +1071,8 @@ contains
     start_field = [1, 1, IDs%nconv_count]
     count_field = [2, 2*ntgrid+1, 1]
 
-    !Set the conv value
-    if(present(my_conv))then
-       local_conv=my_conv
-    else
-       local_conv=IDs%nconv_count*1.0
-    endif
+    local_conv = get_option_with_default(my_conv, real(IDs%nconv_count))
 
-    !Now we can write data
-    !/Conv
     call neasyf_write(IDs%ncid, "conv", local_conv, dim_names=["conv"], &
          start=[IDs%nconv_count])
 
