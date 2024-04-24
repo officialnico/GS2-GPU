@@ -29,21 +29,6 @@ module gs2_io_grids
 
 contains
 
-  !> Remove the output netCDF file if already exists
-  subroutine nc_grid_file_new(filename)
-    use file_utils, only: get_unused_unit
-    character (len=*), intent(in) :: filename
-    logical :: is_exist
-    integer :: unit
-    if (.not.proc0) return
-    inquire(file=filename, exist=is_exist)
-    if (is_exist) then
-       write(6,*) 'WARNING: existing file will be over-written ', trim(filename)
-       open(unit, file=filename)
-       close(unit, status='delete')
-    end if
-  end subroutine nc_grid_file_new
-
   !> Open the netCDF file
   !> If the file already exists, remove it.
   subroutine nc_grid_file_open(filename, mode)
