@@ -162,9 +162,6 @@ contains
     logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
     integer :: iglo
-    ! Netcdf ids for variables only handled in this routine
-    integer (kind_nf) :: egridid,lgridid
-    integer (kind_nf) :: nspecid, spec_id
 
     type(standard_header_type) :: local_header
 
@@ -240,20 +237,24 @@ contains
        call ensure_netcdf_dim_exists(ncid, "glo", total_elements, gloid)
     endif
 
-    call ensure_netcdf_dim_exists(ncid, "theta", 2*ntgrid+1, thetaid)
-    call ensure_netcdf_dim_exists(ncid, "sign", 2, signid)
-    call ensure_netcdf_dim_exists(ncid, "aky", naky, kyid)
-    call ensure_netcdf_dim_exists(ncid, "akx", ntheta0, kxid)
+    call neasyf_dim(ncid, "theta", theta)
+    call neasyf_dim(ncid, "sign", dim_size=2)
+    call neasyf_dim(ncid, "aky", aky)
+    call neasyf_dim(ncid, "akx", akx)
 
     ! Decide if this processor should take part in defining items
     ! which should only appear once in outputs.
     should_define_single_entry_variables = proc0 .or. (.not. is_one_file_per_processor)
 
     !For saving distribution function
-    IF (save_glo_info_and_grids_local .and. should_define_single_entry_variables) THEN
-       call ensure_netcdf_dim_exists(ncid, "negrid", negrid, egridid)
-       call ensure_netcdf_dim_exists(ncid, "nlambda", nlambda, lgridid)
-       call ensure_netcdf_dim_exists(ncid, "nspec", nspec, nspecid)
+    if (save_glo_info_and_grids_local .and. should_define_single_entry_variables) then
+       call neasyf_dim(ncid, "lambda", values=al, long_name="Energy/magnetic moment", units="1/(2 B_a)")
+       call neasyf_dim(ncid, "species", dim_size=nspec)
+
+       ! Energy coordinate is a function of species, but the dimension must be 1D
+       call neasyf_dim(ncid, "egrid", dim_size=negrid, long_name="See 'energy' for energy grid values")
+       call neasyf_write(ncid, "energy", energy, dim_names=["egrid  ", "species"], &
+            long_name="Energy grid values")
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining variables')
@@ -263,7 +264,7 @@ contains
     end if
 
     !For saving distribution function
-    IF (save_glo_info_and_grids_local) THEN
+    if (save_glo_info_and_grids_local) then
        ! only store layout information on processor 0
        if (should_define_single_entry_variables) then
           if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
@@ -279,13 +280,7 @@ contains
                   ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = proc_id(g_lo,iglo)
           end do
        endif
-
-       ! only store layout information on processor 0
-       if(should_define_single_entry_variables) then
-          call ensure_netcdf_var_exists(ncid, "species", netcdf_real, [nspecid], spec_id)
-       endif
-
-    END IF
+    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
     
@@ -430,20 +425,15 @@ contains
        ! Fill processor and layout information for plotting purposes
        if (proc0) then
           call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
-               dim_names=[character(len=7)::"aky", "akx", "nspec", "negrid", "nlambda"])
+               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"])
           call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
-               dim_names=[character(len=7)::"aky", "akx", "nspec", "negrid", "nlambda"])
+               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"])
        end if
 
        call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc)
 
        if (proc0) then ! only save grids on proc0
           call neasyf_write(ncid, "jtwist", jtwist_out)
-          call neasyf_write(ncid, "theta_grid", theta)
-          call neasyf_write(ncid, "ky_grid", aky)
-          call neasyf_write(ncid, "kx_grid", akx)
-          call neasyf_write(ncid, "energy", energy)
-          call neasyf_write(ncid, "lambda", al)
        end if
     end if
 
