@@ -1712,7 +1712,7 @@ contains
     use constants, only: pi, sqrt_pi
     use gs2_save, only: init_vnm
     real, dimension(negrid):: hee, hsg, local_energy
-    integer :: ik, ie, is, it, ig
+    integer :: ik, ie, is, it
     integer :: istatus
     real :: k4max
     real :: vl, vr, dv2l, dv2r
@@ -2983,7 +2983,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex :: tmp
-    integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
+    integer :: ig, it, ik, ie, is, ile, ixi
 
     if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
@@ -3199,8 +3199,8 @@ contains
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex :: v0y0, v1y1, v2y2
-    real :: vpa_nud, nud
-    integer :: ig, isgn, ik, ie, il, is, it, ile, ixi
+    real :: nud
+    integer :: ig, ik, ie, is, it, ile, ixi
 
     if (drag) then
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3484,7 +3484,7 @@ contains
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     real :: delnu, vnE
-    integer :: ig, ik, ie, il, is, it, ile, ixi
+    integer :: ig, ik, ie, is, it, ile, ixi
     complex :: v0y0, v1y1, v2y2
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

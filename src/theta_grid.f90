@@ -1718,7 +1718,6 @@ contains
          Rplot, Zplot, Rprime, Zprime, aplot, aprime, Bpol
     real, intent (out) :: shat, drhodpsi, kxfac, qval, surfarea, dvdrhon, rhoc
     logical, intent (in) :: gb_to_cv
-    integer :: ig
     integer, parameter :: verb=3
     character(4) :: ntgrid_char
     write(ntgrid_char, "(I4)") ntgrid

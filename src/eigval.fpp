@@ -1078,7 +1078,7 @@ contains
     PetscInt :: ieig
     type(EigNetcdfID) :: io_ids
     character(len=20) :: restart_unique_string
-    integer :: istatus, original_navg
+    integer :: original_navg
 
     !Find out how many iterations were performed
     call EPSGetIterationNumber(my_solver,iteration_count,ierr)

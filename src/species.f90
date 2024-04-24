@@ -390,7 +390,6 @@ contains
     implicit none
     type(species_config_type), intent(in), optional :: species_config_in
     type(species_element_config_type), intent(in), dimension(:), allocatable, optional :: species_elements_config_in
-    character(20) :: type, f0type
     integer :: is, ierr
 
     type (text_option), dimension (*), parameter :: typeopts = [ &
