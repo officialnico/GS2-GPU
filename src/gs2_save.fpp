@@ -9,14 +9,14 @@ module gs2_save
   use netcdf, only: nf90_put_att, NF90_GLOBAL
 # endif
   use netcdf, only: NF90_NOWRITE, NF90_NOERR
-  use netcdf, only: nf90_create, nf90_open, nf90_close
+  use netcdf, only: nf90_open, nf90_close
   use netcdf, only: nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
   
   use netcdf_utils, only: check_netcdf_file_precision
   use netcdf_utils, only: netcdf_error
-  use netcdf_utils, only: netcdf_real, kind_nf
+  use netcdf_utils, only: kind_nf
 # endif
 
   implicit none
@@ -64,13 +64,7 @@ module gs2_save
 #ifdef NETCDF
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
   real, allocatable, dimension(:) :: stmp, atmp
-  ! Netcdf ids for quantities referenced in multiple routines.
-  integer (kind_nf) :: ncid, thetaid, signid, gloid, kyid, kxid, nk_stir_dim
-  integer (kind_nf) :: t0id, vnm1id, vnm2id
-  integer (kind_nf) :: delt0id, delt1id, delt2id, delt_max_id
-  integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
-  integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
-  integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
+
   !> Do we save the scan parameter or not?
   logical, parameter :: include_parameter_scan = .true.
 
@@ -163,6 +157,8 @@ contains
     integer :: iglo
     ! Whether to use collective (parallel) or independent access to netCDF variables
     integer :: par_access
+    ! File handle
+    integer :: ncid
 
     type(standard_header_type) :: local_header
 
@@ -511,6 +507,8 @@ contains
     real, dimension(:, :, :), allocatable :: ri_gslice
     integer, save :: nout_local = 1
     logical :: error_exit
+    ! File handle
+    integer :: ncid
 
     call debug_message(verb, 'gs2_save::gs2_save_slice initialising')
 
@@ -630,13 +628,19 @@ contains
     integer, dimension(3) :: counts, start_pos
     character (run_name_size) :: file_proc
     character (len = 5) :: restart_layout
-    integer :: i, n_elements
+    integer :: i
     real :: fac
     logical :: has_explicit_source_terms
     logical :: is_one_file_per_processor
     logical :: has_gexp_1
     logical, save :: explicit_warning_given = .false.
-    n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
+    ! File handle
+    integer :: ncid
+    ! Variable handles
+    integer (kind_nf) :: thetaid, signid, gloid, kyid, kxid
+    integer (kind_nf) :: gexp_1_r_id, gexp_1_i_id
+    integer (kind_nf) :: gexp_2_r_id, gexp_2_i_id
+    integer (kind_nf) :: gexp_3_r_id, gexp_3_i_id
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
@@ -1288,6 +1292,8 @@ contains
     character (run_name_size) :: file_proc
     real :: not_set_value_to_use
     logical :: is_one_file_per_processor
+    ! NetCDF handles
+    integer(kind_nf) :: ncid, delt0id, delt1id, delt2id, delt_max_id
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
@@ -1370,6 +1376,8 @@ contains
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     logical :: is_one_file_per_processor
+    ! NetCDF handles
+    integer(kind_nf) :: ncid, vnm1id, vnm2id
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
@@ -1427,6 +1435,8 @@ contains
     character (run_name_size) :: file_proc
     integer :: ierr, i
     logical :: is_one_file_per_processor
+    ! NetCDF handles
+    integer(kind_nf) :: ncid, nk_stir_dim
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
@@ -1491,6 +1501,8 @@ contains
 # ifdef NETCDF
     character (run_name_size) :: file_proc
     logical :: is_one_file_per_processor
+    ! NetCDF handles
+    integer(kind_nf) :: ncid, t0id
 
     is_one_file_per_processor = read_many .or. (.not. has_netcdf_parallel)
 
