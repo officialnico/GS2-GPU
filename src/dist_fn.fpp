@@ -6134,7 +6134,7 @@ contains
   !> FIXME: Get these notes on the website
   subroutine getan_from_dfn (g_in, antot, antota, antotp, local_only)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
-    use kt_grids, only: kperp2, naky, ntheta0
+    use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species

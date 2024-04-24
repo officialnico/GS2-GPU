@@ -23,7 +23,6 @@ contains
   !> domain defined by the coordinates (R,Z).
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use constants, only: twopi
     use splines, only: inter_cspl
     use geo_utils, only: sort
     implicit none

@@ -408,7 +408,7 @@ contains
   !>   - 'E', 'O' mean continuous at theta = +/- pi
   !>   - 'T' means a jump of 2 pi at theta = +/- pi
   pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi, twopi
+    use constants, only: pi
     implicit none
     class(abstract_geo_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f

@@ -324,7 +324,7 @@ contains
     use gs2_init, only: init_gs2_init
     use job_manage, only: time_message, job_fork
     use job_manage, only: init_checktime
-    use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
+    use mp, only: init_mp, broadcast, job, nproc, proc0
     use mp, only: use_nproc, included, mp_comm, mp_comm_null
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id

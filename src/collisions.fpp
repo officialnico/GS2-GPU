@@ -1988,7 +1988,6 @@ contains
     use species, only: spec
     use theta_grid, only: bmag
     use le_grids, only: al, negrid, w=>w_maxw
-    use constants, only: sqrt_pi
     use kt_grids, only: kperp2
     use gs2_time, only: code_dt, tunits
 
@@ -2123,7 +2122,6 @@ contains
     end function capg
 
     elemental real function capg_old(xeA, xeB)
-      use constants, only: sqrt_pi
       real, intent(in) :: xeA, xeB
       capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * capg_kernel(xeB) / xeB
     end function capg_old
@@ -2131,9 +2129,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al, il_is_passing, il_is_wfb
+    use le_grids, only: negrid, jend, ng2, nxi, nlambda, al, il_is_passing, il_is_wfb
     use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
-    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, g_lo, le_lo
+    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, le_lo
     use theta_grid, only: ntgrid
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
@@ -2976,7 +2974,7 @@ contains
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, ixi_to_il
+    use le_grids, only: energy => energy_maxw, negrid
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -3570,7 +3568,7 @@ contains
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, lambda_map, il_is_wfb, nxi, ng2
+    use le_grids, only: jend, lambda_map, il_is_wfb, nxi, ng2
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
@@ -4017,7 +4015,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi, forbid
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none

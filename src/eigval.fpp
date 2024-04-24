@@ -310,7 +310,11 @@ contains
 
   !> Initialise eigenvalue problem
   subroutine init_eigval(eigval_config_in)
-    use mp, only: mp_comm, proc0
+#ifdef PETSC_USE_COMPLEX
+    use mp, only: mp_comm
+#else
+    use mp, only: proc0
+#endif
     use file_utils, only: error_unit
     implicit none
     type(eigval_config_type), intent(in), optional :: eigval_config_in
@@ -1048,8 +1052,7 @@ contains
   subroutine ReportResults(my_solver,my_operator,my_settings)
     use mp, only: proc0
     use constants, only: zi
-    use gs2_time, only: user_time, code_dt
-    use collisions, only: vnmult
+    use gs2_time, only: code_dt
     use run_parameters, only: has_phi, has_apar, has_bpar
     use fields, only: set_init_fields
     use fields_arrays, only: phi, phinew, apar, aparnew, bpar, bparnew

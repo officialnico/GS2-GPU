@@ -1779,7 +1779,7 @@ contains
     use geometry, only: equal_arc, transp_eq, idfit_eq, chs_eq, bishop
     use geometry, only: alpha_input, invLp_input, beta_prime_input, dp_mult
     use geometry, only: writelots, force_sym, use_large_aspect
-    use theta_grid_params, only: get_parameters_as_surf, nperiod_in => nperiod
+    use theta_grid_params, only: get_parameters_as_surf
     use theta_grid_params, only: shat_in => shat
     use theta_grid_params, only: alpmhd_in => alpmhd
     use theta_grid_params, only: betaprim_in => betaprim

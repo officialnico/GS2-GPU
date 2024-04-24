@@ -574,7 +574,6 @@ contains
     use mp, only: proc0
     use standard_header, only: standard_header_type
     use diagnostics_fluxes, only: init_diagnostics_fluxes
-    use collisions, only: heating
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
