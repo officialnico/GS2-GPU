@@ -296,6 +296,10 @@ contains
          dim_ids=[nt_dim])
     if (present(aprime)) call neasyf_write(ncid, "aprime", aprime(-ntgrid:theta_end_point), &
          dim_ids=[nt_dim])
+    if (present(cdrift)) call neasyf_write(ncid, "cdrift", cdrift(-ntgrid:theta_end_point), &
+         dim_ids=[nt_dim])
+    if (present(cdrift0)) call neasyf_write(ncid, "cdrift0", cdrift0(-ntgrid:theta_end_point), &
+         dim_ids=[nt_dim])
 # else
     call mp_abort("nc_write_grids does not work without NetCDF")
 # endif
