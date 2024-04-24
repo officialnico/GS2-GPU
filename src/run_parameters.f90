@@ -582,10 +582,9 @@ contains
   !> Resets the config object to the initial empty state
   subroutine reset_knobs_config(self)
     class(knobs_config_type), intent(in out) :: self
-    type(knobs_config_type) :: empty
     select type (self)
     type is (knobs_config_type)
-       self = empty
+       self = knobs_config_type()
     end select
   end subroutine reset_knobs_config
 
