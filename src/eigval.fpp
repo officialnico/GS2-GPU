@@ -1,4 +1,6 @@
 #ifdef WITH_EIG
+#include "unused_dummy.inc"
+
 !> A module for finding eigenvalues and eigenmodes
 !> Requires SLEPC and PETSC
 module eigval
@@ -1217,6 +1219,8 @@ contains
     PetscErrorCode, intent(inout) :: ierr
     integer, parameter :: istep=2
     integer :: is
+    UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
+
     !First unpack input vector into gnew
     call VecToGnew(VecIn)
 
@@ -1247,6 +1251,8 @@ contains
     integer, parameter :: istep=2
     integer :: is
     complex, dimension(:,:,:), allocatable :: ginit
+
+    UNUSED_DUMMY(MatOperator); UNUSED_DUMMY(ierr)
     !First unpack input vector into gnew
     call VecToGnew(VecIn)
 
@@ -1405,6 +1411,10 @@ contains
     integer, pointer, intent(inout), optional :: mm
     integer, save :: nconv_prev=0, iter_prev=0
     integer :: new_conv, new_iter
+
+    UNUSED_DUMMY(eig_r); UNUSED_DUMMY(eig_i)
+    UNUSED_DUMMY(err_est); UNUSED_DUMMY(n_est)
+    UNUSED_DUMMY(solver); UNUSED_DUMMY(mm)
 
     !Set return value
     SimpleMonitor=0
