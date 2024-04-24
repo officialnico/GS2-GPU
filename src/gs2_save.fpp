@@ -398,18 +398,18 @@ contains
        call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "])
     end if
 
-    if (this_proc_saves_fields) then
-       field_counts = shape(ftmpr)
-    else
-       field_counts = [0, 0, 0]
-    end if
-
     if (is_one_file_per_processor .or. proc0) then
        if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
        if (.not. allocated(stmp)) allocate (stmp(naky))
        exb_count = [naky]
     else
        exb_count = [0]
+    end if
+
+    if (this_proc_saves_fields) then
+       field_counts = shape(ftmpr)
+    else
+       field_counts = [0, 0, 0]
     end if
 
     if (has_phi) then
