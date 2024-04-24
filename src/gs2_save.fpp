@@ -104,7 +104,7 @@ contains
     use antenna_data, only: nk_stir, a_ant, b_ant, ant_on
     use netcdf_utils, only: ensure_netcdf_var_exists, ensure_netcdf_dim_exists
     use gs2_metadata, only: create_metadata
-    use netcdf, only: nf90_collective
+    use netcdf, only: nf90_collective, nf90_independent
     use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
 # else
     use mp, only: proc0
@@ -153,7 +153,6 @@ contains
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
     integer :: n_elements, ierr
-    integer :: total_elements
     integer, dimension(3) :: start_pos, counts
     integer, parameter :: tmpunit = 348
     logical :: is_one_file_per_processor, this_proc_saves_fields
@@ -162,6 +161,8 @@ contains
     logical :: should_define_single_entry_variables
     integer, parameter :: verb = 3
     integer :: iglo
+    ! Whether to use collective (parallel) or independent access to netCDF variables
+    integer :: par_access
 
     type(standard_header_type) :: local_header
 
@@ -179,10 +180,6 @@ contains
     ! Handle some optional inputs
     save_glo_info_and_grids_local = get_option_with_default(save_glo_info_and_grids, .false.)
     save_velocities_info = get_option_with_default(save_velocities, .false.)
-
-    ! Work out the problem size
-    n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
-    total_elements = g_lo%ulim_world+1
 
     ! Decide if we want one file per processor or not
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
@@ -231,11 +228,13 @@ contains
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
 
-    if(is_one_file_per_processor) then
-       call ensure_netcdf_dim_exists(ncid, "glo", n_elements, gloid)
+    ! Work out the problem size
+    if (is_one_file_per_processor) then
+       n_elements = max(g_lo%ulim_proc-g_lo%llim_proc+1, 0)
     else
-       call ensure_netcdf_dim_exists(ncid, "glo", total_elements, gloid)
-    endif
+       n_elements = g_lo%ulim_world+1
+    end if
+    call neasyf_dim(ncid, "glo", dim_size=n_elements)
 
     call neasyf_dim(ncid, "theta", theta)
     call neasyf_dim(ncid, "sign", dim_size=2)
@@ -326,25 +325,22 @@ contains
     tmpr = real(g)
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing dist fn')
 
-
     if (is_one_file_per_processor) then
-       call neasyf_write(ncid, "gr", tmpr, dim_names=g_dim_names)
+       start_pos = [1, 1, 1]
+       par_access = nf90_independent
     else
-       start_pos = (/1,1,g_lo%llim_proc+1/)
-       counts = (/2*ntgrid+1, 2, n_elements/)
+       start_pos = [1, 1, g_lo%llim_proc+1]
+       par_access = nf90_collective
+    end if
+    counts = shape(tmpr)
 
-       call neasyf_write(ncid, "gr", tmpr, dim_names=g_dim_names, &
-            start=start_pos, count=counts, par_access=nf90_collective)
-    endif
+    call neasyf_write(ncid, "gr", tmpr, dim_names=g_dim_names, &
+         start=start_pos, count=counts, par_access=par_access)
 
     tmpr = aimag(g)
 
-    if (is_one_file_per_processor) then
-       call neasyf_write(ncid, "gi", tmpr, dim_names=g_dim_names)
-    else
-       call neasyf_write(ncid, "gi", tmpr, dim_names=g_dim_names, &
-            start=start_pos, count=counts, par_access=nf90_collective)
-    endif
+    call neasyf_write(ncid, "gi", tmpr, dim_names=g_dim_names, &
+         start=start_pos, count=counts, par_access=par_access)
 
     if (include_explicit_source_in_restart) then
        !Explicit source term gexp_1
@@ -354,69 +350,36 @@ contains
        has_gexp_1 = associated(gexp_1)
 #endif
 
-       start_pos = [1, 1, g_lo%llim_proc+1]
-       counts = [2 * ntgrid + 1, 2, n_elements]
-
        if (has_gexp_1) then
           tmpr = real(gexp_1)
-
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          end if
+          call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
           
           tmpr = aimag(gexp_1)
-
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          endif
+          call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
        end if
 
        !Explicit source term gexp_2
        if(allocated(gexp_2)) then
           tmpr = real(gexp_2)
+          call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
           
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          endif
-
           tmpr = aimag(gexp_2)
-
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          endif
+          call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
        end if
 
        !Explicit source term gexp_3
        if(allocated(gexp_3)) then
           tmpr = real(gexp_3)
-
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_3_r", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_3_r", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          end if
+          call neasyf_write(ncid, "gexp_3_r", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
 
           tmpr = aimag(gexp_3)
-
-          if (is_one_file_per_processor) then
-             call neasyf_write(ncid, "gexp_3_i", tmpr, dim_names=g_dim_names)
-          else
-             call neasyf_write(ncid, "gexp_3_i", tmpr, dim_names=g_dim_names, &
-                  start=start_pos, count=counts, par_access=nf90_collective)
-          end if
+          call neasyf_write(ncid, "gexp_3_i", tmpr, dim_names=g_dim_names, &
+                  start=start_pos, count=counts, par_access=par_access)
        end if
     end if
 
@@ -804,21 +767,15 @@ contains
 
     call zero_array(tmpr); call zero_array(tmpi)
 
-    start_pos = [1, 1, g_lo%llim_proc+1]
-    counts = [2*ntgrid+1, 2, n_elements]
-
     if (is_one_file_per_processor) then
-       call neasyf_read(ncid, "gr", tmpr)
+       start_pos = [1, 1, 1]
     else
-       call neasyf_read(ncid, "gr", tmpr, start=start_pos, count=counts)
+       start_pos = [1, 1, g_lo%llim_proc+1]
     end if
-   
-    if(is_one_file_per_processor) then
-       call neasyf_read(ncid, "gi", tmpi)
-    else
-       call neasyf_read(ncid, "gi", tmpi, start=start_pos, count=counts)
-    end if
-    
+    counts = shape(tmpr)
+
+    call neasyf_read(ncid, "gr", tmpr, start=start_pos, count=counts)
+    call neasyf_read(ncid, "gi", tmpi, start=start_pos, count=counts)
     g = cmplx(tmpr, tmpi)
 
     if (include_explicit_source_in_restart .and. has_explicit_source_terms) then
@@ -830,52 +787,22 @@ contains
 #endif
 
        if (has_gexp_1) then
-          if (is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_1_r", tmpr)
-          else
-             call neasyf_read(ncid, "gexp_1_r", tmpr, start=start_pos, count=counts)
-          end if
-          
-          if(is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_1_i", tmpi)
-          else
-             call neasyf_read(ncid, "gexp_1_i", tmpi, start=start_pos, count=counts)
-          end if
-          
+          call neasyf_read(ncid, "gexp_1_r", tmpr, start=start_pos, count=counts)
+          call neasyf_read(ncid, "gexp_1_i", tmpi, start=start_pos, count=counts)
           gexp_1 = cmplx(tmpr, tmpi)
        endif
 
        ! Explicit source term
        if(allocated(gexp_2)) then
-          if (is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_2_r", tmpr)
-          else
-             call neasyf_read(ncid, "gexp_2_r", tmpr, start=start_pos, count=counts)
-          end if
-          
-          if(is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_2_i", tmpi)
-          else
-             call neasyf_read(ncid, "gexp_2_i", tmpi, start=start_pos, count=counts)
-          end if
-          
+          call neasyf_read(ncid, "gexp_2_r", tmpr, start=start_pos, count=counts)
+          call neasyf_read(ncid, "gexp_2_i", tmpi, start=start_pos, count=counts)
           gexp_2 = cmplx(tmpr, tmpi)
        endif
 
        ! Explicit source term
        if(allocated(gexp_3)) then
-          if (is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_3_r", tmpr)
-          else
-             call neasyf_read(ncid, "gexp_3_r", tmpr, start=start_pos, count=counts)
-          end if
-          
-          if (is_one_file_per_processor) then
-             call neasyf_read(ncid, "gexp_3_i", tmpi)
-          else
-             call neasyf_read(ncid, "gexp_3_i", tmpi, start=start_pos, count=counts)
-          end if
-          
+          call neasyf_read(ncid, "gexp_3_r", tmpr, start=start_pos, count=counts)
+          call neasyf_read(ncid, "gexp_3_i", tmpi, start=start_pos, count=counts)
           gexp_3 = cmplx(tmpr, tmpi)
        endif
     end if
