@@ -52,7 +52,7 @@ program dump_response
 
   if (proc0) cbuff = trim(run_name)
   call broadcast (cbuff)
-  if (.not. proc0) run_name => cbuff
+  if (.not. proc0) run_name = cbuff
 
   if(proc0) then
      n_time_steps=1
