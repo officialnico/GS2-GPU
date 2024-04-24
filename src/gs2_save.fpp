@@ -145,7 +145,8 @@ contains
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
     integer :: n_elements, ierr
-    integer, dimension(3) :: start_pos, counts
+    integer, dimension(3) :: start_pos, counts, field_counts
+    integer, dimension(1) :: scalar_count, exb_count
     integer, parameter :: tmpunit = 348
     logical :: is_one_file_per_processor, this_proc_saves_fields
     logical :: has_gexp_1
@@ -276,27 +277,31 @@ contains
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
-    
+
     if (is_one_file_per_processor .or. proc0) then
-       call neasyf_write(ncid, "delt0", code_dt)
-       call neasyf_write(ncid, "delt1", code_dt_prev1)
-       call neasyf_write(ncid, "delt2", code_dt_prev2)
-       call neasyf_write(ncid, "delt_max", code_dt_max)
-       call neasyf_write(ncid, "t0", t0)
-       call neasyf_write(ncid, "layout", layout)
-       call neasyf_write(ncid, "ntheta0", ntheta0)
-       call neasyf_write(ncid, "naky", naky)
-       call neasyf_write(ncid, "nlambda", nlambda)
-       call neasyf_write(ncid, "negrid", negrid)
-       call neasyf_write(ncid, "nspec", nspec)
+      scalar_count = [1]
+    else
+      scalar_count = [0]
+    end if
 
-       if (include_parameter_scan) then
-          call neasyf_write(ncid, "current_scan_parameter_value", current_scan_parameter_value)
-       end if
+    call neasyf_write(ncid, "delt0", code_dt, count=scalar_count)
+    call neasyf_write(ncid, "delt1", code_dt_prev1, count=scalar_count)
+    call neasyf_write(ncid, "delt2", code_dt_prev2, count=scalar_count)
+    call neasyf_write(ncid, "delt_max", code_dt_max, count=scalar_count)
+    call neasyf_write(ncid, "t0", t0, count=scalar_count)
+    call neasyf_write(ncid, "layout", layout, count=scalar_count)
+    call neasyf_write(ncid, "ntheta0", ntheta0, count=scalar_count)
+    call neasyf_write(ncid, "naky", naky, count=scalar_count)
+    call neasyf_write(ncid, "nlambda", nlambda, count=scalar_count)
+    call neasyf_write(ncid, "negrid", negrid, count=scalar_count)
+    call neasyf_write(ncid, "nspec", nspec, count=scalar_count)
 
-       call neasyf_write(ncid, "vnm1", vnm(1))
-       call neasyf_write(ncid, "vnm2", vnm(2))
-    endif
+    if (include_parameter_scan) then
+      call neasyf_write(ncid, "current_scan_parameter_value", current_scan_parameter_value, count=scalar_count)
+    end if
+
+    call neasyf_write(ncid, "vnm1", vnm(1), count=scalar_count)
+    call neasyf_write(ncid, "vnm2", vnm(2), count=scalar_count)
 
     if (ant_on) then
 
@@ -348,7 +353,7 @@ contains
           tmpr = real(gexp_1)
           call neasyf_write(ncid, "gexp_1_r", tmpr, dim_names=g_dim_names, &
                   start=start_pos, count=counts, par_access=par_access)
-          
+
           tmpr = aimag(gexp_1)
           call neasyf_write(ncid, "gexp_1_i", tmpr, dim_names=g_dim_names, &
                   start=start_pos, count=counts, par_access=par_access)
@@ -359,7 +364,7 @@ contains
           tmpr = real(gexp_2)
           call neasyf_write(ncid, "gexp_2_r", tmpr, dim_names=g_dim_names, &
                   start=start_pos, count=counts, par_access=par_access)
-          
+
           tmpr = aimag(gexp_2)
           call neasyf_write(ncid, "gexp_2_i", tmpr, dim_names=g_dim_names, &
                   start=start_pos, count=counts, par_access=par_access)
@@ -399,54 +404,60 @@ contains
        call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "])
     end if
 
+    if (this_proc_saves_fields) then
+       field_counts = shape(ftmpr)
+    else
+       field_counts = [0, 0, 0]
+    end if
+
     if (is_one_file_per_processor .or. proc0) then
        if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
-
-       if (this_proc_saves_fields) then
-          if (has_phi) then
-             ftmpr = real(phinew)
-             call neasyf_write(ncid, "phi_r", ftmpr, dim_names=field_dim_names)
-             
-             ftmpr = aimag(phinew)
-             call neasyf_write(ncid, "phi_i", ftmpr, dim_names=field_dim_names)
-          end if
-
-          if (has_apar) then
-             ftmpr = real(aparnew)
-             call neasyf_write(ncid, "apar_r", ftmpr, dim_names=field_dim_names)
-             
-             ftmpr = aimag(aparnew)
-             call neasyf_write(ncid, "apar_i", ftmpr, dim_names=field_dim_names)
-          end if
-
-          if (has_bpar) then
-             ftmpr = real(bparnew)
-             call neasyf_write(ncid, "bpar_r", ftmpr, dim_names=field_dim_names)
-             
-             ftmpr = aimag(bparnew)
-             call neasyf_write(ncid, "bpar_i", ftmpr, dim_names=field_dim_names)
-          end if
-       end if
-
        if (.not. allocated(stmp)) allocate (stmp(naky))
-
-       ! Because we want to be able to restart using exb shear from a
-       ! case which does not have exb shear we always add kx_shift and
-       ! theta0_shift even if no exb shear present in simulation)
-       if (allocated(kx_shift)) then
-          stmp = kx_shift
-       else
-          stmp = 0.
-       end if
-       call neasyf_write(ncid, "kx_shift", stmp, dim_names=["aky"])
-       
-       if (allocated(theta0_shift)) then
-          stmp = theta0_shift
-       else
-          stmp = 0.
-       end if
-       call neasyf_write(ncid, "theta0_shift", stmp, dim_names=["aky"])
+       exb_count = [naky]
+    else
+       exb_count = [0]
     end if
+
+    if (has_phi) then
+       ftmpr = real(phinew)
+       call neasyf_write(ncid, "phi_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+
+       ftmpr = aimag(phinew)
+       call neasyf_write(ncid, "phi_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+    end if
+
+    if (has_apar) then
+       ftmpr = real(aparnew)
+       call neasyf_write(ncid, "apar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+
+       ftmpr = aimag(aparnew)
+       call neasyf_write(ncid, "apar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+    end if
+
+    if (has_bpar) then
+       ftmpr = real(bparnew)
+       call neasyf_write(ncid, "bpar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+
+       ftmpr = aimag(bparnew)
+       call neasyf_write(ncid, "bpar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+    end if
+
+    ! Because we want to be able to restart using exb shear from a
+    ! case which does not have exb shear we always add kx_shift and
+    ! theta0_shift even if no exb shear present in simulation)
+    if (allocated(kx_shift)) then
+       stmp = kx_shift
+    else
+       stmp = 0.
+    end if
+    call neasyf_write(ncid, "kx_shift", stmp, dim_names=["aky"], count=exb_count)
+
+    if (allocated(theta0_shift)) then
+       stmp = theta0_shift
+    else
+       stmp = 0.
+    end if
+    call neasyf_write(ncid, "theta0_shift", stmp, dim_names=["aky"], count=exb_count)
 
     ! Close the file
     call neasyf_close(ncid)
