@@ -86,7 +86,7 @@ contains
        code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
        fileopt, &
        save_glo_info_and_grids, save_velocities, header)
-# ifdef NETCDF
+#ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
     use kt_grids, only: naky, ntheta0, jtwist_out, akx, aky
@@ -95,21 +95,22 @@ contains
     use gs2_metadata, only: create_metadata
     use netcdf, only: nf90_collective, nf90_independent
     use neasyf, only: neasyf_open, neasyf_dim, neasyf_write, neasyf_close
-# else
-    use mp, only: proc0
-# endif    
     use mp, only: iproc, barrier, proc0
-    use theta_grid, only: ntgrid, theta
-    use gs2_layouts, only: g_lo, layout
-    use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx
+    use theta_grid, only: theta
+    use gs2_layouts, only: proc_id,ik_idx,it_idx,is_idx,ie_idx,il_idx, layout
     use layouts_type, only: g_layout_type
-    use file_utils, only: error_unit
     use le_grids, only: energy, al, negrid, nlambda
     use species, only: nspec
     use dist_fn_arrays, only: vpa, vperp2
     use parameter_scan_arrays, only: current_scan_parameter_value
     use unit_tests, only: debug_message
     use optionals, only: get_option_with_default
+#else
+    use file_utils, only: error_unit
+    use mp, only: proc0
+#endif
+    use theta_grid, only: ntgrid
+    use gs2_layouts, only: g_lo
     use standard_header, only : standard_header_type
     implicit none
     !> The distribution function \(g\)
@@ -137,11 +138,14 @@ contains
     logical, intent (in), optional :: save_velocities
     !> Header for files with build and run information
     type(standard_header_type), optional, intent(in) :: header
-# ifdef NETCDF
+
+#ifndef NETCDF
+    if (proc0) write (error_unit(),*) 'WARNING: gs2_save_for_restart is called without netcdf library'
+#else
     !> Arrays holding information about the layout for plotting
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
-    integer :: n_elements, ierr
+    integer :: n_elements
     integer, dimension(3) :: start_pos, counts, field_counts
     integer, dimension(1) :: scalar_count, exb_count
     integer, parameter :: tmpunit = 348
@@ -167,7 +171,6 @@ contains
     call debug_message(verb, 'gs2_save::gs2_save_for_restart initialising')
 
     istatus = 0
-    ierr = error_unit()
 
     ! Handle some optional inputs
     save_glo_info_and_grids_local = get_option_with_default(save_glo_info_and_grids, .false.)
@@ -461,11 +464,7 @@ contains
 
     ! Deallocate module arrays
     call deallocate_arrays
-
-# else
-    if (proc0) write (error_unit(),*) &
-         'WARNING: gs2_save_for_restart is called without netcdf library'
-# endif
+#endif
   end subroutine gs2_save_for_restart
 
   !> Save g slices
