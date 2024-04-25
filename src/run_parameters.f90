@@ -471,7 +471,7 @@ contains
     ! Only proc0 reads from file
     if (.not. proc0) return
 
-    allocate(character(len=100000)::user_comments)
+    allocate(character(len=len(self%user_comments))::user_comments)
 
     ! First set local variables from current values
     avail_cpu_time = self%avail_cpu_time
