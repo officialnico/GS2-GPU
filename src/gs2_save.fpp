@@ -176,10 +176,6 @@ contains
     ! Decide if we want one file per processor or not
     is_one_file_per_processor = save_many .or. (.not. has_netcdf_parallel)
 
-    ! Decide if we are saving the fields
-    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0) &
-         .or. .not. is_one_file_per_processor
-
     ! Open the file and define dimensions and variables
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
@@ -393,48 +389,55 @@ contains
        call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "])
     end if
 
-    if (is_one_file_per_processor .or. proc0) then
-       exb_count = [naky]
-    else
-       exb_count = [0]
-    end if
+    ! Decide if we are saving the fields
+    this_proc_saves_fields = (iproc == proc_to_save_fields) .or. (proc_to_save_fields < 0)
 
-    if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
+    if (this_proc_saves_fields .or. .not. is_one_file_per_processor) then
+       if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
 
-    if (this_proc_saves_fields) then
-       field_counts = shape(ftmpr)
-    else
-       field_counts = [0, 0, 0]
-    end if
+       ! In parallel, all processes need to call `neasyf_write`, but
+       ! only one should actually write any data
+       if (this_proc_saves_fields) then
+          field_counts = shape(ftmpr)
+       else
+          field_counts = [0, 0, 0]
+       end if
 
-    if (has_phi) then
-       ftmpr = real(phinew)
-       call neasyf_write(ncid, "phi_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+       if (has_phi) then
+          ftmpr = real(phinew)
+          call neasyf_write(ncid, "phi_r", ftmpr, dim_names=field_dim_names, count=field_counts)
 
-       ftmpr = aimag(phinew)
-       call neasyf_write(ncid, "phi_i", ftmpr, dim_names=field_dim_names, count=field_counts)
-    end if
+          ftmpr = aimag(phinew)
+          call neasyf_write(ncid, "phi_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+       end if
 
-    if (has_apar) then
-       ftmpr = real(aparnew)
-       call neasyf_write(ncid, "apar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+       if (has_apar) then
+          ftmpr = real(aparnew)
+          call neasyf_write(ncid, "apar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
 
-       ftmpr = aimag(aparnew)
-       call neasyf_write(ncid, "apar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
-    end if
+          ftmpr = aimag(aparnew)
+          call neasyf_write(ncid, "apar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+       end if
 
-    if (has_bpar) then
-       ftmpr = real(bparnew)
-       call neasyf_write(ncid, "bpar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
+       if (has_bpar) then
+          ftmpr = real(bparnew)
+          call neasyf_write(ncid, "bpar_r", ftmpr, dim_names=field_dim_names, count=field_counts)
 
-       ftmpr = aimag(bparnew)
-       call neasyf_write(ncid, "bpar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+          ftmpr = aimag(bparnew)
+          call neasyf_write(ncid, "bpar_i", ftmpr, dim_names=field_dim_names, count=field_counts)
+       end if
     end if
 
     ! Because we want to be able to restart using exb shear from a
     ! case which does not have exb shear we always add kx_shift and
     ! theta0_shift even if no exb shear present in simulation)
+    if (is_one_file_per_processor .or. proc0) then
+       exb_count = [naky]
+    else
+       exb_count = [0]
+    end if
     if (.not. allocated(stmp)) allocate (stmp(naky))
+
     if (allocated(kx_shift)) then
        stmp = kx_shift
     else
