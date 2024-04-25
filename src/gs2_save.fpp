@@ -399,12 +399,12 @@ contains
     end if
 
     if (is_one_file_per_processor .or. proc0) then
-       if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
-       if (.not. allocated(stmp)) allocate (stmp(naky))
        exb_count = [naky]
     else
        exb_count = [0]
     end if
+
+    if (.not. allocated(ftmpr)) allocate (ftmpr(2*ntgrid+1,ntheta0,naky))
 
     if (this_proc_saves_fields) then
        field_counts = shape(ftmpr)
@@ -439,6 +439,7 @@ contains
     ! Because we want to be able to restart using exb shear from a
     ! case which does not have exb shear we always add kx_shift and
     ! theta0_shift even if no exb shear present in simulation)
+    if (.not. allocated(stmp)) allocate (stmp(naky))
     if (allocated(kx_shift)) then
        stmp = kx_shift
     else
