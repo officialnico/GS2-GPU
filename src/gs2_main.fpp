@@ -1728,7 +1728,7 @@ contains
     type(standard_header_type) :: local_header
     ! File unit to write to
     integer :: used_inputs_unit
-    type(gs2_config_type) :: input_config
+    type(gs2_config_type), allocatable :: input_config
 
     ! Only write this file on rank 0
     if (.not. proc0) return
@@ -1738,6 +1738,8 @@ contains
     else
       local_header = standard_header_type()
     end if
+
+    allocate(input_config)
 
     call input_config%get_configs()
     call open_output_file(used_inputs_unit, ".used_inputs.in")
