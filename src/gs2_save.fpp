@@ -10,7 +10,7 @@ module gs2_save
   use netcdf, only: nf90_get_var, nf90_strerror
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension
   use netcdf, only: nf90_inq_varid
-  
+
   use netcdf_utils, only: check_netcdf_file_precision
   use netcdf_utils, only: netcdf_error
   use netcdf_utils, only: kind_nf
@@ -144,6 +144,7 @@ contains
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
     integer :: n_elements
+    integer, dimension(5) :: glo_counts
     integer, dimension(3) :: start_pos, counts, field_counts
     integer, dimension(1) :: scalar_count, exb_count
     logical :: is_one_file_per_processor, this_proc_saves_fields
@@ -227,25 +228,6 @@ contains
 
     if (ant_on) then
        call neasyf_dim(ncid, "nk_stir", dim_size=nk_stir)
-    end if
-
-    !For saving distribution function
-    if (save_glo_info_and_grids_local) then
-       ! only store layout information on processor 0
-       if (should_define_single_entry_variables) then
-          if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
-          if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
-
-          do iglo=g_lo%llim_world,g_lo%ulim_world
-             iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
-                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = iglo
-          end do
-
-          do iglo=g_lo%llim_world,g_lo%ulim_world
-             procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
-                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = proc_id(g_lo,iglo)
-          end do
-       endif
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart writing scalars')
@@ -356,24 +338,43 @@ contains
 
     ! For saving distribution function
     if (save_glo_info_and_grids_local) then
-       ! Fill processor and layout information for plotting purposes
        if (proc0) then
-          call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
-               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"])
-          call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
-               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"])
+          if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+          if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+
+          do iglo=g_lo%llim_world,g_lo%ulim_world
+             iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
+                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = iglo
+          end do
+
+          do iglo=g_lo%llim_world,g_lo%ulim_world
+             procid_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
+                  ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = proc_id(g_lo,iglo)
+          end do
+
+          glo_counts = shape(iglo_kykxsel)
+       else
+          glo_counts = [0, 0, 0, 0, 0]
        end if
 
-       call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc)
+       call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc, count=scalar_count)
 
-       if (proc0) then ! only save grids on proc0
-          call neasyf_write(ncid, "jtwist", jtwist_out)
-       end if
+       ! Fill processor and layout information for plotting purposes
+       call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
+            dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
+            count=glo_counts)
+       call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
+            dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
+            count=glo_counts)
+
+       call neasyf_write(ncid, "jtwist", jtwist_out, count=scalar_count)
     end if
 
     if (save_velocities_info) then
-       call neasyf_write(ncid, "vpa", vpa, dim_names=["theta", "sign ", "glo  "])
-       call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "])
+       call neasyf_write(ncid, "vpa", vpa, dim_names=["theta", "sign ", "glo  "], &
+            start=start_pos, count=counts)
+       call neasyf_write(ncid, "vperp2", vperp2, dim_names=["theta", "glo  "], &
+            start=start_pos(1:3:2), count=counts(1:3:2))
     end if
 
     ! Decide if we are saving the fields
@@ -632,7 +633,7 @@ contains
     ! Decide if we are reading the fields
     need_to_broadcast_fields = proc_to_save_fields >= 0
     this_proc_reads_fields = (iproc == proc_to_save_fields) .or. (.not. need_to_broadcast_fields)
-    
+
     file_proc = get_file_proc(is_one_file_per_processor, fileopt)
 
     if (is_one_file_per_processor) then
