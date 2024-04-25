@@ -300,6 +300,74 @@ module eigval
 
   type(eigval_config_type) :: eigval_config
 
+  ! For some reason, PETSc doesn't provide module interfaces for these procedures.
+  ! They also don't name arguments in headers
+  interface
+    subroutine MatCreateVecs(a, b, c, ierr)
+      import tMat, tVec
+      type(tMat), intent(in) :: a
+      type(tVec), intent(in) :: b
+      type(tVec), intent(out) :: c
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatCreateVecs
+
+    subroutine MatCreateShell(comm, a, b, c, d, e, f, ierr)
+      import tMat
+      integer :: comm
+      type(PetscInt) :: a, b, c, d
+      type(PetscInt), dimension(:), intent(inout) :: e
+      type(tMat), intent(inout) :: f
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatCreateShell
+
+    subroutine MatShellSetOperation(a, b, c, ierr)
+      import tMat
+      type(tMat), intent(in) :: a
+      type(PetscInt), intent(in) :: b
+      interface
+        subroutine advance_interface(MatOperator, VecIn, Res, ierr2)
+          import tMat, tVec
+          type(tMat), intent(in) :: MatOperator
+          type(tVec), intent(inout) :: VecIn, Res
+          type(PetscErrorCode), intent(inout) :: ierr2
+        end subroutine advance_interface
+      end interface
+      procedure(advance_interface) :: c
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine MatShellSetOperation
+
+    subroutine EPSGetType(eps, epstype, ierr)
+      import tEPS
+      type(tEPS), intent(in) :: eps
+      type(EPSType), intent(out) :: epstype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine EPSGetType
+
+    subroutine EPSSetType(eps, epstype, ierr)
+      import tEPS
+      type(tEPS), intent(in) :: eps
+      type(EPSType), intent(in) :: epstype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine EPSSetType
+
+    subroutine STGetType(st, sttype, ierr)
+      import tST
+      type(tST), intent(in) :: st
+      type(STType), intent(out) :: sttype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine STGetType
+
+    subroutine STSetType(st, sttype, ierr)
+      import tST
+      type(tST), intent(in) :: st
+      type(STType), intent(in) :: sttype
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine STSetType
+
+    subroutine SlepcFinalize(ierr)
+      type(PetscErrorCode), intent(out) :: ierr
+    end subroutine SlepcFinalize
+  end interface
 contains
 
   !> Returns true if GS2 was compiled with WITH_EIG defined
