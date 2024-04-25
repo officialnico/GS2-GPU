@@ -5,7 +5,6 @@ module gs2_save
   use constants, only: run_name_size
 
 # ifdef NETCDF
-  use netcdf, only: nf90_put_att, NF90_GLOBAL
   use netcdf, only: NF90_NOWRITE, NF90_NOERR
   use netcdf, only: nf90_open, nf90_close
   use netcdf, only: nf90_get_var, nf90_strerror
@@ -210,10 +209,6 @@ contains
     end if
 
     call create_metadata(ncid, "GS2 restart file", local_header)
-
-    if (.not.is_one_file_per_processor) then
-       istatus = nf90_put_att(ncid, NF90_GLOBAL, 'layout', layout)
-    end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart defining dimensions')
 
