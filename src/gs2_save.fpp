@@ -146,7 +146,6 @@ contains
     integer :: n_elements
     integer, dimension(3) :: start_pos, counts, field_counts
     integer, dimension(1) :: scalar_count, exb_count
-    integer, parameter :: tmpunit = 348
     logical :: is_one_file_per_processor, this_proc_saves_fields
     logical :: has_gexp_1
     logical :: save_glo_info_and_grids_local, save_velocities_info
@@ -185,17 +184,6 @@ contains
     if (is_one_file_per_processor) then
        ncid = neasyf_open(file_proc, "w")
     else
-       call debug_message(verb, &
-            'gs2_save::gs2_save_for_restart calling barrier before delete file')
-       call barrier
-       call debug_message(verb, &
-            'gs2_save::gs2_save_for_restart called barrier before delete file')
-
-       if (proc0) then
-          open(unit=tmpunit, file=file_proc)
-          close(unit=tmpunit, status='delete')
-       end if
-
        call barrier
        call debug_message(verb, &
             'gs2_save::gs2_save_for_restart called barrier before opening')
