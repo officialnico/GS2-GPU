@@ -82,7 +82,7 @@ contains
 
   !> Create and fill the restart files
   subroutine gs2_save_for_restart &
-       (g, t0, vnm, istatus, has_phi, has_apar, has_bpar, &
+       (g, t0, vnm, has_phi, has_apar, has_bpar, &
        code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
        fileopt, &
        save_glo_info_and_grids, save_velocities, header)
@@ -128,8 +128,6 @@ contains
     logical, intent (in) :: has_apar
     !> Do we include parallel magnetic field, \(B_\parallel\)
     logical, intent (in) :: has_bpar
-    !> Last netCDF status: zero on success, non-zero on failure
-    integer, intent (out) :: istatus
     !> Optional extra filename infix
     character (len=*), intent (in), optional :: fileopt
     !> Control if layout and diagnostic information is saved
@@ -169,8 +167,6 @@ contains
     end if
 
     call debug_message(verb, 'gs2_save::gs2_save_for_restart initialising')
-
-    istatus = 0
 
     ! Handle some optional inputs
     save_glo_info_and_grids_local = get_option_with_default(save_glo_info_and_grids, .false.)

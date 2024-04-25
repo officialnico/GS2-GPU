@@ -8306,7 +8306,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     complex, intent(in) :: sourcefac
     character(len = 20), parameter :: extension = '.source'
-    integer :: istatus
 
     ! Is this needed?
     call zero_array(g_work)
@@ -8314,7 +8313,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
@@ -8329,9 +8328,8 @@ contains
     implicit none
     logical, intent(in), optional :: force_passing
     character(len = 20), parameter :: extension = '.homogeneous'
-    integer :: istatus
     call init_homogeneous_g(g_work, force_passing)
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_homogeneous_solution
