@@ -1064,8 +1064,8 @@ contains
     !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
     !               to determine r2 on inboard mid-plane
     index = i1 - half_nz + k
-    rtmp(i) = r(index)
-    ztmp(i) = z(index)
+    rtmp(1) = r(index)
+    ztmp(1) = z(index)
 
     do i = 2, nz
        index = i1 - half_nz + i - 1 + k
