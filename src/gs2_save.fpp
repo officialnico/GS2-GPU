@@ -357,17 +357,21 @@ contains
           glo_counts = [0, 0, 0, 0, 0]
        end if
 
-       call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc, count=scalar_count)
+       ! Either only write to proc0's serial file, or all processes need to call
+       ! these functions in parallel
+       if (proc0 .or. .not. is_one_file_per_processor) then
+          call neasyf_write(ncid, "iglo_llim_proc", g_lo%llim_proc, count=scalar_count)
 
-       ! Fill processor and layout information for plotting purposes
-       call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
-            dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
-            count=glo_counts)
-       call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
-            dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
-            count=glo_counts)
+          ! Fill processor and layout information for plotting purposes
+          call neasyf_write(ncid, "iglo_kykxsel", iglo_kykxsel, &
+               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
+               count=glo_counts)
+          call neasyf_write(ncid, "procid_kykxsel", procid_kykxsel, &
+               dim_names=[character(len=7)::"aky", "akx", "species", "egrid", "lambda"], &
+               count=glo_counts)
 
-       call neasyf_write(ncid, "jtwist", jtwist_out, count=scalar_count)
+          call neasyf_write(ncid, "jtwist", jtwist_out, count=scalar_count)
+       end if
     end if
 
     if (save_velocities_info) then
