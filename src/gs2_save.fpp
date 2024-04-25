@@ -338,10 +338,10 @@ contains
 
     ! For saving distribution function
     if (save_glo_info_and_grids_local) then
-       if (proc0) then
-          if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
-          if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+       if(.not. allocated(iglo_kykxsel)) allocate(iglo_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
+       if(.not. allocated(procid_kykxsel)) allocate(procid_kykxsel(naky,ntheta0,nspec,negrid,nlambda))
 
+       if (proc0) then
           do iglo=g_lo%llim_world,g_lo%ulim_world
              iglo_kykxsel(ik_idx(g_lo,iglo),it_idx(g_lo,iglo),is_idx(g_lo,iglo), &
                   ie_idx(g_lo,iglo),il_idx(g_lo,iglo)) = iglo
