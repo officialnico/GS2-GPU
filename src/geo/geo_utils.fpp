@@ -1,3 +1,5 @@
+#include "unused_dummy.inc"
+
 !> A module to provide utilities used in geometry calculations.
 !> Mainly to provide an abstract type used as a base for specific
 !> geometry implementations.
@@ -230,10 +232,12 @@ contains
 
   pure subroutine alloc_special_arrays_null(self)
     class(abstract_geo_type), intent(in out) :: self
+    UNUSED_DUMMY(self)
   end subroutine alloc_special_arrays_null
 
   pure subroutine dealloc_special_arrays_null(self)
     class(abstract_geo_type), intent(in out) :: self
+    UNUSED_DUMMY(self)
   end subroutine dealloc_special_arrays_null
 
   pure subroutine alloc_common_arrays(self)
@@ -313,6 +317,7 @@ contains
     ! magnetic axis, which means the Jacobian is zero.
     dfcart(2:, :, 1) = dfcart(2:, :, 1) / denom(2:, :)
     dfcart(2:, :, 2) = dfcart(2:, :, 2) / denom(2:, :)
+    UNUSED_DUMMY(self)
   end subroutine eqdcart
 
   !> Convert gradients of a function f w.r.t. R,Z into bishop form.
@@ -335,6 +340,7 @@ contains
     dbish(:,:,2) =-dcart(:,:,1) * dpcart(:,:,2) + dcart(:,:,2) * dpcart(:,:,1)
     dbish(2:, :, 1) = dbish(2:, :, 1) / denom
     dbish(2:, :, 2) = dbish(2:, :, 2) / denom
+    UNUSED_DUMMY(self)
   end subroutine eqdbish
 
   subroutine gradient(self, rgrid, theta, grad, char, rp, nth_used, ntm, use_bishop)
@@ -402,7 +408,7 @@ contains
   !>   - 'E', 'O' mean continuous at theta = +/- pi
   !>   - 'T' means a jump of 2 pi at theta = +/- pi
   pure subroutine derm(self, f, dfm, char)
-    use constants, only: pi, twopi
+    use constants, only: pi
     implicit none
     class(abstract_geo_type), intent(in) :: self
     real, dimension(:,:), intent(in) :: f
@@ -466,6 +472,7 @@ contains
     class(abstract_geo_type), intent(in) :: self
     real, intent (in) :: pbar
     rhofun = 0.
+    UNUSED_DUMMY(self); UNUSED_DUMMY(pbar)
   end function rhofun_null
 
   !> FIXME : Add documentation
@@ -598,10 +605,12 @@ contains
 
   subroutine setup_special_splines_eqfile_null(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
+    UNUSED_DUMMY(self)
   end subroutine setup_special_splines_eqfile_null
 
   subroutine delete_special_splines_eqfile_null(self)
     class(abstract_eqfile_geo_type), intent(in out) :: self
+    UNUSED_DUMMY(self)
   end subroutine delete_special_splines_eqfile_null
 
   subroutine finalise_eqfile(self)
@@ -1054,21 +1063,24 @@ contains
 
     !CMR, 28/10/08: modify this code to avoid duplicate points in 5 point spline
     !               to determine r2 on inboard mid-plane
-    do i = 1, nz
+    index = i1 - half_nz + k
+    rtmp(1) = r(index)
+    ztmp(1) = z(index)
+
+    do i = 2, nz
        index = i1 - half_nz + i - 1 + k
-       rtmp(i) = r(index) ; ztmp(i) = z(index)
-       if ( i > 1 ) then
-          ! If we find a duplicate point then we increase the
-          ! duplicate point counter in k, used to offset index and
-          ! store the next value instead Note, here we assume we can't
-          ! get three duplicate values. A better approach may be to
-          ! instead use a while loop where we keep going until we've
-          ! found enough points.
-          if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
-             k = k + 1
-             if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
-             rtmp(i) = r(index + 1) ; ztmp(i) = z(index + 1)
-          end if
+       rtmp(i) = r(index)
+       ztmp(i) = z(index)
+       ! If we find a duplicate point then we increase the
+       ! duplicate point counter in k, used to offset index and
+       ! store the next value instead Note, here we assume we can't
+       ! get three duplicate values. A better approach may be to
+       ! instead use a while loop where we keep going until we've
+       ! found enough points.
+       if ((rtmp(i)-rtmp(i-1))**2+(ztmp(i)-ztmp(i-1))**2 < 1.0e-7) then
+         k = k + 1
+         if (debug) write(6,fmt='("a_minor: duplicate pt, set k=",i2)') k
+         rtmp(i) = r(index + 1) ; ztmp(i) = z(index + 1)
        end if
     end do
 

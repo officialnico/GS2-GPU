@@ -324,7 +324,7 @@ contains
     use gs2_init, only: init_gs2_init
     use job_manage, only: time_message, job_fork
     use job_manage, only: init_checktime
-    use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
+    use mp, only: init_mp, broadcast, job, nproc, proc0
     use mp, only: use_nproc, included, mp_comm, mp_comm_null
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
@@ -673,7 +673,7 @@ contains
     use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
-    integer :: istep, istatus
+    integer :: istep
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store, should_save_restart
     integer :: istep_loop_max, istep_offset
@@ -765,7 +765,7 @@ contains
 #endif
        end if
        if (should_save_restart) call gs2_save_for_restart (gnew, user_time, vnmult, &
-            istatus, has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, &
+            has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, &
             code_dt_prev2, code_dt_max, header=local_header)
 
        call update_time
@@ -1167,7 +1167,6 @@ contains
     use array_utils, only: copy
     implicit none
     type(initial_values_overrides_type), intent(inout) :: initval_ov
-    integer :: istatus
 
     if (.not.initval_ov%is_initialised()) &
       call mp_abort("Trying to set initial value overrides &
@@ -1201,7 +1200,7 @@ contains
       !not sure that we really need to as we never read in the dumped data.
       if (proc0) call dump_ant_amp
 
-      call gs2_save_for_restart (gnew, user_time, vnmult, istatus, &
+      call gs2_save_for_restart (gnew, user_time, vnmult, &
            has_phi, has_apar, has_bpar, code_dt, code_dt_prev1, code_dt_prev2, code_dt_max)
     endif
 
@@ -1728,7 +1727,7 @@ contains
     type(standard_header_type) :: local_header
     ! File unit to write to
     integer :: used_inputs_unit
-    type(gs2_config_type) :: input_config
+    type(gs2_config_type), allocatable :: input_config
 
     ! Only write this file on rank 0
     if (.not. proc0) return
@@ -1738,6 +1737,8 @@ contains
     else
       local_header = standard_header_type()
     end if
+
+    allocate(input_config)
 
     call input_config%get_configs()
     call open_output_file(used_inputs_unit, ".used_inputs.in")

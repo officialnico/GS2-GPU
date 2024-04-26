@@ -574,7 +574,6 @@ contains
     use mp, only: proc0
     use standard_header, only: standard_header_type
     use diagnostics_fluxes, only: init_diagnostics_fluxes
-    use collisions, only: heating
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -946,13 +945,12 @@ contains
     real, intent(in) :: user_time
     !> Optional string to add to file name
     character(len=*), intent(in), optional :: fileopt_base
-    integer :: istatus
     character(len=:), allocatable :: fileopt
 
     fileopt = get_option_with_default(fileopt_base, "")
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
@@ -965,7 +963,7 @@ contains
        call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             fileopt= fileopt//".dfn", &

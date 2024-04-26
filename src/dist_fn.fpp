@@ -1630,8 +1630,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
     implicit none
-    integer :: iglo, ik, is
-!AJ
+    integer :: iglo, is
     integer :: il, ie, ig
     real :: al1, e1
     
@@ -1667,7 +1666,7 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
+    !$OMP PRIVATE(iglo, al1, e1, il, is) &
     !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -3260,7 +3259,7 @@ contains
     type (index_list_type), dimension(0:nproc-1) :: from, to
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: ncell, iglo_star, j, n, n_h, nn_max
+    integer :: ncell, iglo_star, n
     integer :: iglo_right, ipright, iglo_left, ipleft
     integer :: iglo, il, ik, it, ie, is, ip, it_leftmost, it_rightmost
 
@@ -3274,7 +3273,7 @@ contains
     ! processor sees. For now we can just get the indices and cycle.
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ik, ie, is, it, ip, ncell, iglo_star, iglo_right, &
-    !$OMP ipright, iglo_left, ipleft, j, it_leftmost, it_rightmost) &
+    !$OMP ipright, iglo_left, ipleft, it_leftmost, it_rightmost) &
     !$OMP SHARED(g_lo, iproc, r_links, l_links, trapped_wfb, mixed_wfb) &
     !$OMP REDUCTION(+: nn_to, nn_from) &
     !$OMP SCHEDULE(static)
@@ -6134,7 +6133,7 @@ contains
   !> FIXME: Get these notes on the website
   subroutine getan_from_dfn (g_in, antot, antota, antotp, local_only)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
-    use kt_grids, only: kperp2, naky, ntheta0
+    use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
@@ -8306,7 +8305,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     complex, intent(in) :: sourcefac
     character(len = 20), parameter :: extension = '.source'
-    integer :: istatus
 
     ! Is this needed?
     call zero_array(g_work)
@@ -8314,7 +8312,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
@@ -8329,9 +8327,8 @@ contains
     implicit none
     logical, intent(in), optional :: force_passing
     character(len = 20), parameter :: extension = '.homogeneous'
-    integer :: istatus
     call init_homogeneous_g(g_work, force_passing)
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_homogeneous_solution

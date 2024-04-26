@@ -23,14 +23,13 @@ contains
   !> domain defined by the coordinates (R,Z).
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use constants, only: twopi
     use geo_utils, only: sort
     implicit none
     class(deq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, eq_R, eq_Z, f, p, q
     real, dimension(:, :), allocatable :: sdfit_psi
-    real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
+    real :: rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
     self%type_name = 'deq'

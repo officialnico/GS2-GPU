@@ -458,7 +458,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.    
-    character(len = 100000) :: user_comments
+    character(len = :), allocatable :: user_comments
     character(len = 20) :: delt_option, eqzip_option
     integer :: ncheck_stop, nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
@@ -470,6 +470,8 @@ contains
 
     ! Only proc0 reads from file
     if (.not. proc0) return
+
+    allocate(character(len=len(self%user_comments))::user_comments)
 
     ! First set local variables from current values
     avail_cpu_time = self%avail_cpu_time
@@ -582,9 +584,12 @@ contains
   !> Resets the config object to the initial empty state
   subroutine reset_knobs_config(self)
     class(knobs_config_type), intent(in out) :: self
-    type(knobs_config_type) :: empty
+    type(knobs_config_type), allocatable :: empty
     select type (self)
     type is (knobs_config_type)
+       ! We should just be able to assign from `knobs_config_type()`,
+       ! but Intel doesn't like it for some reason
+       allocate(empty)
        self = empty
     end select
   end subroutine reset_knobs_config
