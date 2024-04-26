@@ -135,10 +135,8 @@ contains
     do iz = 1,2*ntgrid
        delta_array = 0.
        delta_array(iz) = 1.
-       call inter_cspl(2*ntgrid, gryfx_theta_real, delta_array, &
-            2*ntgrid, theta(-ntgrid:ntgrid-1), gryfx_2_gs2_grid(:,iz))
-       call inter_cspl(2*ntgrid, theta(-ntgrid:ntgrid-1), delta_array, &
-            2*ntgrid, gryfx_theta_real, gs2_2_gryfx_grid(:,iz))
+       call inter_cspl(gryfx_theta_real, delta_array, theta(-ntgrid:ntgrid-1), gryfx_2_gs2_grid(:,iz))
+       call inter_cspl(theta(-ntgrid:ntgrid-1), delta_array, gryfx_theta_real, gs2_2_gryfx_grid(:,iz))
     end do
 
   end subroutine create_interp_matrices

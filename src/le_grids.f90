@@ -2494,7 +2494,7 @@ contains
     if (debug) print*,"History",error_history
 
     ! Spline the error metric vs splits
-    call new_spline(ntrial, trial_splits, error_history, the_spline)
+    the_spline = new_spline(trial_splits, error_history)
 
     high_ntrial = ntrial * high_res_factor
     allocate(error(high_ntrial))

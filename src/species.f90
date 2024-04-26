@@ -666,16 +666,17 @@ contains
     use mp, only: broadcast
     use constants, only: pi
     use file_utils, only: run_name
-    use splines, only: fitp_curvd, fitp_curv1, fitp_curv2
+    use splines, only: spline, new_spline, delete_spline, splint, dsplint
     implicit none
     integer, intent(in) :: is
     real, dimension(:,:),intent(in):: egrid
+    type(spline) :: spl
     integer:: f0in_unit = 21, mode, ie, ierr, numdat, negrid
     logical:: acceptable_spline
     real:: moment0, sigma, sigma_fac, df0dE
     real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, &
-                                      yp, temp, df0drho_dat
-    
+                                      df0drho_dat
+
     ! Open file and read column option
     open(unit=f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
     read(f0in_unit,*) mode
@@ -685,16 +686,14 @@ contains
     allocate(df0dE_dat(numdat))
     allocate(df0drho_dat(numdat))
     allocate(egrid_dat(numdat))
-    allocate(yp(numdat))
-    allocate(temp(numdat))
 
     negrid = size(egrid(:,1))
-    
+
     sigma = 1.0
     sigma_fac = 2.0
     acceptable_spline = .false.
 
-    if (mode .EQ. 1) then
+    if (mode == 1) then
        ! Read f0 values
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie)
@@ -705,27 +704,23 @@ contains
        ! If F0 ends up being negative or zero anywhere on the grid, double the tension
        ! factor and try again
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get f0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                             f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie, is), spl)
 
              ! Calculate d/dE lnF0 to get generalised temperature
-             df0dE =  fitp_curvd(egrid(ie,is),numdat,egrid_dat, f0_values_dat,yp,sigma)  / &
-                                (f0_values(ie,is) * spec(is)%temp)
+             df0dE =  dsplint(egrid(ie,is), spl) / (f0_values(ie,is) * spec(is)%temp)
              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
 
           end do
 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          call delete_spline(spl)
+
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
@@ -734,156 +729,129 @@ contains
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 2) then
+    else if (mode == 2) then
        ! Read both f0 and df0/dE
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
-
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie, is), spl)
           end do
 
-          ! Generate spline parameters for df0/dE
-          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0dE_dat,yp,sigma)  / spec(is)%temp
-             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/dE
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = splint(egrid(ie,is), spl) / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+
+          call delete_spline(spl)
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
 
-    else if (mode .EQ. 3) then
+    else if (mode == 3) then
        ! Read f0 and df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                 f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie,is), spl)
              ! Calculate d/dE lnF0 to get generalised temperature
-             df0dE = fitp_curvd(egrid(ie,is),numdat,egrid_dat, &
-                             f0_values_dat,yp,sigma) / (f0_values(ie,is) * spec(is)%temp)
+             df0dE = dsplint(egrid(ie,is), spl) / (f0_values(ie,is) * spec(is)%temp)
              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
           end do
 
-          ! Generate spline parameters for df0/drho
-          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0prim at grid points
-             dlnf0drho(ie,is)    = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0drho_dat,yp,sigma)
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/drho
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0prim at grid points
+             dlnf0drho(ie,is) = splint(egrid(ie,is), spl)
+          end do
+
+          call delete_spline(spl)
        end do
 
-    else if (mode .EQ. 4) then
+    else if (mode == 4) then
        ! Read f0, df0/dE, df0/drho
        do ie = 1,numdat
           read(f0in_unit,*) egrid_dat(ie), f0_values_dat(ie), df0dE_dat(ie), df0drho_dat(ie)
        end do
        close(f0in_unit)
 
-       do while (.NOT. acceptable_spline)
+       do while (.not. acceptable_spline)
           ! Generate spline parameters for f0
-          call fitp_curv1(numdat,egrid_dat,f0_values_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          spl = new_spline(egrid_dat, f0_values_dat, tension = sigma)
 
           do ie = 1,negrid
-
              ! Interpolate to get F0 at grid points
-             f0_values(ie,is) = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                f0_values_dat,yp,sigma)
+             f0_values(ie,is) = splint(egrid(ie,is), spl)
           end do
 
-          ! Generate spline parameters for df0/dE
-          call fitp_curv1(numdat,egrid_dat,df0dE_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
+          call delete_spline(spl)
 
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             df0dE     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                df0dE_dat,yp,sigma)  / spec(is)%temp
-             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-          end do
- 
-          ! Generate spline parameters for df0/drho
-          call fitp_curv1(numdat,egrid_dat,df0drho_dat,0.0,0.0,3,yp,temp,sigma,ierr)
-          if (ierr .NE. 0) then
-             write(*,*) "fitp_curv1 returned error code ", ierr
-             stop 1
-          end if
-
-          do ie = 1,negrid
-             ! Interpolate to get f0 at grid points
-             dlnf0drho(ie,is)     = fitp_curv2(egrid(ie,is),numdat,egrid_dat, &
-                                 df0drho_dat,yp,sigma) 
-          end do
- 
-          if (minval(f0_values(:,is)) .GT. epsilon(0.0)) then 
+          if (minval(f0_values(:,is)) > epsilon(0.0)) then
              acceptable_spline = .true.
           else
              sigma = sigma * sigma_fac
+             cycle
           end if
 
+          ! Generate spline parameters for df0/dE
+          spl = new_spline(egrid_dat, df0dE_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             df0dE     = splint(egrid(ie,is), spl) / spec(is)%temp
+             nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
+          end do
+
+          call delete_spline(spl)
+
+          ! Generate spline parameters for df0/drho
+          spl = new_spline(egrid_dat, df0drho_dat, tension = sigma)
+
+          do ie = 1,negrid
+             ! Interpolate to get f0 at grid points
+             dlnf0drho(ie,is) = splint(egrid(ie,is), spl)
+          end do
+
+          call delete_spline(spl)
        end do
 
        dlnf0drho(:,is) = - spec(is)%fprim
@@ -906,7 +874,7 @@ contains
     moment0 = moment0*4.0*pi
 
     
-    deallocate(egrid_dat,f0_values_dat,df0dE_dat,df0drho_dat,yp,temp)
+    deallocate(egrid_dat,f0_values_dat,df0dE_dat,df0drho_dat)
 
   end subroutine calculate_f0_arrays_tabulated
 

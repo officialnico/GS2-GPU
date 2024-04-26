@@ -391,7 +391,7 @@ contains
     !     to get grad(pressure), multiply grad(psi) by dpressure/dpsi
     ! Could use self%dpfun if took pbar rather than rp?
     if (char == 'R') then !Only actually used if bishop == 0
-       call inter_d_cspl(self%nr, self%eqpsi, self%pressure, 1, [rp], p_eqpsi, dp_deqpsi)
+       call inter_d_cspl(self%eqpsi, self%pressure, [rp], p_eqpsi, dp_deqpsi)
        do i = -nth_used, nth_used
           grad(i, 1:2) = grad(i, 1:2) * dp_deqpsi(1) * 0.5 * self%beta_0
        end do
@@ -582,12 +582,12 @@ contains
   subroutine setup_splines_eqfile(self)
     use splines, only: new_spline
     class(abstract_eqfile_geo_type), intent(in out) :: self
-    call new_spline(self%nr, self%eqpsi, self%diam, self%diam_spl)
-    call new_spline(self%nr, self%eqpsi, self%rc, self%rcenter_spl)
-    call new_spline(self%nr, self%psi_bar, self%fp, self%btori_spl)
-    call new_spline(self%nr, self%psi_bar, self%qsf, self%qsf_spl)
-    call new_spline(self%nr, self%psi_bar, self%pressure, self%pressure_spl)
-    call new_spline(self%nr, self%psi_bar, self%beta, self%beta_spl)
+    self%diam_spl = new_spline(self%eqpsi, self%diam)
+    self%rcenter_spl = new_spline(self%eqpsi, self%rc)
+    self%btori_spl = new_spline(self%psi_bar, self%fp)
+    self%qsf_spl = new_spline(self%psi_bar, self%qsf)
+    self%pressure_spl = new_spline(self%psi_bar, self%pressure)
+    self%beta_spl = new_spline(self%psi_bar, self%beta)
     call self%setup_special_splines
   end subroutine setup_splines_eqfile
 
@@ -895,9 +895,9 @@ contains
     do i = 1, self%nw
        self%psi_bar(i) = float(i - 1) / float(self%nw - 1)
     end do
-    call inter_cspl(nw_in, spsi_bar, f, self%nw, self%psi_bar, self%fp)
-    call inter_cspl(nw_in, spsi_bar, p, self%nw, self%psi_bar, self%pressure)
-    call inter_cspl(nw_in, spsi_bar, q, self%nw, self%psi_bar, self%qsf)
+    call inter_cspl(spsi_bar, f, self%psi_bar, self%fp)
+    call inter_cspl(spsi_bar, p, self%psi_bar, self%pressure)
+    call inter_cspl(spsi_bar, q, self%psi_bar, self%qsf)
 
     allocate(eq_R(self%nw), eq_Z(self%nh))
     do i = 1, self%nw
@@ -1038,7 +1038,7 @@ contains
     if (debug) write(6,fmt='("ztmp=",5f8.4)') ztmp
     if (debug) write(6,fmt='("Z_mag=",f8.4)') Z_mag
 
-    call new_spline(nz, ztmp, rtmp, spl)
+    spl = new_spline(ztmp, rtmp)
     r1 = splint(Z_mag, spl)
     call delete_spline(spl)
 
@@ -1087,7 +1087,7 @@ contains
     if (debug) write(6,fmt='("a_minor: rtmp=",5f8.4)') rtmp
     if (debug) write(6,fmt='("a_minor: ztmp=",5f8.4)') ztmp
 
-    call new_spline(nz, ztmp, rtmp, spl)
+    spl = new_spline(ztmp, rtmp)
     r2 = splint(Z_mag, spl)
     call delete_spline(spl)
 

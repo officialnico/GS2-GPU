@@ -16,7 +16,7 @@ module theta_grid_gridgen
 
   ! knobs
   integer :: npadd
-  real :: alknob, epsknob, bpknob, extrknob, tension
+  real :: alknob, epsknob, bpknob, extrknob, regrid_tension, tension
   real :: thetamax, deltaw, widthw
   logical :: skip_gridgen
   logical :: exist, initialized=.false.
@@ -44,6 +44,9 @@ module theta_grid_gridgen
      real :: extrknob = 0.0
      !> Number of points between original grid points to oversample \(\theta\) by
      integer :: npadd = 2
+     !> Tension to use in interpolating splines for regrid of geometrical quantities
+     !> Defaults to [[theta_grid_gridgen_config_type:tension]] if not set.
+     real :: regrid_tension = -1.0
      !> If true then skip gridgen call and instead just use the existing grid.
      !>
      !> @note This is primarily for debugging and testing. When active we are
@@ -85,6 +88,7 @@ contains
     write (unit, fmt="(' epsknob =  ',e17.10)") epsknob
     write (unit, fmt="(' bpknob =   ',e17.10)") bpknob
     write (unit, fmt="(' extrknob = ',e17.10)") extrknob
+    write (unit, fmt="(' regrid_tension =  ',e17.10)") regrid_tension
     write (unit, fmt="(' skip_gridgen =  ',L1)") skip_gridgen
     write (unit, fmt="(' tension =  ',e17.10)") tension
     write (unit, fmt="(' thetamax = ',e17.10)") thetamax
@@ -125,6 +129,7 @@ contains
     epsknob  = theta_grid_gridgen_config%epsknob
     bpknob  = theta_grid_gridgen_config%bpknob
     extrknob  = theta_grid_gridgen_config%extrknob
+    regrid_tension  = theta_grid_gridgen_config%regrid_tension
     skip_gridgen = theta_grid_gridgen_config%skip_gridgen
     tension  = theta_grid_gridgen_config%tension
     thetamax  = theta_grid_gridgen_config%thetamax
@@ -132,6 +137,9 @@ contains
     widthw  = theta_grid_gridgen_config%widthw
 
     exist = theta_grid_gridgen_config%exist
+
+    ! Handle special treatment
+    if (regrid_tension < 0) regrid_tension = tension
   end subroutine read_parameters
 
   !> FIXME : Add documentation
@@ -262,7 +270,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     type (spline) :: spl
     integer :: i
 
-    call new_spline (2*nold+1, x(-nold:nold), y(-nold:nold), spl)
+    spl = new_spline (x(-nold:nold), y(-nold:nold), tension = regrid_tension)
 
     do i = -nnew, nnew
        y(i) = splint(xnew(i), spl)
@@ -308,9 +316,10 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     ! isolation and ensure we can move this routine to another module easily.
     integer :: npadd
     logical :: skip_gridgen
-    real :: alknob, bpknob, deltaw, epsknob, extrknob, tension, thetamax, widthw
+    real :: alknob, bpknob, deltaw, epsknob, extrknob, regrid_tension, tension, thetamax, widthw
 
-    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, skip_gridgen, tension, thetamax, widthw
+    namelist /theta_grid_gridgen_knobs/ alknob, bpknob, deltaw, epsknob, extrknob, npadd, regrid_tension, skip_gridgen, &
+         tension, thetamax, widthw
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -321,6 +330,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     epsknob  = self%epsknob
     bpknob  = self%bpknob
     extrknob  = self%extrknob
+    regrid_tension  = self%regrid_tension
     skip_gridgen = self%skip_gridgen
     tension  = self%tension
     thetamax  = self%thetamax
@@ -337,6 +347,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     self%epsknob   = epsknob
     self%bpknob   = bpknob
     self%extrknob   = extrknob
+    self%regrid_tension   = regrid_tension
     self%skip_gridgen = skip_gridgen
     self%tension   = tension
     self%thetamax   = thetamax
@@ -364,6 +375,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call self%write_key_val("epsknob", self%epsknob ,unit_internal)
     call self%write_key_val("bpknob", self%bpknob ,unit_internal)
     call self%write_key_val("extrknob", self%extrknob ,unit_internal)
+    call self%write_key_val("regrid_tension", self%regrid_tension ,unit_internal)
     call self%write_key_val("skip_gridgen", self%skip_gridgen, unit_internal)
     call self%write_key_val("tension", self%tension ,unit_internal)
     call self%write_key_val("thetamax", self%thetamax ,unit_internal)
@@ -393,6 +405,7 @@ if (debug) write(6,*) 'gridgen_get_grids: end'
     call broadcast(self%epsknob)
     call broadcast(self%bpknob)
     call broadcast(self%extrknob)
+    call broadcast(self%regrid_tension)
     call broadcast(self%skip_gridgen)
     call broadcast(self%tension)
     call broadcast(self%thetamax)

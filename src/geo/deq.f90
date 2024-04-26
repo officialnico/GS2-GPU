@@ -23,7 +23,6 @@ contains
   !> domain defined by the coordinates (R,Z).
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use splines, only: inter_cspl
     use geo_utils, only: sort
     implicit none
     class(deq_type), intent(in out) :: self
@@ -146,9 +145,9 @@ contains
     use constants, only: twopi
     implicit none
     class(deq_type), intent(in out) :: self
-    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
-         self%rbound_spl, drop_last_point = .true.)
-    call new_spline(size(self%psi_mid), self%psi_mid, self%rho_mid, self%rho_spl)
+    self%rbound_spl = new_periodic_spline(self%thetab, self%r_bound, twopi, &
+         drop_last_point = .true.)
+    self%rho_spl = new_spline(self%psi_mid, self%rho_mid)
   end subroutine setup_special_splines
 
   subroutine delete_special_splines(self)

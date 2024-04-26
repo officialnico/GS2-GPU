@@ -115,8 +115,8 @@ contains
     end do
 
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%R(:), &
-            twopi, spl, drop_last_point = has_duplicate_point(i))
+       spl = new_periodic_spline (d%grid(i)%theta(:), d%grid(i)%R(:), &
+            twopi, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
           self%R_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
@@ -124,8 +124,8 @@ contains
     end do
 
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%Z(:), &
-            twopi, spl, drop_last_point = has_duplicate_point(i))
+       spl = new_periodic_spline (d%grid(i)%theta(:), d%grid(i)%Z(:), &
+            twopi, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
           self%Z_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
@@ -133,8 +133,8 @@ contains
     end do
 
     do i = 1, d%nr
-       call new_periodic_spline (d%grid(i)%nt, d%grid(i)%theta(:), d%grid(i)%B(:), &
-            twopi, spl, drop_last_point = has_duplicate_point(i))
+       spl = new_periodic_spline (d%grid(i)%theta(:), d%grid(i)%B(:), &
+            twopi, drop_last_point = has_duplicate_point(i))
        do jj = 1, self%nt
           self%B_psi (i, jj) = periodic_splint (inputs%theta(jj), spl)
        end do
