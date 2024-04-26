@@ -583,8 +583,6 @@ contains
     use theta_grid, only: ntgrid
     use mp, only: nproc, iproc
     implicit none
-    character (1) :: char
-
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
   end subroutine init_integrations
 
