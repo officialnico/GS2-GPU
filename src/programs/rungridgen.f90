@@ -430,33 +430,8 @@ contains
   end subroutine generate_grids
 
   !> FIXME : Add documentation    
-  subroutine spline (nin, xin, yin, nout, xout, yout)
-    use splines, only: fitp_curv1, fitp_curv2
-    implicit none
-    integer, intent (in) :: nin
-    real, dimension (:), intent (in) :: xin, yin
-    integer, intent (in) :: nout
-    real, dimension (:), intent (in) :: xout
-    real, dimension (:), intent (out) :: yout
-
-    real, dimension (:), allocatable :: work, tmp
-    integer :: ierr
-    integer :: i
-
-    allocate (work(nin), tmp(2*nin))
-
-    ierr = 0
-    call fitp_curv1 (nin, xin, yin, 0.0, 0.0, 3, work, tmp, 1.0, ierr)
-    do i = 1, nout
-       yout(i) = fitp_curv2 (xout(i), nin, xin, yin, work, 1.0)
-    end do
-
-    deallocate (work, tmp)
-  end subroutine spline
-
-  !> FIXME : Add documentation    
   subroutine write_output
-    use splines, only: fitp_curvp2
+    use splines, only: inter_cspl
     use gs2_io_grids, only: nc_write_grid_sizes, nc_write_grid_scalars, nc_write_grids
     use gs2_io_grids, only: nc_write_lambda_grid
     use gs2_io_grids, only: nc_grid_file_open, nc_grid_file_close
@@ -474,7 +449,6 @@ contains
     real, allocatable, dimension (:) :: Rplotout, Rprimeout
     real, allocatable, dimension (:) :: Zplotout, Zprimeout
     real, allocatable, dimension (:) :: aplotout, aprimeout
-!    real, external :: fitp_curvp2
 !    real :: th, bmin
     real :: bmin
 !    integer :: ierr
@@ -549,38 +523,22 @@ contains
             = bmaggridout(-ntheta/2+1:ntheta/2)
     end do
 
-    call spline (2*ntgridin+1,thetagrid,gbdrift, &
-         2*ntgrid+1,thetagridout,gbdriftout)
-    call spline (2*ntgridin+1,thetagrid,gradpar, &
-         2*ntgrid+1,thetagridout,gradparout)
-    call spline (2*ntgridin+1,thetagrid,grho, &
-         2*ntgrid+1,thetagridout,grhoout)
-    call spline (2*ntgridin+1,thetagrid,cvdrift, &
-         2*ntgrid+1,thetagridout,cvdriftout)
-    call spline (2*ntgridin+1,thetagrid,gds2, &
-         2*ntgrid+1,thetagridout,gds2out)
-    call spline (2*ntgridin+1,thetagrid,bmag, &
-         2*ntgrid+1,thetagridout,bmaggridout)
-    call spline (2*ntgridin+1,thetagrid,gds21, &
-         2*ntgrid+1,thetagridout,gds21out)
-    call spline (2*ntgridin+1,thetagrid,gds22, &
-         2*ntgrid+1,thetagridout,gds22out)
-    call spline (2*ntgridin+1,thetagrid,cvdrift0, &
-         2*ntgrid+1,thetagridout,cvdrift0out)
-    call spline (2*ntgridin+1,thetagrid,gbdrift0, &
-         2*ntgrid+1,thetagridout,gbdrift0out)
-    call spline (2*ntgridin+1,thetagrid,Rplot, &
-         2*ntgrid+1,thetagridout,Rplotout)
-    call spline (2*ntgridin+1,thetagrid,Rprime, &
-         2*ntgrid+1,thetagridout,Rprimeout)
-    call spline (2*ntgridin+1,thetagrid,Zplot, &
-         2*ntgrid+1,thetagridout,Zplotout)
-    call spline (2*ntgridin+1,thetagrid,Zprime, &
-         2*ntgrid+1,thetagridout,Zprimeout)
-    call spline (2*ntgridin+1,thetagrid,aplot, &
-         2*ntgrid+1,thetagridout,aplotout)
-    call spline (2*ntgridin+1,thetagrid,aprime, &
-         2*ntgrid+1,thetagridout,aprimeout)
+    call inter_cspl(thetagrid, gbdrift, thetagridout, gbdriftout)
+    call inter_cspl(thetagrid, gradpar, thetagridout, gradparout)
+    call inter_cspl(thetagrid, grho, thetagridout, grhoout)
+    call inter_cspl(thetagrid, cvdrift, thetagridout, cvdriftout)
+    call inter_cspl(thetagrid, gds2, thetagridout, gds2out)
+    call inter_cspl(thetagrid, bmag, thetagridout, bmagout)
+    call inter_cspl(thetagrid, gds21, thetagridout, gds21out)
+    call inter_cspl(thetagrid, gds22, thetagridout, gds22out)
+    call inter_cspl(thetagrid, cvdrift0, thetagridout, cvdrift0out)
+    call inter_cspl(thetagrid, gbdrift0, thetagridout, gbdrift0out)
+    call inter_cspl(thetagrid, Rplot, thetagridout, Rplotout)
+    call inter_cspl(thetagrid, Rprime, thetagridout, Rprimeout)
+    call inter_cspl(thetagrid, Zplot, thetagridout, Zplotout)
+    call inter_cspl(thetagrid, Zprime, thetagridout, Zprimeout)
+    call inter_cspl(thetagrid, aplot, thetagridout, aplotout)
+    call inter_cspl(thetagrid, aprime, thetagridout, aprimeout)
 
     call open_output_file (unit, ".out")
     write (unit=unit, fmt=*) 'nlambda'

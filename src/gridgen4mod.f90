@@ -176,6 +176,7 @@ contains
        ntheta,nbset,thetagrid,bmaggrid,bset)
     use constants, only: pi, twopi
     use mp, only: proc0
+    use splines, only: periodic_spline
     implicit none
     integer, intent (in) :: n
     integer, intent (in) :: nbmag
@@ -191,7 +192,7 @@ contains
     logical :: debug_output = .true., verbose_debug_output = .false. ! MRH verbose_debug_output prints out the resolution_metric to debug_unit for every iteration of gg4remove to debug the point using procedure    
 
     real, parameter :: precision_bound = 1.0e3*epsilon (0.0)! MRH a number used to take into account machine error in floatingpoint arithmetic
-    real, dimension (:), allocatable :: bmagspl
+    type(periodic_spline) :: bmagspl
 
     integer :: nstart
     real, allocatable, dimension (:) :: thetastart, bmagstart
@@ -334,32 +335,15 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     
     !> FIXME : Add documentation  
     subroutine gg4init
-      use splines, only: fitp_curvp1
+      use splines, only: new_periodic_spline
       use mp, only: mp_abort
       use file_utils, only: open_output_file
       implicit none
-      real, dimension (2*nbmag) :: tmp
-      integer :: ierr, i
-
-      ierr = 0
-      allocate (bmagspl(nbmag)) ; bmagspl = 0.
-      call fitp_curvp1 (nbmag-1,thetain,bmagin,npi,bmagspl,tmp,tension,ierr)
-      if (ierr /= 0) then
-         print *, "CURVP1: IERR=", ierr
-         select case (ierr)
-         case (1)
-            print *, "N is less than 2"
-         case (2)
-            print *, "P is less than or equal to X(N)-X(1)"
-         case (3)
-            print *, "X values are not strictly increasing"
-         end select
-         write(6,*) 'gg4init: stopping with ierr=',ierr
-         call mp_abort('gg4init: stopping with ierr/=0')
-      end if
+      integer :: i
+      bmagspl = new_periodic_spline(thetain, bmagin, npi, &
+           drop_last_point = .true., tension = tension)
 
       nstart = 0
-
       nset = 0
       nsetset = 0
 
@@ -386,13 +370,13 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4finish
       use mp, only: mp_abort
       use file_utils, only: close_output_file
+      use splines, only: delete_periodic_spline
       implicit none
       
       if (debug_output) then
          call close_output_file(debug_unit)
       end if
-      
-      deallocate (bmagspl)
+      call delete_periodic_spline(bmagspl)
       deallocate (thetastart)
       deallocate (bmagstart)
       deallocate (bmin,bmax,bextr,thetaextr,bprime)
@@ -1395,12 +1379,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end subroutine gg4debug4
 
     !> FIXME : Add documentation    
-    function bmagint (theta)
-      use splines, only: fitp_curvp2
+    real function bmagint (theta)
+      use splines, only: periodic_splint
       implicit none
       real, intent (in) :: theta
-      real :: bmagint
-      bmagint = fitp_curvp2(theta,nbmag-1,thetain,bmagin,npi,bmagspl,tension)
+      bmagint = periodic_splint(theta, bmagspl)
     end function bmagint
 
     !> FIXME : Add documentation    

@@ -324,7 +324,7 @@ contains
     use gs2_init, only: init_gs2_init
     use job_manage, only: time_message, job_fork
     use job_manage, only: init_checktime
-    use mp, only: init_mp, broadcast, job, iproc, nproc, proc0
+    use mp, only: init_mp, broadcast, job, nproc, proc0
     use mp, only: use_nproc, included, mp_comm, mp_comm_null
     use redistribute, only: using_measure_scatter
     use unit_tests, only: debug_message, set_job_id
@@ -1727,7 +1727,7 @@ contains
     type(standard_header_type) :: local_header
     ! File unit to write to
     integer :: used_inputs_unit
-    type(gs2_config_type) :: input_config
+    type(gs2_config_type), allocatable :: input_config
 
     ! Only write this file on rank 0
     if (.not. proc0) return
@@ -1737,6 +1737,8 @@ contains
     else
       local_header = standard_header_type()
     end if
+
+    allocate(input_config)
 
     call input_config%get_configs()
     call open_output_file(used_inputs_unit, ".used_inputs.in")

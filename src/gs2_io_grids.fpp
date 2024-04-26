@@ -29,21 +29,6 @@ module gs2_io_grids
 
 contains
 
-  !> Remove the output netCDF file if already exists
-  subroutine nc_grid_file_new(filename)
-    use file_utils, only: get_unused_unit
-    character (len=*), intent(in) :: filename
-    logical :: is_exist
-    integer :: unit
-    if (.not.proc0) return
-    inquire(file=filename, exist=is_exist)
-    if (is_exist) then
-       write(6,*) 'WARNING: existing file will be over-written ', trim(filename)
-       open(unit, file=filename)
-       close(unit, status='delete')
-    end if
-  end subroutine nc_grid_file_new
-
   !> Open the netCDF file
   !> If the file already exists, remove it.
   subroutine nc_grid_file_open(filename, mode)
@@ -296,6 +281,10 @@ contains
          dim_ids=[nt_dim])
     if (present(aprime)) call neasyf_write(ncid, "aprime", aprime(-ntgrid:theta_end_point), &
          dim_ids=[nt_dim])
+    if (present(cdrift)) call neasyf_write(ncid, "cdrift", cdrift(-ntgrid:theta_end_point), &
+         dim_ids=[nt_dim])
+    if (present(cdrift0)) call neasyf_write(ncid, "cdrift0", cdrift0(-ntgrid:theta_end_point), &
+         dim_ids=[nt_dim])
 # else
     call mp_abort("nc_write_grids does not work without NetCDF")
 # endif
@@ -368,7 +357,7 @@ contains
     integer :: s
     integer :: l
     l = size(array)
-    s = sign(1.,(array(l-1)-array(l-2))*(array(2)-array(3)))
+    s = int(sign(1.,(array(l-1)-array(l-2))*(array(2)-array(3))))
     array(l) = array(l-1) + s * (array(1)-array(2))
   end subroutine ntgrid_padding
 
