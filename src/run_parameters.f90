@@ -584,9 +584,13 @@ contains
   !> Resets the config object to the initial empty state
   subroutine reset_knobs_config(self)
     class(knobs_config_type), intent(in out) :: self
+    type(knobs_config_type), allocatable :: empty
     select type (self)
     type is (knobs_config_type)
-       self = knobs_config_type()
+       ! We should just be able to assign from `knobs_config_type()`,
+       ! but Intel doesn't like it for some reason
+       allocate(empty)
+       self = empty
     end select
   end subroutine reset_knobs_config
 
