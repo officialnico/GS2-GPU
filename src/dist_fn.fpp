@@ -6787,10 +6787,9 @@ contains
     real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
     real, dimension(:, :, :), allocatable, save :: mom_shift_para, mom_shift_perp
 
-    integer :: isgn, iglo, is, ie
-
-    real :: a, b, tpar2, tper2
-    integer :: it, ik, ig
+    integer :: isgn, iglo, is, ie, it, ik, ig
+    complex :: tpar2, tper2
+    real :: a, b
 
     ! returns moment integrals to PE 0
 
