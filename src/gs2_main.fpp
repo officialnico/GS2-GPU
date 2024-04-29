@@ -197,8 +197,7 @@ module gs2_main
      integer :: nproc_actual = -1
 
      !> If true then we end up passing [[gs2_program_state_type:run_name]]
-     !> as the base file name. This is only set to .true. in [[init_gs2_gryfx]]
-     !> which is not called in GS2 but may be from original trinity etc.
+     !> as the base file name.
      logical :: run_name_external = .false.
      !> The run name to pass to [[init_file_utils]] if `run_name_external` is
      !> set to true. GS2 then uses this in place of any input file name passed
