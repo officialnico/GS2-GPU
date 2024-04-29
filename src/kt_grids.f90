@@ -1487,8 +1487,8 @@ contains
 ! If n0 and rhostar_box defined, set ky(1) using toroidal mode number.
 
     use file_utils, only: error_unit
-    use theta_grid, only: shat, drhodpsi
-    use constants, only: pi
+    use theta_grid, only: drhodpsi
+    use constants, only: twopi
     use mp, only: mp_abort, proc0
     implicit none
     type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in
@@ -1501,12 +1501,12 @@ contains
     if (ny==0 .and. naky==0) call mp_abort("ERROR: ny==0 .and. naky==0", .true.) 
     if (nx==0 .and. ntheta0==0) call mp_abort("ERROR: nx==0 .and. ntheta0==0", .true.) 
 
-    if (rhostar_box .gt. 0.0 .and. n0 .gt. 0) y0=1.0/(n0*rhostar_box*drhodpsi)
+    if (rhostar_box > 0.0 .and. n0 > 0) y0 = 1.0 / (n0 * rhostar_box * drhodpsi)
 
-    if (y0 < 0) y0 = -1./y0
-    if (ly == 0.) ly = 2.0*pi*y0
-    if (naky == 0) naky = (ny-1)/3 + 1
-    if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
+    if (y0 < 0) y0 = -1 / y0
+    if (ly == 0.) ly = twopi * y0
+    if (naky == 0) naky = (ny - 1) / 3 + 1
+    if (ntheta0 == 0) ntheta0 = 2*((nx - 1) / 3) + 1
     if (rtwist == 0.) rtwist = real(jtwist)
 
     if (mod(ntheta0, 2) /= 1) then
@@ -1520,12 +1520,12 @@ contains
 
     if (ny == 0) then
        ! If ny hasn't been set the determine it from naky
-       ny = (naky - 1)*  3 + 1
+       ny = (naky - 1) * 3 + 1
        if (proc0) write (error_unit(), '("INFO: ny (",I0,") set from naky (",I0,").")') ny, naky
     else
        ! If both naky and ny are set then check that the resulting padding is at least
        ! as much as required for dealiasing
-       if (naky < (ny-1)/3 + 1) then ! Excess padding
+       if (naky < (ny - 1) / 3 + 1) then ! Excess padding
           if (proc0) then
              write (error_unit(), '("INFO: Both ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
              write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') ny - ((naky - 1)*  3 + 1)
@@ -1533,7 +1533,7 @@ contains
              write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
           end if
 
-       else if (naky > (ny-1)/3 + 1) then ! Insufficient padding
+       else if (naky > (ny - 1) / 3 + 1) then ! Insufficient padding
           if (proc0) then
              write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') ny - ((naky - 1)*  3 + 1)
@@ -1554,7 +1554,7 @@ contains
     else
        ! If both ntheta0 and nx are set then check that the resulting padding is at least
        ! as much as required for dealiasing
-       if (ntheta0 < 2*((nx-1)/3) + 1) then ! Excess padding
+       if (ntheta0 < 2*((nx - 1) / 3) + 1) then ! Excess padding
           if (proc0) then
              write (error_unit(), '("INFO: Both nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
              write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
@@ -1562,7 +1562,7 @@ contains
              write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
           end if
 
-       else if (ntheta0 > 2*((nx-1)/3) + 1) then ! Insufficient padding
+       else if (ntheta0 > 2*((nx - 1) / 3) + 1) then ! Insufficient padding
           if (proc0) then
              write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
