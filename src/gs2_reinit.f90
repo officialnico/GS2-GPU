@@ -106,12 +106,12 @@ contains
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt, user_time
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min, code_dt_max
-    use gs2_init, only: init_type, init
-    use gs2_init, only: init_level_list
+    use gs2_init, only: init_type, init, init_level_list
     use mp, only: proc0
     use file_utils, only: error_unit
     use job_manage, only: time_message
     use array_utils, only: zero_array
+    use optionals, only: get_option_with_default
     implicit none
     integer, intent(in) :: istep 
     logical, intent(inout) :: my_exit
@@ -122,7 +122,7 @@ contains
     type(init_type), intent(inout) :: current_init
     real :: original_time_step
     real :: fac = 1.0
-    integer :: timestep_change_attempts
+    integer :: timestep_change_attempts, local_job_id
     integer, parameter :: timestep_change_attempts_limit = 10
     if (first) call init_reinit
     first = .false.
@@ -149,7 +149,8 @@ contains
        return
     end if
 
-    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
+    local_job_id = get_option_with_default(job_id, -1)
+    if (local_job_id < 0) call time_message(proc0,time_reinit,' Re-initialize')
 
     !First disable the reset flag so we can call 
     !routines needed in reinit
@@ -206,7 +207,7 @@ contains
        return
     end if
 
-    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
+    if (proc0 .and. (local_job_id < 0)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
 
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
@@ -214,7 +215,7 @@ contains
     !call reinit_gk_and_field_equations(reset_antenna=.false.)
     call init(current_init, init_level_list%full)
     
-    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
+    if (local_job_id < 0) call time_message(proc0,time_reinit,' Re-initialize')
 
     istep_last = istep
 

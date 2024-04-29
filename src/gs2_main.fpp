@@ -729,11 +729,7 @@ contains
          call debug_message(state%verb+1, 'gs2_main::evolve_equations resetting timestep')
          call set_initval_overrides_to_current_vals(state%init%initval_ov)
          state%init%initval_ov%override = .true.
-         if (state%is_external_job) then
-           call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-         else
-           call reset_time_step (state%init, istep, state%exit)
-         end if
+         call reset_time_step (state%init, istep, state%exit, state%external_job_id)
 
          ! Now we've reset set the flag back to .false.
          reset = .false.
@@ -800,12 +796,7 @@ contains
             call prepare_initial_values_overrides(state)
             call set_initval_overrides_to_current_vals(state%init%initval_ov)
             state%init%initval_ov%override = .true.
-            ! if called within trinity, do not dump info to screen
-            if (state%is_external_job) then
-               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-            else
-               call reset_time_step (state%init, istep, state%exit)
-            end if
+            call reset_time_step (state%init, istep, state%exit, state%external_job_id)
 
             ! Switch off the reset flag now, otherwise it can still be active
             ! on the next iteration.
