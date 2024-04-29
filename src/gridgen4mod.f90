@@ -240,8 +240,11 @@ contains
     integer :: nset
     !> nsetset is the number of thetagrid points that we consider, equal to nstart
     integer :: nsetset
-    !> A collection of all theta grid points where B(theta) is found in
-    !> the collection of starting B values (bmagstart).
+    !> A collection of all theta grid points where B(theta) is found
+    !> in the collection of starting B values (bmagstart). Each value
+    !> of B has a corresponding set of theta points. Hence "setset"
+    !> refers to the fact we have a set of theta grid points for each
+    !> entry in our set of B.
     real, allocatable, dimension (:) :: thetasetset
     !> Sorted forms of thetasetset and bmagset. Currently only used for debug
     real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
@@ -548,18 +551,8 @@ contains
       real :: thetai, bmagi
 
       ! Allocate
-      !> Used to records all theta grid points at which B is equal
-      !> to one of our unique bmagstart values (our "set" of B). Each
-      !> value of B has a corresponding set of theta points. Hence "setset"
-      !> refers to the fact we have a set of theta grid points for each
-      !> entry in our set of B.
       allocate (thetasetset(0))
-      !> Used to map from a given theta point to the corresponding set,
-      !> in other words, all points with the same value of B should have
-      !> the same ibmagsetset which is in the range [1, nstart]
       allocate (ibmagsetset(0))
-      !> Used for debugging, indicates which add_setset* call added a
-      !> given point to the set of points.
       allocate (icollsetset(0))
 
       nsetset = 0
