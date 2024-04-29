@@ -359,20 +359,20 @@ contains
     if (use_bishop) then
        select case(char)
        case('B')
-          darr = self%dbbish
+          allocate(darr, source = self%dbbish)
        case('P', 'R')
-          darr = self%dpbish
+          allocate(darr, source = self%dpbish)
        case('T')
-          darr = self%dtbish
+          allocate(darr, source = self%dtbish)
        end select
     else
        select case(char)
        case('B')
-          darr = self%dbcart
+          allocate(darr, source = self%dbcart)
        case('P', 'R')
-          darr = self%dpcart
+          allocate(darr, source = self%dpcart)
        case('T')
-          darr = self%dtcart
+          allocate(darr, source = self%dtcart)
        end select
     end if
 
