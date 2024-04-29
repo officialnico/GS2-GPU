@@ -43,7 +43,7 @@ contains
        inquire(file=filename, exist=is_exist)
        if (is_exist) then
           write(6,*) 'WARNING: existing file will be over-written ', trim(filename)
-          open(unit, file=filename)
+          open(newunit = unit, file=filename)
           close(unit, status='delete')
        end if
     end if
