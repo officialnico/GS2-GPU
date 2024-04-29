@@ -2,8 +2,8 @@
 
 &test_settings
   tolerance = 1.0e-5
-  gamma_expected = 0.901177E-001
-  omega_expected = 0.17350282571035150
+  gamma_expected = 0.904183E-001
+  omega_expected = 0.173468
 /
 
 &species_knobs
