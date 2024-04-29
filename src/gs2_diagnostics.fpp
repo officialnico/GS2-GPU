@@ -860,7 +860,7 @@ contains
     use diagnostics_final_routines, only: do_write_gs
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
-    logical :: last = .true.
+    logical, parameter :: last = .true.
 
     call debug_message(3, 'gs2_diagnostics::finish_gs2_diagnostics &
          & starting')
@@ -1074,7 +1074,7 @@ contains
     real :: hflux_tot, zflux_tot, vflux_tot
 
     real, save :: t_old = 0.
-    logical :: last = .false.
+    logical, parameter :: last = .false.
     logical:: debug=.false.
     logical :: do_force
     integer, save :: istep_last = -1
