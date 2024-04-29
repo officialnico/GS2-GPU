@@ -183,13 +183,6 @@ module gs2_main
      !> Setting this flag true automatically sets is_external_job to true
      logical :: is_trinity_job = .false.
 
-     !> Used to hold the current trinity timestep if being called via
-     !> trinity. Set in [[gs2_gryfx_zonal]].
-     integer :: trinity_timestep = -1
-     !> Used to hold the current trinity iteration if being called via
-     !> trinity. Set in [[gs2_gryfx_zonal]].
-     integer :: trinity_iteration = -1
-
      !> If true, print full timing breakdown.
      logical :: print_full_timers = .true.
 
@@ -1687,16 +1680,8 @@ contains
     implicit none
     type(gs2_program_state_type), intent(in) :: state
     integer :: trinpars_unit
-    character(len=1000) :: ext
+    character(len=*), parameter :: ext = '.trinpars'
     if (.not. proc0) return
-
-    if (state%trinity_timestep .gt. 0) then
-       write(ext,'(".",I0,".",I0,".trinpars")') state%trinity_timestep, &
-            state%trinity_iteration
-    else
-       ext = '.trinpars'
-    end if
-
     call open_output_file(trinpars_unit, trim(ext))
     call write_theta_grid(trinpars_unit)
     call write_species(trinpars_unit)
