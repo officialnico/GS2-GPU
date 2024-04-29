@@ -1265,7 +1265,7 @@ contains
        endif
     end if
 
-    if (trinity_ql_fluxes) then
+    if (state%trinity_ql_fluxes) then
 #ifdef NEW_DIAG
        qf = gnostics%current_results%species_heat_flux
        pf = gnostics%current_results%species_particle_flux
