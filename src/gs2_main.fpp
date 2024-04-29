@@ -182,6 +182,10 @@ module gs2_main
      !>     provided by trinity
      !> Setting this flag true automatically sets is_external_job to true
      logical :: is_trinity_job = .false.
+     !> If true and running linearly, return linear diffusive flux estimates to Trinity.
+     logical :: trinity_linear_fluxes = .false.
+     !> If true and running linearly, return a QL flux estimate to Trinity.
+     logical :: trinity_ql_fluxes = .false.
 
      !> If true, print full timing breakdown.
      logical :: print_full_timers = .true.
@@ -905,7 +909,7 @@ contains
     use gs2_diagnostics_new, only: reset_averages_and_counters
 #endif
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: trinity_linear_fluxes, use_old_diagnostics
+    use run_parameters, only: use_old_diagnostics
     use gs2_time, only: code_dt, save_dt
     use mp, only: scope, subprocs, allprocs
     use unit_tests, only: debug_message
@@ -928,7 +932,7 @@ contains
 #endif
     end if
 
-    if (trinity_linear_fluxes .and. .not. nonlin) call reset_linear_magnitude
+    if (state%trinity_linear_fluxes .and. .not. nonlin) call reset_linear_magnitude
 
     state%istep_end = 0
 
@@ -1201,7 +1205,7 @@ contains
 #endif
     use gs2_time, only: user_time
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics
+    use run_parameters, only: use_old_diagnostics
     use species, only: nspec, spec
     use mp, only: mp_abort
     implicit none
@@ -1218,7 +1222,7 @@ contains
 
     ! Use simple gamma / k^2 estimates for transport in the
     ! linear case. This is for testing Trinity
-    if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
+    if (state%trinity_linear_fluxes .and. .not. state%trinity_ql_fluxes .and. &
          .not. nonlin) then
        if (use_old_diagnostics) then
           diff = diffusivity()
