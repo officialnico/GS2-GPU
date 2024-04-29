@@ -183,13 +183,6 @@ module gs2_main
      !> Setting this flag true automatically sets is_external_job to true
      logical :: is_trinity_job = .false.
 
-     !> Used to hold the current trinity timestep if being called via
-     !> trinity. Set in [[gs2_gryfx_zonal]].
-     integer :: trinity_timestep = -1
-     !> Used to hold the current trinity iteration if being called via
-     !> trinity. Set in [[gs2_gryfx_zonal]].
-     integer :: trinity_iteration = -1
-
      !> If true, print full timing breakdown.
      logical :: print_full_timers = .true.
 
@@ -668,7 +661,6 @@ contains
     use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics, ncheck_stop
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
-    use nonlinear_terms, only: gryfx_zonal
     use standard_header, only: standard_header_type
     use exit_codes, only: EXIT_MAX_SIM_TIME
     type(gs2_program_state_type), intent(inout) :: state
@@ -863,27 +855,18 @@ contains
        end if
     end if
 
-    ! NRM: When running inside GryfX, evolve_equations is called every timestep to
-    ! advance a single timestep.
-    ! So anything that is supposed to happen after GS2 completes the main nstep
-    ! loop should not be done while running inside GryfX.
-    if(.not. gryfx_zonal%on) then
-       call time_message(.false.,state%timers%main_loop,' Main Loop')
+    call time_message(.false.,state%timers%main_loop,' Main Loop')
+    if (proc0 .and. .not. state%is_external_job) call write_dt
 
-       if (proc0 .and. .not. state%is_external_job) call write_dt
+    call time_message(.false.,state%timers%total,' Total')
+    if (state%print_times) call print_times(state, state%timers)
 
-       call time_message(.false.,state%timers%total,' Total')
+    ilast_step = state%istep_end
 
-       if (state%print_times) call print_times(state, state%timers)
-
-       ilast_step = state%istep_end
-
-       ! We also restore the value of the override switch to what it
-       ! was when this function was called.
-       state%init%initval_ov%override = temp_initval_override_store
-
-       call debug_message(state%verb,'gs2_main::evolve_equations finished')
-    end if
+    ! We also restore the value of the override switch to what it
+    ! was when this function was called.
+    state%init%initval_ov%override = temp_initval_override_store
+    call debug_message(state%verb,'gs2_main::evolve_equations finished')
   end subroutine evolve_equations
 
   !> Employ the eigenvalue solver to seek eigenmodes using SLEPc
@@ -1697,16 +1680,8 @@ contains
     implicit none
     type(gs2_program_state_type), intent(in) :: state
     integer :: trinpars_unit
-    character(len=1000) :: ext
+    character(len=*), parameter :: ext = '.trinpars'
     if (.not. proc0) return
-
-    if (state%trinity_timestep .gt. 0) then
-       write(ext,'(".",I0,".",I0,".trinpars")') state%trinity_timestep, &
-            state%trinity_iteration
-    else
-       ext = '.trinpars'
-    end if
-
     call open_output_file(trinpars_unit, trim(ext))
     call write_theta_grid(trinpars_unit)
     call write_species(trinpars_unit)

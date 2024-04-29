@@ -286,7 +286,6 @@ contains
     use file_utils, only: input_unit, error_unit, input_unit_exist
     use mp, only: proc0, broadcast
     use text_options, only: text_option, get_option_value
-    use kt_grids, only: gryfx
     use ran, only: set_seed_from_single_integer
     implicit none
     type(knobs_config_type), intent(in), optional :: knobs_config_in
@@ -389,13 +388,6 @@ contains
     call get_option_value ( &
          eqzip_option, eqzipopts, eqzip_option_switch, error_unit(), &
          "eqzip_option in knobs",.true.)
-
-    ! FOR GRYFX
-    if (gryfx()) then
-       delt = delt/sqrt(2.0)
-       max_sim_time = max_sim_time / sqrt(2.0)
-       nstep = nstep*2
-    end if
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
