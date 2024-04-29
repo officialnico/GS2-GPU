@@ -231,8 +231,6 @@ logical :: override_x0 = .false.
 real :: x0
 logical :: override_jtwist = .false.
 integer :: jtwist
-logical :: override_gryfx = .false.
-logical :: gryfx
  contains
   procedure :: initialise => init_kt_grids_overrides
   procedure :: finish => finish_kt_grids_overrides
@@ -414,7 +412,6 @@ self%override_ntheta0 = .false.
 self%override_y0 = .false.
 self%override_x0 = .false.
 self%override_jtwist = .false.
-self%override_gryfx = .false.
 end subroutine finish_kt_grids_overrides
 
 !> Warning: You can't change the value of

@@ -62,7 +62,7 @@ module dist_fn
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
+  public :: getfieldeq, getan, getmoms, getemoms
   public :: getfieldeq_nogath
   public :: flux_dist
   public :: get_heat
@@ -108,7 +108,7 @@ module dist_fn
 
   ! The following routines are sometimes used for debugging or testing purposes
   public :: dump_homogeneous_solution, dump_current_source_term, get_field_inconsistency
-  public :: check_getan, get_mom_glm
+  public :: check_getan
 
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -6476,208 +6476,6 @@ contains
 ! return gnew to its initial state, the variable evolved in GS2
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
   end subroutine getmoms
-
-  !> FIXME : Add documentation
-  subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
-    use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment
-    use fields_arrays, only: phinew
-    use kt_grids, only: ntheta0, naky
-    use mp, only: proc0
-    use iso_fortran_env, only: real32
-    implicit none
-    integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
-    complex(real32), dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
-         tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex(real32), dimension(:), intent(out) :: phi_gryfx
-    complex, dimension(:,:,:,:), allocatable :: total
-
-    allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-   
-    ! gryfx uses vt=sqrt(T/m) normalization, 
-    ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
-    ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
-    ! factors of sqrt(2) to get vpa and vperp2 in gryfx units before taking
-    ! integrals, i.e.
-    ! vpa_gryfx = sqrt(2) vpa
-    ! vperp2_gryfx = 2 vperp2
-
-    ! dens = < f >
-    g_work = gnew 
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            density_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! upar = < (vpar/vt_gryfx) f > = < ( sqrt(2) vpar/vt_gs2 ) f > = upar1/vt_gryfx
-    g_work = sqrt(2.)*vpa*gnew  
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            upar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! tpar = < (vpar^2/vt_gryfx^2 - 1) f > = tpar1/T_0
-    g_work = (2.*vpa*vpa - 1.)*gnew
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tpar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! qpar = < (vpar^3/vt_gryfx^3 - 3*vpar/vt_gryfx) f > = qpar1/( n0 m vt_gryfx^3 )
-    g_work = (2.*sqrt(2.)*vpa*vpa*vpa - 3.*sqrt(2.)*vpa)*gnew
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qpar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! tprp = < ( 1/2 vprp/vt_gryfx^2 - 1 ) f > = tprp1/T_0
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          g_work(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
-       end do
-    end do
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tperp_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! qprp = < vpar/vt_gryfx*( 1/2 vprp/vt_gryfx^2 - 1 ) f > = qprp1/( n0 m vt_gryfx^3 )
-    g_work = sqrt(2.)*vpa*g_work
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qperp_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! we also must account for the overall a/rho_i factor on all quantities. 
-    ! so we multiply all moments and phi by an additional factor of sqrt(2)
-    if(proc0 ) then 
-      ! normalize to gryfx units
-      density_gryfx = sqrt(2.)*density_gryfx
-      upar_gryfx = sqrt(2.)*upar_gryfx
-      tpar_gryfx = sqrt(2.)*tpar_gryfx
-      tperp_gryfx = sqrt(2.)*tperp_gryfx
-      qpar_gryfx = sqrt(2.)*qpar_gryfx
-      qperp_gryfx = sqrt(2.)*qperp_gryfx
-    endif
-      
-
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1, g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + g_lo%naky*g_lo%ntheta0*(iz-1)
-          phi_gryfx(index_gryfx) = phinew(ig, it, ik)*sqrt(2.)
-        end do
-      end do
-    end do
-    end if
-
-    deallocate(total)
-
-
-  end subroutine getmoms_gryfx_dist
-
-  !> Calculates hermite-laguerre moments of g
-  !! uses gryfx normalization convention (see getmoms_gryfx above)
-  subroutine get_mom_glm (glm, l, m)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
-    use gs2_layouts, only: g_lo
-    use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment, hermite_prob
-    use gauss_quad, only: laguerre_norm
-
-    implicit none
-    logical, parameter :: full_arr=moment_to_allprocs
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: glm
-    integer, intent(in) :: l, m
-    integer :: isgn, iglo, ig
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-      do isgn = 1, 2
-        do ig = -ntgrid, ntgrid
-          g_work(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
-                        laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo) 
-        end do
-      end do
-    end do
-    call integrate_moment (g_work, glm,  moment_to_allprocs, full_arr)
-  end subroutine get_mom_glm
 
   !> Returns electron density and Tperp moment integrals to PE 0
   subroutine getemoms (phinew, bparnew, ntot, tperp)
