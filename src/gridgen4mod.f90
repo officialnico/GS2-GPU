@@ -745,9 +745,12 @@ contains
       ! it will only hold integers. We convert back to integer after.
       real, dimension(:), allocatable :: inds
       integer :: i
-      thetasetset_sorted = thetasetset ; inds = [(i, i=1, nsetset)]
+      thetasetset_sorted = thetasetset
+      allocate(inds, source = [(i, i=1, nsetset)])
       call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = int(inds)
-      bmagset_sorted = bmagset ; inds = [(i, i=1, nset)]
+      deallocate(inds)
+      bmagset_sorted = bmagset
+      allocate(inds, source = [(i, i=1, nset)])
       call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = int(inds)
     end subroutine gg4sort
 
