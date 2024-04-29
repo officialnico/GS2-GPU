@@ -746,11 +746,11 @@ contains
       real, dimension(:), allocatable :: inds
       integer :: i
       thetasetset_sorted = thetasetset
-      allocate(inds, source = [(i, i=1, nsetset)])
+      allocate(inds(nsetset)) ; inds = [(i, i=1, nsetset)]
       call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = int(inds)
       deallocate(inds)
       bmagset_sorted = bmagset
-      allocate(inds, source = [(i, i=1, nset)])
+      allocate(inds(nset)) ; inds = [(i, i=1, nset)]
       call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = int(inds)
     end subroutine gg4sort
 
