@@ -586,9 +586,8 @@ contains
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics_new')
 
-      ! Initialise the new diagnostics. Note we check whether this is
-      ! a Trinity run... enforces calculation of the fluxes
-      call init_gs2_diagnostics_new(state%is_trinity_job, local_header)
+      ! Initialise the new diagnostics.
+      call init_gs2_diagnostics_new(local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')

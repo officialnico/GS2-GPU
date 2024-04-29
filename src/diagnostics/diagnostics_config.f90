@@ -79,7 +79,6 @@ module diagnostics_config
      logical :: exit
      logical :: vary_vnew_only
      logical :: calculate_fluxes
-     logical :: is_trinity_run
      logical :: appending
      real :: user_time
      real :: user_time_old
