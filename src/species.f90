@@ -671,14 +671,14 @@ contains
     integer, intent(in) :: is
     real, dimension(:,:),intent(in):: egrid
     type(spline) :: spl
-    integer:: f0in_unit = 21, mode, ie, ierr, numdat, negrid
+    integer:: f0in_unit, mode, ie, ierr, numdat, negrid
     logical:: acceptable_spline
     real:: moment0, sigma, sigma_fac, df0dE
     real, dimension(:), allocatable:: f0_values_dat, df0dE_dat, egrid_dat, &
                                       df0drho_dat
 
     ! Open file and read column option
-    open(unit=f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
+    open(newunit = f0in_unit,file=trim(run_name)//'.f0in',status='old',action='read')
     read(f0in_unit,*) mode
     read(f0in_unit,*) numdat
 
