@@ -689,6 +689,9 @@ contains
     
     if (state%nensembles > 1) call scope (subprocs)
 
+    ! Stores a record of the state of species etc. at the point of
+    ! evolving the system. Does the used_inputs file make this
+    ! redundent now? Might depend on overrides?
     if (state%is_trinity_job) call write_trinity_parameters(state)
 
     call time_message(.false.,state%timers%main_loop,' Main Loop')
