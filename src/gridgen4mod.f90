@@ -464,7 +464,7 @@ contains
     subroutine gg4collect
       use mp, only: mp_abort
       implicit none
-      integer :: i, iset, j, nessential_tot
+      integer :: i, iset, nessential_tot
       real :: thetai, bmagi
 
       ! Allocate
