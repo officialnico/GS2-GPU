@@ -70,25 +70,6 @@ module gridgen4mod
 contains
 
   !> FIXME : Add documentation  
-  subroutine gridgen4 (n,nbmag,thetain,bmagin, npadd, &
-       alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw, &
-       ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
-    implicit none
-    integer, intent (in) :: nbmag, n
-    real, dimension (nbmag), intent (in) :: thetain, bmagin
-    integer, intent (in) :: npadd
-    real, intent (in) :: alknob, epsknob, bpknob, extrknob
-    real, intent (in) :: thetamax, deltaw, widthw
-    integer, intent (in out) :: ntheta, nlambda
-    real, dimension (ntheta+1), intent (out) :: thetagrid, bmaggrid
-    real, dimension (nlambda), intent (out) :: alambdagrid
-    
-    call gridgen4_1 (n,nbmag,thetain,bmagin, npadd, &
-         alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,1.0, &
-         ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
-  end subroutine gridgen4
-
-  !> FIXME : Add documentation  
   subroutine gridgen4_1 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
        ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
