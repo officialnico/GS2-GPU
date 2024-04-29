@@ -69,89 +69,6 @@ module gridgen4mod
   public :: gridgen4_1, gridgen4_2
 contains
 
-  !> FIXME : Add documentation
-  !> @note Currently unused
-  subroutine gridgen4read (filename,ntheta,nperiod,ntgrid,nlambda,theta,alambda, &
-       gbdrift,gradpar,cvdrift,gds2,bmag,gds21,gds22,cvdrift0,gbdrift0)
-    use mp, only: mp_abort
-    use constants, only: run_name_size
-    implicit none
-    character(*), intent (in) :: filename
-    integer, intent (in out) :: ntheta, nperiod, ntgrid, nlambda
-    real, dimension (-ntgrid:ntgrid), intent(out) :: theta
-    real, dimension (nlambda), intent(out) :: alambda
-    real, dimension (-ntgrid:ntgrid), intent(out) :: gbdrift, gradpar
-    real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift, gds2, bmag
-    real, dimension (-ntgrid:ntgrid), intent(out) :: gds21, gds22
-    real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift0, gbdrift0
-    integer :: nthetain, nperiodin, ntgridin, nlambdain, i, unit
-    character(run_name_size) :: line
-
-    open (newunit=unit, file=filename, status="old")
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt=*) nlambdain
-    if (nlambdain > nlambda) then
-       print *, "grid.out:nlambda > nlambda: ", nlambdain, nlambda
-       call mp_abort("grid.out:nlambda > nlambda: ")
-    end if
-    nlambda = nlambdain
-    read (unit=unit, fmt="(a)") line
-    do i = 1, nlambda
-       read (unit=unit, fmt=*) alambda(i)
-    end do
-    
-    read (unit=unit, fmt="(a)") line
-    read (unit=unit, fmt=*) ntgridin, nperiodin, nthetain
-    if (ntgridin > ntgrid) then
-       print *, "grid.out:ntgrid > ntgrid: ", ntgridin, ntgrid
-       call mp_abort("grid.out:ntgrid > ntgrid: ")
-    end if
-    ntgrid = ntgridin
-    nperiod = nperiodin
-    ntheta = nthetain
-    
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgrid, ntgrid
-       read (unit=unit, fmt=*) gbdrift(i), gradpar(i)
-    end do
-    
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgrid, ntgrid
-       read (unit=unit, fmt=*) cvdrift(i), gds2(i), bmag(i), theta(i)
-    end do
-    
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgrid, ntgrid
-       read (unit=unit, fmt=*) gds21(i), gds22(i)
-    end do
-    
-    read (unit=unit, fmt="(a)") line
-    do i = -ntgrid, ntgrid
-       read (unit=unit, fmt=*) cvdrift0(i), gbdrift0(i)
-    end do
-    
-    close (unit=unit)
-  end subroutine gridgen4read
-
-  !> FIXME : Add documentation  
-  subroutine gridgen4 (n,nbmag,thetain,bmagin, npadd, &
-       alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw, &
-       ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
-    implicit none
-    integer, intent (in) :: nbmag, n
-    real, dimension (nbmag), intent (in) :: thetain, bmagin
-    integer, intent (in) :: npadd
-    real, intent (in) :: alknob, epsknob, bpknob, extrknob
-    real, intent (in) :: thetamax, deltaw, widthw
-    integer, intent (in out) :: ntheta, nlambda
-    real, dimension (ntheta+1), intent (out) :: thetagrid, bmaggrid
-    real, dimension (nlambda), intent (out) :: alambdagrid
-    
-    call gridgen4_1 (n,nbmag,thetain,bmagin, npadd, &
-         alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,1.0, &
-         ntheta,nlambda,thetagrid,bmaggrid,alambdagrid)
-  end subroutine gridgen4
-
   !> FIXME : Add documentation  
   subroutine gridgen4_1 (n,nbmag,thetain,bmagin, npadd, &
        alknob,epsknob,bpknob,extrknob,thetamax,deltaw,widthw,tension, &
@@ -547,7 +464,7 @@ contains
     subroutine gg4collect
       use mp, only: mp_abort
       implicit none
-      integer :: i, iset, j, nessential_tot
+      integer :: i, iset, nessential_tot
       real :: thetai, bmagi
 
       ! Allocate
@@ -828,9 +745,12 @@ contains
       ! it will only hold integers. We convert back to integer after.
       real, dimension(:), allocatable :: inds
       integer :: i
-      thetasetset_sorted = thetasetset ; inds = [(i, i=1, nsetset)]
+      thetasetset_sorted = thetasetset
+      allocate(inds(nsetset)) ; inds = [(i, i=1, nsetset)]
       call quicksort(nsetset, thetasetset_sorted, inds) ; ithetasort = int(inds)
-      bmagset_sorted = bmagset ; inds = [(i, i=1, nset)]
+      deallocate(inds)
+      bmagset_sorted = bmagset
+      allocate(inds(nset)) ; inds = [(i, i=1, nset)]
       call quicksort(nset, bmagset_sorted, inds) ; ibmagsort = int(inds)
     end subroutine gg4sort
 

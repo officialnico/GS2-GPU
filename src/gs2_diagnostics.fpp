@@ -844,7 +844,7 @@ contains
 
   !> Finalise the diagnostics module, writing final timestep diagnostics and
   !> closing any open files
-  subroutine finish_gs2_diagnostics (istep)
+  subroutine finish_gs2_diagnostics
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use dist_fn, only: write_f, write_fyx, collision_error
@@ -859,11 +859,8 @@ contains
     use diagnostics_final_routines, only: do_write_final_antot, do_write_final_moments
     use diagnostics_final_routines, only: do_write_gs
     implicit none
-    !> The current (final) timestep
-    integer, intent (in) :: istep
-
     complex, dimension (ntheta0, naky) :: phi0
-    logical :: last = .true.
+    logical, parameter :: last = .true.
 
     call debug_message(3, 'gs2_diagnostics::finish_gs2_diagnostics &
          & starting')
@@ -1077,7 +1074,7 @@ contains
     real :: hflux_tot, zflux_tot, vflux_tot
 
     real, save :: t_old = 0.
-    logical :: last = .false.
+    logical, parameter :: last = .false.
     logical:: debug=.false.
     logical :: do_force
     integer, save :: istep_last = -1

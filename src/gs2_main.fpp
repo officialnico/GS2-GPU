@@ -974,7 +974,7 @@ contains
       call finish_gs2_diagnostics_new 
 #endif
     else
-      call finish_gs2_diagnostics (state%istep_end)
+      call finish_gs2_diagnostics
     end if
 
     call deallocate_target_arrays

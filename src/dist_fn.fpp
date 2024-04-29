@@ -6599,10 +6599,9 @@ contains
     real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
     real, dimension(:, :, :), allocatable, save :: mom_shift_para, mom_shift_perp
 
-    integer :: isgn, iglo, is, ie
-
-    real :: a, b, tpar2, tper2
-    integer :: it, ik, ig
+    integer :: isgn, iglo, is, ie, it, ik, ig
+    complex :: tpar2, tper2
+    real :: a, b
 
     ! returns moment integrals to PE 0
 
@@ -10212,6 +10211,8 @@ contains
     real, dimension(:, :, :), allocatable, intent(in out) :: mom_shift_para, mom_shift_perp
     integer :: i, isgn, iglo, it, ik, is
     real :: bsq
+    !> Declared as complex to allow reuse of existing integrate_moment methods, but
+    !> actually only holds real valued data.
     complex, dimension(:, :, :, :), allocatable :: coeff0
     complex, dimension(:, :, :), allocatable :: gtmp
     real, dimension(:), allocatable :: wgt
@@ -10280,10 +10281,9 @@ contains
           end do
           call integrate_moment(gtmp,coeff0,.true.,full_arr=.true.)
           where(real(coeff0(0,1:nakx,1:naky,1:nspec)) == 0.)
-             mom_coeff(1:nakx,1:naky,1:nspec,i)=1.
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = 1
           elsewhere
-             mom_coeff(1:nakx,1:naky,1:nspec,i)= &
-                  & coeff0(0,1:nakx,1:naky,1:nspec)
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = real(coeff0(0,1:nakx,1:naky,1:nspec))
           end where
        end do
     endif
