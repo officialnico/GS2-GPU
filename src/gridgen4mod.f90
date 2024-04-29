@@ -1,45 +1,66 @@
-!> FIXME : Add more documentation
-!!
-!! MRH 15/11/2017
-!! Previous versions of gridgen4_2  produced different theta grids on different machines
-!! In this version of gridgen4mod I have corrected this bug by making changes in the following subroutines (in gridgen4_2):
-!! heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
-!! get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
-!! (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and the output should be identically 0.
-!! get_lambdares-corrected this routine in the same manner as get_thetares, the output is 0 when it should be identically 0.
-!! gg4remove- modification of the inequalities used to choose which points to delete from the superset of theta points.
-!!
-!! The function of this module seems to be to optimise the choice of theta grid points.
-!! It does this by taking the magnetic field and theta grid generated in the geometry module,
-!! and spline fitting the magnetic field on a fine-mesh theta grid.
-!! By using the metrics defined in get_lambdares and get_thetares 
-!! the subroutine gg4remove removes points from the fine-mesh theta grid iteratively until the required number of points remain.
-!! The theta grid pair with the lowest value for the metric is deleted at each iteration.
-!! The reason for the bug was that these metrics were calculated in a sloppy manner,
-!! and the routine for finding the lowest value in the metric did not allow for the 
-!! case that the metrics were identical up to machine precision:
-!! -In the 1st iteration of gg4remove all of the metrics should be identically 0 but were not
-!! -The 1st theta grid pair were deleted based on a decision made with machine precision sized values of the metric-this led to random behaviour
-!! -When all duplicate values of the theta grid pairs 
-!! ----- (theta grid superset contains duplicate values of the theta grid pairs for reasons unbeknownst to me)
-!! had all been deleted, because the fine-mesh theta grid had almost equally spaced points
-!! the values for the metrics for the theta grid pairs near theta =0 were almost exactly equal.
-!! -Depending on the machine, the metric would be slightly lower for one pair of points than another
-!! and therefore the choice of which pair of points to delete 1st from the non-duplicate set was random.
-!! This behaviour led to different theta grids between different machines.
-!!
-!! I fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid pair in array element order 
-!! (of the sorted theta grid superset array) in the case that the metrics were equal up to machine error.
-!! The variable precision_bound controls this behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
-!! Finite but small precision_bound is enough to remove machine dependence.
-!! I biased heapsort in a similar manner to enable debugging - the sorting algorithm
-!! was also machine dependent because of the duplicate theta grid points in the superset.
-!!
-!! run_name.gridgen.200 contains the debug output from this module
-!! To see verbose output ensure that debug_output =.true.and verbose_debug_output =.true.
-!!
-!! @todo : This file/module needs tidying/pruning. More consistent usage of tolerance comparisons would help
-!! Testing may be tricky but would be very helpful.
+!> Given B{theta_i} attempt to produce an optimal set of theta values
+!> with the same size as the input {theta_i}. The output {theta} set
+!> should include all extrema (global and local) and as many other
+!> grid points as required to meet the requested number.
+!>
+!> The general approach is to:
+!>    1. Generate a periodic interpolating spline of B(theta).
+!>    2. Find all extrema (essential points).
+!>    3. Evaluate the spline on a finer theta mesh, controlled by npadd.
+!>    4. Construct a set of B values consisted of all extrema and values on the fine mesh.
+!>    5. For each unique B value find all values of theta for which this B appears (setset).
+!>    6. Eliminate B values, removing the corresponding values of theta, until we have
+!>       the required number of theta grid points. We choose which B values to remove based
+!>       on (user controllable) theta and lambda grid resolution metrics. We strongly bias
+!>       towards keeping extrema.
+!>
+!> @note Instead of splining and evaluating on a finer mesh we could instead pass a higher
+!> resolution B(theta) calculated in geometry when ntheta_geometry > ntheta.
+!>
+!> @note Instead of packing extra theta points in step 3, it might make more sense to
+!> finely sample B between the global min and max values?
+!>
+!> MRH 15/11/2017
+!> Previous versions of gridgen4_2  produced different theta grids on different machines
+!> In this version of gridgen4mod I have corrected this bug by making changes in the following subroutines (in gridgen4_2):
+!> heapsort- modified the inequalities in the sorting algorithm for reasons discussed below.
+!> get_thetares-corrected this routine so that thetares is 0 when thetares is computed using
+!> (theta (i) - theta (j)) and theta(i) equals theta (j) to machine error, and the output should be identically 0.
+!> get_lambdares-corrected this routine in the same manner as get_thetares, the output is 0 when it should be identically 0.
+!> gg4remove- modification of the inequalities used to choose which points to delete from the superset of theta points.
+!>
+!> The function of this module seems to be to optimise the choice of theta grid points.
+!> It does this by taking the input magnetic field and theta grid (usually generated in the geometry module)
+!> and spline fitting the magnetic field on a fine-mesh theta grid.
+!>
+!> By using the metrics defined in get_lambdares and get_thetares
+!> the subroutine gg4remove removes points from the fine-mesh theta grid iteratively until the required number of points remain.
+!> The theta grid pair with the lowest value for the metric is deleted at each iteration.
+!> The reason for the bug was that these metrics were calculated in a sloppy manner,
+!> and the routine for finding the lowest value in the metric did not allow for the
+!> case that the metrics were identical up to machine precision:
+!> -In the 1st iteration of gg4remove all of the metrics should be identically 0 but were not
+!> -The 1st theta grid pair were deleted based on a decision made with machine precision sized values of the metric-this led to random behaviour
+!> -When all duplicate values of the theta grid pairs
+!> ----- (theta grid superset contains duplicate values of the theta grid pairs for reasons unbeknownst to me)
+!> had all been deleted, because the fine-mesh theta grid had almost equally spaced points
+!> the values for the metrics for the theta grid pairs near theta =0 were almost exactly equal.
+!> -Depending on the machine, the metric would be slightly lower for one pair of points than another
+!> and therefore the choice of which pair of points to delete 1st from the non-duplicate set was random.
+!> This behaviour led to different theta grids between different machines.
+!>
+!> I fixed the above bug by biasing the gg4remove procedure to remove the 1st theta grid pair in array element order
+!> (of the sorted theta grid superset array) in the case that the metrics were equal up to machine error.
+!> The variable precision_bound controls this behaviour, precision_bound equal 0.0 returns this module to its original behaviour.
+!> Finite but small precision_bound is enough to remove machine dependence.
+!> I biased heapsort in a similar manner to enable debugging - the sorting algorithm
+!> was also machine dependent because of the duplicate theta grid points in the superset.
+!>
+!> run_name.gridgen.200 contains the debug output from this module
+!> To see verbose output ensure that debug_output =.true.and verbose_debug_output =.true.
+!>
+!> @todo : This file/module needs tidying/pruning. More consistent usage of tolerance comparisons would help
+!> Testing may be tricky but would be very helpful.
 module gridgen4mod
   implicit none
   private
@@ -47,6 +68,7 @@ module gridgen4mod
 contains
 
   !> FIXME : Add documentation
+  !> @note Currently unused
   subroutine gridgen4read (filename,ntheta,nperiod,ntgrid,nlambda,theta,alambda, &
        gbdrift,gradpar,cvdrift,gds2,bmag,gds21,gds22,cvdrift0,gbdrift0)
     use mp, only: mp_abort
@@ -60,33 +82,10 @@ contains
     real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift, gds2, bmag
     real, dimension (-ntgrid:ntgrid), intent(out) :: gds21, gds22
     real, dimension (-ntgrid:ntgrid), intent(out) :: cvdrift0, gbdrift0
-
-    integer :: nthetain, nperiodin, ntgridin, nlambdain
-    integer :: i
-    integer :: unit
-    logical :: od
+    integer :: nthetain, nperiodin, ntgridin, nlambdain, i, unit
     character(run_name_size) :: line
 
-!CMR, August 2010:
-!  (i) modify inquire to use opened instead of read, write and readwrite
-!   needed for gfortran compiler: TT adopted same solution in file_utils
-!  (ii) terminate with error message if no free LUN found
-!CMRend
-
-    unit=0
-    do i = 10,100
-       inquire (unit=i,opened=od)
-       if ( .not. od ) then
-          unit=i
-          exit
-       end if
-    end do
-    if (unit .eq. 0) then
-       call mp_abort("gridgen4read:  no free LUN between 10,100 => force quit",.true.)
-    endif
-
-    open (unit=unit, file=filename, status="old")
-    
+    open (newunit=unit, file=filename, status="old")
     read (unit=unit, fmt="(a)") line
     read (unit=unit, fmt=*) nlambdain
     if (nlambdain > nlambda) then
@@ -191,31 +190,32 @@ contains
     real, dimension (nbset), intent (out) :: bset
     real :: npi
     integer, parameter :: maxiter = 100
-    logical :: debug_output = .true., verbose_debug_output = .false. ! MRH verbose_debug_output prints out the resolution_metric to debug_unit for every iteration of gg4remove to debug the point using procedure    
-
-    real, parameter :: precision_bound = 1.0e3*epsilon (0.0)! MRH a number used to take into account machine error in floatingpoint arithmetic
+    !> MRH verbose_debug_output prints out the resolution_metric to
+    !> debug_unit for every iteration of gg4remove to debug the point
+    !> using procedure
+    logical :: debug_output = .true., verbose_debug_output = .false.
+    !> MRH a number used to take into account machine error in
+    !> floatingpoint arithmetic
+    real, parameter :: precision_bound = 1.0e3*epsilon (0.0)
     type(periodic_spline) :: bmagspl
 
     integer :: nstart
     real, allocatable, dimension (:) :: thetastart, bmagstart
     logical, allocatable, dimension (:) :: essentialstart
-    real, allocatable, dimension (:) :: bmin, bmax, bextr, thetaextr
-    real, allocatable, dimension (:) :: bprime
+    real, allocatable, dimension (:) :: bextr, thetaextr, bprime
 
     integer :: nset, nsetset
     real, allocatable, dimension (:) :: thetasetset, bmagset
-    real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted ! MRH for debugging
+    !> MRH for debugging
+    real, allocatable, dimension (:) :: thetasetset_sorted, bmagset_sorted
     integer, allocatable, dimension (:) :: ibmagsetset, icollsetset
     logical, allocatable, dimension (:) :: essentialset
     
     integer, allocatable, dimension (:) :: ithetasort, ibmagsort
-    
     real, allocatable, dimension (:) :: thetares, alambdares
     
-    integer :: nthetaout, nlambdaout
-    integer :: itheta !MRH
-    integer :: debug_unit
-    logical, parameter :: debug=.false.!.true.!
+    integer :: nthetaout, nlambdaout, itheta, debug_unit
+    logical, parameter :: debug=.false.!.true.
     npi = n * twopi
 
     ! Disable debug output when iproc /= 0 and make sure debug_output
@@ -338,7 +338,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     !> FIXME : Add documentation  
     subroutine gg4init
       use splines, only: new_periodic_spline
-      use mp, only: mp_abort
       use file_utils, only: open_output_file
       implicit none
       integer :: i
@@ -375,25 +374,18 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       use splines, only: delete_periodic_spline
       implicit none
       
-      if (debug_output) then
-         call close_output_file(debug_unit)
-      end if
+      if (debug_output) call close_output_file(debug_unit)
       call delete_periodic_spline(bmagspl)
-      deallocate (thetastart)
-      deallocate (bmagstart)
-      deallocate (bmin,bmax,bextr,thetaextr,bprime)
-      deallocate (essentialstart)
+      deallocate (thetastart, bmagstart, essentialstart)
+      deallocate (bextr,thetaextr,bprime)
 
-      deallocate (thetasetset, bmagset)
+      deallocate (thetasetset, bmagset, essentialset)
       deallocate (ibmagsetset, icollsetset)
-      deallocate (essentialset)
-      
       deallocate (ithetasort, ibmagsort)
-
       deallocate (thetares, alambdares)
 
       if (mod(nthetaout,2) /= 1) then
-         print *, "gridgen4_1:gg4results:nthetaout=",nthetaout
+         print *, "gridgen4_1:gg4results:nthetaout=", nthetaout
          print *, "nthetaout is not odd, so there is a problem with gridgen"
          print *, "This can sometimes happen if this file is not compiled with promotion to double precision."
          call mp_abort('gridgen has finished with an odd ntheta. This suggests something has gone wrong so abort. Consider changing the gridgen input flags or ntheta.', .true.)
@@ -404,101 +396,108 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     subroutine gg4start (n)
       implicit none
       integer, intent (in) :: n
-      integer :: i, j
-      real :: thetal, thetar, theta0
-      real :: bprime0
-      integer :: nextr
-      
-      allocate (bmin(nbmag-1),bmax(nbmag-1),bextr(nbmag-1),thetaextr(nbmag-1))
-      allocate (bprime(nbmag))
-      bmin = min(bmagin(1:nbmag-1),bmagin(2:nbmag))
-      bmax = max(bmagin(1:nbmag-1),bmagin(2:nbmag))
-      bextr = 0.0
-      thetaextr = 0.0
-      
+      integer :: i, j, nextr
+      real :: thetal, thetar, theta0, bprime0, dtheta
+      logical :: skip_point
+      allocate(bextr(nbmag-1), thetaextr(nbmag-1), bprime(nbmag))
+      bextr = 0.0 ; thetaextr = 0.0
+
+      ! Evaluate dB/dtheta on the input theta grid from the spline of B
       do i = 1, nbmag
          bprime(i) = bmagp(thetain(i))
       end do
 
-! Find all extrema.
-      nextr = 0
-      do i = 2, nbmag-2
+      ! Find all extrema. - Note we skip the first point and later
+      ! assume that this is an extrema (at theta = -pi*n). We _could_
+      ! just make the loop go over i = 1, nbmag - 1 instead. This might be difficult
+      ! currently if the B'==0 point isn't exactly on the grid. We would need to bisect across
+      ! the periodic boundary and might find that we end up without a grid point
+      ! at +/- n pi in the end. Here we start with one extrema corresponding to the assumed
+      ! extrema at the start of the grid for simplicity.
+      nextr = 1 ; thetaextr(1) = thetain(1) ; bextr(1) = bmagin(1)
+      skip_point = .false.
+      do i = 2, nbmag - 2
+         if (skip_point) then
+            skip_point = .false.
+            cycle
+         end if
+
          if (bprime(i) == 0.0) then
+            ! Exactly zero derivative on grid
+            if (debug) write(6, *) 'Extrema on grid at theta = ',thetain(i),', index = ',i
             bextr(i) = bmagin(i)
             thetaextr(i) = thetain(i)
             nextr = nextr + 1
-         else if (bprime(i) < 0.0 .and. bprime(i+1) > 0.0) then
-            thetal = thetain(i)
-            thetar = thetain(i+1)
+         else if (bprime(i) * bprime(i+1) < 0.0 ) then
+            ! Change in derivative - extrema between grid points
+            thetal = thetain(i) ; thetar = thetain(i+1)
+            !Bisect to find extrema. Note we don't check actually found
             do j = 1, maxiter
-               theta0 = 0.5*(thetal+thetar)
+               theta0 = 0.5 * (thetal + thetar)
                bprime0 = bmagp(theta0)
-               if (bprime0 < 0.0) then
+               if (bprime0 * bprime(i) > 0.0) then
+                  !If no B' sign change set left theta bound to mid-point
                   thetal = theta0
-               else if (bprime0 > 0.0) then
+               else if (bprime0 * bprime(i) < 0.0) then
+                  !If B' sign change set right theta bound to mid-point
                   thetar = theta0
                else
                   exit
                end if
             end do
-            if (theta0-thetain(i) < epsknob) then
+            !If extrema close enough to bounding grid points just
+            !say derivative is zero on the grid point.
+            if (theta0 - thetain(i) <= epsknob) then
                theta0 = thetain(i)
                bprime(i) = 0.0
-            else if (thetain(i+1)-theta0 < epsknob) then
+            else if (thetain(i+1)-theta0 <= epsknob) then
+               ! @Note: If this triggers then on the next iteration the bprime(i)==0 test
+               ! should pass and we will end up adding this extremum twice, so mark as
+               ! needing to skip next iteration.
+               skip_point = .true.
                theta0 = thetain(i+1)
                bprime(i+1) = 0.0
             end if
             thetaextr(i) = theta0
-            bextr(i) = bmagint(theta0)
-            nextr = nextr + 1
-         else if (bprime(i) > 0.0 .and. bprime(i+1) < 0.0) then
-            thetal = thetain(i)
-            thetar = thetain(i+1)
-            do j = 1, maxiter
-               theta0 = 0.5*(thetal+thetar)
-               bprime0 = bmagp(theta0)
-               if (bprime0 > 0.0) then
-                  thetal = theta0
-               else if (bprime0 < 0.0) then
-                  thetar = theta0
-               else
-                  exit
-               end if
-            end do
-            if (theta0-thetain(i) < epsknob) then
-               theta0 = thetain(i)
-               bprime(i) = 0.0
-            else if (thetain(i+1)-theta0 < epsknob) then
-               theta0 = thetain(i+1)
-               bprime(i+1) = 0.0
-            end if
-            thetaextr(i) = theta0
+            if (debug) write(6, *) 'Extrema between grid at theta = ',theta0,', index = ',i
             bextr(i) = bmagint(theta0)
             nextr = nextr + 1
          end if
       end do
-    
-! Collect -pi, all local extrema, original grid points, points between
-! original grid points
-      nstart = 1 + nextr + (nbmag-1)*(1+npadd)
 
-      allocate (thetastart(nstart), essentialstart(nstart), bmagstart(nstart))
-      essentialstart(:1+nextr) = .true.
-      essentialstart(2+nextr:) = .false.
-      thetastart(1) = -pi*n
-      thetastart(2:nextr+1) = pack(thetaextr,bextr /= 0.0)
+      ! Collect -pi, all local extrema, original grid points, points between
+      ! original grid points
+      nstart = nextr + (nbmag - 1) * (1 + npadd)
+      allocate (thetastart(nstart))
+      thetastart(:nextr) = pack(thetaextr, bextr /= 0.0)
+      thetastart(nextr+1:) = -123456.789
       
-      nstart = nextr + 1
+      nstart = nextr
       do i = 1, nbmag-1
+         dtheta = (thetain(i+1)-thetain(i))
          do j = 0, npadd
+            ! For j=0 add thetagrid(i) point, for j > 0 try to add extra theta grid
+            ! points inbetween thetagrid(i) and thetagrid(i+1). Only actually keep
+            ! the points if they are more than epsknob far away from all previously
+            ! added points. As such epsknob sets the minimum theta grid spacing
+            ! allowed here.
             thetastart(nstart+1) &
-                 = thetain(i) + real(j)/real(npadd+1)*(thetain(i+1)-thetain(i))
+                 = thetain(i) + dtheta * real(j)/real(npadd+1)
             if (all(abs(thetastart(nstart+1)-thetastart(1:nstart)) > epsknob)) then
                nstart = nstart + 1
             end if
          end do
       end do
-      
+
+      ! Resize thetastart in case nstart has changed
+      thetastart = thetastart(:nstart)
+
+      allocate (essentialstart(nstart))
+      essentialstart(:nextr) = .true.
+      essentialstart(nextr+1:) = .false.
+
+      ! Get B on the new theta grid point through spline interpolation
+      allocate (bmagstart(nstart))
       do i = 1, nstart
          bmagstart(i) = bmagint(thetastart(i))
       end do
@@ -508,42 +507,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       use mp, only: mp_abort
       implicit none
       integer :: i, iset, j
-      integer :: nsetsetmax
       real :: thetai, bmagi
-      
-! Estimate upper bound on number of points.
-!    nsetsetmax = count( &
-!     (spread(bmagstart,2,nbmag-1) >= spread(bmin,1,nstart) &
-!      .and. spread(bmagstart,2,nbmag-1) <= spread(bmax,1,nstart))) &
-!             + 2*count( &
-!     (spread(bextr,1,nstart) /= 0 &
-!      .and. &
-!       ((spread(bmagstart,2,nbmag-1) >= spread(bmax,1,nstart) &
-!         .and. spread(bmagstart,2,nbmag-1) <= spread(bextr,1,nstart)) &
-!        .or. &
-!        (spread(bmagstart,2,nbmag-1) <= spread(bmin,1,nstart) &
-!         .and. spread(bmagstart,2,nbmag-1) >= spread(bextr,1,nstart)))))
 
-      nsetsetmax = 0
-      do i = 1, nbmag-1
-         do j = 1, nstart
-            if (bmagstart(j) >= bmin(i) &
-                 .and. bmagstart(j) <= bmax(i)) &
-                 nsetsetmax = nsetsetmax + 1
-            if (bextr(i) /= 0 &
-                 .and. ((bmagstart(j) >= bmax(i) &
-                 .and. bmagstart(j) <= bextr(i)) &
-                 .or. (bmagstart(j) <= bmin(i) &
-                 .and. bmagstart(j) >= bextr(i)))) &
-                 nsetsetmax = nsetsetmax + 2
-         end do
-      end do
-! End of Liu's fix.
-
-! Allocate
-      allocate (thetasetset(nsetsetmax))
-      allocate (ibmagsetset(nsetsetmax))
-      allocate (icollsetset(nsetsetmax))
+      ! Allocate
+      allocate (thetasetset(0))
+      allocate (ibmagsetset(0))
+      allocate (icollsetset(0))
 
       nsetset = 0
       starting_points: do iset = 1, nstart
@@ -553,12 +522,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 1 For extrema, check previous sets to attach to.
          if (essentialstart(iset)) then
             do i = 1, iset-1
-               if (abs(bmagstart(i)-bmagi) < epsknob) then
+               if (abs(bmagstart(i)-bmagi) <= epsknob) then
 ! 1.1.1 If the extremum does belong in this set, eliminate points
 !       near the extremum from this set.
                   where (ibmagsetset(1:nsetset) == i &
-                       .and. abs(thetasetset(1:nsetset)-thetai) < epsknob)
-                  ibmagsetset(1:nsetset) = 0
+                       .and. abs(thetasetset(1:nsetset)-thetai) <= epsknob)
+                     ibmagsetset(1:nsetset) = 0
                   end where
 ! 1.1.2 Attach the extremum to this set.
                   call add_setset (thetai, i, 112)
@@ -573,16 +542,17 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 
 ! 3 Check each original grid interval for matching bmag.
          grid_interval: do i = 1, nbmag-1
-! 3.0.1 Stoopid problems near -pi.
-! 'original' coding:
-!            if (iset == 1 .and. i == 1) cycle grid_interval
-! modification 5.16.02:
+! 3.0.1 Because we force a point at -pi we can hit issues if we try to
+!       treat this in the same way as other points, so skip first and last theta
             if (iset == 1 .and. (i == 1 .or. i == nbmag-1)) cycle grid_interval
             if (bmagin(i) > bmagi .and. thetain(i) /= thetai) then
 ! 3.1 Consider when the left grid point is greater than the target bmag.
-!    Then, there are three cases in which there are matching points.
+!    Then, there are three cases in which there are matching points which
+!    we need to collect here.
 !    (1) The right grid point is equal to the target bmag, and the slope
-!        at the right point is positive.
+!        at the right point is positive. This implies a local minimum and
+!        hence a point between theta(i) and theta(i+1). We capture the actual
+!        point on the grid at theta(i+1) in the next iteration.
 !    (2) The right gridpoint is less than the target bmag.
 !    (3) The right grid point is greater than the target bmag,
 !        and the interval is concave down, and the minimum in
@@ -609,15 +579,18 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 3.1.3.1 If not, skip to the next interval.
                if (bprime(i) >= 0.0 .or. bprime(i+1) <= 0.0) cycle grid_interval
 ! 3.1.3.2 Consider the case where the starting theta point is within
-!         this interval.
+!         this interval. If so there _could_ be one more matching point
+!         if there is a local minimum in the interval.
                if (thetai > thetain(i) .and. thetai < thetain(i+1)) then
 ! 3.1.3.2.1 If the starting point is an extremum, skip to next interval.
                   if (essentialstart(iset)) cycle grid_interval
 ! 3.1.3.2.2 Otherwise, the other target point is right of the starting
-!           point is the slope is negative, and left if positive.
+!           point if the slope is negative, and left if positive.
                   if (bprime(i) < 0.0) then
                      call add_setset_root (thetai,thetain(i+1),bmagi,iset,313221)
                   else
+                     ! Not sure we can ever hit this branch as it implies a local
+                     ! maxmium present and bmag(i), bmag(i+1) both > bmagi
                      call add_setset_root (thetai,thetain(i),bmagi,iset,313222)
                   end if
                   cycle grid_interval
@@ -639,8 +612,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call mp_abort("gridgen4.f90:gg4collect:3.1.3.3.2: missing extremum")
                end if
 ! 3.1.3.3.2.1 If the minimum is greater than the target bmag, skip to
-!             the next interval.
-               if (bextr(i) > bmagi) cycle grid_interval
+!             the next interval. If equal then we've already handled this.
+               if (bextr(i) >= bmagi) cycle grid_interval
 ! 3.1.3.3.2.2 Collect the point left of the minimum.
                call add_setset_root (thetaextr(i),thetain(i),bmagi,iset,313322)
 ! 3.1.3.3.2.3 Collect the point right of the minimum.
@@ -648,9 +621,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                cycle grid_interval
             else if (bmagin(i) < bmagi .and. thetain(i) /= thetai) then
 ! 3.2 Consider then the left grid point is less than the target bmag.
-!     Then, there are three cases in which there are matching points.
+!     Then, there are three cases in which there are matching points which
+!     we need to collect here.
 !     (1) The right grid point is equal to the target bmag, and the
-!         slope at the right point is negative.
+!         slope at the right point is negative.  This implies a local maximum and
+!         hence a point between theta(i) and theta(i+1). We capture the actual
+!         point on the grid at theta(i+1) in the next iteration.
 !     (2) The right grid point is greater than the target bmag.
 !     (3) The right grid point is less than the target bmag,
 !         and the interval is concave up, and the maximum in
@@ -677,7 +653,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
 ! 3.2.3.1 If not, skip to the next interval.
                if (bprime(i) <= 0.0 .or. bprime(i+1) >= 0.0) cycle grid_interval
 ! 3.2.3.2 Consider the case where the starting theta point is within
-!         this interval.
+!         this interval. If so there _could_ be one more matching point
+!         if there is a local maximum in the interval.
                if (thetai > thetain(i) .and. thetai < thetain(i+1)) then
 ! 3.2.3.2.1 If the starting point is an extremum, skip to next interval.
                   if (essentialstart(iset)) cycle grid_interval
@@ -686,6 +663,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   if (bprime(i) > 0.0) then
                      call add_setset_root (thetain(i+1),thetai,bmagi,iset,323221)
                   else
+                     ! Not sure we can ever hit this branch as it implies a local
+                     ! minimium present and bmag(i), bmag(i+1) both < bmagi
                      call add_setset_root (thetain(i),thetai,bmagi,iset,323222)
                   end if
                   cycle grid_interval
@@ -707,7 +686,7 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call mp_abort("gridgen4.f90:gg4collect:3.2.3.3.2: missing extremum")
                end if
 ! 3.2.3.3.2.1 If the maximum is less than the target bmag, skip to
-!             the next interval.
+!             the next interval. If equal then we've already handled this.
                if (bextr(i) <= bmagi) cycle grid_interval
 ! 3.2.3.3.2.2 Collect the point left of the maximum.
                call add_setset_root (thetain(i),thetaextr(i),bmagi,iset,323322)
@@ -721,14 +700,11 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
                   call add_setset (thetain(i), iset, 331)
                end if
 ! 3.3.2 Check if there is another matching target bmag in the interval.
-               if (bprime(i) > 0.0 .and. bmagin(i+1) < bmagi &
-                    .and. i /= 1 .and. i /= nbmag-1) then
+               if (i == 1 .or. i == nbmag-1) cycle grid_interval
+               if (bprime(i) > 0.0 .and. bmagin(i+1) < bmagi) then
                   call add_setset_root (thetain(i+1),thetain(i),bmagi,iset,3321)
-                  cycle grid_interval
-               else if (bprime(i) < 0.0 .and. bmagin(i+1) > bmagi &
-                    .and. i /= 1 .and. i /= nbmag-1) then
+               else if (bprime(i) < 0.0 .and. bmagin(i+1) > bmagi) then
                   call add_setset_root (thetain(i),thetain(i+1),bmagi,iset,3322)
-                  cycle grid_interval
                end if
             end if
 
@@ -736,13 +712,9 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       end do starting_points
 
 ! 4 Compatibility with the old gg4collect.
-      allocate (bmagset(nstart))
-      allocate (essentialset(nstart))
-
       nset = nstart
-      bmagset = bmagstart(1:nstart)
-      essentialset = essentialstart(1:nstart)
-
+      bmagset = bmagstart
+      essentialset = essentialstart
     end subroutine gg4collect
 
     !> FIXME : Add documentation    
@@ -750,31 +722,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       real, intent (in) :: theta
       integer, intent (in) :: ibmag, icoll
-
-      real, allocatable, dimension (:) :: thetatmp
-      integer, allocatable, dimension (:) :: ibmagtmp, icolltmp
-
-      if (nsetset >= size(thetasetset)) then
-         allocate (thetatmp(nsetset))
-         allocate (ibmagtmp(nsetset), icolltmp(nsetset))
-         thetatmp = thetasetset(1:nsetset)
-         ibmagtmp = ibmagsetset(1:nsetset)
-         icolltmp = icollsetset(1:nsetset)
-         deallocate (thetasetset, ibmagsetset, icollsetset)
-         allocate (thetasetset(nsetset+nbmag*(2+npadd)))
-         allocate (ibmagsetset(nsetset+nbmag*(2+npadd)))
-         allocate (icollsetset(nsetset+nbmag*(2+npadd)))
-         thetasetset(1:nsetset) = thetatmp
-         ibmagsetset(1:nsetset) = ibmagtmp
-         icollsetset(1:nsetset) = icolltmp
-         deallocate (thetatmp, ibmagtmp, icolltmp)
-      end if
-      nsetset = nsetset + 1
-      thetasetset(nsetset) = theta
-      ibmagsetset(nsetset) = ibmag
-      icollsetset(nsetset) = icoll
+      thetasetset = [thetasetset, theta]
+      ibmagsetset = [ibmagsetset, ibmag]
+      icollsetset = [icollsetset, icoll]
+      nsetset = size(thetasetset)
+      ! Exclude passed point if it is too close to an existing point in
+      ! this set. Perhaps we could just not add it to the arrays?
       if (any(ibmagsetset(1:nsetset-1) == ibmag .and. &
-           abs(thetasetset(1:nsetset-1)-theta) < epsknob)) &
+           abs(thetasetset(1:nsetset-1)-theta) <= epsknob)) &
            then
          ibmagsetset(nsetset) = 0
       end if
@@ -785,14 +740,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       real, intent (in) :: thetal, thetag, bmagi
       integer, intent (in) :: ibmag, icoll
-
       real :: thl, thg, theta0, bmag0
       integer :: i
-      
-      thl = thetal
-      thg = thetag
+      !Bisect between thl and thg to find theta such that B(theta0) = bmagi
+      thl = thetal ; thg = thetag
       do i = 1, maxiter
-         theta0 = 0.5*(thl+thg)
+         theta0 = 0.5 * (thl + thg)
          bmag0 = bmagint(theta0)
          if (bmag0 > bmagi) then
             thg = theta0
@@ -806,11 +759,14 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end subroutine add_setset_root
 
     !> FIXME : Add documentation    
+    !> Get an index map with which we could sort thetasetset and bmagset
+    !> such that do i = 1, size(map) ; print*,bmagset(map(i)) ; done
+    !> would print bmag in a sorted sense. Equivalent to sort([i=1,size(arr)], key = arr)
     subroutine gg4sort
       implicit none
       allocate (ithetasort(nsetset), ibmagsort(nset))
-      call heapsort (nsetset, thetasetset(1:nsetset), ithetasort)
-      call heapsort (nset, bmagset(1:nset), ibmagsort)
+      call heapsort (nsetset, thetasetset, ithetasort)
+      call heapsort (nset, bmagset, ibmagsort)
     end subroutine gg4sort
 
     !MRH
@@ -895,11 +851,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: iset
       real, intent (out) :: thetares
-
-      integer :: i, ileft, iright
-      real :: dthetal, dthetar, dtheta_tmp !MRH
-      real :: res
-      integer :: npts
+      integer :: i, ileft, iright, npts
+      real :: res, dthetal, dthetar, dtheta_tmp !MRH
 
 ! 1 Return large value for essential sets with odd number of points or
 !   for set containing -pi.
@@ -991,11 +944,8 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       implicit none
       integer, intent (in) :: iset
       real, intent (out) :: alambdares
-
-      integer :: i, iplus, iminus
-      real :: al, alplus, alminus, dalplus, dalminus, dal_tmp !MRH
-      real :: res
-      integer :: npts
+      integer :: i, iplus, iminus, npts
+      real :: res, al, alplus, alminus, dalplus, dalminus, dal_tmp !MRH
       
       al = 1.0/bmagset(iset)
       do i = 1, nset
@@ -1067,7 +1017,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer :: idel, i
       integer :: ntheta_left, nlambda_left
       integer, dimension (nset) :: work
-      
       real, dimension (nset) :: resolution_metric ! MRH to address machine dependence
       
       nlambda_left = nset
@@ -1128,83 +1077,81 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
          !work(1:1) = minloc(thetares(1:nset)+alknob*alambdares(1:nset), &
          !     bmagset(1:nset) /= 0.0)
          idel = work(1)
-        if (debug) then 
+         if (debug) then
             write(6,*) "gridgen4_2: call gg4debug"
             ! MRH if one follows this debug output one sees that:
 ! MRH whilst there are duplicate theta values remaining to be considered in the thetasetset grid
 ! MRH the values of the resolution_metric are initially all 0 (whilst every grid point has a duplicate)
 ! MRH and as the duplicates are deleted (every element of the list that is deleted is a duplicate until we reach midway)
 ! MRH more values of resolution_metric steadily become non 0.
-! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ 
+! MRH finally when all the duplicates are deleted the values of the resolution_metric almost identical and differ
 ! MRH only at machine precision
 ! MRH this is because after all of the duplicate pairs have been deleted but before any more pairs have been deleted
 ! MRH the resolution metric is calculated based on the difference between almost equally spaced theta grid points
-! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points 
-! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset 
+! MRH (see "# gg4collect - thetasetset ibmagsetset icollsetset" in .gridgen.200 to see the pairs of theta grid points
+! MRH and their magnetic field strength label ibmagsetset - idel is always an element of ibmagsetset
 ! MRH - in this way one can keep track of which pairs are being deleted)
 ! MRH the bug that I have fixed was that depending on the machine, the resolution_metric at this stage in the computation
-! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be 
-! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed 
+! MRH had entries which differed at the machine precision level, and as a consequence the next theta grid pair to be
+! MRH deleted was effectively chosen at random, which biased the rest of the procedure so that the theta grid differed
 ! MRH from machine to machine.
 ! MRH By making the comparison in minimum_index with a bias, we avoid a machine dependent theta grid
             if (debug_output) write (unit=debug_unit, fmt=*) "gg4remove idel ",idel
-            call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")       
-        endif    
+            call gg4debug4 (nset, thetares, alambdares,bmagset,resolution_metric, "gg4metrics thetares alambdares bmagset(mask F if 0.0) resolution_metric")
+         end if
 ! 2 Delete the set just found.
 ! MRH the subroutine delete_set deletes the iset value that the above lines just found
 ! MRH it does this by setting bmagset (idel) =0.0 so that when gg4results computes the final field and theta grid
 ! MRH this value of iset is ignored. Finally the metrics are computed taking into account that the point has been deleted
          if (idel == 0) then
-            print *, "gridgen4.f:gg4remove:2: This cannot happen."
-            call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.")
+            call mp_abort("gridgen4.f:gg4remove:2: This cannot happen.", .true.)
          end if
          call delete_set (idel, work, ntheta_left)
          nlambda_left = nlambda_left - 1
       end do
     end subroutine gg4remove
-    
+
     !> FIXME : Add documentation
-    function minimum_index (n, array, mask, machine_error)
-    ! MRH the function minimum_index has been written to have the same features as minloc
-    ! MRH n is the length of the array and mask
-    ! MRH array is the array from which we want the index of the minimum value in the array
-    ! MRH mask is an array of logicals of the same dimension as array.
-    ! MRH we consider values in array for which mask is true. If all values of mask are false minimum_index is 0
-    ! MRH machine_error is a control parameter in case we are comparing numbers which are identical in size
-    ! MRH this function returns the 1st minimum in array element order if there are multiple minimum of the same size
-    
-    ! MRH minimum_index has all the documented features of minloc for a 1D array
-    ! MRH with the added feature of the final machine_error variable
-    ! MRH this variable gives a definite truth value to (array(i) < array (j) - machine_error) 
-    ! MRH in the case that array(i) is identical to array(j).
-    ! MRH This ensures the minimum_index returns the 1st minimum index in array order
-        implicit none
+    pure integer function minimum_index (n, array, mask, machine_error)
+      ! MRH the function minimum_index has been written to have the same features as minloc
+      ! MRH n is the length of the array and mask
+      ! MRH array is the array from which we want the index of the minimum value in the array
+      ! MRH mask is an array of logicals of the same dimension as array.
+      ! MRH we consider values in array for which mask is true. If all values of mask are false minimum_index is 0
+      ! MRH machine_error is a control parameter in case we are comparing numbers which are identical in size
+      ! MRH this function returns the 1st minimum in array element order if there are multiple minimum of the same size
+
+      ! MRH minimum_index has all the documented features of minloc for a 1D array
+      ! MRH with the added feature of the final machine_error variable
+      ! MRH this variable gives a definite truth value to (array(i) < array (j) - machine_error)
+      ! MRH in the case that array(i) is identical to array(j).
+      ! MRH This ensures the minimum_index returns the 1st minimum index in array order
+      implicit none
         real, dimension (:), intent (in) :: array
         logical, dimension (:), intent (in) :: mask
         integer, intent (in) :: n
         real, intent (in) :: machine_error
-        integer :: i, minimum_index
+        integer :: i
         real :: minimum_value
-        
+
         minimum_index = 0
         if (all (.not. mask)) return ! MRH if all of mask is false there are no values to consider in the array and so we return with 0 as the minimum index
         ! MRH get a starting value for the minimum-above we confirmed above there is at least one value in the array
         do i=1,n
             if (mask(i)) then
                 minimum_value = array(i)
-                minimum_index =i
+                minimum_index = i
                 exit
-            endif
-        enddo
+            end if
+        end do
         ! MRH now go through all the values in the array to find the minimum
 
         do i=1,n
             if (mask (i) .and. (array (i) < minimum_value- machine_error )) then !
                 minimum_value = array (i)
                 minimum_index =i
-            endif
-        enddo
-        
+            end if
+        end do
     end function minimum_index
 
     !> FIXME : Add documentation    
@@ -1213,7 +1160,6 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: idel
       integer, intent (in out), dimension (nset) :: work
       integer, intent (out) :: ntheta_left
-
       integer :: i, j
       
       work = 0
@@ -1315,15 +1261,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: n
       real, dimension (:), intent (in) :: x, y
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,2(g25.18,1x))") i, x(i), y(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,2(g25.18,1x))") i, x(i), y(i)
+      end do
     end subroutine gg4debug
 
     !> FIXME : Add documentation    
@@ -1333,16 +1276,12 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       real, dimension (:), intent (in) :: x
       integer, dimension (:), intent (in) :: i1, i2
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,g25.18,1x,i4,1x,i10)") &
-                 i, x(i), i1(i), i2(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,g25.18,1x,i4,1x,i10)") i, x(i), i1(i), i2(i)
+      end do
     end subroutine gg4debugi
 
     !> FIXME : Add documentation    
@@ -1351,33 +1290,26 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
       integer, intent (in) :: n
       logical, dimension (:), intent (in) :: x
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt=*) &
-                 i, x(i)
-         end do
-      end if
+      if (.not. debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = *) i, x(i)
+      end do
     end subroutine gg4debugl
 
     !> FIXME : Add documentation    
-    subroutine gg4debug4 (n, x, y, p,q, label)
+    subroutine gg4debug4 (n, x, y, p, q, label)
       implicit none
       integer, intent (in) :: n
-      real, dimension (:), intent (in) :: x, y,p,q
+      real, dimension (:), intent (in) :: x, y, p, q
       character(*), intent (in) :: label
-
       integer :: i
-      
-      if (verbose_debug_output) then
-         write (unit=debug_unit, fmt="('#',a)") label
-         do i = 1, n
-            write (unit=debug_unit, fmt="(i5,1x,4(g22.15,1x))") i, x(i), y(i), p(i), q(i)
-         end do
-      end if
+      if (.not. verbose_debug_output) return
+      write (unit = debug_unit, fmt = "('#',a)") label
+      do i = 1, n
+         write (unit = debug_unit, fmt = "(i5,1x,4(g22.15,1x))") i, x(i), y(i), p(i), q(i)
+      end do
     end subroutine gg4debug4
 
     !> FIXME : Add documentation    
@@ -1389,26 +1321,28 @@ if (debug) write(6,*) "gridgen4_2: call gg4finish"
     end function bmagint
 
     !> FIXME : Add documentation    
-    function bmagp (theta)
+    real function bmagp (theta)
+      use splines, only: periodic_dsplint
       implicit none
       real, intent (in) :: theta
-      real :: bmagp
-      real, parameter :: diff = 1e-5
-
-      real :: th1, th2, bm1, bm2
-      th1 = theta + 0.5*diff
-      th2 = theta - 0.5*diff
-      bm1 = bmagint (th1)
-      bm2 = bmagint (th2)
-      bmagp = (bm1-bm2)/diff
+      bmagp = periodic_dsplint(theta, bmagspl)
     end function bmagp
 
     !> FIXME : Add documentation    
-    real function tfunc (theta)
+    elemental real function tfunc (theta)
       implicit none
-      real :: theta
-      tfunc = 1.0 + deltaw*(1.0/(1.0+(theta-thetamax)**2/widthw**2) &
-           +1.0/(1.0+(theta+thetamax)**2/widthw**2))
+      real, intent(in) :: theta
+      ! The brackets multiplied by deltaw looks like a smooth function
+      ! with peaks located at theta = +/- thetamax and peaks widths
+      ! controlled by widthw.  As the return of tfunc is used to
+      ! determine this theta grid point's contribution to the
+      ! resolution metric it seems that the intent of this form is to
+      ! allow the user to bias the resolution metric to be larger at
+      ! theta = +/- thetamax and hence to preferentially keep points
+      ! in this area.
+      tfunc = 1.0 + deltaw * ( &
+           1.0 / (1.0 + (theta - thetamax)**2 / widthw**2) + &
+           1.0 / (1.0 + (theta + thetamax)**2 / widthw**2))
     end function tfunc
     
   end subroutine gridgen4_2
