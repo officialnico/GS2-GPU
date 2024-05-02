@@ -715,8 +715,6 @@ contains
     zaxis = self%zaxis
     n_mxh = self%n_mxh
     c0_mxh = self%c0_mxh
-    c_mxh = self%c_mxh
-    s_mxh = self%s_mxh
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -884,6 +882,10 @@ contains
     call broadcast(self%zaxis)
     call broadcast(self%n_mxh)
     call broadcast(self%c0_mxh)
+
+    if (.not. allocated(self%c_mxh)) allocate(self%c_mxh(self%n_mxh))
+    if (.not. allocated(self%s_mxh)) allocate(self%s_mxh(self%n_mxh))
+
     call broadcast(self%c_mxh)
     call broadcast(self%s_mxh)
 
