@@ -1176,4 +1176,49 @@ contains
     @assertEqual(1./R_expected, R_answer, tolerance=1.e-12)
   end subroutine test_global_invR_circle
 
+  @test
+  subroutine test_generalised_MXH_Rpos_circle()
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: R_answer
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: R_expected = minor_radius * cos(theta) + major_radius
+
+    geom%surf = flux_surface_type(geoType=4, &
+       Rmaj=major_radius, R_geo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       delm=1.0, n_mxh=0, c0_mxh=0.0, c_mxh=[real::], s_mxh=[real::] &
+       )
+    geom%thetaShift = 0.
+    R_answer = [ (geom%Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+    @assertEqual(R_expected, R_answer, tolerance=1.e-12)
+  end subroutine test_generalised_MXH_Rpos_circle
+
+  @test
+  subroutine test_generalised_MXH_Zpos_circle()
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+    integer, parameter :: ntheta = 32
+    real, dimension(ntheta) :: Z_answer
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+    real, dimension(ntheta), parameter :: Z_expected = minor_radius * sin(theta)
+
+    geom%surf = flux_surface_type(geoType=4, &
+       Rmaj=major_radius, R_geo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       delm=1.0, n_mxh=0, c0_mxh=0.0, c_mxh=[real::], s_mxh=[real::] &
+       )
+
+    geom%thetaShift = 0.
+    Z_answer = [ (geom%Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+    @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
+  end subroutine test_generalised_MXH_Zpos_circle
+
 end module test_leq_mod

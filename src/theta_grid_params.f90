@@ -66,6 +66,10 @@ module theta_grid_params
      !> geometry, where flow is by definition in the toroidal
      !> direction.
      real :: btor_slab = 0.0
+     !> Zeroth cosine moment for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real :: c0_mxh = 0.0
+     !> Cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(:), allocatable :: c_mxh
      !> The elongation of the flux surface labeled by aSurf (only used
      !> when `geoType`=1, which selects the Global MHD analytic
      !> geometry specifications). See Section 2.1.2 of the [Analytic
@@ -119,14 +123,22 @@ module theta_grid_params
      !>  is the major radius at the centre of the flux surface.
      real :: epsl = 0.3
      !> Selects between different analytic geometry specifications
-     !> (only used when `local_eq=T`): `geoType=0`
-     !> selects the Generalised Miller, `geoType=1` selects the Global
-     !> MHD, `geoType=2` selects the Generalised Elongation, and
-     !> `geoType=3` selects the Fourier specification. See Section 2.1
-     !> of the [Analytic Geometry
+     !> (only used when `local_eq = T`):
+     !>
+     !> - `geoType = 0`: Generalised Miller
+     !> - `geoType = 1`: Global MHD
+     !> - `geoType = 2`: Generalised Elongation
+     !> - `geoType = 3`: Fourier specification.
+     !> - `geoType = 4`: Miller Extended Harmonic (MXH)
+     !>
+     !> See Section 2.1 of the [Analytic Geometry
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
-     !> documentation for more details.  @note The default for this
-     !> *MUST* be zero otherwise the Trinity interface will break.
+     !> documentation for more details on options 0-3, and [PPCF 63
+     !> (2021) 012001 (5pp)](https://doi.org/10.1088/1361-6587/abc63b)
+     !> for details of 4 (MXH).
+     !>
+     !> @note The default for this *MUST* be zero otherwise the
+     !> Trinity interface will break.
      integer :: geotype = 0 
      !> `kp` sets parallel wavenumber and box length in slab
      !> geometry. \(k_p = \frac{2 \pi L_\textrm{ref}}{L_z}\).     
@@ -153,6 +165,8 @@ module theta_grid_params
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
      !> documentation for more details.
      integer :: nmode = 3
+     !> Number of moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     integer :: n_mxh = 0
      !> Sets the number of \(2\pi\) segments along equilibrium
      !> magnetic field to include in simulation
      !> domain. \(N_\textrm{segments} = (2n_\textrm{period} - 1)\).
@@ -210,6 +224,8 @@ module theta_grid_params
      !> When local_eq: Major radius of the centre of the
      !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
+     !> Sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(:), allocatable :: s_mxh
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
      real :: shat = 0.75
@@ -648,12 +664,13 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    integer :: geotype, mmode, nmode, nperiod, ntheta
+    integer :: geotype, mmode, nmode, nperiod, ntheta, n_mxh
     real :: akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
-    real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+    real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, c0_mxh
+    real, dimension(1000) :: c_mxh, s_mxh
 
     namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
-         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis
+         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, n_mxh, c0_mxh, c_mxh, s_mxh
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -696,6 +713,10 @@ contains
     tri = self%tri
     tripri = self%tripri
     zaxis = self%zaxis
+    n_mxh = self%n_mxh
+    c0_mxh = self%c0_mxh
+    c_mxh = self%c_mxh
+    s_mxh = self%s_mxh
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -739,6 +760,14 @@ contains
     self%tri = tri
     self%tripri = tripri
     self%zaxis = zaxis
+
+    ! Special handling for allocatable arrays
+    self%n_mxh = n_mxh
+    self%c0_mxh = c0_mxh
+    allocate(self%c_mxh(n_mxh))
+    allocate(self%s_mxh(n_mxh))
+    self%c_mxh = c_mxh(1:n_mxh)
+    self%s_mxh = s_mxh(1:n_mxh)
 
     self%exist = exist
   end subroutine read_theta_grid_parameters_config
@@ -793,6 +822,10 @@ contains
     call self%write_key_val("tri", self%tri, unit_internal)
     call self%write_key_val("tripri", self%tripri, unit_internal)
     call self%write_key_val("zaxis", self%zaxis, unit_internal)
+    call self%write_key_val("n_mxh", self%n_mxh, unit_internal)
+    call self%write_key_val("c0_mxh", self%c0_mxh, unit_internal)
+    call self%write_key_val("c_mxh", self%c_mxh, unit_internal)
+    call self%write_key_val("s_mxh", self%s_mxh, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_theta_grid_parameters_config
 
@@ -849,6 +882,10 @@ contains
     call broadcast(self%tri)
     call broadcast(self%tripri)
     call broadcast(self%zaxis)
+    call broadcast(self%n_mxh)
+    call broadcast(self%c0_mxh)
+    call broadcast(self%c_mxh)
+    call broadcast(self%s_mxh)
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config

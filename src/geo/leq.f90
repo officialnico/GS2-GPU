@@ -20,7 +20,8 @@
 !> the exact mode numbers.
 module leq
   use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type, &
-       geo_type_miller, geo_type_global, geo_type_generalized_elongation, geo_type_fourier_series
+       geo_type_miller, geo_type_global, geo_type_generalized_elongation, geo_type_fourier_series, &
+       geo_type_miller_extended_harmonic
 
   implicit none
 
@@ -39,6 +40,7 @@ module leq
      procedure :: rpos, zpos, rcenter, diameter, btori, dbtori, qfun
      procedure :: pfun, dpfun, betafun, psi, rfun, eqitem
      procedure :: geo_Miller, geo_global, geo_generalizedElongation, geo_FourierSeries
+     procedure :: geo_MillerExtendedHarmonic
   end type leq_type
 
 contains
@@ -140,6 +142,8 @@ contains
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
        case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
+       case (geo_type_miller_extended_harmonic)
+          call self%geo_MillerExtendedHarmonic(r, theta, Rpos, Zpos)
     end select
   end function Rpos
 
@@ -161,6 +165,8 @@ contains
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
        case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
+       case (geo_type_miller_extended_harmonic)
+          call self%geo_MillerExtendedHarmonic(r, theta, Rpos, Zpos)
     end select
   end function Zpos
 
@@ -322,6 +328,27 @@ contains
     Zpos=Zfinal+dr*Zfinalp
 
   end subroutine geo_FourierSeries
+
+  !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
+  !> Miller Extended Harmonic model
+  !>
+  !> See [PPCF 63 (2021) 012001 (5pp)](https://doi.org/10.1088/1361-6587/abc63b)
+  pure subroutine geo_MillerExtendedHarmonic(self, r, theta, Rpos, Zpos)
+    class(leq_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+
+    integer :: n
+    real :: theta_R
+
+    theta_R = theta + self%surf%c0_mxh &
+         + sum([(self%surf%c_mxh(n) * cos(n * theta) + self%surf%s_mxh(n) * sin(n * theta), &
+                n = 1, self%surf%n_mxh)])
+
+    Rpos = self%surf%Rmaj + (r * cos(theta_R))
+    Zpos = self%surf%sVert + (r * self%surf%delm * sin(theta_R))
+
+  end subroutine geo_MillerExtendedHarmonic
 
   !> FIXME : Add documentation
   pure real function psi (self, r, theta)

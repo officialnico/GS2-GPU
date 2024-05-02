@@ -1262,7 +1262,8 @@ contains
     use geometry, only: bishop, irho, eqfile, eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, chs_eq
     use geo_utils, only: geo_type_miller, geo_type_global, &
-         geo_type_generalized_elongation, geo_type_fourier_series
+         geo_type_generalized_elongation, geo_type_fourier_series, &
+         geo_type_miller_extended_harmonic
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: dbetadrho
@@ -1283,6 +1284,8 @@ contains
              write (report_unit, fmt="('GeneralizedEllipticity')")
           case (geo_type_fourier_series)
              write (report_unit, fmt="('FourierSeries')")
+          case (geo_type_miller_extended_harmonic)
+             write (report_unit, fmt="('MillerExtendedHarmonic')")
           case default
              write (report_unit, fmt="('ERROR: invalid analytic geometry specification')")
        end select

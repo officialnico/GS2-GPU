@@ -17,6 +17,7 @@ module geo_utils
   integer, parameter :: geo_type_global = 1
   integer, parameter :: geo_type_generalized_elongation = 2
   integer, parameter :: geo_type_fourier_series = 3
+  integer, parameter :: geo_type_miller_extended_harmonic = 4
 
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.
@@ -59,7 +60,19 @@ module geo_utils
      integer :: mMode
      !> The second poloidal mode number, input variable: `nMode`
      integer :: nMode
+     !> Number of moments for MXH equilibrium, input variable: `n_mxh`
+     integer :: n_mxh
+     !> Zeroth cosine moment for MXH equilibrium, input variable: `c0_mxh`
+     real :: c0_mxh
+     !> Cosine moments for MXH equilibrium, input variable: `c_mxh`
+     real, dimension(:), allocatable :: c_mxh
+     !> Sine moments for MXH equilibrium, input variable: `s_mxh`
+     real, dimension(:), allocatable :: s_mxh
   end type flux_surface_type
+
+  interface flux_surface_type
+    module procedure new_flux_surface_type
+  end interface flux_surface_type
 
   !> A derived type used to hold the inputs to the geo initialisation routine.
   !> By encapsulating all possible inputs in this type we can avoid having to
@@ -1240,4 +1253,39 @@ contains
     end do
     call mp_abort('zbrent exceeding maximum iterations.',.true.)
   end function zbrent
+
+  function new_flux_surface_type(geoType, Rmaj, R_geo, r, dr, aSurf, &
+       sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, nt, mMode, nMode, &
+       n_mxh, c0_mxh, c_mxh, s_mxh) result(self)
+    type(flux_surface_type) :: self
+    real, intent(in), optional :: Rmaj, R_geo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, c0_mxh
+    integer, intent(in), optional :: nt, geoType, mMode, nMode, n_mxh
+    real, intent(in), optional, dimension(:) :: c_mxh
+    real, intent(in), optional, dimension(:) :: s_mxh
+
+    if (present(Rmaj)) self%Rmaj = Rmaj
+    if (present(R_geo)) self%R_geo = R_geo
+    if (present(r)) self%r = r
+    if (present(dr)) self%dr = dr
+    if (present(aSurf)) self%aSurf = aSurf
+    if (present(sHorz)) self%sHorz = sHorz
+    if (present(sVert)) self%sVert = sVert
+    if (present(delm)) self%delm = delm
+    if (present(deln)) self%deln = deln
+    if (present(delmp)) self%delmp = delmp
+    if (present(delnp)) self%delnp = delnp
+    if (present(thm)) self%thm = thm
+    if (present(thn)) self%thn = thn
+    if (present(q)) self%q = q
+    if (present(shat)) self%shat = shat
+    if (present(nt)) self%nt = nt
+    if (present(geoType)) self%geoType = geoType
+    if (present(mMode)) self%mMode = mMode
+    if (present(nMode)) self%nMode = nMode
+    if (present(n_mxh)) self%n_mxh = n_mxh
+    if (present(c0_mxh)) self%c0_mxh = c0_mxh
+    if (present(c_mxh)) self%c_mxh = c_mxh
+    if (present(s_mxh)) self%s_mxh = s_mxh
+
+  end function new_flux_surface_type
 end module geo_utils
