@@ -19,7 +19,9 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type
+  use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type, &
+       geo_type_miller, geo_type_global, geo_type_generalized_elongation, geo_type_fourier_series
+
   implicit none
 
   private
@@ -130,13 +132,13 @@ contains
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (self%surf%geoType)
-       case (0)
+       case (geo_type_miller)
           call self%geo_Miller(r, theta, Rpos, Zpos)
-       case (1)
+       case (geo_type_global)
           call self%geo_global(r, theta, Rpos, Zpos)
-       case (2)
+       case (geo_type_generalized_elongation)
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
-       case (3)
+       case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
     end select
   end function Rpos
@@ -151,13 +153,13 @@ contains
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (self%surf%geoType)
-       case (0)
+       case (geo_type_miller)
           call self%geo_Miller(r, theta, Rpos, Zpos)
-       case (1)
+       case (geo_type_global)
           call self%geo_global(r, theta, Rpos, Zpos)
-       case (2)
+       case (geo_type_generalized_elongation)
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
-       case (3)
+       case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
     end select
   end function Zpos
@@ -358,7 +360,7 @@ contains
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
     rcenter = self%surf%Rmaj
-    if (self%surf%geoType == 1) then
+    if (self%surf%geoType == geo_type_global) then
        rcenter = rcenter + (1 - (self%surf%r / self%surf%aSurf)**2) * self%surf%sHorz
     end if
   end function rcenter

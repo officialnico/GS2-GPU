@@ -349,6 +349,8 @@ contains
   subroutine read_parameters(theta_grid_parameters_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
+    use geo_utils, only: geo_type_miller, geo_type_global, &
+         geo_type_generalized_elongation, geo_type_fourier_series
     implicit none
     type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
@@ -405,7 +407,7 @@ contains
     ! Print warning if the user has specified non-default values for the
     ! geometrical input parameters of other geometry types ! JRB
     select case (geoType)
-       case (0)
+       case (geo_type_miller)
           if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
           if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
           if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean akappa?"
@@ -427,7 +429,7 @@ contains
           deltanpri = tripri
           thetam = thetak
           thetan = thetad
-       case (1)
+       case (geo_type_global)
           if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
           if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
           if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean delta2?"
@@ -456,7 +458,7 @@ contains
           deltan = delta3
           thetam = theta2
           thetan = theta3
-       case (2)
+       case (geo_type_generalized_elongation)
           if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, did you mean deltam?"
           if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, did you mean deltan?"
           if (akappa/=1.0) write (*,*) "WARNING: ignoring value of akappa, did you mean deltam?"
@@ -471,7 +473,7 @@ contains
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
           
-       case (3)
+       case (geo_type_fourier_series)
           if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, did you mean deltam?"
           if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, did you mean deltan?"
           if (akappa/=1.0) write (*,*) "WARNING: ignoring value of akappa, did you mean deltam?"

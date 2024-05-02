@@ -13,6 +13,11 @@ module geo_utils
 
   integer, parameter :: EQFILE_LENGTH = 800
 
+  integer, parameter :: geo_type_miller = 0
+  integer, parameter :: geo_type_global = 1
+  integer, parameter :: geo_type_generalized_elongation = 2
+  integer, parameter :: geo_type_fourier_series = 3
+
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.
   type :: flux_surface_type
