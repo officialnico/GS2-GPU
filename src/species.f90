@@ -650,6 +650,7 @@ contains
     f0 = A / (vcrit**3 + v**3)
     df0dv = -f0 * 3 * v**2 / (vcrit**3 + v**3)
     df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
+    ! See eqn 1.22 of Wilkie's thesis with v_alpha -> 1
     f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
          (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**3)))) * vcprim
   end subroutine eval_f0_sdanalytic
