@@ -651,7 +651,7 @@ contains
     df0dv = -f0 * 3 * v**2 / (vcrit**3 + v**3)
     df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
     f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
-         (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**(3))))) * vcprim
+         (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**3)))) * vcprim
   end subroutine eval_f0_sdanalytic
 
   !> This subroutine calculates f0 on the grid from an external
