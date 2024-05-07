@@ -44,16 +44,20 @@ module species
   integer, dimension(*), parameter :: electron_like_species = &
        [electron_species, hybrid_electron_species]
 
-  integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
-                        f0_tabulated = 2, &            !< f0 determined from table in external input file
-                        f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
+  integer, parameter :: &
+       !> Regular Maxwellian species
+       f0_maxwellian = 1, &
+       !> f0 determined from table in external input file
+       f0_tabulated = 2, &
+       !> Analytic Gaffey slowing-down distribution
+       f0_sdanalytic = 3
 
-  ! FIXME
   !> Various quantities needed in the calculation of the
   !> slowing-down distribution in case electrons are adiabatic
   real:: me, ZI_fac
-  
-  !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
+
+  !> Defines a working species so that eval_f0 only needs to take one
+  !> argument (needed for genquad)
   integer:: is_global = -1
 
   integer :: nspec
