@@ -16,24 +16,24 @@ module species
   public :: species_config_type, species_element_config_type
   public :: set_species_config, get_species_config, get_species_element_config
 
-  !> FIXME : Add documentation 
+  !> FIXME : Add documentation
   type :: specie
-     real :: z
-     real :: mass
-     real :: dens, dens0, u0
-     real :: tpar0,tperp0
-     real :: temp
-     real :: tprim
-     real :: fprim
-     real :: uprim, uprim2
-     real :: vnewk
-     real :: nu_h ! nu_h controls a hyperviscous term embedded in the collision operator
+     !> Main physical properties of the species, see namelist documentation.
+     real :: z, mass, dens, temp, tprim, fprim, vnewk
+     !> Common combinations of species properties
      real :: stm, zstm, tz, smz, zt
-     real :: bess_fac !Artificial factor multiplying the Bessel function argument
-     real :: vcrit
-     real :: vcprim
-     integer :: type
-     integer :: f0type
+     !> Provides offsets to parallel flow shear drive term
+     real :: uprim, uprim2
+     !> Parameters associated with a few initialisation options, including Orszag-Tang.
+     real :: dens0, u0, tpar0, tperp0
+     !> nu_h controls a hyperviscous term embedded in the collision operator
+     real :: nu_h
+     !> Artificial factor multiplying the Bessel function argument
+     real :: bess_fac
+     !> Parameters associated with analytic slowing-down distribution
+     real :: vcrit, vcprim
+     !> Flags to identify the species type and the background distribution treatment
+     integer :: type, f0type
   end type specie
 
   integer, parameter :: ion_species = 1
