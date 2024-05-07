@@ -604,41 +604,54 @@ contains
      end select
   end function eval_f0
 
-  !> FIXME : Add documentation   
-  subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
+  !> FIXME : Add documentation
+  subroutine eval_f0_sdanalytic(is, v, f0, df0dE_out, f0prim)
     use constants, only: pi
-    use mp, only: mp_abort
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
-    real,intent(inout):: f0,df0dE_out, f0prim
-    real:: A, df0dv,vcprim, vcrit
+    real,intent(out):: f0, df0dE_out, f0prim
+    real:: A, df0dv, vcprim, vcrit
 
-    if (spec(is)%vcrit .LE. 0.0) then
-       call calculate_slowingdown_parameters(is,vcrit,vcprim)
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)  vcprim = spec(is)%vcprim
-    else
-       !> If vcrit is specified, there is no way of knowing its radial derivative, so set dvc/drho = 0
-       vcrit = spec(is)%vcrit
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)   vcprim = 0.0
-    end if
-
-
-    A = (3.0/(4.0*pi))/log( (vcrit**3 + 1.0)/(vcrit**3))
-
-    f0 = A/(vcrit**3 + v**3)
-    df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
-    df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
-    f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
-
-    if (v .GT. 1.0) then
+    ! Early exit -- if v > 1 then assume f0 has been cutoff, i.e.
+    ! we are above the threshold for the Heaviside function to
+    ! zero the distribution. Note for v==1 our f0prim etc. are
+    ! don't account for the Heaviside.
+    if (v > 1.0) then
        f0 = 0.0
        f0prim = 0.0
        df0dE_out = 1.0
+       return
     end if
 
-!    write(*,*) v, vcrit,vcprim,f0prim
+    if (spec(is)%vcrit <= 0.0) then
+       ! If vcrit hasn't been set work out vcrit and vcprim using
+       ! eqn 1.17 and 1.25 of [G. Wilkie thesis](https://drum.lib.umd.edu/handle/1903/17302)
+       ! Note this is independent of `v` so we could precalculate for the relevant species.
+       ! This could be "trivially" cached by simply storing the calculated values in spec(is)
+       call calculate_slowingdown_parameters(is, vcrit, vcprim)
+       ! This line is a bit odd, it _looks_ like it is checking if spec(is)%vcprim
+       ! has not been set, and if it _hasn't_ then force vcprim = spec(is)%vcprim.
+       ! In fact as spec(is)%vcprim defaults to -999.9 currently this logic _doesn't_
+       ! trigger without the user manually setting vcprim more negative. I suspect
+       ! this was intended to be if(was_set(spec(is)%vcprim)) vcprim = spec(is)%vcprim
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = spec(is)%vcprim
+    else
+       vcrit = spec(is)%vcrit
+       ! If vcrit is specified, there is no way of knowing its radial
+       ! derivative, so set dvc/drho = 0. As above, this doesn't actually trigger
+       ! for the default value of spec(is)%vcprim. I suspect this is meant to be
+       ! if(not_set(spec(is)%vcprim)) vcprim = 0.
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = 0.0
+    end if
 
+    A = (3 / (4 * pi)) / log((vcrit**3 + 1) / (vcrit**3))
+
+    f0 = A / (vcrit**3 + v**3)
+    df0dv = -A * 3 * v**2 / (vcrit**3 + v**3)**2
+    df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
+    f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
+         (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**(3))))) * vcprim
   end subroutine eval_f0_sdanalytic
 
   !> This subroutine calculates f0 on the grid from an external
