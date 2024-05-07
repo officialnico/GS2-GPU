@@ -159,12 +159,17 @@ module species
      !> Controls an energy independent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a constant offset to the parallel flow
+     !> shear term, allowing one to add a species dependent shift.
      real :: uprim = 0.0
      !> Controls an energy dependent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a energy dependent offset to the parallel
+     !> flow shear term, allowing one to add a species and energy
+     !> dependent shift.
      real :: uprim2 = 0.0
      !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
