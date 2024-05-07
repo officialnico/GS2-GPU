@@ -104,13 +104,14 @@ module species
      !> Select which type of background distribution should be assumed
      !> for this species. Must be one of:
      !>
+     !> - 'default' : equivalent to maxwellian
      !> - 'maxwellian' : Standard maxwellian
      !> - 'tabulated' : A general tabulated form
      !> - 'sdanalytic' : A analytic slowing down form.
      !>
      !> See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
-     character(len = 20) :: f0type = "maxwellian"
+     character(len = 20) :: f0type = "default"
      !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
      !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
      !> \(\frac{\rho}{L_\textrm{ref}}\).
@@ -401,7 +402,8 @@ contains
          text_option('hybrid_electron', hybrid_electron_species) &
          ]
 
-    type (text_option), dimension (3), parameter :: f0_opts = [ &
+    type (text_option), dimension (4), parameter :: f0_opts = [ &
+         text_option('default', f0_maxwellian), &
          text_option('maxwellian', f0_maxwellian), &
          text_option('tabulated', f0_tabulated), &
          text_option('sdanalytic', f0_sdanalytic) &
@@ -417,14 +419,11 @@ contains
     zi_fac = species_config%zi_fac
 
     exist = species_config%exist
-    
-    if (proc0) then
-       if (nspec < 1) then
-          ierr = error_unit()
-          write (unit=ierr, &
-               fmt="('Invalid nspec in species_knobs: ', i5)") nspec
-          call mp_abort('Invalid nspec in species_knobs')
-       end if
+
+    ierr = error_unit()
+    if (proc0 .and. nspec < 1) then
+       write (unit=ierr, fmt="('Invalid nspec in species_knobs: ', i5)") nspec
+       call mp_abort('Invalid nspec in species_knobs')
     end if
 
     allocate (spec(nspec))
@@ -433,11 +432,12 @@ contains
 
     if (.not.allocated(species_element_config)) allocate(species_element_config(nspec))
 
-    if (size(species_element_config) .ne. nspec) then
+    ! This might look odd given the above line _but_ we might have set species_element_config
+    ! elsewhere and hence not allocated in the above, potentially giving inconsistencies
+    if (size(species_element_config) /= nspec) then
        if (proc0) print*,"inconsistent number of config elements"
-    endif
+    end if
        
-    ierr = error_unit()
     do is = 1, nspec
        call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
@@ -460,8 +460,10 @@ contains
        spec(is)%vnewk = species_element_config(is)%vnewk
        spec(is)%z = species_element_config(is)%z
 
-       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, &
+            ierr, "type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, &
+            ierr, "f0type in species_parameters_x",.true.)
     end do
 
     spec%stm = sqrt(spec%temp / spec%mass)
