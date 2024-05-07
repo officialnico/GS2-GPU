@@ -582,30 +582,26 @@ contains
   end subroutine set_current_f0_species
 
   !> FIXME : Add documentation
-  !!
-  !! @note Relies upon is_global to determine species. This function only takes one argument so that
-  !! it can be passed as an argument to genquad
-  function eval_f0(v)
+  !>
+  !> @note Relies upon is_global to determine species. This function only takes one argument so that
+  !> it can be passed as an argument to genquad
+  real function eval_f0(v)
      use constants, only: pi
      use mp, only: mp_abort
      implicit none
      real, intent(in):: v
-     real:: eval_f0
-     real::f0temp, dummy1,dummy2
-
-     if (is_global .LT. 0)  call mp_abort("is_global not specified when calling eval_f0")
+     real::f0temp, dummy1, dummy2
+     eval_f0 = 0.0 !Set a default, avoids warnings about maybe unset
+     if (is_global <= 0)  call mp_abort("is_global not specified when calling eval_f0")
 
      select case(spec(is_global)%f0type)
      case (f0_maxwellian)
-        f0temp = exp(-v**2)/pi**1.5        
+        eval_f0 = exp(-v**2) / pi**1.5
      case (f0_sdanalytic)
-        call eval_f0_sdanalytic(is_global,v,f0temp,dummy1,dummy2)
+        call eval_f0_sdanalytic(is_global, v, eval_f0, dummy1, dummy2)
      case (f0_tabulated)
         call mp_abort("ERROR: eval_f0 cannot yet handle tabulated option.")
      end select
-
-     eval_f0 = f0temp
-
   end function eval_f0
 
   !> FIXME : Add documentation   
