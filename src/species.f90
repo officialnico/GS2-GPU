@@ -472,42 +472,53 @@ contains
   end subroutine read_parameters
 
   !> FIXME : Add documentation
-  subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
+  subroutine calculate_slowingdown_parameters(alpha_index, vc, vcprim)
     use constants, only: pi
     use mp, only: proc0
     implicit none
     integer, intent(in):: alpha_index
-    real, intent(inout):: vc, vcprim
-    integer:: electron_spec, main_ion_species, is,js
-    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte
+    real, intent(out):: vc, vcprim
+    integer:: electron_spec, main_ion_species, is, js
+    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte, charge_contribution
     
     electron_spec = -1
     main_ion_species = -1
 
-    do is = 1,nspec
+    ! Find species index corresponding to electrons and "main ions"
+    ! where we assume the first ion species corresponds to the main ions.
+    ! Perhaps we're looking for the species with mass = 1 (i.e. the reference mass?)
+    do is = 1, nspec
        if (is_electron_species(spec(is))) electron_spec = is
-       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species) main_ion_species = is
+       if (main_ion_species < 1 .and. spec(is)%type == ion_species) main_ion_species = is
     end do
 
-    if (electron_spec .GT. 0) then
+    if (electron_spec > 0) then
+       ! If we found the electron index extract its parameters
        me = spec(electron_spec)%mass
        ne = spec(electron_spec)%dens
        ne_prim = spec(electron_spec)%fprim
        Te_prim = spec(electron_spec)%tprim
        vte = sqrt(spec(electron_spec)%temp/spec(electron_spec)%mass)
     else
-       if (me .LT. 0.0) then
-          if (proc0) write(*,*) "WARNING: vte not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
+       ! If we don't have an electron species try to work out the relevant parameters
+       if (me < 0.0) then
+          if (proc0) write(*,*) "WARNING: me not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
           me = 0.0002723085
        end if             
-
-       ne = sum(spec(:)%z*spec(:)%dens)
-       ne_prim = sum(spec(:)%z*spec(:)%dens*spec(:)%fprim)/ne
+       ! Set electron density and gradient from quasineutrality
+       ne = sum(spec%z * spec%dens)
+       ne_prim = sum(spec%z * spec%dens * spec%fprim) / ne
+       ! Assume Te' = Ti' of the main ions
        Te_prim = spec(main_ion_species)%tprim
+       ! Compute electron thermal velocity using the main ion properties? This seems
+       ! surprising. Whilst Te = Ti is perhaps reasonable, we specify the electron mass
+       ! so why not use it here?
        vte = sqrt(spec(main_ion_species)%temp/spec(main_ion_species)%mass)
+
        if (proc0) then
           write(*,*) "Since electrons are adiabatic, we need to improvise electron parameters to "
           write(*,*) "caluclate alpha species properties. Imposed by global quasineutrality:"
+          write(*,*) "  me = ", me
           write(*,*) "  ne = ", ne
           write(*,*) "  vte = ", vte
           write(*,*) "  ne_prim = ", ne_prim
@@ -517,12 +528,13 @@ contains
 
     ni_prim = 0.0
     ! If ZI_fac is not specified, calculate it from existing ion species:
-    if (ZI_fac .LT. 0.0) then
+    if (ZI_fac < 0.0) then
        ZI_fac_local = 0.0
-       do js = 1,nspec
-          if (spec(js)%type .eq. ion_species) then 
-             ZI_fac_local = ZI_fac_local   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
-             ni_prim = ni_prim + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2*spec(js)%fprim/(spec(js)%mass*ne)
+       do js = 1, nspec
+          if (spec(js)%type == ion_species) then
+             charge_contribution = spec(alpha_index)%mass * spec(js)%dens * spec(js)%z**2 / (spec(js)%mass * ne)
+             ZI_fac_local = ZI_fac_local + charge_contribution
+             ni_prim = ni_prim + charge_contribution * spec(js)%fprim
           end if
        end do
     else
@@ -531,9 +543,10 @@ contains
     ni_prim = ni_prim / ZI_fac_local
 
     ! Calculate vc/vinj
-    vinj = sqrt(spec(alpha_index)%temp/spec(alpha_index)%mass)
-    vc = (0.25*3.0*sqrt(pi)*ZI_fac_local*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
-    vcprim = ni_prim - ne_prim + 1.5*Te_prim
+    vinj = sqrt(spec(alpha_index)%temp / spec(alpha_index)%mass)
+    vc = (0.25 * 3 * sqrt(pi) * ZI_fac_local * me / spec(alpha_index)%mass)**(1/3.0) * &
+         (vte / vinj)
+    vcprim = ni_prim - ne_prim + 1.5 * Te_prim
 
   end subroutine calculate_slowingdown_parameters
 
