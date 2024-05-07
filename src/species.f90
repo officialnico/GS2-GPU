@@ -550,29 +550,28 @@ contains
      allocate(f0_values(negrid,nspec))
      allocate(dlnf0drho(negrid,nspec))
 
-     do is = 1,nspec
+     do is = 1, nspec
         is_global = is
-        do ie = 1,negrid
-           v = sqrt(egrid(ie,is))
+        if (spec(is)%f0type == f0_tabulated) then
+           call calculate_f0_arrays_tabulated(is, egrid)
+        else
+           do ie = 1, negrid
+              v = sqrt(egrid(ie,is))
 
-           select case (spec(is)%f0type)
-           case (f0_maxwellian)
-              f0_values(ie,is) = eval_f0(v)
-              nonmaxw_corr(ie,is) = 1.0
-              dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5)*spec(is)%tprim
-           case (f0_sdanalytic)
-              call eval_f0_sdanalytic(is,v,f0,df0dE,f0prim)
-              f0_values(ie,is) = f0
-              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-              dlnf0drho(ie,is) = f0prim
-           end select
-        end do
-        if (spec(is)%f0type .EQ. f0_tabulated) then
-           call calculate_f0_arrays_tabulated(is,egrid)
+              select case (spec(is)%f0type)
+              case (f0_maxwellian)
+                 f0_values(ie,is) = eval_f0(v)
+                 nonmaxw_corr(ie,is) = 1.0
+                 dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5) * spec(is)%tprim
+              case (f0_sdanalytic)
+                 call eval_f0_sdanalytic(is, v, f0, df0dE, f0prim)
+                 f0_values(ie, is) = f0
+                 nonmaxw_corr(ie, is) = -spec(is)%temp * df0dE
+                 dlnf0drho(ie, is) = f0prim
+              end select
+           end do
         end if
-        
      end do
-
   end subroutine calculate_f0_arrays
 
   !> FIXME : Add documentation   
