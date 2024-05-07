@@ -6,13 +6,11 @@ module species
 
   private
   public :: init_species, finish_species, wnml_species, check_species
-  public :: write_trinity_parameters
-  public :: nspec, specie, spec, tracer_species
-  public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: nspec, spec, tracer_species, write_trinity_parameters
+  public :: has_ion_species, has_electron_species
   public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
-  public :: nonmaxw_corr, f0_values, dlnf0drho, set_overrides
+  public :: nonmaxw_corr, f0_values, dlnf0drho, f0_maxwellian, f0_sdanalytic, set_overrides
   public :: species_config_type, species_element_config_type
   public :: set_species_config, get_species_config, get_species_element_config
 
