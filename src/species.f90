@@ -512,7 +512,7 @@ contains
        Te_prim = spec(main_ion_species)%tprim
        ! Compute electron thermal velocity using the main ion properties? This seems
        ! surprising. Whilst Te = Ti is perhaps reasonable, we specify the electron mass
-       ! so why not use it here?
+       ! so why not use it here? Could we also use the tite input to scale the ion T?
        vte = sqrt(spec(main_ion_species)%temp/spec(main_ion_species)%mass)
 
        if (proc0) then
