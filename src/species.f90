@@ -648,7 +648,7 @@ contains
     A = (3 / (4 * pi)) / log((vcrit**3 + 1) / (vcrit**3))
 
     f0 = A / (vcrit**3 + v**3)
-    df0dv = -A * 3 * v**2 / (vcrit**3 + v**3)**2
+    df0dv = -f0 * 3 * v**2 / (vcrit**3 + v**3)
     df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
     f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
          (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**(3))))) * vcprim
