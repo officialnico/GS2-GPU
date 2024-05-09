@@ -409,7 +409,7 @@ contains
          text_option('hybrid_electron', hybrid_electron_species) &
          ]
 
-    type (text_option), dimension (4), parameter :: f0_opts = [ &
+    type (text_option), dimension (*), parameter :: f0_opts = [ &
          text_option('default', f0_maxwellian), &
          text_option('maxwellian', f0_maxwellian), &
          text_option('tabulated', f0_tabulated), &
