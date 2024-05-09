@@ -9,28 +9,9 @@ module egrid
 
   private
 
-  public :: setvgrid, setvgrid_genquad, init_egrid
-  public :: zeroes, x0, zeroes_maxw, x0_maxw
-
-  real :: x0_maxw
-  real, dimension(:), allocatable :: x0
-  real, dimension(:), allocatable, save :: zeroes_maxw
-  real, dimension(:,:), allocatable, save :: zeroes
+  public :: setvgrid, setvgrid_genquad
 
 contains
-
-  !> FIXME : Add documentation  
-  subroutine init_egrid (negrid)
-    use species, only: nspec
-    implicit none
-    integer, intent (in) :: negrid
-
-    if (.not. allocated(zeroes)) then
-       allocate (zeroes(negrid-1, nspec)) ; zeroes = 0.
-       allocate (zeroes_maxw(negrid-1)) ; zeroes_maxw = 0.
-       allocate (x0(nspec))
-    end if
-  end subroutine init_egrid
   
   !> FIXME : Add documentation
   subroutine setvgrid (vcut_in, negrid, epts, wgts, nesub_in)
@@ -45,8 +26,6 @@ contains
     real, dimension(:,:), intent (out) :: epts, wgts
     integer:: nesub, is
     real:: vcut
-
-    call init_egrid (negrid)
 
     do is = 1,nspec 
        select case (spec(is)%f0type)
@@ -88,9 +67,6 @@ contains
 
     call calculate_f0_arrays(epts)
     wgts = wgts * f0_values
-    
-    zeroes(:, :) = sqrt(epts(:negrid-1, :))
-    x0(:) = sqrt(epts(negrid, :))
   end subroutine setvgrid
 
   !> FIXME : Add documentation  
@@ -105,7 +81,6 @@ contains
     real, dimension(:,:), intent (out) :: epts, wgts
     integer :: is
     logical :: upper_bound_is_inf
-    call init_egrid (negrid)
 
     do is = 1, nspec
 
@@ -132,10 +107,6 @@ contains
 
     call calculate_f0_arrays(epts)
     !Note we don't do wgts = wgts * f0_values unlike setvgrid
-
-    zeroes(:, :) = sqrt(epts(:negrid-1, :))
-    x0(:) = sqrt(epts(negrid, :))
-
   end subroutine setvgrid_genquad
 
 end module egrid
@@ -438,7 +409,6 @@ contains
   subroutine broadcast_results
     use mp, only: proc0, broadcast
     use species, only: nspec
-    use egrid, only: init_egrid, zeroes_maxw, x0_maxw
     use theta_grid, only: ntgrid
     implicit none
     call broadcast (lmax)
@@ -465,10 +435,7 @@ contains
        allocate (wxi(2*nlambda, -ntgrid:ntgrid))
     end if
 
-    call init_egrid (negrid)
     call broadcast (xx)
-    call broadcast (x0_maxw)
-    call broadcast (zeroes_maxw)
 
     call broadcast (al)
     call broadcast (jend)
@@ -640,7 +607,6 @@ contains
   !> collisionality algorithm.
   subroutine init_weights
     use file_utils, only: open_output_file, close_output_file
-    use egrid, only: zeroes
     use constants, only: pi => dpi
     use species, only: nspec, f0_values
     implicit none
@@ -672,8 +638,8 @@ contains
        do is = 1, nspec
 
          ! drops the point corresponding to ipt from the energy grid
-         if (ipt /= 1) modzeroes(:ipt-1) = zeroes(:ipt-1,is)
-         if (ipt /= nesub) modzeroes(ipt:nesub-1) = zeroes(ipt+1:nesub,is)
+         if (ipt /= 1) modzeroes(:ipt-1) = speed(:ipt-1,is)
+         if (ipt /= nesub) modzeroes(ipt:nesub-1) = speed(ipt+1:nesub,is)
 
          ! get weights for energy grid points
          call get_weights (nmax,0.0,vcut,modzeroes,werrtmp,ndiv,divmax,eflag)
@@ -1284,7 +1250,6 @@ contains
   !> values in [[xx]] are not Legendre roots so this routine is probably
   !> incorrect when [[le_grids_knobs::radau_gauss_grid]] is `.true.`.
   subroutine legendre_transform (g, tote, totl, tott)  
-    use egrid, only: zeroes
     use mp, only: nproc
     use theta_grid, only: ntgrid, bmag, bmax
     use species, only: nspec
@@ -1316,7 +1281,7 @@ contains
        ! get value of first nesub legendre polynomials
        ! at each of the grid points on (0,vcut)
        do is = 1,nspec
-          call legendre_polynomials (0.0,vcut,zeroes(:lpesize,is),lpe(:lpesize,:,is))
+          call legendre_polynomials (0.0,vcut,speed(:lpesize,is),lpe(:lpesize,:,is))
        end do
        ! TEMP FOR TESTING -- MAB
        !          lpe = 2.*lpe/vcut
@@ -2000,7 +1965,6 @@ contains
   !> FIXME : Add documentation  
   subroutine set_grids
     use species, only: init_species
-    use egrid, only: x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
     use file_utils, only: open_output_file, close_output_file
@@ -2029,8 +1993,6 @@ contains
          w_maxw(:) = w(:,is)
          energy_maxw(:) = energy(:,is)
          speed_maxw(:) = speed(:,is)
-         zeroes_maxw(:) = zeroes(:,is)
-         x0_maxw = x0(is)
          exit
       end if
     end do
@@ -4567,14 +4529,12 @@ contains
   !> FIXME : Add documentation  
   subroutine finish_le_grids
     use redistribute, only: delete_redist
-    use egrid, only: zeroes, x0, zeroes_maxw
     use species, only: nonmaxw_corr, f0_values, dlnf0drho
 
     implicit none
     real, dimension(1,1,1,1,1) :: tmpf
     real, dimension(1,1,1) :: tmpvflx
 
-    if (allocated(zeroes)) deallocate (zeroes,x0,zeroes_maxw)
     if (allocated(energy)) deallocate (energy, energy_maxw, al, wl, &
          jend, forbid, xx, speed, speed_maxw)
     if (allocated(is_bounce_point)) deallocate(is_bounce_point)

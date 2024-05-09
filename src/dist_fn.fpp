@@ -9565,8 +9565,7 @@ contains
     use file_utils, only: open_output_file, close_output_file
     use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
     use gs2_layouts, only: idx_local, proc_id
-    use le_grids, only: al, energy, forbid, negrid, nlambda
-    use egrid, only: zeroes, x0
+    use le_grids, only: al, energy, forbid, negrid, nlambda, speed
     use theta_grid, only: bmag
     use dist_fn_arrays, only: gnew
     use species, only: nspec
@@ -9586,9 +9585,8 @@ contains
        allocate(xpts(negrid,nspec))
        allocate(ypts(nlambda))
 
-    ! should really just get rid of xpts and ypts
-       xpts(1:negrid-1,:) = zeroes(1:negrid-1,:)
-       xpts(negrid,:) = x0(:)
+       ! should really just get rid of xpts and ypts
+       xpts = speed
        ypts = 0.0
        ! change argument of bmag depending on which theta you want to write out
        do il=1,nlambda
