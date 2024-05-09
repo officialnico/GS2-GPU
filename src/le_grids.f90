@@ -388,7 +388,6 @@ contains
     use theta_grid, only: init_theta_grid
     use kt_grids, only: init_kt_grids
     use gs2_layouts, only: init_gs2_layouts
-    use egrid, only: setvgrid
     implicit none
     type(le_grids_config_type), intent(in), optional :: le_grid_config_in    
     integer :: il, ie
@@ -648,7 +647,6 @@ contains
     use egrid, only: zeroes
     use constants, only: pi => dpi
     use species, only: nspec, f0_values
-
     implicit none
 
     real, dimension (:), allocatable :: modzeroes, werrtmp  ! (negrid-2)
@@ -658,7 +656,6 @@ contains
 
     if (init_weights_init) return
     init_weights_init = .true.
-
 
     allocate(lmodzeroes(ng2-1), wlerrtmp(ng2-1))
     allocate(wlerr(ng2,ng2))
@@ -675,34 +672,28 @@ contains
     ! of weights are needed because we want to compute integrals
     ! for negrid-1 sets of energy points (corresponding to negrid-1
     ! points that we can choose to drop from the guassian quadrature)
-    
-    do ipt=1,nesub
-       do is = 1,nspec
-       
+    do ipt = 1, nesub
+       do is = 1, nspec
+
          ! drops the point corresponding to ipt from the energy grid
-         
          if (ipt /= 1) modzeroes(:ipt-1) = zeroes(:ipt-1,is)
          if (ipt /= nesub) modzeroes(ipt:nesub-1) = zeroes(ipt+1:nesub,is)
-         
+
          ! get weights for energy grid points
-         
          call get_weights (nmax,0.0,vcut,modzeroes,werrtmp,ndiv,divmax,eflag)
-         
+
          ! a zero is left in the position corresponding to the dropped point
-         
          if (ipt /= 1) werr(:ipt-1,ipt,is) = werrtmp(:ipt-1)
          if (ipt /= nesub) werr(ipt+1:nesub,ipt,is) = werrtmp(ipt:nesub-1)
          werr(nesub+1:,ipt,is) = w(nesub+1:negrid-1,is)
-         
+
          ! absorbing volume element into weights
          werr(:nesub,ipt,is) = werr(:nesub,ipt,is)*energy(:nesub,is)*2.0*pi*f0_values(:nesub,is)
        end do
-       
     end do
 
     ! same thing done here for lamdba as was
     ! done earlier for energy space
-
     do ipt=1,ng2
 
        if (ipt /= 1) lmodzeroes(:ipt-1) = xx(:ipt-1)
@@ -712,12 +703,6 @@ contains
 
        if (ipt /= 1) wlerr(:ipt-1,ipt) = wlerrtmp(:ipt-1)
        if (ipt /= ng2) wlerr(ipt+1:,ipt) = wlerrtmp(ipt:)
-
-!       do il = 1, ng2
-          ! TEMP FOR TESTING -- MAB
-!          write (*,*) 'wlerr', ipt, il, xx(il), wlerr(il,ipt), ndiv, divmax
-!       end do
-
     end do
 
     deallocate(modzeroes,werrtmp,lmodzeroes,wlerrtmp)
@@ -726,21 +711,17 @@ contains
   end subroutine init_weights
 
   !> The get_weights subroutine determines how to divide up the integral into 
-  !! subintervals and how many grid points should be in each subinterval
+  !> subintervals and how many grid points should be in each subinterval
   subroutine get_weights (maxpts_in, llim, ulim, nodes, wgts, ndiv, divmax, err_flag)
-
     implicit none
-
     integer, intent (in) :: maxpts_in
     real, intent (in) :: llim, ulim
     real, dimension (:), intent (in) :: nodes
     real, dimension (:), intent (out) :: wgts
     logical, intent (out) :: err_flag
     integer, intent (out) :: ndiv, divmax
-
     integer :: npts, rmndr, basepts, divrmndr, base_idx, idiv, epts, maxpts
     integer, dimension (:), allocatable :: divpts
-
     real :: wgt_max
 
 ! npts is the number of grid points in the integration interval
@@ -2024,7 +2005,7 @@ contains
   !> FIXME : Add documentation  
   subroutine set_grids
     use species, only: init_species
-    use egrid, only: setvgrid, x0, x0_maxw, zeroes, zeroes_maxw
+    use egrid, only: x0, x0_maxw, zeroes, zeroes_maxw
     use species, only: nspec, spec, f0_maxwellian
     use theta_grid, only: init_theta_grid, ntgrid, nbset, bset, eps_trapped
     use file_utils, only: open_output_file, close_output_file
@@ -2060,7 +2041,6 @@ contains
     end do
     if (.not. has_maxwellian_species) write(*,*) &
         'Warning; no maxwellian species; collisions will fail'
-    !call setvgrid (vcut, negrid, energy, w, nesub)
 
     if (trapped_particles .and. eps_trapped > epsilon(0.0)) then
        nlambda = ng2+nbset
