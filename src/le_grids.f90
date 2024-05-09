@@ -832,15 +832,14 @@ contains
   !> This is partially controlled by the input [[nmax]].
   subroutine get_intrvl_weights (llim, ulim, nodes, wgts)
     use gauss_quad, only: get_legendre_grids_from_cheb
-    
     implicit none
     
     ! llim (ulim) is lower (upper) limit of integration
     real, intent (in) :: llim, ulim
     real, dimension (:), intent (in) :: nodes
     real, dimension (:), intent (in out) :: wgts
-    
-    ! stuff needed to do guassian quadrature 
+
+    ! stuff needed to do gaussian quadrature
     real, dimension (:), allocatable :: gnodes, gwgts, omprod
     integer :: ix, iw
 
@@ -848,14 +847,14 @@ contains
     
     call get_legendre_grids_from_cheb (llim, ulim, gnodes, gwgts)
 
-    do iw=1,size(wgts)
+    do iw = 1, size(wgts)
        omprod = 1.0
        
-       do ix=1,size(nodes)
+       do ix = 1, size(nodes)
           if (ix /= iw) omprod = omprod*(gnodes - nodes(ix))/(nodes(iw) - nodes(ix))
        end do
        
-       do ix=1,size(gwgts)
+       do ix = 1, size(gwgts)
           wgts(iw) = wgts(iw) + omprod(ix)*gwgts(ix)
        end do
     end do
