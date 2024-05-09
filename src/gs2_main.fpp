@@ -691,11 +691,6 @@ contains
     
     if (state%nensembles > 1) call scope (subprocs)
 
-    ! Stores a record of the state of species etc. at the point of
-    ! evolving the system. Does the used_inputs file make this
-    ! redundent now? Might depend on overrides?
-    if (state%is_trinity_job) call write_trinity_parameters(state)
-
     call time_message(.false.,state%timers%main_loop,' Main Loop')
 
     ! Make sure exit is false before entering timestep loop
@@ -1665,25 +1660,6 @@ contains
     call ginit(dummy)
     call set_init_fields
   end subroutine reset_linear_magnitude
-
-  !> FIXME : Add documentation  
-  subroutine write_trinity_parameters(state)
-    use file_utils, only: open_output_file, close_output_file
-    use theta_grid_params, only: write_theta_grid => write_trinity_parameters
-    use species, only: write_species => write_trinity_parameters
-    use run_parameters, only: write_run_parameters => write_trinity_parameters
-    use mp, only: proc0
-    implicit none
-    type(gs2_program_state_type), intent(in) :: state
-    integer :: trinpars_unit
-    character(len=*), parameter :: ext = '.trinpars'
-    if (.not. proc0) return
-    call open_output_file(trinpars_unit, trim(ext))
-    call write_theta_grid(trinpars_unit)
-    call write_species(trinpars_unit)
-    call write_run_parameters(trinpars_unit)
-    call close_output_file(trinpars_unit)
-  end subroutine write_trinity_parameters
 
   !> Write an input file containing the current state of all input
   !> parameters

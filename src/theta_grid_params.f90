@@ -6,9 +6,7 @@ module theta_grid_params
 
   private
 
-  public :: init_theta_grid_params
-  public :: finish_theta_grid_params
-  public :: wnml_theta_grid_params, write_trinity_parameters
+  public :: init_theta_grid_params, finish_theta_grid_params, wnml_theta_grid_params
   public :: rhoc, rmaj, r_geo, eps, epsl, qinp, shat, alpmhd
   public :: pk, geoType, aSurf, shift, shiftVert, mMode, nMode, deltam, deltan
   public :: deltampri, deltanpri, thetam, thetan
@@ -543,31 +541,6 @@ contains
     write (unit, fmt="(' btor_slab =',f7.4)") btor_slab
     write (unit, fmt="(' /')")
   end subroutine wnml_theta_grid_params
-
-  !> FIXME : Add documentation
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    write (trinpars_unit, "(A22)") '&theta_grid_parameters'
-    write (trinpars_unit, *) ' rhoc = ', rhoc
-    write (trinpars_unit, *) ' qinp = ', qinp
-    write (trinpars_unit, *) ' shat = ', shat
-    write (trinpars_unit, *) ' rmaj = ', rmaj
-    write (trinpars_unit, *) ' r_geo = ', r_geo
-    write (trinpars_unit, *) ' geoType = ', geoType
-    write (trinpars_unit, *) ' aSurf = ', aSurf
-    write (trinpars_unit, *) ' shift = ', shift
-    write (trinpars_unit, *) ' shiftVert = ', shiftVert
-    write (trinpars_unit, *) ' mMode = ', mMode
-    write (trinpars_unit, *) ' nMode = ', nMode
-    write (trinpars_unit, *) ' deltam = ', deltam
-    write (trinpars_unit, *) ' deltan = ', deltan
-    write (trinpars_unit, *) ' deltampri = ', deltampri
-    write (trinpars_unit, *) ' deltanpri = ', deltanpri
-    write (trinpars_unit, *) ' thetam = ', thetam
-    write (trinpars_unit, *) ' thetan = ', thetan
-    write (trinpars_unit, *) ' betaprim = ', betaprim
-    write (trinpars_unit, "(A1)") '/'
-  end subroutine write_trinity_parameters
 
   !> FIXME : Add documentation
   subroutine set_overrides(mgeo_ov)

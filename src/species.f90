@@ -6,7 +6,7 @@ module species
 
   private
   public :: init_species, finish_species, wnml_species, check_species
-  public :: nspec, spec, tracer_species, write_trinity_parameters
+  public :: nspec, spec, tracer_species
   public :: has_ion_species, has_electron_species
   public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
@@ -1028,25 +1028,6 @@ contains
        call broadcast (spec(is)%smz)
     end do
   end subroutine calculate_and_broadcast_species_properties
-
-  !> FIXME : Add documentation   
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    integer :: is
-    do is = 1,nspec
-      if (is<10) then
-        write(trinpars_unit, "(A20,I1)") '&species_parameters_', is
-      else
-        write(trinpars_unit, "(A20,I2)") '&species_parameters_', is
-      end if
-      write (trinpars_unit, *) ' temp = ', spec(is)%temp
-      write (trinpars_unit, *) ' dens = ', spec(is)%dens
-      write (trinpars_unit, *) ' tprim = ', spec(is)%tprim
-      write (trinpars_unit, *) ' fprim = ', spec(is)%fprim
-      write (trinpars_unit, *) ' vnewk = ', spec(is)%vnewk
-      write (trinpars_unit, "(A1)") '/'
-    end do
-  end subroutine write_trinity_parameters
 
   !> Set the module level config types
   !> Will abort if the module has already been initialised to avoid

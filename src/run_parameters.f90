@@ -10,7 +10,7 @@ module run_parameters
   private
 
   public :: init_run_parameters, finish_run_parameters, check_run_parameters
-  public :: wnml_run_parameters, write_trinity_parameters
+  public :: wnml_run_parameters
   public :: beta, zeff, tite, reset, immediate_reset, delt, ieqzip, k0, user_comments
   public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
   public :: nstep, max_sim_time, wstar_units, rhostar, neo_test, ncheck_stop
@@ -377,15 +377,6 @@ contains
 
     if (seed .ne. 0 ) call set_seed_from_single_integer(seed)
   end subroutine read_parameters
-
-  !> FIXME : Add documentation    
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    write(trinpars_unit, "(A15)") '&run_parameters'
-    write (trinpars_unit, *) ' beta = ', beta
-    write (trinpars_unit, "(A1)") '/'
-
-  end subroutine write_trinity_parameters
 
   !> FIXME : Add documentation    
   subroutine set_overrides(tstep_ov)
