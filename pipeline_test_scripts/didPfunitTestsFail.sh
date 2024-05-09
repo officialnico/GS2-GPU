@@ -13,6 +13,6 @@ then
 fi
 
 # Now know pfunit tests did run -- check if any failed
-NFAIL=$(grep -E "\bEncountered 1 or more failures/errors during testing.\b" $(find ${DIR} -name ${RESULTS_NAME}) | wc -l)
+NFAIL=$(grep -E "\bEncountered 1 or more failures/errors during testing\b" $(find ${DIR} -name ${RESULTS_NAME}) | wc -l)
 echo "Found ${NFAIL} failing tests"
 exit ${NFAIL}
