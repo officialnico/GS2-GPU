@@ -1177,7 +1177,7 @@ contains
   end subroutine test_global_invR_circle
 
   @test
-  subroutine test_generalised_MXH_Rpos_circle()
+  subroutine test_MXH_Rpos_circle()
     real, parameter :: major_radius = 0.0
     real, parameter :: minor_radius = 1.0
     integer, parameter :: ntheta = 32
@@ -1196,10 +1196,10 @@ contains
     geom%thetaShift = 0.
     R_answer = [ (geom%Rpos(minor_radius, theta(i)), i=1, ntheta) ]
     @assertEqual(R_expected, R_answer, tolerance=1.e-12)
-  end subroutine test_generalised_MXH_Rpos_circle
+  end subroutine test_MXH_Rpos_circle
 
   @test
-  subroutine test_generalised_MXH_Zpos_circle()
+  subroutine test_MXH_Zpos_circle()
     real, parameter :: major_radius = 0.0
     real, parameter :: minor_radius = 1.0
     integer, parameter :: ntheta = 32
@@ -1219,6 +1219,70 @@ contains
     geom%thetaShift = 0.
     Z_answer = [ (geom%Zpos(minor_radius, theta(i)), i=1, ntheta) ]
     @assertEqual(Z_expected, Z_answer, tolerance=1.e-12)
-  end subroutine test_generalised_MXH_Zpos_circle
+  end subroutine test_MXH_Zpos_circle
+
+  @test
+  subroutine test_MXH_elongation()
+    real, parameter :: major_radius = 3.0
+    real, parameter :: minor_radius = 1.0
+    integer, parameter :: ntheta = 129
+    real, dimension(ntheta) :: R_answer, Z_answer
+    integer :: i
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+
+    geom%surf = flux_surface_type(geoType=4, &
+       Rmaj=major_radius, R_geo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       delm=5.0, n_mxh=0, c0_mxh=0.0, c_mxh=[real::], s_mxh=[real::] &
+       )
+
+    geom%thetaShift = 0.
+    R_answer = [ (geom%Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+    Z_answer = [ (geom%Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+    @assertEqual(2.0, minval(R_answer), tolerance=1.e-12)
+    @assertEqual(4.0, maxval(R_answer), tolerance=1.e-12)
+    @assertEqual(-5.0, minval(Z_answer), tolerance=1.e-12)
+    @assertEqual(5.0, maxval(Z_answer), tolerance=1.e-12)
+  end subroutine test_MXH_elongation
+
+  @test
+  subroutine test_MXH_triangularity()
+    real, parameter :: major_radius = 0.0
+    real, parameter :: minor_radius = 1.0
+    integer, parameter :: ntheta = 129
+    real, dimension(ntheta) :: R_answer, Z_answer
+    integer :: i
+    integer :: top_corner, bottom_corner
+    real, dimension(ntheta), parameter :: theta = [(real(i)*2*pi/real(ntheta-1), i=0,ntheta-1)]
+
+    geom%surf = flux_surface_type(geoType=4, &
+       Rmaj=major_radius, R_geo=major_radius, &
+       r=minor_radius, dr=0.1, aSurf=minor_radius, &
+       sHorz=0.0, sVert=0.0, &
+       q=0.0, shat=0.0, nt=16, &
+       delm=1.0, n_mxh=1, c0_mxh=0.0, &
+       c_mxh=[0., 0., 0., 0., 0.], &
+       s_mxh=[asin(1.0), 0., 0., 0., 0.] &
+       )
+
+    geom%thetaShift = 0.
+    R_answer = [ (geom%Rpos(minor_radius, theta(i)), i=1, ntheta) ]
+    Z_answer = [ (geom%Zpos(minor_radius, theta(i)), i=1, ntheta) ]
+    @assertEqual(-1.0, minval(R_answer), tolerance=1.e-12)
+    @assertEqual(1.0, maxval(R_answer), tolerance=1.e-12)
+    @assertEqual(-1.0, minval(Z_answer), tolerance=1.e-12)
+    @assertEqual(1.0, maxval(Z_answer), tolerance=1.e-12)
+
+    top_corner = maxloc(Z_answer, dim=1)
+    @assertEqual(-1.0, R_answer(top_corner), tolerance=1.e-12)
+    @assertEqual(1.0, Z_answer(top_corner), tolerance=1.e-12)
+
+    bottom_corner = minloc(Z_answer, dim=1)
+    @assertEqual(-1.0, R_answer(bottom_corner), tolerance=1.e-12)
+    @assertEqual(-1.0, Z_answer(bottom_corner), tolerance=1.e-12)
+
+  end subroutine test_MXH_triangularity
 
 end module test_leq_mod
