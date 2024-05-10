@@ -1,6 +1,7 @@
 !> FIXME : Add documentation
 module theta_grid_params
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use geo_utils, only: mxh_max_moments
 
   implicit none
 
@@ -31,7 +32,7 @@ module theta_grid_params
   logical :: initialized = .false.
   real :: kp = -1.
   logical :: exist
-  
+
   !> Used to represent the input configuration of theta_grid. Sets a
   !> number of parameters used by the different theta grid
   !> implementations. Not all parameters are active for a given theta
@@ -69,7 +70,7 @@ module theta_grid_params
      !> Zeroth cosine moment for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
      real :: c0_mxh = 0.0
      !> Cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(:), allocatable :: c_mxh
+     real, dimension(mxh_max_moments) :: c_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
      !> The elongation of the flux surface labeled by aSurf (only used
      !> when `geoType`=1, which selects the Global MHD analytic
      !> geometry specifications). See Section 2.1.2 of the [Analytic
@@ -165,7 +166,9 @@ module theta_grid_params
      !> Specification](https://bitbucket.org/gyrokinetics/wikifiles/raw/master/JRB/GS2GeoDoc.pdf)
      !> documentation for more details.
      integer :: nmode = 3
-     !> Number of moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     !> Number of moments for the MXH local equilibrum. Maximum value
+     !> is [[mxh_max_moments]]. See [[geoType]] and [[local_eq]] for
+     !> more details.
      integer :: n_mxh = 0
      !> Sets the number of \(2\pi\) segments along equilibrium
      !> magnetic field to include in simulation
@@ -225,7 +228,7 @@ module theta_grid_params
      !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
      !> Sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(:), allocatable :: s_mxh
+     real, dimension(mxh_max_moments) :: s_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
      real :: shat = 0.75
@@ -366,7 +369,8 @@ contains
     use file_utils, only: input_unit, input_unit_exist
     use unit_tests, only: debug_message
     use geo_utils, only: geo_type_miller, geo_type_global, &
-         geo_type_generalized_elongation, geo_type_fourier_series
+         geo_type_generalized_elongation, geo_type_fourier_series, &
+         geo_type_miller_extended_harmonic, mxh_max_moments
     implicit none
     type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
@@ -504,6 +508,13 @@ contains
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
           
+       case (geo_type_miller_extended_harmonic)
+          ! TODO: warn about ignored input parameters?
+          if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
+             write(*, '("WARNING: ''n_mxh'' is larger than maximum number of moments for MXH geometry (", i0, ", truncating to ", i0)') &
+                  theta_grid_parameters_config%n_mxh, mxh_max_moments, mxh_max_moments
+          end if
+
        case default ! We should abort here, but we don't know if local_eq is true so maybe this is fine.
           write (*,*) "ERROR: invalid analytic geometry specification"
     end select
@@ -667,7 +678,7 @@ contains
     integer :: geotype, mmode, nmode, nperiod, ntheta, n_mxh
     real :: akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
     real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, c0_mxh
-    real, dimension(1000) :: c_mxh, s_mxh
+    real, dimension(mxh_max_moments) :: c_mxh, s_mxh
 
     namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
          rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, n_mxh, c0_mxh, c_mxh, s_mxh
@@ -758,14 +769,10 @@ contains
     self%tri = tri
     self%tripri = tripri
     self%zaxis = zaxis
-
-    ! Special handling for allocatable arrays
     self%n_mxh = n_mxh
     self%c0_mxh = c0_mxh
-    allocate(self%c_mxh(n_mxh))
-    allocate(self%s_mxh(n_mxh))
-    self%c_mxh = c_mxh(1:n_mxh)
-    self%s_mxh = s_mxh(1:n_mxh)
+    self%c_mxh = c_mxh
+    self%s_mxh = s_mxh
 
     self%exist = exist
   end subroutine read_theta_grid_parameters_config
@@ -882,10 +889,6 @@ contains
     call broadcast(self%zaxis)
     call broadcast(self%n_mxh)
     call broadcast(self%c0_mxh)
-
-    if (.not. allocated(self%c_mxh)) allocate(self%c_mxh(self%n_mxh))
-    if (.not. allocated(self%s_mxh)) allocate(self%s_mxh(self%n_mxh))
-
     call broadcast(self%c_mxh)
     call broadcast(self%s_mxh)
 

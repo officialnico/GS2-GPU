@@ -9,7 +9,7 @@ module geo_utils
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
   public :: geo_input_type, flux_surface_type, mod2pi, sort, find_lower_bound
-  public :: bilinear_interpolate
+  public :: bilinear_interpolate, mxh_max_moments
 
   integer, parameter :: EQFILE_LENGTH = 800
 
@@ -18,6 +18,9 @@ module geo_utils
   integer, parameter :: geo_type_generalized_elongation = 2
   integer, parameter :: geo_type_fourier_series = 3
   integer, parameter :: geo_type_miller_extended_harmonic = 4
+
+  !> Maximum number of moments for the Miller Extended Harmonic equilbrium
+  integer, parameter :: mxh_max_moments = 10
 
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.
@@ -65,9 +68,9 @@ module geo_utils
      !> Zeroth cosine moment for MXH equilibrium, input variable: `c0_mxh`
      real :: c0_mxh
      !> Cosine moments for MXH equilibrium, input variable: `c_mxh`
-     real, dimension(:), allocatable :: c_mxh
+     real, dimension(mxh_max_moments) :: c_mxh
      !> Sine moments for MXH equilibrium, input variable: `s_mxh`
-     real, dimension(:), allocatable :: s_mxh
+     real, dimension(mxh_max_moments) :: s_mxh
   end type flux_surface_type
 
   interface flux_surface_type
