@@ -27,7 +27,9 @@ module theta_grid_params
   real :: akappa, tri, delta2, delta3, deltampri, deltanpri
   real :: akappri, tripri, thetam, thetan, thetak, thetad, theta2, theta3
   real :: btor_slab, betaprim
-  integer :: ntheta, nperiod
+  integer :: ntheta, nperiod, n_mxh
+  real :: c0_mxh
+  real, dimension(mxh_max_moments) :: c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr
 
   logical :: initialized = .false.
   real :: kp = -1.
@@ -391,17 +393,22 @@ contains
     alpmhd = theta_grid_parameters_config%alpmhd
     asurf = theta_grid_parameters_config%asurf
     btor_slab = theta_grid_parameters_config%btor_slab
+    c0_mxh = theta_grid_parameters_config%c0_mxh
+    c_mxh = theta_grid_parameters_config%c_mxh
+    dc_mxh_dr = theta_grid_parameters_config%dc_mxh_dr
     delta2 = theta_grid_parameters_config%delta2
     delta3 = theta_grid_parameters_config%delta3
     deltam = theta_grid_parameters_config%deltam
     deltampri = theta_grid_parameters_config%deltampri
     deltan = theta_grid_parameters_config%deltan
     deltanpri = theta_grid_parameters_config%deltanpri
+    ds_mxh_dr = theta_grid_parameters_config%ds_mxh_dr
     eps = theta_grid_parameters_config%eps
     epsl = theta_grid_parameters_config%epsl
     geotype = theta_grid_parameters_config%geotype
     kp = theta_grid_parameters_config%kp
     mmode = theta_grid_parameters_config%mmode
+    n_mxh = theta_grid_parameters_config%n_mxh
     nmode = theta_grid_parameters_config%nmode
     nperiod = theta_grid_parameters_config%nperiod
     ntheta = theta_grid_parameters_config%ntheta
@@ -411,6 +418,7 @@ contains
     raxis = theta_grid_parameters_config%raxis
     rhoc = theta_grid_parameters_config%rhoc
     rmaj = theta_grid_parameters_config%rmaj
+    s_mxh = theta_grid_parameters_config%s_mxh
     shat = theta_grid_parameters_config%shat
     shift = theta_grid_parameters_config%shift
     shiftvert = theta_grid_parameters_config%shiftvert
@@ -533,15 +541,18 @@ contains
     use geo_utils, only: flux_surface_type
     implicit none
     type(flux_surface_type) :: surf
-    surf%geoType = geoType
-    surf%mMode = mMode ; surf%nMode = nMode
-    surf%rmaj = rmaj ; surf%R_geo = R_geo ; surf%r = rhoc
-    surf%aSurf = aSurf ; surf%sHorz = shift
-    surf%sVert = shiftVert ; surf%delm = deltam
-    surf%deln = deltan ; surf%delmp = deltampri
-    surf%delnp = deltanpri ; surf%thm = thetam
-    surf%thn = thetan ; surf%q = qinp ; surf%shat = shat
-    surf%nt = ntheta !< Might not want to pack this here
+    surf = flux_surface_type(geotype, &
+         mMode=mMode, nMode=nMode, &
+         rmaj=rmaj, r_geo=R_geo, r=rhoc, &
+         aSurf=aSurf, sHorz=shift, &
+         sVert=shiftVert, delm=deltam,&
+         deln=deltan, delmp=deltampri, &
+         delnp=deltanpri, thm=thetam, &
+         thn=thetan, q=qinp, shat=shat, &
+         nt=ntheta,& ! Might not want to pack this here
+         n_mxh=n_mxh, c0_mxh=c0_mxh,&
+         c_mxh=c_mxh, s_mxh=s_mxh,&
+         dc_mxh_dr=dc_mxh_dr, ds_mxh_dr=ds_mxh_dr)
   end function get_parameters_as_surf
 
   !> FIXME : Add documentation
