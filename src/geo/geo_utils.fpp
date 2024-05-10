@@ -1260,35 +1260,39 @@ contains
   function new_flux_surface_type(geoType, Rmaj, R_geo, r, dr, aSurf, &
        sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, nt, mMode, nMode, &
        n_mxh, c0_mxh, c_mxh, s_mxh) result(self)
-    type(flux_surface_type) :: self
-    real, intent(in), optional :: Rmaj, R_geo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, c0_mxh
-    integer, intent(in), optional :: nt, geoType, mMode, nMode, n_mxh
-    real, intent(in), optional, dimension(:) :: c_mxh
-    real, intent(in), optional, dimension(:) :: s_mxh
+    use optionals, only: get_option_with_default
 
-    if (present(Rmaj)) self%Rmaj = Rmaj
-    if (present(R_geo)) self%R_geo = R_geo
-    if (present(r)) self%r = r
-    if (present(dr)) self%dr = dr
-    if (present(aSurf)) self%aSurf = aSurf
-    if (present(sHorz)) self%sHorz = sHorz
-    if (present(sVert)) self%sVert = sVert
-    if (present(delm)) self%delm = delm
-    if (present(deln)) self%deln = deln
-    if (present(delmp)) self%delmp = delmp
-    if (present(delnp)) self%delnp = delnp
-    if (present(thm)) self%thm = thm
-    if (present(thn)) self%thn = thn
-    if (present(q)) self%q = q
-    if (present(shat)) self%shat = shat
-    if (present(nt)) self%nt = nt
-    if (present(geoType)) self%geoType = geoType
-    if (present(mMode)) self%mMode = mMode
-    if (present(nMode)) self%nMode = nMode
-    if (present(n_mxh)) self%n_mxh = n_mxh
-    if (present(c0_mxh)) self%c0_mxh = c0_mxh
-    if (present(c_mxh)) self%c_mxh = c_mxh
-    if (present(s_mxh)) self%s_mxh = s_mxh
+    type(flux_surface_type) :: self
+    integer, intent(in) :: geoType
+    real, intent(in), optional :: Rmaj, R_geo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, c0_mxh
+    integer, intent(in), optional :: nt, mMode, nMode, n_mxh
+    real, intent(in), optional, dimension(mxh_max_moments) :: c_mxh
+    real, intent(in), optional, dimension(mxh_max_moments) :: s_mxh
+
+    self%geoType = geoType
+
+    self%Rmaj = get_option_with_default(Rmaj, -999.99)
+    self%R_geo = get_option_with_default(R_geo, -999.99)
+    self%r = get_option_with_default(r, -999.99)
+    self%dr = get_option_with_default(dr, -999.99)
+    self%aSurf = get_option_with_default(aSurf, -999.99)
+    self%sHorz = get_option_with_default(sHorz, -999.99)
+    self%sVert = get_option_with_default(sVert, -999.99)
+    self%delm = get_option_with_default(delm, -999.99)
+    self%deln = get_option_with_default(deln, -999.99)
+    self%delmp = get_option_with_default(delmp, -999.99)
+    self%delnp = get_option_with_default(delnp, -999.99)
+    self%thm = get_option_with_default(thm, -999.99)
+    self%thn = get_option_with_default(thn, -999.99)
+    self%q = get_option_with_default(q, -999.99)
+    self%shat = get_option_with_default(shat, -999.99)
+    self%nt = get_option_with_default(nt, -999)
+    self%mMode = get_option_with_default(mMode, -999)
+    self%nMode = get_option_with_default(nMode, -999)
+    self%n_mxh = get_option_with_default(n_mxh, -999)
+    self%c0_mxh = get_option_with_default(c0_mxh, -999.99)
+    self%c_mxh = get_option_with_default(c_mxh, spread(-999.99, 1, size(self%c_mxh)))
+    self%s_mxh = get_option_with_default(s_mxh, spread(-999.99, 1, size(self%c_mxh)))
 
   end function new_flux_surface_type
 end module geo_utils
