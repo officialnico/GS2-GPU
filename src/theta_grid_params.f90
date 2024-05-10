@@ -70,9 +70,9 @@ module theta_grid_params
      !> Zeroth cosine moment for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
      real :: c0_mxh = 0.0
      !> Cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(mxh_max_moments) :: c_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     real, dimension(mxh_max_moments) :: c_mxh = 0.0
      !> Radial derivatives of cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(mxh_max_moments) :: dc_mxh_dr = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     real, dimension(mxh_max_moments) :: dc_mxh_dr = 0.0
      !> The elongation of the flux surface labeled by aSurf (only used
      !> when `geoType`=1, which selects the Global MHD analytic
      !> geometry specifications). See Section 2.1.2 of the [Analytic
@@ -230,9 +230,9 @@ module theta_grid_params
      !> flux surface of interest (normalized to \(L_\textrm{ref}\))
      real :: rmaj = 3.0
      !> Sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(mxh_max_moments) :: s_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     real, dimension(mxh_max_moments) :: s_mxh = 0.0
      !> Radial derivatives of sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
-     real, dimension(mxh_max_moments) :: ds_mxh_dr = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     real, dimension(mxh_max_moments) :: ds_mxh_dr = 0.0
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
      real :: shat = 0.75

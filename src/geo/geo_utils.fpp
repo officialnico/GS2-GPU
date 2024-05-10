@@ -20,7 +20,7 @@ module geo_utils
   integer, parameter :: geo_type_miller_extended_harmonic = 4
 
   !> Maximum number of moments for the Miller Extended Harmonic equilbrium
-  integer, parameter :: mxh_max_moments = 10
+  integer, parameter :: mxh_max_moments = 5
 
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.
