@@ -19,7 +19,7 @@ module theta_grid_params
   public :: theta_grid_parameters_config_type
   public :: set_theta_grid_params_config
   public :: get_theta_grid_params_config
-  
+
   real :: rhoc, rmaj, r_geo, eps, epsl
   real :: qinp, shat, alpmhd, pk
   integer :: geoType, mMode, nMode
@@ -142,9 +142,9 @@ module theta_grid_params
      !>
      !> @note The default for this *MUST* be zero otherwise the
      !> Trinity interface will break.
-     integer :: geotype = 0 
+     integer :: geotype = 0
      !> `kp` sets parallel wavenumber and box length in slab
-     !> geometry. \(k_p = \frac{2 \pi L_\textrm{ref}}{L_z}\).     
+     !> geometry. \(k_p = \frac{2 \pi L_\textrm{ref}}{L_z}\).
      !>
      !> - always use `kp` instead of `pk` in slab geometry (if `kp > 0`
      !> then gs2 sets `pk = 2*kp`)
@@ -259,7 +259,7 @@ module theta_grid_params
      !> - in s-alpha(i.e. equilibrium_option='s-alpha'), no additional parameter
      !> is required as the piece of \(J_{\phi} \propto\) p' is
      !> specified by shift.
-     !> - in other analytic specifications (i.e. equilibrium_option='eik'), 
+     !> - in other analytic specifications (i.e. equilibrium_option='eik'),
      !> an additional parameter(beta_prime) is required to specify the piece of
      !> \(J_{\phi} \propto\) p'
      !>
@@ -336,18 +336,18 @@ module theta_grid_params
      procedure, public, nopass :: get_default_name => get_default_name_theta_grid_parameters_config
      procedure, public, nopass :: get_default_requires_index => get_default_requires_index_theta_grid_parameters_config
   end type theta_grid_parameters_config_type
-  
+
   type(theta_grid_parameters_config_type) :: theta_grid_parameters_config
-  
+
 contains
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   subroutine init_theta_grid_params(theta_grid_parameters_config_in)
     use unit_tests, only: debug_message
     implicit none
-    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in   
+    type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
-    
+
     call debug_message(verb, "theta_grid_params::init_theta_grid_params start")
     if (initialized) return
     initialized = .true.
@@ -378,11 +378,11 @@ contains
     implicit none
     type(theta_grid_parameters_config_type), intent(in), optional :: theta_grid_parameters_config_in
     integer, parameter :: verb=3
-    
+
     call debug_message(verb, "theta_grid_params::read_parameters start")
-    
+
     if (present(theta_grid_parameters_config_in)) theta_grid_parameters_config = theta_grid_parameters_config_in
-    
+
     call theta_grid_parameters_config%init(name = 'theta_grid_parameters', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
@@ -496,7 +496,7 @@ contains
           if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
-          
+
        case (geo_type_fourier_series)
           if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, did you mean deltam?"
           if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, did you mean deltan?"
@@ -511,7 +511,7 @@ contains
           if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
           if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
-          
+
        case (geo_type_miller_extended_harmonic)
           ! TODO: warn about ignored input parameters?
           if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
@@ -630,14 +630,14 @@ contains
     else if (mgeo_ov%override_tri) then
       deltan = mgeo_ov%tri
     end if
-    if (mgeo_ov%override_deltampri) then 
+    if (mgeo_ov%override_deltampri) then
       deltampri = mgeo_ov%deltampri
-    else if (mgeo_ov%override_akappri) then 
+    else if (mgeo_ov%override_akappri) then
       deltampri = mgeo_ov%akappri
     end if
-    if (mgeo_ov%override_deltanpri) then 
+    if (mgeo_ov%override_deltanpri) then
       deltanpri = mgeo_ov%deltanpri
-    else if (mgeo_ov%override_tripri) then 
+    else if (mgeo_ov%override_tripri) then
       deltanpri = mgeo_ov%tripri
     end if
     if (mgeo_ov%override_thetam) thetam = mgeo_ov%thetam
