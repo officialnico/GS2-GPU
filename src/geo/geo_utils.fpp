@@ -1273,32 +1273,35 @@ contains
     real, intent(in), optional, dimension(mxh_max_moments) :: c_mxh, dc_mxh_dr
     real, intent(in), optional, dimension(mxh_max_moments) :: s_mxh, ds_mxh_dr
 
+    real, parameter :: invalid_value = -999.99
+    integer, parameter :: invalid_int = -999
+
     self%geoType = geoType
 
-    self%Rmaj = get_option_with_default(Rmaj, -999.99)
-    self%R_geo = get_option_with_default(R_geo, -999.99)
-    self%r = get_option_with_default(r, -999.99)
-    self%dr = get_option_with_default(dr, -999.99)
-    self%aSurf = get_option_with_default(aSurf, -999.99)
-    self%sHorz = get_option_with_default(sHorz, -999.99)
-    self%sVert = get_option_with_default(sVert, -999.99)
-    self%delm = get_option_with_default(delm, -999.99)
-    self%deln = get_option_with_default(deln, -999.99)
-    self%delmp = get_option_with_default(delmp, -999.99)
-    self%delnp = get_option_with_default(delnp, -999.99)
-    self%thm = get_option_with_default(thm, -999.99)
-    self%thn = get_option_with_default(thn, -999.99)
-    self%q = get_option_with_default(q, -999.99)
-    self%shat = get_option_with_default(shat, -999.99)
-    self%nt = get_option_with_default(nt, -999)
-    self%mMode = get_option_with_default(mMode, -999)
-    self%nMode = get_option_with_default(nMode, -999)
-    self%n_mxh = get_option_with_default(n_mxh, -999)
-    self%c0_mxh = get_option_with_default(c0_mxh, -999.99)
-    self%c_mxh = get_option_with_default(c_mxh, spread(-999.99, 1, size(self%c_mxh)))
-    self%s_mxh = get_option_with_default(s_mxh, spread(-999.99, 1, size(self%c_mxh)))
-    self%dc_mxh_dr = get_option_with_default(dc_mxh_dr, spread(-999.99, 1, size(self%dc_mxh_dr)))
-    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(-999.99, 1, size(self%dc_mxh_dr)))
+    self%Rmaj = get_option_with_default(Rmaj, invalid_value)
+    self%R_geo = get_option_with_default(R_geo, invalid_value)
+    self%r = get_option_with_default(r, invalid_value)
+    self%dr = get_option_with_default(dr, invalid_value)
+    self%aSurf = get_option_with_default(aSurf, invalid_value)
+    self%sHorz = get_option_with_default(sHorz, invalid_value)
+    self%sVert = get_option_with_default(sVert, invalid_value)
+    self%delm = get_option_with_default(delm, invalid_value)
+    self%deln = get_option_with_default(deln, invalid_value)
+    self%delmp = get_option_with_default(delmp, invalid_value)
+    self%delnp = get_option_with_default(delnp, invalid_value)
+    self%thm = get_option_with_default(thm, invalid_value)
+    self%thn = get_option_with_default(thn, invalid_value)
+    self%q = get_option_with_default(q, invalid_value)
+    self%shat = get_option_with_default(shat, invalid_value)
+    self%nt = get_option_with_default(nt, invalid_int)
+    self%mMode = get_option_with_default(mMode, invalid_int)
+    self%nMode = get_option_with_default(nMode, invalid_int)
+    self%n_mxh = get_option_with_default(n_mxh, invalid_int)
+    self%c0_mxh = get_option_with_default(c0_mxh, invalid_value)
+    self%c_mxh = get_option_with_default(c_mxh, spread(invalid_value, 1, size(self%c_mxh)))
+    self%s_mxh = get_option_with_default(s_mxh, spread(invalid_value, 1, size(self%c_mxh)))
+    self%dc_mxh_dr = get_option_with_default(dc_mxh_dr, spread(invalid_value, 1, size(self%dc_mxh_dr)))
+    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(invalid_value, 1, size(self%dc_mxh_dr)))
 
   end function new_flux_surface_type
 end module geo_utils
