@@ -515,7 +515,9 @@ contains
        case (geo_type_miller_extended_harmonic)
           ! TODO: warn about ignored input parameters?
           if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
-             write(*, '("WARNING: ''n_mxh'' is larger than maximum number of moments for MXH geometry (", i0, ", truncating to ", i0)') &
+             write(*, &
+                  '("WARNING: ''n_mxh'' (", i0, ") is larger than maximum number of moments for '&
+                  'MXH geometry (", i0, "), truncating to ", i0)') &
                   theta_grid_parameters_config%n_mxh, mxh_max_moments, mxh_max_moments
           end if
 
