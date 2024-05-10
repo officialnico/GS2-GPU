@@ -71,6 +71,10 @@ module geo_utils
      real, dimension(mxh_max_moments) :: c_mxh
      !> Sine moments for MXH equilibrium, input variable: `s_mxh`
      real, dimension(mxh_max_moments) :: s_mxh
+     !> Radial derivatives of cosine moments for MXH equilibrium, input variable: `dc_mxh_dr`
+     real, dimension(mxh_max_moments) :: dc_mxh_dr
+     !> Radial derivatives of sine moments for MXH equilibrium, input variable: `ds_mxh_dr`
+     real, dimension(mxh_max_moments) :: ds_mxh_dr
   end type flux_surface_type
 
   interface flux_surface_type
@@ -1259,15 +1263,15 @@ contains
 
   function new_flux_surface_type(geoType, Rmaj, R_geo, r, dr, aSurf, &
        sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, nt, mMode, nMode, &
-       n_mxh, c0_mxh, c_mxh, s_mxh) result(self)
+       n_mxh, c0_mxh, c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr) result(self)
     use optionals, only: get_option_with_default
 
     type(flux_surface_type) :: self
     integer, intent(in) :: geoType
     real, intent(in), optional :: Rmaj, R_geo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, c0_mxh
     integer, intent(in), optional :: nt, mMode, nMode, n_mxh
-    real, intent(in), optional, dimension(mxh_max_moments) :: c_mxh
-    real, intent(in), optional, dimension(mxh_max_moments) :: s_mxh
+    real, intent(in), optional, dimension(mxh_max_moments) :: c_mxh, dc_mxh_dr
+    real, intent(in), optional, dimension(mxh_max_moments) :: s_mxh, ds_mxh_dr
 
     self%geoType = geoType
 
@@ -1293,6 +1297,8 @@ contains
     self%c0_mxh = get_option_with_default(c0_mxh, -999.99)
     self%c_mxh = get_option_with_default(c_mxh, spread(-999.99, 1, size(self%c_mxh)))
     self%s_mxh = get_option_with_default(s_mxh, spread(-999.99, 1, size(self%c_mxh)))
+    self%dc_mxh_dr = get_option_with_default(dc_mxh_dr, spread(-999.99, 1, size(self%dc_mxh_dr)))
+    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(-999.99, 1, size(self%dc_mxh_dr)))
 
   end function new_flux_surface_type
 end module geo_utils

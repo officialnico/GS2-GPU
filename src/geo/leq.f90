@@ -339,14 +339,24 @@ contains
     real, intent (out) :: Rpos, Zpos
 
     integer :: n
-    real :: theta_R
+    real :: theta_R, dthetaR_dr, dr, dZdr, dRdr
 
     theta_R = theta + self%surf%c0_mxh &
          + sum([(self%surf%c_mxh(n) * cos(n * theta) + self%surf%s_mxh(n) * sin(n * theta), &
                 n = 1, self%surf%n_mxh)])
 
-    Rpos = self%surf%Rmaj + (r * cos(theta_R))
-    Zpos = self%surf%sVert + (r * self%surf%delm * sin(theta_R))
+    dthetaR_dr = sum([(&
+         (self%surf%dc_mxh_dr * cos(n * theta)) &
+         + (self%surf%ds_mxh_dr * sin(n * theta)), &
+         n = 1, self%surf%n_mxh)])
+
+    dr = r - self%surf%r
+
+    dRdr = self%surf%sHorz + cos(theta_R) - self%surf%r * sin(theta_R) * dthetaR_dr
+    dZdr = self%surf%sVert + self%surf%delm * sin(theta) * (1 + self%surf%delmp)
+
+    Rpos = self%surf%Rmaj + (r * cos(theta_R)) + dRdr
+    Zpos = (r * self%surf%delm * sin(theta_R)) + dZdr
 
   end subroutine geo_MillerExtendedHarmonic
 

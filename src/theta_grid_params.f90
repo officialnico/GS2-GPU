@@ -71,6 +71,8 @@ module theta_grid_params
      real :: c0_mxh = 0.0
      !> Cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
      real, dimension(mxh_max_moments) :: c_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     !> Radial derivatives of cosine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: dc_mxh_dr = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
      !> The elongation of the flux surface labeled by aSurf (only used
      !> when `geoType`=1, which selects the Global MHD analytic
      !> geometry specifications). See Section 2.1.2 of the [Analytic
@@ -229,6 +231,8 @@ module theta_grid_params
      real :: rmaj = 3.0
      !> Sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
      real, dimension(mxh_max_moments) :: s_mxh = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
+     !> Radial derivatives of sine moments for the MXH local equilibrum. See [[geoType]] and [[local_eq]]
+     real, dimension(mxh_max_moments) :: ds_mxh_dr = [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]
      !> Sets value of magnetic shear in simple geometric models.
      !> Over-ridden by `s_hat_input` in [[theta_grid_eik_knobs]] for most values of `bishop`.
      real :: shat = 0.75
@@ -678,10 +682,10 @@ contains
     integer :: geotype, mmode, nmode, nperiod, ntheta, n_mxh
     real :: akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, kp, pk, qinp, r_geo, raxis, rhoc, rmaj, shat, shift, shiftvert, theta2
     real :: theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, c0_mxh
-    real, dimension(mxh_max_moments) :: c_mxh, s_mxh
+    real, dimension(mxh_max_moments) :: c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr
 
     namelist /theta_grid_parameters/ akappa, akappri, alpmhd, asurf, btor_slab, delta2, delta3, deltam, deltampri, deltan, deltanpri, eps, epsl, geotype, kp, mmode, nmode, nperiod, ntheta, pk, qinp, r_geo, raxis, rhoc, &
-         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, n_mxh, c0_mxh, c_mxh, s_mxh
+         rmaj, shat, shift, shiftvert, theta2, theta3, thetad, thetak, thetam, thetan, tri, tripri, zaxis, n_mxh, c0_mxh, c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -726,6 +730,10 @@ contains
     zaxis = self%zaxis
     n_mxh = self%n_mxh
     c0_mxh = self%c0_mxh
+    c_mxh = self%c_mxh
+    s_mxh = self%s_mxh
+    dc_mxh_dr = self%dc_mxh_dr
+    ds_mxh_dr = self%ds_mxh_dr
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -773,6 +781,8 @@ contains
     self%c0_mxh = c0_mxh
     self%c_mxh = c_mxh
     self%s_mxh = s_mxh
+    self%dc_mxh_dr = dc_mxh_dr
+    self%ds_mxh_dr = ds_mxh_dr
 
     self%exist = exist
   end subroutine read_theta_grid_parameters_config
@@ -831,6 +841,8 @@ contains
     call self%write_key_val("c0_mxh", self%c0_mxh, unit_internal)
     call self%write_key_val("c_mxh", self%c_mxh, unit_internal)
     call self%write_key_val("s_mxh", self%s_mxh, unit_internal)
+    call self%write_key_val("dc_mxh_dr", self%dc_mxh_dr, unit_internal)
+    call self%write_key_val("ds_mxh_dr", self%ds_mxh_dr, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_theta_grid_parameters_config
 
@@ -891,6 +903,8 @@ contains
     call broadcast(self%c0_mxh)
     call broadcast(self%c_mxh)
     call broadcast(self%s_mxh)
+    call broadcast(self%dc_mxh_dr)
+    call broadcast(self%ds_mxh_dr)
 
     call broadcast(self%exist)
   end subroutine broadcast_theta_grid_parameters_config
