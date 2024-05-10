@@ -355,8 +355,8 @@ contains
     dRdr = self%surf%sHorz + cos(theta_R) - self%surf%r * sin(theta_R) * dthetaR_dr
     dZdr = self%surf%sVert + self%surf%delm * sin(theta) * (1 + self%surf%delmp)
 
-    Rpos = self%surf%Rmaj + (r * cos(theta_R)) + dRdr
-    Zpos = (r * self%surf%delm * sin(theta_R)) + dZdr
+    Rpos = self%surf%Rmaj + (self%surf%r * cos(theta_R)) + (dr * dRdr)
+    Zpos = (self%surf%r * self%surf%delm * sin(theta)) + (dr * dZdr)
 
   end subroutine geo_MillerExtendedHarmonic
 
