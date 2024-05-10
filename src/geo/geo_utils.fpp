@@ -1299,9 +1299,9 @@ contains
     self%n_mxh = get_option_with_default(n_mxh, invalid_int)
     self%c0_mxh = get_option_with_default(c0_mxh, invalid_value)
     self%c_mxh = get_option_with_default(c_mxh, spread(invalid_value, 1, size(self%c_mxh)))
-    self%s_mxh = get_option_with_default(s_mxh, spread(invalid_value, 1, size(self%c_mxh)))
+    self%s_mxh = get_option_with_default(s_mxh, spread(invalid_value, 1, size(self%s_mxh)))
     self%dc_mxh_dr = get_option_with_default(dc_mxh_dr, spread(invalid_value, 1, size(self%dc_mxh_dr)))
-    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(invalid_value, 1, size(self%dc_mxh_dr)))
+    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(invalid_value, 1, size(self%ds_mxh_dr)))
 
   end function new_flux_surface_type
 end module geo_utils
