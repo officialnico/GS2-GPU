@@ -521,7 +521,27 @@ contains
           if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
 
        case (geo_type_miller_extended_harmonic)
-          ! TODO: warn about ignored input parameters?
+          if (deltam/=1.0) write (*,*) "WARNING: ignoring value of deltam, did you mean akappa?"
+          if (deltampri/=0.0) write (*,*) "WARNING: ignoring value of deltampri, did you mean akappri?"
+
+          if (mMode/=2) write (*,*) "WARNING: ignoring value of mMode, value not needed"
+          if (nMode/=3) write (*,*) "WARNING: ignoring value of nMode, value not needed"
+          if (deltan/=1.0) write (*,*) "WARNING: ignoring value of deltan, value not needed"
+          if (delta2/=1.0) write (*,*) "WARNING: ignoring value of delta2, value not needed"
+          if (delta3/=1.0) write (*,*) "WARNING: ignoring value of delta3, value not needed"
+          if (deltampri/=0.0) write (*,*) "WARNING: ignoring value of deltampri, value not needed"
+          if (deltanpri/=0.0) write (*,*) "WARNING: ignoring value of deltanpri, value not needed"
+          if (thetam/=0.0) write (*,*) "WARNING: ignoring value of thetam, value not needed"
+          if (thetan/=0.0) write (*,*) "WARNING: ignoring value of thetan, value not needed"
+          if (theta2/=0.0) write (*,*) "WARNING: ignoring value of theta2, value not needed"
+          if (theta3/=0.0) write (*,*) "WARNING: ignoring value of theta3, value not needed"
+          if (aSurf/=1.0) write (*,*) "WARNING: ignoring value of aSurf, value not needed"
+          if (raxis/=3.0) write (*,*) "WARNING: ignoring value of raxis, did you mean shift?"
+          if (zaxis/=0.0) write (*,*) "WARNING: ignoring value of zaxis, did you mean shiftVert?"
+
+          deltam = akappa
+          deltampri = akappri
+
           if (theta_grid_parameters_config%n_mxh > mxh_max_moments) then
              write(*, &
                   '("WARNING: ''n_mxh'' (", i0, ") is larger than maximum number of moments for '&
