@@ -6,34 +6,32 @@ module species
 
   private
   public :: init_species, finish_species, wnml_species, check_species
-  public :: write_trinity_parameters
-  public :: nspec, specie, spec, tracer_species
-  public :: f0_maxwellian, f0_tabulated, f0_sdanalytic
-  public :: has_ion_species, has_electron_species, has_nonmaxw_species
+  public :: nspec, spec, tracer_species, write_trinity_parameters
+  public :: has_ion_species, has_electron_species
   public :: has_hybrid_electron_species, is_electron_species, is_hybrid_electron_species
   public :: calculate_f0_arrays, set_current_f0_species, eval_f0
-  public :: nonmaxw_corr, f0_values, dlnf0drho, set_overrides
+  public :: nonmaxw_corr, f0_values, dlnf0drho, f0_maxwellian, f0_sdanalytic, set_overrides
   public :: species_config_type, species_element_config_type
   public :: set_species_config, get_species_config, get_species_element_config
 
-  !> FIXME : Add documentation 
+  !> FIXME : Add documentation
   type :: specie
-     real :: z
-     real :: mass
-     real :: dens, dens0, u0
-     real :: tpar0,tperp0
-     real :: temp
-     real :: tprim
-     real :: fprim
-     real :: uprim, uprim2
-     real :: vnewk
-     real :: nu_h ! nu_h controls a hyperviscous term embedded in the collision operator
+     !> Main physical properties of the species, see namelist documentation.
+     real :: z, mass, dens, temp, tprim, fprim, vnewk
+     !> Common combinations of species properties
      real :: stm, zstm, tz, smz, zt
-     real :: bess_fac !Artificial factor multiplying the Bessel function argument
-     real :: vcrit
-     real :: vcprim
-     integer :: type
-     integer :: f0type
+     !> Provides offsets to parallel flow shear drive term
+     real :: uprim, uprim2
+     !> Parameters associated with a few initialisation options, including Orszag-Tang.
+     real :: dens0, u0, tpar0, tperp0
+     !> nu_h controls a hyperviscous term embedded in the collision operator
+     real :: nu_h
+     !> Artificial factor multiplying the Bessel function argument
+     real :: bess_fac
+     !> Parameters associated with analytic slowing-down distribution
+     real :: vcrit, vcprim
+     !> Flags to identify the species type and the background distribution treatment
+     integer :: type, f0type
   end type specie
 
   integer, parameter :: ion_species = 1
@@ -44,16 +42,20 @@ module species
   integer, dimension(*), parameter :: electron_like_species = &
        [electron_species, hybrid_electron_species]
 
-  integer, parameter :: f0_maxwellian = 1, &           !< Regular Maxwellian species
-                        f0_tabulated = 2, &            !< f0 determined from table in external input file
-                        f0_sdanalytic = 3              !< Analytic Gaffey slowing-down distribution
+  integer, parameter :: &
+       !> Regular Maxwellian species
+       f0_maxwellian = 1, &
+       !> f0 determined from table in external input file
+       f0_tabulated = 2, &
+       !> Analytic Gaffey slowing-down distribution
+       f0_sdanalytic = 3
 
-  ! FIXME
   !> Various quantities needed in the calculation of the
   !> slowing-down distribution in case electrons are adiabatic
   real:: me, ZI_fac
-  
-  !> Defines a working species so that eval_f0 only needs to take one argument (needed for genquad)
+
+  !> Defines a working species so that eval_f0 only needs to take one
+  !> argument (needed for genquad)
   integer:: is_global = -1
 
   integer :: nspec
@@ -104,13 +106,14 @@ module species
      !> Select which type of background distribution should be assumed
      !> for this species. Must be one of:
      !>
+     !> - 'default' : equivalent to maxwellian
      !> - 'maxwellian' : Standard maxwellian
      !> - 'tabulated' : A general tabulated form
      !> - 'sdanalytic' : A analytic slowing down form.
      !>
      !> See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
-     character(len = 20) :: f0type = "maxwellian"
+     character(len = 20) :: f0type = "default"
      !> Normalised inverse density gradient: \(-\frac{1}{n}\frac{dn}{d
      !> \rho_N}\) (Note here \(\rho_N\) is the normalised radius
      !> \(\frac{\rho}{L_\textrm{ref}}\).
@@ -158,12 +161,17 @@ module species
      !> Controls an energy independent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a constant offset to the parallel flow
+     !> shear term, allowing one to add a species dependent shift.
      real :: uprim = 0.0
      !> Controls an energy dependent part of a source term.
      !>
      !> @note Documentation needs improving, looks like it's an early
-     !> attempt at adding in the parallel flow shear drive term
+     !> attempt at adding in the parallel flow shear drive term. This
+     !> effectively provides a energy dependent offset to the parallel
+     !> flow shear term, allowing one to add a species and energy
+     !> dependent shift.
      real :: uprim2 = 0.0
      !> Part of the `sdanalytic` slowing down model. See [G. Wilkie
      !> thesis](https://drum.lib.umd.edu/handle/1903/17302).
@@ -401,7 +409,8 @@ contains
          text_option('hybrid_electron', hybrid_electron_species) &
          ]
 
-    type (text_option), dimension (3), parameter :: f0_opts = [ &
+    type (text_option), dimension (*), parameter :: f0_opts = [ &
+         text_option('default', f0_maxwellian), &
          text_option('maxwellian', f0_maxwellian), &
          text_option('tabulated', f0_tabulated), &
          text_option('sdanalytic', f0_sdanalytic) &
@@ -417,14 +426,11 @@ contains
     zi_fac = species_config%zi_fac
 
     exist = species_config%exist
-    
-    if (proc0) then
-       if (nspec < 1) then
-          ierr = error_unit()
-          write (unit=ierr, &
-               fmt="('Invalid nspec in species_knobs: ', i5)") nspec
-          call mp_abort('Invalid nspec in species_knobs')
-       end if
+
+    ierr = error_unit()
+    if (proc0 .and. nspec < 1) then
+       write (unit=ierr, fmt="('Invalid nspec in species_knobs: ', i5)") nspec
+       call mp_abort('Invalid nspec in species_knobs')
     end if
 
     allocate (spec(nspec))
@@ -433,11 +439,12 @@ contains
 
     if (.not.allocated(species_element_config)) allocate(species_element_config(nspec))
 
-    if (size(species_element_config) .ne. nspec) then
+    ! This might look odd given the above line _but_ we might have set species_element_config
+    ! elsewhere and hence not allocated in the above, potentially giving inconsistencies
+    if (size(species_element_config) /= nspec) then
        if (proc0) print*,"inconsistent number of config elements"
-    endif
+    end if
        
-    ierr = error_unit()
     do is = 1, nspec
        call species_element_config(is)%init(name = 'species_parameters', requires_index = .true., index = is)
 
@@ -460,8 +467,10 @@ contains
        spec(is)%vnewk = species_element_config(is)%vnewk
        spec(is)%z = species_element_config(is)%z
 
-       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, ierr, "type in species_parameters_x",.true.)
-       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, ierr, "f0type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%type, typeopts, spec(is)%type, &
+            ierr, "type in species_parameters_x",.true.)
+       call get_option_value (species_element_config(is)%f0type, f0_opts, spec(is)%f0type, &
+            ierr, "f0type in species_parameters_x",.true.)
     end do
 
     spec%stm = sqrt(spec%temp / spec%mass)
@@ -472,42 +481,53 @@ contains
   end subroutine read_parameters
 
   !> FIXME : Add documentation
-  subroutine calculate_slowingdown_parameters(alpha_index,vc,vcprim)
+  subroutine calculate_slowingdown_parameters(alpha_index, vc, vcprim)
     use constants, only: pi
     use mp, only: proc0
     implicit none
     integer, intent(in):: alpha_index
-    real, intent(inout):: vc, vcprim
-    integer:: electron_spec, main_ion_species, is,js
-    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte
+    real, intent(out):: vc, vcprim
+    integer:: electron_spec, main_ion_species, is, js
+    real:: vinj, Te_prim, ZI_fac_local, ne_prim, ni_prim, ne, vte, charge_contribution
     
     electron_spec = -1
     main_ion_species = -1
 
-    do is = 1,nspec
+    ! Find species index corresponding to electrons and "main ions"
+    ! where we assume the first ion species corresponds to the main ions.
+    ! Perhaps we're looking for the species with mass = 1 (i.e. the reference mass?)
+    do is = 1, nspec
        if (is_electron_species(spec(is))) electron_spec = is
-       if (main_ion_species < 1 .and. spec(is)%type .eq. ion_species) main_ion_species = is
+       if (main_ion_species < 1 .and. spec(is)%type == ion_species) main_ion_species = is
     end do
 
-    if (electron_spec .GT. 0) then
+    if (electron_spec > 0) then
+       ! If we found the electron index extract its parameters
        me = spec(electron_spec)%mass
        ne = spec(electron_spec)%dens
        ne_prim = spec(electron_spec)%fprim
        Te_prim = spec(electron_spec)%tprim
        vte = sqrt(spec(electron_spec)%temp/spec(electron_spec)%mass)
     else
-       if (me .LT. 0.0) then
-          if (proc0) write(*,*) "WARNING: vte not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
+       ! If we don't have an electron species try to work out the relevant parameters
+       if (me < 0.0) then
+          if (proc0) write(*,*) "WARNING: me not specified in species_knobs. Assuming reference species is deuterium, so me = 0.0002723085"
           me = 0.0002723085
        end if             
-
-       ne = sum(spec(:)%z*spec(:)%dens)
-       ne_prim = sum(spec(:)%z*spec(:)%dens*spec(:)%fprim)/ne
+       ! Set electron density and gradient from quasineutrality
+       ne = sum(spec%z * spec%dens)
+       ne_prim = sum(spec%z * spec%dens * spec%fprim) / ne
+       ! Assume Te' = Ti' of the main ions
        Te_prim = spec(main_ion_species)%tprim
+       ! Compute electron thermal velocity using the main ion properties? This seems
+       ! surprising. Whilst Te = Ti is perhaps reasonable, we specify the electron mass
+       ! so why not use it here? Could we also use the tite input to scale the ion T?
        vte = sqrt(spec(main_ion_species)%temp/spec(main_ion_species)%mass)
+
        if (proc0) then
           write(*,*) "Since electrons are adiabatic, we need to improvise electron parameters to "
           write(*,*) "caluclate alpha species properties. Imposed by global quasineutrality:"
+          write(*,*) "  me = ", me
           write(*,*) "  ne = ", ne
           write(*,*) "  vte = ", vte
           write(*,*) "  ne_prim = ", ne_prim
@@ -517,12 +537,13 @@ contains
 
     ni_prim = 0.0
     ! If ZI_fac is not specified, calculate it from existing ion species:
-    if (ZI_fac .LT. 0.0) then
+    if (ZI_fac < 0.0) then
        ZI_fac_local = 0.0
-       do js = 1,nspec
-          if (spec(js)%type .eq. ion_species) then 
-             ZI_fac_local = ZI_fac_local   + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2/(spec(js)%mass*ne)
-             ni_prim = ni_prim + spec(alpha_index)%mass*spec(js)%dens*spec(js)%z**2*spec(js)%fprim/(spec(js)%mass*ne)
+       do js = 1, nspec
+          if (spec(js)%type == ion_species) then
+             charge_contribution = spec(alpha_index)%mass * spec(js)%dens * spec(js)%z**2 / (spec(js)%mass * ne)
+             ZI_fac_local = ZI_fac_local + charge_contribution
+             ni_prim = ni_prim + charge_contribution * spec(js)%fprim
           end if
        end do
     else
@@ -531,9 +552,10 @@ contains
     ni_prim = ni_prim / ZI_fac_local
 
     ! Calculate vc/vinj
-    vinj = sqrt(spec(alpha_index)%temp/spec(alpha_index)%mass)
-    vc = (0.25*3.0*sqrt(pi)*ZI_fac_local*me/spec(alpha_index)%mass)**(1.0/3.0)*vte/vinj
-    vcprim = ni_prim - ne_prim + 1.5*Te_prim
+    vinj = sqrt(spec(alpha_index)%temp / spec(alpha_index)%mass)
+    vc = (0.25 * 3 * sqrt(pi) * ZI_fac_local * me / spec(alpha_index)%mass)**(1/3.0) * &
+         (vte / vinj)
+    vcprim = ni_prim - ne_prim + 1.5 * Te_prim
 
   end subroutine calculate_slowingdown_parameters
 
@@ -550,29 +572,28 @@ contains
      allocate(f0_values(negrid,nspec))
      allocate(dlnf0drho(negrid,nspec))
 
-     do is = 1,nspec
+     do is = 1, nspec
         is_global = is
-        do ie = 1,negrid
-           v = sqrt(egrid(ie,is))
+        if (spec(is)%f0type == f0_tabulated) then
+           call calculate_f0_arrays_tabulated(is, egrid)
+        else
+           do ie = 1, negrid
+              v = sqrt(egrid(ie,is))
 
-           select case (spec(is)%f0type)
-           case (f0_maxwellian)
-              f0_values(ie,is) = eval_f0(v)
-              nonmaxw_corr(ie,is) = 1.0
-              dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5)*spec(is)%tprim
-           case (f0_sdanalytic)
-              call eval_f0_sdanalytic(is,v,f0,df0dE,f0prim)
-              f0_values(ie,is) = f0
-              nonmaxw_corr(ie,is) = -spec(is)%temp*df0dE
-              dlnf0drho(ie,is) = f0prim
-           end select
-        end do
-        if (spec(is)%f0type .EQ. f0_tabulated) then
-           call calculate_f0_arrays_tabulated(is,egrid)
+              select case (spec(is)%f0type)
+              case (f0_maxwellian)
+                 f0_values(ie,is) = eval_f0(v)
+                 nonmaxw_corr(ie,is) = 1.0
+                 dlnf0drho(ie,is) = -spec(is)%fprim - (egrid(ie,is) - 1.5) * spec(is)%tprim
+              case (f0_sdanalytic)
+                 call eval_f0_sdanalytic(is, v, f0, df0dE, f0prim)
+                 f0_values(ie, is) = f0
+                 nonmaxw_corr(ie, is) = -spec(is)%temp * df0dE
+                 dlnf0drho(ie, is) = f0prim
+              end select
+           end do
         end if
-        
      end do
-
   end subroutine calculate_f0_arrays
 
   !> FIXME : Add documentation   
@@ -583,67 +604,77 @@ contains
   end subroutine set_current_f0_species
 
   !> FIXME : Add documentation
-  !!
-  !! @note Relies upon is_global to determine species. This function only takes one argument so that
-  !! it can be passed as an argument to genquad
-  function eval_f0(v)
+  !>
+  !> @note Relies upon is_global to determine species. This function only takes one argument so that
+  !> it can be passed as an argument to genquad
+  real function eval_f0(v)
      use constants, only: pi
      use mp, only: mp_abort
      implicit none
      real, intent(in):: v
-     real:: eval_f0
-     real::f0temp, dummy1,dummy2
-
-     if (is_global .LT. 0)  call mp_abort("is_global not specified when calling eval_f0")
+     real::f0temp, dummy1, dummy2
+     eval_f0 = 0.0 !Set a default, avoids warnings about maybe unset
+     if (is_global <= 0)  call mp_abort("is_global not specified when calling eval_f0")
 
      select case(spec(is_global)%f0type)
      case (f0_maxwellian)
-        f0temp = exp(-v**2)/pi**1.5        
+        eval_f0 = exp(-v**2) / pi**1.5
      case (f0_sdanalytic)
-        call eval_f0_sdanalytic(is_global,v,f0temp,dummy1,dummy2)
+        call eval_f0_sdanalytic(is_global, v, eval_f0, dummy1, dummy2)
      case (f0_tabulated)
         call mp_abort("ERROR: eval_f0 cannot yet handle tabulated option.")
      end select
-
-     eval_f0 = f0temp
-
   end function eval_f0
 
-  !> FIXME : Add documentation   
-  subroutine eval_f0_sdanalytic(is,v,f0,df0dE_out,f0prim)
+  !> FIXME : Add documentation
+  subroutine eval_f0_sdanalytic(is, v, f0, df0dE_out, f0prim)
     use constants, only: pi
-    use mp, only: mp_abort
     implicit none
     integer,intent(in):: is
     real,intent(in):: v
-    real,intent(inout):: f0,df0dE_out, f0prim
-    real:: A, df0dv,vcprim, vcrit
+    real,intent(out):: f0, df0dE_out, f0prim
+    real:: A, df0dv, vcprim, vcrit
 
-    if (spec(is)%vcrit .LE. 0.0) then
-       call calculate_slowingdown_parameters(is,vcrit,vcprim)
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)  vcprim = spec(is)%vcprim
-    else
-       !> If vcrit is specified, there is no way of knowing its radial derivative, so set dvc/drho = 0
-       vcrit = spec(is)%vcrit
-       if (abs(spec(is)%vcprim + 999.0) .LT. 1.0e-3)   vcprim = 0.0
-    end if
-
-
-    A = (3.0/(4.0*pi))/log( (vcrit**3 + 1.0)/(vcrit**3))
-
-    f0 = A/(vcrit**3 + v**3)
-    df0dv = -A*3.0*v**2/(vcrit**3 + v**3)**2
-    df0dE_out =  (0.5/v)*df0dv / ( f0 * spec(is)%temp )
-    f0prim = -spec(is)%fprim - (-(vcrit**3/(vcrit**3 + v**3)) + (1.0/( log(1.0 + vcrit**(-3)) * (1.0 + vcrit**(3)))))*vcprim
-
-    if (v .GT. 1.0) then
+    ! Early exit -- if v > 1 then assume f0 has been cutoff, i.e.
+    ! we are above the threshold for the Heaviside function to
+    ! zero the distribution. Note for v==1 our f0prim etc. are
+    ! don't account for the Heaviside.
+    if (v > 1.0) then
        f0 = 0.0
        f0prim = 0.0
        df0dE_out = 1.0
+       return
     end if
 
-!    write(*,*) v, vcrit,vcprim,f0prim
+    if (spec(is)%vcrit <= 0.0) then
+       ! If vcrit hasn't been set work out vcrit and vcprim using
+       ! eqn 1.17 and 1.25 of [G. Wilkie thesis](https://drum.lib.umd.edu/handle/1903/17302)
+       ! Note this is independent of `v` so we could precalculate for the relevant species.
+       ! This could be "trivially" cached by simply storing the calculated values in spec(is)
+       call calculate_slowingdown_parameters(is, vcrit, vcprim)
+       ! This line is a bit odd, it _looks_ like it is checking if spec(is)%vcprim
+       ! has not been set, and if it _hasn't_ then force vcprim = spec(is)%vcprim.
+       ! In fact as spec(is)%vcprim defaults to -999.9 currently this logic _doesn't_
+       ! trigger without the user manually setting vcprim more negative. I suspect
+       ! this was intended to be if(was_set(spec(is)%vcprim)) vcprim = spec(is)%vcprim
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = spec(is)%vcprim
+    else
+       vcrit = spec(is)%vcrit
+       ! If vcrit is specified, there is no way of knowing its radial
+       ! derivative, so set dvc/drho = 0. As above, this doesn't actually trigger
+       ! for the default value of spec(is)%vcprim. I suspect this is meant to be
+       ! if(not_set(spec(is)%vcprim)) vcprim = 0.
+       if (abs(spec(is)%vcprim + 999.0) < 1.0e-3) vcprim = 0.0
+    end if
 
+    A = (3 / (4 * pi)) / log((vcrit**3 + 1) / (vcrit**3))
+
+    f0 = A / (vcrit**3 + v**3)
+    df0dv = -f0 * 3 * v**2 / (vcrit**3 + v**3)
+    df0dE_out =  (0.5 / v) * df0dv / ( f0 * spec(is)%temp )
+    ! See eqn 1.22 of Wilkie's thesis with v_alpha -> 1
+    f0prim = -spec(is)%fprim - (-(vcrit**3 / (vcrit**3 + v**3)) + &
+         (1 / ( log(1 + vcrit**(-3)) * (1 + vcrit**3)))) * vcprim
   end subroutine eval_f0_sdanalytic
 
   !> This subroutine calculates f0 on the grid from an external
