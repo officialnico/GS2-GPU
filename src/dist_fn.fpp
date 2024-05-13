@@ -5629,6 +5629,9 @@ contains
        ! Substituting this we find
        !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
        !                (3 + r(ntgrid-1,2,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + Adj(ntgrid)-Adj(ntgrid-1)
+       ! where we have g = h + Adj
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
           gnew(ntgrid, 2, iglo) = ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) / &
@@ -5690,6 +5693,9 @@ contains
        ! Substituting this we find
        !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
        !                (3 + r(-ntgrid,1,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + Adj(-ntgrid)-Adj(-ntgrid+1)
+       ! where we have g = h + Adj
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (l_links(it, ik) == 0) ) then
           gnew(-ntgrid, 1, iglo) = ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) / &
