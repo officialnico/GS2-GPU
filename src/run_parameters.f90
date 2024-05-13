@@ -10,19 +10,12 @@ module run_parameters
   private
 
   public :: init_run_parameters, finish_run_parameters, check_run_parameters
-  public :: wnml_run_parameters, write_trinity_parameters
+  public :: wnml_run_parameters
   public :: beta, zeff, tite, reset, immediate_reset, delt, ieqzip, k0, user_comments
   public :: fphi, fapar, fbpar, has_phi, has_apar, has_bpar
   public :: nstep, max_sim_time, wstar_units, rhostar, neo_test, ncheck_stop
   public :: delt_option_switch, delt_option_auto, avail_cpu_time, margin_cpu_time
   public :: do_eigsolve, save_timer_statistics, save_init_times
-  !> If true and nonlinear_mode is "off", return
-  !> simple diffusive estimates of fluxes to trinity
-  public :: trinity_linear_fluxes
-  !> If true and nonlinear_mode is "off", 
-  !> and trinity_linear_fluxes is true, return
-  !> quasilinear estimates of fluxes to trinity
-  public :: trinity_ql_fluxes
   !> If true use old diagnostics. Included for testing
   !> only and will eventually be removed. Please use
   !> the new diagnostics module!
@@ -37,8 +30,7 @@ module run_parameters
   logical :: immediate_reset, wstar_units, save_timer_statistics, save_init_times
   integer :: delt_option_switch
   integer, parameter :: delt_option_hand = 1, delt_option_auto = 2
-  logical :: knexist
-  logical :: trinity_ql_fluxes, trinity_linear_fluxes, do_eigsolve, use_old_diagnostics
+  logical :: knexist, do_eigsolve, use_old_diagnostics
   character(len=100000) :: user_comments
 
   !> Used to indicate which wavenumbers we do not want to evolve.
@@ -123,10 +115,6 @@ module run_parameters
      !> Only used when there is an adiabatic species. Sets `n q ^2 / T` of the adiabatic
      !> species, normalised to the reference values.
      real :: tite = 1.0
-     !> If true and running linearly, return linear diffusive flux estimates to Trinity.
-     logical :: trinity_linear_fluxes = .false.
-     !> Unknown
-     logical :: trinity_ql_fluxes = .false.
      !> If true use original diagnostics rather than new form
      logical :: use_old_diagnostics = .false.
      !> Custom description of run to be added to netcdf output (new diagnostics only)
@@ -334,8 +322,6 @@ contains
     save_timer_statistics = knobs_config%save_timer_statistics
     seed = knobs_config%seed
     tite = knobs_config%tite
-    trinity_linear_fluxes = knobs_config%trinity_linear_fluxes
-    trinity_ql_fluxes = knobs_config%trinity_ql_fluxes
     use_old_diagnostics = knobs_config%use_old_diagnostics
     user_comments = knobs_config%user_comments
     wstar_units = knobs_config%wstar_units
@@ -393,15 +379,6 @@ contains
   end subroutine read_parameters
 
   !> FIXME : Add documentation    
-  subroutine write_trinity_parameters(trinpars_unit)
-    integer, intent(in) :: trinpars_unit
-    write(trinpars_unit, "(A15)") '&run_parameters'
-    write (trinpars_unit, *) ' beta = ', beta
-    write (trinpars_unit, "(A1)") '/'
-
-  end subroutine write_trinity_parameters
-
-  !> FIXME : Add documentation    
   subroutine set_overrides(tstep_ov)
     use overrides, only: timestep_overrides_type
     type(timestep_overrides_type), intent(in) :: tstep_ov
@@ -454,11 +431,11 @@ contains
     character(len = 20) :: delt_option, eqzip_option
     integer :: ncheck_stop, nstep, seed
     logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, &
-         trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, wstar_units
+         use_old_diagnostics, wstar_units
     real :: avail_cpu_time, beta, delt, fapar, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
 
     namelist /knobs/ avail_cpu_time, beta, delt, delt_option, do_eigsolve, eqzip_option, fapar, fbpar, fphi, immediate_reset, k0, margin_cpu_time, max_sim_time, ncheck_stop, neo_test, nstep, rhostar, &
-         save_init_times, save_timer_statistics, seed, tite, trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics, user_comments, wstar_units, zeff
+         save_init_times, save_timer_statistics, seed, tite, use_old_diagnostics, user_comments, wstar_units, zeff
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -487,8 +464,6 @@ contains
     save_timer_statistics = self%save_timer_statistics
     seed = self%seed
     tite = self%tite
-    trinity_linear_fluxes = self%trinity_linear_fluxes
-    trinity_ql_fluxes = self%trinity_ql_fluxes
     use_old_diagnostics = self%use_old_diagnostics
     user_comments = self%user_comments
     wstar_units = self%wstar_units
@@ -520,8 +495,6 @@ contains
     self%save_timer_statistics = save_timer_statistics
     self%seed = seed
     self%tite = tite
-    self%trinity_linear_fluxes = trinity_linear_fluxes
-    self%trinity_ql_fluxes = trinity_ql_fluxes
     self%use_old_diagnostics = use_old_diagnostics
     self%user_comments = user_comments
     self%wstar_units = wstar_units
@@ -564,8 +537,6 @@ contains
     call self%write_key_val("save_timer_statistics", self%save_timer_statistics, unit_internal)
     call self%write_key_val("seed", self%seed, unit_internal)
     call self%write_key_val("tite", self%tite, unit_internal)
-    call self%write_key_val("trinity_linear_fluxes", self%trinity_linear_fluxes, unit_internal)
-    call self%write_key_val("trinity_ql_fluxes", self%trinity_ql_fluxes, unit_internal)
     call self%write_key_val("use_old_diagnostics", self%use_old_diagnostics, unit_internal)
     call self%write_key_val("user_comments", self%user_comments, unit_internal)
     call self%write_key_val("wstar_units", self%wstar_units, unit_internal)
@@ -613,8 +584,6 @@ contains
     call broadcast(self%save_timer_statistics)
     call broadcast(self%seed)
     call broadcast(self%tite)
-    call broadcast(self%trinity_linear_fluxes)
-    call broadcast(self%trinity_ql_fluxes)
     call broadcast(self%use_old_diagnostics)
     call broadcast(self%user_comments)
     call broadcast(self%wstar_units)
