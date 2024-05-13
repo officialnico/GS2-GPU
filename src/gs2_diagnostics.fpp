@@ -574,7 +574,6 @@ contains
     use mp, only: proc0
     use standard_header, only: standard_header_type
     use diagnostics_fluxes, only: init_diagnostics_fluxes
-    use collisions, only: heating
     implicit none
     !> If true, this is a "list-mode run" and so turn off
     !> [[gs2_diagnostics_knobs:print_flux_line]] and
@@ -845,7 +844,7 @@ contains
 
   !> Finalise the diagnostics module, writing final timestep diagnostics and
   !> closing any open files
-  subroutine finish_gs2_diagnostics (istep)
+  subroutine finish_gs2_diagnostics
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use dist_fn, only: write_f, write_fyx, collision_error
@@ -860,11 +859,8 @@ contains
     use diagnostics_final_routines, only: do_write_final_antot, do_write_final_moments
     use diagnostics_final_routines, only: do_write_gs
     implicit none
-    !> The current (final) timestep
-    integer, intent (in) :: istep
-
     complex, dimension (ntheta0, naky) :: phi0
-    logical :: last = .true.
+    logical, parameter :: last = .true.
 
     call debug_message(3, 'gs2_diagnostics::finish_gs2_diagnostics &
          & starting')
@@ -946,13 +942,12 @@ contains
     real, intent(in) :: user_time
     !> Optional string to add to file name
     character(len=*), intent(in), optional :: fileopt_base
-    integer :: istatus
     character(len=:), allocatable :: fileopt
 
     fileopt = get_option_with_default(fileopt_base, "")
 
     if (save_for_restart) then
-       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             save_glo_info_and_grids=save_glo_info_and_grids, &
@@ -965,7 +960,7 @@ contains
        call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
 
        !Save dfn, fields and velocity grids to file
-       call gs2_save_for_restart(gnew, user_time, vnmult, istatus, &
+       call gs2_save_for_restart(gnew, user_time, vnmult, &
             has_phi, has_apar, has_bpar, &
             code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, &
             fileopt= fileopt//".dfn", &
@@ -980,7 +975,6 @@ contains
   !> Deallocate the [[gs2_diagnostics]] module-level arrays
   subroutine deallocate_arrays
     use mp, only: proc0
-    use job_manage, only: trin_reset, trin_restart
     use gs2_heating, only: del_htype
     use diagnostics_fluxes, only: finish_diagnostics_fluxes
     implicit none
@@ -998,10 +992,10 @@ contains
     if (proc0 .and. allocated(omegahist)) deallocate (omegahist)
     if (allocated(pflux_tormom)) deallocate (pflux_tormom) 
 
-    if (.not. trin_restart .and. allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg) ! check, restart always true?
-    if (.not. trin_restart .and. allocated(omega)) deallocate(omega, omegaavg)
+    if (allocated(pflux_avg)) deallocate (pflux_avg, qflux_avg, heat_avg, vflux_avg)
+    if (allocated(omega)) deallocate(omega, omegaavg)
 
-    if (proc0 .and. trin_reset .and. allocated(conv_heat)) deallocate (conv_heat)
+    if (proc0 .and. allocated(conv_heat)) deallocate (conv_heat)
 
     if (proc0 .and. allocated(domega)) deallocate(domega)
   end subroutine deallocate_arrays
@@ -1080,7 +1074,7 @@ contains
     real :: hflux_tot, zflux_tot, vflux_tot
 
     real, save :: t_old = 0.
-    logical :: last = .false.
+    logical, parameter :: last = .false.
     logical:: debug=.false.
     logical :: do_force
     integer, save :: istep_last = -1
@@ -2609,12 +2603,10 @@ contains
   end subroutine flush_files
 
   !> Trinity convergence condition - simple and experimental
-  !! look for the averaged differential of the summed averaged heat flux to drop below a threshold
+  !> look for the averaged differential of the summed averaged heat flux to drop below a threshold
   subroutine check_nonlin_convergence(istep, heat_flux, exit)
-    use job_manage, only: trin_job
     use gs2_time, only: user_time
-    use mp, only: proc0, broadcast
-
+    use mp, only: proc0, broadcast, job
     logical, intent(inout) :: exit
     integer, intent(in) :: istep
     real, intent(in) :: heat_flux
@@ -2633,15 +2625,15 @@ contains
        place = mod(trin_istep,conv_nstep_av)/nwrite
        conv_heat(place) = heat_flux
 
-       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,I6,I6)') 'Job ',job, &
             ' time = ',user_time, ' step = ',trin_istep
-       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+       if (debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
             ' heat = ',heat_flux, ' heatsumav = ',heat_av
 
        if (trin_istep .ge. conv_nstep_av) then
           heat_av_new = sum(conv_heat) / nwrite_av
           heat_av_diff = heat_av_new - heat_av
-          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',trin_job, &
+          if(debug) write(6,'(A,I5,A,e11.4,A,e11.4)') 'Job ',job, &
                ' heat_sum_av_diff = ',heat_sum_av
           heat_av = heat_av_new
           ! Convergence test - needs to be met conv_nsteps_converged/nwrite times in succession
@@ -2654,13 +2646,13 @@ contains
 
           if ((conv_isteps_converged .ge. conv_nsteps_converged/nwrite) .and. &
                (trin_istep .ge. conv_min_step)) then
-             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',trin_job, &  
+             if (debug) write(6,'(A,I5,A,I6,I3)')'Job ',job, &
                   ' Reached convergence condition after step ',trin_istep
              exit = .true. .and. exit_when_converged
           endif
 
           if(trin_istep .gt. conv_max_step) then
-             write(6,'(A,I5,A,I7)') '*** Warning. Job ',trin_job, &
+             write(6,'(A,I5,A,I7)') '*** Warning. Job ',job, &
                   ' did not meet the convergence condition after ',trin_istep
              exit = .true. .and. exit_when_converged
           endif
@@ -2782,16 +2774,11 @@ contains
     diffusivity_by_k = 0.0
     do ik=1,naky
        do it=1,ntheta0
-          !if (akx(it).eq.0) cycle
           if (kperp2(igomega,it,ik).eq.0.0) cycle
-          !diffusivity_by_k(it,ik) = max(aimag(omegaavg(it,ik)), 0.0)/akx(it)**2.0/2.0**0.5
           diffusivity_by_k(it,ik) = &
                max(aimag(omegaavg(it,ik)), 0.0)/kperp2(igomega, it, ik)*2.0
        end do
     end do
-    !write (*,*) 'diffusivity_by_k', diffusivity_by_k, 'omegaavg', omegaavg
-    !call get_volume_average(diffusivity_by_k, diffusivity)
-
     diffusivity = maxval(diffusivity_by_k) * grho(igomega)
 
   end function diffusivity

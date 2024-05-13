@@ -326,7 +326,7 @@ program eiktest
      ncout = trim(out_stem)//"out.nc"
      call nc_grid_file_open(ncout, "w")
      call nc_write_grid_sizes(ntheta, ntgrid, nperiod)
-     call nc_write_grid_scalars(shat, drhodpsi, kxfac, qsf, rmaj)
+     call nc_write_grid_scalars(shat, drhodpsi, kxfac, qsf, rmaj, geom%B_T, geom%aminor, surfarea/dvdrhon, surfarea)
      call nc_write_grids(ntgrid, bmag, gradpar, gbdrift, gbdrift0, cvdrift, cvdrift0, &
           gds2, gds21, gds22, grho, theta, &
           Rplot=Rplot, Rprime=Rprime, Zplot=Zplot, Zprime=Zprime, aplot=aplot, aprime=aprime, &

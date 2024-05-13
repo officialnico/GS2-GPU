@@ -62,7 +62,7 @@ module dist_fn
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: getfieldeq, getan, getmoms, getemoms, getmoms_gryfx_dist
+  public :: getfieldeq, getan, getmoms, getemoms
   public :: getfieldeq_nogath
   public :: flux_dist
   public :: get_heat
@@ -108,7 +108,7 @@ module dist_fn
 
   ! The following routines are sometimes used for debugging or testing purposes
   public :: dump_homogeneous_solution, dump_current_source_term, get_field_inconsistency
-  public :: check_getan, get_mom_glm
+  public :: check_getan
 
   ! knobs
   complex, dimension (:), allocatable :: fexp ! (nspec)
@@ -190,7 +190,8 @@ module dist_fn
   real, dimension(:,:), allocatable :: ufac
 
   ! set_source_opt
-  complex, dimension (:,:,:,:), allocatable :: source_coeffs
+  complex, dimension (:,:,:), allocatable :: source_coeffs_phim, source_coeffs_phip
+  complex, dimension (:,:,:), allocatable :: source_coeffs_aparm, source_coeffs_aparp
 
   ! getfieldeq1
   real, allocatable, dimension(:,:) :: awgt
@@ -1081,7 +1082,11 @@ contains
 
     call finish_dist_fn_level_1
     if (allocated(g)) deallocate (g, gnew, g_work)
-    if (allocated(source_coeffs)) deallocate(source_coeffs)
+    if (allocated(source_coeffs_phim)) deallocate(source_coeffs_phim)
+    if (allocated(source_coeffs_phip)) deallocate(source_coeffs_phip)
+    if (allocated(source_coeffs_aparm)) deallocate(source_coeffs_aparm)
+    if (allocated(source_coeffs_aparp)) deallocate(source_coeffs_aparp)
+
 #ifndef SHMEM
     if (allocated(gexp_1)) deallocate (gexp_1, gexp_2, gexp_3)
 #else
@@ -1636,8 +1641,7 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, il_idx, ie_idx, is_idx
     use array_utils, only: zero_array
     implicit none
-    integer :: iglo, ik, is
-!AJ
+    integer :: iglo, is
     integer :: il, ie, ig
     real :: al1, e1
     
@@ -1673,7 +1677,7 @@ contains
     end if
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, al1, e1, il, ik, is) &
+    !$OMP PRIVATE(iglo, al1, e1, il, is) &
     !$OMP SHARED(g_lo, al, energy, vpa, bmag, vparknob, ntgrid, vpac, forbid) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -2230,11 +2234,12 @@ contains
     !for information on these terms.
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ie, il, ik, it, is, isgn, ig) &
-    !$OMP SHARED(g_lo, ntgrid, source_coeffs, vpar, &
+    !$OMP SHARED(g_lo, ntgrid, source_coeffs_phim, source_coeffs_phip, &
 #ifdef LOWFLOW
     !$OMP wdfac, wstarfac, vparterm, &
 #endif
-    !$OMP vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
+    !$OMP vpar, vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
+    !$OMP source_coeffs_aparm, source_coeffs_aparp, &
     !$OMP spec, has_apar, aj0, D_res, nonmaxw_corr, wstar, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo=g_lo%llim_proc,g_lo%ulim_proc
@@ -2247,18 +2252,18 @@ contains
           do ig=-ntgrid,ntgrid-1
 #ifdef LOWFLOW
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2*vparterm(ig,isgn,iglo)
+             source_coeffs_phim(ig,isgn,iglo)=-2*vparterm(ig,isgn,iglo)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdfac(ig,isgn,iglo) &
+             source_coeffs_phip(ig,isgn,iglo)=-zi*wdfac(ig,isgn,iglo) &
               + zi*(wstarfac(ig,isgn,iglo) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
+                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
                      vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstarfac(ig,isgn,iglo) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
@@ -2267,18 +2272,18 @@ contains
 #else
 
              !Phi m
-             source_coeffs(1,ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
+             source_coeffs_phim(ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
              !Phi p
-             source_coeffs(2,ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
+             source_coeffs_phip(ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
               + zi*(wstar(ik,ie,is) &
               + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
               -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs(3,ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
                      vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
-                source_coeffs(4,ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
+                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
                      -spec(is)%stm*vpac(ig,isgn,iglo)*&
                      zi*(wstar(ik,ie,is) &
                      + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
@@ -3266,7 +3271,7 @@ contains
     type (index_list_type), dimension(0:nproc-1) :: from, to
     integer, dimension (0:nproc-1) :: nn_from, nn_to
     integer, dimension (3) :: to_low, from_low, to_high, from_high
-    integer :: ncell, iglo_star, j, n, n_h, nn_max
+    integer :: ncell, iglo_star, n
     integer :: iglo_right, ipright, iglo_left, ipleft
     integer :: iglo, il, ik, it, ie, is, ip, it_leftmost, it_rightmost
 
@@ -3280,7 +3285,7 @@ contains
     ! processor sees. For now we can just get the indices and cycle.
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, il, ik, ie, is, it, ip, ncell, iglo_star, iglo_right, &
-    !$OMP ipright, iglo_left, ipleft, j, it_leftmost, it_rightmost) &
+    !$OMP ipright, iglo_left, ipleft, it_leftmost, it_rightmost) &
     !$OMP SHARED(g_lo, iproc, r_links, l_links, trapped_wfb, mixed_wfb) &
     !$OMP REDUCTION(+: nn_to, nn_from) &
     !$OMP SCHEDULE(static)
@@ -3971,10 +3976,11 @@ contains
        call zero_array(g_h)
 
        if(opt_source)then
+          allocate (source_coeffs_phim(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+          allocate (source_coeffs_phip(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           if(has_apar)then
-             allocate (source_coeffs(4,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
-          else
-             allocate (source_coeffs(2,-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+             allocate (source_coeffs_aparm(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
+             allocate (source_coeffs_aparp(-ntgrid:ntgrid-1,2,g_lo%llim_proc:g_lo%ulim_alloc))
           endif
        endif
 #ifdef LOWFLOW
@@ -5135,26 +5141,33 @@ contains
     complex, intent (in) :: sourcefac
     complex, dimension (-ntgrid:,:), intent (out) :: source
     integer :: ig, isgn
+    real :: fac, fac_now, fac_next
     complex, dimension (-ntgrid:ntgrid) :: phigavg, apargavg
 
     !Temporally weighted fields
     if (has_phi) then
-      phigavg = (fexp(is) * phi(:,it,ik) + (1.0-fexp(is)) * phinew(:,it,ik)) &
-                *aj0(:,iglo)*fphi
+       fac = fphi
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       phigavg = (fac_now * phi(:,it,ik) + fac_next * phinew(:,it,ik)) &
+                * aj0(:,iglo)
     else
       phigavg = 0.0
     end if
 
-    if(has_bpar)then
-       phigavg=phigavg+&
-            (fexp(is)*bpar(:,it,ik) + (1.0-fexp(is))*bparnew(:,it,ik))&
-            *aj1(:,iglo)*fbpar*2.0*vperp2(:,iglo)*spec(is)%tz
-    endif
+    if (has_bpar) then
+       fac = fbpar * 2 * spec(is)%tz
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       phigavg = phigavg + &
+            (fac_now * bpar(:,it,ik) + fac_next * bparnew(:,it,ik))&
+            * aj1(:,iglo) * vperp2(:,iglo)
+    end if
 
-    if(has_apar)then
-       apargavg = (fexp(is)*apar(:,it,ik)  + (1.0-fexp(is))*aparnew(:,it,ik)) &
-            *aj0(:,iglo)*fapar
-    endif
+    if (has_apar) then
+       fac = fapar
+       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       apargavg = (fac_now * apar(:,it,ik)  + fac_next * aparnew(:,it,ik)) &
+            * aj0(:,iglo)
+    end if
 
     !Initialise to zero in case where we don't call set_source_opt
     if(il>lmax)then
@@ -5271,36 +5284,36 @@ contains
       implicit none
       complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
-
+      integer :: sgn
 ! try fixing bkdiff dependence
       bd = bkdiff(1)
 
-      bdfac_p = 1.+bd*(3.-2.*real(isgn))
-      bdfac_m = 1.-bd*(3.-2.*real(isgn))
+      sgn = 3 - 2 * isgn
+      bdfac_p = 1 + bd * sgn
+      bdfac_m = 1 - bd * sgn
 
-      if(has_apar)then
+      if (has_apar) then
          do ig = -ntgrid, ntgrid-1
-            phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
-            phi_m = phigavg(ig+1)-phigavg(ig)
-            ! RN> bdfac factors seem missing for apar_p
-            apar_p = apargavg(ig+1)+apargavg(ig)
-            apar_m = (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) + &
-                 (aparnew(ig,it,ik) - apar(ig,it,ik))
+            phi_m = -phigavg(ig) + phigavg(ig+1)
+            phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
+            apar_m = -apar(ig,it,ik) - apar(ig+1,it,ik) + &
+                 aparnew(ig,it,ik) + aparnew(ig+1, it, ik)
+            apar_p = apargavg(ig) + apargavg(ig+1)
 
-            source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
-                 phi_p*source_coeffs(2,ig,isgn,iglo)+&
-                 apar_m*source_coeffs(3,ig,isgn,iglo)+&
-                 apar_p*source_coeffs(4,ig,isgn,iglo)
+            source(ig, isgn) = phi_m * source_coeffs_phim(ig, isgn, iglo) + &
+                 phi_p * source_coeffs_phip(ig, isgn, iglo) + &
+                 apar_m * source_coeffs_aparm(ig, isgn, iglo) + &
+                 apar_p * source_coeffs_aparp(ig, isgn, iglo)
          end do
       else
          do ig = -ntgrid, ntgrid-1
-            phi_p = bdfac_p*phigavg(ig+1)+bdfac_m*phigavg(ig)
-            phi_m = phigavg(ig+1)-phigavg(ig)
+            phi_m = -phigavg(ig) + phigavg(ig+1)
+            phi_p = phigavg(ig) * bdfac_m + phigavg(ig+1) * bdfac_p
             
-            source(ig,isgn)=phi_m*source_coeffs(1,ig,isgn,iglo)+&
-                 phi_p*source_coeffs(2,ig,isgn,iglo)
+            source(ig, isgn) = phi_m * source_coeffs_phim(ig, isgn, iglo) + &
+                 phi_p * source_coeffs_phip(ig, isgn, iglo)
          end do
-      endif
+      end if
 
       ! add in explicit terms
       if (include_explicit) then
@@ -6169,7 +6182,7 @@ contains
   !> FIXME: Get these notes on the website
   subroutine getan_from_dfn (g_in, antot, antota, antotp, local_only)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, g_work
-    use kt_grids, only: kperp2, naky, ntheta0
+    use kt_grids, only: kperp2
     use species, only: nspec, spec
     use theta_grid, only: ntgrid
     use le_grids, only: integrate_species
@@ -6513,208 +6526,6 @@ contains
     call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
   end subroutine getmoms
 
-  !> FIXME : Add documentation
-  subroutine getmoms_gryfx_dist (density_gryfx, upar_gryfx, tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx, phi_gryfx)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
-    use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec
-    use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment
-    use fields_arrays, only: phinew
-    use kt_grids, only: ntheta0, naky
-    use mp, only: proc0
-    use iso_fortran_env, only: real32
-    implicit none
-    integer :: ik, it, isgn, is, iglo, ig, iz, index_gryfx
-    complex(real32), dimension(:), intent(out) :: density_gryfx, upar_gryfx, &
-         tpar_gryfx, tperp_gryfx, qpar_gryfx, qperp_gryfx
-    complex(real32), dimension(:), intent(out) :: phi_gryfx
-    complex, dimension(:,:,:,:), allocatable :: total
-
-    allocate(total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-   
-    ! gryfx uses vt=sqrt(T/m) normalization, 
-    ! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
-    ! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
-    ! factors of sqrt(2) to get vpa and vperp2 in gryfx units before taking
-    ! integrals, i.e.
-    ! vpa_gryfx = sqrt(2) vpa
-    ! vperp2_gryfx = 2 vperp2
-
-    ! dens = < f >
-    g_work = gnew 
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            density_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! upar = < (vpar/vt_gryfx) f > = < ( sqrt(2) vpar/vt_gs2 ) f > = upar1/vt_gryfx
-    g_work = sqrt(2.)*vpa*gnew  
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            upar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! tpar = < (vpar^2/vt_gryfx^2 - 1) f > = tpar1/T_0
-    g_work = (2.*vpa*vpa - 1.)*gnew
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tpar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! qpar = < (vpar^3/vt_gryfx^3 - 3*vpar/vt_gryfx) f > = qpar1/( n0 m vt_gryfx^3 )
-    g_work = (2.*sqrt(2.)*vpa*vpa*vpa - 3.*sqrt(2.)*vpa)*gnew
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qpar_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! tprp = < ( 1/2 vprp/vt_gryfx^2 - 1 ) f > = tprp1/T_0
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          g_work(:,isgn,iglo) = (vperp2(:,iglo)-1.)*gnew(:,isgn,iglo) 
-       end do
-    end do
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            tperp_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! qprp = < vpar/vt_gryfx*( 1/2 vprp/vt_gryfx^2 - 1 ) f > = qprp1/( n0 m vt_gryfx^3 )
-    g_work = sqrt(2.)*vpa*g_work
-    call integrate_moment (g_work, total)
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1,g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          do is = 1,g_lo%nspec
-            index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                            g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                            2*ntgrid*g_lo%naky*g_lo%ntheta0*(is-1)
-            qperp_gryfx(index_gryfx) = total(ig, it, ik, is)
-          end do
-        end do
-      end do
-    end do
-    end if
-
-    ! we also must account for the overall a/rho_i factor on all quantities. 
-    ! so we multiply all moments and phi by an additional factor of sqrt(2)
-    if(proc0 ) then 
-      ! normalize to gryfx units
-      density_gryfx = sqrt(2.)*density_gryfx
-      upar_gryfx = sqrt(2.)*upar_gryfx
-      tpar_gryfx = sqrt(2.)*tpar_gryfx
-      tperp_gryfx = sqrt(2.)*tperp_gryfx
-      qpar_gryfx = sqrt(2.)*qpar_gryfx
-      qperp_gryfx = sqrt(2.)*qperp_gryfx
-    endif
-      
-
-    if(proc0) then
-    do ig = -ntgrid, ntgrid-1
-      iz = ig + ntgrid + 1
-      do it = 1, g_lo%ntheta0
-        do ik = 1, g_lo%naky
-          index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + g_lo%naky*g_lo%ntheta0*(iz-1)
-          phi_gryfx(index_gryfx) = phinew(ig, it, ik)*sqrt(2.)
-        end do
-      end do
-    end do
-    end if
-
-    deallocate(total)
-
-
-  end subroutine getmoms_gryfx_dist
-
-  !> Calculates hermite-laguerre moments of g
-  !! uses gryfx normalization convention (see getmoms_gryfx above)
-  subroutine get_mom_glm (glm, l, m)
-    use dist_fn_arrays, only: vpa, vperp2, gnew, g_work
-    use gs2_layouts, only: g_lo
-    use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment, hermite_prob
-    use gauss_quad, only: laguerre_norm
-
-    implicit none
-    logical, parameter :: full_arr=moment_to_allprocs
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: glm
-    integer, intent(in) :: l, m
-    integer :: isgn, iglo, ig
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-      do isgn = 1, 2
-        do ig = -ntgrid, ntgrid
-          g_work(ig,isgn,iglo) = hermite_prob(l, sqrt(2.0)*vpa(ig,isgn,iglo)) * &
-                        laguerre_norm(m, vperp2(ig,iglo)) * gnew(ig,isgn,iglo) 
-        end do
-      end do
-    end do
-    call integrate_moment (g_work, glm,  moment_to_allprocs, full_arr)
-  end subroutine get_mom_glm
-
   !> Returns electron density and Tperp moment integrals to PE 0
   subroutine getemoms (phinew, bparnew, ntot, tperp)
     use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
@@ -6823,10 +6634,9 @@ contains
     real, dimension(:, :, :), allocatable, save :: mom_coeff_tpara, mom_coeff_tperp
     real, dimension(:, :, :), allocatable, save :: mom_shift_para, mom_shift_perp
 
-    integer :: isgn, iglo, is, ie
-
-    real :: a, b, tpar2, tper2
-    integer :: it, ik, ig
+    integer :: isgn, iglo, is, ie, it, ik, ig
+    complex :: tpar2, tper2
+    real :: a, b
 
     ! returns moment integrals to PE 0
 
@@ -8341,7 +8151,6 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, aparnew, bparnew
     complex, intent(in) :: sourcefac
     character(len = 20), parameter :: extension = '.source'
-    integer :: istatus
 
     ! Is this needed?
     call zero_array(g_work)
@@ -8349,7 +8158,7 @@ contains
     call get_source_term_on_local_domain(g_work, phi, apar, bpar, phinew, &
          aparnew, bparnew, istep, sourcefac)
 
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_current_source_term
@@ -8364,9 +8173,8 @@ contains
     implicit none
     logical, intent(in), optional :: force_passing
     character(len = 20), parameter :: extension = '.homogeneous'
-    integer :: istatus
     call init_homogeneous_g(g_work, force_passing)
-    call gs2_save_for_restart (g_work, user_time, vnmult, istatus, &
+    call gs2_save_for_restart (g_work, user_time, vnmult, &
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_homogeneous_solution
@@ -10438,6 +10246,8 @@ contains
     real, dimension(:, :, :), allocatable, intent(in out) :: mom_shift_para, mom_shift_perp
     integer :: i, isgn, iglo, it, ik, is
     real :: bsq
+    !> Declared as complex to allow reuse of existing integrate_moment methods, but
+    !> actually only holds real valued data.
     complex, dimension(:, :, :, :), allocatable :: coeff0
     complex, dimension(:, :, :), allocatable :: gtmp
     real, dimension(:), allocatable :: wgt
@@ -10506,10 +10316,9 @@ contains
           end do
           call integrate_moment(gtmp,coeff0,.true.,full_arr=.true.)
           where(real(coeff0(0,1:nakx,1:naky,1:nspec)) == 0.)
-             mom_coeff(1:nakx,1:naky,1:nspec,i)=1.
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = 1
           elsewhere
-             mom_coeff(1:nakx,1:naky,1:nspec,i)= &
-                  & coeff0(0,1:nakx,1:naky,1:nspec)
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = real(coeff0(0,1:nakx,1:naky,1:nspec))
           end where
        end do
     endif

@@ -21,13 +21,13 @@ module gs2_diagnostics_new
 
   type(diagnostics_type) :: gnostics 
 
-  logical, parameter :: debug=.false.
+  logical, parameter :: debug = .false.
 
 contains
 
   !> Read namelist diagnostics_config, initialise submodules,
   !> open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(is_trinity_run, header)
+  subroutine init_gs2_diagnostics_new(header)
     use kt_grids, only: nx, ny, naky, ntheta0
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -58,7 +58,6 @@ contains
     use neasyf, only: neasyf_open
     use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length, nc_grids_mymovie
     implicit none
-    logical, intent(in) :: is_trinity_run
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
     logical :: ex, accelerated
@@ -85,10 +84,6 @@ contains
     save_many = gnostics%save_many
 
     if (.not. gnostics%write_any) return
-
-    ! Set whether this is a Trinity run.. enforces certain 
-    ! calculations
-    gnostics%is_trinity_run = is_trinity_run
     
     gnostics%parallel = .false.
     if (gnostics%enable_parallel) then
@@ -397,8 +392,7 @@ contains
     
     gnostics%calculate_fluxes = (gnostics%write_fluxes &
          .or.  gnostics%print_flux_line &
-         .or.  gnostics%write_flux_line &
-         .or.  gnostics%is_trinity_run)
+         .or.  gnostics%write_flux_line)
 
     gnostics%user_time = user_time
     if (istep .eq. 0) gnostics%start_time = user_time

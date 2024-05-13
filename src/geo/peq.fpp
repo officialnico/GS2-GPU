@@ -34,7 +34,6 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine read_and_set_peq(self, inputs)
-    use constants, only: pi, twopi
     implicit none
     class(peq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
@@ -154,7 +153,6 @@ contains
   !> containing the axisymmetric magnetic field geometry in flux
   !> coordinates
   subroutine read_and_set_teq(self, inputs)
-    use constants, only: pi, twopi
     implicit none
     class(teq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs

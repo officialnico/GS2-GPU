@@ -11,13 +11,13 @@ module diagnostics_base_config
     !> Append output data to a previous output file `<run name>.out.nc` if it
     !> already exists. Grid sizes must be unchanged.
     logical :: append_old = .false.
-    !> Used for Trinity nonlinear convergence
+    !> Used for Trinity nonlinear convergence check
     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The maximum number
-    !> of Trinity steps, after which consider the run converged regardless
+    !> of time steps, after which consider the run converged regardless.
     integer :: conv_max_step = 80000
     !> Used for the Trinity nonlinear convergence check
     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The minimum number
-    !> of Trinity steps before checking convergence condition
+    !> of time steps before convergence condition can trigger an exit.
     integer :: conv_min_step = 4000
     !> Used for the Trinity nonlinear convergence check
     !> ([[gs2_diagnostics_knobs:use_nonlin_convergence]]). The number of

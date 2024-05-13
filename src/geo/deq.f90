@@ -23,15 +23,13 @@ contains
   !> domain defined by the coordinates (R,Z).
   subroutine read_and_set(self, inputs)
     use mp, only: mp_abort
-    use constants, only: twopi
-    use splines, only: inter_cspl
     use geo_utils, only: sort
     implicit none
     class(deq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
     real, dimension(:), allocatable :: spsi_bar, sdfit_R, sdfit_Z, rbbbs, zbbbs, eq_R, eq_Z, f, p, q
     real, dimension(:, :), allocatable :: sdfit_psi
-    real :: psi_N, f_N, rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
+    real :: rwid, zhei, bcentr, delta_R, delta_Z, lref, bref
     integer :: i, j, jmin, jmax, nw_in, nh_in, funit, nbbbs, nrho
     logical :: eqnorm_exists
     self%type_name = 'deq'
@@ -147,9 +145,9 @@ contains
     use constants, only: twopi
     implicit none
     class(deq_type), intent(in out) :: self
-    call new_periodic_spline(size(self%thetab), self%thetab, self%r_bound, twopi, &
-         self%rbound_spl, drop_last_point = .true.)
-    call new_spline(size(self%psi_mid), self%psi_mid, self%rho_mid, self%rho_spl)
+    self%rbound_spl = new_periodic_spline(self%thetab, self%r_bound, twopi, &
+         drop_last_point = .true.)
+    self%rho_spl = new_spline(self%psi_mid, self%rho_mid)
   end subroutine setup_special_splines
 
   subroutine delete_special_splines(self)

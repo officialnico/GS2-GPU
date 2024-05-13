@@ -1321,7 +1321,6 @@ module kt_grids_box
   public :: box_set_overrides
   public :: check_kt_grids_box, wnml_kt_grids_box
   public :: x0, y0, jtwist !RN> Caution: these are not broadcasted!
-  public :: gryfx
 
   public :: kt_grids_box_config_type
   public :: set_kt_grids_box_config
@@ -1332,8 +1331,6 @@ module kt_grids_box
   integer :: n0
   integer :: jtwist
   integer :: naky, ntheta0, nx, ny
-  !> Are we being called from gryfx?
-  logical :: gryfx
   logical :: parameters_read = .false.
   logical :: initialized = .false.
   
@@ -1341,11 +1338,6 @@ module kt_grids_box
   type, extends(abstract_config_type) :: kt_grids_box_config_type
      ! namelist : kt_grids_box_parameters
      ! indexed : false
-     !> FIXME: Add documentation
-     !>
-     !> @note We should probably remove/move this flag to some gryfx
-     !> specific location.
-     logical :: gryfx = .false.
      !> For finite magnetic shear determines the box size in the x
      !> direction according to \(L_x = L_y
      !> \textrm{jtwist}/2\pi\hat{s}\).  This also affects the number
@@ -1465,7 +1457,6 @@ contains
     call kt_grids_box_config%init(name = 'kt_grids_box_parameters', requires_index = .false.)
 
     ! Copy out internal values into module level parameters
-    gryfx = kt_grids_box_config%gryfx
     jtwist = kt_grids_box_config%jtwist
     ly = kt_grids_box_config%ly
     n0 = kt_grids_box_config%n0
@@ -1496,8 +1487,8 @@ contains
 ! If n0 and rhostar_box defined, set ky(1) using toroidal mode number.
 
     use file_utils, only: error_unit
-    use theta_grid, only: shat, drhodpsi
-    use constants, only: pi
+    use theta_grid, only: drhodpsi
+    use constants, only: twopi
     use mp, only: mp_abort, proc0
     implicit none
     type(kt_grids_box_config_type), intent(in), optional :: kt_grids_box_config_in
@@ -1510,33 +1501,12 @@ contains
     if (ny==0 .and. naky==0) call mp_abort("ERROR: ny==0 .and. naky==0", .true.) 
     if (nx==0 .and. ntheta0==0) call mp_abort("ERROR: nx==0 .and. ntheta0==0", .true.) 
 
-    if (rhostar_box .gt. 0.0 .and. n0 .gt. 0) y0=1.0/(n0*rhostar_box*drhodpsi)
+    if (rhostar_box > 0.0 .and. n0 > 0) y0 = 1.0 / (n0 * rhostar_box * drhodpsi)
 
-    if (gryfx) then
-      !WHEN RUNNING IN GRYFX, ONLY EVOLVE ky=0 MODES.
-      naky = 1
-      ny = 1
-
-      !NEED TO ACCOUNT FOR SQRT(2) DIFFERENCE BETWEEN rho_GS2 and rho_GryfX, so
-      !change x0 and y0
-      y0 = y0/sqrt(2.)  
-      !this still needs to be renormalized even though only ky=0
-      !is running because sometimes x0 is set from y0 and jtwist later.
-      x0 = x0/sqrt(2.) 
-      !this is in case x0 is not set from y0 and jtwist later.
-    end if
-
-
-    if (y0 < 0) y0 = -1./y0
-
-    !EGH This line does not affect any existing gs2 runs but is
-    !here because gryfx uses jtwist < 0 to signal using the
-    ! default
-    if (jtwist < 0) jtwist = max(int(2.0*pi*shat + 0.5),1)
-
-    if (ly == 0.) ly = 2.0*pi*y0
-    if (naky == 0) naky = (ny-1)/3 + 1
-    if (ntheta0 == 0) ntheta0 = 2*((nx-1)/3) + 1
+    if (y0 < 0) y0 = -1 / y0
+    if (ly == 0.) ly = twopi * y0
+    if (naky == 0) naky = (ny - 1) / 3 + 1
+    if (ntheta0 == 0) ntheta0 = 2*((nx - 1) / 3) + 1
     if (rtwist == 0.) rtwist = real(jtwist)
 
     if (mod(ntheta0, 2) /= 1) then
@@ -1550,12 +1520,12 @@ contains
 
     if (ny == 0) then
        ! If ny hasn't been set the determine it from naky
-       ny = (naky - 1)*  3 + 1
+       ny = (naky - 1) * 3 + 1
        if (proc0) write (error_unit(), '("INFO: ny (",I0,") set from naky (",I0,").")') ny, naky
     else
        ! If both naky and ny are set then check that the resulting padding is at least
        ! as much as required for dealiasing
-       if (naky < (ny-1)/3 + 1) then ! Excess padding
+       if (naky < (ny - 1) / 3 + 1) then ! Excess padding
           if (proc0) then
              write (error_unit(), '("INFO: Both ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
              write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') ny - ((naky - 1)*  3 + 1)
@@ -1563,7 +1533,7 @@ contains
              write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
           end if
 
-       else if (naky > (ny-1)/3 + 1) then ! Insufficient padding
+       else if (naky > (ny - 1) / 3 + 1) then ! Insufficient padding
           if (proc0) then
              write (error_unit(), '("ERROR: ny (",I0,") and naky (",I0,") have been set by the user.")') ny, naky
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') ny - ((naky - 1)*  3 + 1)
@@ -1584,7 +1554,7 @@ contains
     else
        ! If both ntheta0 and nx are set then check that the resulting padding is at least
        ! as much as required for dealiasing
-       if (ntheta0 < 2*((nx-1)/3) + 1) then ! Excess padding
+       if (ntheta0 < 2*((nx - 1) / 3) + 1) then ! Excess padding
           if (proc0) then
              write (error_unit(), '("INFO: Both nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
              write (error_unit(), '("      these values lead to excess padding (",I0,".) for the FFTs.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
@@ -1592,7 +1562,7 @@ contains
              write (error_unit(), '("      but this also makes the resolution in ny larger than is strictly necessary.")')
           end if
 
-       else if (ntheta0 > 2*((nx-1)/3) + 1) then ! Insufficient padding
+       else if (ntheta0 > 2*((nx - 1) / 3) + 1) then ! Insufficient padding
           if (proc0) then
              write (error_unit(), '("ERROR: nx (",I0,") and ntheta0 (",I0,") have been set by the user.")') nx, ntheta0
              write (error_unit(), '("       but these values lead to insufficient padding (",I0,") for the FFTS.")') nx - (((ntheta0 - 1) /  2) * 3 + 1)
@@ -1659,7 +1629,6 @@ contains
     if (grids_ov%override_nx) nx = grids_ov%nx
     if (grids_ov%override_x0) x0 = grids_ov%x0
     if (grids_ov%override_y0) y0 = grids_ov%y0
-    if (grids_ov%override_gryfx) gryfx = grids_ov%gryfx
   end subroutine box_set_overrides
 
   !> Calculate the grid of wavenumbers for box mode
@@ -1873,16 +1842,14 @@ contains
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
     integer :: jtwist, n0, naky, ntheta0, nx, ny
-    logical :: gryfx
     real :: ly, rhostar_box, rtwist, x0, y0
 
-    namelist /kt_grids_box_parameters/ gryfx, jtwist, ly, n0, naky, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
+    namelist /kt_grids_box_parameters/ jtwist, ly, n0, naky, ntheta0, nx, ny, rhostar_box, rtwist, x0, y0
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
-    gryfx = self%gryfx
     jtwist = self%jtwist
     ly = self%ly
     n0 = self%n0
@@ -1900,7 +1867,6 @@ contains
     if (exist) read(in_file, nml = kt_grids_box_parameters)
 
     ! Now copy from local variables into type members
-    self%gryfx = gryfx
     self%jtwist = jtwist
     self%ly = ly
     self%n0 = n0
@@ -1929,7 +1895,6 @@ contains
     endif
 
     call self%write_namelist_header(unit_internal)
-    call self%write_key_val("gryfx", self%gryfx, unit_internal)
     call self%write_key_val("jtwist", self%jtwist, unit_internal)
     call self%write_key_val("ly", self%ly, unit_internal)
     call self%write_key_val("n0", self%n0, unit_internal)
@@ -1960,7 +1925,6 @@ contains
     use mp, only: broadcast
     implicit none
     class(kt_grids_box_config_type), intent(in out) :: self
-    call broadcast(self%gryfx)
     call broadcast(self%jtwist)
     call broadcast(self%ly)
     call broadcast(self%n0)
@@ -2009,7 +1973,6 @@ module kt_grids
   public :: gridopt_switch, grid_option
   public :: gridopt_single, gridopt_range, gridopt_specified, gridopt_box
   public :: kwork_filter, kperp2, inv_kperp2
-  public :: gryfx
 
   public :: kt_grids_config_type
   public :: set_kt_grids_config
@@ -2145,18 +2108,6 @@ contains
       end select
     end if
   end subroutine set_overrides
-
-  !> Have we been called from a gryfx run or not?
-  pure function gryfx()
-    use kt_grids_box, only: gryfx_box => gryfx
-    implicit none
-    logical :: gryfx
-    if (gridopt_switch == gridopt_box) then
-       gryfx = gryfx_box
-    else
-       gryfx = .false.
-    end if
-  end function gryfx
 
   !> FIXME : Add documentation
   !>

@@ -109,7 +109,7 @@ contains
     character(1), intent(in) :: char
     !> Found r and theta indices
     integer :: jstar, istar
-    real :: r, thet
+    real :: thet
     !> Internal theta grid
     real, dimension(self%nt) :: mtheta
     real, dimension(self%nr) :: dim_1

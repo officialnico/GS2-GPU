@@ -1,6 +1,6 @@
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_geometry_file
-clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} grid.file
+clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME} grid.file eik_grid.bishop
 build_test_exe:
 ifdef TESTNORUN
 all:

@@ -342,12 +342,10 @@ contains
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics
     real, dimension(ntheta0, naky) :: diffusivity_by_k
-    !real :: diffusivity
     real :: heat_flux_max
     real, dimension(nspec) :: heat_flux_max_by_spec
     real :: particle_flux_max
     real, dimension(nspec) :: particle_flux_max_by_spec
-    !real :: grho
     real, dimension(ntheta0, naky, nspec) :: heat_flux
     real, dimension(ntheta0, naky, nspec) :: particle_flux
     real, dimension(naky, nspec) :: heat_flux_by_ky

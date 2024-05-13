@@ -196,7 +196,7 @@ geo.a: $(LIBDIR)/geo.a
 ### LIBGS2
 libgs2_all: $(LIBDIR)/libgs2.a
 
-$(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) $(OBJDIR)/gs2_gryfx_zonal.o |$(LIBDIR)
+$(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
 	$(QUIETSYM)$(RANLIB) $@

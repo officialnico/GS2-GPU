@@ -20,7 +20,7 @@ program ideal_ball
   !Set run name
   if(proc0) cbuff = trim(run_name)
   call broadcast(cbuff)
-  if(.not.proc0) run_name => cbuff
+  if(.not.proc0) run_name = cbuff
 
   !Initialise
   call init_ballstab

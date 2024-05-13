@@ -1712,7 +1712,7 @@ contains
     use constants, only: pi, sqrt_pi
     use gs2_save, only: init_vnm
     real, dimension(negrid):: hee, hsg, local_energy
-    integer :: ik, ie, is, it, ig
+    integer :: ik, ie, is, it
     integer :: istatus
     real :: k4max
     real :: vl, vr, dv2l, dv2r
@@ -1988,7 +1988,6 @@ contains
     use species, only: spec
     use theta_grid, only: bmag
     use le_grids, only: al, negrid, w=>w_maxw
-    use constants, only: sqrt_pi
     use kt_grids, only: kperp2
     use gs2_time, only: code_dt, tunits
 
@@ -2123,7 +2122,6 @@ contains
     end function capg
 
     elemental real function capg_old(xeA, xeB)
-      use constants, only: sqrt_pi
       real, intent(in) :: xeA, xeB
       capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * capg_kernel(xeB) / xeB
     end function capg_old
@@ -2131,9 +2129,9 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al, il_is_passing, il_is_wfb
+    use le_grids, only: negrid, jend, ng2, nxi, nlambda, al, il_is_passing, il_is_wfb
     use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
-    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, g_lo, le_lo
+    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, le_lo
     use theta_grid, only: ntgrid
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
@@ -2976,7 +2974,7 @@ contains
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, ixi_to_il
+    use le_grids, only: energy => energy_maxw, negrid
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -2985,7 +2983,7 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex :: tmp
-    integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
+    integer :: ig, it, ik, ie, is, ile, ixi
 
     if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
@@ -3201,8 +3199,8 @@ contains
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     complex :: v0y0, v1y1, v2y2
-    real :: vpa_nud, nud
-    integer :: ig, isgn, ik, ie, il, is, it, ile, ixi
+    real :: nud
+    integer :: ig, ik, ie, is, it, ile, ixi
 
     if (drag) then
        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3486,7 +3484,7 @@ contains
     implicit none
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     real :: delnu, vnE
-    integer :: ig, ik, ie, il, is, it, ile, ixi
+    integer :: ig, ik, ie, is, it, ile, ixi
     complex :: v0y0, v1y1, v2y2
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -3570,7 +3568,7 @@ contains
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, lambda_map, il_is_wfb, nxi, ng2
+    use le_grids, only: jend, lambda_map, il_is_wfb, nxi, ng2
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
@@ -4017,7 +4015,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi, forbid
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none
@@ -4027,48 +4025,56 @@ contains
 
     if (.not. allocated(vpdiff) .and. conservative) then
 
-       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda)) ; call zero_array(vpdiff)
+       allocate (vpdiff(-ntgrid:ntgrid, 2, nlambda)) ; call zero_array(vpdiff)
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)
-          if (il_is_passing(je) .or. il_is_wfb(je)) then
+          if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz)) then
              te = ng2
           else
              te = je
           end if
           do il = 2, te-1
-             slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-             slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
+             slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+             slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
              
-             slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-             slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
+             slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+             slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(il, ig)
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(il, ig)
           end do
 
           ! boundary at xi = 1
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
-          slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(1, ig)
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+          slbr = 0.5 * (slb1 + slb2)
+          vpdiff(ig, 1, 1) = (1.0 - slbr**2) / pitch_weights(1, ig)
           
           ! boundary at xi = 0
           il = te
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          if (te == ng2) then
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          if (te == ng2) then ! Passing
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
              slb2 = -slb1
           else
+             ! We would expect safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 here so could just
+             ! use slb1 = safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 for both branches?
              slb1 = 0.0
              slb2 = -slb0
           end if
           
-          slbl = (slb1 + slb0)*0.5
-          slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(il, ig)
+          slbl = (slb1 + slb0) * 0.5
+          slbr = (slb1 + slb2) * 0.5
+
+          if (abs(pitch_weights(il, ig)) <= epsilon(0.0)) then
+             vpdiff(ig, 1, il) = 0.0
+          else
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(il, ig)
+          end if
           
-          vpdiff(ig,2,:) = -vpdiff(ig,1,:)
+          vpdiff(ig, 2, :) = -vpdiff(ig, 1, :)
+          
        end do
 
        if (use_le_layout) then
