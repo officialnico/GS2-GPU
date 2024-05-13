@@ -5614,10 +5614,10 @@ contains
        ! time advance vpar < 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-       ! We can approximate the derivative at ntgrid - 1/2 as
+       ! We can approximate the derivative at ntgrid as
        !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
        ! We can then extrapolate to ig = ntgrid + 1/2 as
-       !   g_{ig+1} = g_boundary + (dtheta/2) * dg/dtheta
+       !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
        ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
        !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
        ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
