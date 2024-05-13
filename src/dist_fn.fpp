@@ -5622,14 +5622,17 @@ contains
        !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
        ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
        !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
+       ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(ntgrid-1,2,iglo)
+       ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
+       !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
+       !                (3 + r(ntgrid-1,2,iglo))
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
-          ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
-          ig = ntgrid - 1
-          gnew(ig, 2, iglo) = -gnew(ig + 1, 2, iglo) * r(ig, 2, iglo) + &
-               ainv(ig, 2, iglo) * source(ig, 2, iglo)
-          ! Now form the derivative and extrapolate
-          gnew(ig+1, 2, iglo) = (gnew(ig, 2, iglo) - gnew(ig + 1, 2, iglo)) * 0.5
+          gnew(ntgrid, 2, iglo) = ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) / &
+               (3 + r(ntgrid, 2, iglo))
        end if
 
        ! inhomogeneous part: gnew
@@ -5672,14 +5675,25 @@ contains
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
 
+       ! We can approximate the derivative at -ntgrid as
+       !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
+       ! We can then extrapolate to ig = -ntgrid - 1/2 as
+       !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
+       ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
+       !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
+       ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
+       ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
+       !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
+       !                (3 + r(-ntgrid,1,iglo))
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (l_links(it, ik) == 0) ) then
-          ! Use our usual integration to find gnew(ntgrid-1,2,iglo)
-          ig = -ntgrid
-          gnew(ig + 1, 1, iglo) = -gnew(ig, 1, iglo) * r(ig, 1, iglo) + &
-               ainv(ig, 1, iglo) * source(ig, 1, iglo)
-          ! Now form the derivative and extrapolate
-          gnew(ig, 1, iglo) = (gnew(ig + 1, 1, iglo) - gnew(ig, 1, iglo)) * 0.5
+          gnew(-ntgrid, 1, iglo) = ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) / &
+               (3 + r(-ntgrid, 1, iglo))
        end if
 
        ! time advance vpar > 0 inhomogeneous part
