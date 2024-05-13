@@ -272,7 +272,7 @@ contains
   !> FIXME : Add documentation    
   subroutine read_parameters(knobs_config_in)
     use file_utils, only: input_unit, error_unit, input_unit_exist
-    use mp, only: proc0, broadcast
+    use mp, only: proc0, broadcast, mp_abort
     use text_options, only: text_option, get_option_value
     use ran, only: set_seed_from_single_integer
     implicit none
@@ -292,10 +292,13 @@ contains
     integer :: ierr, in_file
     logical :: rpexist
     !> Identify if we need to warn about removal of parameters
+    rpexist = .false.
     if (proc0) then
        in_file = input_unit_exist('parameters', rpexist)
        if (rpexist) write(*, '("Warning: Input file contains namelist ",A," but this has been removed. Inputs have been migrated to ",A)') "'parameters'", "'knobs'"
     end if
+    call broadcast(rpexist)
+    if (rpexist) call mp_abort('Input file contains deprecated "parameters" namelist -- inputs migrated to "knobs".', .true.)
     
     if (present(knobs_config_in)) knobs_config = knobs_config_in
     call knobs_config%init(name = 'knobs', requires_index = .false.)
