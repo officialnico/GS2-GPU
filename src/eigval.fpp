@@ -339,28 +339,28 @@ module eigval
     subroutine EPSGetType(eps, epstype, ierr)
       import tEPS
       type(tEPS), intent(in) :: eps
-      type(EPSType), intent(out) :: epstype
+      EPSType, intent(out) :: epstype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine EPSGetType
 
     subroutine EPSSetType(eps, epstype, ierr)
       import tEPS
       type(tEPS), intent(in) :: eps
-      type(EPSType), intent(in) :: epstype
+      EPSType, intent(in) :: epstype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine EPSSetType
 
     subroutine STGetType(st, sttype, ierr)
       import tST
       type(tST), intent(in) :: st
-      type(STType), intent(out) :: sttype
+      STType, intent(out) :: sttype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine STGetType
 
     subroutine STSetType(st, sttype, ierr)
       import tST
       type(tST), intent(in) :: st
-      type(STType), intent(in) :: sttype
+      STType, intent(in) :: sttype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine STSetType
 
