@@ -5635,7 +5635,7 @@ contains
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
           gnew(ntgrid, 2, iglo) = ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) / &
-               (3 + r(ntgrid, 2, iglo))
+               (3 + r(ntgrid-1, 2, iglo))
        end if
 
        ! inhomogeneous part: gnew
