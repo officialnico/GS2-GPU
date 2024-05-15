@@ -134,7 +134,7 @@ gfortran13_mpich:
     CASENAME: "gfortran_13_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "openblas openblas-devel diffutils"
-    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
+    EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on F90FLAGS+=-std=f2008"
 # MPICH performs very poorly when oversubscribed so we limit our integrated tests to
 # one process only.
     EXTRA_TEST_FLAGS: "NTESTPROCS=1"
