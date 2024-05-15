@@ -115,12 +115,12 @@ module dist_fn
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
-  real :: phi_ext, afilter
+  real :: phi_ext, afilter, exponential_boundary_factor
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
-  logical :: start_from_previous_solution, boundary_off_grid
+  logical :: start_from_previous_solution, boundary_off_grid, exponential_boundary
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
 
   integer :: adiabatic_option_switch
@@ -354,6 +354,12 @@ module dist_fn
      logical :: esv = .false.
      !> If `def_parity` is true, determines allowed parity.
      logical :: even = .true.
+     !> If true then attempt to enforce an exponential decay boundary condition
+     !> on gnew or hnew (depending on [[nonad_zero]]). Decay rate scaled by
+     !> [[exponential_boundary_factor]]
+     logical :: exponential_boundary = .false.
+     !> Factor scaling the exponential decay boundary condition
+     real :: exponential_boundary_factor = 1.0
      !> \(\frac{\rho}{q} \frac{d\Omega^{\rm GS2}}{d\rho_n}\) where
      !> \(\Omega^{\rm GS2}\) is toroidal angular velocity normalised
      !> to the reference frequency \(v_{t}^{\rm ref}/a\) and
@@ -1293,6 +1299,8 @@ contains
     driftknob = dist_fn_config%driftknob
     esv = dist_fn_config%esv
     even = dist_fn_config%even
+    exponential_boundary = dist_fn_config%exponential_boundary
+    exponential_boundary_factor = dist_fn_config%exponential_boundary_factor
     g_exb = dist_fn_config%g_exb
     g_exb_error_limit = dist_fn_config%g_exb_error_limit
     g_exb_start_time = dist_fn_config%g_exb_start_time
@@ -10507,12 +10515,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: boundary_off_grid, def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
-    real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
+    logical :: boundary_off_grid, def_parity, esv, even, exponential_boundary, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
+    real :: afilter, apfac, btor_slab, driftknob, exponential_boundary_factor, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_off_grid, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, &
-         g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, &
-         opt_source, poisfac, start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_off_grid, boundary_option, btor_slab, def_parity, driftknob, esv, even, exponential_boundary, exponential_boundary_factor, &
+         g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, &
+         mult_imp, nonad_zero, omprimfac, opt_source, poisfac, start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10528,6 +10536,8 @@ contains
     driftknob = self%driftknob
     esv = self%esv
     even = self%even
+    exponential_boundary = self%exponential_boundary
+    exponential_boundary_factor = self%exponential_boundary_factor
     g_exb = self%g_exb
     g_exb_error_limit = self%g_exb_error_limit
     g_exb_start_time = self%g_exb_start_time
@@ -10565,6 +10575,8 @@ contains
     self%driftknob = driftknob
     self%esv = esv
     self%even = even
+    self%exponential_boundary = exponential_boundary
+    self%exponential_boundary_factor = exponential_boundary_factor
     self%g_exb = g_exb
     self%g_exb_error_limit = g_exb_error_limit
     self%g_exb_start_time = g_exb_start_time
@@ -10613,6 +10625,8 @@ contains
     call self%write_key_val("driftknob", self%driftknob, unit_internal)
     call self%write_key_val("esv", self%esv, unit_internal)
     call self%write_key_val("even", self%even, unit_internal)
+    call self%write_key_val("exponential_boundary", self%exponential_boundary, unit_internal)
+    call self%write_key_val("exponential_boundary_factor", self%exponential_boundary_factor, unit_internal)
     call self%write_key_val("g_exb", self%g_exb, unit_internal)
     call self%write_key_val("g_exb_error_limit", self%g_exb_error_limit, unit_internal)
     call self%write_key_val("g_exb_start_time", self%g_exb_start_time, unit_internal)
@@ -10663,6 +10677,8 @@ contains
     call broadcast(self%driftknob)
     call broadcast(self%esv)
     call broadcast(self%even)
+    call broadcast(self%exponential_boundary)
+    call broadcast(self%exponential_boundary_factor)
     call broadcast(self%g_exb)
     call broadcast(self%g_exb_error_limit)
     call broadcast(self%g_exb_start_time)
@@ -10687,7 +10703,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_dist_fn_config()
     implicit none
@@ -10701,11 +10717,11 @@ contains
     logical :: get_default_requires_index_dist_fn_config
     get_default_requires_index_dist_fn_config = .false.
   end function get_default_requires_index_dist_fn_config
-  
+
   !---------------------------------------
   ! Following is for the source config_type
   !---------------------------------------
-  
+
   !> Reads in the source_knobs namelist and populates the member variables
   subroutine read_source_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -10717,7 +10733,7 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: source_option
     real :: gamma0, omega0, phi_ext, source0, t0
 
