@@ -5432,7 +5432,7 @@ contains
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g, get_adjust
-    use theta_grid, only: ntgrid
+    use theta_grid, only: ntgrid, delthet
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
@@ -5460,9 +5460,9 @@ contains
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1, is_passing_like, nonad_corr) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, boundary_off_grid, &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, delthet, &
+    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, exponential_boundary_factor, &
+    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, boundary_off_grid, exponential_boundary, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
     !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
     !$OMP SCHEDULE(static)
@@ -5672,6 +5672,42 @@ contains
              gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
                   nonad_corr) / (3 + r(-ntgrid, 1, iglo))
           end if
+       end if
+
+       ! Try to impose an exponential decay at the boundary. If we suppose we have g(theta) = exp(-/+|alpha|theta)
+       ! (with the sign taken depending on right or left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|
+       ! Consider right boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i]. Given g_{i-1} = - r g_i + ainv.source
+       ! we get -|alpha| dtheta g_i = [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source and hence
+       ! g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary we pick the other sign of |alpha| but also have
+       ! dg/dtheta = [g_{i+1} - g_i]/dtheta (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
+       ! One can also generalise to set the exponential decay on h and we end up with ainv.source -> ainv.source + 2 Adj(-ntgrid) - Adj(-ntgrid+1)
+       if (exponential_boundary .and. is_passing_like .and. .not. is_self_periodic) then
+          if (r_links(it, ik) == 0) then
+             if (nonad_zero) then
+                nonad_corr = 2 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew) - &
+                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             else
+                nonad_corr = 0.0
+             end if
+
+             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1,2,iglo) - &
+                  nonad_corr) / (r(ntgrid-1,2,iglo) + 1 + &
+                  exponential_boundary_factor * delthet(ntgrid-1))
+          end if
+
+          if (l_links(it, ik) == 0) then
+             if (nonad_zero) then
+                nonad_corr = 2 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew) - &
+                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             else
+                nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid,1,iglo) - &
+               nonad_corr) / (r(-ntgrid,1,iglo) + 1 + &
+               exponential_boundary_factor * delthet(-ntgrid))
        end if
 
        !/////////////////////////
