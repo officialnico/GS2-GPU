@@ -5586,7 +5586,7 @@ contains
        !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( nonad_zero .and. is_passing_like ) then
+       if ( (.not. boundary_off_grid) .and. nonad_zero .and. is_passing_like ) then
           !Only apply the new boundary condition to the leftmost
           !cell for sign going from left to right
           if (l_links(it, ik) .eq. 0) then
