@@ -5674,13 +5674,17 @@ contains
           end if
        end if
 
-       ! Try to impose an exponential decay at the boundary. If we suppose we have g(theta) = exp(-/+|alpha|theta)
-       ! (with the sign taken depending on right or left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|
-       ! Consider right boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i]. Given g_{i-1} = - r g_i + ainv.source
-       ! we get -|alpha| dtheta g_i = [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source and hence
-       ! g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary we pick the other sign of |alpha| but also have
-       ! dg/dtheta = [g_{i+1} - g_i]/dtheta (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
-       ! One can also generalise to set the exponential decay on h and we end up with ainv.source -> ainv.source + 2 Adj(-ntgrid) - Adj(-ntgrid+1)
+       ! Try to impose an exponential decay at the boundary. If we suppose we have
+       ! g(theta) = exp(-/+|alpha|theta)(with the sign taken depending on right or
+       ! left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|Consider right
+       ! boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i].
+       ! Given g_{i-1} = - r g_i + ainv.source we get -|alpha| dtheta g_i =
+       ! [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source
+       ! and hence g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary
+       ! we pick the other sign of |alpha| but also have dg/dtheta = [g_{i+1} - g_i]/dtheta
+       ! (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
+       ! One can also generalise to set the exponential decay on h and we end up with
+       ! ainv.source -> ainv.source + 2 Adj(-ntgrid) - Adj(-ntgrid+1)
        if (exponential_boundary .and. is_passing_like .and. .not. is_self_periodic) then
           if (r_links(it, ik) == 0) then
              if (nonad_zero) then
@@ -5691,8 +5695,8 @@ contains
                 nonad_corr = 0.0
              end if
 
-             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1,2,iglo) - &
-                  nonad_corr) / (r(ntgrid-1,2,iglo) + 1 + &
+             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+                  nonad_corr) / (r(ntgrid-1, 2, iglo) + 1 + &
                   exponential_boundary_factor * delthet(ntgrid-1))
           end if
 
@@ -5705,8 +5709,8 @@ contains
                 nonad_corr = 0.0
              end if
 
-             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid,1,iglo) - &
-                  nonad_corr) / (r(-ntgrid,1,iglo) + 1 + &
+             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+                  nonad_corr) / (r(-ntgrid, 1, iglo) + 1 + &
                   exponential_boundary_factor * delthet(-ntgrid))
           end if
        end if
