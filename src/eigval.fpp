@@ -333,7 +333,7 @@ module eigval
     end subroutine MatCreateShell
 
     subroutine MatShellSetOperation(a, b, c, ierr)
-      import tMat
+      import tMat, tVec
       type(tMat), intent(in) :: a
       type(PetscInt), intent(in) :: b
       interface
