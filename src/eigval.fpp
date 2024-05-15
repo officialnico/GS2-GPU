@@ -35,6 +35,18 @@ module eigval
 #include <slepc/finclude/slepceps.h>
 #endif
 
+  ! Redefine some types that we use directly to avoid
+  ! relying on a non-standard declaration which not all
+  ! compilers understand
+#ifdef EPSType
+#undef EPSType
+#define EPSType character(len=80)
+#endif
+#ifdef STType
+#undef STType
+#define STType character(len=80)
+#endif
+
   private
 
   public :: eigval_functional
@@ -339,28 +351,28 @@ module eigval
     subroutine EPSGetType(eps, epstype, ierr)
       import tEPS
       type(tEPS), intent(in) :: eps
-      EPSType, intent(out) :: epstype
+      type(EPSType), intent(out) :: epstype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine EPSGetType
 
     subroutine EPSSetType(eps, epstype, ierr)
       import tEPS
       type(tEPS), intent(in) :: eps
-      EPSType, intent(in) :: epstype
+      type(EPSType), intent(in) :: epstype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine EPSSetType
 
     subroutine STGetType(st, sttype, ierr)
       import tST
       type(tST), intent(in) :: st
-      STType, intent(out) :: sttype
+      type(STType), intent(out) :: sttype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine STGetType
 
     subroutine STSetType(st, sttype, ierr)
       import tST
       type(tST), intent(in) :: st
-      STType, intent(in) :: sttype
+      type(STType), intent(in) :: sttype
       type(PetscErrorCode), intent(out) :: ierr
     end subroutine STSetType
 
