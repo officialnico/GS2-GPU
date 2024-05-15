@@ -5438,6 +5438,7 @@ contains
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
+    complex :: nonad_corr
     integer :: iglo
     integer :: ig, ik, it, il, ie, is
     integer :: ilmin
@@ -5450,7 +5451,7 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
     !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
-    !$OMP adjright, adjleft, ig, beta1, is_passing_like) &
+    !$OMP adjright, adjleft, ig, beta1, is_passing_like, nonad_corr) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
     !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, boundary_off_grid, &
@@ -5628,8 +5629,16 @@ contains
        ! where we have g = h + Adj
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
-          gnew(ntgrid, 2, iglo) = ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) / &
-               (3 + r(ntgrid-1, 2, iglo))
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+               nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
        end if
 
        ! inhomogeneous part: gnew
@@ -5692,8 +5701,16 @@ contains
        ! where we have g = h + Adj
        if (boundary_off_grid .and. is_passing_like &
             .and. (.not. is_self_periodic) .and. (l_links(it, ik) == 0) ) then
-          gnew(-ntgrid, 1, iglo) = ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) / &
-               (3 + r(-ntgrid, 1, iglo))
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+               nonad_corr) / (3 + r(-ntgrid, 1, iglo))
        end if
 
        ! time advance vpar > 0 inhomogeneous part
