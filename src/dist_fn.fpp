@@ -5703,11 +5703,12 @@ contains
                      get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
              else
                 nonad_corr = 0.0
-          end if
+             end if
 
-          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid,1,iglo) - &
-               nonad_corr) / (r(-ntgrid,1,iglo) + 1 + &
-               exponential_boundary_factor * delthet(-ntgrid))
+             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid,1,iglo) - &
+                  nonad_corr) / (r(-ntgrid,1,iglo) + 1 + &
+                  exponential_boundary_factor * delthet(-ntgrid))
+          end if
        end if
 
        !/////////////////////////
