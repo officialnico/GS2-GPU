@@ -5423,7 +5423,7 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 (phinew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g, get_adjust
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -5589,20 +5589,14 @@ contains
           !Only apply the new boundary condition to the leftmost
           !cell for sign going from left to right
           if (l_links(it, ik) .eq. 0) then
-             adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-                  *bparnew(-ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(-ntgrid,1,iglo) = -adjleft
+             adjleft = get_adjust(-ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
           end if
           !Only apply the new boundary condition to the rightmost
           !cell for sign going from right to left
           if (r_links(it, ik) .eq. 0) then
-             adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-                  *bparnew(ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(ntgrid,2,iglo) = -adjright
+             adjright = get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo)-adjright
           end if
        end if
 
