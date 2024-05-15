@@ -5605,7 +5605,72 @@ contains
           !cell for sign going from right to left
           if (r_links(it, ik) .eq. 0) then
              adjright = get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo)-adjright
+             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+          end if
+       end if
+
+       ! -- Set g or h to zero one half grid point past the end of the grid
+       if (boundary_off_grid .and. is_passing_like .and. .not. is_self_periodic) then
+          ! We can approximate the derivative at ntgrid as
+          !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
+          ! We can then extrapolate to ig = ntgrid + 1/2 as
+          !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
+          ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
+          !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
+          ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
+          !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
+          ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
+          !   3 g_boundary = gnew(ntgrid-1,2,iglo)
+          ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
+          !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
+          ! Substituting this we find
+          !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
+          !                (3 + r(ntgrid-1,2,iglo))
+          ! If we wanted to set h = 0 at the half grid point instead of g then
+          ! we would find that ainv*source --> ainv*source + 3 * Adj(ntgrid)-Adj(ntgrid-1)
+          ! where we have g = h + Adj
+          if (r_links(it, ik) == 0) then
+             if (nonad_zero) then
+                nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew) - &
+                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             else
+                nonad_corr = 0.0
+             end if
+
+             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+                  nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
+          end if
+
+          ! We can approximate the derivative at -ntgrid as
+          !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
+          ! We can then extrapolate to ig = -ntgrid - 1/2 as
+          !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
+          ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
+          !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
+          ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
+          !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
+          ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
+          !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
+          ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
+          !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
+          ! Substituting this we find
+          !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
+          !                (3 + r(-ntgrid,1,iglo))
+          ! If we wanted to set h = 0 at the half grid point instead of g then
+          ! we would find that ainv*source --> ainv*source + 3 * Adj(-ntgrid)-Adj(-ntgrid+1)
+          ! where we have g = h + Adj
+          if (l_links(it, ik) == 0) then
+             if (nonad_zero) then
+                nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew) - &
+                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+             else
+                nonad_corr = 0.0
+             end if
+
+             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+                  nonad_corr) / (3 + r(-ntgrid, 1, iglo))
           end if
        end if
 
@@ -5616,38 +5681,6 @@ contains
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
        ! time advance vpar < 0   !
        !!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-       ! We can approximate the derivative at ntgrid as
-       !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
-       ! We can then extrapolate to ig = ntgrid + 1/2 as
-       !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
-       ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
-       !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
-       ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
-       !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
-       ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
-       !   3 g_boundary = gnew(ntgrid-1,2,iglo)
-       ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
-       !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
-       ! Substituting this we find
-       !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
-       !                (3 + r(ntgrid-1,2,iglo))
-       ! If we wanted to set h = 0 at the half grid point instead of g then
-       ! we would find that ainv*source --> ainv*source + 3 * Adj(ntgrid)-Adj(ntgrid-1)
-       ! where we have g = h + Adj
-       if (boundary_off_grid .and. is_passing_like &
-            .and. (.not. is_self_periodic) .and. (r_links(it, ik) == 0) ) then
-          if (nonad_zero) then
-             nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
-                  fphi, fbpar, phinew, bparnew) - &
-                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-          else
-             nonad_corr = 0.0
-          end if
-
-          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
-               nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
-       end if
 
        ! inhomogeneous part: gnew
        ! r=ainv=0 if forbid(ig,il) or forbid(ig+1,il), so gnew=0 in forbidden
@@ -5688,38 +5721,6 @@ contains
           ig = -ntgrid
           gnew(ig,1,iglo) = gnew(ig,2,iglo)
        endif
-
-       ! We can approximate the derivative at -ntgrid as
-       !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
-       ! We can then extrapolate to ig = -ntgrid - 1/2 as
-       !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
-       ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
-       !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
-       ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
-       !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
-       ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
-       !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
-       ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
-       !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
-       ! Substituting this we find
-       !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
-       !                (3 + r(-ntgrid,1,iglo))
-       ! If we wanted to set h = 0 at the half grid point instead of g then
-       ! we would find that ainv*source --> ainv*source + 3 * Adj(-ntgrid)-Adj(-ntgrid+1)
-       ! where we have g = h + Adj
-       if (boundary_off_grid .and. is_passing_like &
-            .and. (.not. is_self_periodic) .and. (l_links(it, ik) == 0) ) then
-          if (nonad_zero) then
-             nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
-                  fphi, fbpar, phinew, bparnew) - &
-                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-          else
-             nonad_corr = 0.0
-          end if
-
-          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
-               nonad_corr) / (3 + r(-ntgrid, 1, iglo))
-       end if
 
        ! time advance vpar > 0 inhomogeneous part
        do ig = -ntgrid, ntgrid - 1
