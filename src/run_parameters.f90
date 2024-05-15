@@ -293,12 +293,9 @@ contains
     logical :: rpexist
     !> Identify if we need to warn about removal of parameters
     rpexist = .false.
-    if (proc0) then
-       in_file = input_unit_exist('parameters', rpexist)
-       if (rpexist) write(*, '("Warning: Input file contains namelist ",A," but this has been removed. Inputs have been migrated to ",A)') "'parameters'", "'knobs'"
-    end if
+    if (proc0) in_file = input_unit_exist('parameters', rpexist)
     call broadcast(rpexist)
-    if (rpexist) call mp_abort('Input file contains deprecated "parameters" namelist -- inputs migrated to "knobs".', .true.)
+    if (rpexist) call mp_abort('Input file contains deprecated "parameters" namelist -- Please move inputs to "knobs".', .true.)
     
     if (present(knobs_config_in)) knobs_config = knobs_config_in
     call knobs_config%init(name = 'knobs', requires_index = .false.)
