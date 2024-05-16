@@ -5684,7 +5684,7 @@ contains
        ! we pick the other sign of |alpha| but also have dg/dtheta = [g_{i+1} - g_i]/dtheta
        ! (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
        ! One can also generalise to set the exponential decay on h and we end up with
-       ! ainv.source -> ainv.source + 2 Adj(-ntgrid) - Adj(-ntgrid+1)
+       ! ainv.source -> ainv.source + (1+|alpha|dtheta) Adj(-ntgrid) - Adj(-ntgrid+1)
        if (exponential_boundary .and. is_passing_like .and. .not. is_self_periodic) then
           if (r_links(it, ik) == 0) then
              if (nonad_zero) then
