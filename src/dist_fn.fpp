@@ -5594,7 +5594,7 @@ contains
        !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
        ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
        !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( (.not. boundary_off_grid) .and. nonad_zero .and. is_passing_like ) then
+       if ( (.not. (boundary_off_grid.or.exponential_boundary)) .and. nonad_zero .and. is_passing_like ) then
           !Only apply the new boundary condition to the leftmost
           !cell for sign going from left to right
           if (l_links(it, ik) .eq. 0) then
@@ -5688,9 +5688,11 @@ contains
        if (exponential_boundary .and. is_passing_like .and. .not. is_self_periodic) then
           if (r_links(it, ik) == 0) then
              if (nonad_zero) then
-                nonad_corr = 2 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                nonad_corr =  (1 + exponential_boundary_factor * delthet(ntgrid-1)) * &
+                     get_adjust(ntgrid, it, ik, ie, is, iglo, &
                      fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew)
              else
                 nonad_corr = 0.0
              end if
@@ -5702,9 +5704,11 @@ contains
 
           if (l_links(it, ik) == 0) then
              if (nonad_zero) then
-                nonad_corr = 2 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                nonad_corr = (1 + exponential_boundary_factor * delthet(-ntgrid)) * &
+                     get_adjust(-ntgrid, it, ik, ie, is, iglo, &
                      fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, &
+                     fphi, fbpar, phinew, bparnew)
              else
                 nonad_corr = 0.0
              end if
