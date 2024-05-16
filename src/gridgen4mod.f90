@@ -680,6 +680,7 @@ contains
       nessential_tot = 0
       do i = 1, nsetset
          iset = ibmagsetset(i)
+         if (iset == 0) cycle
          if (.not. essentialset(iset)) cycle
          if (bmagset(iset) == 0) cycle
          nessential_tot = nessential_tot + 1
