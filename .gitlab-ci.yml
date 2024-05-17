@@ -171,10 +171,10 @@ intel_tests:
   artifacts:
   variables:
     CASENAME: "intel"
-    EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= QUIET="
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
     GS2_PACKAGES: "cpp gcc"
-    EXTRA_PACKAGES: "dnf-plugins-core"
+    EXTRA_PACKAGES: "dnf-plugins-core tree"
     WITH_PYTHON: "no"
     WITH_MPI: "no"
     GK_CI_PFUNIT: ""
