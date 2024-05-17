@@ -3619,8 +3619,11 @@ contains
 
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
-    ! the linked location. Note we need this communication pattern whenever we may
-    ! allow gnew/=0 on the real incoming boundary (i.e. at the end of the supercell).
+    ! the linked location. To be explicit, if we allow gnew /= 0 at an internal (linked)
+    ! boundary in invert_rhs_1 then we need this communication pattern. Currently this
+    ! is only possible if we start from the previous solution. This may also be true
+    ! for the wfb when treated as trapped, but if trapped then it doesn't see the
+    ! linked cells.
     if (start_from_previous_solution) then
        call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
     end if
