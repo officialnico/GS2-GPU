@@ -145,8 +145,8 @@ if __name__ == "__main__":
             ],
             visit_routine=more_general_module_routine_string,
             visit_args={
-                "imports": "  use le_grids, only: init_le_grids, finish_le_grids\n  logical :: dummy1, dummy2",
-                "up_action": "    call init_le_grids(dummy1, dummy2)",
+                "imports": "  use le_grids, only: init_le_grids, finish_le_grids",
+                "up_action": "    call init_le_grids",
                 "down_action": "    call finish_le_grids",
             },
         ),

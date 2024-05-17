@@ -1,8 +1,7 @@
 
 sinclude ../Makefile.tests_common
 TEST_BASE_NAME:=test_init_g_nonadiabatic
-CLEANCOMMAND+= ${TEST_BASE_NAME}
-
+clean_individual_test: LOCAL_TEST_FILES:= ${TEST_BASE_NAME}
 build_test_exe: ${TEST_BASE_NAME}
 
 ifdef TESTNORUN

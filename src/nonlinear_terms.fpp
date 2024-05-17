@@ -17,7 +17,7 @@ module nonlinear_terms
   public :: finish_init, reset_init, nonlin, accelerated
   public :: cfl, time_add_explicit_terms, time_add_explicit_terms_mpi
   public :: time_add_explicit_terms_field, nonlinear_mode_none, nonlinear_mode_on
-  public :: gryfx_zonal, calculate_current_nl_source_and_cfl_limit
+  public :: calculate_current_nl_source_and_cfl_limit
   public :: cfl_req_hand, nb_check_time_step_too_large
   public :: nonlinear_terms_testing
 
@@ -31,16 +31,6 @@ module nonlinear_terms
       procedure, nopass :: add_nl
 
   end type nonlinear_terms_testing
-
-  !> FIXME : Add documentation  
-  type gs2_gryfx_zonal_type
-    logical :: on = .false.
-    complex(real32), dimension (:), pointer :: NLdens_ky0, NLupar_ky0, NLtpar_ky0, &
-                                         NLtprp_ky0, NLqpar_ky0, NLqprp_ky0
-    logical :: first_half_step = .false.
-  end type gs2_gryfx_zonal_type
-
-  type(gs2_gryfx_zonal_type) :: gryfx_zonal
 
   integer :: istep_last = 0
 
@@ -79,9 +69,6 @@ module nonlinear_terms
   integer :: istep_error_start
   logical :: use_order_based_error
 
-! for gryfx
-  real :: densfac, uparfac, tparfac, tprpfac, qparfac, qprpfac
-
   logical :: split_nonlinear
   logical :: include_apar, include_bpar, include_phi
 
@@ -112,8 +99,6 @@ module nonlinear_terms
      !> * delt` is the maximum distance travelled in a single
      !> timestep.
      real :: cfl = 0.1
-     !> GRYFX only. No documentation available
-     real :: densfac = 1.
      !> Set the error threshold used to determine when the timestep should change if
      !> [[nonlinear_terms_knobs:use_order_based_error]] is true.
      real :: error_target = 0.1
@@ -139,19 +124,9 @@ module nonlinear_terms
      !>
      !> Could consider changing this to a logical.
      character(len = 20) :: nonlinear_mode = 'default'
-     !> GRYFX only. No documentation available
-     real :: qparfac = 1./sqrt(8.)
-     !> GRYFX only. No documentation available
-     real :: qprpfac = 1./sqrt(8.)
      !> Do we evolve the nonlinear term separately from the linear terms (true) or
      !> include the nonlinear term as a source in the standard algorithm (false).
      logical :: split_nonlinear = .false.
-     !> GRYFX only. No documentation available
-     real :: tparfac = 1./2.
-     !> GRYFX only. No documentation available
-     real :: tprpfac = 1./2.
-     !> GRYFX only. No documentation available
-     real :: uparfac = 1./sqrt(2.)
      !> If true then use the cfl limit to set the maximum timestep allowed.
      logical :: use_cfl_limit = .true.
      !> If true then use an error estimate from comparing the nonlinear source
@@ -322,7 +297,6 @@ contains
 #endif
     implicit none
     type(nonlinear_terms_config_type), intent(in), optional :: nonlinear_terms_config_in
-    logical :: dum1, dum2
     logical, parameter :: debug=.false.
 
     if (initialized) return
@@ -335,7 +309,7 @@ contains
     if (debug) write(6,*) "init_nonlinear_terms: init_kt_grids"
     call init_kt_grids
     if (debug) write(6,*) "init_nonlinear_terms: init_le_grids"
-    call init_le_grids (dum1, dum2)
+    call init_le_grids
     if (debug) write(6,*) "init_nonlinear_terms: init_species"
     call init_species
     if (debug) write(6,*) "init_nonlinear_terms: init_dist_fn_layouts"
@@ -401,7 +375,6 @@ contains
 
     ! Copy out internal values into module level parameters
     cfl = nonlinear_terms_config%cfl
-    densfac = nonlinear_terms_config%densfac
     error_target = nonlinear_terms_config%error_target
     include_apar = nonlinear_terms_config%include_apar
     include_bpar = nonlinear_terms_config%include_bpar
@@ -409,12 +382,7 @@ contains
     istep_error_start = nonlinear_terms_config%istep_error_start
     nl_forbid_force_zero = nonlinear_terms_config%nl_forbid_force_zero
     nonlinear_mode = nonlinear_terms_config%nonlinear_mode
-    qparfac = nonlinear_terms_config%qparfac
-    qprpfac = nonlinear_terms_config%qprpfac
     split_nonlinear = nonlinear_terms_config%split_nonlinear
-    tparfac = nonlinear_terms_config%tparfac
-    tprpfac = nonlinear_terms_config%tprpfac
-    uparfac = nonlinear_terms_config%uparfac
     use_cfl_limit = nonlinear_terms_config%use_cfl_limit
     use_order_based_error = nonlinear_terms_config%use_order_based_error
     zip = nonlinear_terms_config%zip
@@ -543,13 +511,9 @@ contains
        ! and store it in g1
        if (present(nl)) then
           call debug_message(verb, 'nonlinear_terms::add_explicit calling add_nl')
-          if(gryfx_zonal%on) then
-             call add_nl_gryfx (g1)
-          else
-             call add_nl (g, g1, phi, apar, bpar)
-          endif
-          ! takes g1 at grid points and returns 2*g1 at cell centers
+          call add_nl (g, g1, phi, apar, bpar)
 
+          ! takes g1 at grid points and returns 2*g1 at cell centers
           call nl_center (g1, bd)
 
           ! Currently the module level max_vel contains the maximum
@@ -1230,79 +1194,6 @@ contains
        endif
     endif
   end subroutine calculate_bracket
-  
-  !> this subroutine constructs the GK nonlinear term from the 6 GryfX
-  !! gyrofluid nonlinear terms.  we first construct in gryfx units.
-  !! gryfx uses vt=sqrt(T/m) normalization, 
-  !! so vt_gs2 = sqrt(2T/m) = sqrt(2) vt_gryfx.
-  !! since vpa and vperp2 are normalized to vt_gs2, below we multiply by
-  !! factors of sqrt(2) to get vpa and vperp2 in gryfx units, i.e.
-  !! vpa_gryfx = sqrt(2) vpa
-  !! vperp2_gryfx = 2 vperp2
-  !!
-  !! the Hermite-Laguerre construction of the distribution from the gyrofluid
-  !! moments is of the form
-  !! df/F_M = n + vpar/vt upar + 1/2(vpar^2/vt^2-1) tpar 
-  !! + (vprp^2/2vt^2-1) tprp + 1/6(vpar^3/3vt^3 - 3 vpar/vt) qpar
-  !! + vpar/vt (vprp^2/2vt^2-1) qprp
-  !! where vt=vt_gryfx, and moments are normalized in gryfx units
-  subroutine add_nl_gryfx (g1)
-    use mp, only: max_allreduce
-    use theta_grid, only: ntgrid
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx
-    use dist_fn_arrays, only: vpa, vperp2
-    use gs2_transforms, only: transform2, inverse2
-    use gs2_time, only: save_dt_cfl, check_time_step_too_large
-    use mp, only: broadcast
-    implicit none
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g1
-
-    integer :: iglo, ik, it, ig, iz, is, isgn, index_gryfx
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       it = it_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          do ig = -ntgrid, ntgrid
-             iz = ig + ntgrid + 1
-             if(ig==ntgrid) iz = 1 ! periodic point not included in gryfx arrays
-             index_gryfx = 1 + (ik-1) + g_lo%naky*((it-1)) + &
-                  g_lo%naky*g_lo%ntheta0*(iz-1) + &
-                  (2*ntgrid)*g_lo%naky*g_lo%ntheta0*(is-1)
-             
-             g1(ig,isgn,iglo) =  gryfx_zonal%NLdens_ky0(index_gryfx) + &
-                  
-                  0.5*(2.*vpa(ig,isgn,iglo)*vpa(ig,isgn,iglo) - 1.)* &
-                  gryfx_zonal%NLtpar_ky0(index_gryfx) + &
-                  
-                  (vperp2(ig,iglo) - 1.0)* &
-                  gryfx_zonal%NLtprp_ky0(index_gryfx) + &
-
-                  sqrt(2.)*vpa(ig,isgn,iglo)* &
-                     gryfx_zonal%NLupar_ky0(index_gryfx) + &
-                     
-                     1./6.*( (sqrt(2.)*vpa(ig,isgn,iglo))**3. &
-                     - 3*sqrt(2.)*vpa(ig,isgn,iglo) )* &
-                     gryfx_zonal%NLqpar_ky0(index_gryfx) + &
-                     
-                     sqrt(2.)*vpa(ig,isgn,iglo)*(vperp2(ig,iglo) - 1.)* &
-                     gryfx_zonal%NLqprp_ky0(index_gryfx) 
-             
-             ! now we must account for the fact that phi and g are normalized to a/rho_i,
-             ! and grad ~ k is normalized to rho_i, and rho_gs2 = sqrt2 rho_gryfx.
-             ! we have just calculated the GK nonlinear term in gryfx units:
-             ! g1 = z_hat X grad_gryfx phi_gryfx . grad_gryfx g_gryfx =
-             ! z_hat X (1/sqrt2 grad_gs2)(sqrt2 phi_gs2) . (1/sqrt2 grad_gs2)(sqrt2 g_gs2)
-             ! = z_hat X grad_gs2 phi_gs2 . grad_gs2 g_gs2
-             ! so it turns out that the GK nonlinear term is the same in gryfx units
-             ! and gs2 units, so we don't need any additional factors.
-
-          end do
-       end do
-    end do
-    g1 = -g1 !left-handed / right-handed conversion    
-  end subroutine add_nl_gryfx
 
   !> Finish nonblocking calculation of the maximum velocity
   !> and set the cfl limit.
@@ -1442,9 +1333,9 @@ contains
     character(len = 20) :: nonlinear_mode
     integer :: istep_error_start
     logical :: include_apar, include_bpar, include_phi, nl_forbid_force_zero, split_nonlinear, use_cfl_limit, use_order_based_error, zip
-    real :: cfl, densfac, error_target, qparfac, qprpfac, tparfac, tprpfac, uparfac
+    real :: cfl, error_target
 
-    namelist /nonlinear_terms_knobs/ cfl, densfac, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, qparfac, qprpfac, split_nonlinear, tparfac, tprpfac, uparfac, &
+    namelist /nonlinear_terms_knobs/ cfl, error_target, include_apar, include_bpar, include_phi, istep_error_start, nl_forbid_force_zero, nonlinear_mode, split_nonlinear, &
          use_cfl_limit, use_order_based_error, zip
 
     ! Only proc0 reads from file
@@ -1452,7 +1343,6 @@ contains
 
     ! First set local variables from current values
     cfl = self%cfl
-    densfac = self%densfac
     error_target = self%error_target
     include_apar = self%include_apar
     include_bpar = self%include_bpar
@@ -1460,12 +1350,7 @@ contains
     istep_error_start = self%istep_error_start
     nl_forbid_force_zero = self%nl_forbid_force_zero
     nonlinear_mode = self%nonlinear_mode
-    qparfac = self%qparfac
-    qprpfac = self%qprpfac
     split_nonlinear = self%split_nonlinear
-    tparfac = self%tparfac
-    tprpfac = self%tprpfac
-    uparfac = self%uparfac
     use_cfl_limit = self%use_cfl_limit
     use_order_based_error = self%use_order_based_error
     zip = self%zip
@@ -1476,7 +1361,6 @@ contains
 
     ! Now copy from local variables into type members
     self%cfl = cfl
-    self%densfac = densfac
     self%error_target = error_target
     self%include_apar = include_apar
     self%include_bpar = include_bpar
@@ -1484,12 +1368,7 @@ contains
     self%istep_error_start = istep_error_start
     self%nl_forbid_force_zero = nl_forbid_force_zero
     self%nonlinear_mode = nonlinear_mode
-    self%qparfac = qparfac
-    self%qprpfac = qprpfac
     self%split_nonlinear = split_nonlinear
-    self%tparfac = tparfac
-    self%tprpfac = tprpfac
-    self%uparfac = uparfac
     self%use_cfl_limit = use_cfl_limit
     self%use_order_based_error = use_order_based_error
     self%zip = zip
@@ -1511,7 +1390,6 @@ contains
 
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("cfl", self%cfl, unit_internal)
-    call self%write_key_val("densfac", self%densfac, unit_internal)
     call self%write_key_val("error_target", self%error_target, unit_internal)
     call self%write_key_val("include_apar", self%include_apar, unit_internal)
     call self%write_key_val("include_bpar", self%include_bpar, unit_internal)
@@ -1519,12 +1397,7 @@ contains
     call self%write_key_val("istep_error_start", self%istep_error_start, unit_internal)
     call self%write_key_val("nl_forbid_force_zero", self%nl_forbid_force_zero, unit_internal)
     call self%write_key_val("nonlinear_mode", self%nonlinear_mode, unit_internal)
-    call self%write_key_val("qparfac", self%qparfac, unit_internal)
-    call self%write_key_val("qprpfac", self%qprpfac, unit_internal)
     call self%write_key_val("split_nonlinear", self%split_nonlinear, unit_internal)
-    call self%write_key_val("tparfac", self%tparfac, unit_internal)
-    call self%write_key_val("tprpfac", self%tprpfac, unit_internal)
-    call self%write_key_val("uparfac", self%uparfac, unit_internal)
     call self%write_key_val("use_cfl_limit", self%use_cfl_limit, unit_internal)
     call self%write_key_val("use_order_based_error", self%use_order_based_error, unit_internal)
     call self%write_key_val("zip", self%zip, unit_internal)
@@ -1548,7 +1421,6 @@ contains
     implicit none
     class(nonlinear_terms_config_type), intent(in out) :: self
     call broadcast(self%cfl)
-    call broadcast(self%densfac)
     call broadcast(self%error_target)
     call broadcast(self%include_apar)
     call broadcast(self%include_bpar)
@@ -1556,12 +1428,7 @@ contains
     call broadcast(self%istep_error_start)
     call broadcast(self%nl_forbid_force_zero)
     call broadcast(self%nonlinear_mode)
-    call broadcast(self%qparfac)
-    call broadcast(self%qprpfac)
     call broadcast(self%split_nonlinear)
-    call broadcast(self%tparfac)
-    call broadcast(self%tprpfac)
-    call broadcast(self%uparfac)
     call broadcast(self%use_cfl_limit)
     call broadcast(self%use_order_based_error)
     call broadcast(self%zip)

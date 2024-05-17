@@ -1,4 +1,5 @@
 sinclude ../Makefile.tests_common
+clean_individual_test: LOCAL_TEST_FILES:= __pycache__/*
 build_test_exe: ${TEST_BASE_NAME}
 ifdef TESTNORUN
 all:

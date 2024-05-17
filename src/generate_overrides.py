@@ -450,7 +450,6 @@ if __name__ == "__main__":
             override_parameter("real", "y0"),
             override_parameter("real", "x0"),
             override_parameter("integer", "jtwist"),
-            override_parameter("logical", "gryfx")
             ],
         doc_string = """
 !> A type for containing overrides to the perpendicular grids (x and y).

@@ -100,7 +100,7 @@ USE_NEW_DIAG ?=on
 # Does the compiler version support the iso_c_binding features of Fortran?
 HAS_ISO_C_BINDING ?= on
 # If on, build with position independent code, needed if GS2 is going to be included
-# in a shared library or linked dynamically (e.g. it's needed by GRYFX).
+# in a shared library or linked dynamically
 # This *may* have performance implications, but it hasn't been tested yet.
 USE_FPIC ?= 
 # Defines the size of the constant character arrays that are used to store the run

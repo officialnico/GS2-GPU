@@ -6,36 +6,12 @@ module gs2_reinit
 
   private
 
-  public :: reset_time_step, delt_adj
+  public :: reset_time_step, delt_adj, in_memory
   public :: check_time_step, time_reinit
   public :: init_reinit, wnml_gs2_reinit
   public :: reduce_time_step, increase_time_step
   public :: init_gs2_reinit, finish_gs2_reinit
-
-  !!> This subroutine reinitializes the modules which are responsible for
-  !!! solving the linear, collisonal and nonlinear parts of the GK eqn,
-  !!! as well as the modules which solve the field equations. This is 
-  !!! typically necessary because some parameter (e.g. the timestep) which
-  !!! is used to calculate the value of cached arrays (e.g. the response
-  !!! matrix) in those modules has changed. Note that this will not cause
-  !!! dist_fn to reread its namelist.. thus you can change g_exb (and any
-  !!! other physics parameter in any other module, of course) 
-  !!! before calling this function 
-  !!! and expect your changes to be preserved. The function 
-  !!! save_fields_and_dist_fn must be called before this, or 
-  !!! otherwise the current field and dist_fn values will be lost. The
-  !!! logical flag in_memory must be given the same value that was 
-  !!! set in save_fields_and_dist_fn. 
-  !public :: reinit_gk_and_field_equations
-
-  !> This function overrides the in_memory flag
-  !! and should only be used if you know what
-  !! you are doing.
-  public :: gs2_reinit_unit_test_set_in_memory
-
-  public :: reinit_config_type
-  public :: set_gs2_reinit_config
-  public :: get_gs2_reinit_config
+  public :: reinit_config_type, set_gs2_reinit_config, get_gs2_reinit_config
   
   real :: delt_adj, dt0
   real :: delt_cushion
@@ -81,9 +57,7 @@ module gs2_reinit
      !> time step reset rather than dumping to fields.  This could be
      !> faster on machines with slow file systems. If the required
      !> memory allocation fails then we set `in_memory=.false.` and
-     !> fall back to the traditional file based approach. Note must
-     !> also set the `in_memory` switch in [[init_knobs]] to `true` to
-     !> enable.
+     !> fall back to the traditional file based approach.
      logical :: in_memory = .false.
    contains
      procedure, public :: read => read_reinit_config
@@ -96,15 +70,6 @@ module gs2_reinit
 
   type(reinit_config_type) :: reinit_config  
 contains
-
-  !> FIXME : Add documentation  
-  subroutine gs2_reinit_unit_test_set_in_memory(in_memory_in)
-    use gs2_init, only: gs2_init_in_memory=>in_memory
-    implicit none
-    logical, intent(in) :: in_memory_in
-    in_memory = in_memory_in
-    gs2_init_in_memory = in_memory
-  end subroutine gs2_reinit_unit_test_set_in_memory
   
   !> FIXME : Add documentation  
   subroutine wnml_gs2_reinit(unit)
@@ -141,13 +106,12 @@ contains
     use gs2_time, only: code_dt, user_dt, code_dt_cfl, save_dt, user_time
     use dist_fn_arrays, only: gnew
     use gs2_time, only: code_dt_min, code_dt_max
-    use gs2_init, only: init_type, init
-    use gs2_init, only: init_level_list
+    use gs2_init, only: init_type, init, init_level_list
     use mp, only: proc0
     use file_utils, only: error_unit
     use job_manage, only: time_message
-    use nonlinear_terms, only: gryfx_zonal
     use array_utils, only: zero_array
+    use optionals, only: get_option_with_default
     implicit none
     integer, intent(in) :: istep 
     logical, intent(inout) :: my_exit
@@ -158,7 +122,7 @@ contains
     type(init_type), intent(inout) :: current_init
     real :: original_time_step
     real :: fac = 1.0
-    integer :: timestep_change_attempts
+    integer :: timestep_change_attempts, local_job_id
     integer, parameter :: timestep_change_attempts_limit = 10
     if (first) call init_reinit
     first = .false.
@@ -185,7 +149,8 @@ contains
        return
     end if
 
-    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
+    local_job_id = get_option_with_default(job_id, -1)
+    if (local_job_id < 0) call time_message(proc0,time_reinit,' Re-initialize')
 
     !First disable the reset flag so we can call 
     !routines needed in reinit
@@ -200,13 +165,6 @@ contains
     ! Move to the correct init level
     call init(current_init, init_level_list%override_timestep)
 ! change timestep 
-
-    if(gryfx_zonal%on) then
-!both code_dt = dt_gs2 and code_dt_cfl = dt_cfl_gryfx are in gs2 units
-!we want to check if dt_gryfx = 2*dt_gs2 is too big/small when compared to
-!dt_cfl_gryfx
-      fac = 1.9999
-    endif
 
     original_time_step = code_dt
 
@@ -249,7 +207,7 @@ contains
        return
     end if
 
-    if (proc0 .and. .not. present(job_id)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
+    if (proc0 .and. (local_job_id < 0)) write(*,*) 'Changing time step to ', user_dt, ' from ', original_time_step, ' on step number ', istep, ' i.e. time = ', user_time
 
     ! Don't reset antenna here because species parameters
     ! have not changed so resetting antenna would cause
@@ -257,7 +215,7 @@ contains
     !call reinit_gk_and_field_equations(reset_antenna=.false.)
     call init(current_init, init_level_list%full)
     
-    if (.not. present(job_id)) call time_message(proc0,time_reinit,' Re-initialize')
+    if (local_job_id < 0) call time_message(proc0,time_reinit,' Re-initialize')
 
     istep_last = istep
 
@@ -269,7 +227,7 @@ contains
   !> FIXME : Add documentation  
   subroutine check_time_step (reset, exit)
     use gs2_time, only: code_dt_cfl, code_dt, code_dt_max
-    use nonlinear_terms, only: gryfx_zonal, nb_check_time_step_too_large
+    use nonlinear_terms, only: nb_check_time_step_too_large
     use mp, only: broadcast
     implicit none
     logical, intent(in) :: exit
@@ -280,15 +238,6 @@ contains
     if (first) call init_reinit
     first = .false.
     reset = .false.
-
-    if(gryfx_zonal%on) then
-      !code_dt_cfl is only set on proc 0 by gryfx in nlps.cu
-      call broadcast(code_dt_cfl)
-!both code_dt = dt_gs2 and code_dt_cfl = dt_cfl_gryfx are in gs2 units
-!we want to check if dt_gryfx = 2*dt_gs2 is too big/small when compared to
-!dt_cfl_gryfx
-      fac = 1.9999
-    endif
 
 ! nothing to do if exiting in this iteration
     if (exit) return
@@ -320,7 +269,6 @@ contains
   subroutine init_reinit(reinit_config_in)
     use file_utils, only: input_unit, input_unit_exist
     use gs2_time, only: save_dt_min, save_dt_max, code_dt_max
-    use gs2_init, only: gs2_init_in_memory=>in_memory
     implicit none
     type(reinit_config_type), intent(in), optional :: reinit_config_in    
     logical :: exist
@@ -351,10 +299,6 @@ contains
     
     call save_dt_min (delt_minimum)
     call save_dt_max (dt0)
-
-    ! Override with the value from gs2 init
-    ! This is not transparent to the user - why do we do this?
-    in_memory = gs2_init_in_memory
   end subroutine init_reinit
 
   !> Set the module level config type

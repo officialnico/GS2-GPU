@@ -6,6 +6,8 @@
   save_for_restart = .true.
   nsave = 100
   write_fields = .true.
+  save_glo_info_and_grids = .true.
+  save_velocities = .true.
 /
 
 &init_g_knobs

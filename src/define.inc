@@ -16,6 +16,7 @@
 # define _SUN_ 23
 # define _FUJ_ 24
 # define _NEC_ 25
+# define _IFX_ 26
 
 # define _FFTW3_ 42
 

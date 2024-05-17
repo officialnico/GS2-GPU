@@ -34,10 +34,6 @@
                                write_omega =  F
 /
 
-&init_knobs
-                                 in_memory =  F
-/
-
 &init_g_knobs
                                  chop_side =  F
                                 clean_init =  T
@@ -47,6 +43,9 @@
 /
 
 &knobs
+                                      beta =  0.0
+                                      tite =  1.0
+                                      zeff =  1.0
                                       delt =  0.1
                                      fapar =  0.0
                                      fbpar =  0.0
@@ -85,12 +84,6 @@
 &nonlinear_terms_knobs
                                        cfl =  1.0
                             nonlinear_mode =  "on"
-/
-
-&parameters
-                                      beta =  0.0
-                                      tite =  1.0
-                                      zeff =  1.0
 /
 
 &reinit_knobs

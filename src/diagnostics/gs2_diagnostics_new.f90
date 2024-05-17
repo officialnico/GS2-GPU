@@ -21,13 +21,13 @@ module gs2_diagnostics_new
 
   type(diagnostics_type) :: gnostics 
 
-  logical, parameter :: debug=.false.
+  logical, parameter :: debug = .false.
 
 contains
 
   !> Read namelist diagnostics_config, initialise submodules,
   !> open output file 'run_name.cdf' and create dimensions.
-  subroutine init_gs2_diagnostics_new(is_trinity_run, header)
+  subroutine init_gs2_diagnostics_new(header)
     use kt_grids, only: nx, ny, naky, ntheta0
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -43,6 +43,7 @@ contains
     use diagnostics_nonlinear_convergence, only: init_nonlinear_convergence
     use diagnostics_zonal_transfer, only: init_diagnostics_transfer
     use collisional_heating, only: init_collisional
+    use collisions, only: heating
     use nonlinear_terms, only: nonlin
     use gs2_save, only: save_many
     use file_utils, only: run_name, error_unit
@@ -57,7 +58,6 @@ contains
     use neasyf, only: neasyf_open
     use gs2_io, only: define_dims, nc_norms, nc_species, nc_geo, save_input, get_dim_length, nc_grids_mymovie
     implicit none
-    logical, intent(in) :: is_trinity_run
     !> Header for files with build and run information
     type(standard_header_type), intent(in) :: header
     logical :: ex, accelerated
@@ -84,10 +84,6 @@ contains
     save_many = gnostics%save_many
 
     if (.not. gnostics%write_any) return
-
-    ! Set whether this is a Trinity run.. enforces certain 
-    ! calculations
-    gnostics%is_trinity_run = is_trinity_run
     
     gnostics%parallel = .false.
     if (gnostics%enable_parallel) then
@@ -114,6 +110,14 @@ contains
     !<DD>This is only correct if running in box mode surely?
     !    I think this should be if(aky(1)==0.0) fluxfac(1)=1.0 but I may be wrong
     if(aky(1)==0.0) gnostics%fluxfac(1) = 1.0
+
+    if (gnostics%write_heating .and. .not. heating) then
+       if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
+       gnostics%write_heating = .false.
+    else if (heating .and. .not. &
+       (gnostics%write_heating .or. gnostics%write_collisional)) then
+       heating = .false.
+    end if
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!! Open Text Files (if required)
@@ -306,7 +310,7 @@ contains
     real, dimension(ntheta0, naky) :: growth_rates
     if (.not. gnostics%writing) return
 
-    growth_rates = imag(calculate_instantaneous_omega(&
+    growth_rates = aimag(calculate_instantaneous_omega(&
          ig = gnostics%igomega, tolerance = gnostics%omegatol))
     call nc_write_ql_metric(gnostics%file_id, gnostics%nout, &
          ql_metric = calculate_simple_quasilinear_flux_metric_by_k(growth_rates))
@@ -388,8 +392,7 @@ contains
     
     gnostics%calculate_fluxes = (gnostics%write_fluxes &
          .or.  gnostics%print_flux_line &
-         .or.  gnostics%write_flux_line &
-         .or.  gnostics%is_trinity_run)
+         .or.  gnostics%write_flux_line)
 
     gnostics%user_time = user_time
     if (istep .eq. 0) gnostics%start_time = user_time

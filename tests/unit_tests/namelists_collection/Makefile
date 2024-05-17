@@ -1,5 +1,5 @@
 sinclude ../Makefile.tests_common
-
+clean_individual_test: LOCAL_TEST_FILES:= __pycache__/*
 build_test_exe: $(BINDIR)/write_default_input_file $(BINDIR)/gs2
 ifdef TESTNORUN
 all: build_test_exe

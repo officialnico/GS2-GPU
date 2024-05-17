@@ -1,8 +1,11 @@
-!> Routines for implementing the model collision operator
-!! defined by Barnes, Abel et al. 2009. The collision operator causes
-!! physically motivated smoothing of structure in velocity space which
-!! is necessary to prevent buildup of structure at fine scales in
-!! velocity space, while conserving energy and momentum.
+!> Routines for implementing the model collision operator defined by
+!> [Barnes, Abel et
+!> al. 2009](https://pubs.aip.org/aip/pop/article/16/7/072107/263154/Linearized-model-Fokker-Planck-collision-operators)
+!> or on [arxiv](https://arxiv.org/abs/0809.3945v2).
+!> The collision operator causes physically motivated smoothing of
+!> structure in velocity space which is necessary to prevent buildup
+!> of structure at fine scales in velocity space, while conserving
+!> energy and momentum.
 module collisions
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
   use redistribute, only: redist_type
@@ -11,22 +14,14 @@ module collisions
 
   private 
 
-  public :: init_collisions, finish_collisions
+  public :: init_collisions, finish_collisions, reset_init
   public :: read_parameters, wnml_collisions, check_collisions
-  public :: solfp1
-  public :: reset_init
-  public :: dtot, fdf, fdb, vnmult, vnfac
-  public :: ncheck, vnslow, vary_vnew
-  public :: etol, ewindow, etola, ewindowa
-  public :: timesteps_between_collisions
-  public :: init_lorentz, init_ediffuse
-  public :: init_lorentz_conserve, init_diffuse_conserve
-  public :: init_lorentz_error, collision_model_switch
-  public :: colls, hyper_colls, heating, adjust
-  public :: use_le_layout, collision_model_ediffuse
-  public :: collision_model_lorentz, collision_model_none
-  public :: collision_model_lorentz_test, collision_model_full
-  public :: split_collisions
+  public :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew
+  public :: etol, ewindow, etola, ewindowa, init_lorentz_error
+  public :: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
+  public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
+  public :: collision_model_switch, collision_model_lorentz, collision_model_none
+  public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
 
   public :: collisions_config_type
   public :: set_collisions_config
@@ -53,7 +48,7 @@ module collisions
   end interface 
 
   ! knobs
-  logical :: use_le_layout = .true.
+  logical :: use_le_layout
   logical :: const_v, conserve_moments
   logical :: conservative, resistivity
   integer :: collision_model_switch
@@ -66,7 +61,6 @@ module collisions
   logical :: special_wfb_lorentz
   logical :: vpar_zero_mean
   logical :: conserve_forbid_zero
-  logical :: le_nxilim_fix
   
   integer, parameter :: collision_model_lorentz = 1      ! if this changes, check gs2_diagnostics
   integer, parameter :: collision_model_none = 3
@@ -86,7 +80,7 @@ module collisions
   real :: vnfac, vnslow
   real :: etol, ewindow, etola, ewindowa
   integer :: timesteps_between_collisions
-  logical :: force_collisions
+  logical :: force_collisions, has_lorentz, has_diffuse
   real, dimension (2) :: vnm_init = 1.0
 
   real, dimension (:,:,:), allocatable :: dtot
@@ -98,11 +92,9 @@ module collisions
   real, dimension (:,:,:), allocatable :: vnew, vnew_s, vnew_D, vnew_E, delvnew
   ! (naky,negrid,nspec) replicated
 
+  real, dimension (:,:), allocatable :: vpdiffle
   real, dimension (:,:,:), allocatable :: vpdiff
   ! (-ntgrid:ntgrid,2,nlambda) replicated
-
-  complex, dimension (:,:,:), allocatable :: glec
-  ! (2*nlambda+1,negrid+1,le_lo%llim_proc:le_lo%ulim_alloc)
 
   ! only for hyper-diffusive collisions
   real, dimension (:,:,:,:), allocatable :: vnewh
@@ -115,7 +107,7 @@ module collisions
   real, dimension (:,:,:), allocatable :: s0le, w0le, z0le
   ! Copies of aj0, aj1 and vpa from dist_fn_arrays stored in
   ! le layout shaped arrays.
-  real, dimension (:,:,:), allocatable :: aj0le, aj1le, vpale
+  real, dimension (:,:,:), allocatable :: aj0le, vperp_aj1le, vpa_aj0_le
   ! finish
 
   ! needed for momentum and energy conservation due to energy diffusion (3.08)
@@ -127,7 +119,7 @@ module collisions
   ! finish
 
   real :: cfac
-
+  integer :: nxi_lim !< Sets the upper xi index which we consider in loops
   ! The following (between the start and finish comments) are only used for LE layout
   ! start
   ! only for lorentz
@@ -151,10 +143,6 @@ module collisions
 
   logical :: hypermult
   logical :: initialized = .false.
-  logical :: ediffinit = .false.
-  logical :: lzinit = .false., leinit = .false.
-  logical :: accelerated_x = .false.
-  logical :: accelerated_v = .false.
   logical :: exist
 
   !> Used to represent the input configuration of collisions
@@ -185,7 +173,6 @@ module collisions
      !> - `'lorentz-test'` : Only pitch angle scattering. For testing,
      !> disables some components of the operator.
      !> - `'ediffuse'` : Only energy diffusion.
-     !> - `'krook'` : "Home made" Krook operator (this is not recommended).
      !>
      !> If no species have a non-zero collision frequency, `vnewk`, then
      !> the collision operator is also automatically disabled.
@@ -293,24 +280,6 @@ module collisions
      !> kperp2 * kperp2` (where `kperp2` here is normalised to the
      !> maximum `kperp2`).
      logical :: hypermult = .false.
-     !> This flag controls the limit of ixi loops in the le_layout
-     !> decomposition.  When true (default) the limit is set to `nxi +
-     !> 1`, which has been observed to remove numerical instabilities.
-     !>
-     !> @note The "old" behavior was a limit of `nxi`, which is
-     !> incorrect. With this limit and trapped particles, there are
-     !> numerical instabilities caused by missing terms for totally
-     !> trapped particles. By changing the limit to `nxi + 1` these
-     !> numerical instabilities are removed and the le_layout gives
-     !> the same result as the standard layout. The limit `nxi + 1`
-     !> should used as we then include the `ixi` index for the
-     !> duplicate `vpar=0` point which must be included For velocity
-     !> integration to give the correct value.
-     !>
-     !> @todo Consider removing this flag and just use the correct
-     !> limit.  The motivation for retaining this flag is to allow old
-     !> results to be reproduced.
-     logical :: le_nxilim_fix = .true.
      !> Controls how the coefficients in the matrix representing the
      !> pitch angle scattering operator are obtained. Can be one of
      !>
@@ -469,7 +438,6 @@ contains
     use mp, only: nproc, iproc
     implicit none
     type(collisions_config_type), intent(in), optional :: collisions_config_in
-
     if (initialized) return
     initialized = .true.
     call init_gs2_layouts
@@ -480,7 +448,7 @@ contains
 
     call init_theta_grid
     call init_kt_grids
-    call init_le_grids (accelerated_x, accelerated_v)
+    call init_le_grids
     call init_run_parameters
     call init_dist_fn_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc)
     call read_parameters(collisions_config_in)
@@ -495,6 +463,7 @@ contains
     use text_options, only: text_option, get_option_value
     use run_parameters, only: beta, fapar
     use species, only: nspec
+    use le_grids, only: nxi, ng2
     implicit none
     type(collisions_config_type), intent(in), optional :: collisions_config_in
     
@@ -535,7 +504,6 @@ contains
     force_collisions = collisions_config%force_collisions
     heating = collisions_config%heating
     hypermult = collisions_config%hypermult
-    le_nxilim_fix = collisions_config%le_nxilim_fix
     lorentz_scheme = collisions_config%lorentz_scheme
     ncheck = collisions_config%ncheck
     resistivity = collisions_config%resistivity
@@ -564,8 +532,28 @@ contains
     call get_option_value &
          (ediff_scheme, eschemeopts, ediff_switch, &
          ierr, "ediff_scheme in collisions_knobs",.true.)
-    
-    drag = resistivity .and. (beta > epsilon(0.0)) .and. (nspec > 1) .and. (fapar.gt.0)
+
+    select case (collision_model_switch)
+    case (collision_model_full)
+       has_lorentz = .true.  ; has_diffuse = .true.
+    case (collision_model_lorentz,collision_model_lorentz_test)
+       has_lorentz = .true.  ; has_diffuse = .false.
+    case (collision_model_ediffuse)
+       has_lorentz = .false. ; has_diffuse = .true.
+    case default
+       has_lorentz = .false. ; has_diffuse = .false.
+    end select
+
+    drag = has_lorentz .and. resistivity .and. (beta > epsilon(0.0)) &
+         .and. (nspec > 1) .and. (fapar.gt.0)
+
+    ! The nxi > 2 * ng2 check appears to be checking if we have
+    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
+    if (nxi > 2 * ng2 ) then
+       nxi_lim = nxi + 1
+    else
+       nxi_lim = nxi
+    end if
   end subroutine read_parameters
 
   !> A wrapper to sqrt which replaces -ve values with 0.0 to avoid
@@ -573,7 +561,7 @@ contains
   !> consider adding a debug check to abort/warn if the passed value
   !> is too negative (i.e. if it looks like an error rather than small
   !> round off).
-  pure real function safe_sqrt(arg)
+  elemental real function safe_sqrt(arg)
     implicit none
     real, intent(in) :: arg
     safe_sqrt = sqrt(max(0.0, arg))
@@ -582,77 +570,116 @@ contains
   !> FIXME : Add documentation
   subroutine init_arrays
     use species, only: nspec
-    use le_grids, only: negrid, init_map
+    use le_grids, only: init_map
     use kt_grids, only: naky, ntheta0
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: c_rate
     use array_utils, only: zero_array
     implicit none
-
-    real, dimension (negrid) :: hee
-    logical :: use_lz_layout = .false.
-    logical :: use_e_layout = .false.
+    logical :: use_lz_layout, use_e_layout
 ! lowflow terms include higher-order corrections to GK equation
 ! such as parallel nonlinearity that require derivatives in v-space.
 ! most efficient way to take these derivatives is to go from g_lo to le_lo,
 ! i.e., bring all energies and lambdas onto each processor
 !<DD>Note the user can still disable use_le_layout in the input file
 !    this just changes the default.
+!>@note, not clear the above is true -- init_map will always be called with
+!le layout when lowflow active here. Given use_le_layout = T is default we
+!might be able to get rid of this conditional compilation now?
 # ifdef LOWFLOW
     use_le_layout = .true.
 # endif
+    use_lz_layout = .false. ; use_e_layout = .false.
 
-    !<DD>This (potentially large) array should only be needed if 
-    !write_heating (gs2_diagnostics) is true.
-    if (heating .and. .not. allocated(c_rate)) then
-       allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
-       call zero_array(c_rate)
-    end if
-
-    !<DD>Should probably put this first
     if (collision_model_switch == collision_model_none) then
        colls = .false.
        return
     end if
 
-    if( .not. use_le_layout ) then
-       select case (collision_model_switch)
-       case (collision_model_full)
-          use_lz_layout = .true.
-          use_e_layout = .true.
-       case (collision_model_lorentz,collision_model_lorentz_test)
-          use_lz_layout = .true.
-       case (collision_model_ediffuse)
-          use_e_layout = .true.
-       end select
-    end if
-
-    call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
-
-    call init_vnew (hee)
+    call init_vnew
     if (all(abs(vnew(:,1,:)) <= 2.0*epsilon(0.0)) .and. .not. force_collisions) then
        collision_model_switch = collision_model_none
        colls = .false.
        return
     end if
 
-    select case (collision_model_switch)
-    case (collision_model_full)
-       call init_lorentz
-       call init_ediffuse
-       if (conserve_moments) then
-          call init_lorentz_conserve
-          call init_diffuse_conserve
-       end if
-    case (collision_model_lorentz,collision_model_lorentz_test)
+    if (heating .and. .not. allocated(c_rate)) then
+       allocate (c_rate(-ntgrid:ntgrid, ntheta0, naky, nspec, 3))
+       call zero_array(c_rate)
+    end if
+
+    use_lz_layout = has_lorentz .and. .not. use_le_layout
+    use_e_layout = has_diffuse .and. .not. use_le_layout
+    call init_map (use_lz_layout, use_e_layout, use_le_layout, test)
+
+    if (has_lorentz) then
        call init_lorentz
        if (conserve_moments) call init_lorentz_conserve
-    case (collision_model_ediffuse)
+    end if
+
+    if (has_diffuse) then
        call init_ediffuse
        if (conserve_moments) call init_diffuse_conserve
-    end select
+    end if
 
+    if (use_le_layout .and. (conserve_moments .or. drag)) call init_le_bessel
   end subroutine init_arrays
+
+  !> Communicate Bessel functions from g_lo to le_lo
+  subroutine init_le_bessel
+    use gs2_layouts, only: g_lo, le_lo, ig_idx
+    use dist_fn_arrays, only: aj0, aj1, vpa
+    use le_grids, only: negrid, nxi, g2le, ixi_to_il, energy => energy_maxw, al
+    use theta_grid, only: ntgrid
+    use redistribute, only: gather, scatter
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension (:,:,:), allocatable :: ctmp, z_big
+    integer :: ile, ig, ie, ixi, il
+
+    allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    ! We need to initialise ctmp as it is used as receiving buffer in
+    ! g2le redistribute, which doesn't populate all elements
+    call zero_array(ctmp)
+
+    ! next set aj0le & aj1l
+    z_big(:,1,:) = cmplx(aj0,aj1)
+    z_big(:,2,:) = z_big(:,1,:)
+
+    call gather (g2le, z_big, ctmp)
+
+    if (.not. allocated(aj0le)) then
+       allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (vperp_aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+
+    aj0le = real(ctmp)
+    vperp_aj1le = aimag(ctmp) !< Currently just aj1
+
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(ile, ig, ixi, ie, il) &
+    !$OMP SHARED(le_lo, negrid, nxi, ixi_to_il, vperp_aj1le, energy, al) &
+    !$OMP SCHEDULE(static)
+    do ile = le_lo%llim_proc, le_lo%ulim_proc
+       ig = ig_idx(le_lo, ile)
+       do ie = 1, negrid
+          do ixi = 1, nxi + 1
+             il = ixi_to_il(ixi, ig)
+             vperp_aj1le(ixi, ie, ile) = vperp_aj1le(ixi, ie, ile) * energy(ie) * al(il)
+          end do
+       end do
+    end do
+    !$OMP END PARALLEL DO
+
+    z_big = vpa
+    call gather (g2le, z_big, ctmp)
+    deallocate(z_big)
+    if (.not. allocated(vpa_aj0_le)) then
+       allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    end if
+    vpa_aj0_le = real(ctmp) * aj0le
+  end subroutine init_le_bessel
 
   !> Precompute three quantities needed for momentum and energy conservation:
   !> z0, w0, s0 (z0le, w0le, s0le if use_le_layout chosen in the input file defined)
@@ -670,15 +697,13 @@ contains
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (1,1,1) :: dum1 = 0., dum2 = 0.
-    complex, dimension (:,:,:), allocatable :: gtmp
-    complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
-    real, dimension (:,:,:,:), allocatable :: vns
+    real, dimension (:,:,:), allocatable :: gtmp
+    real, dimension (:,:,:,:), allocatable :: duinv, dtmp, vns
     integer :: ie, il, ik, is, isgn, iglo,  it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension(:,:,:), allocatable :: s0tmp, w0tmp, z0tmp
-    logical :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -686,9 +711,6 @@ contains
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
     end if
-
-! TO DO:
-! tunits not included anywhere yet
 
     allocate(s0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(w0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -716,38 +738,9 @@ contains
              vns(ik,:,is,3) = vnmult(1)*spec(is)%vnewk*tunits(ik)/energy**1.5
           end do
        end do
-    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get z0 (first form)
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u0 = -2 nu_D^{ei} vpa J0 dt f0
-                if ( .not. forbid(ig,il) ) then
-                   if (conservative) then
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpdiff(ig,isgn,il) &
-                           * speed(ie)*aj0(ig,iglo)
-                   else
-                      z0tmp(ig,isgn,iglo) = -2.0*code_dt*vns(ik,ie,is,3)*vpa(ig,isgn,iglo)*aj0(ig,iglo)
-                   end if
-                else
-                   z0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, il, is, isgn) &
        !$OMP SHARED(g_lo, conservative, z0tmp, code_dt, vns, vpdiff, speed, aj0, vpa) &
@@ -768,55 +761,58 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-    endif
 
-    call zero_out_passing_hybrid_electrons(z0tmp)
+       call zero_out_passing_hybrid_electrons(z0tmp)
 
-    if(use_le_layout) then
-       call gather (g2le, z0tmp, ctmp)
-       call solfp_lorentz (ctmp)
-       call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
-    else
-       call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
-    end if
+       if(use_le_layout) then
+          call gather (g2le, z0tmp, ctmp)
+          call solfp_lorentz (ctmp)
+          call scatter (g2le, ctmp, z0tmp)   ! z0 is redefined below
+       else
+          call solfp_lorentz (z0tmp,dum1,dum2)   ! z0 is redefined below
+       end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v0z0
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, isgn) &
-    !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
-    !$OMP COLLAPSE(2) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       do isgn = 1, 2
-          ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*z0tmp(:,isgn,iglo)
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, isgn) &
+       !$OMP SHARED(g_lo, vpa, gtmp, aj0, z0tmp) &
+       !$OMP COLLAPSE(2) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          do isgn = 1, 2
+             ! v0 = vpa J0 f0
+             gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(z0tmp(:,isgn,iglo))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+       call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
 
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, is, isgn) &
-    !$OMP SHARED(g_lo, z0tmp, dtmp) &
-    !$OMP SCHEDULE(static)
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc
-       it = it_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo)
-       is = is_idx(g_lo,iglo)
-       do isgn = 1, 2
-          z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+       !$OMP PARALLEL DO DEFAULT(none) &
+       !$OMP PRIVATE(iglo, ik, it, is, isgn) &
+       !$OMP SHARED(g_lo, z0tmp, dtmp) &
+       !$OMP SCHEDULE(static)
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          it = it_idx(g_lo,iglo)
+          ik = ik_idx(g_lo,iglo)
+          is = is_idx(g_lo,iglo)
+          do isgn = 1, 2
+             z0tmp(:,isgn,iglo) = z0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          end do
        end do
-    end do
-    !$OMP END PARALLEL DO
+       !$OMP END PARALLEL DO
+
+    else
+       !If drag is false vns(...,3) is zero and hence z0tmp is zero here.
+       call zero_array(z0tmp)
+    end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    all = .true.
 
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
@@ -833,11 +829,9 @@ contains
           do isgn = 1, 2
              gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
                   * vpdiff(:,isgn,il)*speed(ie)
-             !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
           end do
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
     else
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
@@ -852,13 +846,9 @@ contains
           end do
        end do
        !$OMP END PARALLEL DO
-
-       call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
-
-!       do is = 1, nspec
-!          duinv(:,:,:,is) = vnmult(1)*spec(is)%vnewk*sqrt(2./pi)
-!       end do
     end if
+
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
@@ -868,59 +858,28 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, vns, vpdiff, speed, aj0, code_dt, duinv, vpa, s0tmp) &       
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u1 = -3 nu_s vpa dt J0 f_0 / du
-                if ( .not. forbid(ig,il) ) then
-                   if (conservative) then
-                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(ig,isgn,il)*speed(ie) &
-                           * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-                   else
-                      s0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
-                           * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-                   end if
-                else
-                   s0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-          end do
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+    !$OMP SHARED(g_lo, conservative, s0tmp, vns, vpdiff, speed, aj0, code_dt, duinv, vpa) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          ! u1 = -3 nu_s vpa dt J0 f_0 / du
+          if (conservative) then
+             s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*speed(ie) &
+                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+          else
+             s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
+                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
+          end if
        end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, conservative, s0tmp, vns, vpdiff, speed, aj0, code_dt, duinv, vpa) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             ! u1 = -3 nu_s vpa dt J0 f_0 / du
-             if (conservative) then
-                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpdiff(:,isgn,il)*speed(ie) &
-                     * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-             else
-                s0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                     * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-             end if
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    endif
+    end do
+    !$OMP END PARALLEL DO
 
     call zero_out_passing_hybrid_electrons(s0tmp)
 
@@ -943,12 +902,12 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*s0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(s0tmp(:,isgn,iglo))
        end do
     end do
     !OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -962,8 +921,7 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          s0tmp(:,isgn,iglo) = s0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) &
-               * z0tmp(:,isgn,iglo)
+          s0tmp(:,isgn,iglo) = s0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) * z0tmp(:,isgn,iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -984,16 +942,16 @@ contains
           ! v1 = nu_D vpa J0
           if (conservative) then
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*s0tmp(:,isgn,iglo)
+                  * aj0(:,iglo) * real(s0tmp(:,isgn,iglo))
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * s0tmp(:,isgn,iglo)
+                  * real(s0tmp(:,isgn,iglo))
           end if
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1014,66 +972,37 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, conservative, w0tmp, vns, energy, al , aj1, code_dt, &
-       !$OMP spec, kperp2, duinv, bmag) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u2 = -3 dt J1 vperp vus a f0 / du
-                if ( .not. forbid(ig,il) ) then
-                   if (conservative) then
-                      w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                           * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                           / bmag(ig)
-                   else
-                      !This is identical to the other branch, should it be?
-                      w0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                           * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                           / bmag(ig)
-                   end if
-                else
-                   w0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, conservative, w0tmp, vns, energy, al, aj1, code_dt, spec, kperp2, duinv, bmag) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+    !$OMP SHARED(g_lo, ntgrid, forbid, w0tmp, vns, energy, al , aj1, code_dt, &
+    !$OMP spec, kperp2, duinv, bmag, conserve_forbid_zero) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig=-ntgrid,ntgrid
              ! u2 = -3 dt J1 vperp vus a f0 / du
-             if (conservative) then
-                w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                     * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                     / bmag
+             if ( .not. (forbid(ig,il) .and. conserve_forbid_zero) ) then
+                ! Note no conservative branch here, is that right?
+                ! Note: energy * al * smz^2 * kperp2 / bmag is alpha^2 where
+                ! alpha is the argument to the Bessel function, i.e. aj1 = J1(alpha) / alpha
+                ! This appears to leave us with alpha * J1(alpha) whilst Barnes' paper
+                ! only includes terms with J1(alpha). Note that alpha = vperp kperp smz/B
+                ! so alpha * J1(alpha) = (kperp * smz / B) * vperp J1
+                w0tmp(ig, isgn, iglo) = -vns(ik, ie, is, 1) * energy(ie) * al(il) &
+                     * aj1(ig, iglo) * code_dt * spec(is)%smz**2 * kperp2(ig, it, ik) * &
+                     duinv(ig, it, ik, is) / bmag(ig)
              else
-                !This is identical to the other branch, should it be?
-                w0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                     * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                     / bmag
-             end if
+                w0tmp(ig,isgn,iglo) = 0.
+             endif
           end do
        end do
-       !$OMP END PARALLEL DO
-    end if
+    end do
+    !$OMP END PARALLEL DO
 
     call zero_out_passing_hybrid_electrons(w0tmp)
 
@@ -1096,12 +1025,12 @@ contains
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        do isgn = 1, 2
           ! v0 = vpa J0 f0
-          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*w0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vpa(:,isgn,iglo) * aj0(:,iglo) * real(w0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1136,16 +1065,16 @@ contains
           ! v1 = nud vpa J0 f0
           if (conservative) then
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*w0tmp(:,isgn,iglo)
+                  * aj0(:,iglo) * real(w0tmp(:,isgn,iglo))
           else
              gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * w0tmp(:,isgn,iglo)
+                  * real(w0tmp(:,isgn,iglo))
           end if
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1178,13 +1107,19 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = nud vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * w0tmp(:,isgn,iglo)
+          ! Note : aj1 = J1(alpha) / alpha, where we have
+          ! alpha^2 = energy * al * smz^2 * kperp2 / bmag = vperp^2 smz^2 kperp2 / bmag^2
+          ! so energy * al * aj1 = (B / [kperp2 * smz^2]) alpha^2 aj1
+          ! = (B / [kperp2 * smz^2]) alpha J1 = vperp J1 / (kperp * smz). As w0tmp
+          ! appears to have an extra factor of kperp * smz / B this _may_ work out to
+          ! (vperp J1 / B) * ... Is there an extra factor of 1 / B here?
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * energy(ie) * al(il) * aj1(:, iglo) &
+               * real(w0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -1231,27 +1166,6 @@ contains
        if (.not. allocated(z0le)) allocate (z0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        z0le = real(ctmp)
 
-       ! next set aj0le & aj1l
-       z_big(:,1,:) = cmplx(aj0,aj1)
-       z_big(:,2,:) = z_big(:,1,:)
-
-       call gather (g2le, z_big, ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-
-       aj0le = real(ctmp)
-       aj1le = aimag(ctmp)
-
-       if (.not. allocated(vpale)) then
-          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       end if
-       z_big = vpa
-       call gather (g2le, z_big, ctmp)
-       vpale = real(ctmp)
-
        deallocate (ctmp, z_big)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1292,14 +1206,12 @@ contains
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
     implicit none
-
-    complex, dimension (:,:,:), allocatable :: gtmp
-    complex, dimension (:,:,:,:), allocatable :: duinv, dtmp
-    real, dimension (:,:,:,:), allocatable :: vns
+    real, dimension (:,:,:), allocatable :: gtmp
+    real, dimension (:,:,:,:), allocatable :: duinv, dtmp, vns
     integer :: ie, il, ik, is, isgn, iglo, it, ig
     complex, dimension (:,:,:), allocatable :: ctmp, z_big
     complex, dimension (:,:,:), allocatable :: bs0tmp, bw0tmp, bz0tmp
-    logical :: all
+    logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
        allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -1307,9 +1219,6 @@ contains
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
     end  if
-
-! TO DO:
-! tunits not included anywhere yet
 
     allocate(bs0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate(bw0tmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
@@ -1328,8 +1237,6 @@ contains
     vns(:,:,:,2) = vnmult(2)*vnew_s
 
     ! first obtain 1/du
-    !    if (conservative) then
-
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
     !$OMP SHARED(g_lo, gtmp, energy, vnmult, vnew_E) &
@@ -1344,64 +1251,40 @@ contains
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
-!    else
-!       do is = 1, nspec
-!          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
-!       end do
-!    end if
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
        !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-       duinv = 1./duinv  ! now it is 1/du
+       duinv = 1 / duinv  ! now it is 1/du
     end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! Now get z0 (first form)
-    if(conserve_forbid_zero) then ! MRH
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, bz0tmp, code_dt, vnmult, vnew_E, aj0, duinv) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u0 = -nu_E E dt J0 f_0 / du
-                if ( .not. forbid(ig,il) ) then
-                   bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-                        * aj0(ig,iglo)*duinv(ig,it,ik,is)
-                else
-                   bz0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
-       !$OMP SHARED(g_lo, bz0tmp, code_dt, vnmult, vnew_E, aj0, duinv) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+    !$OMP SHARED(g_lo, ntgrid, forbid, bz0tmp, code_dt, vnmult, vnew_E, &
+    !$OMP aj0, duinv, conserve_forbid_zero) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig=-ntgrid,ntgrid
              ! u0 = -nu_E E dt J0 f_0 / du
-             bz0tmp(:,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
-                  * aj0(:,iglo)*duinv(:,it,ik,is)
+             if ( .not. (forbid(ig,il) .and. conserve_forbid_zero) ) then
+                bz0tmp(ig,isgn,iglo) = -code_dt*vnmult(2)*vnew_E(ik,ie,is) &
+                     * aj0(ig,iglo)*duinv(ig,it,ik,is)
+             else
+                bz0tmp(ig,isgn,iglo) = 0.
+             endif
           end do
        end do
-       !$OMP END PARALLEL DO
-    endif
+    end do
+    !$OMP END PARALLEL DO
 
     call zero_out_passing_hybrid_electrons(bz0tmp)
 
@@ -1426,13 +1309,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0 f_0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bz0tmp(:,isgn,iglo)
+          gtmp(:,isgn,iglo) = vnmult(2) * vnew_E(ik,ie,is) * aj0(:,iglo) &
+               * real(bz0tmp(:,isgn,iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all) ! v0z0
+    call integrate_moment (gtmp, dtmp, all_procs) ! v0z0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine z0 = z0 / (1 + v0z0)
@@ -1456,8 +1339,6 @@ contains
     ! redefine dq = du (for momentum-conserving terms)
     ! du == int (E nu_s f_0);  du = du(z, kx, ky, s)
     ! duinv = 1/du
-    !    if (conservative) then
-
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, ie, is, isgn) &
     !$OMP SHARED(g_lo, gtmp, vns, vpa) &
@@ -1467,82 +1348,37 @@ contains
        ie = ie_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          gtmp(:,isgn,iglo)  = vns(ik,ie,is,1)*vpa(:,isgn,iglo)**2
-          !             gtmp(:,isgn,iglo)  = vns(ik,ie,is,2)*energy(ie)
-
+          gtmp(:, isgn, iglo)  = vns(ik, ie, is, 1) * vpa(:, isgn, iglo)**2
        end do
     end do
     !$OMP END PARALLEL DO
 
-    all = .true.
-    call integrate_moment (gtmp, duinv, all)  ! not 1/du yet
-    !    else
-    !       do is = 1, nspec
-    !          duinv(:,:,:,is) = vnmult(2)*spec(is)%vnewk*sqrt(2./pi)
-    !       end do
-    !    end if
-
+    call integrate_moment (gtmp, duinv, all_procs)  ! not 1/du yet
 
     ! Could replace this with OpenMP using an explicit loop. TAG
     where (abs(duinv) > epsilon(0.0))  ! necessary b/c some species may have vnewk=0
        !  duinv=0 iff vnew=0 so ok to keep duinv=0.
-       duinv = 1./duinv  ! now it is 1/du
+       duinv = 1 / duinv  ! now it is 1/du
     end where
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get s0 (first form)
-    if(conserve_forbid_zero) then
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, bs0tmp, vns, vpa, aj0, code_dt, duinv) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u1 = -3 nu_s vpa dt J0 f_0 / du
-                !          if (conservative) then
-                if ( .not. forbid(ig,il) ) then
-                   bs0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*vpa(ig,isgn,iglo) &
-                        * aj0(ig,iglo)*code_dt*duinv(ig,it,ik,is)
-                else
-                   bs0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-             !          else
-             !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-             !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-             !          end if
-          end do
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
+    !$OMP SHARED(g_lo, bs0tmp, vns, vpa, aj0, code_dt, duinv) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          ! u1 = -3 nu_s vpa dt J0 f_0 / du
+          bs0tmp(:, isgn, iglo) = -vns(ik, ie, is, 1) * vpa(:, isgn, iglo) &
+               * aj0(:, iglo) * code_dt * duinv(:, it, ik, is)
        end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, is, isgn) &
-       !$OMP SHARED(g_lo, bs0tmp, vns, vpa, aj0, code_dt, duinv) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             ! u1 = -3 nu_s vpa dt J0 f_0 / du
-             !          if (conservative) then
-             bs0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*vpa(:,isgn,iglo) &
-                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-             !          else
-             !             bs0(:,isgn,iglo) = -3.0*vns(ik,ie,is,2)*vpa(:,isgn,iglo) &
-             !                  * aj0(:,iglo)*code_dt*duinv(:,it,ik,is)
-             !          end if
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    endif
+    end do
+    !$OMP END PARALLEL DO
 
     call zero_out_passing_hybrid_electrons(bs0tmp)
 
@@ -1567,13 +1403,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bs0tmp(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * real(bs0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 - v0s0 * z0 / (1 + v0z0)
@@ -1587,8 +1423,8 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bs0tmp(:,isgn,iglo) = bs0tmp(:,isgn,iglo) - dtmp(:,it,ik,is) &
-               * bz0tmp(:,isgn,iglo)
+          bs0tmp(:, isgn, iglo) = bs0tmp(:, isgn, iglo) - dtmp(:, it, ik, is) &
+               * bz0tmp(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1606,13 +1442,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nu_s - nu_D) vpa J0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * bs0tmp(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * real(bs0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1s0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1s0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine s0 = s0 / (1 + v0s0)
@@ -1626,59 +1462,43 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bs0tmp(:,isgn,iglo) = bs0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          bs0tmp(:, isgn, iglo) = bs0tmp(:, isgn, iglo) / (1.0 + dtmp(:, it, ik, is))
        end do
     end do
     !$OMP END PARALLEL DO
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get w0
-    if (conserve_forbid_zero) then
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
-       !$OMP SHARED(g_lo, ntgrid, forbid, bw0tmp, vns, energy, al, aj1, code_dt, &
-       !$OMP spec, kperp2, duinv, bmag) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             do ig=-ntgrid,ntgrid
-                ! u0 = -3 dt J1 vperp vus a f0 / du
-                if ( .not. forbid(ig,il) ) then
-                   bw0tmp(ig,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(ig,iglo) &
-                        * code_dt*spec(is)%smz**2*kperp2(ig,it,ik)*duinv(ig,it,ik,is) &
-                        / bmag(ig)
-                else
-                   bw0tmp(ig,isgn,iglo) = 0.
-                endif
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-    else
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn) &
-       !$OMP SHARED(g_lo, bw0tmp, vns, energy, al, aj1, code_dt, spec, kperp2, duinv, bmag) &
-       !$OMP SCHEDULE(static)
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          ie = ie_idx(g_lo,iglo)
-          il = il_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
+    !$OMP PARALLEL DO DEFAULT(none) &
+    !$OMP PRIVATE(iglo, ik, it, ie, il, is, isgn, ig) &
+    !$OMP SHARED(g_lo, ntgrid, forbid, bw0tmp, vns, energy, al, aj1, code_dt, &
+    !$OMP spec, kperp2, duinv, bmag, conserve_forbid_zero) &
+    !$OMP SCHEDULE(static)
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       ie = ie_idx(g_lo,iglo)
+       il = il_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig=-ntgrid,ntgrid
              ! u0 = -3 dt J1 vperp vus a f0 / du
-             bw0tmp(:,isgn,iglo) = -vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-                  * code_dt*spec(is)%smz**2*kperp2(:,it,ik)*duinv(:,it,ik,is) &
-                  / bmag
+             if ( .not. (forbid(ig,il) .and. conserve_forbid_zero)) then
+                ! Note: energy * al * smz^2 * kperp2 / bmag is alpha^2 where
+                ! alpha is the argument to the Bessel function, i.e. aj1 = J1(alpha) / alpha
+                ! This appears to leave us with alpha * J1(alpha) whilst Barnes' paper
+                ! only includes terms with J1(alpha). Note that alpha = vperp kperp smz/B
+                ! so alpha * J1(alpha) = (kperp * smz / B) * vperp J1
+                bw0tmp(ig, isgn, iglo) = -vns(ik, ie, is, 1) * energy(ie) * al(il) &
+                     * aj1(ig, iglo) * code_dt * spec(is)%smz**2 * kperp2(ig, it, ik) * &
+                     duinv(ig, it, ik, is) / bmag(ig)
+             else
+                bw0tmp(ig, isgn, iglo) = 0.
+             endif
           end do
        end do
-       !$OMP END PARALLEL DO
-    endif
+    end do
+    !$OMP END PARALLEL DO
 
     call zero_out_passing_hybrid_electrons(bw0tmp)
 
@@ -1703,13 +1523,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v0w0
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v0w0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w0 - v0w0 * z0 / (1 + v0z0) (this is w1 from MAB notes)
@@ -1722,8 +1542,9 @@ contains
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bz0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
+       do isgn = 1, 2
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) - bz0tmp(:, isgn, iglo) &
+               * dtmp(:, it, ik, is)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1741,13 +1562,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nus-nud) vpa J0 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)    ! v1w1
+    call integrate_moment (gtmp, dtmp, all_procs)    ! v1w1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w1 - v1w1 * s1 / (1 + v1s1) (this is w2 from MAB notes)
@@ -1760,8 +1581,9 @@ contains
        ik = ik_idx(g_lo,iglo)
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
-       do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) - bs0tmp(:,isgn,iglo)*dtmp(:,it,ik,is)
+       do isgn = 1, 2
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) - bs0tmp(:, isgn, iglo) &
+               * dtmp(:, it, ik, is)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1780,13 +1602,19 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = (nus-nud) vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is,1)*energy(ie)*al(il)*aj1(:,iglo) &
-               * bw0tmp(:,isgn,iglo)
+          ! Note : aj1 = J1(alpha) / alpha, where we have
+          ! alpha^2 = energy * al * smz^2 * kperp2 / bmag = vperp^2 smz^2 kperp2 / bmag^2
+          ! so energy * al * aj1 = (B / [kperp2 * smz^2]) alpha^2 aj1
+          ! = (B / [kperp2 * smz^2]) alpha J1 = vperp J1 / (kperp * smz). As w0tmp
+          ! appears to have an extra factor of kperp * smz / B this _may_ work out to
+          ! (vperp J1 / B) * ... Is there an extra factor of 1 / B here?
+          gtmp(:, isgn, iglo) = vns(ik, ie, is, 1) * energy(ie) * al(il) * aj1(:, iglo) &
+               * real(bw0tmp(:, isgn, iglo))
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, dtmp, all)   ! v2w2
+    call integrate_moment (gtmp, dtmp, all_procs)   ! v2w2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Redefine w0 = w2 / (1 + v2w2)
@@ -1800,7 +1628,7 @@ contains
        it = it_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn=1,2
-          bw0tmp(:,isgn,iglo) = bw0tmp(:,isgn,iglo) / (1.0 + dtmp(:,it,ik,is))
+          bw0tmp(:, isgn, iglo) = bw0tmp(:, isgn, iglo) / (1.0 + dtmp(:, it, ik, is))
        end do
     end do
     !$OMP END PARALLEL DO
@@ -1823,29 +1651,6 @@ contains
        deallocate (bz0tmp)
        if (.not. allocated(bz0le)) allocate (bz0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        bz0le = real(ctmp)
-
-       if (.not. allocated(aj0le)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          ! next set aj0le & aj1l
-          z_big(:,1,:) = cmplx(aj0,aj1)
-          z_big(:,2,:) = z_big(:,1,:)
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          aj0le = real(ctmp)
-          aj1le = aimag(ctmp)
-       end if
-
-       if (.not. allocated(vpale)) then
-          allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-          z_big = vpa
-          call gather (g2le, z_big, ctmp)
-          deallocate (z_big)
-          allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          vpale = real(ctmp)
-       end if
-
        deallocate (ctmp)
     else
        !Only need the real components (imaginary part should be zero, just
@@ -1897,19 +1702,17 @@ contains
   end subroutine zero_out_passing_hybrid_electrons
 
   !> FIXME : Add documentation
-  subroutine init_vnew (hee)
+  subroutine init_vnew
     use species, only: nspec, spec, is_electron_species
     use le_grids, only: negrid, energy => energy_maxw, w => w_maxw
     use kt_grids, only: naky, ntheta0, kperp2
     use theta_grid, only: ntgrid
     use run_parameters, only: zeff, delt_option_switch, delt_option_auto
     use gs2_time, only: tunits
-    use constants, only: pi
+    use constants, only: pi, sqrt_pi
     use gs2_save, only: init_vnm
-    use spfunc, only: erf => erf_ext
-    real, dimension (:), intent (out) :: hee
-    real,dimension (negrid)::heevth, hsg, hsgvth
-    integer :: ik, ie, is, it, ig
+    real, dimension(negrid):: hee, hsg, local_energy
+    integer :: ik, ie, is, it
     integer :: istatus
     real :: k4max
     real :: vl, vr, dv2l, dv2r
@@ -1927,224 +1730,174 @@ contains
        vnmult = vnm_init
     end if
 
-    do ie = 1, negrid
-       hee(ie) = exp(-energy(ie))/sqrt(pi*energy(ie)) &
-            + (1.0 - 0.5/energy(ie))*erf(sqrt(energy(ie)))
+    if (const_v) then
+       local_energy = 1.0
+    else
+       local_energy = energy
+    end if
 
-!>MAB
-! hsg is the G of Hirshman and Sigmar
-! added to allow for momentum conservation with energy diffusion
-       hsg(ie) = hsg_func(sqrt(energy(ie)))
-!<MAB
+    do ie = 1, negrid
+       hee(ie) = exp(-local_energy(ie))/sqrt(pi*local_energy(ie)) &
+            + (1.0 - 0.5/local_energy(ie))*erf(sqrt(local_energy(ie)))
+       !>MAB
+       ! hsg is the G of Hirshman and Sigmar
+       ! added to allow for momentum conservation with energy diffusion
+       hsg(ie) = hsg_func(sqrt(local_energy(ie)))
+       !<MAB
     end do
 
-!heevth is hee but using only thermal velocity (energy independent)
-
-    do ie = 1, negrid
-       heevth(ie) = exp(-1.0)/sqrt(pi) + 0.5*erf(1.0)
-
-!>MAB
-! hsg is the G of Helander and Sigmar
-! added to allow for momentum conservation with energy diffusion
-       hsgvth(ie) = hsg_func(1.0)
-!<MAB
-    end do                                                                  
-
-    if(.not.allocated(vnew)) then
+    if (.not.allocated(vnew)) then
+       ! Here the ky dependence is just to allow us to scale by tunits.
+       ! This saves some operations in later use at expense of more memory
        allocate (vnew(naky,negrid,nspec))
        allocate (vnew_s(naky,negrid,nspec))
        allocate (vnew_D(naky,negrid,nspec))
        allocate (vnew_E(naky,negrid,nspec))
        allocate (delvnew(naky,negrid,nspec))
     end if
-    if(.not.allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
 
-    do is = 1, nspec
-       ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
-       ! Correct collision frequency if applying collisions only every nth timestep:
-       !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
-       if (is_electron_species(spec(is))) then
-          do ie = 1, negrid
-             do ik = 1, naky
-                if (ei_coll_only) then
-                   if (const_v) then
-                      vnew(ik,ie,is) = spec(is)%vnewk &
-                           *zeff*0.5*tunits(ik)
-                   else
-                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *zeff*0.5*tunits(ik)
-                   endif
-
-                   vnew_s(ik,ie,is)=0.
-                   vnew_D(ik,ie,is)=0.
-                   vnew_E(ik,ie,is)=0.
-                   delvnew(ik,ie,is)=0.
-                else
-                   if (const_v) then
-                      vnew(ik,ie,is) = spec(is)%vnewk &
-                           *(zeff+heevth(ie))*0.5*tunits(ik)
-                      vnew_s(ik,ie,is) = spec(is)%vnewk &
-                           *hsgvth(ie)*4.0*tunits(ik)
-                      vnew_D(ik,ie,is) = spec(is)%vnewk &
-                           *heevth(ie)*tunits(ik)
-                      if (.not. conservative) then
-                         vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
-                              - 2.0*vnew_D(ik,ie,is)
-                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                      end if
-                   else
-                      vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *(zeff + hee(ie))*0.5*tunits(ik)
-                      vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
-                           *hsg(ie)*4.0*tunits(ik)
-                      vnew_D(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                           *hee(ie)*tunits(ik)
-                      if (.not. conservative) then
-                         vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
-                              - 2.0*vnew_D(ik,ie,is))
-                         delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                      end if
-                   end if
-                endif
+    if (ei_coll_only) then
+       vnew_s = 0 ; vnew_D = 0 ; vnew_E = 0 ; delvnew = 0.
+       do is = 1, nspec
+          if (is_electron_species(spec(is))) then
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                        * zeff * 0.5 * tunits(:)
              end do
-          end do
-       else
+          else
+             vnew(:, :, is) = 0.0
+          end if
+       end do
+    else
+       do is = 1, nspec
+          ! Don't include following lines, as haven't yet accounted for possibility of timestep changing.
+          ! Correct collision frequency if applying collisions only every nth timestep:
+          !spec(is)%vnewk = spec(is)%vnewk * float(timesteps_between_collisions)
+
           do ie = 1, negrid
-             do ik = 1, naky
-                if (const_v) then
-                   vnew(ik,ie,is) = spec(is)%vnewk &
-                        *heevth(ie)*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk &
-                        *hsgvth(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = vnew_s(ik,ie,is)*1.5 &
-                           - 2.0*vnew_D(ik,ie,is)
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                else
-                   vnew(ik,ie,is) = spec(is)%vnewk/energy(ie)**1.5 &
-                        *hee(ie)*0.5*tunits(ik)
-                   vnew_s(ik,ie,is) = spec(is)%vnewk/sqrt(energy(ie)) &
-                        *hsg(ie)*4.0*tunits(ik)
-                   vnew_D(ik,ie,is) = 2.0*vnew(ik,ie,is)
-                   if (.not. conservative) then
-                      vnew_E(ik,ie,is) = energy(ie)*(vnew_s(ik,ie,is)*(2.0-0.5/energy(ie)) &
-                           - 2.0*vnew_D(ik,ie,is))
-                      delvnew(ik,ie,is) = vnew_s(ik,ie,is)-vnew_D(ik,ie,is)
-                   end if
-                end if
-                if (ei_coll_only) then
-                   vnew(ik,ie,is) = 0.
-                   vnew_s(ik,ie,is)=0.
-                   vnew_D(ik,ie,is)=0.
-                   vnew_E(ik,ie,is)=0.
-                   delvnew(ik,ie,is)=0.
-                endif
-             end do
+             vnew_s(:, ie, is) = spec(is)%vnewk / sqrt(local_energy(ie)) &
+                  * hsg(ie) * 4.0 * tunits(:)
           end do
-       end if
 
-       if (conservative) then
+          if (is_electron_species(spec(is))) then
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * (zeff + hee(ie)) * 0.5 * tunits(:)
+                vnew_D(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * hee(ie) * tunits(:)
+             end do
+          else
+             do ie = 1, negrid
+                vnew(:, ie, is) = spec(is)%vnewk / local_energy(ie)**1.5 &
+                     * hee(ie) * 0.5 * tunits(:)
+                vnew_D(:, ie, is) = 2.0 * vnew(:, ie, is)
+             end do
+          end if
+       end do
+    end if
 
+    if (conservative) then !Presumably not compatible with const_v so we use energy
+       do is = 1, nspec
           do ie = 2, negrid-1
              vr = 0.5*(sqrt(energy(ie+1)) + sqrt(energy(ie)))
              vl = 0.5*(sqrt(energy(ie  )) + sqrt(energy(ie-1)))
              dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
              dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
-          
-             vnew_E(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*dv2l*hsg_func(vl) &
-                  - vr*exp(-vr**2)*dv2r*hsg_func(vr)) / (sqrt(pi)*w(ie))
-             delvnew(:,ie,is) = spec(is)%vnewk*tunits*(vl*exp(-vl**2)*hsg_func(vl) &
-                     - vr*exp(-vr**2)*hsg_func(vr)) / (sqrt(pi*energy(ie))*w(ie))
+
+             vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+                  vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+             delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+                  delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
           end do
 
           ! boundary at v = 0
-          vr = 0.5*(sqrt(energy(2)) + sqrt(energy(1)))
-          dv2r = (energy(2) - energy(1)) / (sqrt(energy(2)) - sqrt(energy(1)))
-
-          vnew_E(:,1,is) = -spec(is)%vnewk*tunits*vr*exp(-vr**2)*hsg_func(vr)*dv2r &
-               / (sqrt(pi)*w(1))
-          delvnew(:,1,is) = -spec(is)%vnewk*tunits*vr*exp(-vr**2)*hsg_func(vr) &
-               / (sqrt(pi*energy(1))*w(1))
+          ie = 1
+          vr = 0.5 * (sqrt(energy(ie+1)) + sqrt(energy(ie)))
+          vl = 0.0
+          dv2r = (energy(ie+1) - energy(ie)) / (sqrt(energy(ie+1)) - sqrt(energy(ie)))
+          dv2l = 0.0
+          vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+               vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+          delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+               delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
 
           ! boundary at v -> infinity
-          vl = 0.5*(sqrt(energy(negrid)) + sqrt(energy(negrid-1)))
-          dv2l = (energy(negrid) - energy(negrid-1)) / (sqrt(energy(negrid)) - sqrt(energy(negrid-1)))
-
-          vnew_E(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl)*dv2l &
-               / (sqrt(pi)*w(negrid))
-          delvnew(:,negrid,is) = spec(is)%vnewk*tunits*vl*exp(-vl**2)*hsg_func(vl) &
-               / (sqrt(pi*energy(negrid))*w(negrid))
-
-       end if
+          ie = negrid
+          vr = 0.0
+          vl = 0.5 * (sqrt(energy(ie)) + sqrt(energy(ie-1)))
+          dv2r = 0.0
+          dv2l = (energy(ie) - energy(ie-1)) / (sqrt(energy(ie)) - sqrt(energy(ie-1)))
+          vnew_E(:, ie, is) =  spec(is)%vnewk * tunits * &
+               vnew_E_conservative(vr, vl, dv2r, dv2l) / (sqrt_pi * w(ie))
+          delvnew(:, ie, is) = spec(is)%vnewk * tunits * &
+               delvnew_conservative(vr, vl) / (sqrt_pi * sqrt(energy(ie)) * w(ie))
+       end do
+    else
+       do is = 1, nspec
+          do ie = 2, negrid-1
+             vnew_E(:, ie, is) = local_energy(ie) * (vnew_s(:, ie, is) * &
+                  (2.0 - 0.5 / local_energy(ie)) - 2.0 * vnew_D(:, ie, is))
+             delvnew(:, ie, is) = vnew_s(:, ie, is) - vnew_D(:, ie, is)
+          end do
+       end do
+    end if
 
        ! add hyper-terms inside collision operator
 !BD: Warning!
-!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90 
+!BD: For finite magnetic shear, this is different in form from what appears in hyper.f90
 !BD: because kperp2 /= akx**2 + aky**2;  there are cross terms that are dropped in hyper.f90
 !BD: Warning!
 !BD: Also: there is no "grid_norm" option here and the exponent is fixed to 4 for now
-       if (hyper_colls) then
-          k4max = (maxval(kperp2))**2 
+    if (hyper_colls) then
+       if (.not. allocated(vnewh)) allocate (vnewh(-ntgrid:ntgrid,ntheta0,naky,nspec))
+       k4max = (maxval(kperp2))**2
+       do is = 1, nspec
           do ik = 1, naky
              do it = 1, ntheta0
-                do ig=-ntgrid,ntgrid
-                   vnewh(ig,it,ik,is) = spec(is)%nu_h * kperp2(ig,it,ik)**2/k4max
-                end do
+                vnewh(:,it,ik,is) = spec(is)%nu_h * kperp2(:,it,ik)**2/k4max
              end do
           end do
-       else
-          vnewh = 0.
-       end if
-    end do
-    
+       end do
+    end if
+
+  contains
+    elemental real function vnew_E_conservative(vr, vl, dv2r, dv2l) result(vnE)
+      real, intent(in) :: vr, vl, dv2l, dv2r
+      vnE = (vl * exp(-vl**2) * dv2l * hsg_func(vl) - vr * exp(-vr**2) * dv2r * hsg_func(vr))
+    end function vnew_E_conservative
+
+    elemental real function delvnew_conservative(vr, vl) result(delVn)
+      real, intent(in) :: vr, vl
+      delVn = (vl * exp(-vl**2) * hsg_func(vl) - vr * exp(-vr**2) * hsg_func(vr))
+    end function delvnew_conservative
+
   end subroutine init_vnew
 
   !> FIXME : Add documentation  
-  function hsg_func (vel)
-
-    use constants, only: pi
-    use spfunc, only: erf => erf_ext
-
+  elemental real function hsg_func (vel)
+    use constants, only: sqrt_pi
     implicit none
-
     real, intent (in) :: vel
-    real :: hsg_func
-
-    hsg_func = 0.5*erf(vel)/vel**2-exp(-vel**2)/(sqrt(pi)*vel)
-
+    if (abs(vel) <= epsilon(0.0)) then
+       hsg_func = 0.0
+    else
+       hsg_func = 0.5 * erf(vel) / vel**2 - exp(-vel**2) / (sqrt_pi * vel)
+    end if
   end function hsg_func
 
   !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
-    use le_grids, only: negrid, nxi, ng2
-    use le_grids, only: forbid, ixi_to_il
+    use le_grids, only: negrid, nxi, forbid, ixi_to_il
     use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use array_utils, only: zero_array
-
     implicit none
-
     real, intent (in), optional :: vnmult_target
-
-    integer :: ie, is, ik, il, ig, it
+    integer :: ie, is, ik, il, ig, it, ile, ixi, ielo
     real, dimension (:), allocatable :: aa, bb, cc, xe
-    integer :: ile, ixi
-    integer :: ielo
-    integer :: nxi_lim
 
-    allocate (aa(negrid), bb(negrid), cc(negrid))
-    allocate (xe(negrid))
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-       nxi_lim = nxi + 1
-    else
-       nxi_lim = nxi
-    endif
+    allocate (aa(negrid), bb(negrid), cc(negrid), xe(negrid))
 
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
@@ -2154,7 +1907,6 @@ contains
     if (present(vnmult_target)) then
        vnmult(2) = max (vnmult_target, 1.0)
     end if
-
 
     if(use_le_layout) then
 
@@ -2177,16 +1929,16 @@ contains
           it = it_idx(le_lo, ile)
           is = is_idx(le_lo, ile)
           ig = ig_idx(le_lo, ile)
-          do ixi=1, nxi_lim
-             il = ixi_to_il(ig,ixi)
-             if (forbid(ig,il)) cycle
+          do ixi = 1, nxi_lim
+             il = ixi_to_il(ixi, ig)
+             if (forbid(ig, il)) cycle
              call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-             ec1le(ixi,:,ile) = cc
-             ebetaale(ixi,1,ile) = 1.0 / bb(1)
-             do ie = 1, negrid-1
-                eqle(ixi,ie+1,ile) = aa(ie+1) * ebetaale(ixi,ie,ile)
-                ebetaale(ixi,ie+1,ile) = 1.0 / ( bb(ie+1) - eqle(ixi,ie+1,ile) &
-                     * ec1le(ixi,ie,ile) )
+             ec1le(ixi, :, ile) = cc
+             ebetaale(ixi, 1, ile) = 1.0 / bb(1)
+             do ie = 1,  negrid - 1
+                eqle(ixi, ie+1, ile) = aa(ie+1) * ebetaale(ixi, ie, ile)
+                ebetaale(ixi, ie+1, ile) = 1.0 / ( bb(ie+1) - eqle(ixi, ie+1, ile) &
+                     * ec1le(ixi, ie, ile) )
              end do
           end do
        end do
@@ -2210,20 +1962,19 @@ contains
        do ielo = e_lo%llim_proc, e_lo%ulim_proc
           il = il_idx(e_lo, ielo)
           ig = ig_idx(e_lo, ielo)
-          if (forbid(ig,il)) cycle
+          if (forbid(ig, il)) cycle
           is = is_idx(e_lo, ielo)
           ik = ik_idx(e_lo, ielo)
           it = it_idx(e_lo, ielo)
           call get_ediffuse_matrix (aa, bb, cc, ig, ik, it, il, is, xe)
-          ec1(:,ielo) = cc
+          ec1(:, ielo) = cc
 
           ! fill in the arrays for the tridiagonal
-          ebetaa(1,ielo) = 1.0/bb(1)
-          do ie = 1, negrid-1
-             eql(ie+1,ielo) = aa(ie+1)*ebetaa(ie,ielo)
-             ebetaa(ie+1,ielo) = 1.0/(bb(ie+1)-eql(ie+1,ielo)*ec1(ie,ielo))
+          ebetaa(1, ielo) = 1.0 / bb(1)
+          do ie = 1, negrid - 1
+             eql(ie+1, ielo) = aa(ie+1) * ebetaa(ie, ielo)
+             ebetaa(ie+1, ielo) = 1.0 / (bb(ie+1) - eql(ie+1, ielo) * ec1(ie, ielo))
           end do
-
        end do
        !$OMP END PARALLEL DO
     end if
@@ -2237,8 +1988,6 @@ contains
     use species, only: spec
     use theta_grid, only: bmag
     use le_grids, only: al, negrid, w=>w_maxw
-    use spfunc, only: erf => erf_ext
-    use constants, only: pi
     use kt_grids, only: kperp2
     use gs2_time, only: code_dt, tunits
 
@@ -2249,242 +1998,166 @@ contains
     real, dimension (:), intent (out) :: aa, bb, cc
 
     integer :: ie
-    real :: vn, slb1, xe0, xe1, xe2, xel, xer
-    real :: capgr, capgl, ee
+    real :: vn, slb1, xe0, xe1, xe2, xel, xer, capgr, capgl, ee
 
-    vn = vnmult(2)*spec(is)%vnewk*tunits(ik)
+    vn = vnmult(2) * spec(is)%vnewk * tunits(ik)
 
     slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))     ! xi_j
 
     select case (ediff_switch)
-
     case (ediff_scheme_default)
-       
-       do ie = 2, negrid-1
+       do ie = 2, negrid - 1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-          
-          xel = (xe0 + xe1)*0.5
-          xer = (xe1 + xe2)*0.5
-         
-          capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/(xer*sqrt(pi))
-          capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/(xel*sqrt(pi))
-          
-          ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+
+          xel = (xe0 + xe1) * 0.5
+          xer = (xe1 + xe2) * 0.5
+
+          capgr = capg(xer)
+          capgl = capg(xel)
+
+          ee = 0.125 * (1 - slb1**2) * vnew_s(ik,ie,is) * kperp2(ig,it,ik)*cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(ie) = -0.25*vn*code_dt*capgr/(w(ie)*(xe2 - xe1))
-          aa(ie) = -0.25*vn*code_dt*capgl/(w(ie)*(xe1 - xe0))
+          cc(ie) = -0.25 * vn * code_dt * capgr / (w(ie) * (xe2 - xe1))
+          aa(ie) = -0.25 * vn * code_dt * capgl / (w(ie) * (xe1 - xe0))
           bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-          
-             ! coefficients for entropy heating calculation
-!             if (heating) then
-!                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!                hh(ie) =vnh*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!             end if
        end do
 
        ! boundary at v = 0
        xe1 = xe(1)
        xe2 = xe(2)
-       
-       xer = (xe1 + xe2)*0.5
-       
-       capgr = 2.0*exp(-xer**2)*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer/sqrt(pi)
-       
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = -0.25*vn*code_dt*capgr/(w(1)*(xe2 - xe1))
+       xer = (xe1 + xe2) * 0.5
+
+       capgr = capg(xer)
+
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,1,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = -0.25 * vn * code_dt * capgr / (w(1) * (xe2 - xe1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*code_dt
-       
-!          if (heating) then
-!             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!          end if
+       bb(1) = 1.0 - cc(1) + ee * code_dt
 
        ! boundary at v = infinity
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-       
-       xel = (xe1 + xe0)*0.5
-       
-       capgl = 2.0*exp(-xel**2)*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel/sqrt(pi)
 
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
+       xel = (xe1 + xe0) * 0.5
+
+       capgl = capg(xel)
+
+       ee = 0.125 * (1.-slb1**2) * vnew_s(ik,negrid,is) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
        cc(negrid) = 0.0
-       aa(negrid) = -0.25*vn*code_dt*capgl/(w(negrid)*(xe1 - xe0))
+       aa(negrid) = -0.25 * vn * code_dt * capgl / (w(negrid) * (xe1 - xe0))
        bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-       
-!          if (heating) then
-!             dd(negrid) =vnc*ee
-!             hh(negrid) =vnh*ee
-!          end if
 
     case (ediff_scheme_old)
-       
+
        ! non-conservative scheme
-       
        do ie = 2, negrid-1
           xe0 = xe(ie-1)
           xe1 = xe(ie)
           xe2 = xe(ie+1)
-          
-          xel = (xe0 + xe1)*0.5
-          xer = (xe1 + xe2)*0.5
-          
-          capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
-          capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
-          
-          ee = 0.125*(1.-slb1**2)*vnew_s(ik,ie,is) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+
+          xel = (xe0 + xe1) * 0.5
+          xer = (xe1 + xe2) * 0.5
+
+          capgr = capg_old(xe1, xer)
+          capgl = capg_old(xe1, xel)
+
+          ee = 0.125 * (1 - slb1**2) * vnew_s(ik,ie,is) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(ie) = -vn*code_dt*capgr/((xer-xel)*(xe2 - xe1))
-          aa(ie) = -vn*code_dt*capgl/((xer-xel)*(xe1 - xe0))
-          bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee*code_dt
-          
-          ! coefficients for entropy heating calculation
-!             if (heating) then
-!                dd(ie) =vnc*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!                hh(ie) =vnh*(0.25*capgr/(w(ie)*(xe2-xe1)) + ee)
-!             end if
+          cc(ie) = -vn * code_dt * capgr / ((xer-xel) * (xe2 - xe1))
+          aa(ie) = -vn * code_dt * capgl / ((xer-xel) * (xe1 - xe0))
+          bb(ie) = 1.0 - (aa(ie) + cc(ie)) + ee * code_dt
        end do
 
        ! boundary at xe = 0
        xe1 = xe(1)
        xe2 = xe(2)
-       
-       xer = (xe1 + xe2)*0.5
-       
-       capgr = 0.5*exp(xe1**2-xer**2)/xe1**2*(erf(xer)-2.*xer*exp(-xer**2)/sqrt(pi))/xer
-       
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,1,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = -vn*code_dt*capgr/(xer*(xe2 - xe1))
+       xer = (xe1 + xe2) * 0.5
+
+       capgr = capg_old(xe1, xer)
+
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,1,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = -vn * code_dt * capgr / (xer * (xe2 - xe1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*code_dt
-       
-!          if (heating) then
-!             dd(1) =vnc*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!             hh(1) =vnh*(0.25*capgr/(w(1)*(xe2-xe1)) + ee)
-!          end if
+       bb(1) = 1.0 - cc(1) + ee * code_dt
 
        ! boundary at xe = 1
        xe0 = xe(negrid-1)
        xe1 = xe(negrid)
-       
-       xel = (xe1 + xe0)*0.5
-       
-       capgl = 0.5*exp(xe1**2-xel**2)/xe1**2*(erf(xel)-2.*xel*exp(-xel**2)/sqrt(pi))/xel
-       
-       ee = 0.125*(1.-slb1**2)*vnew_s(ik,negrid,is) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
+       xel = (xe1 + xe0) * 0.5
+
+       capgl = capg_old(xe1, xel)
+
+       ee = 0.125 * (1 - slb1**2) * vnew_s(ik,negrid,is) * kperp2(ig,it,ik)*cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
        cc(negrid) = 0.0
-       aa(negrid) = -vn*code_dt*capgl/((1.0-xel)*(xe1 - xe0))
-       bb(negrid) = 1.0 - aa(negrid) + ee*code_dt
-
-!          if (heating) then
-!             dd(negrid) =vnc*ee
-!             hh(negrid) =vnh*ee
-!          end if
-
+       aa(negrid) = -vn * code_dt * capgl / ((1.0-xel) * (xe1 - xe0))
+       bb(negrid) = 1.0 - aa(negrid) + ee * code_dt
     end select
 
+  contains
+    elemental real function capg_kernel(xe)
+      use constants, only: sqrt_pi
+      real, intent(in) :: xe
+      ! This is the same as hsg_func(xe) * 2 * xe**2
+      capg_kernel =  erf(xe) - 2 * xe * exp(-xe**2) / sqrt_pi
+    end function capg_kernel
+
+    elemental real function capg(xe)
+      use constants, only: sqrt_pi
+      real, intent(in) :: xe
+      capg = 2 * exp(-xe**2) * capg_kernel(xe) / (xe * sqrt_pi)
+    end function capg
+
+    elemental real function capg_old(xeA, xeB)
+      real, intent(in) :: xeA, xeB
+      capg_old = (0.5 * exp(xeA**2-xeB**2) / xeA**2) * capg_kernel(xeB) / xeB
+    end function capg_old
   end subroutine get_ediffuse_matrix
 
   !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, g2le, nlambda, al
-    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids, &
-         il_is_passing, il_is_wfb
-    use gs2_layouts, only: le_lo
-    use gs2_layouts, only: lz_lo, g_lo
-    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx
-    use redistribute, only: gather
+    use le_grids, only: negrid, jend, ng2, nxi, nlambda, al, il_is_passing, il_is_wfb
+    use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
+    use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, le_lo
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: aj0, aj1, vpa
     use species, only: has_hybrid_electron_species, spec
     use array_utils, only: zero_array
-
     implicit none
-
     real, intent (in), optional :: vnmult_target
-
-    integer :: ig, il, it, ik, ie, is, je, te2
-    real, dimension (:), allocatable :: aa, bb, cc
-    real, dimension (:), allocatable :: dd, hh
-    integer :: ile
-    integer :: ilz
-    complex, dimension (:,:,:), allocatable :: ctmp, z_big
-
+    integer :: ig, ixi, it, ik, ie, is, je, te2, ile, ilz
+    real, dimension (:), allocatable :: aa, bb, cc, dd, hh
+    real, dimension (:, :), allocatable :: local_weights
     allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
 
     if (.not. allocated(pitch_weights)) then
        ! Start by just copying the existing weights
-       allocate(pitch_weights(-ntgrid:ntgrid, nlambda))
-       pitch_weights = 0.0
+       allocate(local_weights(-ntgrid:ntgrid, nlambda))
+       local_weights = 0.0
        ! We have to recaculate the passing weights here as when Radau-Gauss
        ! grids are used the WFB (il=ng2+1) is treated as both passing and
        ! trapped. Otherwise we could just copy the passing weights from wl.
-       call setup_passing_lambda_grids(al, pitch_weights)
-       call setup_trapped_lambda_grids_old_finite_difference(al, pitch_weights)
+       call setup_passing_lambda_grids(al, local_weights)
+       call setup_trapped_lambda_grids_old_finite_difference(al, local_weights)
+       allocate(pitch_weights(nlambda, -ntgrid:ntgrid))
+       pitch_weights = transpose(local_weights)
     end if
 
     call init_vpdiff
 
     if(use_le_layout) then
-
-       !Make sure aj0le is available if drag term included
-       if(drag)then
-          if(.not.allocated(aj0le))then
-             allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-             allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             ! We need to initialise ctmp as it is used as receiving buffer in
-             ! g2le redistribute, which doesn't populate all elements
-             call zero_array(ctmp)
-
-             ! next set aj0le & aj1l
-             z_big(:,1,:) = cmplx(aj0,aj1)
-             z_big(:,2,:) = z_big(:,1,:)
-
-             call gather (g2le, z_big, ctmp)
-
-             allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             allocate (aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-             aj0le = real(ctmp)
-             aj1le = aimag(ctmp)
-
-             if (.not. allocated(vpale)) then
-                allocate (vpale(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-             end if
-             z_big = vpa
-             call gather (g2le, z_big, ctmp)
-             vpale = real(ctmp)
-
-             deallocate (ctmp, z_big)
-          endif
-       endif
-
-       if (heating .and. .not. allocated(glec)) then
-          allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          call zero_array(glec)
-       end if
        if (.not.allocated(c1le)) then
           allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
@@ -2505,10 +2178,10 @@ contains
           vnmult(1) = max (vnmult_target, 1.0)
        end if
 
-
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
-       !$OMP SHARED(le_lo, jend, special_wfb_lorentz, ng2, negrid, spec, c1le, d1le, h1le, qle, betaale) &
+       !$OMP PRIVATE(ile, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, ixi) &
+       !$OMP SHARED(le_lo, jend, special_wfb_lorentz, ng2, negrid, spec, c1le, &
+       !$OMP d1le, h1le, qle, betaale) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ig = ig_idx(le_lo,ile)
@@ -2520,12 +2193,16 @@ contains
           ! MRH the above line is likely the original cause of the wfb bug in collisions
           ! by treating collisions arrays here as if there are only passing particles
           ! when there are only passing particles plus wfb (and no other trapped particles)
-          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi 
-          ! Fixed below
+          ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
+          ! Fixed below.
+          ! Here te2 is the total number of unique valid xi at this point.
+          ! For passing particles this is 2*ng2 whilst for trapped we subtract one
+          ! from the number of valid pitch angles due to the "degenerate" duplicate
+          ! vpar = 0 point.
           if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
-             te2 = 2*ng2
+             te2 = 2 * ng2
           else
-             te2 = 2*je-1
+             te2 = 2 * je - 1
           end if
           do ie = 1, negrid
 
@@ -2533,22 +2210,22 @@ contains
 
              if (has_hybrid_electron_species(spec)) &
                   call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
-             
-             c1le(:,ie,ile) = cc
+
+             c1le(:, ie, ile) = cc
              if (allocated(d1le)) then
-                d1le(:,ie,ile) = dd
-                h1le(:,ie,ile) = hh
+                d1le(:, ie, ile) = dd
+                h1le(:, ie, ile) = hh
              end if
 
-             qle(1,ie,ile) = 0.0
-             betaale(1,ie,ile) = 1.0/bb(1)
-             do il = 1, te2-1
-                qle(il+1,ie,ile) = aa(il+1) * betaale(il,ie,ile)
-                betaale(il+1,ie,ile) = 1.0 / ( bb(il+1) - qle(il+1,ie,ile) &
-                     * c1le(il,ie,ile) )
+             qle(1, ie, ile) = 0.0
+             betaale(1, ie, ile) = 1.0 / bb(1)
+             do ixi = 1, te2-1
+                qle(ixi+1, ie, ile) = aa(ixi+1) * betaale(ixi, ie, ile)
+                betaale(ixi+1, ie, ile) = 1.0 / ( bb(ixi+1) - qle(ixi+1, ie, ile) &
+                     * c1le(ixi, ie, ile) )
              end do
-             qle(te2+1,ie,ile) = 0.0
-             betaale(te2+1,ie,ile) = 0.0
+             qle(te2+1:, ie, ile) = 0.0
+             betaale(te2+1:, ie, ile) = 0.0
           end do
        end do
        !$OMP END PARALLEL DO
@@ -2576,7 +2253,7 @@ contains
        end if
 
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, il) &
+       !$OMP PRIVATE(ilz, ik, it, is, ig, je, te2, ie, aa, bb, cc, dd, hh, ixi) &
        !$OMP SHARED(lz_lo, jend, special_wfb_lorentz, spec, c1, d1, h1, betaa, ql, ng2) &
        !$OMP SCHEDULE(static)
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
@@ -2593,9 +2270,9 @@ contains
           ! introduced an inconsistency in the tri-diagonal solve for theta =+/- pi
           ! Fixed below
           if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz) ) then ! MRH
-             te2 = 2*ng2
+             te2 = 2 * ng2
           else
-             te2 = 2*je-1
+             te2 = 2 * je - 1
           end if
 
           call get_lorentz_matrix (aa, bb, cc, dd, hh, ig, ik, it, ie, is)
@@ -2603,22 +2280,21 @@ contains
           if (has_hybrid_electron_species(spec)) &
                call set_hzero_lorentz_collisions_matrix(aa, bb, cc, je, ik, is)
 
-          c1(:,ilz) = cc
+          c1(:, ilz) = cc
           if (allocated(d1)) then
-             d1(:,ilz) = dd
-             h1(:,ilz) = hh
+             d1(:, ilz) = dd
+             h1(:, ilz) = hh
           end if
 
-          betaa(1,ilz) = 1.0/bb(1)
-          do il = 1, te2-1
-             ql(il+1,ilz) = aa(il+1)*betaa(il,ilz)
-             betaa(il+1,ilz) = 1.0/(bb(il+1)-ql(il+1,ilz)*c1(il,ilz))
+          ql(1, ilz) = 0.0
+          betaa(1, ilz) = 1.0 / bb(1)
+          do ixi = 1, te2-1
+             ql(ixi+1, ilz) = aa(ixi+1) * betaa(ixi, ilz)
+             betaa(ixi+1, ilz) = 1.0 / (bb(ixi+1) - ql(ixi+1, ilz) * c1(ixi, ilz))
           end do
-
-          ql(1,ilz) = 0.0
-          ql(te2+1:,ilz) = 0.0
-          c1(te2+1:,ilz) = 0.0
-          betaa(te2+1:,ilz) = 0.0
+          ql(te2+1:, ilz) = 0.0
+          c1(te2+1:, ilz) = 0.0
+          betaa(te2+1:, ilz) = 0.0
        end do
        !$OMP END PARALLEL DO
     end if
@@ -2666,252 +2342,241 @@ contains
     use gs2_time, only: code_dt, tunits
     use kt_grids, only: kperp2
     use theta_grid, only: bmag
-
     implicit none
-
     real, dimension (:), intent (out) :: aa, bb, cc, dd, hh
     integer, intent (in) :: ig, ik, it, ie, is
-
     integer :: il, je, te, te2, teh
-    real :: slb0, slb1, slb2, slbl, slbr, vn, vnh, vnc, ee
-    real deltaxi
+    real :: slb0, slb1, slb2, slbl, slbr, vhyp, vn, vnh, vnc, ee, deltaxi
 
     je = jend(ig)
 !
 !CMR, 17/2/2014:
 !         te, te2, teh: indices in xi, which runs from +1 -> -1.
 !         te   :  index of minimum xi value >= 0.
-!         te2  :  total #xi values = index of minimum xi value (= -1) 
-!         teh  :  index of minimum xi value > 0.  
+!         te2  :  total #xi values = index of minimum xi value (= -1)
+!         teh  :  index of minimum xi value > 0.
 !                 teh = te if no bouncing particle at this location
 !              OR teh = te-1 if there is a bouncing particle
 !
-    if (special_wfb_lorentz) then
-!CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with 
-!         SPECIAL (unphysical) treatment of wfb at its bounce point
-       if (il_is_passing(je) .or. il_is_wfb(je)) then
-          te = ng2
-          te2 = 2*ng2
-          teh = ng2
-       else
-          te = je
-          te2 = 2*je-1
-          teh = je-1
-       end if
+    if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz)) then
+       !CMRDDGC, 17/2/2014:
+       !   This clause is appropriate for Lorentz collisons with
+       !         SPECIAL (unphysical) treatment of wfb at its bounce point
+       te = ng2
+       te2 = 2*ng2
+       teh = ng2
     else
-!CMRDDGC, 17/2/2014:
-!   This clause is appropriate for Lorentz collisons with 
-!         STANDARD treatment of wfb at its bounce point
-       if (il_is_passing(je)) then
-          te = ng2
-          te2 = 2*ng2
-          teh = ng2
-       else
-          te = je
-          te2 = 2*je-1
-          teh = je-1
-       end if
-    endif 
+       !CMRDDGC, 17/2/2014:
+       !   This clause is appropriate for Lorentz collisons with
+       !         STANDARD treatment of wfb at its bounce point
+       te = je
+       te2 = 2*je-1
+       teh = je-1
+    end if
+
     if (collision_model_switch == collision_model_lorentz_test) then
-       vn = vnmult(1)*abs(spec(is)%vnewk)*tunits(ik)
+       vn = vnmult(1) * abs(spec(is)%vnewk) * tunits(ik)
        vnc = 0.
        vnh = 0.
     else
-       if (hypermult) then
-          vn = vnmult(1)*vnew(ik,ie,is)*(1.+vnewh(ig,it,ik,is))
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)*vnc
+       if (hyper_colls) then
+          vhyp = vnewh(ig, it, ik, is)
        else
-          vn = vnmult(1)*vnew(ik,ie,is)+vnewh(ig,it,ik,is)
-          vnc = vnmult(1)*vnew(ik,ie,is)
-          vnh = vnewh(ig,it,ik,is)
+          vhyp = 0.0
+       end if
+       ! vnc and vnh only needed when heating is true
+       vnc = vnmult(1) * vnew(ik, ie, is)
+       if (hypermult) then
+          vn = vnmult(1) * vnew(ik, ie, is) * (1 + vhyp)
+          vnh = vhyp * vnc
+       else
+          vn = vnmult(1) * vnew(ik, ie, is) + vhyp
+          vnh = vhyp
        end if
     end if
 
     aa = 0.0 ; bb = 0.0 ; cc = 0.0 ; dd = 0.0 ; hh = 0.0
 
     select case (lorentz_switch)
-       
-    case (lorentz_scheme_default)          
-       
+    case (lorentz_scheme_default)
+
        do il = 2, te-1
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
-          
-          slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-          slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-          
-          ee = 0.5*energy(ie)*(1+slb1**2) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
+
+          slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+          slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
+
+          ee = 0.5 * energy(ie)*(1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,il)*(slb2 - slb1))
-          aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(pitch_weights(ig,il)*(slb1 - slb0))
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-          
+          cc(il) = 2.0 * vn * code_dt * (1 - slbr**2) / &
+               (pitch_weights(il, ig) * (slb2 - slb1))
+          aa(il) = 2.0 * vn * code_dt * (1 - slbl**2) / &
+               (pitch_weights(il, ig) * (slb1 - slb0))
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
-             hh(il) =vnh*(-2.0*(1.0-slbr*slbr)/(pitch_weights(ig,il)*(slb2-slb1)) + ee)
+             dd(il) = vnc * (-2.0 * (1 - slbr**2) / &
+                  (pitch_weights(il, ig) * (slb2 - slb1)) + ee)
+             hh(il) = vnh * (-2.0 * (1 - slbr**2) / &
+                  (pitch_weights(il, ig) * (slb2 - slb1)) + ee)
           end if
        end do
-       
+
        ! boundary at xi = 1
-       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
-       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
-       
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = 2.0*vn*code_dt*(1.0 - slbr**2)/(pitch_weights(ig,1)*(slb2 - slb1))
+       slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+       slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = 2.0 * vn * code_dt * (1.0 - slbr**2) &
+            / (pitch_weights(1, ig) * (slb2 - slb1))
        aa(1) = 0.0
-       bb(1) = 1.0 - cc(1) + ee*vn*code_dt
-       
+       bb(1) = 1.0 - cc(1) + ee * vn * code_dt
+
        if (heating) then
-          dd(1) =vnc*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
-          hh(1) =vnh*(-2.0*(1.0-slbr**2)/(pitch_weights(ig,1)*(slb2-slb1)) + ee)
+          dd(1) = vnc * (-2.0 * (1 - slbr**2) &
+               / (pitch_weights(1, ig) * (slb2 - slb1)) + ee)
+          hh(1) = vnh * (-2.0 * (1 - slbr**2) &
+               / (pitch_weights(1, ig) * (slb2 - slb1)) + ee)
        end if
-       
+
        ! boundary at xi = 0
        il = te
-       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+       slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
        if (te == ng2) then
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-!
-!CMR, 6/3/2014:  
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+!CMR, 6/3/2014:
 ! STANDARD treatment of pitch angle scattering must resolve T-P boundary.
-! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point 
+! NEED special_wfb= .false. to resolve T-P boundary at wfb bounce point
 !     (special_wfb= .true. AVOIDS TP boundary at wfb bounce point)
 !
-! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107 
+! Original code (pre-r2766) used eq.(42) Barnes et al, Phys Plasmas 16, 072107
 ! (2009), with pitch angle weights to enhance accuracy in derivatives.
-! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite, 
+! NB THIS FAILS at wfb bounce point, giving aa=cc=infinite,
 !    because weight wl(ig,il)=0 at wfb bounce point.
 !    UNPHYSICAL as d/dxi ((1-xi^2)g) IS NOT resolved numerically for wl=0.
-! MUST accept limitations of the grid resolution and USE FINITE coefficients! 
-! FIX here by setting a FINITE width of the trapped region at wfb B-P 
+! MUST accept limitations of the grid resolution and USE FINITE coefficients!
+! FIX here by setting a FINITE width of the trapped region at wfb B-P
 !              deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
 ! ASIDE: NB    deltaxi=wl is actually 2*spacing in xi !!!
 !              which explains upfront factor 2 in definition of aa, cc
-       deltaxi=pitch_weights(ig,il)
-       if (te == je) deltaxi = 2.*deltaxi ! MRH vpar =0 fix 
+       deltaxi = pitch_weights(il, ig)
+       if (te == je) deltaxi = 2 * deltaxi ! MRH vpar = 0 fix
        ! MRH appropriate when endpoint (te) is a vpar = 0 point (je)
-       ! factor of 2 required above because xi=0 is a repeated point 
-       ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated 
-       ! to it at each appearance compared to what the weight should be  
+       ! factor of 2 required above because xi=0 is a repeated point
+       ! on vpar > 0, vpar < 0 grids, and hence has half the weight associated
+       ! to it at each appearance compared to what the weight should be
        ! as calculated in the continuum of points xi = (-1,1)
-       if (.not. special_wfb_lorentz .and. deltaxi .eq. 0. .and. il_is_wfb(il)) then
-          deltaxi=xi(ig,ng2)-xi(ig,ng2+2)
+       if ((.not. special_wfb_lorentz) .and. (deltaxi == 0) .and. il_is_wfb(il)) then
+          deltaxi = xi(ng2, ig) - xi(ng2 + 2, ig)
        endif
-       cc(il) = 2.0*vn*code_dt*(1.0 - slbr**2)/(deltaxi*(slb2 - slb1))
-       aa(il) = 2.0*vn*code_dt*(1.0 - slbl**2)/(deltaxi*(slb1 - slb0))
-       bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-       
+       cc(il) = 2.0 * vn * code_dt * (1 - slbr**2) / (deltaxi * (slb2 - slb1))
+       aa(il) = 2.0 * vn * code_dt * (1 - slbl**2) / (deltaxi * (slb1 - slb0))
+       bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
        if (heating) then
-          dd(il) =vnc*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
-          hh(il) =vnh*(-2.0*(1.0-slbr**2)/(deltaxi*(slb2-slb1)) + ee)
+          dd(il) = vnc * (-2.0 * (1.0 - slbr**2) / (deltaxi * (slb2 - slb1)) + ee)
+          hh(il) = vnh * (-2.0 * (1.0 - slbr**2) / (deltaxi * (slb2 - slb1)) + ee)
        end if
 !CMRend
 
     case (lorentz_scheme_old)
-       
        do il = 2, te-1
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
-          
-          slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-          slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
-          
-          ee = 0.5*energy(ie)*(1+slb1**2) &
-               / (bmag(ig)*spec(is)%zstm)**2 &
-               * kperp2(ig,it,ik)*cfac
-          
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
+
+          slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+          slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
+
+          ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+               / (bmag(ig) * spec(is)%zstm)**2
+
           ! coefficients for tridiagonal matrix:
-          cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-          aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-          bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-          
+          cc(il) = -vn * code_dt * (1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1))
+          aa(il) = -vn * code_dt * (1 - slbl**2) / ((slbr - slbl) * (slb1 - slb0))
+          bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
           ! coefficients for entropy heating calculation
           if (heating) then
-             dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-             hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+             dd(il) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+             hh(il) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
           end if
        end do
-       
+
        ! boundary at xi = 1
        slb0 = 1.0
-       slb1 = safe_sqrt(1.0-bmag(ig)*al(1))
-       slb2 = safe_sqrt(1.0-bmag(ig)*al(2))
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(1) = -vn*code_dt*(-1.0 - slbr)/(slb2-slb1)
+       slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+       slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(1) = -vn * code_dt * (-1.0 - slbr) / (slb2 - slb1)
        aa(1) = 0.0
-       bb(1) = 1.0 - (aa(1) + cc(1)) + ee*vn*code_dt
-       
+       bb(1) = 1.0 - (aa(1) + cc(1)) + ee * vn * code_dt
+
        if (heating) then
-          dd(1) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-          hh(1) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          dd(1) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+          hh(1) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
        end if
-       
+
        ! boundary at xi = 0
        il = te
-       slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
+       slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
        if (te == ng2) then
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
           slb2 = -slb1
        else
           slb1 = 0.0
           slb2 = -slb0
        end if
-       
-       slbl = (slb1 + slb0)*0.5
-       slbr = (slb1 + slb2)*0.5
-       
-       ee = 0.5*energy(ie)*(1+slb1**2) &
-            / (bmag(ig)*spec(is)%zstm)**2 &
-            * kperp2(ig,it,ik)*cfac
-       
-       cc(il) = -vn*code_dt*(1.0 - slbr*slbr)/(slbr - slbl)/(slb2 - slb1)
-       aa(il) = -vn*code_dt*(1.0 - slbl*slbl)/(slbr - slbl)/(slb1 - slb0)
-       bb(il) = 1.0 - (aa(il) + cc(il)) + ee*vn*code_dt
-       
+
+       slbl = (slb1 + slb0) * 0.5
+       slbr = (slb1 + slb2) * 0.5
+
+       ee = 0.5 * energy(ie) * (1 + slb1**2) * kperp2(ig,it,ik) * cfac &
+            / (bmag(ig) * spec(is)%zstm)**2
+
+       cc(il) = -vn * code_dt * (1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1))
+       aa(il) = -vn * code_dt * (1 - slbl**2) / ((slbr - slbl) * (slb1 - slb0))
+       bb(il) = 1.0 - (aa(il) + cc(il)) + ee * vn * code_dt
+
        if (heating) then
-          dd(il) =vnc*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
-          hh(il) =vnh*((1.0-slbr*slbr)/(slbr-slbl)/(slb2-slb1) + ee)
+          dd(il) = vnc * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
+          hh(il) = vnh * ((1 - slbr**2) / ((slbr - slbl) * (slb2 - slb1)) + ee)
        end if
-       
+
     end select
 
     ! assuming symmetry in xi, fill in the rest of the arrays.
     aa(te+1:te2) = cc(teh:1:-1)
     bb(te+1:te2) = bb(teh:1:-1)
     cc(te+1:te2) = aa(teh:1:-1)
-       
+
     if (heating) then
        dd(te+1:te2) = dd(teh:1:-1)
        hh(te+1:te2) = hh(teh:1:-1)
@@ -2921,7 +2586,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_lorentz_error
-
     use le_grids, only: jend, al, ng2, nlambda, &
          il_is_wfb, il_is_passing, il_is_trapped
     use theta_grid, only: ntgrid, bmag
@@ -3251,9 +2915,6 @@ contains
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter, kperp2
     use optionals, only: get_option_with_default
-    ! TMP FOR TESTING -- MAB
-!    use mp, only: proc0
-
     implicit none
 
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1, gc1, gc2
@@ -3266,39 +2927,17 @@ contains
 !CMR   to map g_lo to collision_lo, and collision_lo to g_lo.
 !CMR   All redistributes are performed by default.
 !CMR  
-
     logical :: g_to_c, c_to_g
 
     g_to_c = get_option_with_default(gtoc, .true.)
     c_to_g = get_option_with_default(ctog, .true.)
 
-
-    ! TMP FOR TESTING -- MAB
-!    integer :: t0, t1, t2, t3, t4, t5, tr
-!    real :: t1tot = 0., t2tot = 0., t3tot = 0., t4tot = 0., t5tot = 0.
-
-    select case (collision_model_switch)
-    case (collision_model_full)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) call system_clock (count=t0, count_rate=tr)
-
+    if (has_diffuse) then
        call solfp_ediffuse_standard_layout (g)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t1)
-!          t1tot = t1tot + real(t1-t0)/tr
-!       end if
-
        if (conserve_moments) call conserve_diffuse (g, g1)
+    end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t2)
-!          t2tot = t2tot + real(t2-t1)/tr
-!       end if
-
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
           !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
@@ -3325,68 +2964,9 @@ contains
           !$OMP END PARALLEL DO
        end if
 
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t3)
-!          t3tot = t3tot + real(t3-t2)/tr
-!       end if
-
        call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t4)
-!          t4tot = t4tot + real(t4-t3)/tr
-!       end if
-
        if (conserve_moments) call conserve_lorentz (g, g1)
-
-       ! TMP FOR TESTING -- MAB
-!       if (proc0) then
-!          call system_clock (count=t5)
-!          t5tot = t5tot + real(t5-t4)/tr
-!          write (*,'(a10,5e14.5)') 'solfp1: ', t1tot, t2tot, t3tot, t4tot, t5tot
-!       end if
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(iglo, is, it, ik, ie, isgn) &
-          !$OMP SHARED(g_lo, spec, kwork_filter, g, ieqzip, vnmult, code_dt, &
-          !$OMP vpa, kperp2, aparnew, aj0, beta, energy) &
-          !$OMP SCHEDULE(static)
-          do iglo = g_lo%llim_proc, g_lo%ulim_proc
-             is = is_idx(g_lo,iglo)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(g_lo,iglo)
-             ik = ik_idx(g_lo,iglo)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ie = ie_idx(g_lo,iglo)
-             do isgn = 1, 2
-                g(:,isgn,iglo) = g(:,isgn,iglo) + vnmult(1)*spec(is)%vnewk*code_dt &
-                     * vpa(:,isgn,iglo)*kperp2(:,it,ik)*aparnew(:,it,ik)*aj0(:,iglo) &
-                     / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-       
-       call solfp_lorentz (g, gc1, gc2, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (g, g1)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_standard_layout (g)
-       if (conserve_moments) call conserve_diffuse (g, g1)
-
-    end select
-   
+    end if
   end subroutine solfp1_standard_layout
 
   !> FIXME : Add documentation  
@@ -3394,7 +2974,7 @@ contains
     use gs2_layouts, only: le_lo, it_idx, ik_idx, ig_idx, is_idx
     use run_parameters, only: beta, ieqzip
     use gs2_time, only: code_dt
-    use le_grids, only: energy => energy_maxw, negrid, nxi, ixi_to_il, ixi_to_isgn, ng2
+    use le_grids, only: energy => energy_maxw, negrid
     use species, only: spec, is_electron_species
     use fields_arrays, only: aparnew
     use kt_grids, only: kwork_filter, kperp2
@@ -3403,29 +2983,19 @@ contains
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
     complex :: tmp
-    integer :: ig, it, ik, il, ie, is, ile, ixi, isgn
-    integer :: nxi_lim
+    integer :: ig, it, ik, ie, is, ile, ixi
 
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
-    
-    select case (collision_model_switch)
-    case (collision_model_full)
-
+    if (has_diffuse) then
        call solfp_ediffuse_le_layout (gle)
-
        if (conserve_moments) call conserve_diffuse (gle)
+    end if
 
+    if (has_lorentz) then
        if (drag) then
           !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, isgn, il) &
+          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp) &
           !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, ixi_to_il, ixi_to_isgn, gle, aj0le, vpale) &
+          !$OMP aparnew, beta, energy, nxi_lim, gle, vpa_aj0_le) &
           !$OMP SCHEDULE(static)
           do ile = le_lo%llim_proc, le_lo%ulim_proc
              is = is_idx(le_lo,ile)
@@ -3436,14 +3006,13 @@ contains
              if(ieqzip(it,ik)) cycle
              ig = ig_idx(le_lo,ile)
              do ie = 1, negrid
+                ! Note here we may need aparnew from {it, ik} not owned by this
+                ! processor in g_lo.
                 tmp = vnmult(1)*spec(is)%vnewk*code_dt &
                      * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
                      / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
                 do ixi = 1, nxi_lim
-                   il = ixi_to_il(ig,ixi)
-                   isgn = ixi_to_isgn(ig,ixi)
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
-                        tmp * aj0le(ixi,ie,ile) * vpale(ixi,ie,ile)
+                   gle(ixi, ie, ile) = gle(ixi, ie, ile) + tmp * vpa_aj0_le(ixi, ie, ile)
                 ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
                 ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
                 ! in an attempt handle the multi-ion species case.
@@ -3454,78 +3023,28 @@ contains
        end if
 
        call solfp_lorentz (gle, diagnostics)
-
        if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_lorentz,collision_model_lorentz_test)
-
-       if (drag) then
-          !$OMP PARALLEL DO DEFAULT(none) &
-          !$OMP PRIVATE(ile, is, it, ik, ie, ig, ixi, tmp, il, isgn) &
-          !$OMP SHARED(le_lo, spec, kwork_filter, negrid, ieqzip, vnmult, code_dt, kperp2, &
-          !$OMP aparnew, beta, energy, nxi_lim, gle, aj0le, vpale) &
-          !$OMP SCHEDULE(static)
-          do ile = le_lo%llim_proc, le_lo%ulim_proc
-             is = is_idx(le_lo,ile)
-             if (.not. is_electron_species(spec(is))) cycle
-             it = it_idx(le_lo,ile)
-             ik = ik_idx(le_lo,ile)
-             if(kwork_filter(it,ik)) cycle
-             if(ieqzip(it,ik)) cycle
-             ig = ig_idx(le_lo,ile)
-             do ie = 1, negrid
-                tmp = vnmult(1)*spec(is)%vnewk*code_dt &
-                        * kperp2(ig,it,ik)*aparnew(ig,it,ik) &
-                        / ((-spec(is)%z*spec(is)%dens)*beta*spec(is)%stm*energy(ie)**1.5)
-                do ixi = 1, nxi_lim
-                   gle(ixi,ie,ile) = gle(ixi,ie,ile) + &
-                        tmp * aj0le(ixi,ie,ile) * vpale(ixi, ie, ile)
-                ! probably need 1/(spec(is_ion)%z*spec(is_ion)%dens) above
-                ! This has been implemented as 1/-spec(electron)%z*spec(electron)%dens
-                ! in an attempt handle the multi-ion species case.
-                end do
-             end do
-          end do
-          !$OMP END PARALLEL DO
-       end if
-
-       call solfp_lorentz (gle, diagnostics)
-
-       if (conserve_moments) call conserve_lorentz (gle)
-
-    case (collision_model_ediffuse)
-
-       call solfp_ediffuse_le_layout (gle)
-
-       if (conserve_moments) call conserve_diffuse (gle)
-
-    end select
-   
+    end if
   end subroutine solfp1_le_layout
 
   !> FIXME : Add documentation
   subroutine conserve_lorentz_standard_layout (g, g1)
     use theta_grid, only: ntgrid
     use species, only: nspec
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, &
          integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
-    use kt_grids, only: kwork_filter
     use array_utils, only: copy
-    
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
-
     real, dimension (:,:,:), allocatable :: vns
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2
-
     integer :: isgn, iglo, ik, ie, il, is, it
-    logical :: all = .true. 
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
@@ -3533,7 +3052,7 @@ contains
 
     allocate (gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
     allocate (vns(naky,negrid,nspec))
-    vns = vnmult(1)*vnew_D
+    vns = vnmult(1) * vnew_D
 
     if (drag) then
 
@@ -3549,11 +3068,11 @@ contains
           if(kwork_filter(it,ik))cycle
           do isgn = 1, 2
              ! v0 = vpa J0 f0, y0 = g
-             gtmp(:,isgn,iglo) = vpa(:,isgn,iglo)*aj0(:,iglo)*g(:,isgn,iglo)
+             gtmp(:, isgn, iglo) = vpa(:, isgn, iglo) * aj0(:, iglo) * g(:, isgn, iglo)
           end do
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (gtmp, v0y0, all)    ! v0y0
+       call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3561,7 +3080,6 @@ contains
        !$OMP PRIVATE(iglo, it, ik, is, isgn) &
        !$OMP SHARED(g_lo, kwork_filter, g1, g, ieqzip, v0y0, z0) &
        !$OMP SCHEDULE(static)
-
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           it = it_idx(g_lo,iglo)
           ik = ik_idx(g_lo,iglo)
@@ -3569,21 +3087,19 @@ contains
           if(ieqzip(it,ik)) cycle
           is = is_idx(g_lo,iglo)
           do isgn = 1, 2
-             g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * z0(:,isgn,iglo)
+             g1(:, isgn, iglo) = g(:, isgn, iglo) - v0y0(:, it, ik, is) * z0(:, isgn, iglo)
           end do
        end do
        !$OMP END PARALLEL DO
     else
-
        call copy(g, g1)
-
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Now get v1y1
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, it, ik, ie, il, is, isgn) &
+    !$OMP PRIVATE(iglo, it, ik, il, ie, is, isgn) &
     !$OMP SHARED(g_lo, kwork_filter, conservative, gtmp, vns, speed, vpdiff, aj0, g1, vpa) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -3591,22 +3107,22 @@ contains
        it = it_idx(g_lo,iglo)
        if(kwork_filter(it,ik))cycle
        ie = ie_idx(g_lo,iglo)
-       il = il_idx(g_lo,iglo)
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = nud vpa J0 f0, y1 = g1
           if (conservative) then
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*speed(ie)*vpdiff(:,isgn,il) &
-                  * aj0(:,iglo)*g1(:,isgn,iglo)
+             il = il_idx(g_lo,iglo)
+             gtmp(:, isgn, iglo) = vns(ik, ie, is) * speed(ie) * vpdiff(:, isgn, il) &
+                  * aj0(:, iglo) * g1(:, isgn, iglo)
           else
-             gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-                  * g1(:,isgn,iglo)
+             gtmp(:, isgn, iglo) = vns(ik, ie, is) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+                  * g1(:, isgn, iglo)
           end if
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3622,7 +3138,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * s0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g1(:, isgn, iglo) - v1y1(:, it, ik, is) * s0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3643,13 +3159,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = nud vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*energy(ie)*al(il)*aj1(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * energy(ie) * al(il) * aj1(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -3665,7 +3181,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * w0(:,isgn,iglo)
+          g(:, isgn, iglo) = g1(:, isgn, iglo) - v2y2(:, it, ik, is) * w0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3676,243 +3192,151 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_lorentz_le_layout (gle)
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, speed => speed_maxw, al, nxi, ng2
-    use le_grids, only: ixi_to_il, ixi_to_isgn, integrate_moment, negrid
+    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
+    use le_grids, only: speed => speed_maxw, w, wxi, negrid
     use run_parameters, only: ieqzip
-    use gs2_layouts, only: le_lo, ig_idx
-    use redistribute, only: scatter
     use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-    complex, dimension (:,:,:), allocatable :: gtmp
-
-    complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-    real :: vpa_nud
-    integer :: ig, isgn, ik, ie, il, is, it
-    integer :: ile, ixi
-    integer :: nxi_lim
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
-
-    ! We only need one of these at a time so could just reuse one allocation.
-    ! We'll keep two for now to help with code clarity and note that these
-    ! should not be large arrays.
-    allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
-
-    ! Let's work on gle directly instead of g for the moment
-    allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-    call zero_array(gtmp)
+    complex :: v0y0, v1y1, v2y2
+    real :: nud
+    integer :: ig, ik, ie, is, it, ile, ixi
 
     if (drag) then
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! First get v0y0
-
-       allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
+       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       ! First get v0y0 and y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
        ! v0 = vpa J0 f0, y0 = gle
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, aj0le, gle) &
+       !$OMP PRIVATE(ile, it, ik, ixi, ie, is, ig, v0y0) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, &
+       !$OMP z0le, w, wxi, vpa_aj0_le, gle) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           it = it_idx(le_lo,ile)
           ik = ik_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
+          is = is_idx(le_lo, ile)
+          ig = ig_idx(le_lo, ile)
+          v0y0 = 0.0
           do ie = 1, negrid
              do ixi = 1, nxi_lim
                 ! Should we use vpdiff here if conservative?
-                gtmp(ixi,ie,ile) =  vpale(ixi, ie, ile) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                v0y0 = v0y0 + vpa_aj0_le(ixi, ie, ile) * gle(ixi, ie, ile) * w(ie, is) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - z0le(:, :, ile) * v0y0
        end do
        !$OMP END PARALLEL DO
-       call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
-
-       !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, it, ik, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, z0le, v0y0) &
-       !$OMP SCHEDULE(static)
-       do ile = le_lo%llim_proc, le_lo%ulim_proc
-          it = it_idx(le_lo,ile)
-          ik = ik_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          if(ieqzip(it,ik)) cycle
-          do ie = 1, negrid
-             do ixi = 1, nxi_lim
-                gle(ixi,ie,ile) = gle(ixi,ie,ile) - z0le(ixi,ie,ile) * v0y0(ile)
-             end do
-          end do
-       end do
-       !$OMP END PARALLEL DO
-       deallocate(v0y0)
     end if
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v1y1
+! Now get v1y1 and y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
     ! v1 = nud vpa J0 f0, y1 = gle
     if (conservative) then
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, isgn, vpa_nud) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, ixi_to_isgn, vpdiff, &
-       !$OMP speed, vnmult, vnew_D, tunits, gtmp, aj0le, gle) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, vpdiffle, &
+       !$OMP speed, vnmult, vnew_D, aj0le, gle, s0le, w, wxi) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
           ik = ik_idx(le_lo,ile)
           it = it_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
           is = is_idx(le_lo,ile)
           ig = ig_idx(le_lo,ile)
+          v1y1 = 0.0
           do ie = 1, negrid
+             nud = speed(ie) * vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
              do ixi = 1, nxi_lim
-                il = ixi_to_il(ig,ixi)
-                isgn = ixi_to_isgn(ig,ixi)
-                vpa_nud = vpdiff(ig,isgn,il) * speed(ie) &
-                     * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpa_nud * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                v1y1 = v1y1 + vpdiffle(ixi, ig) * nud * aj0le(ixi, ie, ile) * &
+                     gle(ixi, ie, ile) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - s0le(:, :, ile) * v1y1
        end do
        !$OMP END PARALLEL DO
     else
        !$OMP PARALLEL DO DEFAULT(none) &
-       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie) &
-       !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vpale, vnmult, vnew_D, tunits, aj0le, gle) &
+       !$OMP PRIVATE(ile, is, it, ik, ig, ixi, ie, nud, v1y1) &
+       !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, vpa_aj0_le, vnmult, &
+       !$OMP vnew_D, gle, w, wxi, s0le) &
        !$OMP SCHEDULE(static)
        do ile = le_lo%llim_proc, le_lo%ulim_proc
-          ik = ik_idx(le_lo,ile)
-          it = it_idx(le_lo,ile)
-          if(kwork_filter(it,ik)) cycle
-          is = is_idx(le_lo,ile)
-          ig = ig_idx(le_lo,ile)
+          ik = ik_idx(le_lo, ile)
+          it = it_idx(le_lo, ile)
+          if (kwork_filter(it, ik)) cycle
+          if (ieqzip(it, ik)) cycle
+          is = is_idx(le_lo, ile)
+          ig = ig_idx(le_lo, ile)
+          v1y1 = 0.0
           do ie = 1, negrid
+             nud =  vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
              do ixi = 1, nxi_lim
-                !vpa_nud = vpa * (vnmult(1)*vnew_D(1,ie,is)/tunits(1))
-                gtmp(ixi,ie,ile) = vpale(ixi, ie, ile) * &
-                     (vnmult(1)*vnew_D(1,ie,is)/tunits(1)) * tunits(ik) * &
-                     aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+                v1y1 = v1y1 + nud * vpa_aj0_le(ixi, ie, ile) * &
+                     gle(ixi, ie, ile) * wxi(ixi, ig)
              end do
           end do
+          gle(:, :, ile) = gle(:, :, ile) - s0le(:, :, ile) * v1y1
        end do
        !$OMP END PARALLEL DO
     end if
 
-    call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v2y2 and x = y2 - v2y2 * w2 / (1 + v2w2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, s0le, v1y1) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, nud, v2y2) &
+    !$OMP SHARED(le_lo, kwork_filter, ieqzip, negrid, nxi_lim, &
+    !$OMP vnmult, vnew_D, vperp_aj1le, gle, w, wxi, w0le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - s0le(ixi,ie,ile) * v1y1(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate(v1y1)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v2y2
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, vnmult, vnew_D, aj1le, energy, al, gle) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
+       it = it_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v2y2 = 0.0
        do ie = 1, negrid
-          do ixi=1, nxi_lim
-             il = ixi_to_il(ig,ixi)
-             ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
-             gtmp(ixi,ie,ile) = vnmult(1) * vnew_D(ik,ie,is) * aj1le(ixi,ie,ile) &
-                  * energy(ie) * al(il) * gle(ixi,ie,ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, w0le, v2y2) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+          nud = vnmult(1) * vnew_D(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - w0le(ixi,ie,ile) * v2y2(ile)
+             ! aj1vp2 = 2 * J1(arg)/arg * vperp^2
+             v2y2 = v2y2 + nud * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - w0le(:, :, ile) * v2y2
     end do
     !$OMP END PARALLEL DO
-    deallocate (gtmp, v2y2)
-
   end subroutine conserve_lorentz_le_layout
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_standard_layout (g, g1)
     use theta_grid, only: ntgrid
     use species, only: nspec
-    use kt_grids, only: naky, ntheta0
+    use kt_grids, only: naky, ntheta0, kwork_filter
     use gs2_layouts, only: g_lo, ik_idx, it_idx, ie_idx, il_idx, is_idx
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid
     use dist_fn_arrays, only: aj0, aj1, vpa
     use run_parameters, only: ieqzip
-    use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, g1
     complex, dimension (:,:,:), allocatable :: gtmp
-
     real, dimension (:,:,:), allocatable :: vns
-
     integer :: isgn, iglo, ik, ie, il, is, it 
     complex, dimension (:,:,:,:), allocatable :: v0y0, v1y1, v2y2    
-    logical :: all = .true.
+    logical, parameter :: all_procs = .true.
 
     allocate (v0y0(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v1y1(-ntgrid:ntgrid, ntheta0, naky, nspec))
     allocate (v2y2(-ntgrid:ntgrid, ntheta0, naky, nspec))
 
-    allocate (vns(naky,negrid,nspec))
-    allocate (gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (vns(naky, negrid, nspec))
+    allocate (gtmp(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
 
     vns = vnmult(2)*delvnew
 
@@ -3935,13 +3359,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v0 = nu_E E J0 f0
-          gtmp(:,isgn,iglo) = vnmult(2)*vnew_E(ik,ie,is)*aj0(:,iglo) &
-               * g(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vnmult(2) * vnew_E(ik, ie, is) * aj0(:, iglo) &
+               * g(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v0y0, all)    ! v0y0
+    call integrate_moment (gtmp, v0y0, all_procs)    ! v0y0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
@@ -3957,7 +3381,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g(:,isgn,iglo) - v0y0(:,it,ik,is) * bz0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g(:, isgn, iglo) - v0y0(:, it, ik, is) * bz0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -3977,13 +3401,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v1 = (nus-nud) vpa J0 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*vpa(:,isgn,iglo)*aj0(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * vpa(:, isgn, iglo) * aj0(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v1y1, all)    ! v1y1
+    call integrate_moment (gtmp, v1y1, all_procs)    ! v1y1
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
@@ -3999,7 +3423,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g1(:,isgn,iglo) = g1(:,isgn,iglo) - v1y1(:,it,ik,is) * bs0(:,isgn,iglo)
+          g1(:, isgn, iglo) = g1(:, isgn, iglo) - v1y1(:, it, ik, is) * bs0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4020,13 +3444,13 @@ contains
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
           ! v2 = (nus-nud) vperp J1 f0
-          gtmp(:,isgn,iglo) = vns(ik,ie,is)*energy(ie)*al(il)*aj1(:,iglo) &
-               * g1(:,isgn,iglo)
+          gtmp(:, isgn, iglo) = vns(ik, ie, is) * energy(ie) * al(il) * aj1(:, iglo) &
+               * g1(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
 
-    call integrate_moment (gtmp, v2y2, all)    ! v2y2
+    call integrate_moment (gtmp, v2y2, all_procs)    ! v2y2
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
@@ -4042,7 +3466,7 @@ contains
        if(ieqzip(it,ik)) cycle
        is = is_idx(g_lo,iglo)
        do isgn = 1, 2
-          g(:,isgn,iglo) = g1(:,isgn,iglo) - v2y2(:,it,ik,is) * bw0(:,isgn,iglo)
+          g(:, isgn, iglo) = g1(:, isgn, iglo) - v2y2(:, it, ik, is) * bw0(:, isgn, iglo)
        end do
     end do
     !$OMP END PARALLEL DO
@@ -4053,209 +3477,120 @@ contains
 
   !> FIXME : Add documentation
   subroutine conserve_diffuse_le_layout (gle)
-    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx
-    use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, ixi_to_il, nxi, ng2
+    use gs2_layouts, only: ik_idx, it_idx, ie_idx, il_idx, is_idx, ig_idx, le_lo
+    use le_grids, only: wxi, w, negrid
     use run_parameters, only: ieqzip
-    use gs2_layouts, only: le_lo, ig_idx, ik_idx, it_idx
-    use redistribute, only: scatter
     use kt_grids, only: kwork_filter
-    use array_utils, only: zero_array
-    use gs2_time, only: tunits
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-    complex, dimension (:,:,:), allocatable :: gtmp
+    real :: delnu, vnE
+    integer :: ig, ik, ie, is, it, ile, ixi
+    complex :: v0y0, v1y1, v2y2
 
-    real :: delnu
-    integer :: ig, ik, ie, il, is, it
-    integer :: ile, ixi
-    integer :: nxi_lim
-    complex, dimension (:), allocatable :: v0y0, v1y1, v2y2
-
-    ! We only use one of these at a time so could just use a single array.
-    ! We keep all three here for clarity and note that these should be small.
-    allocate (v0y0(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v1y1(le_lo%llim_proc:le_lo%ulim_alloc))
-    allocate (v2y2(le_lo%llim_proc:le_lo%ulim_alloc))
-
-    allocate (gtmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-
-    !This is needed to to ensure the it,ik values we don't set aren't included
-    !in the integral (can also be enforced in integrate_moment routine)
-    !if(any(kwork_filter)) gtmp=0.
-    call zero_array(gtmp)
-
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! First get v0y0
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! First get v0y0 and then y1 = y0 - v0y0 * z0 / (1 + v0z0)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gtmp, vnmult, vnew_E, aj0le, gle) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, vnE, v0y0) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, w, wxi, ieqzip, bz0le, vnmult, vnew_E, aj0le, gle) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       do ie=1, negrid
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v0y0 = 0.0
+       do ie = 1, negrid
+          vnE = vnmult(2) * vnew_E(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gtmp(ixi,ie,ile) = vnmult(2) * vnew_E(ik,ie,is) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             v0y0 = v0y0 + vnE * aj0le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bz0le(:, :, ile) * v0y0
     end do
     !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v0y0)    ! v0y0
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y1 = y0 - v0y0 * z0 / (1 + v0z0)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v1y1 and then y2 = y1 - v1y1 * s1 / (1 + v1s1)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, v0y0, bz0le) &
+    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi, v1y1) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, nxi_lim, &
+    !$OMP bs0le, vpa_aj0_le, gle, w, wxi, ieqzip) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v1y1 = 0.0
+       do ie = 1, negrid
+          delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - v0y0(ile) * bz0le(ixi,ie,ile)
+             v1y1 = v1y1 + vpa_aj0_le(ixi,  ie,  ile) * delnu * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bs0le(:, :, ile) * v1y1
     end do
     !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v1y1
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! Now get v2y2 and then get x = y2 - v2y2 * w2 / (1 + v2w2)
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, delnu, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, vnmult, delvnew, tunits, nxi_lim, gtmp, &
-    !$OMP vpale, aj0le, gle) &
+    !$OMP PRIVATE(ile, it, ik, is, ie, ig, ixi, delnu, v2y2) &
+    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ieqzip, &
+    !$OMP bw0le, delvnew, vperp_aj1le, gle, vnmult, w, wxi) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
-       do ie=1, negrid
-          delnu = (vnmult(2)*delvnew(1,ie,is)/tunits(1))
+       ik = ik_idx(le_lo, ile)
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       is = is_idx(le_lo, ile)
+       ig = ig_idx(le_lo, ile)
+       v2y2 = 0.0
+       do ie = 1, negrid
+          delnu = vnmult(2) * delvnew(ik, ie, is) * w(ie, is)
           do ixi = 1, nxi_lim
-             gtmp (ixi,ie,ile) = vpale(ixi, ie, ile) * delnu * tunits(ik) * aj0le(ixi,ie,ile) * gle(ixi,ie,ile)
+             v2y2 = v2y2 + delnu * vperp_aj1le(ixi, ie, ile) * gle(ixi, ie, ile) * wxi(ixi, ig)
           end do
        end do
+       gle(:, :, ile) = gle(:, :, ile) - bw0le(:, :, ile) * v2y2
     end do
     !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v1y1)    ! v1y1
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Get y2 = y1 - v1y1 * s1 / (1 + v1s1)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bs0le, v1y1) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bs0le(ixi,ie,ile) * v1y1(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Now get v2y2
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, is, ig, il, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, ixi_to_il, gtmp, delvnew, energy, al, aj1le, gle) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       ik = ik_idx(le_lo,ile)
-       it = it_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       ig = ig_idx(le_lo,ile)
-       do ie=1, negrid
-          do ixi = 1, nxi_lim
-             il = ixi_to_il(ig,ixi)
-             gtmp(ixi,ie,ile) = delvnew(ik,ie,is) * energy(ie) * al(il)*aj1le(ixi,ie,ile) * gle(ixi,ie,ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    call integrate_moment (le_lo, gtmp, v2y2)    ! v2y2
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Finally get x = y2 - v2y2 * w2 / (1 + v2w2)
-
-    !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, it, ik, ie, ixi) &
-    !$OMP SHARED(le_lo, kwork_filter, negrid, nxi_lim, gle, ieqzip, bw0le, v2y2) &
-    !$OMP SCHEDULE(static)
-    do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if(kwork_filter(it,ik)) cycle
-       if(ieqzip(it,ik)) cycle
-       do ie=1, negrid
-          do ixi = 1, nxi_lim
-             gle(ixi,ie,ile) = gle(ixi,ie,ile) - bw0le(ixi,ie,ile) * v2y2(ile)
-          end do
-       end do
-    end do
-    !$OMP END PARALLEL DO
-    deallocate (v0y0, v1y1, v2y2, gtmp)
-
   end subroutine conserve_diffuse_le_layout
 
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: nlambda, jend, ng2, lambda_map, nxi, il_is_wfb
-    use gs2_layouts, only: g_lo
-    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, ie_idx
+    use le_grids, only: jend, lambda_map, il_is_wfb, nxi, ng2
+    use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-    use gs2_layouts, only: lz_lo
     use array_utils, only: zero_array
-
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gc, gh
     integer, optional, intent (in) :: diagnostics
-
     complex, dimension (:,:), allocatable :: glz, glzc
-    integer :: ilz
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, it, je, ie
-    integer :: nxi_scatt
+    integer :: ig, ik, il, is, it, je, nxi_scatt, ilz, cur_jend
+    logical :: is_wfb
 
     allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
-    if (heating .and. present(diagnostics)) then
-       allocate (glzc(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-       call zero_array(glzc)
-    end if
-
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
+       allocate (glzc(nxi + 1, lz_lo%llim_proc:lz_lo%ulim_alloc))
+       call zero_array(glzc)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
        !$OMP SHARED(lz_lo, jend, ng2, glz, glzc, d1) &
@@ -4263,9 +3598,9 @@ contains
        do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
           ig = ig_idx(lz_lo,ilz)
 
-          je = 2*jend(ig)          
+          je = 2*jend(ig)
           if (je == 0) then
-             je = 2*ng2 
+             je = 2 * ng2
           end if
 
 ! when il=je-1 below, and we have trapped particles, glz is evaluated at glz(2*jend(ig),ilz).
@@ -4304,100 +3639,93 @@ contains
 
           call scatter (lambda_map, glzc, gh)
        end if
+       if (allocated(glzc)) deallocate (glzc)
     end if
 
     ! solve for glz row by row
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ilz, ik, it, is, ie, ig, je, nxi_scatt, &
-    !$OMP il, gwfb, delta) &
+    !$OMP PRIVATE(ilz, ik, it, is, ig, je, nxi_scatt, &
+    !$OMP il, gwfb, delta, is_wfb, cur_jend) &
     !$OMP SHARED(lz_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, vpar_zero_mean, &
     !$OMP glz, special_wfb_lorentz, ql, c1, betaa) &
     !$OMP SCHEDULE(static)
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
-
+       is = is_idx(lz_lo,ilz)
        ik = ik_idx(lz_lo,ilz)
+       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
        it = it_idx(lz_lo,ilz)
        if(kwork_filter(it,ik))cycle
        if (ieqzip(it,ik)) cycle
-       is = is_idx(lz_lo,ilz)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       ie = ie_idx(lz_lo,ilz)
        ig = ig_idx(lz_lo,ilz)
 
-!CMRDDGC, 10/2/2014: 
-! Fixes for wfb treatment below, use same je definition in ALL cases
-!   je  = #physical xi values + 1 
-!       NB +1 above WITH TRAPPED is duplicate xi=vpar=0 point with isign=2
-!          +1 above WITHOUT TRAPPED is entirely unphysical extra grid point
-!  je-1 = #physical xi values removing unphysical/duplicate extra point
-       je=max(2*jend(ig),2*ng2+1)
-       nxi_scatt=je-1
-       
-       if (je==2*jend(ig) .and. vpar_zero_mean) then 
+       !CMRDDGC, 10/2/2014:
+       ! Fixes for wfb treatment below, use same je definition in ALL cases
+       !   je  = #physical (unique) xi values + 1
+       !       NB +1 above WITH TRAPPED is duplicate xi=vpar=0 point with isign=2
+       !          +1 above WITHOUT TRAPPED is entirely unphysical extra grid point
+       !  je-1 = #physical xi values removing unphysical/duplicate extra point
+       cur_jend = jend(ig)
+       je = max(2 * cur_jend, 2 * ng2 + 1)
+       nxi_scatt = je - 1
+       is_wfb = il_is_wfb(cur_jend)
+
+       if (je == 2 * cur_jend .and. is_wfb .and. vpar_zero_mean) then
           ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
           ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
           ! this turns out to be necessary to suppress numerical instability
           ! when we handle pitch angle scattering physically at theta = +/- pi
           ! by setting special_wfb_lorentz =.false.
-          glz(jend(ig),ilz)=(glz(jend(ig),ilz)+glz(2*jend(ig),ilz))/2.0
-       endif 
-       
-       glz(je,ilz)=0.0  ! zero unphysical/duplicate extra point
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
-!          remove wfb from collisions, reinsert later
-!
-! first save gwfb for reinsertion later
-          gwfb = glz(ng2+1,ilz) 
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
-          glz(ng2+1:je-2,ilz) = glz(ng2+2:je-1,ilz)
-          nxi_scatt=nxi_scatt-1
-       endif
-!CMRDDGCend
-
-       ! right and left sweeps for tridiagonal solve:
-
-       delta(1) = glz(1,ilz)
-       do il = 1, nxi_scatt
-          delta(il+1) = glz(il+1,ilz) - ql(il+1,ilz)*delta(il)
-       end do
-       
-!CMR, 5/9/14:
-! Correction to next line fixes a bug introduced at r2699 which
-! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t        
-       glz(nxi_scatt+1,ilz) = delta(nxi_scatt+1)*betaa(nxi_scatt+1,ilz)
-       do il = nxi_scatt, 1, -1
-          glz(il,ilz) = (delta(il) - c1(il,ilz)*glz(il+1,ilz))*betaa(il,ilz)
-       end do
-
-!       ! interpolate to obtain glz(vpa = 0) point for wfb
-!       ! and insert this point into glz
-       ! interpolation described above mysteriously causing numerical instability
-       ! stabilized by using old (pre-collision) value of g for wfb
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-          glz(ng2+2:je-1,ilz) = glz(ng2+1:je-2,ilz)
-          glz(ng2+1,ilz) = gwfb
+          ! Note : This can give large change in g_wfb when it is not treated as a trapped
+          ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+          ! Note : We don't apply this treatment to other trapped particles as we assume
+          ! g has a unique value at the bounce point for those particles.
+          glz(cur_jend, ilz) = (glz(cur_jend, ilz) + glz(2 * cur_jend, ilz)) / 2.0
        end if
 
-!
-! bug fixed 4.14.03
-! was only a problem with collisions but with no trapped particles
-! because of an array index out of bounds 
-! Overall, this was a rare bug.
-!
+       ! zero unphysical/duplicate extra point. This shouldn't be needed
+       glz(je, ilz) = 0.0
 
-       ! update the duplicate vpar=0 point with the post pitch angle scattering value 
-       if (jend(ig) /= 0) glz(2*jend(ig),ilz) = glz(jend(ig),ilz)
+       if (is_wfb .and. special_wfb_lorentz) then
+          !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+          !          remove wfb from collisions, reinsert later
+          !
+          ! first save gwfb for reinsertion later
+          ! Note we don't save both sigma values as we force g(v||=0)_+ == g(v||=0)_-
+          ! at the end of the loop anyway.
+          gwfb = glz(ng2+1, ilz)
+          ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+          !The above is referring to the conservative scheme coefficients which involve
+          !1/pitch_weight but pitch_weight = 0 for the WFB at the WFB bounce point.
+          !Special_wfb_lorentz is a way to avoid this issue by ignoring the WFB pitch angle
+          glz(ng2+1:je-2, ilz) = glz(ng2+2:je-1, ilz)
+          ! Zero out the glz value not overwritten in the above. Shouldn't be needed
+          glz(je - 1, ilz) = 0.0
+          nxi_scatt = nxi_scatt - 1
+       end if
 
+       ! right and left sweeps for tridiagonal solve:
+       delta(1) = glz(1, ilz)
+       do il = 1, nxi_scatt
+          delta(il+1) = glz(il+1, ilz) - ql(il+1, ilz) * delta(il)
+       end do
+
+       glz(nxi_scatt+1, ilz) = delta(nxi_scatt+1) * betaa(nxi_scatt+1, ilz)
+       do il = nxi_scatt, 1, -1
+          glz(il, ilz) = (delta(il) - c1(il, ilz) * glz(il+1, ilz)) * betaa(il, ilz)
+       end do
+
+       if (is_wfb .and. special_wfb_lorentz) then
+          glz(ng2+2:je-1, ilz) = glz(ng2+1:je-2, ilz)
+          glz(ng2+1, ilz) = gwfb
+       end if
+
+       ! update the duplicate vpar=0 point with the post pitch angle scattering value
+       if (cur_jend /= 0) glz(2 * cur_jend, ilz) = glz(cur_jend, ilz)
     end do
     !$OMP END PARALLEL DO
 
     call scatter (lambda_map, glz, g)
-
     deallocate (glz)
-    if (allocated(glzc)) deallocate (glzc)
-
   end subroutine solfp_lorentz_standard_layout
 
   !> FIXME : Add documentation
@@ -4410,20 +3738,19 @@ contains
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
     integer, optional, intent (in) :: diagnostics
-
     complex, dimension (:), allocatable :: tmp
-    integer :: ile
+    complex, dimension (:,:,:), allocatable :: glec
     complex, dimension (nxi+1) :: delta
     complex :: fac, gwfb
-    integer :: ig, ik, il, is, je, it, ie
-    integer :: nxi_scatt
-
-    allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+    integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile, cur_jend
+    logical :: is_wfb
 
     if (heating .and. present(diagnostics)) then
+       allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
+       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
        !$OMP SHARED(le_lo, jend, ng2, negrid, gle, glec, d1le) &
@@ -4501,212 +3828,185 @@ contains
           end do
           !$OMP END PARALLEL DO
        end if
+       deallocate(tmp, glec)
     end if
 
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, is, it, ik, ig, il, ie, je, nxi_scatt, &
-    !$OMP gwfb, delta) &
+    !$OMP gwfb, delta, is_wfb, cur_jend) &
     !$OMP SHARED(le_lo, kwork_filter, ieqzip, vnew, force_collisions, jend, ng2, special_wfb_lorentz, &
     !$OMP vpar_zero_mean, negrid, gle, qle, betaale, c1le) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-       it = it_idx(le_lo,ile)
-       ik = ik_idx(le_lo,ile)
-       if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)) cycle
-       is = is_idx(le_lo,ile)
-       if ( (abs(vnew(ik,1,is)) < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       ig = ig_idx(le_lo,ile)
+       is = is_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(le_lo, ile)
 
-!CMRDDGC, 10/2/1014: 
-! Fixes for wfb treatment below, use same je definition in ALL cases
-!   je  = #physical xi values at location, includes duplicate point at vpar=0
-!  je-1 = #physical xi values removing duplicate vpar=0 point
-       je=max(2*jend(ig),2*ng2+1)
-       nxi_scatt=je-1
-       if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-          nxi_scatt=nxi_scatt-1
-       endif
-! These fixes address previous comment by CMR: 
-! "surely wfb's bounce point should be handled like any other trapped bp?"
-!CMR, 1/11/2013:
-! Numerical instability referred to below more likely arises from wfb failing
-! to satisfy trapping condition after invert_rhs.
-!
+       !CMRDDGC, 10/2/1014:
+       ! Fixes for wfb treatment below, use same je definition in ALL cases
+       !   je  = #physical xi values at location, includes duplicate point at vpar=0
+       !  je-1 = #physical xi values removing duplicate vpar=0 point
+       cur_jend = jend(ig)
+       je = max(2 * cur_jend, 2 * ng2 + 1)
+       nxi_scatt = je - 1
+       is_wfb = il_is_wfb(cur_jend)
+       if (is_wfb .and. special_wfb_lorentz) nxi_scatt = nxi_scatt - 1
+
        do ie = 1, negrid
-          if (je==2*jend(ig) .and. vpar_zero_mean) then
+          if (je == 2 * cur_jend .and. is_wfb .and. vpar_zero_mean) then
              ! MRH if we have trapped particles and hence 2 vpar=0 points on the grid
              ! use the average of both vpar = 0 points in the lorentz diffusion in pitch angle
              ! this turns out to be necessary to suppress numerical instability
              ! when we handle pitch angle scattering physically at theta = +/- pi
              ! by setting special_wfb_lorentz =.false.
-             gle(jend(ig),ie,ile)=(gle(jend(ig),ie,ile)+gle(2*jend(ig),ie,ile))/2.0
-          endif 
-          gle(je,ie,ile)=0.0d0  ! zero redundant duplicate xi, isign=2 for vpar=0!
-          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-!CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt: 
-!          remove wfb from collisions, reinsert later
-!
-! first save gwfb for reinsertion later
-             gwfb = gle(ng2+1,ie,ile)
-! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)  
-             gle(ng2+1:je-2,ie,ile) = gle(ng2+2:je-1,ie,ile)
-          endif
-!CMRDDGCend
-
-          ! right and left sweeps for tridiagonal solve:
-          
-          delta(1) = gle(1,ie,ile)
-          do il = 1, nxi_scatt
-             delta(il+1) = gle(il+1,ie,ile) - qle(il+1,ie,ile)*delta(il)
-          end do
-!CMR, 5/9/14:
-! Correction to next line fixes a bug introduced at r2699 which
-! affected Lorentz scattering operator at wfb bounce point (theta=pi)
-! with default setting of special_wfb_lorentz=t        
-          gle(nxi_scatt+1,ie,ile) = delta(nxi_scatt+1)*betaale(nxi_scatt+1,ie,ile)
-          do il = nxi_scatt, 1, -1
-             gle(il,ie,ile) = (delta(il) - c1le(il,ie,ile)*gle(il+1,ie,ile))*betaale(il,ie,ile)
-          end do
-!       ! interpolate to obtain glz(vpa = 0) point for wfb
-!       ! and insert this point into glz
-          ! interpolation described above mysteriously causing numerical instability
-          ! stabilized by using old (pre-collision) value of g for wfb
-          if (il_is_wfb(jend(ig)) .and. special_wfb_lorentz) then
-             gle(ng2+2:je-1,ie,ile)=gle(ng2+1:je-2,ie,ile)
-             gle(ng2+1,ie,ile)=gwfb
-!          gle(ng2+1,ie,ile) = 0.5*(gle(ng2,ie,ile)+gle(ng2+1,ie,ile))
+             ! Note : This can give large change in g_wfb when it is not treated as a trapped
+             ! particle as the input g is unlikely to satisy g_wfb(sigma=1) ~ g_wfb(sigma=2).
+             ! Note : We don't apply this treatment to other trapped particles as we assume
+             ! g has a unique value at the bounce point for those particles.
+             gle(cur_jend, ie, ile) = (gle(cur_jend, ie, ile) + &
+                  gle(2 * cur_jend, ie, ile)) / 2.0
           end if
 
-!CMR, 1/11/2013:
-! next line ensures bounce condition is satisfied after lorentz collisions
-! this is right thing to do, but it would mask any prior bug in trapping condition!
-          ! update the duplicate vpar=0 point with the post pitch angle scattering value 
-          if (jend(ig) /= 0) gle(2*jend(ig),ie,ile) = gle(jend(ig),ie,ile)
+          ! zero redundant duplicate xi, isign=2 for vpar=0! This shouldn't be needed
+          gle(je, ie, ile) = 0.0d0
+
+          if (is_wfb .and. special_wfb_lorentz) then
+             !CMRDDGC:  special_wfb_lorentz = t  => unphysical handling of wfb at bounce pt:
+             !          remove wfb from collisions, reinsert later
+             !
+             ! first save gwfb for reinsertion later
+             ! Note we don't save both sigma values as we force g(v||=0)_+ == g(v||=0)_-
+             ! at the end of the loop anyway.
+             gwfb = gle(ng2 + 1, ie, ile)
+             ! then remove vpa = 0 point, weight 0: (CMR confused by this comment!)
+             !The above is referring to the conservative scheme coefficients which involve
+             !1/pitch_weight but pitch_weight = 0 for the WFB at the WFB bounce point.
+             !Special_wfb_lorentz is a way to avoid this issue by ignoring the WFB pitch angle
+             gle(ng2+1:je-2, ie, ile) = gle(ng2+2:je-1, ie, ile)
+             ! Zero out the gle value not overwritten in the above. Shouldn't be needed
+             gle(je - 1, ie, ile) = 0.0
+          end if
+
+          ! right and left sweeps for tridiagonal solve:
+          delta(1) = gle(1, ie, ile)
+          do il = 1, nxi_scatt
+             delta(il+1) = gle(il+1, ie, ile) - qle(il+1, ie, ile) * delta(il)
+          end do
+
+          gle(nxi_scatt+1, ie, ile) = delta(nxi_scatt+1) * betaale(nxi_scatt+1, ie, ile)
+          do il = nxi_scatt, 1, -1
+             gle(il, ie, ile) = (delta(il) - c1le(il, ie, ile) * gle(il+1, ie, ile)) * &
+                  betaale(il, ie, ile)
+          end do
+
+          if (is_wfb .and. special_wfb_lorentz) then
+             gle(ng2+2:je-1, ie, ile) = gle(ng2+1:je-2, ie, ile)
+             gle(ng2+1, ie, ile) = gwfb
+          end if
+
+          ! next line ensures bounce condition is satisfied after lorentz collisions
+          ! this is right thing to do, but it would mask any prior bug in trapping condition!
+          if (cur_jend /= 0) gle(2 * cur_jend, ie, ile) = gle(cur_jend, ie, ile)
 
        end do
     end do
     !$OMP END PARALLEL DO
-    deallocate (tmp)
-    
   end subroutine solfp_lorentz_le_layout
 
   !> Energy diffusion subroutine used with energy layout (not le_layout)
   !> this is always the case when initializing the conserving terms,
   !> otherwise is the case if use_le_layout is no specified in the input file.
   subroutine solfp_ediffuse_standard_layout (g)
-    use species, only: spec
     use theta_grid, only: ntgrid
-    use le_grids, only: negrid, forbid
-    use le_grids, only: energy_map
+    use le_grids, only: negrid, forbid, energy_map
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, il_idx, is_idx, e_lo, g_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     use array_utils, only: zero_array
     implicit none
-
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g
-
-    integer :: ie, is, ig, il, it, ik
+    integer :: ie, is, ig, il, it, ik, ielo
     complex, dimension (negrid) :: delta
     complex, dimension (:,:), allocatable :: ged
-    integer :: ielo
 
     allocate (ged(negrid+1,e_lo%llim_proc:e_lo%ulim_alloc)) ; call zero_array(ged)
-
     call gather (energy_map, g, ged)
 
     ! solve for ged row by row
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ielo, it, ik, is, ig, il, delta, ie) &
-    !$OMP SHARED(e_lo, kwork_filter, ieqzip, spec, force_collisions, forbid, negrid, ged, eql, ec1, ebetaa) &
+    !$OMP SHARED(e_lo, kwork_filter, ieqzip, vnew, force_collisions, forbid, negrid, &
+    !$OMP ged, eql, ec1, ebetaa) &
     !$OMP SCHEDULE(static)
     do ielo = e_lo%llim_proc, e_lo%ulim_proc
+       is = is_idx(e_lo, ielo)
+       ik = ik_idx(e_lo, ielo)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(e_lo, ielo)
+       if (kwork_filter(it, ik))cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(e_lo, ielo)
+       il = il_idx(e_lo, ielo)
+       if (forbid(ig, il)) cycle
 
-       it = it_idx(e_lo,ielo)       
-       ik = ik_idx(e_lo,ielo)
-       if(kwork_filter(it,ik))cycle
-       if (ieqzip(it,ik)) cycle
-       is = is_idx(e_lo,ielo)
-       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       ig = ig_idx(e_lo,ielo)
-       il = il_idx(e_lo,ielo)
-       if (forbid(ig,il)) cycle
-
-       delta(1) = ged(1,ielo)
+       delta(1) = ged(1, ielo)
        do ie = 1, negrid-1
-          delta(ie+1) = ged(ie+1,ielo) - eql(ie+1,ielo)*delta(ie)
+          delta(ie+1) = ged(ie+1, ielo) - eql(ie+1, ielo) * delta(ie)
        end do
        
-       ged(negrid+1,ielo) = 0.0
+       ged(negrid+1, ielo) = 0.0
        do ie = negrid, 1, -1
-          ged(ie,ielo) = (delta(ie) - ec1(ie,ielo)*ged(ie+1,ielo))*ebetaa(ie,ielo)
+          ged(ie, ielo) = (delta(ie) - ec1(ie, ielo) * ged(ie+1, ielo)) * ebetaa(ie, ielo)
        end do
-
     end do
     !$OMP END PARALLEL DO
 
     call scatter (energy_map, ged, g)
-
     deallocate (ged)
-
   end subroutine solfp_ediffuse_standard_layout
 
   !> FIXME : Add documentation
   subroutine solfp_ediffuse_le_layout (gle)
-    use species, only: spec
-    use le_grids, only: nxi, negrid, forbid, ixi_to_il, ng2
+    use le_grids, only: negrid, jend, ng2
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx, le_lo
     use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
     implicit none
-
     complex, dimension (:,:,le_lo%llim_proc:), intent (in out) :: gle
-
-    integer :: ie, is, ig, il
+    integer :: ie, is, ig, ile, ixi, ik, it, max_xi
     complex, dimension (negrid) :: delta
-    integer :: ile, ixi, ik, it
-    integer :: nxi_lim
-    
-    ! The nxi > 2 * ng2 check appears to be checking if we have
-    ! trapped particles or not so could be replaced with grid_has_trapped_particles()
-    if(le_nxilim_fix .and. nxi > 2*ng2 ) then
-        nxi_lim = nxi + 1
-    else
-        nxi_lim = nxi
-    endif
     
     ! solve for gle row by row
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(ile, is, it, ik, ig, ixi, il, ie, delta) &
-    !$OMP SHARED(le_lo, spec, force_collisions, kwork_filter, ieqzip, ixi_to_il, forbid, gle, negrid, &
-    !$OMP eqle, ec1le, ebetaale, nxi_lim) &
+    !$OMP PRIVATE(ile, is, it, ik, ig, ixi, max_xi, ie, delta) &
+    !$OMP SHARED(le_lo, vnew, force_collisions, kwork_filter, ieqzip, jend, ng2, &
+    !$OMP gle, negrid, eqle, ec1le, ebetaale) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
-
-       is = is_idx(le_lo,ile)
-       if ( (spec(is)%vnewk < 2.0*epsilon(0.0)) .and. .not. force_collisions) cycle
-       it=it_idx(le_lo,ile)
-       ik=ik_idx(le_lo,ile)
-       if (kwork_filter(it,ik)) cycle
-       if (ieqzip(it,ik)) cycle
-       ig = ig_idx(le_lo,ile)
-
-       do ixi = 1, nxi_lim
-          il = ixi_to_il(ig,ixi)
-          if (forbid(ig,il)) cycle
-
-          delta(1) = gle(ixi,1,ile)
-          do ie = 1, negrid-1
-             delta(ie+1) = gle(ixi,ie+1,ile) - eqle(ixi,ie+1,ile)*delta(ie)
+       is = is_idx(le_lo, ile)
+       ik = ik_idx(le_lo, ile)
+       if ((abs(vnew(ik, 1, is)) < 2.0 * epsilon(0.0)) .and. .not. force_collisions) cycle
+       it = it_idx(le_lo, ile)
+       if (kwork_filter(it, ik)) cycle
+       if (ieqzip(it, ik)) cycle
+       ig = ig_idx(le_lo, ile)
+       max_xi = max(2 * jend(ig), 2 * ng2)
+       do ixi = 1, max_xi
+          delta(1) = gle(ixi, 1, ile)
+          do ie = 1, negrid - 1
+             delta(ie+1) = gle(ixi, ie+1, ile) - eqle(ixi, ie+1, ile) * delta(ie)
           end do
 
-          gle(ixi,negrid+1,ile) = 0.0
+          gle(ixi, negrid+1, ile) = 0.0
           do ie = negrid, 1, -1
-             gle(ixi,ie,ile) = (delta(ie) - ec1le(ixi,ie,ile)*gle(ixi,ie+1,ile)) &
-                  * ebetaale(ixi,ie,ile)
+             gle(ixi, ie, ile) = (delta(ie) - ec1le(ixi, ie, ile) * gle(ixi, ie+1, ile)) &
+                  * ebetaale(ixi, ie, ile)
           end do
        end do
     end do
@@ -4715,61 +4015,79 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none
 
-    integer :: il, ig, je, te
+    integer :: il, isgn, ixi, ig, je, te
     real :: slb0, slb1, slb2, slbl, slbr
 
     if (.not. allocated(vpdiff) .and. conservative) then
 
-       allocate (vpdiff(-ntgrid:ntgrid,2,nlambda)) ; call zero_array(vpdiff)
+       allocate (vpdiff(-ntgrid:ntgrid, 2, nlambda)) ; call zero_array(vpdiff)
        
        do ig = -ntgrid, ntgrid
           je = jend(ig)
-          if (il_is_passing(je) .or. il_is_wfb(je)) then
+          if (il_is_passing(je) .or. (il_is_wfb(je) .and. special_wfb_lorentz)) then
              te = ng2
           else
              te = je
           end if
           do il = 2, te-1
-             slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
-             slb2 = safe_sqrt(1.0 - bmag(ig)*al(il+1))
+             slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
+             slb2 = safe_sqrt(1.0 - bmag(ig) * al(il+1))
              
-             slbl = (slb1 + slb0)*0.5  ! xi(j-1/2)
-             slbr = (slb1 + slb2)*0.5  ! xi(j+1/2)
+             slbl = (slb1 + slb0) * 0.5  ! xi(j-1/2)
+             slbr = (slb1 + slb2) * 0.5  ! xi(j+1/2)
              
-             vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(il, ig)
           end do
 
           ! boundary at xi = 1
-          slb1 = safe_sqrt(1.0 - bmag(ig)*al(1))
-          slb2 = safe_sqrt(1.0 - bmag(ig)*al(2))
-          slbr = 0.5*(slb1 + slb2)
-          vpdiff(ig,1,1) = (1.0 - slbr**2)/pitch_weights(ig,1)
+          slb1 = safe_sqrt(1.0 - bmag(ig) * al(1))
+          slb2 = safe_sqrt(1.0 - bmag(ig) * al(2))
+          slbr = 0.5 * (slb1 + slb2)
+          vpdiff(ig, 1, 1) = (1.0 - slbr**2) / pitch_weights(1, ig)
           
           ! boundary at xi = 0
           il = te
-          slb0 = safe_sqrt(1.0 - bmag(ig)*al(il-1))
-          if (te == ng2) then
-             slb1 = safe_sqrt(1.0 - bmag(ig)*al(il))
+          slb0 = safe_sqrt(1.0 - bmag(ig) * al(il-1))
+          if (te == ng2) then ! Passing
+             slb1 = safe_sqrt(1.0 - bmag(ig) * al(il))
              slb2 = -slb1
           else
+             ! We would expect safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 here so could just
+             ! use slb1 = safe_sqrt(1.0 - bmag(ig) * al(il)) = 0 for both branches?
              slb1 = 0.0
              slb2 = -slb0
           end if
           
-          slbl = (slb1 + slb0)*0.5
-          slbr = (slb1 + slb2)*0.5
-          vpdiff(ig,1,il) = (slbl**2 - slbr**2)/pitch_weights(ig,il)
+          slbl = (slb1 + slb0) * 0.5
+          slbr = (slb1 + slb2) * 0.5
+
+          if (abs(pitch_weights(il, ig)) <= epsilon(0.0)) then
+             vpdiff(ig, 1, il) = 0.0
+          else
+             vpdiff(ig, 1, il) = (slbl**2 - slbr**2) / pitch_weights(il, ig)
+          end if
           
-          vpdiff(ig,2,:) = -vpdiff(ig,1,:)
+          vpdiff(ig, 2, :) = -vpdiff(ig, 1, :)
           
        end do
-       
+
+       if (use_le_layout) then
+          allocate(vpdiffle(nxi + 1, -ntgrid:ntgrid))
+
+          do ig = -ntgrid, ntgrid
+             do ixi = 1, nxi + 1
+                il = ixi_to_il(ixi, ig)
+                isgn = ixi_to_isgn(ixi, ig)
+                vpdiffle(ixi, ig) = vpdiff(ig, isgn, il)
+             end do
+          end do
+       end if
     end if
     
   end subroutine init_vpdiff
@@ -4793,9 +4111,6 @@ contains
     ! where we get our initial value of vnmult from anyway.
     vnm_init = vnmult
     vnmult = -1.0
-
-    accelerated_x = .false. ; accelerated_v = .false.
-    ediffinit = .false. ; lzinit = .false. ; leinit = .false.
     initialized = .false.  
 
     if (allocated(c_rate)) deallocate (c_rate)
@@ -4811,13 +4126,12 @@ contains
          if (heating) deallocate (d1le, h1le)
       end if
       if (allocated(ec1le)) deallocate (ec1le, ebetaale, eqle)
-      if (allocated(glec)) deallocate (glec)
       if (allocated(s0le)) deallocate(s0le)
       if (allocated(w0le)) deallocate(w0le)
       if (allocated(z0le)) deallocate(z0le)
       if (allocated(aj0le)) deallocate(aj0le)
-      if (allocated(aj1le)) deallocate(aj1le)
-      if (allocated(vpale)) deallocate(vpale)
+      if (allocated(vperp_aj1le)) deallocate(vperp_aj1le)
+      if (allocated(vpa_aj0_le)) deallocate(vpa_aj0_le)
       if (allocated(bs0le)) deallocate(bs0le)
       if (allocated(bw0le)) deallocate(bw0le)
       if (allocated(bz0le)) deallocate(bz0le)
@@ -4829,6 +4143,7 @@ contains
       if (allocated(ec1)) deallocate (ec1, ebetaa, eql)
     end if
     if (allocated(vpdiff)) deallocate (vpdiff)
+    if (allocated(vpdiffle)) deallocate (vpdiffle)
     if (allocated(dtot)) deallocate (dtot, fdf, fdb)
 
     call collisions_config%reset()
@@ -4872,11 +4187,11 @@ contains
     ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: collision_model, ediff_scheme, lorentz_scheme
     integer :: ncheck, timesteps_between_collisions
-    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, force_collisions, heating, hypermult, le_nxilim_fix, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
+    logical :: adjust, conservative, conserve_forbid_zero, conserve_moments, const_v, ei_coll_only, force_collisions, heating, hypermult, resistivity, special_wfb_lorentz, split_collisions, test, use_le_layout
     logical :: vary_vnew, vpar_zero_mean
     real :: cfac, etol, etola, ewindow, ewindowa, vnfac, vnslow
     
-    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, force_collisions, heating, hypermult, le_nxilim_fix, &
+    namelist /collisions_knobs/ adjust, cfac, collision_model, conservative, conserve_forbid_zero, conserve_moments, const_v, ediff_scheme, ei_coll_only, etol, etola, ewindow, ewindowa, force_collisions, heating, hypermult, &
          lorentz_scheme, ncheck, resistivity, special_wfb_lorentz, split_collisions, test, timesteps_between_collisions, use_le_layout, vary_vnew, vnfac, vnslow, vpar_zero_mean
 
     ! Only proc0 reads from file
@@ -4899,7 +4214,6 @@ contains
     force_collisions = self%force_collisions
     heating = self%heating
     hypermult = self%hypermult
-    le_nxilim_fix = self%le_nxilim_fix
     lorentz_scheme = self%lorentz_scheme
     ncheck = self%ncheck
     resistivity = self%resistivity
@@ -4934,7 +4248,6 @@ contains
     self%force_collisions = force_collisions
     self%heating = heating
     self%hypermult = hypermult
-    self%le_nxilim_fix = le_nxilim_fix
     self%lorentz_scheme = lorentz_scheme
     self%ncheck = ncheck
     self%resistivity = resistivity
@@ -4980,7 +4293,6 @@ contains
     call self%write_key_val("force_collisions", self%force_collisions, unit_internal)
     call self%write_key_val("heating", self%heating, unit_internal)
     call self%write_key_val("hypermult", self%hypermult, unit_internal)
-    call self%write_key_val("le_nxilim_fix", self%le_nxilim_fix, unit_internal)
     call self%write_key_val("lorentz_scheme", self%lorentz_scheme, unit_internal)
     call self%write_key_val("ncheck", self%ncheck, unit_internal)
     call self%write_key_val("resistivity", self%resistivity, unit_internal)
@@ -5028,7 +4340,6 @@ contains
     call broadcast(self%force_collisions)
     call broadcast(self%heating)
     call broadcast(self%hypermult)
-    call broadcast(self%le_nxilim_fix)
     call broadcast(self%lorentz_scheme)
     call broadcast(self%ncheck)
     call broadcast(self%resistivity)

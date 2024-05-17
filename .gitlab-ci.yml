@@ -90,7 +90,7 @@ default:
   cache:
     paths:
       - cache
-    key: "$CI_JOB_NAME"
+    key: "$CI_JOB_NAME-$CI_COMMIT_BRANCH"
 
 .the_default_script: &default_script
   - su -c "./pipeline_test_scripts/ci_build_and_run.sh" theuser
@@ -123,6 +123,7 @@ openmp_tests:
   variables:
     CASENAME: "openmp"
     EXTRA_MAKE_FLAGS: "USE_OPENMP=on"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     OMP_NUM_THREADS: 2
   script: *default_script
 
@@ -133,6 +134,7 @@ gfortran13_mpich:
     CASENAME: "gfortran_13_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "openblas openblas-devel diffutils"
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
     EXTRA_MAKE_FLAGS: "USE_LAPACK=on LAPACK_LIB=-lopenblas WITH_EIG=on"
 # MPICH performs very poorly when oversubscribed so we limit our integrated tests to
 # one process only.
@@ -169,8 +171,8 @@ intel_tests:
   artifacts:
   variables:
     CASENAME: "intel"
-    EXTRA_MAKE_FLAGS: "COMPILER=intel USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128"
+    EXTRA_MAKE_FLAGS: "COMPILER=ifx USE_FFT= USE_NETCDF= USE_MPI= USE_NEW_DIAG= "
+    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "DBLESIZEOPT=-double_size 128\nF90FLAGS+=-stand f08 -warn stderror"
     GS2_PACKAGES: "cpp gcc"
     EXTRA_PACKAGES: "dnf-plugins-core"
     WITH_PYTHON: "no"

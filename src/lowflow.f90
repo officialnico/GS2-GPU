@@ -58,7 +58,7 @@ contains
     use constants, only: zi
     use species, only: spec, nspec
     use theta_grid, only: theta, ntgrid, delthet, gradpar, bmag, shat
-    use theta_grid, only: gds23, gds24, gds24_noq, cvdrift_th, gbdrift_th
+    use theta_grid, only: gds23, gds24, gds24_noq
     use le_grids, only: energy, al, negrid, nlambda, forbid, init_map
     use le_grids, only: get_flux_vs_theta_vs_vpa
     use kt_grids, only: theta0, ntheta0, naky, aky, akx
@@ -442,7 +442,8 @@ contains
     if (.not. allocated(xi)) allocate (xi(ntheta,nxi))
     if (.not. allocated(forbid)) allocate(forbid(ntheta,nxi))
     forbid = .false. ; xi = 0.0
-
+    !Note, xi is not the same order as le_grids version. Should we just use le_grids
+    ! one? If so would need to reorder indexing elsewhere in this module
     ! get xi=vpar/v from lambda=(mu/E)*Bnorm
     do il = 1, nlambda-1
        do ig = 1, ntheta
@@ -1038,7 +1039,7 @@ contains
   subroutine read_neocoefs (theta, nspec_neo, nenergy_neo, nxi_neo, nrad_neo, ir_neo)
 
     use mp, only: proc0, broadcast
-    use splines, only: lf_spline
+    use splines, only: inter_cspl
     use file_utils, only: get_unused_unit
     use constants, only: pi,twopi
 
@@ -1052,7 +1053,7 @@ contains
     integer :: ngrid_per_rad
     integer, save :: neo_unit, neof_unit, neophi_unit
 
-    real, dimension (:), allocatable :: tmp, neo_coefs, dum, neo_phi, dneo_phi
+    real, dimension (:), allocatable :: tmp, neo_coefs, neo_phi, dneo_phi
     real, dimension (:), allocatable :: theta_neo_ext,neo_coefs_ext, neo_phi_ext, dneo_phi_ext !JPL
     ntheta = size(theta)
 
@@ -1105,7 +1106,6 @@ contains
 
     if (.not. allocated(tmp)) allocate (tmp(ngrid_per_rad*nrad_neo))
     if (.not. allocated(neo_coefs)) allocate (neo_coefs(ntheta_neo), neo_phi(ntheta_neo), dneo_phi(ntheta_neo))
-    if (.not. allocated(dum)) allocate (dum(ntheta))
     if (.not. allocated(coefs)) allocate (coefs(nrad_neo,ntheta,0:nxi_neo,0:nenergy_neo-1,nspec_neo))
     if (.not. allocated(phineo)) allocate (phineo(nrad_neo,ntheta))
     if (.not. allocated(dphidth)) allocate (dphidth(ntheta))
@@ -1149,10 +1149,10 @@ contains
                          theta_neo_ext(ip)=theta_neo(mod((ip-1),ntheta_neo)+1)+twopi*(int((ip-1)/ntheta_neo)-(ptheta_neo-1))
                          neo_coefs_ext(ip)=neo_coefs(mod((ip-1),ntheta_neo)+1)
                       end do
-                      call lf_spline (theta_neo_ext, neo_coefs_ext, theta, coefs(ir,:,ij,ik,is), dum)  !JPL
+                      call inter_cspl (theta_neo_ext, neo_coefs_ext, theta, coefs(ir,:,ij,ik,is))  !JPL
                    else
                       ! need to interpolate coefficients from neo's theta grid to gs2's
-                      call lf_spline (theta_neo, neo_coefs, theta, coefs(ir,:,ij,ik,is), dum)
+                      call inter_cspl (theta_neo, neo_coefs, theta, coefs(ir,:,ij,ik,is))
                    end if
                 end do
              end do
@@ -1190,9 +1190,9 @@ contains
              do ip = 1, ntheta_neo*(2*ptheta_neo-1)
                 neo_phi_ext(ip)=neo_phi(mod((ip-1),ntheta_neo)+1)
              end do
-             call lf_spline (theta_neo_ext, neo_phi_ext, theta, phineo(ir,:), dum)  !JPL
+             call inter_cspl (theta_neo_ext, neo_phi_ext, theta, phineo(ir,:))  !JPL
           else
-             call lf_spline (theta_neo, neo_phi, theta, phineo(ir,:), dum)
+             call inter_cspl (theta_neo, neo_phi, theta, phineo(ir,:))
           end if
 
           ! at central radius, calculate dphi/dth and interpolate onto gs2 grid
@@ -1202,10 +1202,10 @@ contains
                    dneo_phi_ext(ip)=dneo_phi(mod((ip-1),ntheta_neo)+1)
                 end do
                 call get_thgrad (neo_phi_ext, theta_neo_ext, dneo_phi_ext)
-                call lf_spline (theta_neo_ext, dneo_phi_ext, theta, dphidth, dum)
+                call inter_cspl (theta_neo_ext, dneo_phi_ext, theta, dphidth)
              else
                 call get_thgrad (neo_phi, theta_neo, dneo_phi)
-                call lf_spline (theta_neo, dneo_phi, theta, dphidth, dum)
+                call inter_cspl (theta_neo, dneo_phi, theta, dphidth)
              end if
           end if
        end do
@@ -1228,7 +1228,7 @@ contains
        end do
     end do
 
-    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi, dum)
+    deallocate (tmp, neo_coefs, theta_neo, neo_phi, dneo_phi)
     if (proc0 .and. (ptheta_neo .gt. 1)) then
        deallocate (neo_coefs_ext, theta_neo_ext, neo_phi_ext, dneo_phi_ext)
     endif
