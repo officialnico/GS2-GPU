@@ -25,22 +25,20 @@ TEST_LEVEL ?= MY_TEST_LEVEL
 .PHONY: all clean_individual_test
 
 .f90.o:
-	$(call messageOp,"Compiling","\\t:",$<)
-	$(QUIETSYM)$(FC) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
+
+.fpp.o:
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
+
+.F90.o:
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
 
 .c.o:
 	$(call messageOp,"Compiling C","\\t:",$<)
 	$(QUIETSYM)$(CC) $(CFLAGS) $(CPPFLAGS) -I$(GK_HEAD_DIR) -c $< 
-
-ifdef ONE_STEP_PP
-.fpp.o:
-	$(call messageOp,"Compiling and preprocessing","\\t:",$<)
-	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< 
-else
-.fpp.f90:
-	$(call messageOp,"Preprocessing","\\t:",$<)
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) -I$(GK_HEAD_DIR) $< $@ 
-endif
 
 # This prevents error messages like m2c: Command not found
 %.o : %.mod
