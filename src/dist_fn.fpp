@@ -5599,13 +5599,13 @@ contains
           !cell for sign going from left to right
           if (l_links(it, ik) .eq. 0) then
              adjleft = get_adjust(-ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             gnew(-ntgrid,1,iglo) = gnew(-ntgrid,1,iglo) - adjleft
+             gnew(-ntgrid,1,iglo) = - adjleft
           end if
           !Only apply the new boundary condition to the rightmost
           !cell for sign going from right to left
           if (r_links(it, ik) .eq. 0) then
              adjright = get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             gnew(ntgrid,2,iglo) = gnew(ntgrid,2,iglo) - adjright
+             gnew(ntgrid,2,iglo) = - adjright
           end if
        end if
 
