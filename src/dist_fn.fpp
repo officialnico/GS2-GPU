@@ -5449,7 +5449,6 @@ contains
     complex :: nonad_corr
     integer :: iglo
     integer :: ig, ik, it, il, ie, is
-    integer :: ilmin
     complex :: beta1
     complex :: adjleft, adjright
     logical :: use_pass_homog, speriod_flag
@@ -5458,7 +5457,7 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
-    !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
+    !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, &
     !$OMP adjright, adjleft, ig, beta1, is_passing_like, nonad_corr) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, delthet, &
     !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, exponential_boundary_factor, &
@@ -5514,12 +5513,6 @@ contains
        end select
 
        use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
-
-       if (use_pass_homog) then
-          ilmin = 1
-       else
-          ilmin = ng2 + 1
-       end if
 
        ! ng2+1 is WFB.
        is_wfb = il_is_wfb(il)
