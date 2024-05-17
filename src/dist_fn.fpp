@@ -5431,39 +5431,31 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 (phinew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g, get_adjust
-    use theta_grid, only: ntgrid, delthet
+    use dist_fn_arrays, only: gnew, set_h_zero, g
+    use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          is_upper_bounce_point, is_lower_bounce_point, mixed_wfb
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use run_parameters, only: fbpar, fphi, ieqzip
+    use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, nonmaxw_corr
-    use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
-    complex :: nonad_corr
-    integer :: iglo
-    integer :: ig, ik, it, il, ie, is
+    integer :: iglo, ig, ik, it, il, ie, is
     complex :: beta1
-    complex :: adjleft, adjright
-    logical :: use_pass_homog, speriod_flag
-    logical :: is_wfb, is_passing, is_trapped
-    logical :: is_self_periodic, is_passing_like
+    logical :: use_pass_homog, speriod_flag, is_self_periodic
+    logical :: is_wfb, is_passing, is_trapped, is_passing_like
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
-    !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, &
-    !$OMP adjright, adjleft, ig, beta1, is_passing_like, nonad_corr) &
-    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, delthet, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, exponential_boundary_factor, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, boundary_off_grid, exponential_boundary, &
-    !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
-    !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, ig, use_pass_homog, speriod_flag, &
+    !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, is_passing_like, beta1) &
+    !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
+    !$OMP gnew, phinew, bparnew, boundary_option_switch, g, &
+    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
+    !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, r, ainv, source) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
@@ -5579,137 +5571,9 @@ contains
        !/////////////////////////
        !// Boundaries
        !/////////////////////////
-
-       !CMR, 18/4/2012:
-       ! What follows is a selectable improved parallel bc for passing particles.
-       !                                            (prompted by Greg Hammett)
-       ! Original bc is: g_gs2 = gnew = 0 at ends of domain:
-       !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
-       ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
-       !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( (.not. (boundary_off_grid.or.exponential_boundary)) .and. nonad_zero .and. is_passing_like ) then
-          !Only apply the new boundary condition to the leftmost
-          !cell for sign going from left to right
-          if (l_links(it, ik) .eq. 0) then
-             adjleft = get_adjust(-ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             gnew(-ntgrid,1,iglo) = - adjleft
-          end if
-          !Only apply the new boundary condition to the rightmost
-          !cell for sign going from right to left
-          if (r_links(it, ik) .eq. 0) then
-             adjright = get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             gnew(ntgrid,2,iglo) = - adjright
-          end if
-       end if
-
-       ! -- Set g or h to zero one half grid point past the end of the grid
-       if (boundary_off_grid .and. is_passing_like .and. .not. is_self_periodic) then
-          ! We can approximate the derivative at ntgrid as
-          !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
-          ! We can then extrapolate to ig = ntgrid + 1/2 as
-          !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
-          ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
-          !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
-          ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
-          !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
-          ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
-          !   3 g_boundary = gnew(ntgrid-1,2,iglo)
-          ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
-          !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
-          ! Substituting this we find
-          !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
-          !                (3 + r(ntgrid-1,2,iglo))
-          ! If we wanted to set h = 0 at the half grid point instead of g then
-          ! we would find that ainv*source --> ainv*source + 3 * Adj(ntgrid)-Adj(ntgrid-1)
-          ! where we have g = h + Adj
-          if (r_links(it, ik) == 0) then
-             if (nonad_zero) then
-                nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             else
-                nonad_corr = 0.0
-             end if
-
-             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
-                  nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
-          end if
-
-          ! We can approximate the derivative at -ntgrid as
-          !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
-          ! We can then extrapolate to ig = -ntgrid - 1/2 as
-          !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
-          ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
-          !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
-          ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
-          !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
-          ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
-          !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
-          ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
-          !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
-          ! Substituting this we find
-          !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
-          !                (3 + r(-ntgrid,1,iglo))
-          ! If we wanted to set h = 0 at the half grid point instead of g then
-          ! we would find that ainv*source --> ainv*source + 3 * Adj(-ntgrid)-Adj(-ntgrid+1)
-          ! where we have g = h + Adj
-          if (l_links(it, ik) == 0) then
-             if (nonad_zero) then
-                nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
-             else
-                nonad_corr = 0.0
-             end if
-
-             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
-                  nonad_corr) / (3 + r(-ntgrid, 1, iglo))
-          end if
-       end if
-
-       ! Try to impose an exponential decay at the boundary. If we suppose we have
-       ! g(theta) = exp(-/+|alpha|theta)(with the sign taken depending on right or
-       ! left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|Consider right
-       ! boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i].
-       ! Given g_{i-1} = - r g_i + ainv.source we get -|alpha| dtheta g_i =
-       ! [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source
-       ! and hence g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary
-       ! we pick the other sign of |alpha| but also have dg/dtheta = [g_{i+1} - g_i]/dtheta
-       ! (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
-       ! One can also generalise to set the exponential decay on h and we end up with
-       ! ainv.source -> ainv.source + (1+|alpha|dtheta) Adj(-ntgrid) - Adj(-ntgrid+1)
-       if (exponential_boundary .and. is_passing_like .and. .not. is_self_periodic) then
-          if (r_links(it, ik) == 0) then
-             if (nonad_zero) then
-                nonad_corr =  (1 + exponential_boundary_factor * delthet(ntgrid-1)) * &
-                     get_adjust(ntgrid, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(ntgrid-1, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew)
-             else
-                nonad_corr = 0.0
-             end if
-
-             gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
-                  nonad_corr) / (r(ntgrid-1, 2, iglo) + 1 + &
-                  exponential_boundary_factor * delthet(ntgrid-1))
-          end if
-
-          if (l_links(it, ik) == 0) then
-             if (nonad_zero) then
-                nonad_corr = (1 + exponential_boundary_factor * delthet(-ntgrid)) * &
-                     get_adjust(-ntgrid, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew) - &
-                     get_adjust(-ntgrid+1, it, ik, ie, is, iglo, &
-                     fphi, fbpar, phinew, bparnew)
-             else
-                nonad_corr = 0.0
-             end if
-
-             gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
-                  nonad_corr) / (r(-ntgrid, 1, iglo) + 1 + &
-                  exponential_boundary_factor * delthet(-ntgrid))
-          end if
+       if (is_passing_like .and. .not. is_self_periodic) then
+          call apply_parallel_boundary_conditions(gnew, source, it, ik, ie, is, iglo, &
+            phinew, bparnew, l_links(it, ik) == 0, r_links(it, ik) == 0)
        end if
 
        !/////////////////////////
@@ -5835,6 +5699,148 @@ contains
 
     if (def_parity) call enforce_parity(parity_redist)
   end subroutine invert_rhs_1
+
+  !> Apply one of the "end of the grid" parallel boundary conditions
+  pure subroutine apply_parallel_boundary_conditions(gnew, source, it, ik, ie, is, iglo, &
+       phinew, bparnew, is_left_boundary, is_right_boundary)
+    use theta_grid, only: ntgrid, delthet
+    use gs2_layouts, only: g_lo
+    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: get_adjust
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: gnew
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: source
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
+    integer, intent(in) :: it, ik, ie, is, iglo
+    logical, intent(in) :: is_left_boundary, is_right_boundary
+    complex :: nonad_corr
+    if (.not. (is_left_boundary .or. is_right_boundary)) return
+    if (boundary_off_grid) then
+       ! -- Set g or h to zero one half grid point past the end of the grid
+
+       ! We can approximate the derivative at -ntgrid as
+       !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
+       ! We can then extrapolate to ig = -ntgrid - 1/2 as
+       !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
+       ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
+       !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
+       ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
+       ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
+       !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
+       !                (3 + r(-ntgrid,1,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + 3 * Adj(-ntgrid)-Adj(-ntgrid+1)
+       ! where we have g = h + Adj
+       if (is_left_boundary) then
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+               nonad_corr) / (3 + r(-ntgrid, 1, iglo))
+       end if
+
+       ! We can approximate the derivative at ntgrid as
+       !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
+       ! We can then extrapolate to ig = ntgrid + 1/2 as
+       !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
+       ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
+       !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
+       ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(ntgrid-1,2,iglo)
+       ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
+       !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
+       !                (3 + r(ntgrid-1,2,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + 3 * Adj(ntgrid)-Adj(ntgrid-1)
+       ! where we have g = h + Adj
+       if (is_right_boundary) then
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+               nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
+       end if
+    else if (exponential_boundary) then
+       ! Try to impose an exponential decay at the boundary. If we suppose we have
+       ! g(theta) = exp(-/+|alpha|theta)(with the sign taken depending on right or
+       ! left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|Consider right
+       ! boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i].
+       ! Given g_{i-1} = - r g_i + ainv.source we get -|alpha| dtheta g_i =
+       ! [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source
+       ! and hence g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary
+       ! we pick the other sign of |alpha| but also have dg/dtheta = [g_{i+1} - g_i]/dtheta
+       ! (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
+       ! One can also generalise to set the exponential decay on h and we end up with
+       ! ainv.source -> ainv.source + (1+|alpha|dtheta) Adj(-ntgrid) - Adj(-ntgrid+1)
+       if (is_left_boundary) then
+          if (nonad_zero) then
+             nonad_corr = (1 + exponential_boundary_factor * delthet(-ntgrid)) * &
+                  get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+               nonad_corr) / (r(-ntgrid, 1, iglo) + 1 + &
+               exponential_boundary_factor * delthet(-ntgrid))
+       end if
+
+       if (is_right_boundary) then
+          if (nonad_zero) then
+             nonad_corr =  (1 + exponential_boundary_factor * delthet(ntgrid-1)) * &
+                  get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+               nonad_corr) / (r(ntgrid-1, 2, iglo) + 1 + &
+               exponential_boundary_factor * delthet(ntgrid-1))
+       end if
+    elseif (nonad_zero) then
+       ! If nonad_zero then force h = 0 at the boundary
+       !CMR, 18/4/2012:
+       ! What follows is a selectable improved parallel bc for passing particles.
+       !                                            (prompted by Greg Hammett)
+       ! Original bc is: g_gs2 = gnew = 0 at ends of domain:
+       !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
+       ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
+       !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
+       if (is_left_boundary) gnew(-ntgrid, 1, iglo) = &
+            -get_adjust(-ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+
+       if (is_right_boundary) gnew(ntgrid, 2, iglo) = &
+            -get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+    else
+       ! Here we _could_ force gnew = 0 at the boundary. Currently we just leave
+       ! the input unchanged so support [[start_from_previous_solution]]
+    end if
+
+  end subroutine apply_parallel_boundary_conditions
 
   !> Sets sum of homogeneous and inhomogeneous solutions to give a result
   !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
