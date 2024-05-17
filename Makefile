@@ -159,8 +159,8 @@ Makefile: ;
 SHELL           = bash
 MAKE		= make
 CPP		= cpp
-CPPFLAGS	=
-FPPFLAGS	= -P -traditional
+CPPFLAGS	= -P -traditional
+FPPFLAGS	=
 FC		= f90
 MPIFC		?= mpif90
 H5FC		?= h5fc
