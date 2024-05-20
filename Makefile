@@ -158,7 +158,7 @@ Makefile: ;
 #
 SHELL           = bash
 MAKE		= make
-CPP		= cpp
+CPP		= cpp -traditional
 CPPFLAGS	=
 FPPFLAGS	=
 FC		= f90
@@ -668,10 +668,10 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) -traditional $(FPPFLAGS) $(INCLUDES) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) -traditional $(FPPFLAGS) $(INCLUDES) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
