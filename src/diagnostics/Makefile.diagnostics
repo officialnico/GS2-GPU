@@ -1,7 +1,3 @@
-ifdef USE_MPI
-MACRO_DEFS += -DHAVE_MPI
-endif
-
 MACRO_DEFS += -DFORTRAN_NETCDF -DISO_C_BINDING
 
 # Commands for generating repetitive Fortran files from python scripts
