@@ -625,7 +625,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 
 ####################################################################### Source code targets
 $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
-	@mkdir -p $@
+	$(QUIETSYM)$(MKDIR) $@
 
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
