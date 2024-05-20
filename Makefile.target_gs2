@@ -113,14 +113,6 @@ $(BINDIR)/rungridgen: $(rungridgen_mod) | $(BINDIR)
 .PHONY: rungridgen
 rungridgen: $(BINDIR)/rungridgen
 
-#A simple program to test linear regression on random data || Not at all gs2 specific!
-$(BINDIR)/regress: $(drive_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: regress
-regress: $(BINDIR)/regress
-
 #A program which test the fft transforms used in GS2 | DOES NOT COMPILE
 $(BINDIR)/ffttester: $(ffttester_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
@@ -212,7 +204,7 @@ libgs2.a: $(LIBDIR)/libgs2.a
 distclean:
 	$(call messageRm,"Executables")
 	-$(QUIETSYM)rm -f gs2 gs2.x
-	-$(QUIETSYM)rm -f ingen rungridgen regress
+	-$(QUIETSYM)rm -f ingen rungridgen
 	-$(QUIETSYM)rm -f ball eiktest
 	-$(QUIETSYM)rm -f ffttester
 	-$(QUIETSYM)rm -f dump_response
