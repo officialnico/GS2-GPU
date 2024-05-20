@@ -226,6 +226,7 @@ EXTERNALSRCDIRS:= $(addprefix $(EXTERNALDIR)/, $(EXTERNALSRCDIRS))
 
 SUBDIRS += $(EXTERNALSRCDIRS)
 
+MAKEFILES_DIR:=$(GK_HEAD_DIR)/Makefiles
 GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
 NEASYF := $(EXTERNALDIR)/neasyf/src
@@ -260,7 +261,7 @@ include Makefile.$(GK_SYSTEM)
 # Files that we know are going to be in the submodule directories.
 # This is in case the directories exist but the submodules haven't
 # actually been initialised
-MAKEFILES_SENTINEL := Makefiles/Makefile.bitbucket
+MAKEFILES_SENTINEL := $(MAKEFILES_DIR)/Makefile.bitbucket
 UTILS_SENTINEL := $(UTILS)/mp.fpp
 NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
 
@@ -300,13 +301,13 @@ Makefile.utils: ;
 include Makefile.utils
 
 #Indicate that we don't want to rebuild the COMPILER makefile
-Makefiles/Makefile.$(COMPILER): ;
+$(MAKEFILES_DIR)/Makefile.$(COMPILER): ;
 #############################################################################
 
 GIT_HASH:=$(shell git rev-parse HEAD)
 MACRO_DEFS+=-DGIT_HASH='"$(GIT_HASH)"'
 
-GIT_HASH_MAKEFILES:=$(shell git submodule status Makefiles | cut -d ' ' -f2)
+GIT_HASH_MAKEFILES:=$(shell git submodule status $(MAKEFILES_DIR) | cut -d ' ' -f2)
 MACRO_DEFS+=-DGIT_HASH_MAKEFILES='"$(GIT_HASH_MAKEFILES)"'
 
 GIT_HASH_UTILS:=$(shell git submodule status $(UTILS) | cut -d ' ' -f2)
