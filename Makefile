@@ -542,14 +542,6 @@ ifdef SCAL
    FC:= scalasca -instrument $(FC)
 endif
 
-#Make empty targets if not using the new diagnostics
-ifeq ($(USE_NEW_DIAG),on)
-$(SRCDIR)/diagnostics/Makefile.diagnostics: ;
-include $(SRCDIR)/diagnostics/Makefile.diagnostics
-else
-diagnostics:
-endif
-
 # NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
 # ensure that it gets quoted correctly on the command line
 MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
@@ -629,7 +621,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
-.PHONY: depend tar tar_exec test_make diagnostics
+.PHONY: depend tar tar_exec test_make
 .PHONY: help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
