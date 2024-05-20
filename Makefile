@@ -939,8 +939,8 @@ revision:
 #It would be nice to provide a default helplocal target that just says no help available
 help: helplocal
 
-TAGS:	*.f90 *.fpp */*.f90 */*.fpp
-	etags $^
+TAGS: $(FPPFILES) $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+	$(QUIETSYM)etags $^
 
 ############################################################# Documentation
 
