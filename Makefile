@@ -169,7 +169,6 @@ LDFLAGS 	= $(F90FLAGS)
 ARCH 		= ar
 ARCHFLAGS 	= cr
 RANLIB		= ranlib
-AWK 		= awk
 PERL		= perl
 FORD           ?= $(GK_HEAD_DIR)/scripts/ford_interceptor.py
 MKDIR           = mkdir -p
