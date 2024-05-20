@@ -193,7 +193,6 @@ coverage_standard_tests:
     GK_CI_INTEGRATED: ""
     GK_CI_PFUNIT_COVERAGE: "ON"
     EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
   after_script:
@@ -209,7 +208,6 @@ parallel_netcdf_standard_tests:
     CASENAME: "standard_parallel_netcdf_no_compression"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
     EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
   script: *default_script
 
 nodeps_tests:
