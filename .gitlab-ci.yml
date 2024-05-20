@@ -189,10 +189,10 @@ coverage_standard_tests:
   stage: test
   image: fedora:39
   variables:
-    CASENAME: "standard+coverage+debug+onestep"
+    CASENAME: "standard+coverage+debug"
     GK_CI_INTEGRATED: ""
     GK_CI_PFUNIT_COVERAGE: "ON"
-    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
+    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
