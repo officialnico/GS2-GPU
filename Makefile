@@ -673,10 +673,6 @@ $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) -traditional $(FPPFLAGS) $(INCLUDES) $< -o $@
 
-$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
-
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
