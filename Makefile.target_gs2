@@ -165,6 +165,8 @@ modules: utils.a geo.a libgs2.a diagnostics
 utils_all: | $(UTILS_SENTINEL)
 utils_all: utils.a
 
+# This manual list is out of date / incomplete. Can we just get the
+# list automatically from the source in utils / dependencies?
 UTIL_OBJ_LIST := spl.o constants.o file_utils.o runtime_tests.o constant_random.o
 ifdef USE_NETCDF
 UTIL_OBJ_LIST += netcdf_utils.o
@@ -182,6 +184,8 @@ utils.a: $(LIBDIR)/utils.a
 ### GEO
 geo_all: geo.a eiktest ball
 
+# This manual list is out of date / incomplete. Can we just get the
+# list automatically from the source in geo / dependencies?
 GEO_OBJ_LIST := geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_chease.o
 GEO_OBJ = $(addprefix $(OBJDIR)/, $(GEO_OBJ_LIST))
 
