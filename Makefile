@@ -147,7 +147,6 @@ export
 #  test_make: print values of variables
 #  clean: clean up
 #  distclean: does "make clean" + removes platform links & executables
-#  tar: pack
 #
 ###############################################################
 # A default empty rule to say we can't rebuild this makefile so don't bother trying
@@ -562,7 +561,6 @@ F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
 DATE:=$(shell date +%y%m%d)
-TARDIR=$(GK_PROJECT)_$(DATE)
 TOPDIR=$(CURDIR)
 ifeq ($(notdir $(CURDIR)), $(UTILS))
 	TOPDIR=$(subst /$(UTILS),,$(CURDIR))
@@ -618,8 +616,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .SUFFIXES:
 
 .PHONY: all $(GK_PROJECT)_all submodules
-.PHONY: depend tar tar_exec test_make
-.PHONY: help TAGS
+.PHONY: depend test_make help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
 
@@ -775,33 +772,6 @@ clean_depend:
 	-$(QUIETSYM)rm -f $(DEPEND)
 
 distclean: clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
-
-############################################################# Tar targets
-tar:
-	@[ ! -d $(TARDIR) ] || echo "ERROR: directory $(TARDIR) exists. Stop."
-	@[ -d $(TARDIR) ] || $(MAKE) tar_exec
-
-$(TARDIR):
-	$(QUIETSYM)$(MKDIR) $@
-
-### setting tar_exec local $(TARLIST*) variables
-# expand wildcards listed $(TARLIST_wild) in ( $(TARLIST_dir) + . )
-# directories and add them into TARLIST
-tar_exec: TARLIST = scripts/fortdep
-tar_exec: TARLIST_dir = Makefiles utils geo Aux
-tar_exec: TARLIST_wild = *.f90 *.fpp *.inc *.c Makefile Makefile.* README README.*
-tar_exec: TARLIST += $(foreach dir,. $(TARLIST_dir),$(wildcard $(addprefix $(dir)/,$(TARLIST_wild))))
-tar_exec: | $(TARDIR)
-
-tar_exec:
-	@for dir in $(TARLIST_dir) ;\
-	  do ( [ ! -d $$dir ] ||  $(MKDIR) $(TARDIR)/$$dir ; ) ;\
-	done
-	@for name in $(TARLIST) ;\
-	  do ( [ -f $$name ] && ln $$name $(TARDIR)/$$name ; ) ;\
-	done
-	@tar cvf - $(TARDIR) | bzip2 -9 > $(TARDIR).tar.bz2
-	@rm -rf $(TARDIR) # This looks dangerous
 
 ############################################################# Testing targets
 #This is the location of the individual test suites
