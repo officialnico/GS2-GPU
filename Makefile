@@ -256,7 +256,6 @@ $(error GK_SYSTEM is not set)
 	endif
 endif
 
-
 include Makefile.$(GK_SYSTEM)
 
 # Files that we know are going to be in the submodule directories.
@@ -272,7 +271,6 @@ NEASYF_SENTINEL := $(NEASYF)/neasyf.f90
 $(NEASYF_SENTINEL) $(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 	@echo "Downloading submodules"
 	git submodule update --init --recursive
-
 
 .Makefile.makefile_exists_helper: ;
 
@@ -420,7 +418,7 @@ ifeq ($(findstring fftw3,$(USE_FFT)),fftw3)
 	FFT_LIB ?= -lfftw3
 endif
 
-ifdef GENQUAD
+ifdef GENQUAD # Should connect to USE_LAPACK?
 	GENQUAD_LIB ?= -llapack 
 	MACRO_DEFS += -DGENQUAD
 endif
@@ -481,7 +479,7 @@ else
 	endif
 endif
 
-ifdef GK_HAS_COMPILER_OPTIONS_2008
+ifdef GK_HAS_COMPILER_OPTIONS_2008 #Is this required now?
 	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
