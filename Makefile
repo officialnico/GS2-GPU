@@ -159,16 +159,11 @@ Makefile: ;
 SHELL           = bash
 MAKE		= make
 CPP		= cpp -traditional
-CPPFLAGS	=
 FPPFLAGS	=
 FC		= f90
 MPIFC		?= mpif90
 F90FLAGS	=
 F90OPTFLAGS	= 
-CC		= cc
-MPICC		?= mpicc
-CFLAGS		= 
-COPTFLAGS 	=
 LD 		= $(FC)
 LDFLAGS 	= $(F90FLAGS)
 ARCH 		= ar
@@ -398,7 +393,6 @@ endif
 
 ifdef USE_MPI
 	FC = $(MPIFC)
-	CC = $(MPICC)
 	MACRO_DEFS += -DMPI
 endif
 
@@ -415,7 +409,6 @@ ifeq ($(USE_NEW_DIAG),on)
 endif
 
 ifeq ($(USE_FPIC),on)
-	CFLAGS+=-fPIC
 	F90FLAGS += -fPIC
 endif
 
@@ -543,7 +536,6 @@ ifdef WITH_EIG
 	EIG_LIB += -lslepc -lpetsc
 
 	MACRO_DEFS += -DWITH_EIG
-	CFLAGS += -DWITH_EIG 
 endif 
 
 ifdef SCAL
@@ -578,10 +570,6 @@ INCLUDES += -I$(MODDIR)
 INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
 
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
-CFLAGS += $(COPTFLAGS) \
-	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
-
-CPPFLAGS += $(MACRO_DEFS)
 FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
 DATE:=$(shell date +%y%m%d)
@@ -858,7 +846,6 @@ test_make:
 	$(call messageInfo,"Commands:")
 	$(call messageKeyVal, "COMPILER", $(COMPILER))
 	$(call messageKeyVal, "FC", $(FC))
-	$(call messageKeyVal, "CC", $(CC))
 	$(call messageKeyVal, "LD", $(LD))
 	$(call messageKeyVal, "CPP", $(CPP))
 	$(call messageKeyVal, "ARCH", $(ARCH))
@@ -897,10 +884,7 @@ test_make:
 	$(call messageInfo,"Flags:")
 	$(call messageKeyVal, "F90FLAGS", $(F90FLAGS))
 	$(call messageKeyVal, "F90OPTFLAGS", $(F90OPTFLAGS))
-	$(call messageKeyVal, "CFLAGS", $(CFLAGS))
-	$(call messageKeyVal, "COPTFLAGS", $(COPTFLAGS))
 	$(call messageKeyVal, "LDFLAGS", $(LDFLAGS))
-	$(call messageKeyVal, "CPPFLAGS", $(CPPFLAGS))
 	$(call messageKeyVal, "FPPFLAGS", $(FPPFLAGS))
 	$(call messageKeyVal, "ARCHFLAGS", $(ARCHFLAGS))
 	$(call messageKeyVal, "MACRO_DEFS", $(MACRO_DEFS))
