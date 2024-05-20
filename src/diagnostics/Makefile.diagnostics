@@ -1,5 +1,3 @@
-MACRO_DEFS += -DFORTRAN_NETCDF -DISO_C_BINDING
-
 # Commands for generating repetitive Fortran files from python scripts
 ifeq ($(GS2_HAS_PYTHON),yes)
 $(SRCDIR)/diagnostics/diagnostics_ascii.f90: diagnostics/generate_diagnostics_ascii.py
