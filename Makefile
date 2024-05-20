@@ -280,7 +280,7 @@ $(NEASYF_SENTINEL) $(UTILS_SENTINEL) $(MAKEFILES_SENTINEL) submodules:
 # an error -- this allows us to abort if the makefile can't be found even
 # after fetching the submodules
 Makefile.$(GK_SYSTEM): $(MAKEFILES_SENTINEL)
-	@$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
+	$(QUIETSYM)$(MAKE) -f .Makefile.makefile_exists_helper --no-print-directory
 
 # Here we add dependency on the utils_sentinel for a somewhat arbitrary
 # file in utils that we will try to include. If $(UTILS)/define.inc is not
@@ -933,7 +933,7 @@ endif
 	@echo
 
 revision:
-	@LANG=C git rev-parse HEAD > Revision
+	$(QUIETSYM)LANG=C git rev-parse HEAD > Revision
 
 #This only works if a helplocal rule has been defined in the specific system makefile.
 #It would be nice to provide a default helplocal target that just says no help available
@@ -959,7 +959,7 @@ namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
 namelist_doc: check_ford_install
 	$(call messageInfo,"Generating namelist documentation")
-	@$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
 
 .PHONY: clean_namelist_doc
 clean_namelist_doc:
