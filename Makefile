@@ -641,13 +641,8 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend tar tar_exec test_make diagnostics
 .PHONY: help TAGS
-.PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
+.PHONY: clean cleanlib cleanconfig clean_coverage distclean
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
-
-# comment this out to keep intermediate .f90 files
-ifdef KEEP_PROCESSED
-.PRECIOUS: $(F90FROMFPP)
-endif
 
 ####################################################################### Source code targets
 $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
@@ -789,7 +784,7 @@ cleandirs:
 	-$(QUIETSYM)rm -rf $(MODDIR) $(OBJDIR) $(BINDIR) $(LIBDIR) $(GENERATED_SRC_DIR) $(COVERAGE_DIR) $(TEST_RESULT_DIR)
 
 cleanpreprocess:
-	$(call messageRm,"Processed files")
+	$(call messageRm,"Preprocessed files")
 	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 cleanlib:
@@ -804,11 +799,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
-
-unlink:
-	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP)
+distclean: clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 ############################################################# Tar targets
 tar:
