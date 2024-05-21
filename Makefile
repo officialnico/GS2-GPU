@@ -581,7 +581,8 @@ INCLUDES += -I$(MODDIR)
 # found to exist. This can help avoid warnings about non-existent directories
 INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
 
-F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
+F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
+F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
 CFLAGS += $(COPTFLAGS) \
 	   $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)
 
@@ -650,19 +651,19 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 
 %.o : %.pf
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
-$(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling","\\t:",$(call processName,$<))
-	$(QUIETSYM) $(FC) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+$(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 
 # The depend command needs the preprocessed source files.
 # This is a little clunky, and maybe could be fixed in the future.
