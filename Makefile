@@ -631,7 +631,7 @@ $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 
 # Special handling for creating a serial version of the mp module
 $(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
-FPPFLAGS_SERIAL:=$(subst -DMPI, ,$(FPPFLAGS))
+FPPFLAGS_SERIAL:=$(subst -DMPI, ,$(subst -DMPI3, ,$(FPPFLAGS)))
 $(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
