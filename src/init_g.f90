@@ -2,6 +2,7 @@
 !> fields and the distribution function.
 module init_g
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
+  use constants, only: run_name_size
   implicit none
 
   private
@@ -49,7 +50,7 @@ module init_g
   real :: tstart, scale, apar0
   logical :: chop_side, clean_init, left, even, new_field_init
   logical :: initial_condition_is_nonadiabatic_dfn
-  character (2000) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
+  character (len = run_name_size) :: restart_file !WARNING: This is also defined in gs2_save. This should be addressed
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
   integer, dimension(3) :: ikkk,ittt
@@ -306,7 +307,7 @@ module init_g
      !> Basename of restart files
      !>
      !> @note gets a smart default
-     character(len = 2000) :: restart_file = "restart_file_not_set.nc"
+     character(len = run_name_size) :: restart_file = "restart_file_not_set.nc"
      !> Rescale amplitudes of fields for restart [[init_g_knobs:ginit_option]]
      !> options such as `"restart"`. Note that if `scale` is negative, the
      !> fields are scaled by `-scale / max(abs(phi))`!
@@ -4580,7 +4581,7 @@ contains
     ! isolation and ensure we can move this routine to another module easily.    
     character(len = 150) :: restart_dir
     character(len = 20) :: eq_type, ginit_option
-    character(len = 2000) :: restart_file
+    character(len = run_name_size) :: restart_file
     complex, dimension(3) :: ukxy_pt
     complex, dimension(6) :: aparamp, phiamp
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id

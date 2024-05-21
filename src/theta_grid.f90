@@ -2080,7 +2080,7 @@ end module theta_grid_eik
 !> Use output from [[rungridgen]]
 module theta_grid_file
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
-
+  use constants, only: run_name_size
   implicit none
 
   private
@@ -2096,7 +2096,7 @@ module theta_grid_file
   public :: set_theta_grid_file_config
   public :: get_theta_grid_file_config
 
-  character (2000) :: gridout_file
+  character (len = run_name_size) :: gridout_file
   real :: shat_input, drhodpsi_input, kxfac_input, qval_input
   logical :: no_geo_info = .false.
   integer :: ntheta, nperiod, ntgrid, nbset
@@ -2107,7 +2107,7 @@ module theta_grid_file
      ! namelist : theta_grid_file_knobs
      ! indexed : false
      !> Name of file with output from [[rungridgen]].
-     character(len = 2000) :: gridout_file = "grid.out"
+     character(len = run_name_size) :: gridout_file = "grid.out"
      !> If false, read `Rplot`, `Rprime`, `Zplot`, `Zprime`, `aplot`, `aprime`
      !> from [[theta_grid_file_knobs:gridout_file]].
      logical :: no_geo_info = .false.
@@ -2538,7 +2538,7 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    character(len = 2000) :: gridout_file
+    character(len = run_name_size) :: gridout_file
     logical :: no_geo_info
 
     namelist /theta_grid_file_knobs/ gridout_file, no_geo_info
