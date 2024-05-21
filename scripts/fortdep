@@ -592,7 +592,7 @@ sub cleanprep{
 	    my $f90file = $file;
 	    $f90file =~ s/\.(fpp|F90)/\.f90/;
 	    if ($$source{$f90file}{'type'} ne ""){
-		unlink "$f90file";
+		unlink "$$source{$f90file}{'dir'}/$f90file";
 		foreach my $key ( keys %{$$source{$file}} ){
 		    delete $$source{$file}{$key};
 		}

@@ -158,7 +158,7 @@ Makefile: ;
 #
 SHELL           = bash
 MAKE		= make
-CPP		= cpp
+CPP		= cpp -traditional
 CPPFLAGS	=
 FPPFLAGS	=
 FC		= f90
@@ -641,13 +641,8 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend tar tar_exec test_make diagnostics
 .PHONY: help TAGS
-.PHONY: clean cleanlib cleanconfig clean_coverage distclean unlink
+.PHONY: clean cleanlib cleanconfig clean_coverage distclean
 .PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
-
-# comment this out to keep intermediate .f90 files
-ifdef KEEP_PROCESSED
-.PRECIOUS: $(F90FROMFPP)
-endif
 
 ####################################################################### Source code targets
 $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
@@ -673,14 +668,10 @@ $(OBJDIR)/%.o:%.f90 |$(MODDIR) $(OBJDIR)
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) -traditional $(FPPFLAGS) $(INCLUDES) $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) -traditional $(FPPFLAGS) $(INCLUDES) $< -o $@
-
-$(OBJDIR)/%.o: %.c |$(MODDIR) $(OBJDIR)
-	$(call messageOp,"Compiling C","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CC) $(CFLAGS) $(INCLUDES) $(CPPFLAGS) -c $< -o $@
+	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
@@ -711,8 +702,7 @@ depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM)
 # We touch the dependency file first as fortdep will call make in order to try
 # and preprocess files, so we need this to avoid recursion
 	$(QUIETSYM)touch $(DEPEND) && $(DEPEND_CMD) -m "$(MAKE) --no-print-directory" -1 -o -v=0\
-		--keep=$(KEEP_PROCESSED_FILES_FROM_DEPEND) $(VPATH) \
-		--generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
+		$(VPATH) --generated_src_dir=$(GENERATED_SRC_DIR) || rm $(DEPEND)
 	$(call messageOp,"Dependency file created at","\\t:",$(call processName,$(DEPEND)))
 
 # Dump the compilation flags to a file, so we can check if they change between
@@ -790,7 +780,7 @@ cleandirs:
 	-$(QUIETSYM)rm -rf $(MODDIR) $(OBJDIR) $(BINDIR) $(LIBDIR) $(GENERATED_SRC_DIR) $(COVERAGE_DIR) $(TEST_RESULT_DIR)
 
 cleanpreprocess:
-	$(call messageRm,"Processed files")
+	$(call messageRm,"Preprocessed files")
 	-$(QUIETSYM)rm -f $(F90FROMFPP)
 
 cleanlib:
@@ -805,11 +795,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: unlink clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
-
-unlink:
-	$(call messageRm,"Preprocessed files")	
-	-$(QUIETSYM)rm -f $(F90FROMFPP)
+distclean: clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
 
 ############################################################# Tar targets
 tar:
