@@ -146,48 +146,12 @@ $(BINDIR)/write_default_input_file: $(write_default_input_file_mod) | $(BINDIR)
 write_default_input_file: $(BINDIR)/write_default_input_file
 
 ############################################################################# LIBRARIES
-.PHONY: modules utils_all geo_all libgs2_all
+.PHONY: modules libgs2_all
 
 # Order-only prerequisites need to be specified separately for this to
 # work properly
 modules: | $(UTILS_SENTINEL)
-modules: utils.a geo.a libgs2.a
-
-### UTILS
-utils_all: | $(UTILS_SENTINEL)
-utils_all: utils.a
-
-# This manual list is out of date / incomplete. Can we just get the
-# list automatically from the source in utils / dependencies?
-UTIL_OBJ_LIST := spl.o constants.o file_utils.o runtime_tests.o constant_random.o
-ifdef USE_NETCDF
-UTIL_OBJ_LIST += netcdf_utils.o
-endif
-UTIL_OBJ := $(addprefix $(OBJDIR)/, $(UTIL_OBJ_LIST))
-$(LIBDIR)/utils.a: | $(UTILS_SENTINEL)
-$(LIBDIR)/utils.a: $(UTIL_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
-	$(QUIETSYM)$(RANLIB) $@
-
-.PHONY: utils.a
-utils.a: $(LIBDIR)/utils.a
-
-### GEO
-geo_all: geo.a eiktest ball
-
-# This manual list is out of date / incomplete. Can we just get the
-# list automatically from the source in geo / dependencies?
-GEO_OBJ_LIST := geometry.o geq.o eeq.o peq.o leq.o deq.o ideq.o ceq.o read_chease.o
-GEO_OBJ = $(addprefix $(OBJDIR)/, $(GEO_OBJ_LIST))
-
-$(LIBDIR)/geo.a: $(GEO_OBJ) |$(LIBDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
-	$(QUIETSYM)$(RANLIB) $@
-
-.PHONY: geo.a
-geo.a: $(LIBDIR)/geo.a
+modules: libgs2.a
 
 ### LIBGS2
 libgs2_all: $(LIBDIR)/libgs2.a
