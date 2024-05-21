@@ -545,7 +545,7 @@ INCLUDES += -I$(MODDIR)
 # found to exist. This can help avoid warnings about non-existent directories
 INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-I//g') ] && echo $(tmpvp)))
 
-F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
+F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
 FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
@@ -554,7 +554,7 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(GK_HEAD_DIR)/$(UTILS) $(GK_HEAD_DIR)/$(GEO) .. ../$(UTILS) ../$(GEO) $(GK_HEAD_DIR)/$(NEASYF)
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
