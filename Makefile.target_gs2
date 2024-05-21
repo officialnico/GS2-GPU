@@ -42,26 +42,17 @@ parallel_targets += generate_fftw_wisdom #Utility to produce fftw wisdom files f
 gs2_all: gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
 gs2_all: dump_grids ideal_ball write_default_input_file
 
-define build_parallel_program =
+define build_program =
 $(BINDIR)/$(1): $$($(1)_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $$@ $$^ $(LIBS)
+	$(QUIETSYM)$(LD) $(2) -o $$@ $$^ $(LIBS)
 
 .PHONY: $(1)
 $(1): $(BINDIR)/$(1)
 endef
 
-define build_serial_program =
-$(BINDIR)/$(1): $$($(1)_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$$@))
-	$(QUIETSYM)$(LD) $(SERIAL_LDFLAGS) -o $$@ $$^ $(LIBS)
-
-.PHONY: $(1)
-$(1): $(BINDIR)/$(1)
-endef
-
-$(foreach prog,$(parallel_targets),$(eval $(call build_parallel_program,$(prog))))
-$(foreach prog,$(serial_targets),$(eval $(call build_serial_program,$(prog))))
+$(foreach prog,$(parallel_targets),$(eval $(call build_program,$(prog),$(LDFLAGS))))
+$(foreach prog,$(serial_targets),$(eval $(call build_program,$(prog),$(SERIAL_LDFLAGS))))
 
 ############################################################################# LIBRARIES
 ### LIBGS2
