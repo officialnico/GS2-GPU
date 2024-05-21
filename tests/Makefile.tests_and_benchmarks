@@ -97,21 +97,21 @@ clean_benchmarks:
 	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/benchmarks TEST_TYPE=Benchmarks --no-print-directory
 
 unit_tests_no_message: | $(TEST_RESULT_DIR)
-unit_tests_no_message: $(OBJDIR)/unit_tests.o $(TEST_DEPS)
+unit_tests_no_message: $(TEST_DEPS)
 	$(call RUN_TESTS,unit_tests,unit)
 
 unit_tests: unit_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 linear_tests_no_message: | $(TEST_RESULT_DIR)
-linear_tests_no_message: $(OBJDIR)/functional_tests.o $(OBJDIR)/unit_tests.o $(TEST_DEPS)
+linear_tests_no_message: $(TEST_DEPS)
 	$(call RUN_TESTS,linear_tests,linear)
 
 linear_tests: linear_tests_no_message
 	$(call TEST_PRINTOUT,$(call TEST_RESULTS,$@))
 
 nonlinear_tests_no_message: | $(TEST_RESULT_DIR)
-nonlinear_tests_no_message: $(OBJDIR)/functional_tests.o $(OBJDIR)/unit_tests.o $(TEST_DEPS)
+nonlinear_tests_no_message: $(TEST_DEPS)
 	$(call RUN_TESTS,nonlinear_tests,nonlinear)
 
 nonlinear_tests: nonlinear_tests_no_message
