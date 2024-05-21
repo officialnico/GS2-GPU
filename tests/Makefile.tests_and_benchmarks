@@ -2,9 +2,9 @@ $(TEST_DIR)/Makefile.test_utils: ;
 include $(TEST_DIR)/Makefile.test_utils
 
 ifdef NPROCS
-	NTESTPROCS=$(NPROCS)
+	NTESTPROCS:=$(NPROCS)
 else
-	NTESTPROCS=2
+	NTESTPROCS:=2
 endif
 
 $(COVERAGE_DIR):
