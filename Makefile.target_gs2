@@ -22,7 +22,7 @@ ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
 ############################################################################# PROGRAMS
-gs2_all: modules gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
+gs2_all: gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
 gs2_all: dump_grids ideal_ball write_default_input_file
 
 #Main code
@@ -146,16 +146,7 @@ $(BINDIR)/write_default_input_file: $(write_default_input_file_mod) | $(BINDIR)
 write_default_input_file: $(BINDIR)/write_default_input_file
 
 ############################################################################# LIBRARIES
-.PHONY: modules libgs2_all
-
-# Order-only prerequisites need to be specified separately for this to
-# work properly
-modules: | $(UTILS_SENTINEL)
-modules: libgs2.a
-
 ### LIBGS2
-libgs2_all: $(LIBDIR)/libgs2.a
-
 $(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) |$(LIBDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
 	$(QUIETSYM)$(ARCH) $(ARCHFLAGS) $@ $^
