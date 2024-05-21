@@ -12,10 +12,6 @@ all: time_redist_xxf_to_yxf
 	  $(call BENCHMARKCOMMAND,$$d,time_redist_xxf_to_yxf,$(INPUTFILE)) ; \
 	done
 
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
 time_redist_xxf_to_yxf.o:  ${TEST_MODS} 
 
 time_redist_xxf_to_yxf: time_redist_xxf_to_yxf.o $(TEST_MODS)

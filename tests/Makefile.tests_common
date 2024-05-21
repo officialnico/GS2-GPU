@@ -55,10 +55,6 @@ clean_individual_test:
 	$(call messageRm,"\\t$(TEST_NAME)")
 	-$(QUIETSYM)rm -f ${CLEAN_TEST_FILES} ${LOCAL_TEST_FILES}
 
-upload:
-	$(UPLOADCOMMAND)
-
-
 # This target allows us to run `make local_test` in a given individual
 # test directory in order to build and run just that test
 # If the individual test directory looks like:
@@ -118,5 +114,3 @@ endef
 BENCHMARKEXEC=$(call TESTEXEC,$(1)) ./$(2) $(3)
 
 BENCHMARKCOMMAND= $(call BENCHMARKEXEC,$(1),$(2),$(3)); if test "$$?" != 0; then  echo "FAILED: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt; else echo "passed: `basename $$PWD` ($(call BENCHMARKEXEC,$(1),$(2),$(3)))" >> results_of_test.txt;  fi
-
-UPLOAD_BENCHMARKS= ls $(1) | xargs -n 1 -I {} scp {} $(USER),gyrokinetics@web.sourceforge.net:htdocs/wikifiles/benchmark_data/.

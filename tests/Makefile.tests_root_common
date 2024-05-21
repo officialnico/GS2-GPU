@@ -18,13 +18,9 @@ else
 TESTS_ACTUAL := $(TESTS_TMP)
 endif
 
-.PHONY: all $(TESTS_ACTUAL) clean upload
+.PHONY: all $(TESTS_ACTUAL) clean
 
 all: $(TESTS_ACTUAL)
-
-upload:
-	$(call messageOp,"Uploading test results")
-	$(QUIETSYM)$(foreach element, $(TESTS_ACTUAL),$(MAKE) $@ -C $(element);)
 
 clean_test_type:
 	$(call messageRm,"$(TEST_TYPE) test cases")
