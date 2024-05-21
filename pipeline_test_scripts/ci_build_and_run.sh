@@ -20,7 +20,7 @@ add_to_local_makefile() {
 build_gs2() {
     header "Build ${GK_BUILD_TARGET}"
     make test_make ${EXTRA_MAKE_FLAGS}
-    make -j ${GK_BUILD_TARGET} ${EXTRA_MAKE_FLAGS} || tree
+    make -j ${GK_BUILD_TARGET} ${EXTRA_MAKE_FLAGS}
     ./bin/gs2 --version
     ./bin/gs2 --build-config
 }
