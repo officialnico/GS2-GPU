@@ -23,14 +23,13 @@ contains
     use kt_grids, only: akx, aky, naky, ikx, nx, ny, ntheta0, box, theta0
     use le_grids, only: negrid, nlambda
     use le_grids, only: integrate_moment
-    use mp, only: iproc, nproc, proc0, barrier
-    use mpi
+    use mp, only: iproc, nproc, proc0, barrier, max_allreduce
     implicit none
     integer, intent(in):: jx,jy
     logical, optional, intent(in):: debug
     !  ik,is,ie,il,it are indices for ky, species, energy, lambda and kx respectively
     integer:: ik,is,ie,il,it,ia
-    integer:: isgn, ig, iglo, index, mpierr
+    integer:: isgn, ig, iglo, index, mpierr, result_flag
     logical:: accelerated, printlots, fail, anyfail
     logical,save:: first=.true. 
 
@@ -176,8 +175,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -196,8 +197,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "3-D","r2c",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -234,8 +237,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
     if (proc0) then
        if (anyfail) then
           write(6,fmt='(2a8,5i8,a8,l8,a12)') "4-D","c2r",jx,jy, nx, ny, nproc, layout, .false., "!!FAIL!!"
@@ -294,8 +299,10 @@ contains
           enddo
        enddo
     end if
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
 
     if (proc0) then
        if (anyfail) then
@@ -335,8 +342,10 @@ contains
           endif
        enddo
     enddo
-    call mpi_reduce(fail,anyfail,1,MPI_LOGICAL,MPI_LOR,0,mpi_comm_world,mpierr)
-    if (mpierr .ne. MPI_SUCCESS) write(6,*) "ffttest: mpi_reduce gives mpierr=",mpierr
+    result_flag = 0
+    if (fail) result_flag = 1
+    call max_allreduce(result_flag)
+    anyfail = result_flag /= 0
 
     if (proc0) then
        if (anyfail) then
