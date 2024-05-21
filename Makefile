@@ -718,7 +718,7 @@ clean: cleanobjs cleanpreprocess
 
 cleanobjs:
 	$(call messageRm,"Object and module files")
-	-$(QUIETSYM)rm -rf $(OBJDIR)/*.o $(MODDIR)/*.mod *.o *.mod
+	-$(QUIETSYM)rm -rf $(OBJDIR)/*.o $(MODDIR)/*.mod
 
 cleandirs:
 	$(call messageRm,"Directories")
@@ -740,7 +740,7 @@ clean_depend:
 	$(call messageRm,"Dependency file")	
 	-$(QUIETSYM)rm -f $(DEPEND)
 
-distclean: clean cleanlib clean_tests clean_benchmarks cleanconfig cleandoc clean_depend pfunit_clean cleandirs
+distclean: clean cleanlib cleanconfig cleandoc clean_depend cleandirs
 
 ############################################################# Testing targets
 #This is the location of the individual test suites

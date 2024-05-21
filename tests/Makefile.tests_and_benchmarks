@@ -76,6 +76,8 @@ endef
 .PHONY: clean_tests clean_unit_tests clean_linear_tests clean_nonlinear_tests clean_benchmarks
 .PHONY: upload_benchmarks tests_coverage test_script make_results_dir
 
+distclean: clean_tests clean_benchmarks
+
 clean_unit_tests: TYPE=Unit
 clean_unit_tests:
 	$(QUIETSYM)$(MAKE) clean_test_type -C $(TEST_DIR)/$(call lowerCase,$(TYPE))_tests TEST_TYPE=$(TYPE) --no-print-directory
