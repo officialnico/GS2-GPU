@@ -39,9 +39,7 @@ parallel_targets += ffttester #A program which test the fft transforms used in G
 parallel_targets += generate_fftw_wisdom #Utility to produce fftw wisdom files for given problem size
 
 ############################################################################# PROGRAMS
-gs2_all: gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
-gs2_all: dump_grids ideal_ball write_default_input_file
-
+gs2_all: $(serial_targets) $(parallel_targets)
 define build_program =
 $(BINDIR)/$(1): $$($(1)_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$$@))
