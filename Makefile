@@ -594,7 +594,7 @@ F90FROMFPP := $(addprefix $(GENERATED_SRC_DIR)/, $(patsubst %.F90,%.f90,$(patsub
 .PHONY: all $(GK_PROJECT)_all submodules
 .PHONY: depend test_make help TAGS
 .PHONY: clean cleanlib cleanconfig clean_coverage distclean
-.PHONY: doc docs/html docs/graphs cleandoc check_ford_install namelist_doc
+.PHONY: doc check_ford_install namelist_doc clean_namelist_doc cleandoc
 
 ####################################################################### Source code targets
 $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
@@ -680,7 +680,7 @@ all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
 # this can help us avoid the slow generation of the dependency file when not required
-DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc
+DONT_INCLUDE_DEPEND_TARGETS := clean distclean depend test_make submodules doc namelist_doc help
 # Note we really need to say do any of our targets not match the above as if we have multiple
 # targets and any of them require the dependency file then we have to build the dependency file
 # We achieve that using filter-out. Because we also want to be able to build when the user
@@ -921,7 +921,7 @@ check_ford_install:
 endif
 
 namelist_doc: PATHS:=$(foreach dir, $(SRCDIR) $(SUBDIRS), --path ${dir})
-namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute --exclude "$(GK_HEAD_DIR)/src/templates")
+namelist_doc: FILES:=$(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*.[fF]??" ${PATHS} --absolute)
 # for the `doc` target, `check_ford_install` must be before `namelist_doc` to ensure visibility of the error message
 # in the case where Ford is not installed and `make` is run with the `-j` option. The most robust way to do this is
 # to have `namelist_doc` to depend explicitly on `check_ford_install` as below
@@ -929,16 +929,13 @@ namelist_doc: check_ford_install
 	$(call messageInfo,"Generating namelist documentation")
 	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/generate_namelist_documentation.py ${FILES}
 
-.PHONY: clean_namelist_doc
 clean_namelist_doc:
 	$(call messageRm,"Generated namelist documentation")
 	-$(QUIETSYM)rm -f docs/page/namelists/auto_generated_* docs/page/namelists/index.md
 
-docs/html:
 doc: docs/docs.config.md namelist_doc  check_ford_install
 	$(FORD) $(subst -D,--macro ,$(MACRO_DEFS)) $(INCLUDES) -r $(GIT_HASH) $<
 
 cleandoc: clean_namelist_doc
-cleandoc: docs/html docs/graphs
 	$(call messageRm,"FORD docs")	
-	-$(QUIETSYM)rm -rf $^
+	-$(QUIETSYM)rm -rf docs/html docs/graphs
