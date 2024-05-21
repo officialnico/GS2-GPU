@@ -1,6 +1,13 @@
 # Here we list all the serial targets
-serial_targets := ingen write_default_input_file dump_grids ball eiktest ideal_ball
-serial_targets += mat_inv_benchmark rungridgen
+serial_targets := ingen #Input file checker
+serial_targets += write_default_input_file #Writes each namelist with default values
+serial_targets += dump_grids #Initialises grids and writes to file
+serial_targets += ball #Program to calculate ideal MHD ballooning stability
+serial_targets += eiktest #Program to calculate eikcoeffs (geometry coefficients) and dump
+serial_targets += ideal_ball #Calculates the ideal ballooning stability (optionally over a scan in shat/beta_prime)
+serial_targets += mat_inv_benchmark #Matrix inverse benchmark
+serial_targets += rungridgen #Driver program for gridgen?
+
 # Replace the parallel mp with serial version in dependencies of codes
 # we want to be serial
 ifdef GK_BUILD_SERIAL_TOOLS_AS_SERIAL
@@ -24,8 +31,12 @@ ignored_junk := $(foreach tmp_target, $(needs_git_hash), \
 	$(eval $(tmp_target)_mod := $(OBJDIR)/git_hash.o $($(tmp_target)_mod)))
 
 # Here we have the parallel targets
-parallel_targets := gs2 multigs2 box_to_ballooning_space dump_response ffttester
-parallel_targets += generate_fftw_wisdom
+parallel_targets := gs2 #Main code
+parallel_targets += multigs2 #Multi-gs2 runner
+parallel_targets += box_to_ballooning_space #Reports the equivalent ballooning space setup for a box mode run.
+parallel_targets += dump_response #Calculates the field response matrix for current input file and writes to file
+parallel_targets += ffttester #A program which test the fft transforms used in GS2
+parallel_targets += generate_fftw_wisdom #Utility to produce fftw wisdom files for given problem size
 
 ############################################################################# PROGRAMS
 gs2_all: gs2 ingen rungridgen generate_fftw_wisdom dump_response eiktest
