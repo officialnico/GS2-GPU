@@ -9,24 +9,11 @@ GK_PROJECT := gs2
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
 #
-# * Available Compilers (tested on limited hosts)
-#   (must be Fortran 95 Standard compliant)
-#
-# Intel ifort
-# GNU's gfortran and g95
-# IBM XL Fortran xlf90
-# PathScale Compiler Suite pathf90
-# The Portland Group pgf90
-# NAGWare f95 (v5.1)
-# Lahey/Fujitsu Fortran lf95
+# * Requires a Fortran 2008 Standard compliant compiler
 # 
-# * Frequently Tested Hosts, Systems
+# * Frequently Tested Hosts, Systems include recent Fedora, Ubuntu, Archer2.
 #
-# Standard Linux
-# Standard Mac OS X with MacPorts
-# Franklin at NERSC and Jaguar at NCCS (Cray XT4 with PGI)
-# Bassi at NERSC (IBM Power 5 with IBM XL Fortran)
-# Ranger (Sun Constellation Linux Cluster with Intel)
+# Should work on most modern Linux/Unix and Mac OS X. Not tested on Windows.
 #
 # * Switches:
 #
