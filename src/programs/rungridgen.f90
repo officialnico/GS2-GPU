@@ -2,12 +2,12 @@
 program rungridgen
   use file_utils
   use gridgen4mod, only: gridgen4_1
-  use constants, only: pi, twopi
+  use constants, only: pi, twopi, run_name_size
   use mp, only: init_mp, finish_mp
   implicit none
 
   ! input parameters
-  character(200) :: source, gingrid, gsource
+  character(len = run_name_size) :: source, gingrid, gsource
   integer :: nthetaout, nlambdaout, nperiodout
   integer :: npadd, iperiod
   real :: alknob, epsknob, extrknob, bpknob, smoothknob
@@ -19,7 +19,7 @@ program rungridgen
   integer :: max_autoiter
   logical :: list = .false.
   logical :: no_end_point
-  character(2000) :: ncsource
+  character(len = run_name_size) :: ncsource
 
   ! work variables
   integer :: ntheta, nlambda, ntgrid
