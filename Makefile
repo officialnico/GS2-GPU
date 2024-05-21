@@ -548,18 +548,6 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^-
 F90FLAGS+= $(F90OPTFLAGS) $(INCLUDES)
 FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
 
-DATE:=$(shell date +%y%m%d)
-TOPDIR=$(CURDIR)
-ifeq ($(notdir $(CURDIR)), $(UTILS))
-	TOPDIR=$(subst /$(UTILS),,$(CURDIR))
-endif
-ifeq ($(notdir $(CURDIR)), $(GEO))
-	TOPDIR=$(subst /$(GEO),,$(CURDIR))
-endif
-ifneq ($(TOPDIR),$(CURDIR))
-	SUBDIR=true
-endif
-
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
 VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && echo $(tmpvp)))
@@ -688,13 +676,6 @@ $(OBJDIR)/git_hash.o: compiler_flags
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
 .DEFAULT_GOAL := $(GK_PROJECT)_all
-ifeq ($(notdir $(CURDIR)),utils)
-	.DEFAULT_GOAL := utils_all
-endif
-ifeq ($(notdir $(CURDIR)),geo)
-	.DEFAULT_GOAL := geo_all
-endif
-
 all: $(.DEFAULT_GOAL)
 
 # Here we list all targets for which we don't care if there's a dependency file or not
@@ -778,7 +759,6 @@ test_make:
 	$(call messageKeyVal, "GK_SYSTEM", $(GK_SYSTEM))
 	$(call messageKeyVal, "VPATH", $(VPATH))
 	$(call messageKeyVal, "CURDIR", $(CURDIR))
-	$(call messageKeyVal, "TOPDIR", $(TOPDIR))
 	$(call messageKeyVal, "MAKECMDGOALS", $(MAKECMDGOALS))
 	$(call messageKeyVal, ".DEFAULT_GOAL", $(.DEFAULT_GOAL))
 	$(call messageKeyVal, "DEFAULT_LIB", $(DEFAULT_LIB))
