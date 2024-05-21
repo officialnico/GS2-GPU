@@ -163,15 +163,3 @@ $(LIBDIR)/libgs2.a: $(filter-out $(OBJDIR)/gs2.o, $(gs2_mod)) |$(LIBDIR)
 
 .PHONY: libgs2.a
 libgs2.a: $(LIBDIR)/libgs2.a
-
-############################################################################# CLEANUP
-distclean:
-	$(call messageRm,"Executables")
-	-$(QUIETSYM)rm -f gs2 gs2.x
-	-$(QUIETSYM)rm -f ingen rungridgen
-	-$(QUIETSYM)rm -f ball eiktest
-	-$(QUIETSYM)rm -f ffttester
-	-$(QUIETSYM)rm -f dump_response
-	-$(QUIETSYM)rm -f dump_grids
-	-$(QUIETSYM)rm -f ideal_ball
-	-$(QUIETSYM)rm -f generate_fftw_wisdom
