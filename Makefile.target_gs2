@@ -33,14 +33,6 @@ $(BINDIR)/gs2: $(gs2_mod) | $(BINDIR)
 .PHONY: gs2
 gs2: $(BINDIR)/gs2
 
-#Main code
-$(BINDIR)/gs2.x: $(gs2_mod) | $(BINDIR)
-	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
-	$(QUIETSYM)$(LD) $(LDFLAGS) -o $@ $^ $(LIBS)
-
-.PHONY: gs2.x
-gs2.x: $(BINDIR)/gs2.x
-
 #Multi-gs2 runner
 $(BINDIR)/multigs2: $(multigs2_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$@))
