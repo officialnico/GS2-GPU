@@ -623,9 +623,13 @@ $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
 # This is from a implicit makefile rule that we're overriding
 %.o : %.mod
 
-# Special handling for creating a serial version of the mp module
+# Special handling for creating a serial version of the mp module. Unfortunately
+# if we replace FPPFLAGS_SERIAL with FPPFLAGS (e.g. to use compile_and_preprocess)
+# then this impacts the compilation of any dependencies as well (e.g. in building mp.o).
+# Note mp.o is a dependency to ensure that anything else which needs to be compiled
+# at this point will still see `-DMPI`.
 $(OBJDIR)/mp_serial.o: $(OBJDIR)/mp.o | $(MODDIR) $(OBJDIR)
-FPPFLAGS_SERIAL:=$(subst -DMPI, ,$(subst -DMPI3, ,$(FPPFLAGS)))
+$(OBJDIR)/mp_serial.o: FPPFLAGS_SERIAL:=$(subst -DMPI, ,$(subst -DMPI3, ,$(FPPFLAGS)))
 $(OBJDIR)/mp_serial.o: $(UTILS)/mp.fpp | $(MODDIR) $(OBJDIR)
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS_SERIAL) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
