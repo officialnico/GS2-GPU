@@ -24,16 +24,13 @@ TEST_LEVEL ?= MY_TEST_LEVEL
 .PHONY: all clean_individual_test
 
 .f90.o:
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
+	$(call compile_and_preprocess)
 
 .fpp.o:
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
+	$(call compile_and_preprocess)
 
 .F90.o:
-	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(FC) $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG) $(FPPFLAGS) $(F90FLAGS) -I$(GK_HEAD_DIR) -c $< -o $@
+	$(call compile_and_preprocess)
 
 # This prevents error messages like m2c: Command not found
 %.o : %.mod

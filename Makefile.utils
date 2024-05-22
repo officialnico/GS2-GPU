@@ -54,3 +54,10 @@ else
 processName = $(subst $(GK_HEAD_DIR)/,,$1)
 endif
 #############################################################################
+
+############################################################################# RECIPES
+define compile_and_preprocess =
+	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
+	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
+endef
+#############################################################################
