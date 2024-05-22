@@ -615,11 +615,9 @@ $(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
 # The depend command needs the preprocessed source files.
 # This is a little clunky, and maybe could be fixed in the future.
 $(GENERATED_SRC_DIR)/%.f90: %.fpp |$(GENERATED_SRC_DIR) $(MODDIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
+	$(call preprocess)
 $(GENERATED_SRC_DIR)/%.f90: %.F90 |$(GENERATED_SRC_DIR) $(MODDIR)
-	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
-	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
+	$(call preprocess)
 
 # This prevents error messages like m2c: Command not found
 # This is from a implicit makefile rule that we're overriding
