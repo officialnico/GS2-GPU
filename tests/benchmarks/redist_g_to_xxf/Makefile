@@ -16,10 +16,6 @@ all: time_redist_g_to_xxf
 	  $(call BENCHMARKCOMMAND,$$d,time_redist_g_to_xxf,$(INPUTFILE)_lexys.in) ; \
 	done
 
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
 time_redist_g_to_xxf.o:  ${TEST_MODS} 
 
 time_redist_g_to_xxf: time_redist_g_to_xxf.o $(TEST_MODS)
