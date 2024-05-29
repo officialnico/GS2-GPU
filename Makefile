@@ -605,12 +605,29 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 
-$(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call compile_and_preprocess)
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
+ifeq ("$(COMPILER)","cray")
+#Special interim handling for cray which will only preprocess files
+#with a limited set of suffixes (including F90). Here we just copy
+#our source files to GENERATED_SRC_DIR with a F90 extension
+# Ensure we can include .inc files from SRCDIR
+F90FLAGS+=-I$(SRCDIR)
+# Define rules for copying. Important that fpp is before f90
+# so that we prefer the copy recipe rather than the preprocess one
+$(GENERATED_SRC_DIR)/%.F90: %.fpp |$(GENERATED_SRC_DIR)
+	$(QUIETSYM)cp $< $@
+$(GENERATED_SRC_DIR)/%.F90: %.f90 |$(GENERATED_SRC_DIR)
+	$(QUIETSYM)cp $< $@
+# Rule to compile from GENERATED_SRC_DIR
+$(OBJDIR)/%.o: $(GENERATED_SRC_DIR)/%.F90 |$(MODDIR) $(OBJDIR)
+	$(call compile_and_preprocess)
+else
 $(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
+$(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
+	$(call compile_and_preprocess)
+endif
 
 # The depend command needs the preprocessed source files.
 # This is a little clunky, and maybe could be fixed in the future.
