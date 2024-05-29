@@ -613,6 +613,8 @@ ifeq ("$(COMPILER)","cray")
 #our source files to GENERATED_SRC_DIR with a F90 extension
 # Ensure we can include .inc files from SRCDIR
 F90FLAGS+=-I$(SRCDIR)
+# Keep the F90 files in GENERATED_SRC_DIR
+.PRECIOUS: $(GENERATED_SRC_DIR)/%.F90
 # Define rules for copying. Important that fpp is before f90
 # so that we prefer the copy recipe rather than the preprocess one
 $(GENERATED_SRC_DIR)/%.F90: %.fpp |$(GENERATED_SRC_DIR)
