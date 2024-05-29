@@ -144,7 +144,7 @@ Makefile: ;
 #
 SHELL           = bash
 MAKE		= make
-CPP		= cpp -traditional
+CPP		= cpp -traditional -P
 FPPFLAGS	=
 FC		= f90
 MPIFC		?= mpif90
