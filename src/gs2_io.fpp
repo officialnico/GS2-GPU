@@ -12,7 +12,7 @@ module gs2_io
   public :: init_gs2_io, nc_eigenfunc, nc_final_fields, nc_final_epar
   public :: nc_final_moments, nc_final_an, nc_finish
   public :: nc_qflux, nc_vflux, nc_pflux, nc_pflux_tormom, nc_loop, nc_loop_moments
-  public :: nc_loop_movie, nc_write_moments, nc_exchange
+  public :: nc_loop_movie, nc_write_moments, nc_exchange, nc_bc
   public :: nc_loop_fullmom, nc_loop_dist, nc_loop_sym, nc_loop_corr, nc_loop_corr_extend
   public :: nc_loop_partsym_tormom, nc_sync, get_netcdf_file_id, get_netcdf_movie_file_id
   public :: define_dims, nc_norms, nc_species, nc_geo, save_input, nc_grids_mymovie, get_dim_length
@@ -245,6 +245,7 @@ contains
             call nc_norms(ncid)
             call nc_species(ncid)
             call nc_geo(ncid)
+            call nc_bc(ncid)
             call save_input(ncid)
             nout = 1
         end if
@@ -1575,7 +1576,6 @@ contains
          shat, drhodpsi, eps_trapped, cdrift, cdrift0, qval, rplot, &
          zplot, aplot, rprime, zprime, aprime, kxfac, bpol !, surfarea
     use kt_grids, only: kperp2
-    use dist_fn, only: supercell_labels
     use run_parameters, only: beta
     use neasyf, only: neasyf_write
 #endif
@@ -1631,12 +1631,24 @@ contains
     ! Wavenumber related quantities -- not strictly geometrical information.
     call neasyf_write(file_id, "kperp2", kperp2, dim_names=[theta_dim, kx_dim, ky_dim], &
          long_name="The perpendicular wavenumber squared", units="1/rho_r^2")
-    call neasyf_write(file_id, "supercell_labels", supercell_labels, dim_names=[kx_dim, ky_dim], &
-         long_name="Labels which unique supercell each wavenumber pair belongs to", units="N/A")
-
     ! FIXME: check if we need surfarea?
 #endif
   end subroutine nc_geo
+
+  !> Write various quantities related to BC to output netCDF file
+  subroutine nc_bc(file_id)
+#ifdef NETCDF
+    use dist_fn, only: supercell_labels
+    use neasyf, only: neasyf_write
+#endif
+    implicit none
+    !> NetCDF ID of the file to write to
+    integer, intent(in) :: file_id
+#ifdef NETCDF
+    call neasyf_write(file_id, "supercell_labels", supercell_labels, dim_names=[kx_dim, ky_dim], &
+         long_name="Labels which unique supercell each wavenumber pair belongs to", units="N/A")
+#endif
+  end subroutine nc_bc
 
   !> Wrapper around `nf90_inquire_dimension`. Aborts if any errors are
   !> detected.
