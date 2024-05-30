@@ -123,7 +123,7 @@ contains
     !> `GK_NETCDF_DEFAULT_COMPRESSION_ON` macro. Must be a value between
     !> 1 (faster, less compression) and 9 (slower, more compression), or
     !> 0 (off)
-    integer, parameter :: default_compression_level = 1
+    integer, parameter :: default_compression_level = 1, compression_off = 0
 
 #ifdef GK_NETCDF_DEFAULT_COMPRESSION_ON
     neasyf_default_compression = default_compression_level
