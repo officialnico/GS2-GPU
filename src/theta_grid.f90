@@ -1261,6 +1261,9 @@ contains
     use geometry, only: surf, dp_mult, alpha_input, beta_prime_input, invLp_input
     use geometry, only: bishop, irho, eqfile, eqnormfile
     use geometry, only: idfit_eq, gen_eq, efit_eq, ppl_eq, local_eq, dfit_eq, chs_eq
+    use geo_utils, only: geo_type_miller, geo_type_global, &
+         geo_type_generalized_elongation, geo_type_fourier_series, &
+         geo_type_miller_extended_harmonic
     implicit none
     integer, intent(in) :: report_unit
     real, intent(in) :: dbetadrho
@@ -1273,14 +1276,16 @@ contains
     if (local_eq) then
        write (report_unit, fmt="('The following local equilibrium model has been selected:')")
        select case (surf%geoType)
-          case (0)
+          case (geo_type_miller)
              write (report_unit, fmt="('Miller')")
-          case (1)
+          case (geo_type_global)
              write (report_unit, fmt="('Global')")
-          case (2)
+          case (geo_type_generalized_elongation)
              write (report_unit, fmt="('GeneralizedEllipticity')")
-          case (3)
+          case (geo_type_fourier_series)
              write (report_unit, fmt="('FourierSeries')")
+          case (geo_type_miller_extended_harmonic)
+             write (report_unit, fmt="('MillerExtendedHarmonic')")
           case default
              write (report_unit, fmt="('ERROR: invalid analytic geometry specification')")
        end select
@@ -1317,10 +1322,10 @@ contains
        end if
        write (report_unit, *)
        write (report_unit, fmt="('B_poloidal is determined by:')")
-       if (surf%geoType == 1) then
+       if (surf%geoType == geo_type_global) then
           write (report_unit, *)
           write (report_unit, fmt="('    minor radius of shaped surface: aSurf = ',f7.4)") surf%aSurf
-       elseif (surf%geoType == 2 .or. surf%geoType == 3) then
+       elseif (surf%geoType == geo_type_generalized_elongation .or. surf%geoType == geo_type_fourier_series) then
           write (report_unit, *)
           write (report_unit, fmt="('    first shaping mode number: mMode =  ',i2)") surf%mMode
           write (report_unit, fmt="('    second shaping mode number: nMode = ',i2)") surf%nMode
@@ -1328,7 +1333,7 @@ contains
        write (report_unit, *)
        write (report_unit, fmt="('    deltam =       ',f7.4)") surf%delm
        write (report_unit, fmt="('    deltan =        ',f7.4)") surf%deln
-       if (surf%geoType /= 1) then
+       if (surf%geoType /= geo_type_global) then
           write (report_unit, *)
           write (report_unit, fmt="('  & gradient: d deltam /d rho =   ',f7.4)") surf%delmp
           write (report_unit, fmt="('  & gradient: d deltan /d rho = ',f7.4)") surf%delnp

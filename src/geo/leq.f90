@@ -19,7 +19,10 @@
 !> generalised elongation and Fourier models also allow you to specify
 !> the exact mode numbers.
 module leq
-  use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type
+  use geo_utils, only: abstract_geo_type, flux_surface_type, geo_input_type, &
+       geo_type_miller, geo_type_global, geo_type_generalized_elongation, geo_type_fourier_series, &
+       geo_type_miller_extended_harmonic
+
   implicit none
 
   private
@@ -37,6 +40,7 @@ module leq
      procedure :: rpos, zpos, rcenter, diameter, btori, dbtori, qfun
      procedure :: pfun, dpfun, betafun, psi, rfun, eqitem
      procedure :: geo_Miller, geo_global, geo_generalizedElongation, geo_FourierSeries
+     procedure :: geo_MillerExtendedHarmonic
   end type leq_type
 
 contains
@@ -130,14 +134,16 @@ contains
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (self%surf%geoType)
-       case (0)
+       case (geo_type_miller)
           call self%geo_Miller(r, theta, Rpos, Zpos)
-       case (1)
+       case (geo_type_global)
           call self%geo_global(r, theta, Rpos, Zpos)
-       case (2)
+       case (geo_type_generalized_elongation)
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
-       case (3)
+       case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
+       case (geo_type_miller_extended_harmonic)
+          call self%geo_MillerExtendedHarmonic(r, theta, Rpos, Zpos)
     end select
   end function Rpos
 
@@ -151,14 +157,16 @@ contains
     ! Choose one of four different analytic geometry specifications
     ! (see section 2.1 of "GS2 analytic geometry specification") ! JRB
     select case (self%surf%geoType)
-       case (0)
+       case (geo_type_miller)
           call self%geo_Miller(r, theta, Rpos, Zpos)
-       case (1)
+       case (geo_type_global)
           call self%geo_global(r, theta, Rpos, Zpos)
-       case (2)
+       case (geo_type_generalized_elongation)
           call self%geo_generalizedElongation(r, theta, Rpos, Zpos)
-       case (3)
+       case (geo_type_fourier_series)
           call self%geo_FourierSeries(r, theta, Rpos, Zpos)
+       case (geo_type_miller_extended_harmonic)
+          call self%geo_MillerExtendedHarmonic(r, theta, Rpos, Zpos)
     end select
   end function Zpos
 
@@ -321,6 +329,37 @@ contains
 
   end subroutine geo_FourierSeries
 
+  !> Calculate the cylindrical \((R, Z)\) at \((r, \theta)\) for the
+  !> Miller Extended Harmonic model
+  !>
+  !> See [PPCF 63 (2021) 012001 (5pp)](https://doi.org/10.1088/1361-6587/abc63b)
+  pure subroutine geo_MillerExtendedHarmonic(self, r, theta, Rpos, Zpos)
+    class(leq_type), intent(in) :: self
+    real, intent (in) :: r, theta
+    real, intent (out) :: Rpos, Zpos
+
+    integer :: n
+    real :: theta_R, dthetaR_dr, dr, dZdr, dRdr
+
+    theta_R = theta + self%surf%c0_mxh &
+         + sum([(self%surf%c_mxh(n) * cos(n * theta) + self%surf%s_mxh(n) * sin(n * theta), &
+                n = 1, self%surf%n_mxh)])
+
+    dthetaR_dr = sum([(&
+         (self%surf%dc_mxh_dr * cos(n * theta)) &
+         + (self%surf%ds_mxh_dr * sin(n * theta)), &
+         n = 1, self%surf%n_mxh)])
+
+    dr = r - self%surf%r
+
+    dRdr = self%surf%sHorz + cos(theta_R) - self%surf%r * sin(theta_R) * dthetaR_dr
+    dZdr = self%surf%sVert + self%surf%delm * sin(theta) * (1 + self%surf%delmp)
+
+    Rpos = self%surf%Rmaj + (self%surf%r * cos(theta_R)) + (dr * dRdr)
+    Zpos = (self%surf%r * self%surf%delm * sin(theta)) + (dr * dZdr)
+
+  end subroutine geo_MillerExtendedHarmonic
+
   !> FIXME : Add documentation
   pure real function psi (self, r, theta)
     class(leq_type), intent(in) :: self
@@ -358,7 +397,7 @@ contains
     ! (i.e. the surface at rhoc=aSurf), so here we calculate the major radial
     ! location of the center of the flux surface of interest ! JRB
     rcenter = self%surf%Rmaj
-    if (self%surf%geoType == 1) then
+    if (self%surf%geoType == geo_type_global) then
        rcenter = rcenter + (1 - (self%surf%r / self%surf%aSurf)**2) * self%surf%sHorz
     end if
   end function rcenter
