@@ -14,18 +14,20 @@ module collisions
 
   private 
 
-  public :: init_collisions, finish_collisions, reset_init
+  public :: init_collisions, finish_collisions, reset_init, set_heating
   public :: read_parameters, wnml_collisions, check_collisions
   public :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew
-  public :: etol, ewindow, etola, ewindowa, init_lorentz_error
+  public :: etol, ewindow, etola, ewindowa, init_lorentz_error, set_vnmult
   public :: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
   public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
   public :: collision_model_switch, collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
 
-  public :: collisions_config_type
-  public :: set_collisions_config
-  public :: get_collisions_config
+  public :: collisions_config_type, set_collisions_config, get_collisions_config
+
+  protected :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew, etol, ewindow
+  protected :: etola, ewindowa, colls, hyper_colls, adjust, split_collisions
+  protected :: use_le_layout, collision_model_switch, heating
   
   interface solfp1
      module procedure solfp1_le_layout
@@ -389,6 +391,16 @@ module collisions
 
   type(collisions_config_type) :: collisions_config
 contains
+
+  subroutine set_vnmult(vnmult_in)
+    real, dimension(2), intent(in) :: vnmult_in
+    vnmult = vnmult_in
+  end subroutine set_vnmult
+
+  subroutine set_heating(heating_in)
+    logical, intent(in) :: heating_in
+    heating = heating_in
+  end subroutine set_heating
   
   !> FIXME : Add documentation
   subroutine check_collisions(report_unit)

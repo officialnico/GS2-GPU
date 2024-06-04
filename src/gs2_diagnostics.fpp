@@ -685,7 +685,7 @@ contains
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
     use antenna, only: no_driver
-    use collisions, only: heating
+    use collisions, only: heating, set_heating
     use mp, only: proc0
     implicit none
     !> If true, this is a "list-mode run" and so turn off
@@ -830,7 +830,7 @@ contains
        if (proc0) write(*,'("Warning: Disabling write_heating as collisions:heating is false.")')
        write_heating = .false.
     else if (heating .and. .not. write_heating) then
-       heating = .false.
+       call set_heating(.false.)
     end if
 
     write_any = write_line .or. write_omega     .or. write_omavg &
