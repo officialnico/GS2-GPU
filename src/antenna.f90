@@ -29,16 +29,15 @@ module antenna
   implicit none
 
   private
-  public :: init_antenna, dump_ant_amp, amplitude, finish_antenna, reset_init
+  public :: init_antenna, dump_ant_amp, finish_antenna, reset_init
   public :: wnml_antenna, check_antenna, no_driver
   public :: antenna_w, antenna_apar, antenna_amplitudes, a_ext_data
   public :: get_jext !GGH
 
-  public :: driver_config_type
-  public :: stir_config_type
-  public :: set_antenna_config
-  public :: get_antenna_driver_config
-  public :: get_antenna_stir_config
+  public :: driver_config_type, stir_config_type, set_antenna_config
+  public :: get_antenna_driver_config, get_antenna_stir_config
+
+  protected :: no_driver
   
   complex :: w_antenna
   complex, dimension(:), allocatable :: w_stir
