@@ -660,7 +660,8 @@ contains
     use mp, only: proc0, scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
     use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
-    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics, ncheck_stop
+    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics
+    use run_parameters, only: progress_frequency, ncheck_stop
     use unit_tests, only: ilast_step, debug_message
     use gs2_init, only: init
     use standard_header, only: standard_header_type
@@ -671,6 +672,8 @@ contains
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store, should_save_restart
     integer :: istep_loop_start, istep_loop_max, istep_offset
+    real, dimension(2) :: progress_time
+    logical :: show_progress
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -698,6 +701,9 @@ contains
 
     call debug_message(state%verb, 'gs2_main::evolve_equations starting loop')
 
+    progress_time = 0
+    show_progress = proc0 .and. (progress_frequency > 0)
+
     ! We run for nstep_run iterations, starting from whatever istep we got
     ! to in previous calls to this function. Note that calling
     ! finalize_diagnostics resets state%istep_end
@@ -712,8 +718,8 @@ contains
        end if
 
        call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,progress_time,' Progress time')
        call debug_message(state%verb+1, 'gs2_main::evolve_equations calling advance')
-
        call time_message(.false.,state%timers%timestep,' Timestep')
        ! Try to take a time step
        call advance (istep)
@@ -822,6 +828,18 @@ contains
        if ((.not. state%exit) .and. user_time + user_dt > max_sim_time) then
           state%exit_reason = EXIT_MAX_SIM_TIME
           state%exit = .true.
+       end if
+
+       if (show_progress .and. &
+            mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
+          call time_message(.false.,progress_time,' Progress time')
+          write(6, &
+               '("Completed step ",I0," of ",I0," : Time/step ",G9.3," s ETA ",G9.3," s")') &
+               istep - istep_loop_start + 1, istep_loop_max - istep_loop_start + 1, &
+               progress_time(1)/progress_frequency, &
+               (istep_loop_max - istep) * progress_time(1)/progress_frequency
+          ! Reset progress timer
+          progress_time = 0
        end if
 
        if (state%exit) then
