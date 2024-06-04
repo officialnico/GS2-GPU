@@ -420,6 +420,7 @@ contains
     use gs2_io, only: init_gs2_io
     use gs2_heating, only: init_htype
     use collisions, only: collision_model_switch, init_lorentz_error
+    use collisions, only: collision_model_lorentz, collision_model_lorentz_test
     use mp, only: broadcast, proc0, mp_abort
     use le_grids, only: init_weights
     use gs2_save, only: restart_writable
@@ -498,7 +499,8 @@ contains
     call broadcast (nout)
 
     if (write_cerr) then
-       if (collision_model_switch == 1 .or. collision_model_switch == 5) then
+       if (collision_model_switch == collision_model_lorentz .or. &
+            collision_model_switch == collision_model_lorentz_test) then
           call init_lorentz_error
        else
           write_cerr = .false.

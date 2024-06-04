@@ -16,8 +16,8 @@ contains
     use le_grids, only: init_weights
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
-    use collisions, only: collision_model_switch
-    use collisions, only: init_lorentz_error
+    use collisions, only: collision_model_switch, collision_model_lorentz
+    use collisions, only: init_lorentz_error, collision_model_lorentz_test
     implicit none
     type(diagnostics_type), intent(inout) :: gnostics 
     
@@ -28,7 +28,8 @@ contains
     if (proc0) call init_weights
     
     if (gnostics%write_cerr) then
-       if (collision_model_switch == 1 .or. collision_model_switch == 5) then
+       if (collision_model_switch == collision_model_lorentz .or. &
+            collision_model_switch == collision_model_lorentz_test) then
           call init_lorentz_error
        else
           gnostics%write_cerr = .false.
