@@ -53,7 +53,7 @@ contains
   !> FIXME : Add documentation
   function check_growth_rate(rslt, err)
     use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
     use run_parameters, only: use_old_diagnostics
@@ -74,10 +74,10 @@ contains
     if (proc0) then
        call announce_check('growth rate')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
@@ -97,7 +97,7 @@ contains
   !> FIXME : Add documentation
   logical function check_frequency(rslt, err)
     use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
     use run_parameters, only: use_old_diagnostics
@@ -115,10 +115,10 @@ contains
     if (proc0) then
        call announce_check('frequency')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
@@ -138,7 +138,7 @@ contains
   !> FIXME : Add documentation  
   function check_growth_rates_equal_in_list(err)
     use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0, grp0, scope, subprocs, allprocs
     use mp, only: iproc, sum_allreduce
@@ -165,12 +165,11 @@ contains
     omegaavg=0.
 
     if (proc0) then
-       !call announce_check('growth rate')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        !check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
