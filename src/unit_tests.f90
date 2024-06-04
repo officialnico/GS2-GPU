@@ -1,6 +1,5 @@
 !> A module containing functions for running unit tests
 module unit_tests
-  use runtime_tests, only: verbosity
   implicit none
 
   private
@@ -42,8 +41,6 @@ module unit_tests
   public :: close_module_test
 
   public :: print_with_stars
-
-  public :: verbosity
 
   !> Trinity or list mode job id
   public :: job_id
@@ -123,8 +120,8 @@ contains
   end function agrees_with_real
 
   function should_print(verbosity_level)
-    use mp, only: proc0
-    use mp, only: mp_initialized
+    use runtime_tests, only: verbosity
+    use mp, only: proc0, mp_initialized
     integer, intent(in) :: verbosity_level
     logical :: should_print
     if (mp_initialized) then 
