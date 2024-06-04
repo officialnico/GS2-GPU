@@ -857,7 +857,10 @@ contains
        end if
     end do
 
-    if (proc0 .and. show_progress) call close_output_file(progress_unit)
+    if (proc0 .and. show_progress) then
+       write(progress_unit, '("Finished.")')
+       call close_output_file(progress_unit)
+    end if
 
     ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
     ! even in cases where nstep does not have nwrite as a factor.
