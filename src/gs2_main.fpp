@@ -670,7 +670,7 @@ contains
     integer :: istep
     integer, intent(in) :: nstep_run
     logical :: temp_initval_override_store, should_save_restart
-    integer :: istep_loop_max, istep_offset
+    integer :: istep_loop_start, istep_loop_max, istep_offset
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -701,8 +701,9 @@ contains
     ! We run for nstep_run iterations, starting from whatever istep we got
     ! to in previous calls to this function. Note that calling
     ! finalize_diagnostics resets state%istep_end
+    istep_loop_start = state%istep_end + 1
     istep_loop_max = state%istep_end + nstep_run
-    do istep = state%istep_end+1, istep_loop_max
+    do istep = istep_loop_start, istep_loop_max
        if (istep > nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
               & (set by nstep) without restarting diagnostics.'
