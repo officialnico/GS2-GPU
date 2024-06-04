@@ -44,6 +44,7 @@ objs/
 *.optim
 *.parity
 *.phase
+*.progress
 results_of_test.txt
 *.scratch
 *.timing.*

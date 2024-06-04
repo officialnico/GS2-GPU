@@ -666,15 +666,16 @@ contains
     use gs2_init, only: init
     use standard_header, only: standard_header_type
     use exit_codes, only: EXIT_MAX_SIM_TIME
+    use file_utils, only: open_output_file, close_output_file
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
-    integer :: istep
+    integer :: istep, progress_unit
     integer, intent(in) :: nstep_run
-    logical :: temp_initval_override_store, should_save_restart
+    logical :: temp_initval_override_store, should_save_restart, show_progress
     integer :: istep_loop_start, istep_loop_max, istep_offset
     real, dimension(2) :: progress_time
     real :: time_per_step
-    logical :: show_progress
+    character(len = 256) :: progress_message
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -688,9 +689,9 @@ contains
 
     call debug_message(state%verb, &
         'gs2_main::evolve_equations starting')
-    
+
     temp_initval_override_store = state%init%initval_ov%override
-    
+
     call time_message(.false.,state%timers%total,' Total')
     
     if (state%nensembles > 1) call scope (subprocs)
@@ -704,6 +705,7 @@ contains
 
     progress_time = 0
     show_progress = proc0 .and. (progress_frequency > 0)
+    if (show_progress .and. proc0) call open_output_file(progress_unit, '.progress')
 
     ! We run for nstep_run iterations, starting from whatever istep we got
     ! to in previous calls to this function. Note that calling
@@ -837,10 +839,13 @@ contains
           if (mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
              call time_message(.false.,progress_time,' Progress time')
              time_per_step = progress_time(1)/progress_frequency
-             write(6, &
+             write(progress_message, &
                   '("Done step ",I0," of ",I0," : Time/step ",G9.3," s ETA ",G9.3," s")') &
                   istep - istep_loop_start + 1, istep_loop_max - istep_loop_start + 1, &
                   time_per_step, (istep_loop_max - istep) * time_per_step
+             write(6, '(A)') trim(progress_message)
+             rewind(progress_unit)
+             write(progress_unit, '(A)') trim(progress_message)
              ! Reset progress timer
              progress_time = 0
           end if
@@ -851,6 +856,8 @@ contains
           exit
        end if
     end do
+
+    if (proc0 .and. show_progress) call close_output_file(progress_unit)
 
     ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
     ! even in cases where nstep does not have nwrite as a factor.
