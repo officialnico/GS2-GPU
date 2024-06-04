@@ -52,7 +52,6 @@ contains
 
   !> FIXME : Add documentation
   function check_growth_rate(rslt, err)
-    use unit_tests, only: ilast_step
     use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -63,8 +62,6 @@ contains
     real, dimension(naky), intent(in) :: rslt
     real, intent(in) :: err
     logical :: check_growth_rate
-
-    logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
     integer :: ik
@@ -96,7 +93,6 @@ contains
 
   !> FIXME : Add documentation
   logical function check_frequency(rslt, err)
-    use unit_tests, only: ilast_step
     use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
@@ -106,7 +102,6 @@ contains
 #endif
     real, dimension(naky), intent(in) :: rslt
     real, intent(in) :: err
-    logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
     integer :: ik
@@ -137,7 +132,6 @@ contains
 
   !> FIXME : Add documentation  
   function check_growth_rates_equal_in_list(err)
-    use unit_tests, only: ilast_step
     use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0, grp0, scope, subprocs, allprocs
@@ -153,8 +147,6 @@ contains
     real, intent(in) :: err
     real, dimension(naky, njobs) :: omegas
     logical :: check_growth_rates_equal_in_list
-
-    logical :: dummy
     logical :: check_result
     integer :: i, ijob
     complex, dimension(ntheta0, naky) :: omegaavg

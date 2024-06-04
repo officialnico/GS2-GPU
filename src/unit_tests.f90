@@ -47,11 +47,6 @@ module unit_tests
 
   !> Trinity or list mode job id
   public :: job_id
-
-! HJL Moved here from gs2_main
-  public :: ilast_step
-
-  integer :: ilast_step
   integer :: job_id
 
   interface agrees_with
