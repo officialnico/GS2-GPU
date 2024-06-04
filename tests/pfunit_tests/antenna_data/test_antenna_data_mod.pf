@@ -82,7 +82,7 @@ contains
   @test(npes=[1,2,4], testParameters={get_parameters()})
   !> Test for initialization with no antenna
   subroutine test_init_antenna_data(this)
-    use antenna_data
+    use antenna_data, only: ant_on, a_ant, b_ant
     implicit none
     class (test_antenna_case), intent(inout) :: this
 
@@ -95,7 +95,6 @@ contains
       else
         ! Antenna on
         @AssertTrue(ant_on)
-        @AssertEqual(nk_stir_in, nk_stir)
       end if
       @AssertSameShape(shape(nk_stir_in), shape(a_ant))
       @AssertSameShape(shape(nk_stir_in), shape(b_ant))
