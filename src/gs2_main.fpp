@@ -673,6 +673,7 @@ contains
     logical :: temp_initval_override_store, should_save_restart
     integer :: istep_loop_start, istep_loop_max, istep_offset
     real, dimension(2) :: progress_time
+    real :: time_per_step
     logical :: show_progress
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
@@ -830,16 +831,19 @@ contains
           state%exit = .true.
        end if
 
-       if (show_progress .and. &
-            mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
-          call time_message(.false.,progress_time,' Progress time')
-          write(6, &
-               '("Completed step ",I0," of ",I0," : Time/step ",G9.3," s ETA ",G9.3," s")') &
-               istep - istep_loop_start + 1, istep_loop_max - istep_loop_start + 1, &
-               progress_time(1)/progress_frequency, &
-               (istep_loop_max - istep) * progress_time(1)/progress_frequency
-          ! Reset progress timer
-          progress_time = 0
+       if (show_progress) then
+          ! Have to split this from previous logic as we shouldn't call mod if
+          ! progress_frequency and we can't rely on short circuit logic
+          if (mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
+             call time_message(.false.,progress_time,' Progress time')
+             time_per_step = progress_time(1)/progress_frequency
+             write(6, &
+                  '("Done step ",I0," of ",I0," : Time/step ",G9.3," s ETA ",G9.3," s")') &
+                  istep - istep_loop_start + 1, istep_loop_max - istep_loop_start + 1, &
+                  time_per_step, (istep_loop_max - istep) * time_per_step
+             ! Reset progress timer
+             progress_time = 0
+          end if
        end if
 
        if (state%exit) then
