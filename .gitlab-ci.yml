@@ -127,11 +127,11 @@ openmp_tests:
     OMP_NUM_THREADS: 2
   script: *default_script
 
-gfortran13_mpich:
+gfortran14_mpich:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
-    CASENAME: "gfortran_13_mpich"
+    CASENAME: "gfortran_14_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "openblas openblas-devel diffutils"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
