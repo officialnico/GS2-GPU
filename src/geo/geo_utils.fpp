@@ -9,9 +9,18 @@ module geo_utils
 
   public :: abstract_geo_type, abstract_eqfile_geo_type, abstract_eqfile_cart_geo_type
   public :: geo_input_type, flux_surface_type, mod2pi, sort, find_lower_bound
-  public :: bilinear_interpolate
+  public :: bilinear_interpolate, mxh_max_moments
 
   integer, parameter :: EQFILE_LENGTH = 800
+
+  integer, parameter :: geo_type_miller = 0
+  integer, parameter :: geo_type_global = 1
+  integer, parameter :: geo_type_generalized_elongation = 2
+  integer, parameter :: geo_type_fourier_series = 3
+  integer, parameter :: geo_type_miller_extended_harmonic = 4
+
+  !> Maximum number of moments for the Miller Extended Harmonic equilbrium
+  integer, parameter :: mxh_max_moments = 5
 
   !> Helper type to wrap up some flux surface specific variables for
   !> analytic equilibrium type.
@@ -54,7 +63,23 @@ module geo_utils
      integer :: mMode
      !> The second poloidal mode number, input variable: `nMode`
      integer :: nMode
+     !> Number of moments for MXH equilibrium, input variable: `n_mxh`
+     integer :: n_mxh
+     !> Zeroth cosine moment for MXH equilibrium, input variable: `c0_mxh`
+     real :: c0_mxh
+     !> Cosine moments for MXH equilibrium, input variable: `c_mxh`
+     real, dimension(mxh_max_moments) :: c_mxh
+     !> Sine moments for MXH equilibrium, input variable: `s_mxh`
+     real, dimension(mxh_max_moments) :: s_mxh
+     !> Radial derivatives of cosine moments for MXH equilibrium, input variable: `dc_mxh_dr`
+     real, dimension(mxh_max_moments) :: dc_mxh_dr
+     !> Radial derivatives of sine moments for MXH equilibrium, input variable: `ds_mxh_dr`
+     real, dimension(mxh_max_moments) :: ds_mxh_dr
   end type flux_surface_type
+
+  interface flux_surface_type
+    module procedure new_flux_surface_type
+  end interface flux_surface_type
 
   !> A derived type used to hold the inputs to the geo initialisation routine.
   !> By encapsulating all possible inputs in this type we can avoid having to
@@ -1235,4 +1260,48 @@ contains
     end do
     call mp_abort('zbrent exceeding maximum iterations.',.true.)
   end function zbrent
+
+  function new_flux_surface_type(geoType, Rmaj, R_geo, r, dr, aSurf, &
+       sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, nt, mMode, nMode, &
+       n_mxh, c0_mxh, c_mxh, s_mxh, dc_mxh_dr, ds_mxh_dr) result(self)
+    use optionals, only: get_option_with_default
+
+    type(flux_surface_type) :: self
+    integer, intent(in) :: geoType
+    real, intent(in), optional :: Rmaj, R_geo, r, dr, aSurf, sHorz, sVert, delm, deln, delmp, delnp, thm, thn, q, shat, c0_mxh
+    integer, intent(in), optional :: nt, mMode, nMode, n_mxh
+    real, intent(in), optional, dimension(mxh_max_moments) :: c_mxh, dc_mxh_dr
+    real, intent(in), optional, dimension(mxh_max_moments) :: s_mxh, ds_mxh_dr
+
+    real, parameter :: invalid_value = -999.99
+    integer, parameter :: invalid_int = -999
+
+    self%geoType = geoType
+
+    self%Rmaj = get_option_with_default(Rmaj, invalid_value)
+    self%R_geo = get_option_with_default(R_geo, invalid_value)
+    self%r = get_option_with_default(r, invalid_value)
+    self%dr = get_option_with_default(dr, invalid_value)
+    self%aSurf = get_option_with_default(aSurf, invalid_value)
+    self%sHorz = get_option_with_default(sHorz, invalid_value)
+    self%sVert = get_option_with_default(sVert, invalid_value)
+    self%delm = get_option_with_default(delm, invalid_value)
+    self%deln = get_option_with_default(deln, invalid_value)
+    self%delmp = get_option_with_default(delmp, invalid_value)
+    self%delnp = get_option_with_default(delnp, invalid_value)
+    self%thm = get_option_with_default(thm, invalid_value)
+    self%thn = get_option_with_default(thn, invalid_value)
+    self%q = get_option_with_default(q, invalid_value)
+    self%shat = get_option_with_default(shat, invalid_value)
+    self%nt = get_option_with_default(nt, invalid_int)
+    self%mMode = get_option_with_default(mMode, invalid_int)
+    self%nMode = get_option_with_default(nMode, invalid_int)
+    self%n_mxh = get_option_with_default(n_mxh, invalid_int)
+    self%c0_mxh = get_option_with_default(c0_mxh, invalid_value)
+    self%c_mxh = get_option_with_default(c_mxh, spread(invalid_value, 1, size(self%c_mxh)))
+    self%s_mxh = get_option_with_default(s_mxh, spread(invalid_value, 1, size(self%s_mxh)))
+    self%dc_mxh_dr = get_option_with_default(dc_mxh_dr, spread(invalid_value, 1, size(self%dc_mxh_dr)))
+    self%ds_mxh_dr = get_option_with_default(ds_mxh_dr, spread(invalid_value, 1, size(self%ds_mxh_dr)))
+
+  end function new_flux_surface_type
 end module geo_utils

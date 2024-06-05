@@ -35,6 +35,18 @@ module eigval
 #include <slepc/finclude/slepceps.h>
 #endif
 
+  ! Redefine some types that we use directly to avoid
+  ! relying on a non-standard declaration which not all
+  ! compilers understand
+#ifdef EPSType
+#undef EPSType
+#define EPSType character(len=80)
+#endif
+#ifdef STType
+#undef STType
+#define STType character(len=80)
+#endif
+
   private
 
   public :: eigval_functional
@@ -321,7 +333,7 @@ module eigval
     end subroutine MatCreateShell
 
     subroutine MatShellSetOperation(a, b, c, ierr)
-      import tMat
+      import tMat, tVec
       type(tMat), intent(in) :: a
       type(PetscInt), intent(in) :: b
       interface

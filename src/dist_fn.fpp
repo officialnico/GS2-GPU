@@ -115,12 +115,12 @@ module dist_fn
   real, dimension (:), allocatable :: bkdiff  ! (nspec)
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
-  real :: phi_ext, afilter
+  real :: phi_ext, afilter, exponential_boundary_factor
   real :: wfb, g_exb, g_exbfac, omprimfac, btor_slab, mach
   real :: g_exb_start_time, g_exb_error_limit
   integer :: g_exb_start_timestep
   logical :: hyper_in_initialisation
-  logical :: start_from_previous_solution
+  logical :: start_from_previous_solution, boundary_off_grid, exponential_boundary
   logical :: dfexist, skexist, nonad_zero, lf_default, lf_decompose, esv, opt_source
 
   integer :: adiabatic_option_switch
@@ -308,6 +308,11 @@ module dist_fn
      !>
      !> @todo Improve documentation
      real :: apfac = 1.0
+     !> If true then attempt to enforce gnew == 0 at a half grid point
+     !> past the end of the grid rather than on the last grid point. This
+     !> is an experimental feature which has been seen to help suppress
+     !> grid scale oscillations near the boundary.
+     logical :: boundary_off_grid = .false.
      !> Sets the boundary condition along the field line (i.e. the
      !> boundary conditions at \(\theta = \pm \pi\) in flux-tube
      !> simulations or \(\theta = \pm (2*\textrm{nperiod}-1)*\pi\) in
@@ -349,6 +354,12 @@ module dist_fn
      logical :: esv = .false.
      !> If `def_parity` is true, determines allowed parity.
      logical :: even = .true.
+     !> If true then attempt to enforce an exponential decay boundary condition
+     !> on gnew or hnew (depending on [[nonad_zero]]). Decay rate scaled by
+     !> [[exponential_boundary_factor]]
+     logical :: exponential_boundary = .false.
+     !> Factor scaling the exponential decay boundary condition
+     real :: exponential_boundary_factor = 1.0
      !> \(\frac{\rho}{q} \frac{d\Omega^{\rm GS2}}{d\rho_n}\) where
      !> \(\Omega^{\rm GS2}\) is toroidal angular velocity normalised
      !> to the reference frequency \(v_{t}^{\rm ref}/a\) and
@@ -1281,12 +1292,15 @@ contains
     adiabatic_option = dist_fn_config%adiabatic_option
     afilter = dist_fn_config%afilter
     apfac = dist_fn_config%apfac
+    boundary_off_grid = dist_fn_config%boundary_off_grid
     boundary_option = dist_fn_config%boundary_option
     btor_slab = dist_fn_config%btor_slab
     def_parity = dist_fn_config%def_parity
     driftknob = dist_fn_config%driftknob
     esv = dist_fn_config%esv
     even = dist_fn_config%even
+    exponential_boundary = dist_fn_config%exponential_boundary
+    exponential_boundary_factor = dist_fn_config%exponential_boundary_factor
     g_exb = dist_fn_config%g_exb
     g_exb_error_limit = dist_fn_config%g_exb_error_limit
     g_exb_start_time = dist_fn_config%g_exb_start_time
@@ -3605,7 +3619,11 @@ contains
 
     ! Setup redistributes for passing the incoming boundary to the previous linked
     ! cell. Used to generalise the linked boundary conditions to allow gnew /= 0 at
-    ! the linked location.
+    ! the linked location. To be explicit, if we allow gnew /= 0 at an internal (linked)
+    ! boundary in invert_rhs_1 then we need this communication pattern. Currently this
+    ! is only possible if we start from the previous solution. This may also be true
+    ! for the wfb when treated as trapped, but if trapped then it doesn't see the
+    ! linked cells.
     if (start_from_previous_solution) then
        call setup_pass_incoming_boundary_to_connections(l_links, r_links, incoming_links)
     end if
@@ -5416,7 +5434,7 @@ contains
   !>     - Ensure continuity (e.g. periodicity in theta and in sigma at bounce points)
   !>  3. Enforce parity if required.
   subroutine invert_rhs_1 (phinew, bparnew, source)
-    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, set_h_zero, g
+    use dist_fn_arrays, only: gnew, set_h_zero, g
     use theta_grid, only: ntgrid
     use le_grids, only: ng2, forbid,&
          is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
@@ -5424,31 +5442,23 @@ contains
          is_upper_bounce_point, is_lower_bounce_point, mixed_wfb
     use kt_grids, only: aky
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
-    use run_parameters, only: fbpar, fphi, ieqzip
+    use run_parameters, only: ieqzip
     use kt_grids, only: kwork_filter
-    use species, only: spec, nonmaxw_corr
-    use mp, only: mp_abort
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: source
-    integer :: iglo
-    integer :: ig, ik, it, il, ie, is
-    integer :: ilmin
+    integer :: iglo, ig, ik, it, il, ie, is
     complex :: beta1
-    complex :: adjleft, adjright
-    logical :: use_pass_homog, speriod_flag
-    logical :: is_wfb, is_passing, is_trapped
-    logical :: is_self_periodic, is_passing_like
+    logical :: use_pass_homog, speriod_flag, is_self_periodic
+    logical :: is_wfb, is_passing, is_trapped, is_passing_like
 
     !$OMP PARALLEL DO DEFAULT(none) &
-    !$OMP PRIVATE(iglo, ik, it, il, ie, is, use_pass_homog, speriod_flag, &
-    !$OMP ilmin, is_wfb, is_passing, is_trapped, is_self_periodic, &
-    !$OMP adjright, adjleft, ig, beta1, is_passing_like) &
+    !$OMP PRIVATE(iglo, ik, it, il, ie, is, ig, use_pass_homog, speriod_flag, &
+    !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, is_passing_like, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
-    !$OMP gnew, phinew, bparnew, fphi, fbpar, boundary_option_switch, g, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, &
-    !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, nonad_zero, vperp2, &
-    !$OMP aj1, aj0, spec, nonmaxw_corr, l_links, r_links, r, ainv, source) &
+    !$OMP gnew, phinew, bparnew, boundary_option_switch, g, &
+    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
+    !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, r, ainv, source) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        !/////////////////////////
@@ -5498,12 +5508,6 @@ contains
        end select
 
        use_pass_homog = use_pass_homog .or. aky(ik) == 0.0
-
-       if (use_pass_homog) then
-          ilmin = 1
-       else
-          ilmin = ng2 + 1
-       end if
 
        ! ng2+1 is WFB.
        is_wfb = il_is_wfb(il)
@@ -5570,33 +5574,9 @@ contains
        !/////////////////////////
        !// Boundaries
        !/////////////////////////
-
-       !CMR, 18/4/2012:
-       ! What follows is a selectable improved parallel bc for passing particles.
-       !                                            (prompted by Greg Hammett)
-       ! Original bc is: g_gs2 = gnew = 0 at ends of domain:
-       !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
-       ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
-       !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
-       if ( nonad_zero .and. is_passing_like ) then
-          !Only apply the new boundary condition to the leftmost
-          !cell for sign going from left to right
-          if (l_links(it, ik) .eq. 0) then
-             adjleft = 2.0*vperp2(-ntgrid,iglo)*aj1(-ntgrid,iglo) &
-                  *bparnew(-ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(-ntgrid,it,ik)*aj0(-ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(-ntgrid,1,iglo) = -adjleft
-          end if
-          !Only apply the new boundary condition to the rightmost
-          !cell for sign going from right to left
-          if (r_links(it, ik) .eq. 0) then
-             adjright = 2.0*vperp2(ntgrid,iglo)*aj1(ntgrid,iglo) &
-                  *bparnew(ntgrid,it,ik)*fbpar &
-                  + spec(is)%zt*phinew(ntgrid,it,ik)*aj0(ntgrid,iglo) &
-                  *fphi*nonmaxw_corr(ie,is)
-             gnew(ntgrid,2,iglo) = -adjright
-          end if
+       if (is_passing_like .and. .not. is_self_periodic) then
+          call apply_parallel_boundary_conditions(gnew, source, it, ik, ie, is, iglo, &
+            phinew, bparnew, l_links(it, ik) == 0, r_links(it, ik) == 0)
        end if
 
        !/////////////////////////
@@ -5722,6 +5702,148 @@ contains
 
     if (def_parity) call enforce_parity(parity_redist)
   end subroutine invert_rhs_1
+
+  !> Apply one of the "end of the grid" parallel boundary conditions
+  pure subroutine apply_parallel_boundary_conditions(gnew, source, it, ik, ie, is, iglo, &
+       phinew, bparnew, is_left_boundary, is_right_boundary)
+    use theta_grid, only: ntgrid, delthet
+    use gs2_layouts, only: g_lo
+    use run_parameters, only: fphi, fbpar
+    use dist_fn_arrays, only: get_adjust
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: gnew
+    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: source
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phinew, bparnew
+    integer, intent(in) :: it, ik, ie, is, iglo
+    logical, intent(in) :: is_left_boundary, is_right_boundary
+    complex :: nonad_corr
+    if (.not. (is_left_boundary .or. is_right_boundary)) return
+    if (boundary_off_grid) then
+       ! -- Set g or h to zero one half grid point past the end of the grid
+
+       ! We can approximate the derivative at -ntgrid as
+       !   [gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo)]/dtheta.
+       ! We can then extrapolate to ig = -ntgrid - 1/2 as
+       !   g_{ig-1/2} = g_boundary - (dtheta/2) * dg/dtheta
+       ! --> g_{ig-1/2} ~ g_boundary + [gnew(ntgrid,1,iglo) -
+       !         gnew(-ntgrid+1,1,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig-1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(-ntgrid+1,1,iglo) - gnew(-ntgrid,1,iglo))
+       ! But note that gnew(-ntgrid,1,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(-ntgrid+1,1,iglo)
+       ! Now note gnew(-ntgrid+1,1,iglo) = -gnew(-ntgrid,1,iglo)*r(-ntgrid,1,iglo) +
+       !   ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(-ntgrid,1,iglo) * source(-ntgrid,1,iglo) / &
+       !                (3 + r(-ntgrid,1,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + 3 * Adj(-ntgrid)-Adj(-ntgrid+1)
+       ! where we have g = h + Adj
+       if (is_left_boundary) then
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+               nonad_corr) / (3 + r(-ntgrid, 1, iglo))
+       end if
+
+       ! We can approximate the derivative at ntgrid as
+       !   [gnew(ntgrid,2,iglo) - gnew(ntgrid-1,2,iglo)]/dtheta.
+       ! We can then extrapolate to ig = ntgrid + 1/2 as
+       !   g_{ig+1/2} = g_boundary + (dtheta/2) * dg/dtheta
+       ! --> g_{ig+1/2} ~ g_boundary + [gnew(ntgrid,2,iglo) -
+       !         gnew(ntgrid-1,2,iglo)]* (dtheta/2) / dtheta
+       ! Now set g_{ig+1/2} = 0 and solve for g_boundary -->
+       !   g_boundary = 0.5 * (gnew(ntgrid-1,2,iglo) - gnew(ntgrid,2,iglo))
+       ! But note that gnew(ntgrid,2,iglo) == g_boundary -->
+       !   3 g_boundary = gnew(ntgrid-1,2,iglo)
+       ! Now note gnew(ntgrid-1,2,iglo) = -gnew(ntgrid,2,iglo)*r(ntgrid-1,2,iglo) +
+       !   ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo).
+       ! Substituting this we find
+       !   g_boundary = ainv(ntgrid-1,2,iglo) * source(ntgrid-1,2,iglo) / &
+       !                (3 + r(ntgrid-1,2,iglo))
+       ! If we wanted to set h = 0 at the half grid point instead of g then
+       ! we would find that ainv*source --> ainv*source + 3 * Adj(ntgrid)-Adj(ntgrid-1)
+       ! where we have g = h + Adj
+       if (is_right_boundary) then
+          if (nonad_zero) then
+             nonad_corr = 3 * get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+               nonad_corr) / (3 + r(ntgrid-1, 2, iglo))
+       end if
+    else if (exponential_boundary) then
+       ! Try to impose an exponential decay at the boundary. If we suppose we have
+       ! g(theta) = exp(-/+|alpha|theta)(with the sign taken depending on right or
+       ! left boundary) then we have (1/g) dg/dtheta = -/+ |alpha|Consider right
+       ! boundary, write (1/g) dg/dtheta = [g_i - g_{i-1}]/[dtheta g_i].
+       ! Given g_{i-1} = - r g_i + ainv.source we get -|alpha| dtheta g_i =
+       ! [g_i + r g_i - ainv.source] --> g_i [r + 1 + |alpha| dtheta] = ainv.source
+       ! and hence g_i = ainv.source / [r + 1 + |alpha| dtheta]. For the left boundary
+       ! we pick the other sign of |alpha| but also have dg/dtheta = [g_{i+1} - g_i]/dtheta
+       ! (i.e. the opposite sign on the boundary g_i) so we end up with the same expression.
+       ! One can also generalise to set the exponential decay on h and we end up with
+       ! ainv.source -> ainv.source + (1+|alpha|dtheta) Adj(-ntgrid) - Adj(-ntgrid+1)
+       if (is_left_boundary) then
+          if (nonad_zero) then
+             nonad_corr = (1 + exponential_boundary_factor * delthet(-ntgrid)) * &
+                  get_adjust(-ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(-ntgrid+1, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(-ntgrid, 1, iglo) = (ainv(-ntgrid, 1, iglo) * source(-ntgrid, 1, iglo) - &
+               nonad_corr) / (r(-ntgrid, 1, iglo) + 1 + &
+               exponential_boundary_factor * delthet(-ntgrid))
+       end if
+
+       if (is_right_boundary) then
+          if (nonad_zero) then
+             nonad_corr =  (1 + exponential_boundary_factor * delthet(ntgrid-1)) * &
+                  get_adjust(ntgrid, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew) - &
+                  get_adjust(ntgrid-1, it, ik, ie, is, iglo, &
+                  fphi, fbpar, phinew, bparnew)
+          else
+             nonad_corr = 0.0
+          end if
+
+          gnew(ntgrid, 2, iglo) = (ainv(ntgrid-1, 2, iglo) * source(ntgrid-1, 2, iglo) - &
+               nonad_corr) / (r(ntgrid-1, 2, iglo) + 1 + &
+               exponential_boundary_factor * delthet(ntgrid-1))
+       end if
+    elseif (nonad_zero) then
+       ! If nonad_zero then force h = 0 at the boundary
+       !CMR, 18/4/2012:
+       ! What follows is a selectable improved parallel bc for passing particles.
+       !                                            (prompted by Greg Hammett)
+       ! Original bc is: g_gs2 = gnew = 0 at ends of domain:
+       !   ONLY implies zero incoming particles in nonadiabatic delta f if phi=bpar=0
+       ! Here ensure ZERO incoming particles in nonadiabatic delta f at domain ends
+       !  (exploits code used in subroutine g_adjust to transform g_wesson to g_gs2)
+       if (is_left_boundary) gnew(-ntgrid, 1, iglo) = &
+            -get_adjust(-ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+
+       if (is_right_boundary) gnew(ntgrid, 2, iglo) = &
+            -get_adjust(ntgrid, it, ik, ie, is, iglo, fphi, fbpar, phinew, bparnew)
+    else
+       ! Here we _could_ force gnew = 0 at the boundary. Currently we just leave
+       ! the input unchanged so support [[start_from_previous_solution]]
+    end if
+
+  end subroutine apply_parallel_boundary_conditions
 
   !> Sets sum of homogeneous and inhomogeneous solutions to give a result
   !>     gnew(ntgrid,2) = gnew(-ntgrid,2)
@@ -10439,12 +10561,12 @@ contains
     character(len = 20) :: boundary_option
     character(len = 30) :: adiabatic_option
     integer :: g_exb_start_timestep
-    logical :: def_parity, esv, even, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
-    real :: afilter, apfac, btor_slab, driftknob, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
+    logical :: boundary_off_grid, def_parity, esv, even, exponential_boundary, gf_lo_integrate, hyper_in_initialisation, lf_decompose, lf_default, mult_imp, nonad_zero, opt_source, start_from_previous_solution, zero_forbid
+    real :: afilter, apfac, btor_slab, driftknob, exponential_boundary_factor, g_exb, g_exb_error_limit, g_exb_start_time, g_exbfac, gridfac, mach, omprimfac, poisfac, tpdriftknob, vparknob, wfb
 
-    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_option, btor_slab, def_parity, driftknob, esv, even, g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, &
-         gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, mult_imp, nonad_zero, omprimfac, opt_source, poisfac, &
-         start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
+    namelist /dist_fn_knobs/ adiabatic_option, afilter, apfac, boundary_off_grid, boundary_option, btor_slab, def_parity, driftknob, esv, even, exponential_boundary, exponential_boundary_factor, &
+         g_exb, g_exb_error_limit, g_exb_start_time, g_exb_start_timestep, g_exbfac, gf_lo_integrate, gridfac, hyper_in_initialisation, lf_decompose, lf_default, mach, &
+         mult_imp, nonad_zero, omprimfac, opt_source, poisfac, start_from_previous_solution, tpdriftknob, vparknob, wfb, zero_forbid
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -10453,12 +10575,15 @@ contains
     adiabatic_option = self%adiabatic_option
     afilter = self%afilter
     apfac = self%apfac
+    boundary_off_grid = self%boundary_off_grid
     boundary_option = self%boundary_option
     btor_slab = self%btor_slab
     def_parity = self%def_parity
     driftknob = self%driftknob
     esv = self%esv
     even = self%even
+    exponential_boundary = self%exponential_boundary
+    exponential_boundary_factor = self%exponential_boundary_factor
     g_exb = self%g_exb
     g_exb_error_limit = self%g_exb_error_limit
     g_exb_start_time = self%g_exb_start_time
@@ -10489,12 +10614,15 @@ contains
     self%adiabatic_option = adiabatic_option
     self%afilter = afilter
     self%apfac = apfac
+    self%boundary_off_grid = boundary_off_grid
     self%boundary_option = boundary_option
     self%btor_slab = btor_slab
     self%def_parity = def_parity
     self%driftknob = driftknob
     self%esv = esv
     self%even = even
+    self%exponential_boundary = exponential_boundary
+    self%exponential_boundary_factor = exponential_boundary_factor
     self%g_exb = g_exb
     self%g_exb_error_limit = g_exb_error_limit
     self%g_exb_start_time = g_exb_start_time
@@ -10536,12 +10664,15 @@ contains
     call self%write_key_val("adiabatic_option", self%adiabatic_option, unit_internal)
     call self%write_key_val("afilter", self%afilter, unit_internal)
     call self%write_key_val("apfac", self%apfac, unit_internal)
+    call self%write_key_val("boundary_off_grid", self%boundary_off_grid, unit_internal)
     call self%write_key_val("boundary_option", self%boundary_option, unit_internal)
     call self%write_key_val("btor_slab", self%btor_slab, unit_internal)
     call self%write_key_val("def_parity", self%def_parity, unit_internal)
     call self%write_key_val("driftknob", self%driftknob, unit_internal)
     call self%write_key_val("esv", self%esv, unit_internal)
     call self%write_key_val("even", self%even, unit_internal)
+    call self%write_key_val("exponential_boundary", self%exponential_boundary, unit_internal)
+    call self%write_key_val("exponential_boundary_factor", self%exponential_boundary_factor, unit_internal)
     call self%write_key_val("g_exb", self%g_exb, unit_internal)
     call self%write_key_val("g_exb_error_limit", self%g_exb_error_limit, unit_internal)
     call self%write_key_val("g_exb_start_time", self%g_exb_start_time, unit_internal)
@@ -10585,12 +10716,15 @@ contains
     call broadcast(self%adiabatic_option)
     call broadcast(self%afilter)
     call broadcast(self%apfac)
+    call broadcast(self%boundary_off_grid)
     call broadcast(self%boundary_option)
     call broadcast(self%btor_slab)
     call broadcast(self%def_parity)
     call broadcast(self%driftknob)
     call broadcast(self%esv)
     call broadcast(self%even)
+    call broadcast(self%exponential_boundary)
+    call broadcast(self%exponential_boundary_factor)
     call broadcast(self%g_exb)
     call broadcast(self%g_exb_error_limit)
     call broadcast(self%g_exb_start_time)
@@ -10615,7 +10749,7 @@ contains
 
     call broadcast(self%exist)
   end subroutine broadcast_dist_fn_config
-  
+
   !> Gets the default name for this namelist
   function get_default_name_dist_fn_config()
     implicit none
@@ -10629,11 +10763,11 @@ contains
     logical :: get_default_requires_index_dist_fn_config
     get_default_requires_index_dist_fn_config = .false.
   end function get_default_requires_index_dist_fn_config
-  
+
   !---------------------------------------
   ! Following is for the source config_type
   !---------------------------------------
-  
+
   !> Reads in the source_knobs namelist and populates the member variables
   subroutine read_source_config(self)
     use file_utils, only: input_unit_exist, get_indexed_namelist_unit
@@ -10645,7 +10779,7 @@ contains
 
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
-    ! isolation and ensure we can move this routine to another module easily.    
+    ! isolation and ensure we can move this routine to another module easily.
     character(len = 20) :: source_option
     real :: gamma0, omega0, phi_ext, source0, t0
 

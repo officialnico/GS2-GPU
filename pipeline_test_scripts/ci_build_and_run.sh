@@ -34,7 +34,7 @@ make_and_run_pfunit_tests() {
     else
         make -j pfunit_coverage ${EXTRA_MAKE_FLAGS} ${EXTRA_PFUNIT_FLAGS}
     fi
-
+    pipeline_test_scripts/didPfunitTestsFail.sh ${PWD}/ pfunit.error
 }
 
 make_and_run_integrated_tests() {

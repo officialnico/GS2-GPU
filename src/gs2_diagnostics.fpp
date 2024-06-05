@@ -2774,16 +2774,11 @@ contains
     diffusivity_by_k = 0.0
     do ik=1,naky
        do it=1,ntheta0
-          !if (akx(it).eq.0) cycle
           if (kperp2(igomega,it,ik).eq.0.0) cycle
-          !diffusivity_by_k(it,ik) = max(aimag(omegaavg(it,ik)), 0.0)/akx(it)**2.0/2.0**0.5
           diffusivity_by_k(it,ik) = &
                max(aimag(omegaavg(it,ik)), 0.0)/kperp2(igomega, it, ik)*2.0
        end do
     end do
-    !write (*,*) 'diffusivity_by_k', diffusivity_by_k, 'omegaavg', omegaavg
-    !call get_volume_average(diffusivity_by_k, diffusivity)
-
     diffusivity = maxval(diffusivity_by_k) * grho(igomega)
 
   end function diffusivity

@@ -182,6 +182,10 @@ module gs2_main
      !>     provided by trinity
      !> Setting this flag true automatically sets is_external_job to true
      logical :: is_trinity_job = .false.
+     !> If true and running linearly, return linear diffusive flux estimates to Trinity.
+     logical :: trinity_linear_fluxes = .false.
+     !> If true and running linearly, return a QL flux estimate to Trinity.
+     logical :: trinity_ql_fluxes = .false.
 
      !> If true, print full timing breakdown.
      logical :: print_full_timers = .true.
@@ -197,8 +201,7 @@ module gs2_main
      integer :: nproc_actual = -1
 
      !> If true then we end up passing [[gs2_program_state_type:run_name]]
-     !> as the base file name. This is only set to .true. in [[init_gs2_gryfx]]
-     !> which is not called in GS2 but may be from original trinity etc.
+     !> as the base file name.
      logical :: run_name_external = .false.
      !> The run name to pass to [[init_file_utils]] if `run_name_external` is
      !> set to true. GS2 then uses this in place of any input file name passed
@@ -586,9 +589,8 @@ contains
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling init_gs2_diagnostics_new')
 
-      ! Initialise the new diagnostics. Note we check whether this is
-      ! a Trinity run... enforces calculation of the fluxes
-      call init_gs2_diagnostics_new(state%is_trinity_job, local_header)
+      ! Initialise the new diagnostics.
+      call init_gs2_diagnostics_new(local_header)
 
       call debug_message(state%verb, &
         'gs2_main::initialize_diagnostics calling run_diagnostics')
@@ -689,8 +691,6 @@ contains
     
     if (state%nensembles > 1) call scope (subprocs)
 
-    if (state%is_trinity_job) call write_trinity_parameters(state)
-
     call time_message(.false.,state%timers%main_loop,' Main Loop')
 
     ! Make sure exit is false before entering timestep loop
@@ -729,11 +729,7 @@ contains
          call debug_message(state%verb+1, 'gs2_main::evolve_equations resetting timestep')
          call set_initval_overrides_to_current_vals(state%init%initval_ov)
          state%init%initval_ov%override = .true.
-         if (state%is_external_job) then
-           call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-         else
-           call reset_time_step (state%init, istep, state%exit)
-         end if
+         call reset_time_step (state%init, istep, state%exit, state%external_job_id)
 
          ! Now we've reset set the flag back to .false.
          reset = .false.
@@ -800,12 +796,7 @@ contains
             call prepare_initial_values_overrides(state)
             call set_initval_overrides_to_current_vals(state%init%initval_ov)
             state%init%initval_ov%override = .true.
-            ! if called within trinity, do not dump info to screen
-            if (state%is_external_job) then
-               call reset_time_step (state%init, istep, state%exit, state%external_job_id)
-            else
-               call reset_time_step (state%init, istep, state%exit)
-            end if
+            call reset_time_step (state%init, istep, state%exit, state%external_job_id)
 
             ! Switch off the reset flag now, otherwise it can still be active
             ! on the next iteration.
@@ -913,7 +904,7 @@ contains
     use gs2_diagnostics_new, only: reset_averages_and_counters
 #endif
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: trinity_linear_fluxes, use_old_diagnostics
+    use run_parameters, only: use_old_diagnostics
     use gs2_time, only: code_dt, save_dt
     use mp, only: scope, subprocs, allprocs
     use unit_tests, only: debug_message
@@ -936,7 +927,7 @@ contains
 #endif
     end if
 
-    if (trinity_linear_fluxes .and. .not. nonlin) call reset_linear_magnitude
+    if (state%trinity_linear_fluxes .and. .not. nonlin) call reset_linear_magnitude
 
     state%istep_end = 0
 
@@ -1209,7 +1200,7 @@ contains
 #endif
     use gs2_time, only: user_time
     use nonlinear_terms, only: nonlin
-    use run_parameters, only: trinity_linear_fluxes, trinity_ql_fluxes, use_old_diagnostics
+    use run_parameters, only: use_old_diagnostics
     use species, only: nspec, spec
     use mp, only: mp_abort
     implicit none
@@ -1226,7 +1217,7 @@ contains
 
     ! Use simple gamma / k^2 estimates for transport in the
     ! linear case. This is for testing Trinity
-    if (trinity_linear_fluxes .and. .not. trinity_ql_fluxes .and. &
+    if (state%trinity_linear_fluxes .and. .not. state%trinity_ql_fluxes .and. &
          .not. nonlin) then
        if (use_old_diagnostics) then
           diff = diffusivity()
@@ -1269,7 +1260,7 @@ contains
        endif
     end if
 
-    if (trinity_ql_fluxes) then
+    if (state%trinity_ql_fluxes) then
 #ifdef NEW_DIAG
        qf = gnostics%current_results%species_heat_flux
        pf = gnostics%current_results%species_particle_flux
@@ -1669,25 +1660,6 @@ contains
     call ginit(dummy)
     call set_init_fields
   end subroutine reset_linear_magnitude
-
-  !> FIXME : Add documentation  
-  subroutine write_trinity_parameters(state)
-    use file_utils, only: open_output_file, close_output_file
-    use theta_grid_params, only: write_theta_grid => write_trinity_parameters
-    use species, only: write_species => write_trinity_parameters
-    use run_parameters, only: write_run_parameters => write_trinity_parameters
-    use mp, only: proc0
-    implicit none
-    type(gs2_program_state_type), intent(in) :: state
-    integer :: trinpars_unit
-    character(len=*), parameter :: ext = '.trinpars'
-    if (.not. proc0) return
-    call open_output_file(trinpars_unit, trim(ext))
-    call write_theta_grid(trinpars_unit)
-    call write_species(trinpars_unit)
-    call write_run_parameters(trinpars_unit)
-    call close_output_file(trinpars_unit)
-  end subroutine write_trinity_parameters
 
   !> Write an input file containing the current state of all input
   !> parameters
