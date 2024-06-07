@@ -608,6 +608,8 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
 ifeq ("$(COMPILER)","cray")
+$(info When using cray you will need to run 'make clean' before rebuilding if you change any source files.)
+$(info Alternatively you may simply remove the corresponding '$(GENERATED_SRC_DIR)/*.F90' file.)
 #Special interim handling for cray which will only preprocess files
 #with a limited set of suffixes (including F90). Here we just copy
 #our source files to GENERATED_SRC_DIR with a F90 extension
