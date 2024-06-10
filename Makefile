@@ -627,9 +627,9 @@ $(GENERATED_SRC_DIR)/%.F90: %.f90 |$(GENERATED_SRC_DIR)
 $(OBJDIR)/%.o: $(GENERATED_SRC_DIR)/%.F90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
 else
-$(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
-	$(call compile_and_preprocess)
 $(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
+	$(call compile_and_preprocess)
+$(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
 endif
 
