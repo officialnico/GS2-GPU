@@ -49,7 +49,7 @@ program eiktest
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
-       eqnormfile, no_end_point
+       eqnormfile, no_end_point, in_nt
 
   call init_mp
 
@@ -84,7 +84,7 @@ program eiktest
   invLp_input = 5
   irho = 2 ;      isym = -1 ; itor = -1 ; iflux=-1
   delrho = 0.01
-  no_end_point = .false.
+  no_end_point = .false. ; in_nt = .false.
 
   if (command_argument_count() == 0) then
      allocate(character(len=3)::in_stem)
