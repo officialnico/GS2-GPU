@@ -181,16 +181,16 @@ program eiktest
   allocate(zprime, source = eikcoefs_results%zprime)
   allocate(aprime, source = eikcoefs_results%aprime)
   allocate(bpol, source = eikcoefs_results%bpol)
-  allocate(kxfac, source = eikcoefs_results%kxfac)
-  allocate(qsf, source = eikcoefs_results%qsf)
-  allocate(surfarea, source = eikcoefs_results%surfarea)
-  allocate(dvdrhon, source = eikcoefs_results%dvdrhon)
-  allocate(shat, source = eikcoefs_results%shat)
-  allocate(drhodpsi, source = eikcoefs_results%drhodpsi)
+  kxfac = eikcoefs_results%kxfac
+  qsf = eikcoefs_results%qsf
+  surfarea = eikcoefs_results%surfarea
+  dvdrhon = eikcoefs_results%dvdrhon
+  shat = eikcoefs_results%shat
+  drhodpsi = eikcoefs_results%drhodpsi
+  dbetadrho = eikcoefs_results%dbetadrho
 
   ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2 ; nth = ntheta / 2
-  dbetadrho = eikcoefs_results%dbetadrho
 
   if (writelots) then
      bbar = 0.
