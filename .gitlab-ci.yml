@@ -205,7 +205,7 @@ parallel_netcdf_standard_tests:
   stage: test
   image: fedora:39
   variables:
-    CASENAME: "standard_parallel_netcdf_no_compression"
+    CASENAME: "parallel_netcdf_no_compression"
     EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
     EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
   script: *default_script
