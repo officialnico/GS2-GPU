@@ -13,13 +13,13 @@ program ball
   real, dimension(:), allocatable :: theta
   real :: dbetadrho
   integer :: nbeta, ntgrid, ntheta, iunstable, ibeta, ishat
-  integer :: nshat, order, isym, iflux, itor, nperiod
+  integer :: nshat, order, isym, iflux, itor, nperiod, geoType
 
   real :: beta_p1, beta_p2, diffscheme, psiend, beta_prime, cflmax, cflmin
   real :: beta_prime_times, beta_prime_over
   real :: bprev, pprev, stabmhd, bcrit, s_hat_max, shat_0
   real :: akappa, tri, akappri, tripri, rmin, rmax
-  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, geoType, shift, delrho
+  real :: rhoc, rmaj, r_geo, qinp, s_hat_input, shift, delrho
   logical :: diagram
   type(eikcoefs_output_type) :: eikcoefs_results
 
