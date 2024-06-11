@@ -190,6 +190,7 @@ program eiktest
 
   ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2 ; nth = ntheta / 2
+  dbetadrho = eikcoefs_results%dbetadrho
 
   if (writelots) then
      bbar = 0.
