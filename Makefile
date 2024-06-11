@@ -5,6 +5,8 @@
 #  (requires GNU's gmake)
 #
 GK_PROJECT := gs2
+# Always try to look in Makefiles directory when including makefiles
+MAKEFLAGS+=-IMakefiles
 #
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
@@ -785,6 +787,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "MAKEFLAGS", $(MAKEFLAGS))
 	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
