@@ -1413,7 +1413,6 @@ contains
     type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     integer :: is
     logical :: exist
-    real :: fexpr
 
     if(present(dist_fn_species_config_in)) dist_fn_species_config = dist_fn_species_config_in
     if(.not.allocated(dist_fn_species_config)) allocate(dist_fn_species_config(nspec))
@@ -1426,11 +1425,9 @@ contains
 
        ! Copy out internal values into module level parameters
        bkdiff(is) = dist_fn_species_config(is)%bakdif
-       fexpr = dist_fn_species_config(is)%fexpr
+       fexp(is) = dist_fn_species_config(is)%fexpr
        
        exist = dist_fn_species_config(is)%exist
-       
-       fexp(is) = fexpr
     end do
   end subroutine read_species_knobs
 
