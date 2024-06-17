@@ -2273,8 +2273,9 @@ contains
                 source_coeffs_aparm(ig, isgn, iglo)= -spec(is)%zstm * fapar * &
                      vpac(ig, isgn, iglo) * (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig, isgn, iglo) = -D_res(it, ik) * spec(is)%zstm * &
-                     vpac(ig, isgn, iglo) - spec(is)%stm * vpac(ig, isgn, iglo) * &
+                source_coeffs_aparp(ig, isgn, iglo) = -fapar * D_res(it, ik) * &
+                     spec(is)%zstm * vpac(ig, isgn, iglo) - &
+                     fapar * spec(is)%stm * vpac(ig, isgn, iglo) * &
                      zi * (wstarfac(ig, isgn, iglo) &
                      + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
                      -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * &
@@ -2297,9 +2298,9 @@ contains
                      vpac(ig,isgn,iglo) * nonmaxw_corr(ie,is) * &
                      (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig, isgn, iglo) = -D_res(it, ik) * spec(is)%zstm * &
-                     vpac(ig, isgn, iglo) * nonmaxw_corr(ie, is) &
-                     - spec(is)%stm * vpac(ig, isgn, iglo) * &
+                source_coeffs_aparp(ig, isgn, iglo) = -fapar * D_res(it, ik) * &
+                     spec(is)%zstm * vpac(ig, isgn, iglo) * nonmaxw_corr(ie, is) &
+                     - fapar * spec(is)%stm * vpac(ig, isgn, iglo) * &
                      zi * (wstar(ik, ie, is) &
                      + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
                      -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * &
@@ -5182,8 +5183,8 @@ contains
     end if
 
     if (has_apar) then
-       fac = fapar
-       fac_now = fac * fexp(is) ; fac_next = fac * (1 - fexp(is))
+       !fapar factor stored in source_coeffs_aparp
+       fac_now = fexp(is) ; fac_next = (1 - fexp(is))
        apargavg = (fac_now * apar(:,it,ik)  + fac_next * aparnew(:,it,ik)) &
             * aj0(:,iglo)
     end if
