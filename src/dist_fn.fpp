@@ -2273,7 +2273,7 @@ contains
                 source_coeffs_aparm(ig, isgn, iglo)= -spec(is)%zstm * fapar * &
                      vpac(ig, isgn, iglo) * (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig, isgn, iglo) = D_res(it, ik) * spec(is)%zstm * &
+                source_coeffs_aparp(ig, isgn, iglo) = -D_res(it, ik) * spec(is)%zstm * &
                      vpac(ig, isgn, iglo) - spec(is)%stm * vpac(ig, isgn, iglo) * &
                      zi * (wstarfac(ig, isgn, iglo) &
                      + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
@@ -2297,7 +2297,7 @@ contains
                      vpac(ig,isgn,iglo) * nonmaxw_corr(ie,is) * &
                      (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig, isgn, iglo) = D_res(it, ik) * spec(is)%zstm * &
+                source_coeffs_aparp(ig, isgn, iglo) = -D_res(it, ik) * spec(is)%zstm * &
                      vpac(ig, isgn, iglo) * nonmaxw_corr(ie, is) &
                      - spec(is)%stm * vpac(ig, isgn, iglo) * &
                      zi * (wstar(ik, ie, is) &
