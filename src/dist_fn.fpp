@@ -2209,7 +2209,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_source_term
     use dist_fn_arrays, only: vpac, aj0
-    use run_parameters, only: has_apar
+    use run_parameters, only: has_apar, fapar
     use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
     use hyper, only: D_res
@@ -2247,7 +2247,7 @@ contains
     !$OMP wdfac, wstarfac, vparterm, &
 #endif
     !$OMP vpar, vpac, code_dt, wunits, ufac, omprimfac, g_exb, itor_over_B, &
-    !$OMP source_coeffs_aparm, source_coeffs_aparp, &
+    !$OMP source_coeffs_aparm, source_coeffs_aparp, fapar, &
     !$OMP spec, has_apar, aj0, D_res, nonmaxw_corr, wstar, wdrift) &
     !$OMP SCHEDULE(static)
     do iglo=g_lo%llim_proc,g_lo%ulim_proc
@@ -2268,7 +2268,7 @@ contains
               -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm * fapar * &
                      vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
                 source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
@@ -2288,7 +2288,7 @@ contains
               -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
              if(has_apar)then
                 !Apar m
-                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm*&
+                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm * fapar * &
                      vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
                 !Apar p
                 source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
@@ -5063,8 +5063,8 @@ contains
          phi_m = phigavg(ig+1)-phigavg(ig)
          ! RN> bdfac factors seem missing for apar_p
          apar_p = bdfac_p*apargavg(ig+1)+bdfac_m*apargavg(ig)
-         apar_m = bdfac_p * (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) + &
-              bdfac_m * (aparnew(ig,it,ik) - apar(ig,it,ik))
+         apar_m = bdfac_p * (aparnew(ig+1,it,ik) - apar(ig+1,it,ik)) * fapar + &
+              bdfac_m * (aparnew(ig,it,ik) - apar(ig,it,ik)) * fapar
 
 !MAB, 6/5/2009:
 ! added the omprimfac source term arising with equilibrium flow shear  
