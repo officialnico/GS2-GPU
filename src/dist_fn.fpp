@@ -2260,43 +2260,51 @@ contains
           do ig=-ntgrid,ntgrid-1
 #ifdef LOWFLOW
              !Phi m
-             source_coeffs_phim(ig,isgn,iglo)=-2*vparterm(ig,isgn,iglo)
+             source_coeffs_phim(ig, isgn, iglo) = -2 * vparterm(ig, isgn, iglo)
              !Phi p
-             source_coeffs_phip(ig,isgn,iglo)=-zi*wdfac(ig,isgn,iglo) &
-              + zi*(wstarfac(ig,isgn,iglo) &
-              + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
-             if(has_apar)then
+             source_coeffs_phip(ig,isgn,iglo) = -zi * wdfac(ig, isgn, iglo) &
+                  + zi * (wstarfac(ig, isgn, iglo) &
+                  + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
+                  -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * g_exb * &
+                  itor_over_B(ig) / spec(is)%stm)
+
+             if (has_apar) then
                 !Apar m
-                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm * fapar * &
-                     vpac(ig,isgn,iglo)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
+                source_coeffs_aparm(ig, isgn, iglo)= -spec(is)%zstm * fapar * &
+                     vpac(ig, isgn, iglo) * (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*&
-                     vpac(ig,isgn,iglo)-spec(is)%stm*vpac(ig,isgn,iglo)*&
-                     zi*(wstarfac(ig,isgn,iglo) &
-                     + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) 
-             endif
+                source_coeffs_aparp(ig, isgn, iglo) = D_res(it, ik) * spec(is)%zstm * &
+                     vpac(ig, isgn, iglo) - spec(is)%stm * vpac(ig, isgn, iglo) * &
+                     zi * (wstarfac(ig, isgn, iglo) &
+                     + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
+                     -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * &
+                     g_exb * itor_over_B(ig) / spec(is)%stm)
+             end if
 #else
 
              !Phi m
-             source_coeffs_phim(ig,isgn,iglo)=-2*vpar(ig,isgn,iglo)*nonmaxw_corr(ie,is)
+             source_coeffs_phim(ig, isgn, iglo) = -2 * vpar(ig, isgn, iglo) * &
+                  nonmaxw_corr(ie, is)
              !Phi p
-             source_coeffs_phip(ig,isgn,iglo)=-zi*wdrift(ig,isgn,iglo)*nonmaxw_corr(ie,is) &
-              + zi*(wstar(ik,ie,is) &
-              + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-              -2.0*omprimfac*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm)
-             if(has_apar)then
+             source_coeffs_phip(ig, isgn, iglo) = -zi * wdrift(ig, isgn, iglo) * &
+                  nonmaxw_corr(ie, is) + zi * (wstar(ik, ie, is) &
+                  + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
+                  -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * &
+                  g_exb * itor_over_B(ig) / spec(is)%stm)
+             if (has_apar) then
                 !Apar m
-                source_coeffs_aparm(ig,isgn,iglo)=-spec(is)%zstm * fapar * &
-                     vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)*(aj0(ig+1,iglo)+aj0(ig,iglo))*0.5
+                source_coeffs_aparm(ig, isgn, iglo) = -spec(is)%zstm * fapar * &
+                     vpac(ig,isgn,iglo) * nonmaxw_corr(ie,is) * &
+                     (aj0(ig+1, iglo) + aj0(ig, iglo)) * 0.5
                 !Apar p
-                source_coeffs_aparp(ig,isgn,iglo)=D_res(it,ik)*spec(is)%zstm*vpac(ig,isgn,iglo)*nonmaxw_corr(ie,is)&
-                     -spec(is)%stm*vpac(ig,isgn,iglo)*&
-                     zi*(wstar(ik,ie,is) &
-                     + vpac(ig,isgn,iglo)*code_dt*wunits(ik)*ufac(ie,is) &
-                     -2.0*omprimfac*vpac(ig,isgn,iglo)*code_dt*wunits(ik)*g_exb*itor_over_B(ig)/spec(is)%stm) 
-             endif
+                source_coeffs_aparp(ig, isgn, iglo) = D_res(it, ik) * spec(is)%zstm * &
+                     vpac(ig, isgn, iglo) * nonmaxw_corr(ie, is) &
+                     - spec(is)%stm * vpac(ig, isgn, iglo) * &
+                     zi * (wstar(ik, ie, is) &
+                     + vpac(ig, isgn, iglo) * code_dt * wunits(ik) * ufac(ie, is) &
+                     -2.0 * omprimfac * vpac(ig, isgn, iglo) * code_dt * wunits(ik) * &
+                     g_exb * itor_over_B(ig) / spec(is)%stm)
+             end if
 #endif
           enddo
        enddo
