@@ -101,7 +101,7 @@ contains
   !> function writes the whole array, and also various averages of them
   subroutine calculate_fluxes(gnostics)
     use run_parameters, only: has_phi, has_apar, has_bpar
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_none
+    use nonlinear_terms, only: nonlin
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
     use gs2_io, only: starts, egrid_dim, species_dim, time_dim
@@ -119,8 +119,7 @@ contains
     gnostics%current_results%species_momentum_flux = 0.0
     gnostics%current_results%species_particle_flux = 0.0
 
-    if (nonlinear_mode_switch .eq. nonlinear_mode_none) &
-         call write_diffusive_estimates(gnostics)
+    if (.not. nonlin) call write_diffusive_estimates(gnostics)
 
     call common_calculate_fluxes()
 
