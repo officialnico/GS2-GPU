@@ -5009,16 +5009,11 @@ contains
       use species, only: spec, nonmaxw_corr
       use theta_grid, only: itor_over_B
       implicit none
-      complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
+      complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
-
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       bdfac_p = 1.+bd*(3.-2.*real(isgn))
       bdfac_m = 1.-bd*(3.-2.*real(isgn))
-
-
 
 !CMR, 4/8/2011:
 ! Some concerns, may be red herrings !
@@ -5295,9 +5290,7 @@ contains
       complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
       integer :: sgn
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       sgn = 3 - 2 * isgn
       bdfac_p = 1 + bd * sgn
       bdfac_m = 1 - bd * sgn
