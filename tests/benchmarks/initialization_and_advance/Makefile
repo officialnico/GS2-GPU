@@ -17,11 +17,6 @@ all: $(EXENAME)
 	do \
 	  $(call BENCHMARKCOMMAND,$$d,$(EXENAME),$(INPUTFILE).in) ; \
 	done
-	#$(TESTCOMMAND) time_init_advance time_init_advance.in
-
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
 
 $(EXENAME).o:  ${TEST_MODS} 
 
