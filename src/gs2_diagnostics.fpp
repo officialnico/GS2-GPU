@@ -692,7 +692,7 @@ contains
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin
     use antenna, only: no_driver
-    use collisions, only: heating
+    use collisions, only: heating, use_le_layout
     use mp, only: proc0
     implicit none
     !> If true, this is a "list-mode run" and so turn off
@@ -809,6 +809,9 @@ contains
 
     !Override flags
     if (write_max_verr) write_verr = .true.
+
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) write_cerr = .false.
 
     print_summary = (is_list_run .and. (print_line .or. print_flux_line))
 

@@ -266,6 +266,7 @@ contains
   subroutine read_parameters(gnostics, new_gs2_diagnostics_config_in)
     use diagnostics_base_config, only: warn_about_nonfunctional_selection
     use nonlinear_terms, only: nonlin
+    use collisions, only: use_le_layout
     implicit none
     type(diagnostics_type), intent(out) :: gnostics
     type(new_gs2_diagnostics_config_type), intent(in), optional :: new_gs2_diagnostics_config_in
@@ -375,6 +376,11 @@ contains
     gnostics%write_zonal_transfer = new_gs2_diagnostics_config%write_zonal_transfer
 
     exist = new_gs2_diagnostics_config%exist
+
+    !Override flags
+
+    ! The collision_error method assumes we have setup the lz layout.
+    if (use_le_layout) write_cerr = .false.
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1

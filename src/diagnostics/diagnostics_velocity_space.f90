@@ -171,6 +171,8 @@ contains
     call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
     ! map from g_work(ig,isgn,iglo) to glze(il,ilz)
+    ! Note lambda_map is only defined if use_le_layout = F (not the default).
+    ! We force write_cerr = F if use_le_layout = T
     call gather (lambda_map, g_work, glze)
 
     ! loop over ig, isign, ik, it, ie, is
