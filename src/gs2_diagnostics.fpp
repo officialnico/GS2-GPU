@@ -1692,11 +1692,10 @@ contains
     use collisions, only: vnmult
     use species, only: spec
     implicit none
-    real, dimension (:,:), allocatable :: errest
-    integer, dimension (:,:), allocatable :: erridx
+    real, dimension(5,2) :: errest
+    integer, dimension (5,3) :: erridx
     real :: geavg, glavg, gtavg
 
-    allocate(errest(5,2), erridx(5,3))
     errest = 0.0; erridx = 0
 
     ! error estimate obtained by comparing standard integral with less-accurate integral
@@ -1728,7 +1727,6 @@ contains
           end if
        end if
     end if
-    deallocate(errest,erridx)
   end subroutine do_write_verr
 
   !> Write the (total) heating diagnostics to [[heat_unit]] and [[heat_unit2]] (per-species)

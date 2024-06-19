@@ -59,11 +59,10 @@ contains
     use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
-    real, dimension (:,:), allocatable :: errest
-    integer, dimension (:,:), allocatable :: erridx
+    real, dimension (5,2) :: errest
+    integer, dimension (5,3) :: erridx
     real :: geavg, glavg, gtavg
 
-    allocate(errest(5,2), erridx(5,3))
     errest = 0.0; erridx = 0
     geavg = 0.0 ; glavg = 0.0 ; gtavg = 0.0
 
@@ -107,8 +106,6 @@ contains
    end if
    
    if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
-   deallocate(errest,erridx)
-   
  contains
    !> FIXME : Add documentation   
    subroutine write_ascii

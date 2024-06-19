@@ -9262,27 +9262,22 @@ contains
     integer :: ig, it, ik, iglo, isgn, ntrap
 
     !> Indices of maximum error.
-    !> FIXME: Make this fixed size
-    integer, dimension (:,:), intent (out) :: erridx
+    integer, dimension (5,3), intent (out) :: erridx
     !> Estimated error.
-    !> FIXME: Make this fixed size.
-    real, dimension (:,:), intent (out) :: errest
+    real, dimension (5,2), intent (out) :: errest
     !> Electrostatic potential and parallel magnetic field
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
 
     complex, dimension (:,:,:), allocatable :: phi_app, apar_app
     complex, dimension (:,:,:,:), allocatable :: phi_e, phi_l, phi_t
     complex, dimension (:,:,:,:), allocatable :: apar_e, apar_l, apar_t
-    real, dimension (:), allocatable :: wgt, errtmp
-    integer, dimension (:), allocatable :: idxtmp
-
+    real, dimension (:), allocatable :: wgt
+    integer, dimension(2) :: errtmp
+    integer, dimension(3) :: idxtmp
     real :: vnmult_target
     logical :: trap_flag=.true. !Value doesn't really matter as just used in present() checks
 
     allocate(wgt(nspec))
-    allocate(errtmp(2))
-    allocate(idxtmp(3))
-
 
     if (has_phi) then
        allocate(phi_app(-ntgrid:ntgrid,ntheta0,naky))
@@ -9443,7 +9438,7 @@ contains
        call init_lorentz_conserve
     end if
     
-    deallocate (wgt, errtmp, idxtmp)
+    deallocate (wgt)
     if (has_phi) deallocate(phi_app, phi_e, phi_l)
     if (has_apar) deallocate(apar_app, apar_e, apar_l)
 
