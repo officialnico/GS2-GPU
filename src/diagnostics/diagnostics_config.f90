@@ -380,7 +380,7 @@ contains
     !Override flags
 
     ! The collision_error method assumes we have setup the lz layout.
-    if (use_le_layout) write_cerr = .false.
+    if (use_le_layout) gnostics%write_cerr = .false.
 
     if (.not.(gnostics%save_for_restart.or.gnostics%save_distfn)) then
        gnostics%nsave = -1
