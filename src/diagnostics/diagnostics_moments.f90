@@ -6,11 +6,11 @@ module diagnostics_moments
   public :: write_moments, write_full_moments_notgc
   public :: init_mom_coeff, getmoms, getmoms_notgc, getemoms
 
-!#ifdef NETCDF_PARALLEL
-!  logical, parameter :: moment_to_allprocs = .true.
-!#else
+#ifdef NETCDF_PARALLEL
+  logical, parameter :: moment_to_allprocs = .true.
+#else
   logical, parameter :: moment_to_allprocs = .false.
-!#endif
+#endif
 
 contains
 
@@ -90,7 +90,9 @@ contains
     use diagnostics_config, only: diagnostics_type
     use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex, complex_dim, &
          kx_dim, ky_dim, species_dim, time_dim, theta_dim
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     character(*), intent(in) :: moment_name, moment_description, moment_units
@@ -106,7 +108,7 @@ contains
     integer :: it !, ik
 
     if (.not. gnostics%writing) return
-
+#ifdef NETCDF
     call average_theta(moment_value, moment_value, moment2_by_mode, distributed)
 
     call average_kx(moment2_by_mode, moment2_by_ky, distributed)
@@ -165,11 +167,12 @@ contains
     if (moment_name .eq. 'tperp' .and. gnostics%write_tperp_over_time) write_moment_by_time = .true.
 
     if (write_moment_by_time) then
-      call netcdf_write_complex(gnostics%file_id, moment_name//"_t", moment_value, &
-           dim_names=mom_t_dims, start=starts(6, gnostics%nout), &
-           long_name=moment_description//": the whole moment" , &
-           units=moment_units)
+       call netcdf_write_complex(gnostics%file_id, moment_name//"_t", moment_value, &
+            dim_names=mom_t_dims, start=starts(6, gnostics%nout), &
+            long_name=moment_description//": the whole moment" , &
+            units=moment_units)
     end if
+#endif
   end subroutine write_standard_moment_properties
 
   !> Calculate various moments of the distribution function
