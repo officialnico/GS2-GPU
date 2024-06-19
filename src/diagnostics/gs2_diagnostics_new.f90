@@ -240,7 +240,7 @@ contains
     use collisional_heating, only: finish_collisional
     use gs2_diagnostics, only: save_restart_dist_fn, do_write_geom
     use nonlinear_terms, only: nonlin
-    use dist_fn, only: write_fyx, write_f, collision_error
+    use dist_fn, only: write_fyx, write_f
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     use unit_tests, only: debug_message
@@ -288,7 +288,7 @@ contains
   !> FIXME : Add documentation  
   subroutine run_diagnostics_to_be_updated
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_fyx, write_f, collision_error
+    use dist_fn, only: write_fyx, write_f
     implicit none
     integer :: nwrite_large
 

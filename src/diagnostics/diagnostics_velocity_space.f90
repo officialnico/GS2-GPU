@@ -7,6 +7,7 @@ module diagnostics_velocity_space
 
   public :: init_diagnostics_velocity_space, write_velocity_space_checks, get_gtran
   public :: write_collision_error, finish_diagnostics_velocity_space, get_verr
+  public :: collision_error
 
 contains
 
@@ -71,116 +72,119 @@ contains
     call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
 
     if (.not. gnostics%vary_vnew_only .and. gnostics%writing) then
-      call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
-           dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
-           long_name="Fraction of free energy contained in the high order coefficients of &
-           & the Legendre polynomial transform of (1) energy space, (2) untrapped &
-           & pitch angles and (3) trapped pitch angles (each should ideally be < 0.1).  &
-           & Note that there are no trapped pitch angles for certain geometries")
-      call neasyf_write(gnostics%file_id, "vspace_err", errest, &
-           dim_names=[dim_5, dim_2, time_dim], start=starts(3, gnostics%nout), &
-           long_name="Estimate of the (1) absolute and (2) relative errors resulting from &
-           & velocity space integrals in the calculation of the following quantities &
-           & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
-           & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
-           & angles. Relative errors should be < 0.1. ")
-      call neasyf_write(gnostics%file_id, "vspace_vnewk", &
-           [vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk], &
-           dim_names=[dim_2, time_dim], start=starts(2, gnostics%nout), &
-           long_name="If the simulation is set to vary the collisionality in order to keep &
-           & error in velocity integrals to acceptable levels, contains species 1 &
-           & collisionality in (1) pitch angle and (2) energy  ")
+       call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
+            dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
+            long_name="Fraction of free energy contained in the high order coefficients of &
+            & the Legendre polynomial transform of (1) energy space, (2) untrapped &
+            & pitch angles and (3) trapped pitch angles (each should ideally be < 0.1).  &
+            & Note that there are no trapped pitch angles for certain geometries")
+       call neasyf_write(gnostics%file_id, "vspace_err", errest, &
+            dim_names=[dim_5, dim_2, time_dim], start=starts(3, gnostics%nout), &
+            long_name="Estimate of the (1) absolute and (2) relative errors resulting from &
+            & velocity space integrals in the calculation of the following quantities &
+            & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
+            & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
+            & angles. Relative errors should be < 0.1. ")
+       call neasyf_write(gnostics%file_id, "vspace_vnewk", &
+            [vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk], &
+            dim_names=[dim_2, time_dim], start=starts(2, gnostics%nout), &
+            long_name="If the simulation is set to vary the collisionality in order to keep &
+            & error in velocity integrals to acceptable levels, contains species 1 &
+            & collisionality in (1) pitch angle and (2) energy  ")
 
-      if (gnostics%write_max_verr) then
-        call neasyf_write(gnostics%file_id, "vspace_err_maxindex", erridx, &
-             dim_names=[dim_5, dim_3, time_dim], start=starts(3, gnostics%nout), &
-             long_name="Gives the (1) theta index, (2) ky index and (3) kx index of the maximum &
-             & error resulting from the &
-             & velocity space integrals in the calculation of the following quantities &
-             & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
-             & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
-             & angles. Relative errors should be < 0.1. ")
+       if (gnostics%write_max_verr) then
+          call neasyf_write(gnostics%file_id, "vspace_err_maxindex", erridx, &
+               dim_names=[dim_5, dim_3, time_dim], start=starts(3, gnostics%nout), &
+               long_name="Gives the (1) theta index, (2) ky index and (3) kx index of the maximum &
+               & error resulting from the &
+               & velocity space integrals in the calculation of the following quantities &
+               & in the given dimensions: (1) k phi, energy (2) k phi, untrapped pitch angles &
+               & (3) k phi, trapped pitch angles, (4) k apar, energy, (5) k apar, untrapped &
+               & angles. Relative errors should be < 0.1. ")
+       end if
+    end if
+
+    if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
+  contains
+    !> FIXME : Add documentation
+    subroutine write_ascii
+      if (grid_has_trapped_particles()) then
+         write(gnostics%ascii_files%lpc,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
+      else
+         write(gnostics%ascii_files%lpc,"(3(1x,e13.6))") user_time, geavg, glavg
       end if
-   end if
-   
-   if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
- contains
-   !> FIXME : Add documentation   
-   subroutine write_ascii
-     if (grid_has_trapped_particles()) then
-        write(gnostics%ascii_files%lpc,"(4(1x,e13.6))") user_time, geavg, glavg, gtavg
-     else
-        write(gnostics%ascii_files%lpc,"(3(1x,e13.6))") user_time, geavg, glavg
-     end if
-     write(gnostics%ascii_files%vres,"(8(1x,e13.6))") user_time, errest(1,2), errest(2,2), errest(3,2), &
-          errest(4,2), errest(5,2), vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk
-     if (gnostics%write_max_verr) then
-        write(gnostics%ascii_files%vres2,"(3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6))") &
-             erridx(1,1), erridx(1,2), erridx(1,3), errest(1,1), &
-             erridx(2,1), erridx(2,2), erridx(2,3), errest(2,1), &
-             erridx(3,1), erridx(3,2), erridx(3,3), errest(3,1), &
-             erridx(4,1), erridx(4,2), erridx(4,3), errest(4,1), &
-             erridx(5,1), erridx(5,2), erridx(5,3), errest(5,1)
-     end if
-   end subroutine write_ascii
- end subroutine write_velocity_space_checks
+      write(gnostics%ascii_files%vres,"(8(1x,e13.6))") user_time, errest(1,2), errest(2,2), errest(3,2), &
+           errest(4,2), errest(5,2), vnmult(1)*spec(1)%vnewk, vnmult(2)*spec(1)%vnewk
+      if (gnostics%write_max_verr) then
+         write(gnostics%ascii_files%vres2,"(3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6),3(i8),(1x,e13.6))") &
+              erridx(1,1), erridx(1,2), erridx(1,3), errest(1,1), &
+              erridx(2,1), erridx(2,2), erridx(2,3), errest(2,1), &
+              erridx(3,1), erridx(3,2), erridx(3,3), errest(3,1), &
+              erridx(4,1), erridx(4,2), erridx(4,3), errest(4,1), &
+              erridx(5,1), erridx(5,2), erridx(5,3), errest(5,1)
+      end if
+    end subroutine write_ascii
+  end subroutine write_velocity_space_checks
 
- !> FIXME : Add documentation 
- subroutine write_collision_error (gnostics)
-   use mp, only: proc0, send, receive, barrier
+  !> Calculate and write the collision error
+  subroutine write_collision_error (gnostics)
+    use diagnostics_config, only: diagnostics_type
+    use fields_arrays, only: phinew, bparnew
+    type(diagnostics_type), intent(in) :: gnostics
+    if (gnostics%write_ascii) call collision_error(gnostics%ascii_files%cres, phinew, bparnew)
+  end subroutine write_collision_error
+
+  !> Calculate the collision error and write to text file `<runname>.cres`
+  subroutine collision_error(unit, phi, bpar)
+    use mp, only: proc0, send, receive, barrier
     use le_grids, only: ng2, jend, nlambda, lambda_map
     use theta_grid, only: ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
-    use fields_arrays, only: phinew, bparnew
+    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
     use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx, g_lo
     use collisions, only: dtot, fdf, fdb
     use redistribute, only: gather, scatter
-    use file_utils, only: open_output_file, close_output_file
     use gs2_time, only: user_time
-    use diagnostics_config, only: diagnostics_type
+    use array_utils, only: zero_array
     implicit none
-
-    type(diagnostics_type), intent(in) :: gnostics
-
+    integer, intent(in) :: unit
+    complex, dimension(-ntgrid:, :, :), intent(in) :: phi, bpar
     integer :: je, te, ig, il, ip, ilz, ie, is, ik, it
     integer :: igmax, ikmax, itmax, iemax, ilmax, ismax
-    integer, save :: unit
     complex, dimension (:), allocatable :: ltmp, ftmp
     complex, dimension (:,:), allocatable :: lcoll, fdcoll, glze
-    complex, dimension (:,:,:), allocatable :: g0
-!    logical :: first = .true.
     real :: etmp, emax, etot, eavg, edenom, ltmax
-    real :: time
 
     allocate (ltmp(2*nlambda), ftmp(2*nlambda))
     allocate (lcoll(2*nlambda,lz_lo%llim_proc:lz_lo%ulim_alloc))
     allocate (fdcoll(2*nlambda,lz_lo%llim_proc:lz_lo%ulim_alloc))
     allocate (glze(max(2*nlambda,2*ng2+1),lz_lo%llim_proc:lz_lo%ulim_alloc))
-    allocate (g0(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
 
-    lcoll = 0.0; fdcoll = 0.0; glze = 0.0; ltmp = 0.0; ftmp = 0.0
+    call zero_array(lcoll); call zero_array(fdcoll); call zero_array(glze)
+    ltmp = 0.0; ftmp = 0.0
     etmp = 0.0; emax = 0.0; etot = 0.0; eavg = 0.0; edenom = 1.0; ltmax = 1.0
 
-    call g_adjust(gnew,phinew,bparnew, direction = from_g_gs2)
-    g0 = gnew
-    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
+    ! convert gnew from g to h
+    call g_adjust(gnew, phi, bpar, direction = from_g_gs2)
+    g_work = gnew
+    ! convert gnew from h back to g
+    call g_adjust(gnew, phi, bpar, direction = to_g_gs2)
 
-! map from g0(ig,isgn,iglo) to glze(il,ilz)
-    call gather (lambda_map, g0, glze)
+    ! map from g_work(ig,isgn,iglo) to glze(il,ilz)
+    call gather (lambda_map, g_work, glze)
 
-! loop over ig, isign, ik, it, ie, is
+    ! loop over ig, isign, ik, it, ie, is
     do ilz = lz_lo%llim_proc, lz_lo%ulim_proc
        ig = ig_idx(lz_lo,ilz)
-       
+
        if (jend(ig) == 0) then      ! no trapped particles
-! je = number of + vpa grid pts
-! te = number of + and - vpa grid pts
+          ! je = number of + vpa grid pts
+          ! te = number of + and - vpa grid pts
           je = ng2
           te = 2*ng2
-          
-! find d/d(xi) ((1+xi**2)( d g(xi)/ d(xi) )) at each xi
-! using lagrange (lcoll) and finite difference (fdcoll)
+
+          ! find d/d(xi) ((1+xi**2)( d g(xi)/ d(xi) )) at each xi
+          ! using lagrange (lcoll) and finite difference (fdcoll)
           il = 1
           do ip = il, il+2
              lcoll(il,ilz) = lcoll(il,ilz) + dtot(ig,il,ip)*glze(ip,ilz)
@@ -213,11 +217,11 @@ contains
              lcoll(il,ilz) = lcoll(il,ilz) + dtot(ig,1,il-ip+1)*glze(ip,ilz)
           end do
 
-! deal with xi from 1-eps -> eps
+          ! deal with xi from 1-eps -> eps
           do il=2,ng2
              fdcoll(il,ilz) = fdf(ig,il)*(glze(il+1,ilz) - glze(il,ilz)) - fdb(ig,il)*(glze(il,ilz) - glze(il-1,ilz))
           end do
-! deal with xi from -eps -> -1+eps
+          ! deal with xi from -eps -> -1+eps
           do il=ng2+1, 2*ng2-1
              fdcoll(il,ilz) = fdb(ig,2*ng2-il+1)*(glze(il+1,ilz) - glze(il,ilz)) - fdf(ig,2*ng2-il+1)*(glze(il,ilz) - glze(il-1,ilz))
           end do
@@ -261,21 +265,19 @@ contains
              lcoll(il,ilz) = lcoll(il,ilz) + dtot(ig,1,il-ip+1)*glze(ip,ilz)
           end do
 
-! is il=je handled correctly here?
+          ! is il=je handled correctly here?
           do il=2,je
              fdcoll(il,ilz) = fdf(ig,il)*(glze(il+1,ilz) - glze(il,ilz)) - fdb(ig,il)*(glze(il,ilz) - glze(il-1,ilz))
           end do
           do il=je+1,te-1
              fdcoll(il,ilz) = fdb(ig,te-il+1)*(glze(il+1,ilz) - glze(il,ilz)) - fdf(ig,te-il+1)*(glze(il,ilz) - glze(il-1,ilz))
           end do
-          
+
           fdcoll(1,ilz) = fdf(ig,1)*(glze(2,ilz) - glze(1,ilz))
           fdcoll(te,ilz) = -fdf(ig,1)*(glze(te,ilz) - glze(te-1,ilz))
-          
+
        end if
     end do
-
-    time = user_time
 
     do ilz=lz_lo%llim_world, lz_lo%ulim_world
        ig = ig_idx(lz_lo, ilz)
@@ -306,8 +308,8 @@ contains
        call barrier
 
        do il=1,te
-          etmp = cabs(ltmp(il) - ftmp(il))
-          
+          etmp = abs(ltmp(il) - ftmp(il))
+
           if (etmp > emax) then
              emax = etmp
              ltmax = cabs(ltmp(il))
@@ -318,24 +320,23 @@ contains
              ilmax = il
              igmax = ig
           end if
-          
+
           etot = etot + etmp
-          edenom = edenom + cabs(ltmp(il))
+          edenom = edenom + abs(ltmp(il))
        end do
     end do
 
     eavg = etot/edenom
     emax = emax/ltmax
 
-    if (proc0 .and. gnostics%write_ascii) then
-       write(unit,"((1x,e13.6),6(i8),2(1x,e13.6))") time, &
+    if (proc0) then
+       write(unit,"((1x,e13.6),6(i8),2(1x,e13.6))") user_time, &
             igmax, ikmax, itmax, iemax, ilmax, ismax, emax, eavg
     end if
 
-    deallocate (lcoll, fdcoll, glze, ltmp, ftmp, g0)
-    
-  end subroutine write_collision_error
+    deallocate (lcoll, fdcoll, glze, ltmp, ftmp)
 
+  end subroutine collision_error
 
   !> Error estimate obtained by comparing standard integral with less-accurate integral
   !>

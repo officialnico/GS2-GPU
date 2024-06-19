@@ -105,7 +105,7 @@ module gs2_diagnostics
   integer :: jext_unit
   integer :: phase_unit
   integer :: dump_check1_unit, dump_check2_unit
-  integer :: res_unit, res_unit2, parity_unit
+  integer :: res_unit, res_unit2, parity_unit, cres_unit
   integer :: conv_nstep_av
   integer :: conv_min_step
   integer :: conv_max_step
@@ -617,6 +617,10 @@ contains
           if (write_max_verr) call open_output_file (res_unit2, ".vres2")
        end if
 
+       if (write_cerr .and. write_ascii) then
+          call open_output_file (cres_unit, ".cres")
+       end if
+
        if (write_parity .and. write_ascii) then
           call open_output_file (parity_unit, ".parity")
        end if
@@ -850,7 +854,7 @@ contains
   subroutine finish_gs2_diagnostics
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: write_f, write_fyx, collision_error
+    use dist_fn, only: write_f, write_fyx
     use gs2_io, only: nc_finish
     use antenna, only: dump_ant_amp
     use kt_grids, only: naky, ntheta0
@@ -861,6 +865,7 @@ contains
     use diagnostics_final_routines, only: do_write_final_epar, do_write_final_db
     use diagnostics_final_routines, only: do_write_final_antot, do_write_final_moments
     use diagnostics_final_routines, only: do_write_gs
+    use diagnostics_velocity_space, only: collision_error
     implicit none
     complex, dimension (ntheta0, naky) :: phi0
     logical, parameter :: last = .true.
@@ -870,7 +875,7 @@ contains
 
     if (write_gyx) call write_fyx (phinew,bparnew,last)
     if (write_g) call write_f (last)
-    if (write_cerr) call collision_error (phinew, bparnew, last)
+    if (write_cerr) call collision_error (cres_unit, phinew, bparnew)
     if (write_verr .and. proc0) call finish_weights
 
     ! Close some of the open ascii output files
@@ -1016,6 +1021,7 @@ contains
        call close_output_file (lpc_unit)
        if (write_max_verr) call close_output_file (res_unit2)
     end if
+    if (write_ascii .and. write_cerr) call close_output_file(cres_unit)
     if (write_ascii) call close_output_file (out_unit)
     if (write_ascii .and. write_cross_phase) call close_output_file (phase_unit)
     if (write_ascii .and. write_heating) call close_output_file (heat_unit)
@@ -1036,7 +1042,7 @@ contains
     use kt_grids, only: naky, ntheta0
     use run_parameters, only: nstep, has_phi, has_apar, has_bpar
     use fields_arrays, only: phinew, bparnew
-    use dist_fn, only: collision_error, write_f, write_fyx
+    use dist_fn, only: write_f, write_fyx
     use collisions, only: ncheck, vary_vnew
     use mp, only: proc0, broadcast
     use gs2_time, only: user_time
@@ -1051,6 +1057,7 @@ contains
     use diagnostics_fluxes, only: common_calculate_fluxes, qheat, qmheat, qbheat, &
          pflux, vflux, vflux_par, vflux_perp, pflux_tormom, vflux0, vflux1, pmflux, vmflux, &
          pbflux, vbflux, exchange
+    use diagnostics_velocity_space, only: collision_error
     implicit none
     !> Current timestep
     integer, intent (in) :: istep
@@ -1310,7 +1317,7 @@ contains
 
     if (scanning) call bcast_scan_parameter(scan_hflux, scan_momflux, scan_phi2_tot)
 
-    if (write_cerr) call collision_error(phinew, bparnew, last)
+    if (write_cerr) call collision_error(cres_unit, phinew, bparnew)
 
     if (write_nl_flux_dist) call do_write_nl_flux_dist(get_netcdf_file_id(), nout)
 
@@ -2600,6 +2607,7 @@ contains
        flush (res_unit)
        flush (lpc_unit)
     end if
+    if (write_cerr) flush (cres_unit)
     if (write_parity) flush (parity_unit)
   end subroutine flush_files
 
