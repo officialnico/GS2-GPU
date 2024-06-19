@@ -54,7 +54,9 @@ contains
     use collisions, only: vnmult
     use species, only: spec
     use diagnostics_config, only: diagnostics_type
+#ifdef NETCDF
     use neasyf, only: neasyf_write
+#endif
     use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
@@ -71,6 +73,7 @@ contains
     ! error estimate based on monitoring amplitudes of legendre polynomial coefficients
     call get_gtran (geavg, glavg, gtavg, phinew, bparnew)
 
+#ifdef NETCDF
     if (.not. gnostics%vary_vnew_only .and. gnostics%writing) then
        call neasyf_write(gnostics%file_id, "vspace_lpcfrac", [geavg, glavg, gtavg], &
             dim_names=[dim_3, time_dim], start=starts(2, gnostics%nout), &
@@ -103,7 +106,7 @@ contains
                & angles. Relative errors should be < 0.1. ")
        end if
     end if
-
+#endif
     if (proc0 .and. gnostics%ascii_files%write_to_vres .and. (.not. gnostics%create)) call write_ascii
   contains
     !> FIXME : Add documentation
