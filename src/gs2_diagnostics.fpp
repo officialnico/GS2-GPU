@@ -1684,14 +1684,13 @@ contains
   !>
   !> Only writes to text file, requires [[lpc_unit]] to be `open`
   subroutine do_write_verr
-    use dist_fn, only: get_gtran
     use mp, only: proc0
     use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
     use gs2_time, only: user_time
     use collisions, only: vnmult
     use species, only: spec
-    use diagnostics_velocity_space, only: get_verr
+    use diagnostics_velocity_space, only: get_verr, get_gtran
     implicit none
     real, dimension(5,2) :: errest
     integer, dimension (5,3) :: erridx

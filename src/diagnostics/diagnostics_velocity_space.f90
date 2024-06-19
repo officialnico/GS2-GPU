@@ -5,7 +5,7 @@ module diagnostics_velocity_space
   implicit none
   private
 
-  public :: init_diagnostics_velocity_space, write_velocity_space_checks
+  public :: init_diagnostics_velocity_space, write_velocity_space_checks, get_gtran
   public :: write_collision_error, finish_diagnostics_velocity_space, get_verr
 
 contains
@@ -46,7 +46,6 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_velocity_space_checks(gnostics)
-    use dist_fn, only: get_gtran
     use mp, only: proc0
     use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
@@ -612,4 +611,130 @@ contains
        errest(2) = gnsum / gdsum
     end if
   end subroutine estimate_error
+
+  !> Error estimate based on monitoring amplitudes of legendre polynomial coefficients.
+  !>
+  !> FIXME: finish documentation
+  subroutine get_gtran (geavg, glavg, gtavg, phi, bpar)
+    use le_grids, only: legendre_transform, nlambda, ng2, nesub, jend, grid_has_trapped_particles, il_is_trapped
+    use theta_grid, only: ntgrid
+    use kt_grids, only: ntheta0, naky
+    use species, only: nspec
+    use dist_fn_arrays, only: gnew, aj0, g_adjust, g_work, to_g_gs2, from_g_gs2
+    use gs2_layouts, only: g_lo
+    use mp, only: proc0, broadcast
+    use array_utils, only: zero_array
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    real, intent (out) :: geavg, glavg, gtavg
+    real, dimension (:), allocatable :: gne2, gnl2, gnt2
+    complex, dimension (:,:,:,:,:), allocatable :: getran, gltran, gttran
+    real :: genorm, gemax, genum, gedenom
+    real :: glnorm, glmax, glnum, gldenom
+    real :: gtnorm, gtmax, gtnum, gtdenom
+    integer :: ig, it, ik, is, ie, il, iglo, isgn
+
+    allocate(gne2(0:nesub-1))
+    allocate(gnl2(0:ng2-1))
+
+    genorm = 0.0 ; glnorm = 0.0
+    gne2  = 0.0 ; gnl2 = 0.0
+    gemax = 0.0 ; glmax = 0.0
+    genum = 0.0 ; gedenom = 0.0
+    glnum = 0.0 ; gldenom = 0.0
+    gtnum = 0.0 ; gtdenom = 0.0
+
+    allocate(getran(0:nesub-1, -ntgrid:ntgrid, ntheta0, naky, nspec))
+    allocate(gltran(0:ng2-1, -ntgrid:ntgrid, ntheta0, naky, nspec))
+
+    call zero_array(getran); call zero_array(gltran)
+
+    if (grid_has_trapped_particles()) then
+       allocate(gnt2(0:2*(nlambda-ng2-1)))
+       allocate(gttran(0:2*(nlambda-ng2-1), -ntgrid:ntgrid, ntheta0, naky, nspec))
+       gtnorm = 0.0 ; gnt2 = 0.0 ; gtmax = 0.0 ; call zero_array(gttran)
+    end if
+
+    ! transform from g to h
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             g_work(ig, isgn, iglo) = aj0(ig, iglo) * gnew(ig, isgn, iglo)
+          end do
+       end do
+    end do
+
+    ! transform from h back to g
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
+
+    ! perform legendre transform on dist. fn. to obtain coefficients
+    ! used when expanding dist. fn. in legendre polynomials
+    if (grid_has_trapped_particles()) then
+       call legendre_transform (g_work, getran, gltran, gttran)
+    else
+       call legendre_transform (g_work, getran, gltran)
+    end if
+
+    if (proc0) then
+       do is = 1, nspec
+          do ik = 1, naky
+             do it = 1, ntheta0
+                do ig = -ntgrid, ntgrid
+                   do ie = 0, nesub-1
+                      gne2(ie) = real(getran(ie,ig,it,ik,is)*conjg(getran(ie,ig,it,ik,is)))
+                   end do
+
+                   do il=0,ng2-1
+                      gnl2(il) = real(gltran(il,ig,it,ik,is)*conjg(gltran(il,ig,it,ik,is)))
+                   end do
+                   genorm = maxval(gne2)
+                   if (nesub < 3) then
+                      gemax = gne2(size(gne2)-1)
+                   else
+                      gemax = maxval(gne2(nesub-3:nesub-1))
+                   end if
+                   glnorm = maxval(gnl2)
+                   glmax = maxval(gnl2(ng2-3:ng2-1))
+
+                   genum = genum + gemax
+                   gedenom = gedenom + genorm
+                   glnum = glnum + glmax
+                   gldenom = gldenom + glnorm
+
+                   if (grid_has_trapped_particles()) then
+                      do il=0, 2*(jend(ig)-ng2-1)
+                         gnt2(il) = real(gttran(il,ig,it,ik,is)*conjg(gttran(il,ig,it,ik,is)))
+                      end do
+                      gtnorm = maxval(gnt2(0:2*(jend(ig)-ng2-1)))
+                      if (il_is_trapped(jend(ig))) then
+                         gtmax = maxval(gnt2(2*(jend(ig)-ng2-1)-2:2*(jend(ig)-ng2-1)))
+                      else
+                         gtmax = gnt2(0)
+                      end if
+
+                      gtnum = gtnum + gtmax
+                      gtdenom = gtdenom + gtnorm
+                   end if
+                end do
+             end do
+          end do
+       end do
+       geavg = genum / gedenom
+       glavg = glnum / gldenom
+       if (grid_has_trapped_particles()) gtavg = gtnum/gtdenom
+    end if
+
+    call broadcast (geavg)
+    call broadcast (glavg)
+    if (grid_has_trapped_particles()) then
+       call broadcast (gtavg)
+       deallocate (gnt2, gttran)
+    end if
+
+    deallocate(gne2, gnl2)
+    deallocate(getran, gltran)
+
+  end subroutine get_gtran
 end module diagnostics_velocity_space
