@@ -49,7 +49,7 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
-    use dist_fn, only: getemoms
+    use diagnostics_moments, only: getemoms
     use fields_arrays, only: phinew, bparnew
     use volume_averages, only: average_all
     use diagnostics_config, only: diagnostics_type

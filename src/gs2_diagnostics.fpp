@@ -3201,16 +3201,13 @@ contains
     use species, only: nspec, spec, is_electron_species
     use kt_grids, only: ntheta0, naky
     use theta_grid, only: ntgrid
-    use dist_fn, only: getemoms
+    use diagnostics_moments, only: getemoms
     use fields_arrays, only: phinew, bparnew
     implicit none
     real, intent (out) :: phase_tot, phase_theta
     complex, dimension (:,:,:,:), allocatable :: ntot, tperp
     complex, dimension (ntheta0, naky) :: nTp_by_mode
     complex :: nTp
-    !    real, dimension (ntheta0, naky) :: n2_by_mode, T2_by_mode
-    !    real :: n2, T2
-
     integer ::  is
 
     allocate ( ntot(-ntgrid:ntgrid,ntheta0,naky,nspec))

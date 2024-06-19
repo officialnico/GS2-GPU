@@ -63,7 +63,7 @@ module dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
   public :: getfieldeq, getan, getfieldeq_nogath
-  public :: getemoms, init_mom_coeff
+  public :: init_mom_coeff
   public :: get_heat
   public :: omega0, gamma0
   public :: M_class, N_class, i_class
@@ -6444,91 +6444,6 @@ contains
        call mp_abort('The passed array has inconsistent linked boundaries. '//id_message, .true.)
     end if
   end subroutine check_linked_boundaries_are_satisfied
-
-  !> Returns electron density and Tperp moment integrals to PE 0
-  subroutine getemoms (phinew, bparnew, ntot, tperp)
-    use dist_fn_arrays, only: vperp2, aj0, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
-    use gs2_layouts, only: is_idx, ie_idx, g_lo, ik_idx, it_idx
-    use species, only: nspec, spec, nonmaxw_corr
-    use theta_grid, only: ntgrid
-    use le_grids, only: integrate_moment
-
-    implicit none
-    logical, parameter :: full_arr=moment_to_allprocs
-    complex, dimension (-ntgrid:,:,:,:), intent (out) :: tperp, ntot
-    complex, dimension (-ntgrid:,:,:), intent(in) :: phinew, bparnew
-
-    integer :: ik, it, isgn, ie, is, iglo
-
-!
-! What are <delta_f> and g_wesson in the note below?
-! g_wesson = <delta_f> + q phi/T    [ignore F_m factors for simplicity]
-!
-! Electrostatically (for simplicity), g_adjust produces:
-!
-! h = g_gs2 + q <phi> / T
-! 
-! then in the subsequent code they calculate for ntot:
-!
-! ntot = integral[   J0 h - q phi / T  ]
-!
-! so g_wesson == h.  What is odd in our notation is the LHS.  
-! We typically indicate the perturbed distribution at fixed spatial position 
-! by delta_f.  In the note below, they must mean delta_f = delta_f (R), so that 
-! they are gyro-averaging to get the distribution at fixed spatial position.
-!
-! In summary, DJA and CMR are calculating the moments at fixed spatial position
-! rather than at fixed guiding centers, and using different notation than appears
-! in most of our papers.
-!
-! DJA+CMR: 17/1/06, use g_adjust routine to extract g_wesson
-!                   from gnew, phinew and bparnew.
-!           nb  <delta_f> = g_wesson J0 - q phi/T F_m  where <> = gyroaverage
-!           ie  <delta_f>/F_m = g_wesson J0 - q phi/T
-!
-! use g_work as dist_fn dimensioned working space for all moments
-! (avoid making more copies of gnew to save memory!)
-!
-! set gnew = g_wesson, but return gnew to entry state prior to exit 
-    call g_adjust(gnew, phinew, bparnew, direction = from_g_gs2)
-
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
-       ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
-       do isgn = 1, 2
-          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo) - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)
-       end do
-    end do
-
-! total perturbed density
-    call integrate_moment (g_work, ntot,  moment_to_allprocs, full_arr)
-
-! vperp**2 moment:
-    do iglo = g_lo%llim_proc, g_lo%ulim_proc       
-       ie = ie_idx(g_lo,iglo) ; is = is_idx(g_lo,iglo)
-       ik = ik_idx(g_lo,iglo) ; it = it_idx(g_lo,iglo)
-       do isgn = 1, 2
-          g_work(:,isgn,iglo) = aj0(:,iglo)*gnew(:,isgn,iglo)*vperp2(:,iglo) &
-             - phinew(:,it,ik)*spec(is)%zt*nonmaxw_corr(ie,is)*vperp2(:,iglo)
-       end do
-    end do
-
-! total perturbed perp pressure
-    call integrate_moment (g_work, tperp,  moment_to_allprocs, full_arr)
-
-! tperp transiently stores pperp, 
-!       pperp = tperp + density, and so:
-    tperp = tperp - ntot
-
-    do is=1,nspec
-       ntot(:,:,:,is)=ntot(:,:,:,is)*spec(is)%dens
-       tperp(:,:,:,is)=tperp(:,:,:,is)*spec(is)%temp
-    end do
-
-! return gnew to its initial state, the variable evolved in GS2
-    call g_adjust(gnew,phinew,bparnew, direction = to_g_gs2)
-
-  end subroutine getemoms
 
   !> FIXME : Add documentation  
   subroutine init_fieldeq
