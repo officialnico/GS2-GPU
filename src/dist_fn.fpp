@@ -8253,6 +8253,10 @@ contains
   end subroutine dump_homogeneous_solution
 
   !> Identical to get_flux except don't integrate over poloidal angle ! JRB
+  !>
+  !> @todo: It would be nice if get_flux of [[diagnostics_fluxes]] could calculate
+  !> the theta average _and_ the theta distribution in order to replace the
+  !> duplication associated with this routine.
   subroutine get_flux_dist (g_in, fld, flx_dist)
     use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
     use kt_grids, only: ntheta0, aky, naky
@@ -8455,35 +8459,38 @@ contains
   end subroutine pflux_vs_theta_vs_vpa
 
   !> Diagnose the poloidal distribution of the particle, angular momentum, 
-  !! and energy fluxes
-  !!
-  !! JRB
-  subroutine flux_dist (phi, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-
+  !> and energy fluxes
+  !>
+  !> JRB
+  !>
+  !> @note Only considers phi related fluxes. Some degree of duplication with flux.
+  !> Ideally the flux and get_flux methods could return both the theta dependent and
+  !> theta averaged fluxes.
+  subroutine flux_dist (phi, bpar, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
 !CMR, 15/1/08: 
 !  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
 !  so fields and distribution function are evaluated self-consistently in time.
 !  This fixed unphysical oscillations in non-ambipolar particle fluxes 
-!
     use species, only: spec
     use theta_grid, only: ntgrid, bmag
     use theta_grid, only: qval, shat, gds21, gds22
     use kt_grids, only: theta0, aky
     use le_grids, only: energy
     use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
+    use dist_fn_arrays, only: g_adjust, from_g_gs2, to_g_gs2
     use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
     use run_parameters, only:has_phi
     use constants, only: zi
     use theta_grid, only: Rplot, Bpol, rhoc
     use array_utils, only: zero_array
     implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
     real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
-    integer :: it, ik, is, isgn, ig
-    integer :: iglo
+    integer :: it, ik, is, isgn, ig, iglo
 
-    call zero_array(pflux_dist) ; call zero_array(vflux_par_dist) ; call zero_array(vflux_perp_dist) ; call zero_array(qflux_dist)
-
+    call zero_array(pflux_dist) ; call zero_array(vflux_par_dist)
+    call zero_array(vflux_perp_dist) ; call zero_array(qflux_dist)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2) ! convert from g to h
     if (has_phi) then
        do isgn = 1, 2
           g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
@@ -8516,9 +8523,8 @@ contains
        end do
        call get_flux_dist (g_work, phi, vflux_perp_dist)
     end if
-
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2) ! convert back from h to g
  end subroutine flux_dist
-
 
 !=============================================================================
 ! Density: Calculate Density perturbations

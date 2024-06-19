@@ -1862,7 +1862,7 @@ contains
     use convert, only: c2r
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew, g_adjust, to_g_gs2, from_g_gs2
+    use dist_fn_arrays, only: gnew
     use run_parameters, only: has_phi
     implicit none
 
@@ -1888,9 +1888,7 @@ contains
     allocate (qflux_dist(-ntgrid:ntgrid,ntheta0,naky,nspec))
     allocate (phi_byMode_dist(2,-ntgrid:ntgrid,ntheta0,naky))
     call c2r(phinew,phi_byMode_dist)
-    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2) ! convert from g to h
-    call flux_dist (phinew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2) ! convert back from h to g
+    call flux_dist (phinew, bparnew, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
     if (proc0) then
        if (has_phi) then
           do ig = -ntgrid, ntgrid

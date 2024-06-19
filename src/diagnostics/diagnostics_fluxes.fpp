@@ -527,6 +527,9 @@ contains
   !> Calculate various fluxes
   !>
   !> FIXME: add documentation of exactly what fluxes
+  !> @note: Requires g_adjust to be called on gnew (from_g_gs2)
+  !> before calling this routine. We _could_ move the call here
+  !> to improve safety at the expense of more calls to g_adjust.
   subroutine flux (phi, apar, bpar, &
        pflux,  qflux,  vflux, vflux_par, vflux_perp, &
        pmflux, qmflux, vmflux, &
