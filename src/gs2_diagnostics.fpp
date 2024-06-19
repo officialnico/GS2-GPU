@@ -1615,7 +1615,7 @@ contains
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
     implicit none
@@ -2442,7 +2442,7 @@ contains
 
   !> Calculate flux surfgace averaged low-order moments of \(g\) and write to netCDF
   subroutine do_write_avg_moments
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use mp, only: proc0
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
@@ -2494,14 +2494,13 @@ contains
        call nc_loop_moments (get_netcdf_file_id(), nout, ntot2, ntot2_by_mode, ntot20, &
             ntot20_by_mode, phi00, ntot00, density00, upar00, &
             tpar00, tperp00, tpar2_by_mode, tperp2_by_mode)
-
     end if
   end subroutine do_write_avg_moments
 
   !> Calculate moments (density, parallel flow, and parallel and perpendicular
   !> temperatures) in non-guiding centre coordinates and write to netCDF
   subroutine do_write_full_moments_notgc()
-    use dist_fn, only: getmoms_notgc
+    use diagnostics_moments, only: getmoms_notgc
     use theta_grid, only: ntgrid
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
