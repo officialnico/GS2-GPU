@@ -14,7 +14,7 @@ contains
   !> FIXME : Add documentation  
   subroutine init_diagnostics_velocity_space(gnostics)
     use le_grids, only: init_weights, wdim
-    use mp, only: proc0
+    use mp, only: proc0, broadcast
     use diagnostics_config, only: diagnostics_type
     use collisions, only: collision_model_switch
     use collisions, only: init_lorentz_error
