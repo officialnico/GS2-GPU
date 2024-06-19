@@ -1854,7 +1854,7 @@ contains
   !> 045023](https://doi.org/10.1088/0741-3335/58/4/045023) as well as section 5
   !> of "GS2 analytic geometry specification")
   subroutine do_write_nl_flux_dist(file_id, nout)
-    use dist_fn, only: flux_dist
+    use diagnostics_fluxes, only: flux_dist
     use theta_grid, only: ntgrid
     use species, only: nspec, spec
     use mp, only: proc0

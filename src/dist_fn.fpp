@@ -62,9 +62,8 @@ module dist_fn
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
   public :: timeadv, exb_shear, g_exb, g_exbfac
   public :: collisions_advance
-  public :: getfieldeq, getan, getmoms, getemoms
-  public :: getfieldeq_nogath
-  public :: flux_dist
+  public :: getfieldeq, getan, getfieldeq_nogath
+  public :: getmoms, getemoms, getmoms_notgc, init_mom_coeff
   public :: get_heat
   public :: omega0, gamma0
   public :: M_class, N_class, i_class
@@ -75,7 +74,6 @@ module dist_fn
   public :: wdrift_func
   
   public :: gamtot,gamtot1,gamtot2
-  public :: getmoms_notgc, init_mom_coeff
 
 !CMR, 25/1/13:
 !  add public variables below for init_g
@@ -8249,129 +8247,6 @@ contains
          has_phi, has_apar, has_bpar, &
          code_dt, code_dt_prev1, code_dt_prev2, code_dt_max, fileopt = extension)
   end subroutine dump_homogeneous_solution
-
-  !> Identical to get_flux except don't integrate over poloidal angle ! JRB
-  !>
-  !> @todo: It would be nice if get_flux of [[diagnostics_fluxes]] could calculate
-  !> the theta average _and_ the theta distribution in order to replace the
-  !> duplication associated with this routine.
-  subroutine get_flux_dist (g_in, fld, flx_dist)
-    use theta_grid, only: ntgrid, grho, theta, bmag, gradpar
-    use kt_grids, only: ntheta0, aky, naky
-    use le_grids, only: integrate_moment
-    use species, only: nspec
-    use integration, only: trapezoidal_integration
-    use gs2_time, only: woutunits
-    use gs2_layouts, only: g_lo
-    implicit none
-    logical, parameter :: full_arr=moment_to_allprocs
-    !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
-    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
-    real, dimension (-ntgrid:,:,:,:), intent (in out) :: flx_dist
-    complex, dimension (:,:,:,:), allocatable :: total
-    real :: wgt
-    integer :: ik, it, is
-
-    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    ! EGH added final parameter 'all'
-    ! to the call below for new parallel output
-    ! This is temporary until distributed fields
-    ! are implemented 1/2014
-    call integrate_moment (g_in, total, moment_to_allprocs, full_arr)
-
-    !Note that jacob = 1/(bmag*gradpar*drhodpsi). This is similar to the factor
-    !we have below without the drhodpsi.
-    wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
-
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
-    ! Note: This doesn't include the field line jacobian (jacob) and as such
-    ! it's not clear that the above wgt is correct (as it uses 1/(bmag*gradpar)
-    ! which is jacob * drhodpsi, rather than jacob as one might expect).
-    !if (proc0) then
-       do is = 1, nspec
-          do ik = 1, naky
-             do it = 1, ntheta0
-                flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *aky(ik) * wgt / woutunits(ik)
-             end do
-          end do
-       end do
-       flx_dist = flx_dist*0.5
-    ! end if
-
-    deallocate (total)
-
-  end subroutine get_flux_dist
-
-  !> Diagnose the poloidal distribution of the particle, angular momentum, 
-  !> and energy fluxes
-  !>
-  !> JRB
-  !>
-  !> @note Only considers phi related fluxes. Some degree of duplication with flux.
-  !> Ideally the flux and get_flux methods could return both the theta dependent and
-  !> theta averaged fluxes.
-  subroutine flux_dist (phi, bpar, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-!CMR, 15/1/08: 
-!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew 
-!  so fields and distribution function are evaluated self-consistently in time.
-!  This fixed unphysical oscillations in non-ambipolar particle fluxes 
-    use species, only: spec
-    use theta_grid, only: ntgrid, bmag
-    use theta_grid, only: qval, shat, gds21, gds22
-    use kt_grids, only: theta0, aky
-    use le_grids, only: energy
-    use dist_fn_arrays, only: gnew, aj0, vpac, aj1, vperp2, g_work
-    use dist_fn_arrays, only: g_adjust, from_g_gs2, to_g_gs2
-    use gs2_layouts, only: g_lo, ie_idx, is_idx, it_idx, ik_idx
-    use run_parameters, only:has_phi
-    use constants, only: zi
-    use theta_grid, only: Rplot, Bpol, rhoc
-    use array_utils, only: zero_array
-    implicit none
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
-    real, dimension (-ntgrid:,:,:,:), intent (out) :: pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist
-    integer :: it, ik, is, isgn, ig, iglo
-
-    call zero_array(pflux_dist) ; call zero_array(vflux_par_dist)
-    call zero_array(vflux_perp_dist) ; call zero_array(qflux_dist)
-    call g_adjust (gnew, phi, bpar, direction = from_g_gs2) ! convert from g to h
-    if (has_phi) then
-       do isgn = 1, 2
-          g_work(:,isgn,:) = gnew(:,isgn,:)*aj0
-       end do
-       call get_flux_dist (g_work, phi, pflux_dist)
-
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
-       end do
-       call get_flux_dist (g_work, phi, qflux_dist)
-
-       do isgn = 1, 2
-          do ig = -ntgrid, ntgrid
-             ! Not clear that this should use the grid-centre v|| (vpac)
-             ! as this is not defined at ig = ntgrid and all other quantities
-             ! are evaluated on the grid points.
-             g_work(ig,isgn,:) = gnew(ig,isgn,:)*aj0(ig,:)*vpac(ig,isgn,:)*Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2)
-          end do
-       end do
-       call get_flux_dist (g_work, phi, vflux_par_dist)
-
-       do iglo = g_lo%llim_proc, g_lo%ulim_proc
-          it = it_idx(g_lo,iglo)
-          ik = ik_idx(g_lo,iglo)
-          is = is_idx(g_lo,iglo)
-          do isgn = 1, 2
-             g_work(:,isgn,iglo) = -zi*aky(ik)*gnew(:,isgn,iglo)*aj1(:,iglo) &
-                  *rhoc*(gds21+theta0(it,ik)*gds22)*vperp2(:,iglo)*spec(is)%smz/(qval*shat*bmag**2)
-          end do
-       end do
-       call get_flux_dist (g_work, phi, vflux_perp_dist)
-    end if
-    call g_adjust (gnew, phi, bpar, direction = to_g_gs2) ! convert back from h to g
- end subroutine flux_dist
 
 !=============================================================================
 ! Density: Calculate Density perturbations
