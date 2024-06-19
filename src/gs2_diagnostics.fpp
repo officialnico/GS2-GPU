@@ -25,7 +25,7 @@ module gs2_diagnostics
 
   ! Export some functions to be used in the new diagnostics
   public :: save_restart_dist_fn, do_write_fyx, do_write_f
-  public :: check_restart_file_writeable
+  public :: check_restart_file_writeable, heating
   public :: do_dump_fields_periodically, do_write_parity
   public :: do_write_heating, do_write_nl_flux_dist
   public :: do_write_correlation_extend, do_write_correlation
@@ -1102,7 +1102,7 @@ contains
 
     call do_get_omega(istep,debug,exit)
 
-    if (write_heating) call heating (istep, h, hk)
+    if (write_heating) call heating (istep, navg, h, hk)
 
     if (make_movie .and. mod(istep,nmovie) == 0) call do_write_movie(t)
 
@@ -2673,7 +2673,7 @@ contains
   end subroutine check_nonlin_convergence
 
   !> Calculate some heating diagnostics, and update their time history
-  subroutine heating (istep, h, hk)
+  subroutine heating(istep, navg, h, hk)
     use mp, only: proc0
     use dist_fn, only: get_heat
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
@@ -2684,12 +2684,11 @@ contains
     use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
     use collisions, only: collisions_heating => heating
     implicit none
-    integer, intent (in) :: istep
+    integer, intent (in) :: istep, navg
     !> Heating diagnostics summed over space at the current timestep
     type (heating_diagnostics), intent(in out) :: h
     !> Heating diagnostics as a function of \((\theta, k_y)\) at the current timestep
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
-
     real, dimension(-ntgrid:ntgrid) :: wgt
     real :: fac
     integer :: is, ik, it, ig
@@ -2699,7 +2698,6 @@ contains
     call zero_htype(hk)
 
     if (proc0 .and. collisions_heating .and. allocated(c_rate)) then
-
        !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
        wgt = delthet*jacob
        wgt = wgt/sum(wgt)
@@ -2732,11 +2730,10 @@ contains
     end if
 
     ! We may be able to skip this work as well if heating is false.
-    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
+    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
 
     call avg_h(h, h_hist, istep, navg)
     call avg_hk(hk, hk_hist, istep, navg)
-
   end subroutine heating
 
   !> Calculate the time-averaged antenna current \(j_{ext} = k_\perp^2 A_{antenna}\)

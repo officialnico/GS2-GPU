@@ -74,63 +74,11 @@ contains
 
   !> FIXME : Add documentation  
   subroutine calculate_heating (gnostics)
-    use mp, only: proc0
-    use dist_fn, only: get_heat
-    use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
-    use species, only: nspec, spec
-    use kt_grids, only: naky, ntheta0, aky, akx
-    use theta_grid, only: ntgrid, delthet, jacob
-    use dist_fn_arrays, only: c_rate
-    use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
     use diagnostics_config, only: diagnostics_type
-    use collisions, only: heating
+    use gs2_diagnostics, only: heating
     implicit none
-    type(diagnostics_type), intent (in) :: gnostics
-    real, dimension(-ntgrid:ntgrid) :: wgt
-    real :: fac
-    integer :: is, ik, it, ig
-    
-    !Zero out variables for heating diagnostics
-    call zero_htype(h)
-    call zero_htype(hk)
-    
-    if (proc0 .and. heating .and. allocated(c_rate)) then
-       !GGH NOTE: Here wgt is 1/(2*ntgrid+1)
-       wgt = delthet*jacob
-       wgt = wgt/sum(wgt)
-       
-       do is = 1, nspec
-          do ik = 1, naky
-             fac = 0.5
-             if (aky(ik) < epsilon(0.)) fac = 1.0
-             do it = 1, ntheta0
-                if (aky(ik) < epsilon(0.0) .and. abs(akx(it)) < epsilon(0.0)) cycle
-                do ig = -ntgrid, ntgrid
-                   
-                   !Sum heating by k over all z points (ig)
-                   hk(it, ik) % collisions(is) = hk(it, ik) % collisions(is) &
-                        + real(c_rate(ig,it,ik,is,1))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
-                   
-                   hk(it, ik) % hypercoll(is) = hk(it, ik) % hypercoll(is) &
-                        + real(c_rate(ig,it,ik,is,2))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
-                   
-                   hk(it, ik) % imp_colls(is) = hk(it, ik) % imp_colls(is) &
-                        + real(c_rate(ig,it,ik,is,3))*fac*wgt(ig)*spec(is)%temp*spec(is)%dens
-                   
-                end do
-                h % collisions(is) = h % collisions(is) + hk(it, ik) % collisions(is)
-                h % hypercoll(is)  = h % hypercoll(is)  + hk(it, ik) % hypercoll(is)
-                h % imp_colls(is)  = h % imp_colls(is)  + hk(it, ik) % imp_colls(is)
-             end do
-          end do
-       end do
-    end if
-    
-    ! We may be able to skip this work as well if heating is false.
-    call get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)    
-    
-    call avg_h(h, h_hist, gnostics%istep, gnostics%navg)
-    call avg_hk(hk, hk_hist, gnostics%istep, gnostics%navg)
+    type(diagnostics_type), intent (inout) :: gnostics
+    call heating(gnostics%istep, gnostics%navg, h, hk)
   end subroutine calculate_heating
 
   !> FIXME : Add documentation  
