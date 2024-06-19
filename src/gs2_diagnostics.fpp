@@ -2675,13 +2675,12 @@ contains
   !> Calculate some heating diagnostics, and update their time history
   subroutine heating(istep, navg, h, hk)
     use mp, only: proc0
-    use dist_fn, only: get_heat
     use fields_arrays, only: phi, apar, bpar, phinew, aparnew, bparnew
     use species, only: nspec, spec
     use kt_grids, only: naky, ntheta0, aky, akx
     use theta_grid, only: ntgrid, delthet, jacob
     use dist_fn_arrays, only: c_rate
-    use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype
+    use gs2_heating, only: heating_diagnostics, avg_h, avg_hk, zero_htype, get_heat
     use collisions, only: collisions_heating => heating
     implicit none
     integer, intent (in) :: istep, navg

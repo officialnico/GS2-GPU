@@ -10,7 +10,7 @@ module gs2_heating
   public :: hk_repack
   public :: dens_vel_diagnostics
   public :: init_dvtype, zero_dvtype, del_dvtype
-  public :: avg_dv, avg_dvk
+  public :: avg_dv, avg_dvk, get_heat
    
   !> Allocate the array components of [[heating_diagnostics]]
   !>
@@ -940,4 +940,763 @@ contains
     end if
 
   end subroutine avg_dvk
+
+!=============================================================================
+! Density: Calculate Density perturbations
+ !=============================================================================
+
+  !> Calculate some heating quantities:
+  !> - ion/electron heating
+  !> - antenna power and B-field contributions to E and E_dot
+  !> - gradient contributions to heating
+  !> - hyperviscosity
+  !> - hyperresistivity
+  !>
+  !> FIXME: This is too large and does too much, split into smaller routines
+  subroutine get_heat (h, hk, phi, apar, bpar, phinew, aparnew, bparnew)
+    use mp, only: proc0
+    use constants, only: zi
+    use kt_grids, only: ntheta0, naky, aky, akx, kperp2
+#ifdef LOWFLOW
+    use lowflow, only: hneoc
+#endif
+    use dist_fn_arrays, only: vpac, aj0, aj1, vperp2, g, gnew, g_adjust, g_work, to_g_gs2, from_g_gs2, wstar
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, ie_idx
+    use le_grids, only: integrate_moment
+    use species, only: spec, nspec,has_electron_species
+    use theta_grid, only: jacob, delthet, ntgrid
+    use run_parameters, only: fphi, fapar, fbpar, beta, tite
+    use gs2_time, only: code_dt, tunits
+    use nonlinear_terms, only: nonlin
+    use antenna, only: antenna_apar, a_ext_data
+    use hyper, only: D_v, D_eta, nexp, hypervisc_filter
+
+    implicit none
+    type (heating_diagnostics), intent(in out) :: h
+    type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
+!    complex, dimension (-ntgrid:,:,:), pointer :: hh, hnew
+    complex, dimension (-ntgrid:,:,:), intent(in) :: phi, apar, bpar, phinew, aparnew, bparnew
+    complex, dimension(:,:,:,:), allocatable :: tot
+!    complex, dimension (:,:,:), allocatable :: epar
+    complex, dimension(:,:,:), allocatable :: bpardot, apardot, phidot, j_ext
+    complex :: chi, havg
+    complex :: chidot, j0phiavg, j1bparavg, j0aparavg
+!    complex :: pstar, pstardot, gdot
+    complex :: phi_m, apar_m, bpar_m, hdot
+    complex :: phi_avg, bpar_avg, bperp_m, bperp_avg
+    complex :: de, denew
+    complex :: dgdt_hypervisc
+    real, dimension (:), allocatable :: wgt
+    real :: fac2, dtinv, akperp4
+    integer :: isgn, iglo, ig, is, ik, it, ie
+
+    g_work(ntgrid,:,:) = 0.
+
+! ==========================================================================
+! Ion/Electron heating------------------------------------------------------
+! ==========================================================================
+
+    allocate ( phidot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate (apardot(-ntgrid:ntgrid, ntheta0, naky))
+    allocate (bpardot(-ntgrid:ntgrid, ntheta0, naky))
+
+    call dot ( phi,  phinew,  phidot, fphi)
+    call dot (apar, aparnew, apardot, fapar)
+    call dot (bpar, bparnew, bpardot, fbpar)
+
+ !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Next two calls make the variables g, gnew = h, hnew
+!!! until the end of this procedure!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    call g_adjust (g,    phi,    bpar,    direction = from_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = from_g_gs2)
+
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       dtinv = 1./(code_dt*tunits(ik))
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+
+             chidot = aj0(ig,iglo)*(phidot(ig,it,ik) &
+                  - vpac(ig,isgn,iglo) * spec(is)%stm * apardot(ig,it,ik)) &
+                  + aj1(ig,iglo)*2.0*vperp2(ig,iglo)*bpardot(ig,it,ik)*spec(is)%tz
+
+             hdot = fdot (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo), dtinv)
+
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+! First term on RHS and LHS of Eq B-10 of H1:
+
+             g_work(ig,isgn,iglo) = spec(is)%dens*conjg(havg)* &
+                  (chidot*spec(is)%z-hdot*spec(is)%temp)
+
+          end do
+       end do
+    end do
+
+    deallocate (phidot, apardot, bpardot)
+
+    allocate (tot(-ntgrid:ntgrid, ntheta0, naky, nspec))
+
+    call integrate_moment (g_work, tot)
+
+    if (proc0) then
+       allocate (wgt(-ntgrid:ntgrid))
+       wgt = 0.
+       do ig=-ntgrid,ntgrid-1
+!          wgt(ig) = delthet(ig)*jacob(ig)
+! delthet is cell-centered, but jacob is given on grid
+          wgt(ig) = delthet(ig)*(jacob(ig)+jacob(ig+1))*0.5
+       end do
+       wgt = wgt/sum(wgt)
+
+       do is = 1, nspec
+          do ik = 1, naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             do it = 1, ntheta0
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                do ig = -ntgrid, ntgrid-1
+                    hk(it,ik) % heating(is) = hk(it,ik) % heating(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                h % heating(is) = h % heating(is) + hk(it,ik) % heating(is)
+             end do
+          end do
+       end do
+    end if
+
+! ==========================================================================
+! Antenna Power and B-field contribution to E and E_dot---------------------
+! ==========================================================================
+    if (proc0) then
+!       allocate (epar (-ntgrid:ntgrid, ntheta0, naky)) ; epar = 0.
+       allocate (j_ext(-ntgrid:ntgrid, ntheta0, naky)) ; j_ext = 0.
+       call antenna_apar (kperp2, j_ext)
+
+       if (beta > epsilon(0.)) then
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+                do ig=-ntgrid, ntgrid-1
+
+                   !GGH Time and space averaged estimate of d/dt(apar)
+                   apar_m = fdot (apar   (ig  ,it,ik), &
+                                  apar   (ig+1,it,ik), &
+                                  aparnew(ig  ,it,ik), &
+                                  aparnew(ig+1,it,ik), dtinv)*fapar
+
+! J_ext.E when driving antenna only includes A_parallel:
+
+                   hk(it,ik) % antenna = hk(it, ik) % antenna + real(conjg(j_ext(ig,it,ik))*apar_m)*wgt(ig)*fac2
+
+                   !GGH Time and space averaged estimate of d/dt(bperp)
+                   bperp_m = fdot (apar   (ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                   apar   (ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), &
+                                   aparnew(ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                   aparnew(ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), dtinv) * fapar
+
+                   !GGH Time and space averaged estimate of d/dt(bpar)
+                   bpar_m = fdot (bpar   (ig  ,it,ik), &
+                                  bpar   (ig+1,it,ik), &
+                                  bparnew(ig  ,it,ik), &
+                                  bparnew(ig+1,it,ik), dtinv)*fbpar
+
+                   !GGH Time and space averaged estimate of bperp
+                   bperp_avg = favg (apar   (ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                     apar   (ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik)), &
+                                     aparnew(ig  ,it,ik)*sqrt(kperp2(ig  ,it,ik)), &
+                                     aparnew(ig+1,it,ik)*sqrt(kperp2(ig+1,it,ik))) * fapar
+
+                   !GGH Time and space averaged estimate of bpar
+                   bpar_avg = favg (bpar   (ig  ,it,ik), &
+                                    bpar   (ig+1,it,ik), &
+                                    bparnew(ig  ,it,ik), &
+                                    bparnew(ig+1,it,ik)) * fbpar
+
+! 1/2 * d/dt B**2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + &
+                        real(0.25 * conjg(bperp_m)*bperp_avg + conjg(bpar_m)*bpar_avg) &
+                        * wgt(ig)*fac2*(2.0/beta)
+
+! B**2/2
+!! GGH: Bug fixed on 2/06; error was in relative weight of B_par**2 and B_perp**2
+                   hk(it,ik) % energy = hk(it,ik) % energy &
+                        + 0.5*real((0.25*conjg(bperp_avg)*bperp_avg + conjg(bpar_avg)*bpar_avg)) &
+                        * wgt(ig)*fac2*(2.0/beta)
+
+                   !Eapar = int k_perp^2 A_par^2/(8 pi)
+                   hk(it,ik) % eapar = hk(it,ik) % eapar &
+                        + 0.5*real(0.25*conjg(bperp_avg)*bperp_avg) * wgt(ig)*fac2*(2.0/beta)
+
+                   !Ebpar = int B_par^2/(8 pi)
+                   hk(it,ik) % ebpar = hk(it,ik) % ebpar &
+                        + 0.5*real(conjg(bpar_avg)*bpar_avg) * wgt(ig)*fac2*(2.0/beta)
+
+                end do
+                h % antenna = h % antenna + hk(it, ik) % antenna
+                h % eapar = h % eapar + hk(it, ik) % eapar
+                h % ebpar = h % ebpar + hk(it, ik) % ebpar
+             end do
+          end do
+       else
+          hk % antenna = 0.
+          h  % antenna = 0.
+          hk % energy_dot = 0.
+          hk % energy = 0.
+          hk % eapar = 0.
+          h  % eapar = 0.
+          hk % ebpar = 0.
+          h  % ebpar = 0.
+       end if
+       deallocate (j_ext)
+    end if
+
+! ==========================================================================
+! Finish E_dot--------------------------------------------------------------
+! ==========================================================================
+
+!GGH Include response of Boltzmann species for single-species runs
+
+    if (.not. has_electron_species(spec)) then
+       if (proc0) then
+          !NOTE: It is assumed here that n0i=n0e and zi=-ze
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+                do ig=-ntgrid, ntgrid-1
+
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik))
+
+                   phi_m   = fdot (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik), dtinv)
+
+                   !NOTE: Adiabatic (Boltzmann) species has temperature
+                   !       T = spec(1)%temp/tite
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot + &
+                        fphi * real(conjg(phi_avg)*phi_m) &
+                        * spec(1)%dens * spec(1)%z * spec(1)%z * (tite/spec(1)%temp) &
+                        * wgt(ig)*fac2
+
+                end do
+             end do
+          end do
+       endif
+    endif !END Correction to E_dot for single species runs---------------------
+
+!GGH New E_dot calc
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       dtinv = 1./(code_dt*tunits(ik))
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+
+             !Calculate old fluctuating energy de
+             havg = favg_x (g(ig  ,isgn,iglo), &
+                            g(ig+1,isgn,iglo))
+
+             j0phiavg = favg_x (aj0(ig  ,iglo) * phi(ig  ,it,ik), &
+                                aj0(ig+1,iglo) * phi(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg_x (phi(ig  ,it,ik), &
+                               phi(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             de=0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg)
+
+            !Calculate new fluctuating energy denew
+             havg = favg_x (gnew(ig  ,isgn,iglo), &
+                            gnew(ig+1,isgn,iglo))
+
+             j0phiavg = favg_x (aj0(ig  ,iglo) * phinew(ig  ,it,ik), &
+                                aj0(ig+1,iglo) * phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg_x (phinew(ig  ,it,ik), &
+                               phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             denew=0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg)
+
+             !Set g_work as the change of energy (denew-de)/dt
+             g_work(ig,isgn,iglo) = fdot_t(de,denew,dtinv)
+
+          end do
+       end do
+    end do
+    !GGH -END new e_dot calc
+
+   call integrate_moment (g_work, tot)
+
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+                   hk(it,ik) % energy_dot = hk(it,ik) % energy_dot  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+             end do
+             h % energy_dot = h % energy_dot + hk(it,ik) % energy_dot
+          end do
+       end do
+    end if
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+! ==========================================================================
+! Gradient Contributions to Heating-----------------------------------------
+! ==========================================================================
+
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       ie = ie_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+       do isgn=1,2
+          do ig=-ntgrid, ntgrid-1
+
+             chi = favg (aj0(ig  ,iglo)*phi   (ig  ,it,ik),  &
+                         aj0(ig+1,iglo)*phi   (ig+1,it,ik),  &
+                         aj0(ig  ,iglo)*phinew(ig  ,it,ik),  &
+                         aj0(ig+1,iglo)*phinew(ig+1,it,ik)) &
+                         *fphi
+
+!!GGH Bug fix: The apar part should be subtracted (because chi= phi - v|| A|| + B||)
+             chi = chi - &
+                  favg (aj0(ig  ,iglo)*apar   (ig  ,it,ik)*vpac(ig  ,isgn,iglo),  &
+                        aj0(ig+1,iglo)*apar   (ig+1,it,ik)*vpac(ig+1,isgn,iglo),  &
+                        aj0(ig  ,iglo)*aparnew(ig  ,it,ik)*vpac(ig  ,isgn,iglo),  &
+                        aj0(ig+1,iglo)*aparnew(ig+1,it,ik)*vpac(ig+1,isgn,iglo)) &
+                        *spec(is)%stm*fapar
+
+             chi = chi + &
+                  favg (aj1(ig  ,iglo)*2.0*bpar   (ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                        aj1(ig+1,iglo)*2.0*bpar   (ig+1,it,ik)*vperp2(ig+1,iglo),  &
+                        aj1(ig  ,iglo)*2.0*bparnew(ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                        aj1(ig+1,iglo)*2.0*bparnew(ig+1,it,ik)*vperp2(ig+1,iglo)) &
+                        *spec(is)%tz*fbpar
+
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+#ifdef LOWFLOW
+             g_work(ig,isgn,iglo) = zi * wstar(ik,ie,is)*hneoc(ig,isgn,iglo)/code_dt * conjg(havg)*chi &
+#else
+             g_work(ig,isgn,iglo) = zi * wstar(ik,ie,is)/code_dt * conjg(havg)*chi &
+#endif
+                  * spec(is)%dens
+
+          end do
+       end do
+    end do
+
+    call integrate_moment (g_work, tot)
+
+    if (proc0) then
+       do is = 1, nspec
+          do ik = 1, naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             do it = 1, ntheta0
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                do ig = -ntgrid, ntgrid-1
+                   hk(it,ik) % gradients(is) = hk(it,ik) % gradients(is) &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+                h % gradients(is) = h % gradients(is) + hk(it,ik) % gradients(is)
+             end do
+          end do
+       end do
+    end if
+! ==========================================================================
+! Hyperviscosity------------------------------------------------------------
+! ==========================================================================
+
+    if (D_v > epsilon(0.)) then
+
+       do iglo=g_lo%llim_proc, g_lo%ulim_proc
+          is = is_idx(g_lo, iglo)
+          it = it_idx(g_lo, iglo)
+          ik = ik_idx(g_lo, iglo)
+          if (nonlin .and. it == 1 .and. ik == 1) cycle
+!          akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
+           do isgn=1,2
+             do ig=-ntgrid, ntgrid-1
+
+                havg = favg (g   (ig  ,isgn,iglo), &
+                             g   (ig+1,isgn,iglo), &
+                             gnew(ig  ,isgn,iglo), &
+                             gnew(ig+1,isgn,iglo))
+
+                j0phiavg = favg (aj0(ig  ,iglo) * phi(ig  ,it,ik), &
+                                 aj0(ig+1,iglo) * phi(ig+1,it,ik), &
+                                 aj0(ig  ,iglo) * phinew(ig  ,it,ik), &
+                                 aj0(ig+1,iglo) * phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+                j1bparavg= favg (aj1(ig  ,iglo)*2.0*bpar   (ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                                 aj1(ig+1,iglo)*2.0*bpar   (ig+1,it,ik)*vperp2(ig+1,iglo),  &
+                                 aj1(ig  ,iglo)*2.0*bparnew(ig  ,it,ik)*vperp2(ig  ,iglo),  &
+                                 aj1(ig+1,iglo)*2.0*bparnew(ig+1,it,ik)*vperp2(ig+1,iglo)) &
+                                 *fbpar
+
+                dgdt_hypervisc = 0.5*((1.0-1./hypervisc_filter(ig,it,ik))*gnew(ig,isgn,iglo) &
+                     + (1.0-1./hypervisc_filter(ig+1,it,ik))*gnew(ig+1,isgn,iglo))/code_dt
+
+!Set g_work for hyperviscous heating
+!                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_v*akperp4* &
+!                     ( conjg(havg)*havg - conjg(havg)*j0phiavg - &
+!                     conjg(havg)*j1bparavg)
+                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*conjg(havg)*dgdt_hypervisc
+
+             end do
+          end do
+       end do
+
+       call integrate_moment (g_work, tot)
+       if (proc0) then
+          do ik = 1, naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             do it = 1, ntheta0
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                do is = 1, nspec
+                   do ig = -ntgrid, ntgrid-1
+                      hk(it,ik) % hypervisc(is) = hk(it,ik) % hypervisc(is) &
+                           + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                   end do
+                   h % hypervisc(is) = h % hypervisc(is) + hk(it,ik) % hypervisc(is)
+                end do
+             end do
+          end do
+       end if
+
+    end if !End Hyperviscous Heating Calculation
+
+
+! ==========================================================================
+! Hyperresistivity------------------------------------------------------------
+! ==========================================================================
+
+    if (D_eta > epsilon(0.)) then
+
+       do iglo=g_lo%llim_proc, g_lo%ulim_proc
+          is = is_idx(g_lo, iglo)
+          it = it_idx(g_lo, iglo)
+          ik = ik_idx(g_lo, iglo)
+          if (nonlin .and. it == 1 .and. ik == 1) cycle
+          akperp4 = (aky(ik)**2 + akx(it)**2)**nexp
+           do isgn=1,2
+             do ig=-ntgrid, ntgrid-1
+
+                havg = favg (g   (ig  ,isgn,iglo), &
+                             g   (ig+1,isgn,iglo), &
+                             gnew(ig  ,isgn,iglo), &
+                             gnew(ig+1,isgn,iglo))
+
+                j0aparavg = favg (aj0(ig  ,iglo) * apar(ig  ,it,ik), &
+                                 aj0(ig+1,iglo)  * apar(ig+1,it,ik), &
+                                 aj0(ig  ,iglo)  * aparnew(ig  ,it,ik), &
+                                 aj0(ig+1,iglo)  * aparnew(ig+1,it,ik)) &
+                                 * fapar * spec(is)%zstm * vpac(ig,isgn,iglo)
+
+!Set g_work for hyperresistive heating
+                g_work(ig,isgn,iglo) = spec(is)%dens*spec(is)%temp*D_eta*akperp4* &
+                     conjg(havg)*j0aparavg
+
+             end do
+          end do
+       end do
+
+       call integrate_moment (g_work, tot)
+       if (proc0) then
+          do ik = 1, naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             do it = 1, ntheta0
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+                do is = 1, nspec
+                   do ig = -ntgrid, ntgrid-1
+                      hk(it,ik) % hyperres(is) = hk(it,ik) % hyperres(is) &
+                           + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                   end do
+                   h % hyperres(is) = h % hyperres(is) + hk(it,ik) % hyperres(is)
+                end do
+             end do
+          end do
+       end if
+
+    end if !End Hyperresistivity Heating Calculation
+
+!==========================================================================
+!Finish Energy-------------------------------------------------------------
+!==========================================================================
+
+!GGH Calculate hs2-------------------------------------------------------------
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+             g_work(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg)
+          end do
+       end do
+    end do
+
+    call integrate_moment (g_work, tot)
+
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+
+                   !hs2 = int_r int_v T/F0 hs^2/2
+                   hk(it,ik) % hs2(is) = hk(it,ik) % hs2(is)  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+
+                end do
+             end do
+             h % hs2(:) = h % hs2(:) + hk(it,ik) % hs2(:)
+          end do
+       end do
+    end if
+
+!Calculate phis2-------------------------------------------------------------
+    if (proc0) then
+       do ik=1,naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1,ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do ig=-ntgrid, ntgrid-1
+                do is = 1, nspec
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+                   !hs2 = int_r int_v T/F0 hs^2/2
+                   hk(it,ik) % phis2(is) = hk(it,ik) % phis2(is)  &
+                        +0.5*spec(is)%temp*spec(is)%dens*real(conjg(phi_avg)*phi_avg) &
+                        * wgt(ig) * fac2
+                enddo
+             end do
+             h % phis2(:) = h % phis2(:) + hk(it,ik) % phis2(:)
+          end do
+       end do
+    endif
+
+! Calculate delfs2 (rest of energy)-----------------------------------------------
+
+!GGH  Include response of Boltzmann species for single species runs
+    if (.not. has_electron_species(spec)) then
+       if (proc0) then
+          !NOTE: It is assumed here that n0i=n0e and zi=-ze
+          do ik=1,naky
+             fac2 = 0.5
+             if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+             dtinv = 1./(code_dt*tunits(ik))
+             do it = 1,ntheta0
+
+                if (nonlin .and. it == 1 .and. ik == 1) cycle
+
+                do ig=-ntgrid, ntgrid-1
+
+                   phi_avg = favg (phi   (ig  ,it,ik), &
+                        phi   (ig+1,it,ik), &
+                        phinew(ig  ,it,ik), &
+                        phinew(ig+1,it,ik))
+
+                   !NOTE: Adiabatic (Boltzmann) species has temperature
+                   !       T = spec(1)%temp/tite
+                   hk(it,ik) % energy = hk(it,ik) % energy + &
+                        fphi * real(conjg(phi_avg)*phi_avg) &
+                        * 0.5 * spec(1)%dens * spec(1)%z * spec(1)%z * (tite/spec(1)%temp) &
+                        * wgt(ig)*fac2
+
+                end do
+             end do
+          end do
+       endif
+    endif !END Correction to energy for single species runs---------------------
+
+    do iglo=g_lo%llim_proc, g_lo%ulim_proc
+       is = is_idx(g_lo, iglo)
+       it = it_idx(g_lo, iglo)
+       ik = ik_idx(g_lo, iglo)
+       if (nonlin .and. it == 1 .and. ik == 1) cycle
+       do isgn=1,2
+
+          do ig=-ntgrid, ntgrid-1
+
+             havg = favg (g   (ig  ,isgn,iglo), &
+                          g   (ig+1,isgn,iglo), &
+                          gnew(ig  ,isgn,iglo), &
+                          gnew(ig+1,isgn,iglo))
+
+             j0phiavg = favg (aj0(ig  ,iglo)*phi   (ig  ,it,ik), &
+                              aj0(ig+1,iglo)*phi   (ig+1,it,ik), &
+                              aj0(ig  ,iglo)*phinew(ig  ,it,ik), &
+                              aj0(ig+1,iglo)*phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             phi_avg = favg (phi   (ig  ,it,ik), &
+                             phi   (ig+1,it,ik), &
+                             phinew(ig  ,it,ik), &
+                             phinew(ig+1,it,ik)) * fphi * spec(is)%zt
+
+             g_work(ig,isgn,iglo) = 0.5*spec(is)%temp*spec(is)%dens*(conjg(havg)*havg &
+                  + conjg(phi_avg)*phi_avg &
+                  - conjg(j0phiavg)*havg &
+                  - conjg(havg)*j0phiavg)
+          end do
+       end do
+    end do
+
+    call integrate_moment (g_work, tot)
+
+    if (proc0) then
+       do ik = 1, naky
+          fac2 = 0.5
+          if (aky(ik) < epsilon(0.0)) fac2 = 1.0
+          do it = 1, ntheta0
+             if (nonlin .and. it == 1 .and. ik == 1) cycle
+             do is = 1, nspec
+                do ig = -ntgrid, ntgrid-1
+                   hk(it,ik) % energy = hk(it,ik) % energy  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+
+                   !Delfs2 = int_r int_v T/F0 dfs^2/2
+                   hk(it,ik) % delfs2(is) = hk(it,ik) % delfs2(is)  &
+                        + real(tot(ig,it,ik,is))*wgt(ig)*fac2
+                end do
+             end do
+             h % energy = h % energy + hk(it,ik) % energy
+             h % delfs2(:) = h % delfs2(:) + hk(it,ik) % delfs2(:)
+          end do
+       end do
+       deallocate (wgt)
+    end if
+
+    deallocate (tot)
+
+!!
+!! Put g, gnew back to their usual meanings
+!!
+    call g_adjust (g,    phi,    bpar,    direction = to_g_gs2)
+    call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
+
+  end subroutine get_heat
+
+
+  !> Get a theta-centered and time-centered estimate of the time derivative
+  !! of a field.
+  !!
+  !! tunits(ky) == 1. unless the "omega_*" units are chosen.
+  !! omega_* units normalize time by an additional factor of ky.
+  pure subroutine dot (a, anew, adot, fac)
+    use gs2_time, only: code_dt, tunits
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
+
+    implicit none
+    complex, intent (in), dimension (-ntgrid:,:,:) :: a, anew
+    complex, intent (out), dimension (-ntgrid:,:,:) :: adot
+    real, intent (in) :: fac
+    real :: dtinv
+    integer :: ig, it, ik
+
+    do ik=1,naky
+       dtinv = 1./(code_dt*tunits(ik))
+       do it=1,ntheta0
+          do ig=-ntgrid,ntgrid-1
+             adot(ig,it,ik) = 0.5*fac*(anew(ig+1,it,ik)+anew(ig,it,ik) - &
+                  (a(ig+1,it,ik)+a(ig,it,ik)))*dtinv
+          end do
+       end do
+    end do
+
+  end subroutine dot
+
+  !> FIXME : Add documentation
+  pure complex function fdot (fl, fr, fnewl, fnewr, dtinv)
+    complex, intent (in) :: fl, fr, fnewl, fnewr
+    real, intent (in) :: dtinv
+    fdot = 0.5*(fnewl+fnewr-fl-fr)*dtinv
+  end function fdot
+
+  !> Construct time and space-centered quantities
+  !! (should use actual bakdif and fexpr values?)
+  pure complex function favg (fl, fr, fnewl, fnewr)
+    complex, intent (in) :: fl, fr, fnewl, fnewr
+    favg = 0.25*(fnewl+fnewr+fl+fr)
+  end function favg
+
+  !> FIXME : Add documentation
+  pure complex function fdot_t (f,fnew, dtinv)
+    complex, intent (in) :: f, fnew
+    real, intent (in) :: dtinv
+    fdot_t = (fnew-f)*dtinv
+  end function fdot_t
+
+  !> FIXME : Add documentation
+  pure complex function favg_x (fl, fr)
+    complex, intent (in) :: fl, fr
+    favg_x = 0.5*(fl+fr)
+  end function favg_x
 end module gs2_heating
