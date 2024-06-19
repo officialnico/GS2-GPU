@@ -355,8 +355,7 @@ contains
     use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work, to_g_gs2, from_g_gs2
     use run_parameters, only: has_phi, has_apar, beta
     use gs2_layouts, only: g_lo
-    use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve, vnmult
-    use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve, vary_vnew
+    use collisions, only: adjust_vnmult
     use array_utils, only: zero_array
     implicit none
     !> Indices of maximum error.
@@ -372,9 +371,8 @@ contains
     real, dimension (:), allocatable :: wgt
     real, dimension(2) :: errtmp
     integer, dimension(3) :: idxtmp
-    logical, parameter :: increase = .true., decrease = .false., trap_flag = .true.
+    logical, parameter :: trap_flag = .true.
     logical :: compute_trapped_error
-    real :: vnmult_target
 
     allocate(wgt(nspec))
 
@@ -503,51 +501,8 @@ contains
        deallocate(apar_app, apar_e, apar_l)
     end if
 
-    if (vary_vnew) then
-       ! Energy resolution requirements
-       vnmult_target = vnmult(2)
-
-       if (errest(1,2) > etol + ewindow .or. errest(4,2) > etola + ewindowa) then
-          call get_vnewk (vnmult(2), vnmult_target, increase)
-       else if (errest(1,2) < etol - ewindow .and. errest(4,2) < etola - ewindowa) then
-          call get_vnewk (vnmult(2), vnmult_target, decrease)
-       end if
-
-       call init_ediffuse (vnmult_target)
-       call init_diffuse_conserve
-
-       ! Lambda resolution requirements
-       vnmult_target = vnmult(1)
-
-       if (errest(2,2) > etol + ewindow .or. errest(3,2) > etol + ewindow &
-            .or. errest(5,2) > etola + ewindowa) then
-          call get_vnewk (vnmult(1), vnmult_target, increase)
-       else if (errest(2,2) < etol - ewindow .and. errest(5,2) < etola - ewindowa .and. &
-            (errest(3,2) < etol - ewindow .or. .not. compute_trapped_error)) then
-          !The last conditional in the above says to ignore the trapped_error if
-          !we haven't calculated it. The compute_trapped_error part is probably not needed
-          !as errest(3,2) should be zero there anyway.
-          call get_vnewk (vnmult(1), vnmult_target, decrease)
-       end if
-
-       call init_lorentz (vnmult_target)
-       call init_lorentz_conserve
-    end if
+    call adjust_vnmult(errest, compute_trapped_error)
   end subroutine get_verr
-
-  !> FIXME : Add documentation
-  subroutine get_vnewk (vnm, vnm_target, incr)
-    use collisions, only: vnfac, vnslow
-    implicit none
-    logical, intent (in) :: incr
-    real, intent (in) :: vnm
-    real, intent (out) :: vnm_target
-    if (incr) then
-       vnm_target = vnm * vnfac
-    else
-       vnm_target =  vnm * vnslow
-    end if
-  end subroutine get_vnewk
 
   !> FIXME : Add documentation
   subroutine estimate_error (app1, app2, kmax_local, errest, erridx, trap)

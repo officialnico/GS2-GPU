@@ -14,7 +14,7 @@ module collisions
 
   private 
 
-  public :: init_collisions, finish_collisions, reset_init
+  public :: init_collisions, finish_collisions, reset_init, adjust_vnmult
   public :: read_parameters, wnml_collisions, check_collisions
   public :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew
   public :: etol, ewindow, etola, ewindowa, init_lorentz_error
@@ -1884,6 +1884,60 @@ contains
        hsg_func = 0.5 * erf(vel) / vel**2 - exp(-vel**2) / (sqrt_pi * vel)
     end if
   end function hsg_func
+
+  !> Given estimates of the velocity space integration errors adjust the collision
+  !> frequency scaling factor vnmult.
+  subroutine adjust_vnmult(errest, consider_trapped_error)
+    implicit none
+    real, dimension(5, 2), intent(in) :: errest
+    logical, intent(in) :: consider_trapped_error
+    real :: vnmult_target
+    logical, parameter :: increase = .true., decrease = .false.
+
+    if (vary_vnew) then
+       ! Energy resolution requirements
+       vnmult_target = vnmult(2)
+
+       if (errest(1,2) > etol + ewindow .or. errest(4,2) > etola + ewindowa) then
+          vnmult_target = get_vnewk (vnmult(2), increase)
+       else if (errest(1,2) < etol - ewindow .and. errest(4,2) < etola - ewindowa) then
+          vnmult_target = get_vnewk (vnmult(2), decrease)
+       end if
+
+       call init_ediffuse (vnmult_target)
+       call init_diffuse_conserve
+
+       ! Lambda resolution requirements
+       vnmult_target = vnmult(1)
+
+       if (errest(2,2) > etol + ewindow .or. errest(3,2) > etol + ewindow &
+            .or. errest(5,2) > etola + ewindowa) then
+          vnmult_target = get_vnewk (vnmult(1), increase)
+       else if (errest(2,2) < etol - ewindow .and. errest(5,2) < etola - ewindowa .and. &
+            (errest(3,2) < etol - ewindow .or. .not. consider_trapped_error)) then
+          !The last conditional in the above says to ignore the trapped_error if
+          !we haven't calculated it. The compute_trapped_error part is probably not needed
+          !as errest(3,2) should be zero there anyway.
+          vnmult_target = get_vnewk (vnmult(1), decrease)
+       end if
+
+       call init_lorentz (vnmult_target)
+       call init_lorentz_conserve
+    end if
+
+  contains
+    !> FIXME : Add documentation
+    pure real function get_vnewk (vnm, incr) result(vnm_target)
+      implicit none
+      logical, intent (in) :: incr
+      real, intent (in) :: vnm
+      if (incr) then
+         vnm_target = vnm * vnfac
+      else
+         vnm_target =  vnm * vnslow
+      end if
+    end function get_vnewk
+  end subroutine adjust_vnmult
 
   !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
