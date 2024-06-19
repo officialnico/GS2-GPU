@@ -13,7 +13,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_diagnostics_velocity_space(gnostics)
-    use le_grids, only: init_weights
+    use le_grids, only: init_weights, wdim
     use mp, only: proc0
     use diagnostics_config, only: diagnostics_type
     use collisions, only: collision_model_switch
@@ -26,6 +26,7 @@ contains
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
     if (proc0) call init_weights
+    call broadcast(wdim)
     
     if (gnostics%write_cerr) then
        if (collision_model_switch == 1 .or. collision_model_switch == 5) then

@@ -421,7 +421,7 @@ contains
     use gs2_heating, only: init_htype
     use collisions, only: collision_model_switch, init_lorentz_error
     use mp, only: broadcast, proc0, mp_abort
-    use le_grids, only: init_weights
+    use le_grids, only: init_weights, wdim
     use gs2_save, only: restart_writable
     use normalisations, only: init_normalisations
     use diagnostics_final_routines, only: init_par_filter
@@ -464,7 +464,10 @@ contains
 
     ! initialize weights for less accurate integrals used
     ! to provide an error estimate for v-space integrals (energy and untrapped)
-    if (write_verr .and. proc0) call init_weights
+    if (write_verr) then
+       if (proc0) call init_weights
+       call broadcast(wdim)
+    end if
 
     ! allocate heating diagnostic data structures
     if (write_heating) then

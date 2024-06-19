@@ -9244,7 +9244,6 @@ contains
   !> k phi, energy (2) k phi, untrapped pitch angles (3) k phi, trapped pitch angles, (4)
   !> k apar, energy, (5) k apar, untrapped angles. Relative errors should be < 0.1.
   subroutine get_verr (errest, erridx, phi, bpar)
-    use mp, only: broadcast
     use le_grids, only: integrate_species
     use le_grids, only: eint_error, trap_error, lint_error, wdim
     use le_grids, only: ng2, nlambda, new_trap_int, grid_has_trapped_particles
@@ -9284,11 +9283,6 @@ contains
     allocate(errtmp(2))
     allocate(idxtmp(3))
 
-    !This should probably be something like if(first) then ; call broadcast ; first=.false. ; endif
-    !as we only deallocate kmax during finish_dist_fn.
-    !Really wdim should just be broadcast when we first calculate it -- currently slightly complicated
-    !as calculation triggered in gs2_diagnostics and only called by proc0.
-    if (.not. allocated(kmax)) call broadcast (wdim)  ! Odd-looking statement.  BD
 
     if (has_phi) then
        allocate(phi_app(-ntgrid:ntgrid,ntheta0,naky))
