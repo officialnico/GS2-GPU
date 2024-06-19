@@ -145,6 +145,7 @@ pfunit_coverage: gs2 make_test run_test run_gcov
 	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
 endif
 
+distclean: pfunit_clean
 pfunit_clean:
 	$(call messageRm,"pFUnit tests")
 	$(QUIETSYM)$(RM) $(PFUNIT_TEST_EXE) $(PFUNIT_TEST_DIR)/*.o $(PFUNIT_TEST_DIR)/*.mod \
