@@ -16,9 +16,8 @@ module collisions
 
   public :: init_collisions, finish_collisions, reset_init, adjust_vnmult
   public :: read_parameters, wnml_collisions, check_collisions
-  public :: dtot, fdf, fdb, vnmult, vnfac, ncheck, vnslow, vary_vnew
-  public :: etol, ewindow, etola, ewindowa, init_lorentz_error
-  public :: init_lorentz, init_ediffuse, init_lorentz_conserve, init_diffuse_conserve
+  public :: dtot, fdf, fdb, vnmult, ncheck, vary_vnew
+  public :: init_lorentz_error
   public :: colls, hyper_colls, heating, adjust, split_collisions,use_le_layout, solfp1
   public :: collision_model_switch, collision_model_lorentz, collision_model_none
   public :: collision_model_lorentz_test, collision_model_full, collision_model_ediffuse
