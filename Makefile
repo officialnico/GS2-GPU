@@ -5,6 +5,8 @@
 #  (requires GNU's gmake)
 #
 GK_PROJECT := gs2
+# Always try to look in Makefiles directory when including makefiles
+MAKEFLAGS+=-IMakefiles
 #
 #  Makefile written by Bill Dorland and Ryusuke Numata
 #  Modified by GS2 contributors
@@ -605,12 +607,33 @@ $(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
 	$(PFUNIT_PREPROCESSOR) $< $(basename $<).F90
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) -c $(basename $<).F90 $(PFUNIT_INC) -I$(GK_HEAD_DIR) -o $@
 
-$(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
-	$(call compile_and_preprocess)
 $(OBJDIR)/%.o: %.F90 |$(MODDIR) $(OBJDIR)
+	$(call compile_and_preprocess)
+ifeq ("$(COMPILER)","cray")
+$(info When using cray you will need to run 'make clean' before rebuilding if you change any source files.)
+$(info Alternatively you may simply remove the corresponding '$(GENERATED_SRC_DIR)/*.F90' file.)
+#Special interim handling for cray which will only preprocess files
+#with a limited set of suffixes (including F90). Here we just copy
+#our source files to GENERATED_SRC_DIR with a F90 extension
+# Ensure we can include .inc files from SRCDIR
+F90FLAGS+=-I$(SRCDIR)
+# Keep the F90 files in GENERATED_SRC_DIR
+.PRECIOUS: $(GENERATED_SRC_DIR)/%.F90
+# Define rules for copying. Important that fpp is before f90
+# so that we prefer the copy recipe rather than the preprocess one
+$(GENERATED_SRC_DIR)/%.F90: %.fpp |$(GENERATED_SRC_DIR)
+	$(QUIETSYM)cp $< $@
+$(GENERATED_SRC_DIR)/%.F90: %.f90 |$(GENERATED_SRC_DIR)
+	$(QUIETSYM)cp $< $@
+# Rule to compile from GENERATED_SRC_DIR
+$(OBJDIR)/%.o: $(GENERATED_SRC_DIR)/%.F90 |$(MODDIR) $(OBJDIR)
+	$(call compile_and_preprocess)
+else
+$(OBJDIR)/%.o: %.fpp |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
 $(OBJDIR)/%.o: %.f90 |$(MODDIR) $(OBJDIR)
 	$(call compile_and_preprocess)
+endif
 
 # The depend command needs the preprocessed source files.
 # This is a little clunky, and maybe could be fixed in the future.
@@ -764,6 +787,7 @@ test_make:
 	$(call messageKeyVal, "DEPEND", $(DEPEND))
 	$(call messageKeyVal, "QUIET", $(QUIET))
 	$(call messageKeyVal, "WITH_COLOUR", $(WITH_COLOUR))
+	$(call messageKeyVal, "MAKEFLAGS", $(MAKEFLAGS))
 	$(call messageKeyVal, "GIT_VERSION", $(GIT_VERSION))
 	$(call messageKeyVal, "GIT_HASH", $(GIT_HASH))
 	$(call messageKeyVal, "GIT_HASH_MAKEFILES", $(GIT_HASH_MAKEFILES))
