@@ -6,8 +6,7 @@ module diagnostics_velocity_space
   private
 
   public :: init_diagnostics_velocity_space, write_velocity_space_checks
-  public :: write_collision_error
-  public :: finish_diagnostics_velocity_space
+  public :: write_collision_error, finish_diagnostics_velocity_space, get_verr
 
 contains
 
@@ -47,7 +46,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine write_velocity_space_checks(gnostics)
-    use dist_fn, only: get_verr, get_gtran
+    use dist_fn, only: get_gtran
     use mp, only: proc0
     use le_grids, only: grid_has_trapped_particles
     use fields_arrays, only: phinew, bparnew
@@ -337,4 +336,280 @@ contains
     deallocate (lcoll, fdcoll, glze, ltmp, ftmp, g0)
     
   end subroutine write_collision_error
+
+
+  !> Error estimate obtained by comparing standard integral with less-accurate integral
+  !>
+  !> Estimate of the (1) absolute and (2) relative errors resulting from velocity space
+  !> integrals in the calculation of the following quantities in the given dimensions: (1)
+  !> k phi, energy (2) k phi, untrapped pitch angles (3) k phi, trapped pitch angles, (4)
+  !> k apar, energy, (5) k apar, untrapped angles. Relative errors should be < 0.1.
+  !>
+  !> @note Should this be extended to include error estimates on bpar as well?
+  subroutine get_verr (errest, erridx, phi, bpar)
+    use le_grids, only: integrate_species, eint_error, trap_error, lint_error, wdim
+    use le_grids, only: ng2, nlambda, new_trap_int, grid_has_trapped_particles
+    use theta_grid, only: ntgrid
+    use kt_grids, only: ntheta0, naky, aky, akx
+    use species, only: nspec, spec
+    use dist_fn_arrays, only: gnew, aj0, vpa, g_adjust, g_work, to_g_gs2, from_g_gs2
+    use run_parameters, only: has_phi, has_apar, beta
+    use gs2_layouts, only: g_lo
+    use collisions, only: init_lorentz, init_ediffuse, init_lorentz_conserve, vnmult
+    use collisions, only: etol, ewindow, etola, ewindowa, init_diffuse_conserve, vary_vnew
+    use array_utils, only: zero_array
+    implicit none
+    !> Indices of maximum error.
+    integer, dimension (5,3), intent (out) :: erridx
+    !> Estimated error.
+    real, dimension (5,2), intent (out) :: errest
+    !> Electrostatic potential and parallel magnetic field
+    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
+    integer :: ig, it, ik, iglo, isgn, ntrap
+    complex, dimension (:,:,:), allocatable :: phi_app, apar_app
+    complex, dimension (:,:,:,:), allocatable :: phi_e, phi_l, phi_t, apar_e, apar_l, apar_t
+    real, dimension (:,:), allocatable :: kmax
+    real, dimension (:), allocatable :: wgt
+    real, dimension(2) :: errtmp
+    integer, dimension(3) :: idxtmp
+    logical, parameter :: increase = .true., decrease = .false., trap_flag = .true.
+    real :: vnmult_target
+
+    allocate(wgt(nspec))
+
+    if (has_phi) then
+       allocate(phi_app(-ntgrid:ntgrid,ntheta0,naky))
+       allocate(phi_e(-ntgrid:ntgrid,ntheta0,naky,wdim))
+       allocate(phi_l(-ntgrid:ntgrid,ntheta0,naky,ng2))
+    end if
+
+    if (has_apar) then
+       allocate(apar_app(-ntgrid:ntgrid,ntheta0,naky))
+       allocate(apar_e(-ntgrid:ntgrid,ntheta0,naky,wdim))
+       allocate(apar_l(-ntgrid:ntgrid,ntheta0,naky,ng2))
+    end if
+
+    ! first call to g_adjust converts gyro-averaged dist. fn. (g)
+    ! into nonadiabatic part of dist. fn. (h)
+    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
+
+    ! take gyro-average of h at fixed total position (not g.c. position)
+    ! Note here phi_app and apar_app are effectively antot and antota that
+    ! would be returned from a call to getan_from_dnf(gnew, antot, antota,...)
+    if (has_phi) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          do isgn = 1, 2
+             do ig = -ntgrid, ntgrid
+                g_work(ig, isgn, iglo) = aj0(ig, iglo) * gnew(ig, isgn, iglo)
+             end do
+          end do
+       end do
+
+       wgt = spec%z*spec%dens
+       call integrate_species (g_work, wgt, phi_app)
+
+       ! integrates dist fn of each species over v-space
+       ! after dropping an energy grid point and returns
+       ! phi_e, which contains the integral approximations
+       ! to phi for each point dropped
+       call eint_error (g_work, wgt, phi_e)
+
+       ! integrates dist fn of each species over v-space
+       ! after dropping an untrapped lambda grid point and returns phi_l.
+       ! phi_l contains ng2 approximations for the integral over lambda that
+       ! come from dropping different pts from the gaussian quadrature grid
+       call lint_error (g_work, wgt, phi_l)
+
+       ! next loop gets error estimate for trapped particles, if there are any
+       if (grid_has_trapped_particles() .and. new_trap_int) then
+          ntrap = nlambda - ng2
+          allocate(phi_t(-ntgrid:ntgrid, ntheta0, naky, ntrap))
+          call zero_array(phi_t)
+          call trap_error (g_work, wgt, phi_t)
+       end if
+
+    end if
+
+    if (has_apar) then
+       do iglo = g_lo%llim_proc, g_lo%ulim_proc
+          do isgn = 1, 2
+             do ig = -ntgrid, ntgrid
+                g_work(ig, isgn, iglo) = aj0(ig, iglo) * vpa(ig, isgn, iglo) * &
+                     gnew(ig, isgn, iglo)
+             end do
+          end do
+       end do
+
+       wgt = 2.0 *beta * spec%z * spec%dens * sqrt(spec%temp / spec%mass)
+       call integrate_species (g_work, wgt, apar_app)
+
+       call eint_error (g_work, wgt, apar_e)
+       call lint_error (g_work, wgt, apar_l)
+       if (grid_has_trapped_particles() .and. new_trap_int) then
+          ntrap = nlambda - ng2
+          allocate(apar_t(-ntgrid:ntgrid, ntheta0, naky, ntrap))
+          call zero_array(apar_t)
+          call trap_error (g_work, wgt, apar_t)
+       end if
+    end if
+    deallocate (wgt)
+
+    ! second call to g_adjust converts from h back to g
+    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
+
+    allocate (kmax(ntheta0, naky))
+    do ik = 1, naky
+       do it = 1, ntheta0
+          kmax(it,ik) = max(akx(it),aky(ik))
+       end do
+    end do
+
+    errest = 0.0
+    erridx = 0
+
+    if (has_phi) then
+
+       call estimate_error (phi_app, phi_e, kmax, errtmp, idxtmp)
+       errest(1,:) = errtmp
+       erridx(1,:) = idxtmp
+
+       call estimate_error (phi_app, phi_l, kmax, errtmp, idxtmp)
+       errest(2,:) = errtmp
+       erridx(2,:) = idxtmp
+
+       if (grid_has_trapped_particles() .and. new_trap_int) then
+          call estimate_error (phi_app, phi_t, kmax, errtmp, idxtmp, trap_flag)
+          errest(3,:) = errtmp
+          erridx(3,:) = idxtmp
+          deallocate (phi_t)
+       end if
+       deallocate(phi_app, phi_e, phi_l)
+    end if
+
+    ! No trapped errors for apar?
+    if (has_apar) then
+
+       call estimate_error (apar_app, apar_e, kmax, errtmp, idxtmp)
+       errest(4,:) = errtmp
+       erridx(4,:) = idxtmp
+
+       call estimate_error (apar_app, apar_l, kmax, errtmp, idxtmp)
+       errest(5,:) = errtmp
+       erridx(5,:) = idxtmp
+
+       deallocate(apar_app, apar_e, apar_l)
+    end if
+
+    if (vary_vnew) then
+       vnmult_target = vnmult(2)
+
+       if (errest(1,2) > etol + ewindow .or. errest(4,2) > etola + ewindowa) then
+          call get_vnewk (vnmult(2), vnmult_target, increase)
+       else if (errest(1,2) < etol - ewindow .and. errest(4,2) < etola - ewindowa) then
+          call get_vnewk (vnmult(2), vnmult_target, decrease)
+       end if
+
+       call init_ediffuse (vnmult_target)
+       call init_diffuse_conserve
+    end if
+
+    if (vary_vnew) then
+       vnmult_target = vnmult(1)
+
+       if (errest(2,2) > etol + ewindow .or. errest(3,2) > etol + ewindow &
+            .or. errest(5,2) > etola + ewindowa) then
+          call get_vnewk (vnmult(1), vnmult_target, increase)
+       else if (errest(2,2) < etol - ewindow .and. errest(5,2) < etola - ewindowa .and. &
+            (errest(3,2) < etol - ewindow .or. .not. trap_flag)) then
+          call get_vnewk (vnmult(1), vnmult_target, decrease)
+       end if
+
+       call init_lorentz (vnmult_target)
+       call init_lorentz_conserve
+    end if
+  end subroutine get_verr
+
+  !> FIXME : Add documentation
+  subroutine get_vnewk (vnm, vnm_target, incr)
+    use collisions, only: vnfac, vnslow
+    implicit none
+    logical, intent (in) :: incr
+    real, intent (in) :: vnm
+    real, intent (out) :: vnm_target
+    if (incr) then
+       vnm_target = vnm * vnfac
+    else
+       vnm_target =  vnm * vnslow
+    end if
+  end subroutine get_vnewk
+
+  !> FIXME : Add documentation
+  subroutine estimate_error (app1, app2, kmax_local, errest, erridx, trap)
+    use kt_grids, only: naky, ntheta0
+    use theta_grid, only: ntgrid
+    use le_grids, only: ng2, jend, il_is_trapped
+    implicit none
+    complex, dimension (-ntgrid:,:,:), intent (in) :: app1
+    complex, dimension (-ntgrid:,:,:,:), intent (in) :: app2
+    real, dimension (:, :), intent (in) :: kmax_local
+    logical, intent (in), optional :: trap
+    real, dimension (:), intent (out) :: errest
+    integer, dimension (:), intent (out) :: erridx
+    integer :: ik, it, ig, ipt, end_idx
+    integer :: igmax, ikmax, itmax, gpcnt
+    real :: gdsum, gdmax, gpavg, gnsum, gsmax, gpsum, gptmp
+
+    igmax = 0; ikmax = 0; itmax = 0
+    gdsum = 0.0; gdmax = 0.0; gpavg = 0.0; gnsum = 0.0; gsmax = 1.0
+    do ik = 1, naky
+       do it = 1, ntheta0
+          do ig = -ntgrid, ntgrid
+             if (.not. present(trap) .or. il_is_trapped(jend(ig))) then
+                gpcnt = 0; gpsum = 0.0
+
+                if (present(trap)) then
+                   end_idx = jend(ig)-ng2
+                else
+                   end_idx = size(app2, 4)
+                end if
+
+                do ipt=1,end_idx
+                   gptmp = kmax_local(it, ik) * abs(app1(ig, it, ik) - app2(ig, it, ik, ipt))
+                   gpsum = gpsum + gptmp
+                   gpcnt = gpcnt + 1
+                end do
+
+                gpavg = gpsum/gpcnt
+
+                if (gpavg > gdmax) then
+                   igmax = ig
+                   ikmax = ik
+                   itmax = it
+                   gdmax = gpavg
+                   gsmax = kmax_local(it, ik) * abs(app1(ig, it, ik))
+                end if
+
+                gnsum = gnsum + gpavg
+                gdsum = gdsum + kmax_local(it, ik) * abs(app1(ig, it, ik))
+             end if
+          end do
+       end do
+    end do
+
+    gdmax = gdmax / gsmax
+
+    erridx(1) = igmax
+    erridx(2) = ikmax
+    erridx(3) = itmax
+    errest(1) = gdmax
+
+    ! Guard against divide by zero. This can commonly occur on the first time step
+    ! in runs with fapar /= 0 due to our initial conditions typically ensuring that
+    ! the initial apar is identically zero.
+    if (abs(gdsum) < epsilon(0.0)) then
+       errest(2) = 0.0
+    else
+       errest(2) = gnsum / gdsum
+    end if
+  end subroutine estimate_error
 end module diagnostics_velocity_space
