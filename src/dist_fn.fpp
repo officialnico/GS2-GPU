@@ -8307,53 +8307,6 @@ contains
 
   end subroutine get_flux_dist
 
-#ifdef LOWFLOW
-  !> Calculate toroidal angular momentum flux due to field
-  !>
-  !> FIXME: confirm & expand
-  subroutine get_flux_tormom (g_in, fld, flx)
-    use theta_grid, only: ntgrid
-    use theta_grid, only : theta, grho, bmag, jacob
-    use kt_grids, only: ntheta0, naky
-    use le_grids, only: integrate_moment
-    use species, only: nspec
-    use mp, only: proc0
-    use kt_grids, only: aky
-    use lowflow, only: mach_lab
-    use integration, only trapezoidal_integration
-    use gs2_layouts, only: g_lo
-    implicit none
-    !> Input weighted distribution    
-    complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in) :: g_in
-    !> Input field
-    complex, dimension (-ntgrid:,:,:), intent (in) :: fld
-    !> Output flux
-    real, dimension (:,:,:), intent (out) :: flx
-    complex, dimension (:,:,:,:), allocatable :: total
-    real :: wgt
-    integer :: ik, it, is
-    allocate (total(-ntgrid:ntgrid,ntheta0,naky,nspec))
-    call integrate_moment (g_in, total)
-
-    ! This is essentially 2 pi / surfarea
-    wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
-
-    if (proc0) then
-       do is = 1, nspec
-          do ik = 1, naky
-             do it = 1, ntheta0
-                flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
-             end do
-          end do
-       end do
-       flx = flx*0.5
-    end if
-
-    deallocate (total)
-  end subroutine get_flux_tormom !JPL
-#endif
-
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   subroutine flux_vs_theta_vs_vpa (phinew,vflx)
     use constants, only: zi
