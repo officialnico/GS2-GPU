@@ -2637,7 +2637,11 @@ contains
 
   end subroutine get_lorentz_matrix
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
+  !>
+  !> @note Currently this method doesn't use anything (aside from safe_sqrt)
+  !> from the collisions module so _could_ be moved to le_grids or diagnostics.
+  !> It _could_ potentially use get_lorentz_matrix so we'll leave here for now.
   subroutine init_lorentz_error
     use le_grids, only: jend, al, ng2, nlambda, &
          il_is_wfb, il_is_passing, il_is_trapped
@@ -2662,6 +2666,10 @@ contains
     dlcoef = 1.0; call zero_array(d2lcoef); call zero_array(dtot)
     call zero_array(fdf); call zero_array(fdb); slb = 0.0
 
+    ! This loop appears to be calculating aa and cc of get_lorentz_matrix
+    ! when using lorentz_scheme_old and storing fdb = aa/(-vn*code_dt),
+    ! fdf = cc/(-vn*code_dt). Given we don't use lorentz_scheme_old by
+    ! default is this diagnostic still applicable?
     do ig=-ntgrid,ntgrid
        je = jend(ig)
        
