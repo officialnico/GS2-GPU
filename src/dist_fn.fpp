@@ -144,8 +144,6 @@ module dist_fn
   logical :: zero_forbid
   logical :: gf_lo_integrate
   logical :: mult_imp
-!Not sure why these are module level as only used in one routine
-  logical :: increase = .true., decrease = .false. 
 
 #ifdef LOWFLOW
   complex, dimension (:,:,:), allocatable :: wdrift
@@ -196,9 +194,6 @@ module dist_fn
   ! getfieldeq1
   real, allocatable, dimension(:,:) :: awgt
   complex, allocatable, dimension(:,:) :: fl_avg !Changed
-
-  ! get_verr
-  real, dimension (:,:), allocatable :: kmax
 
   ! connected bc
   integer, dimension (:,:), allocatable :: itleft, itright
@@ -1124,7 +1119,6 @@ contains
     no_connections = .false.
     connectinit = .false.
     lpolinit = .false. ; fyxinit = .false. ; cerrinit = .false.
-    increase = .true. ; decrease = .false.
     exb_first = .true.
 
     call finish_dist_fn_level_2
@@ -1146,7 +1140,6 @@ contains
     if (allocated(ufac)) deallocate (ufac)
     if (allocated(fl_avg)) deallocate (fl_avg)
     if (allocated(awgt)) deallocate (awgt)
-    if (allocated(kmax)) deallocate (kmax)
 
     call delete_redist(gc_from_left)
     call delete_redist(gc_from_right)
@@ -9271,11 +9264,12 @@ contains
     complex, dimension (:,:,:), allocatable :: phi_app, apar_app
     complex, dimension (:,:,:,:), allocatable :: phi_e, phi_l, phi_t
     complex, dimension (:,:,:,:), allocatable :: apar_e, apar_l, apar_t
+    real, dimension (:,:), allocatable :: kmax
     real, dimension (:), allocatable :: wgt
     integer, dimension(2) :: errtmp
     integer, dimension(3) :: idxtmp
+    logical, parameter :: increase = .true., decrease = .false., trap_flag = .true.
     real :: vnmult_target
-    logical :: trap_flag=.true. !Value doesn't really matter as just used in present() checks
 
     allocate(wgt(nspec))
 
@@ -9368,14 +9362,12 @@ contains
 
     call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
-    if (.not. allocated(kmax)) then
-       allocate (kmax(ntheta0, naky))
-       do ik = 1, naky
-          do it = 1, ntheta0
-             kmax(it,ik) = max(akx(it),aky(ik))
-          end do
+    allocate (kmax(ntheta0, naky))
+    do ik = 1, naky
+       do it = 1, ntheta0
+          kmax(it,ik) = max(akx(it),aky(ik))
        end do
-    end if
+    end do
     
     errest = 0.0
     erridx = 0
