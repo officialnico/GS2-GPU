@@ -3,7 +3,8 @@
 module diagnostics_moments
   implicit none
   private
-  public :: write_moments, write_full_moments_notgc, getmoms, getmoms_notgc, getemoms
+  public :: write_moments, write_full_moments_notgc
+  public :: init_mom_coeff, getmoms, getmoms_notgc, getemoms
 
 !#ifdef NETCDF_PARALLEL
 !  logical, parameter :: moment_to_allprocs = .true.
@@ -408,7 +409,6 @@ contains
   !> Calculates moments at not guiding center coordinate
   subroutine getmoms_notgc (phinew, bparnew, dens, upar, tpar, tper, ntot, jpar, reset_coefficients)
     use dist_fn_arrays, only: vpa, vperp2, aj0, aj1, gnew, g_work
-    use dist_fn, only: init_mom_coeff
     use gs2_layouts, only: g_lo, is_idx, ik_idx, it_idx, ie_idx
     use species, only: nspec, spec, nonmaxw_corr
     use theta_grid, only: ntgrid
@@ -549,4 +549,118 @@ contains
        end do
     endif
   end subroutine getmoms_notgc
+
+  !> FIXME : Add documentation
+  !>
+  !> The returned variables are used if write_full_moments_notgc=T
+  !> or ginit_options='recon3'.
+  subroutine init_mom_coeff(mom_coeff, mom_coeff_npara, mom_coeff_nperp, mom_coeff_tpara, &
+       mom_coeff_tperp, mom_shift_para, mom_shift_perp)
+    use gs2_layouts, only: g_lo
+    use species, only: nspec, spec
+    use kt_grids, only: nakx => ntheta0, naky, kperp2
+    use theta_grid, only: ntgrid
+    use dist_fn_arrays, only: vpa, vperp2, aj0, aj1
+    use le_grids, only: integrate_moment
+    use array_utils, only: zero_array
+    implicit none
+    real, dimension(:, :, :, :), allocatable, intent(in out) :: mom_coeff
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_npara, mom_coeff_nperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_coeff_tpara, mom_coeff_tperp
+    real, dimension(:, :, :), allocatable, intent(in out) :: mom_shift_para, mom_shift_perp
+    integer :: i, isgn, iglo, it, ik, is
+    real :: bsq
+    !> Declared as complex to allow reuse of existing integrate_moment methods, but
+    !> actually only holds real valued data.
+    complex, dimension(:, :, :, :), allocatable :: coeff0
+    complex, dimension(:, :, :), allocatable :: gtmp
+    real, dimension(:), allocatable :: wgt
+    logical, parameter :: analytical = .true.
+    integer, parameter :: ncnt_mom_coeff=8
+
+    if (allocated(mom_coeff)) return
+
+    if(.not.allocated(mom_coeff)) &
+         & allocate(mom_coeff(nakx,naky,nspec,ncnt_mom_coeff))
+    if(.not.allocated(mom_coeff_npara)) &
+         & allocate(mom_coeff_npara(nakx,naky,nspec))
+    if(.not.allocated(mom_coeff_nperp)) &
+         & allocate(mom_coeff_nperp(nakx,naky,nspec))
+    if(.not.allocated(mom_coeff_tpara)) &
+         & allocate(mom_coeff_tpara(nakx,naky,nspec))
+    if(.not.allocated(mom_coeff_tperp)) &
+         & allocate(mom_coeff_tperp(nakx,naky,nspec))
+    if(.not.allocated(mom_shift_para)) &
+         & allocate(mom_shift_para(nakx,naky,nspec))
+    if(.not.allocated(mom_shift_perp)) &
+         & allocate(mom_shift_perp(nakx,naky,nspec))
+
+    call zero_array(mom_coeff)
+    call zero_array(mom_coeff_npara) ; call zero_array(mom_coeff_nperp)
+    call zero_array(mom_coeff_tpara) ; call zero_array(mom_coeff_tperp)
+    call zero_array(mom_shift_para) ; call zero_array(mom_shift_perp)
+
+    allocate(wgt(-ntgrid:ntgrid))
+    allocate(coeff0(-ntgrid:ntgrid,nakx,naky,nspec))
+    allocate(gtmp(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    wgt = 0.
+    call zero_array(coeff0)
+    call zero_array(gtmp)
+
+    if (analytical) then
+       do it=1,nakx
+          do ik=1,naky
+             do is=1,nspec
+                bsq=.25*spec(is)%smz**2*kperp2(0,it,ik)
+                mom_coeff(it,ik,is,1) = exp(-bsq)
+                mom_coeff(it,ik,is,2) = exp(-bsq) *.5
+                mom_coeff(it,ik,is,3) = exp(-bsq) *(1.-bsq)
+                mom_coeff(it,ik,is,4) = exp(-bsq) *.75
+                mom_coeff(it,ik,is,5) = exp(-bsq) *(1.-bsq)*.5
+                mom_coeff(it,ik,is,6) = exp(-bsq) *.5
+                mom_coeff(it,ik,is,7) = exp(-bsq) *.25
+                mom_coeff(it,ik,is,8) = exp(-bsq) *(1.-.5*bsq)
+             end do
+          end do
+       end do
+    else
+       do i = 1, ncnt_mom_coeff
+          do iglo = g_lo%llim_proc, g_lo%ulim_proc
+             do isgn = 1,2
+                if(i==1) wgt(:)=aj0(:,iglo)
+                if(i==2) wgt(:)=aj0(:,iglo)*vpa(:,isgn,iglo)**2
+                if(i==3) wgt(:)=aj0(:,iglo)*vperp2(:,iglo)
+                if(i==4) wgt(:)=aj0(:,iglo)*vpa(:,isgn,iglo)**4
+                if(i==5) wgt(:)=aj0(:,iglo)*vpa(:,isgn,iglo)**2*vperp2(:,iglo)
+                if(i==6) wgt(:)=vperp2(:,iglo)*aj1(:,iglo)
+                if(i==7) wgt(:)=vperp2(:,iglo)*aj1(:,iglo)*vpa(:,isgn,iglo)**2
+                if(i==8) wgt(:)=vperp2(:,iglo)*aj1(:,iglo)*vperp2(:,iglo)
+                gtmp(-ntgrid:ntgrid,isgn,iglo) = wgt(-ntgrid:ntgrid)*cmplx(1.,0.)
+             end do
+          end do
+          call integrate_moment(gtmp,coeff0,.true.,full_arr=.true.)
+          where(real(coeff0(0,1:nakx,1:naky,1:nspec)) == 0.)
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = 1
+          elsewhere
+             mom_coeff(1:nakx,1:naky,1:nspec,i) = real(coeff0(0,1:nakx,1:naky,1:nspec))
+          end where
+       end do
+    endif
+
+    !<DD>Currently below could include divide by zero if analytical=.true.
+    mom_shift_para=mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_shift_perp=mom_coeff(:,:,:,3)/mom_coeff(:,:,:,1)
+
+    mom_coeff_npara=2.*mom_coeff(:,:,:,2)/mom_coeff(:,:,:,1)
+    mom_coeff_nperp=2.*mom_coeff(:,:,:,6)/mom_coeff(:,:,:,1)
+
+    mom_coeff_tperp= &
+         & (mom_coeff(:,:,:,5)-mom_shift_perp*mom_coeff(:,:,:,2)) / &
+         & (mom_coeff(:,:,:,8)-mom_shift_perp*mom_coeff(:,:,:,6))
+    mom_coeff_tpara= &
+         & (mom_coeff(:,:,:,7)-mom_shift_para*mom_coeff(:,:,:,6)) / &
+         & (mom_coeff(:,:,:,4)-mom_shift_para*mom_coeff(:,:,:,2))
+
+    deallocate(gtmp,coeff0,wgt)
+  end subroutine init_mom_coeff
 end module diagnostics_moments
