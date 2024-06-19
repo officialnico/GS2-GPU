@@ -67,12 +67,10 @@ module dist_fn
   public :: flux_dist
   public :: get_heat
   public :: omega0, gamma0
-  public :: write_f
   public :: M_class, N_class, i_class
   public :: l_links, r_links, itright, itleft, boundary
   public :: supercell_labels, n_supercells, n_cells
   public :: enforce_linked_boundary_conditions
-  public :: write_fyx
   public :: get_init_field, getan_nogath
   public :: flux_vs_theta_vs_vpa
   public :: pflux_vs_theta_vs_vpa
@@ -261,13 +259,10 @@ module dist_fn
   logical :: initialized_dist_fn_level_1 = .false.
   logical :: initialized_dist_fn_level_2 = .false.
   logical :: initialized_dist_fn_level_3 = .false.
-  !logical :: initializing = .true.
   logical :: readinit = .false.
   logical :: bessinit = .false.
   logical :: connectinit = .false.
   logical :: feqinit = .false.
-  logical :: lpolinit = .false.
-  logical :: fyxinit = .false.
 
   !> Arbitrary limit on the maximum number of allowed links in connected boundary conditions
   integer, parameter :: max_allowed_links = 5000
@@ -1117,7 +1112,6 @@ contains
     initialized_dist_fn_level_1 = .false.
     no_connections = .false.
     connectinit = .false.
-    lpolinit = .false. ; fyxinit = .false.
     exb_first = .true.
 
     call finish_dist_fn_level_2
@@ -9228,284 +9222,6 @@ contains
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
   end subroutine get_heat
-
-  !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
-  subroutine write_f (last)
-    use mp, only: proc0, send, receive
-    use file_utils, only: open_output_file, close_output_file
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
-    use gs2_layouts, only: idx_local, proc_id
-    use le_grids, only: al, energy, forbid, negrid, nlambda
-    use egrid, only: zeroes, x0
-    use theta_grid, only: bmag
-    use dist_fn_arrays, only: gnew
-    use species, only: nspec
-
-    integer :: iglo, ik, it, is
-    integer :: ie, il, ig
-    integer, save :: unit
-    real :: vpa, vpe
-    complex, dimension(2) :: gtmp
-    !> If true, also close the file
-    logical, intent(in)  :: last 
-
-    real, dimension (:,:), allocatable, save :: xpts
-    real, dimension (:), allocatable, save :: ypts
-
-    if (.not. allocated(xpts)) then
-       allocate(xpts(negrid,nspec))
-       allocate(ypts(nlambda))
-
-    ! should really just get rid of xpts and ypts
-       xpts(1:negrid-1,:) = zeroes(1:negrid-1,:)
-       xpts(negrid,:) = x0(:)
-       ypts = 0.0
-       ! change argument of bmag depending on which theta you want to write out
-       do il=1,nlambda
-          if (1.0-al(il)*bmag(0) .gt. 0.0) ypts(il) = sqrt(1.0-al(il)*bmag(0))
-       end do
-
-       if (proc0) then
-          call open_output_file (unit, ".dist")
-          write(unit, *) negrid*nlambda
-       end if
-    endif
-
-    do iglo = g_lo%llim_world, g_lo%ulim_world
-       ik = ik_idx(g_lo, iglo) ; if (ik /= 1) cycle
-       it = it_idx(g_lo, iglo) ; if (it /= 1) cycle
-       is = is_idx(g_lo, iglo) ; if (is /= 1) cycle
-       ie = ie_idx(g_lo, iglo) 
-       ig = 0
-       il = il_idx(g_lo, iglo)
-       if (idx_local (g_lo, ik, it, il, ie, is)) then
-          if (proc0) then 
-             gtmp = gnew(ig,:,iglo)
-          else
-             call send (gnew(ig,:,iglo), 0)
-          endif
-       else if (proc0) then
-          call receive (gtmp, proc_id(g_lo, iglo))
-       endif
-       if (proc0) then
-          if (.not. forbid(ig,il)) then
-             vpa = sqrt(energy(ie,is)*max(0.0, 1.0-al(il)*bmag(ig)))
-             vpe = sqrt(energy(ie,is)*al(il)*bmag(ig))
-             write (unit, "(8(1x,e12.6))") vpa, vpe, energy(ie,is), al(il), &
-                  xpts(ie,is), ypts(il), real(gtmp(1)), real(gtmp(2))
-          end if
-       end if
-    end do
-    if (proc0) write (unit, *)
-    if (last .and. proc0) call close_output_file (unit)
-    
-  end subroutine write_f
-
-  !> Write distribution function (\(g\) or possibly \(f\)?) in real space to text file
-  !> "<runname>.yxdist"
-  subroutine write_fyx (phi,bpar,last)
-    use mp, only: proc0, send, receive, barrier
-    use file_utils, only: open_output_file, close_output_file
-    use gs2_layouts, only: il_idx, ig_idx, ik_idx, it_idx, is_idx, isign_idx, ie_idx
-    use gs2_layouts, only: idx_local, proc_id, yxf_lo, accelx_lo, g_lo
-    use le_grids, only: al, energy=>energy_maxw, forbid, negrid, nlambda
-    use theta_grid, only: bmag, ntgrid
-    use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
-    use nonlinear_terms, only: accelerated
-    use gs2_transforms, only: transform2, init_transforms
-    use array_utils, only: zero_array, copy
-#ifdef SHMEM
-    use shm_mpi3, only: shm_alloc, shm_free
-#endif
-    !> Electrostatic potential and parallel magnetic field
-    complex, dimension (-ntgrid:,:,:), intent (in) :: phi, bpar
-    !> If true, also close the file
-    logical, intent (in) :: last
-
-    real, dimension (:,:), allocatable :: grs, gzf
-#ifndef SHMEM
-    real, dimension (:,:,:), allocatable :: agrs, agzf
-#else
-    real, dimension (:,:,:), pointer, contiguous :: agrs => null(), agzf => null()
-    complex, dimension(:,:,:), pointer, contiguous :: g0_ptr => null()
-#endif
-    real, dimension (:), allocatable :: agp0, agp0zf
-    real :: gp0, gp0zf
-    integer :: ig, it, ik, il, ie, is, iyxlo, isign, ia, iaclo, iglo, acc
-    integer, save :: unit
-
-    if (accelerated) then
-#ifndef SHMEM
-       allocate (agrs(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))          
-       allocate (agzf(2*ntgrid+1, 2, accelx_lo%llim_proc:accelx_lo%ulim_alloc))          
-#else
-       call shm_alloc(agrs, (/ 1, 2*ntgrid+1, 1, 2, &
-            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
-       call shm_alloc(agzf, (/ 1, 2*ntgrid+1, 1, 2, &
-            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
-        call shm_alloc(g0_ptr, (/ 1, 2*ntgrid+1, 1, 2, &
-            accelx_lo%llim_proc, accelx_lo%ulim_alloc /))
-#endif
-       allocate (agp0(2), agp0zf(2))
-       call zero_array(agrs); call zero_array(agzf); agp0 = 0.0; agp0zf = 0.0
-    else
-#ifdef SHMEM
-       g0_ptr => g_work
-#endif
-       allocate (grs(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       allocate (gzf(yxf_lo%ny, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       call zero_array(grs); call zero_array(gzf); gp0 = 0.0; gp0zf = 0.0
-    end if
-
-    if (.not. fyxinit) then
-       if (proc0) then
-          acc = 0
-          call open_output_file (unit,".yxdist")
-          if (accelerated) acc = 1
-          write(unit,*) 2*negrid*nlambda, bmag(0), acc
-       end if
-
-       fyxinit = .true.
-    end if
-
-    call g_adjust (gnew, phi, bpar, direction = from_g_gs2)
-
-#ifndef SHMEM
-    call copy(gnew, g_work)
-#else
-    g0_ptr = gnew
-#endif
-
-#ifndef SHMEM
-    if (accelerated) then
-       call transform2 (g_work, agrs, ia)
-    else
-       call transform2 (g_work, grs)
-    end if
-
-    call zero_array(g_work)
-    do iglo=g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       if (ik == 1) g_work(:,:,iglo) = gnew(:,:,iglo)
-    end do
-
-    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
-
-    if (accelerated) then
-       call transform2 (g_work, agzf, ia)
-    else
-       call transform2 (g_work, gzf)
-    end if
-
-#else
-
-    if (accelerated) then
-       call transform2 (g0_ptr, agrs, ia)
-    else
-       call transform2 (g0_ptr, grs)
-    end if
-
-    g0_ptr = 0.0
-    do iglo=g_lo%llim_proc, g_lo%ulim_proc
-       ik = ik_idx(g_lo,iglo)
-       if (ik == 1) g0_ptr(:,:,iglo) = gnew(:,:,iglo)
-    end do
-
-    call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
-
-    if (accelerated) then
-       call transform2 (g0_ptr, agzf, ia)
-    else
-       call transform2 (g0_ptr, gzf)
-    end if
-
-#endif
-
-    if (accelerated) then
-       do iaclo=accelx_lo%llim_world, accelx_lo%ulim_world
-          it = it_idx(accelx_lo, iaclo)
-          ik = ik_idx(accelx_lo, iaclo)
-          if (it == 1 .and. ik == 1) then
-             il = il_idx(accelx_lo, iaclo)
-             ig = 0
-             if (.not. forbid(ig,il)) then
-                ie = ie_idx(accelx_lo, iaclo)
-                is = is_idx(accelx_lo, iaclo)
-
-                if (proc0) then
-                   if (.not. idx_local(accelx_lo, ik, it, il, ie, is)) then
-                      call receive (agp0, proc_id(accelx_lo, iaclo))
-                      call receive (agp0zf, proc_id(accelx_lo, iaclo))
-                   else
-                      agp0 = agrs(ig+ntgrid+1, :, iaclo)
-                      agp0zf = agzf(ig+ntgrid+1, :, iaclo)
-                   end if
-                else if (idx_local(accelx_lo, ik, it, il, ie, is)) then
-                   call send (agrs(ig+ntgrid+1, :, iaclo), 0)
-                   call send (agzf(ig+ntgrid+1, :, iaclo), 0)
-                end if
-                
-                if (proc0) then
-                   write (unit, "(6(1x,e13.6))") energy(ie), al(il), &
-                        agp0(1), agp0(2), agp0zf(1), agp0zf(2)
-                end if
-             end if
-          end if
-          call barrier
-       end do
-       deallocate(agp0, agp0zf)
-#ifndef SHMEM
-       deallocate(agrs, agzf)
-#else
-       call shm_free(agrs)
-       call shm_free(agzf)
-       call shm_free(g0_ptr)
-#endif
-    else
-       do iyxlo=yxf_lo%llim_world, yxf_lo%ulim_world
-          
-          ig = ig_idx(yxf_lo, iyxlo)
-          it = it_idx(yxf_lo, iyxlo)
-          if (ig == 0 .and. it == 1) then
-             il = il_idx(yxf_lo, iyxlo)
-             if (.not. forbid(ig,il)) then
-                ik = 1
-                ie = ie_idx(yxf_lo, iyxlo)
-                is = is_idx(yxf_lo, iyxlo)
-                isign = isign_idx(yxf_lo, iyxlo)
-                
-                if (proc0) then
-                   if (.not. idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
-                      call receive (gp0, proc_id(yxf_lo, iyxlo))
-                      call receive (gp0zf, proc_id(yxf_lo, iyxlo))
-                   else
-                      gp0 = grs(ik, iyxlo)
-                      gp0zf = gzf(ik, iyxlo)
-                   end if
-                else if (idx_local(yxf_lo, ig, isign, it, il, ie, is)) then
-                   call send (grs(ik, iyxlo), 0)
-                   call send (gzf(ik, iyxlo), 0)                   
-                end if
-                
-                if (proc0) then
-                   write (unit, "(4(1x,e13.6),i8)") energy(ie), al(il), &
-                        gp0, gp0zf, isign
-                end if
-             end if
-          end if
-          call barrier
-       end do
-       deallocate (grs, gzf)
-    end if
-
-    if (proc0) flush (unit)
-
-    if (proc0) then
-       write(unit,*)
-       if (last) call close_output_file (unit)
-    end if
-
-  end subroutine write_fyx
 
   !> FIXME : Add documentation
   subroutine boundary(linked)
