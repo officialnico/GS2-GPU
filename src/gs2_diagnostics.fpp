@@ -1828,7 +1828,7 @@ contains
   !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
   !> and write to netCDF
   subroutine do_write_symmetry(file_id, nout)
-    use dist_fn, only: flux_vs_theta_vs_vpa
+    use diagnostics_fluxes, only: flux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec
@@ -1923,7 +1923,7 @@ contains
 
   !> Calculate the particle flux contribution to toroidal momentum flux and write to netCDF
   subroutine do_write_pflux_sym(file_id, nout)
-    use dist_fn, only: pflux_vs_theta_vs_vpa
+    use diagnostics_fluxes, only: pflux_vs_theta_vs_vpa
     use theta_grid, only: ntgrid
     use le_grids, only: nlambda, negrid
     use species, only: nspec

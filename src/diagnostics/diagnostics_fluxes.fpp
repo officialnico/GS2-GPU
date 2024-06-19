@@ -6,10 +6,9 @@ module diagnostics_fluxes
 
   private
 
-  public :: init_diagnostics_fluxes
-  public :: finish_diagnostics_fluxes
-  public :: reset_averages_and_counters
+  public :: init_diagnostics_fluxes, finish_diagnostics_fluxes, reset_averages_and_counters
   public :: calculate_fluxes, common_calculate_fluxes
+  public :: flux_vs_theta_vs_vpa, pflux_vs_theta_vs_vpa
 
   public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
   public :: vflux_perp, pflux_tormom, vflux0, vflux1, pmflux
@@ -1183,6 +1182,108 @@ contains
 
   end subroutine get_lfflux
 
+  !> Calculate the momentum flux as a function of \((v_\parallel, \theta, t)\)
+  subroutine flux_vs_theta_vs_vpa (phinew,vflx)
+    use constants, only: zi
+    use dist_fn_arrays, only: gnew, vperp2, aj1, aj0, vpac, g_work
+    use gs2_layouts, only: g_lo
+    use gs2_layouts, only: it_idx, ik_idx, is_idx
+    use theta_grid, only: ntgrid, bmag, gds21, gds22, qval, shat
+    use theta_grid, only: Rplot, Bpol, rhoc
+    use kt_grids, only: aky, theta0
+    use le_grids, only: integrate_volume, nlambda, negrid
+    use le_grids, only: get_flux_vs_theta_vs_vpa
+    use species, only: spec, nspec
 
+    implicit none
+    complex, dimension(-ntgrid:,:,:), intent(in) :: phinew
+    real, dimension (-ntgrid:,:,:), intent (out) :: vflx
+
+    integer :: all = 1
+    integer :: iglo, isgn, ig, it, ik, is
+
+    real, dimension (:,:,:), allocatable :: g0r
+    real, dimension (:,:,:,:,:), allocatable :: gavg
+
+    allocate (g0r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (gavg(-ntgrid:ntgrid,nlambda,negrid,2,nspec))
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             ! Not clear that this should use the grid-centre v|| (vpac)
+             ! as this is not defined at ig = ntgrid and all other quantities
+             ! are evaluated on the grid points.
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)*vpac(ig,isgn,iglo) &
+                  *Rplot(ig)*sqrt(1.0-Bpol(ig)**2/bmag(ig)**2) &
+                  -zi*aky(ik)*gnew(ig,isgn,iglo)*aj1(ig,iglo) &
+                  *rhoc*(gds21(ig)+theta0(it,ik)*gds22(ig))*vperp2(ig,iglo)*spec(is)%smz/(qval*shat*bmag(ig)**2)
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)
+          end do
+       end do
+    end do
+
+    call integrate_volume (g0r, gavg, all)
+    call get_flux_vs_theta_vs_vpa (gavg, vflx)
+
+    deallocate (gavg)
+    deallocate (g0r)
+
+  end subroutine flux_vs_theta_vs_vpa
+
+  !> Diagnose particle flux contribution to toroidal momentum flux
+  !> in the lab frame in terms of vpar and theta.
+  subroutine pflux_vs_theta_vs_vpa (vflx)
+#ifdef LOWFLOW
+    use dist_fn_arrays, only: gnew, aj0, g_work
+    use gs2_layouts, only: g_lo
+    use gs2_layouts, only: it_idx, ik_idx, is_idx
+    use theta_grid, only: Rplot !JPL
+    use fields_arrays, only: phinew
+    use kt_grids, only: aky
+    use le_grids, only: integrate_volume, nlambda, negrid
+    use le_grids, only: get_flux_vs_theta_vs_vpa
+    use species, only:  nspec
+    use lowflow, only: mach_lab
+#endif
+    use theta_grid, only: ntgrid
+    implicit none
+
+    real, dimension (-ntgrid:,:,:), intent (out) :: vflx
+#ifdef LOWFLOW
+    integer :: all = 1
+    integer :: iglo, isgn, ig, it, ik, is
+
+    real, dimension (:,:,:), allocatable :: g0r
+    real, dimension (:,:,:,:,:), allocatable :: gavg
+    allocate (g0r(-ntgrid:ntgrid,2,g_lo%llim_proc:g_lo%ulim_alloc))
+    allocate (gavg(-ntgrid:ntgrid,nlambda,negrid,2,nspec))
+
+    do iglo = g_lo%llim_proc, g_lo%ulim_proc
+       it = it_idx(g_lo,iglo)
+       ik = ik_idx(g_lo,iglo)
+       is = is_idx(g_lo,iglo)
+       do isgn = 1, 2
+          do ig = -ntgrid, ntgrid
+             g_work(ig,isgn,iglo) = gnew(ig,isgn,iglo)*aj0(ig,iglo)
+
+             g0r(ig,isgn,iglo) = aimag(g_work(ig,isgn,iglo)*conjg(phinew(ig,it,ik)))*aky(ik)*Rplot(ig)**2*mach_lab(is)
+
+          end do
+       end do
+    end do
+
+    call integrate_volume (g0r, gavg, all)
+    call get_flux_vs_theta_vs_vpa (gavg, vflx)
+
+    deallocate (gavg)
+    deallocate (g0r)
+#else
+    vflx=0.
+#endif
+  end subroutine pflux_vs_theta_vs_vpa
 
 end module diagnostics_fluxes
