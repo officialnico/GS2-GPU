@@ -373,6 +373,7 @@ contains
     real, dimension(2) :: errtmp
     integer, dimension(3) :: idxtmp
     logical, parameter :: increase = .true., decrease = .false., trap_flag = .true.
+    logical :: compute_trapped_error
     real :: vnmult_target
 
     allocate(wgt(nspec))
@@ -388,6 +389,8 @@ contains
        allocate(apar_e(-ntgrid:ntgrid,ntheta0,naky,wdim))
        allocate(apar_l(-ntgrid:ntgrid,ntheta0,naky,ng2))
     end if
+
+    compute_trapped_error = grid_has_trapped_particles() .and. new_trap_int
 
     ! first call to g_adjust converts gyro-averaged dist. fn. (g)
     ! into nonadiabatic part of dist. fn. (h)
@@ -421,7 +424,7 @@ contains
        call lint_error (g_work, wgt, phi_l)
 
        ! next loop gets error estimate for trapped particles, if there are any
-       if (grid_has_trapped_particles() .and. new_trap_int) then
+       if (compute_trapped_error) then
           ntrap = nlambda - ng2
           allocate(phi_t(-ntgrid:ntgrid, ntheta0, naky, ntrap))
           call zero_array(phi_t)
@@ -445,7 +448,7 @@ contains
 
        call eint_error (g_work, wgt, apar_e)
        call lint_error (g_work, wgt, apar_l)
-       if (grid_has_trapped_particles() .and. new_trap_int) then
+       if (compute_trapped_error) then
           ntrap = nlambda - ng2
           allocate(apar_t(-ntgrid:ntgrid, ntheta0, naky, ntrap))
           call zero_array(apar_t)
@@ -477,7 +480,7 @@ contains
        errest(2,:) = errtmp
        erridx(2,:) = idxtmp
 
-       if (grid_has_trapped_particles() .and. new_trap_int) then
+       if (compute_trapped_error) then
           call estimate_error (phi_app, phi_t, kmax, errtmp, idxtmp, trap_flag)
           errest(3,:) = errtmp
           erridx(3,:) = idxtmp
@@ -501,6 +504,7 @@ contains
     end if
 
     if (vary_vnew) then
+       ! Energy resolution requirements
        vnmult_target = vnmult(2)
 
        if (errest(1,2) > etol + ewindow .or. errest(4,2) > etola + ewindowa) then
@@ -511,16 +515,18 @@ contains
 
        call init_ediffuse (vnmult_target)
        call init_diffuse_conserve
-    end if
 
-    if (vary_vnew) then
+       ! Lambda resolution requirements
        vnmult_target = vnmult(1)
 
        if (errest(2,2) > etol + ewindow .or. errest(3,2) > etol + ewindow &
             .or. errest(5,2) > etola + ewindowa) then
           call get_vnewk (vnmult(1), vnmult_target, increase)
        else if (errest(2,2) < etol - ewindow .and. errest(5,2) < etola - ewindowa .and. &
-            (errest(3,2) < etol - ewindow .or. .not. trap_flag)) then
+            (errest(3,2) < etol - ewindow .or. .not. compute_trapped_error)) then
+          !The last conditional in the above says to ignore the trapped_error if
+          !we haven't calculated it. The compute_trapped_error part is probably not needed
+          !as errest(3,2) should be zero there anyway.
           call get_vnewk (vnmult(1), vnmult_target, decrease)
        end if
 
