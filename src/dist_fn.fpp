@@ -149,9 +149,6 @@ module dist_fn
   real, dimension (:,:,:), allocatable :: wdriftttp
   ! (-ntgrid:ntgrid, 2, -g-layout-)
 
-  real, dimension (:,:,:), allocatable :: wstar
-  ! (naky,negrid,nspec) replicated
-
   ! fieldeq
   real, dimension (:,:,:), allocatable :: gamtot, gamtot1, gamtot2, gamtot3
   ! (-ntgrid:ntgrid,ntheta0,naky) replicated
@@ -994,7 +991,7 @@ contains
     use hyper, only: init_hyper
     use le_grids, only: init_g2gf
 #ifdef LOWFLOW
-    use dist_fn_arrays, only: vpac
+    use dist_fn_arrays, only: vpac, wstar
     use lowflow, only: init_lowflow
 #endif
     implicit none
@@ -1168,6 +1165,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_dist_fn_level_3
+    use dist_fn_arrays, only: wstar
     if (.not. initialized_dist_fn_level_3) return
     initialized_dist_fn_level_3 = .false.
 
@@ -1766,7 +1764,7 @@ contains
     use kt_grids, only: naky
     use le_grids, only: negrid
     use gs2_time, only: code_dt, wunits
-
+    use dist_fn_arrays, only: wstar
     implicit none
     integer :: ik, ie, is
 
@@ -2189,7 +2187,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_source_term
-    use dist_fn_arrays, only: vpac, aj0
+    use dist_fn_arrays, only: vpac, aj0, wstar
     use run_parameters, only: has_apar
     use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
@@ -4831,7 +4829,7 @@ contains
 #ifdef LOWFLOW
     use lowflow, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, vpac, g
+    use dist_fn_arrays, only: aj0, aj1, vperp2, vpac, g, wstar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky
@@ -5115,7 +5113,7 @@ contains
 #ifdef LOWFLOW
     use lowflow, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
 #endif
-    use dist_fn_arrays, only: aj0, aj1, vperp2, g
+    use dist_fn_arrays, only: aj0, aj1, vperp2, g, wstar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
     use theta_grid, only: ntgrid
     use kt_grids, only: aky

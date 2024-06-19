@@ -12,7 +12,7 @@ module dist_fn_arrays
 
   public :: g, gnew, g_work, g_restart_tmp, kx_shift, theta0_shift, vpa, vpac
   public :: gexp_1, gexp_2, gexp_3
-  public :: vperp2, aj0, aj1
+  public :: vperp2, aj0, aj1, wstar
 !AJ
   public :: vpa_gf, vperp2_gf, aj0_gf, aj1_gf
   public :: c_rate, to_g_gs2, from_g_gs2, get_adjust
@@ -26,6 +26,9 @@ module dist_fn_arrays
   ! dist fn
   complex, dimension (:,:,:), allocatable :: g, gnew, g_restart_tmp
   ! (-ntgrid:ntgrid,2, -g-layout-)
+
+  real, dimension (:,:,:), allocatable :: wstar
+  ! (naky,negrid,nspec) replicated
 
 #ifndef SHMEM
   complex, dimension (:,:,:), allocatable :: g_work
