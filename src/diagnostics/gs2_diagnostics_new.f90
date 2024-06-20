@@ -279,9 +279,12 @@ contains
     if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%ascii_files%write_to_yxdist) &
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
          call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
-    if (gnostics%ascii_files%write_to_dist) &
+    if (gnostics%write_ascii .and. gnostics%write_g) &
          call do_write_f (gnostics%ascii_files%dist)
     if (gnostics%write_ascii) call do_write_geom()
     
@@ -296,10 +299,15 @@ contains
     integer :: nwrite_large
 
     nwrite_large = gnostics%nwrite*gnostics%nwrite_mult
+    if (mod(gnostics%istep,nwrite_large) /= 0) return
+
     ! Random stuff that needs to be put in properly or removed
-    if (gnostics%ascii_files%write_to_yxdist .and. mod(gnostics%istep,nwrite_large) == 0) &
+    ! Note we don't use gnostics%ascii_files%write_to_yxdist here
+    ! because do_write_fyx is collective but gnostics%ascii_files%write_to_yxdist
+    ! is only set on proc0
+    if (gnostics%write_ascii .and. gnostics%write_gyx) &
          call do_write_fyx (gnostics%ascii_files%yxdist, phinew, bparnew)
-    if (gnostics%ascii_files%write_to_dist .and. mod(gnostics%istep,nwrite_large) == 0) &
+    if (gnostics%write_ascii .and. gnostics%write_g) &
          call do_write_f (gnostics%ascii_files%dist)
   end subroutine run_diagnostics_to_be_updated
 
