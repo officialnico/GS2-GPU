@@ -276,7 +276,6 @@ contains
        if(proc0.and.debug) write(*,*) "Closing new diagnostics"
        call neasyf_close(gnostics%file_id)
     end if
-    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
     
     ! Random stuff that needs to be put in properly or removed
     ! Note we don't use gnostics%ascii_files%write_to_yxdist here
@@ -287,7 +286,8 @@ contains
     if (gnostics%write_ascii .and. gnostics%write_g) &
          call do_write_f (gnostics%ascii_files%dist)
     if (gnostics%write_ascii) call do_write_geom()
-    
+    if (proc0) call finish_diagnostics_ascii(gnostics%ascii_files)
+
     call finish_diagnostics_config(gnostics)
   end subroutine finish_gs2_diagnostics_new
 
