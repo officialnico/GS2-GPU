@@ -60,24 +60,17 @@ module dist_fn
   end interface set_overrides
 
   public :: read_parameters, wnml_dist_fn, wnml_dist_fn_species, check_dist_fn
-  public :: timeadv, exb_shear, g_exb, g_exbfac
-  public :: collisions_advance
-  public :: getfieldeq, getan, getfieldeq_nogath
+  public :: timeadv, exb_shear, g_exb, g_exbfac, collisions_advance, wdrift_func
+  public :: get_init_field, getan, getan_nogath, getfieldeq, getfieldeq_nogath
   public :: omega0, gamma0
   public :: M_class, N_class, i_class
-  public :: l_links, r_links, itright, itleft, boundary
+  public :: l_links, r_links, itright, itleft, boundary, get_leftmost_it
   public :: supercell_labels, n_supercells, n_cells
   public :: enforce_linked_boundary_conditions
-  public :: get_init_field, getan_nogath
-  public :: wdrift_func
-  
-  public :: gamtot,gamtot1,gamtot2
-
-!CMR, 25/1/13:
-!  add public variables below for init_g
+  public :: gamtot, gamtot1, gamtot2
   public :: boundary_option_switch, boundary_option_linked
   public :: pass_right, init_pass_ends
-  public :: get_leftmost_it
+
   public :: gridfac1, fl_avg, apfac
   public :: adiabatic_option_switch, adiabatic_option_fieldlineavg
 
