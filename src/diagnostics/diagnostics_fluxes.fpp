@@ -13,7 +13,7 @@ module diagnostics_fluxes
   public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
   public :: vflux_perp, pflux_tormom, vflux0, vflux1, pmflux
   public :: vmflux, pbflux, vbflux, esflux_vs_e, apflux_vs_e
-  public :: bpflux_vs_e, exchange, exchange1
+  public :: bpflux_vs_e, exchange
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -1054,6 +1054,8 @@ contains
   !> energy exchange (summed over species) is zero
   !>
   !> @note This diagnostic can be relatively expensive to calculate.
+  !>
+  !> @note We currently call this with an unadjusted gnew and g, is that correct?
   subroutine eexchange (phinew, phi, exchange1, exchange2)
     use constants, only: zi
     use gs2_layouts, only: g_lo, il_idx, ie_idx, it_idx, ik_idx, is_idx
