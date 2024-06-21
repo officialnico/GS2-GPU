@@ -12,8 +12,7 @@ module diagnostics_fluxes
 
   public :: qheat, qmheat, qbheat, pflux, vflux, vflux_par
   public :: vflux_perp, pflux_tormom, vflux0, vflux1, pmflux
-  public :: vmflux, pbflux, vbflux, esflux_vs_e, apflux_vs_e
-  public :: bpflux_vs_e, exchange
+  public :: vmflux, pbflux, vbflux, exchange
 
   real, dimension (:,:,:,:), allocatable ::  qheat, qmheat, qbheat
   real, dimension (:,:,:), allocatable ::  pflux,  vflux, vflux_par, vflux_perp
@@ -124,7 +123,7 @@ contains
 
     call common_calculate_fluxes()
 
-      if (has_phi) then
+    if (has_phi) then
        call calculate_standard_flux_properties(gnostics, &
             'es_heat_flux',  'Turbulent flux of heat', 'Q_gB = ', qheat(:,:,:,1), gnostics%distributed)
        call calculate_standard_flux_properties(gnostics, &
@@ -262,6 +261,7 @@ contains
     call flux (phinew, aparnew, bparnew, &
          pflux,  qheat,  vflux, vflux_par, vflux_perp, &
          pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
+    ! Only used in new diagnostics, can't turn off separately to fluxes in general
     call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
     ! lowflow terms only implemented in electrostatic limit at present
@@ -269,9 +269,11 @@ contains
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
-    ! Note we don't use / write exchange1 anywhere
+    ! Note we don't use / write exchange1 anywhere, we also call with gnew unadjusted
     if (has_phi) call eexchange (phinew, phi, exchange1, exchange)
 
+    ! Note all procs have the main results so could also do the below such that
+    ! we have the right result on all processors.
     if (.not. proc0) return
 
     do is = 1, nspec
@@ -874,6 +876,7 @@ contains
 
     call sum_reduce(total,0)
 
+    ! We've already weighted by 0.5 in the above, do we need a second 0.5 here?
     if (proc0) flx = 0.5*total
 
   end subroutine get_flux_vs_e
@@ -912,22 +915,18 @@ contains
     !we have below without the drhodpsi.
     wgt = 1.0/trapezoidal_integration(theta, grho / (bmag * gradpar))
 
-    ! EGH for new parallel I/O everyone
-    ! calculates fluxes
     ! Note: This doesn't include the field line jacobian (jacob) and as such
     ! it's not clear that the above wgt is correct (as it uses 1/(bmag*gradpar)
     ! which is jacob * drhodpsi, rather than jacob as one might expect).
-    !if (proc0) then
-       do is = 1, nspec
-          do ik = 1, naky
-             do it = 1, ntheta0
-                flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *aky(ik) * wgt / woutunits(ik)
-             end do
+    do is = 1, nspec
+       do ik = 1, naky
+          do it = 1, ntheta0
+             flx_dist(:,it,ik,is) = aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                  *aky(ik) * wgt / woutunits(ik)
           end do
        end do
-       flx_dist = flx_dist*0.5
-    ! end if
+    end do
+    flx_dist = flx_dist*0.5
 
     deallocate (total)
 
@@ -942,10 +941,10 @@ contains
   !> Ideally the flux and get_flux methods could return both the theta dependent and
   !> theta averaged fluxes.
   subroutine flux_dist (phi, bpar, pflux_dist, vflux_par_dist, vflux_perp_dist, qflux_dist)
-!CMR, 15/1/08:
-!  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew
-!  so fields and distribution function are evaluated self-consistently in time.
-!  This fixed unphysical oscillations in non-ambipolar particle fluxes
+    !CMR, 15/1/08:
+    !  Implemented Clemente Angioni's fix for fluxes by replacing g with gnew
+    !  so fields and distribution function are evaluated self-consistently in time.
+    !  This fixed unphysical oscillations in non-ambipolar particle fluxes
     use species, only: spec
     use theta_grid, only: ntgrid, bmag
     use theta_grid, only: qval, shat, gds21, gds22
@@ -1294,7 +1293,7 @@ contains
              do it = 1, ntheta0
                 flx(it,ik,is) = trapezoidal_integration(theta, &
                      aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     /(bmag*gradpar))*wgt
+                     /(bmag*gradpar))*wgt !No ky factor?
              end do
           end do
        end do
