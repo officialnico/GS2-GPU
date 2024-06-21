@@ -116,8 +116,8 @@ module gs2_layouts
      integer :: iproc, nproc
      integer :: nidx, nfield, ntgrid, nindex, naky, ntheta0, M_class, N_class, i_class
      integer :: llim_world, ulim_world, llim_proc, ulim_proc, ulim_alloc, blocksize
-     integer, dimension(:,:), pointer :: ik => null ()
-     integer, dimension(:,:), pointer :: it => null ()
+     integer, dimension(:,:), allocatable :: ik
+     integer, dimension(:,:), allocatable :: it
   end type f_layout_type
 
   type (f_layout_type), dimension(:), allocatable :: f_lo
@@ -1761,8 +1761,8 @@ contains
     if(allocated(f_lo))then
        f_size = size(f_lo)
        do i=1,f_size
-          if(associated(f_lo(i)%ik)) deallocate (f_lo(i)%ik)
-          if(associated(f_lo(i)%it)) deallocate (f_lo(i)%it)
+          if(allocated(f_lo(i)%ik)) deallocate (f_lo(i)%ik)
+          if(allocated(f_lo(i)%it)) deallocate (f_lo(i)%it)
        enddo
        deallocate(f_lo)    
     endif
