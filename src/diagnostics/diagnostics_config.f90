@@ -33,30 +33,30 @@ module diagnostics_config
      real :: diffusivity = initial_value
 
      ! Individual heat fluxes
-     real, dimension(:), pointer :: species_es_heat_flux
-     real, dimension(:), pointer :: species_apar_heat_flux
-     real, dimension(:), pointer :: species_bpar_heat_flux
+     real, dimension(:), allocatable :: species_es_heat_flux
+     real, dimension(:), allocatable :: species_apar_heat_flux
+     real, dimension(:), allocatable :: species_bpar_heat_flux
 
      ! Total fluxes
-     real, dimension(:), pointer :: species_heat_flux
-     real, dimension(:), pointer :: species_momentum_flux
-     real, dimension(:), pointer :: species_particle_flux
-     real, dimension(:), pointer :: species_energy_exchange
+     real, dimension(:), allocatable :: species_heat_flux
+     real, dimension(:), allocatable :: species_momentum_flux
+     real, dimension(:), allocatable :: species_particle_flux
+     real, dimension(:), allocatable :: species_energy_exchange
 
      ! Average total fluxes
-     real, dimension(:), pointer :: species_heat_flux_avg
-     real, dimension(:), pointer :: species_momentum_flux_avg
-     real, dimension(:), pointer :: species_particle_flux_avg
+     real, dimension(:), allocatable :: species_heat_flux_avg
+     real, dimension(:), allocatable :: species_momentum_flux_avg
+     real, dimension(:), allocatable :: species_particle_flux_avg
 
      ! Heating
-     real, dimension(:), pointer :: species_heating
-     real, dimension(:), pointer :: species_heating_avg
+     real, dimension(:), allocatable :: species_heating
+     real, dimension(:), allocatable :: species_heating_avg
 
      ! Growth rates
-     complex, dimension(:,:), pointer :: omega_average
+     complex, dimension(:,:), allocatable :: omega_average
 
      ! free energy transfer due to nonlinearity
-     complex, dimension(:,:), pointer :: zonal_transfer
+     complex, dimension(:,:), allocatable :: zonal_transfer
 
   end type results_summary_type
 
@@ -83,7 +83,7 @@ module diagnostics_config
      real :: user_time
      real :: user_time_old
      real :: start_time
-     real, dimension(:), pointer :: fluxfac
+     real, dimension(:), allocatable :: fluxfac
      integer :: nwrite
      integer :: nwrite_mult
      logical :: write_any
