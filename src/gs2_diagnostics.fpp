@@ -1166,10 +1166,10 @@ contains
                 call get_volume_average (vflux_par(:,:,is), parmom_fluxes(is))
                 call get_volume_average (vflux_perp(:,:,is), perpmom_fluxes(is))
                 call get_volume_average (exchange(:,:,is), energy_exchange(is))
-#ifdef LOWFLOW
-                call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
-                call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
-#endif
+                if (gs2_has_lowflow) then
+                   call get_volume_average (vflux0(:,:,is), lfmom_fluxes(is))
+                   call get_volume_average (vflux1(:,:,is), vflux1_avg(is))
+                end if
              end do
           end if
           if (has_apar) then

@@ -269,6 +269,7 @@ contains
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
+    ! Note we don't use / write exchange1 anywhere
     if (has_phi) call eexchange (phinew, phi, exchange1, exchange)
 
     if (.not. proc0) return
