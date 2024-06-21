@@ -104,6 +104,7 @@ contains
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
     use gs2_io, only: starts, egrid_dim, species_dim, time_dim
+    use build_config, only: gs2_has_lowflow
 #ifdef NETCDF
     use neasyf, only: neasyf_write
 #endif
@@ -151,14 +152,14 @@ contains
             dim_names=[egrid_dim, species_dim, time_dim], &
             long_name="Electrostatic flux", start=starts(3, gnostics%nout))
 #endif
-#ifdef LOWFLOW
-       call calculate_standard_flux_properties(gnostics, &
-            'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
-            vflux0, gnostics%distributed)
-       call calculate_standard_flux_properties(gnostics, &
-            'es_mom1', 'Low-flow momentum flux 1 (Ask Michael Barnes)', 'Pi_gB =  ', &
-            vflux0, gnostics%distributed)
-#endif
+       if (gs2_has_lowflow) then
+          call calculate_standard_flux_properties(gnostics, &
+               'es_mom0', 'Low-flow momentum flux 0 (Ask Michael Barnes)', 'Pi_gB =  ', &
+               vflux0, gnostics%distributed)
+          call calculate_standard_flux_properties(gnostics, &
+               'es_mom1', 'Low-flow momentum flux 1 (Ask Michael Barnes)', 'Pi_gB =  ', &
+               vflux0, gnostics%distributed)
+       end if
     end if
 
     if (has_apar) then
@@ -263,16 +264,12 @@ contains
          pmflux, qmheat, vmflux, pbflux, qbheat, vbflux, pflux_tormom)
     call flux_vs_e (phinew, aparnew, bparnew, esflux_vs_e, apflux_vs_e, bpflux_vs_e)
 
-    if (gs2_has_lowflow) then
-      ! lowflow terms only implemented in electrostatic limit at present
-      call lf_flux (phinew, vflux0, vflux1)
-    end if
+    ! lowflow terms only implemented in electrostatic limit at present
+    if (gs2_has_lowflow) call lf_flux (phinew, vflux0, vflux1)
 
     call g_adjust (gnew, phinew, bparnew, direction = to_g_gs2)
 
-    if (has_phi) then
-      call eexchange (phinew, phi, exchange1, exchange)
-    end if
+    if (has_phi) call eexchange (phinew, phi, exchange1, exchange)
 
     if (.not. proc0) return
 
@@ -544,6 +541,7 @@ contains
     use run_parameters, only: has_phi, has_apar, has_bpar
     use constants, only: zi
     use theta_grid, only: Rplot, Bpol, rhoc
+    use build_config, only: gs2_has_lowflow
     implicit none
     complex, dimension (-ntgrid:,:,:), intent (in) :: phi, apar, bpar
     real, dimension (:,:,:), intent (out) :: pflux, pmflux, pbflux, pflux_tormom
@@ -569,9 +567,7 @@ contains
        end do
 
        call get_flux (g_work, phi, pflux)
-#ifdef LOWFLOW
-       call get_flux_tormom (g_work, phi, pflux_tormom)
-#endif
+       if (gs2_has_lowflow) call get_flux_tormom (g_work, phi, pflux_tormom)
 
        do iglo = g_lo%llim_proc, g_lo%ulim_proc
           g_work(:,:,iglo) = g_work(:,:,iglo)*energy(ie_idx(g_lo,iglo),is_idx(g_lo,iglo))
@@ -1002,22 +998,22 @@ contains
        call get_flux_dist (g_work, phi, vflux_perp_dist)
     end if
     call g_adjust (gnew, phi, bpar, direction = to_g_gs2) ! convert back from h to g
- end subroutine flux_dist
+  end subroutine flux_dist
 
-#ifdef LOWFLOW
   !> Calculate toroidal angular momentum flux due to field
   !>
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx)
-    use theta_grid, only: ntgrid
-    use theta_grid, only : theta, grho, bmag, jacob
+    use theta_grid, only: ntgrid, theta, grho, bmag, jacob
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
     use mp, only: proc0
     use kt_grids, only: aky
+#ifdef LOWFLOW
     use lowflow, only: mach_lab
-    use integration, only trapezoidal_integration
+#endif
+    use integration, only: trapezoidal_integration
     use gs2_layouts, only: g_lo
     implicit none
     !> Input weighted distribution
@@ -1026,6 +1022,7 @@ contains
     complex, dimension (-ntgrid:,:,:), intent (in) :: fld
     !> Output flux
     real, dimension (:,:,:), intent (out) :: flx
+#ifdef LOWFLOW
     complex, dimension (:,:,:,:), allocatable :: total
     real :: wgt
     integer :: ik, it, is
@@ -1048,8 +1045,10 @@ contains
     end if
 
     deallocate (total)
-  end subroutine get_flux_tormom !JPL
+#else
+    flx = 0.0
 #endif
+  end subroutine get_flux_tormom !JPL
 
   !> Calculate energy exchange diagnostic that numerically guarantees that the total
   !> energy exchange (summed over species) is zero
