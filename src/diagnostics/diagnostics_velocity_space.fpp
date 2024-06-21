@@ -144,7 +144,7 @@ contains
     use theta_grid, only: ntgrid
     use dist_fn_arrays, only: gnew, g_adjust, g_work, to_g_gs2, from_g_gs2
     use gs2_layouts, only: lz_lo, ig_idx, idx_local, proc_id
-    use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx, g_lo
+    use gs2_layouts, only: ik_idx, ie_idx, is_idx, it_idx, il_idx
     use collisions, only: dtot, fdf, fdb
     use redistribute, only: gather, scatter
     use gs2_time, only: user_time

@@ -1862,7 +1862,6 @@ contains
     use convert, only: c2r
     use kt_grids, only: naky, ntheta0
     use fields_arrays, only: phinew, bparnew
-    use dist_fn_arrays, only: gnew
     use run_parameters, only: has_phi
     implicit none
 

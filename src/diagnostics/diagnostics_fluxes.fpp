@@ -1004,16 +1004,16 @@ contains
   !>
   !> FIXME: confirm & expand
   subroutine get_flux_tormom (g_in, fld, flx)
-    use theta_grid, only: ntgrid, theta, grho, bmag, jacob
+    use theta_grid, only: ntgrid
+#ifdef LOWFLOW
     use kt_grids, only: ntheta0, naky
     use le_grids, only: integrate_moment
     use species, only: nspec
-    use mp, only: proc0
     use kt_grids, only: aky
-#ifdef LOWFLOW
+    use theta_grid, only: theta, grho, bmag, jacob
     use lowflow, only: mach_lab
-#endif
     use integration, only: trapezoidal_integration
+#endif
     use gs2_layouts, only: g_lo
     implicit none
     !> Input weighted distribution
@@ -1032,17 +1032,15 @@ contains
     ! This is essentially 2 pi / surfarea
     wgt = 1.0/trapezoidal_integration(theta, grho * jacob)
 
-    if (proc0) then
-       do is = 1, nspec
-          do ik = 1, naky
-             do it = 1, ntheta0
-                flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
-                     *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
-             end do
+    do is = 1, nspec
+       do ik = 1, naky
+          do it = 1, ntheta0
+             flx(it,ik,is) = trapezoidal_integration(theta, aimag(total(:,it,ik,is)*conjg(fld(:,it,ik))) &
+                  *Rplot(:)**2 * jacob)*aky(ik)*wgt*mach_lab(is)
           end do
        end do
-       flx = flx*0.5
-    end if
+    end do
+    flx = flx*0.5
 
     deallocate (total)
 #else
