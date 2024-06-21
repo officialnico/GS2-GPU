@@ -40,7 +40,7 @@ module gs2_heating
      module procedure del_dvtype_0, del_dvtype_1, del_dvtype_2, del_dvtype_3
   end interface
 
-  !> FIXME : Add documentation  
+  !> FIXME : Add documentation
   type :: heating_diagnostics
 ! total quantities:
      real :: energy
@@ -49,25 +49,25 @@ module gs2_heating
      real :: eapar                                       !int k_perp^2 A_par^2/8 pi
      real :: ebpar                                       !int B_par^2/8 pi
 ! species by species:
-     real, dimension(:), pointer :: delfs2     => null() !int T/F0 dfs^2/2
-     real, dimension(:), pointer :: hs2        => null() !int T/F0 hs^2/2
-     real, dimension(:), pointer :: phis2      => null() !int q^2 n/T phi^2/2
-     real, dimension(:), pointer :: hypervisc  => null() 
-     real, dimension(:), pointer :: hyperres   => null()
-     real, dimension(:), pointer :: hypercoll  => null()
-     real, dimension(:), pointer :: collisions => null()
-     real, dimension(:), pointer :: imp_colls => null()
-     real, dimension(:), pointer :: gradients  => null()
-!     real, dimension(:), pointer :: curvature  => null()
-     real, dimension(:), pointer :: heating    => null()
+     real, dimension(:), allocatable :: delfs2      !int T/F0 dfs^2/2
+     real, dimension(:), allocatable :: hs2         !int T/F0 hs^2/2
+     real, dimension(:), allocatable :: phis2       !int q^2 n/T phi^2/2
+     real, dimension(:), allocatable :: hypervisc
+     real, dimension(:), allocatable :: hyperres
+     real, dimension(:), allocatable :: hypercoll
+     real, dimension(:), allocatable :: collisions
+     real, dimension(:), allocatable :: imp_colls
+     real, dimension(:), allocatable :: gradients
+!     real, dimension(:), allocatable :: curvature
+     real, dimension(:), allocatable :: heating
   end type heating_diagnostics
 
   !> Density-velocity perturbations
   type :: dens_vel_diagnostics
      !GGH NOTE: Dimension here is for species
-     real, dimension(:), pointer :: dvpar  => null()
-     real, dimension(:), pointer :: dvperp   => null()
-     real, dimension(:), pointer :: dn => null()
+     real, dimension(:), allocatable :: dvpar
+     real, dimension(:), allocatable :: dvperp
+     real, dimension(:), allocatable :: dn
   end type dens_vel_diagnostics
 
 contains
@@ -974,7 +974,6 @@ contains
     implicit none
     type (heating_diagnostics), intent(in out) :: h
     type (heating_diagnostics), dimension(:,:), intent(in out) :: hk
-!    complex, dimension (-ntgrid:,:,:), pointer :: hh, hnew
     complex, dimension (-ntgrid:,:,:), intent(in) :: phi, apar, bpar, phinew, aparnew, bparnew
     complex, dimension(:,:,:,:), allocatable :: tot
 !    complex, dimension (:,:,:), allocatable :: epar
