@@ -111,8 +111,7 @@ module dist_fn
   public :: check_getan
 
   ! knobs
-  complex, dimension (:), allocatable :: fexp ! (nspec)
-  real, dimension (:), allocatable :: bkdiff  ! (nspec)
+  real, dimension (:), allocatable :: fexp, bkdiff  ! (nspec)
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
   real :: phi_ext, afilter, exponential_boundary_factor
@@ -533,12 +532,6 @@ module dist_fn
      !>
      !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> Sets the imaginary part of the temporal implicitness
-     !> parameter. It is considered an error for this to be non-zero.
-     !>
-     !> @todo Consider removing this variable as it should always be
-     !> zero. Is this used for numerical testing?
-     real :: fexpi = 0.0
      !> Sets the real part of the temporal implicitness parameter. Any
      !> value smaller than 0.5 adds numerical dissipation. When `fexpr
      !> = 0.5` we have a \(2^\textrm{nd}\) order time centered
@@ -776,17 +769,7 @@ contains
     ! implicitness parameters
     !
     do is = 1, nspec
-       if (aimag(fexp(is)) /= 0.) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('Species ',i2,' has fexpi = ',e11.4)") is, aimag(fexp(is))
-          write (report_unit, fmt="('THIS IS AN ERROR')")
-          write (report_unit, fmt="('fexpi should be zero for all species.')")
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
-       end if
-
-       write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, real(fexp(is))
+       write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, fexp(is)
     end do
   end subroutine check_dist_fn
 
@@ -886,7 +869,7 @@ contains
        write (line, *) i
        write (unit, fmt="(' &',a)") &
             & trim("dist_fn_species_knobs_"//trim(adjustl(line)))
-       write (unit, fmt="(' fexpr = ',e13.6)") real(fexp(i))
+       write (unit, fmt="(' fexpr = ',e13.6)") fexp(i)
        write (unit, fmt="(' bakdif = ',e13.6)") bkdiff(i)
     end do
   end subroutine wnml_dist_fn_species
@@ -1430,7 +1413,6 @@ contains
     type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     integer :: is
     logical :: exist
-    real :: fexpr, fexpi
 
     if(present(dist_fn_species_config_in)) dist_fn_species_config = dist_fn_species_config_in
     if(.not.allocated(dist_fn_species_config)) allocate(dist_fn_species_config(nspec))
@@ -1443,12 +1425,9 @@ contains
 
        ! Copy out internal values into module level parameters
        bkdiff(is) = dist_fn_species_config(is)%bakdif
-       fexpi = dist_fn_species_config(is)%fexpi
-       fexpr = dist_fn_species_config(is)%fexpr
+       fexp(is) = dist_fn_species_config(is)%fexpr
        
        exist = dist_fn_species_config(is)%exist
-       
-       fexp(is) = cmplx(fexpr,fexpi)
     end do
   end subroutine read_species_knobs
 
@@ -10890,16 +10869,15 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    real :: bakdif, fexpi, fexpr
+    real :: bakdif, fexpr
 
-    namelist /dist_fn_species_knobs/ bakdif, fexpi, fexpr
+    namelist /dist_fn_species_knobs/ bakdif, fexpr
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
     bakdif = self%bakdif
-    fexpi = self%fexpi
     fexpr = self%fexpr
 
     ! Now read in the main namelist
@@ -10909,7 +10887,6 @@ contains
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif
-    self%fexpi = fexpi
     self%fexpr = fexpr
 
     self%exist = exist
@@ -10929,7 +10906,6 @@ contains
 
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("bakdif", self%bakdif, unit_internal)
-    call self%write_key_val("fexpi", self%fexpi, unit_internal)
     call self%write_key_val("fexpr", self%fexpr, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_dist_fn_species_config
@@ -10951,7 +10927,6 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     call broadcast(self%bakdif)
-    call broadcast(self%fexpi)
     call broadcast(self%fexpr)
 
     call broadcast(self%exist)
