@@ -406,10 +406,8 @@ module dist_fn
      !>
      !> @todo Expand documentation
      real :: mach = 0.0
-     !> Allow different species to have different values of `bakdif` and
-     !> `fexpr`.  Not allowed for nonlinear runs.
-     !>
-     !> @note The restriction to `.false.` for nonlinear runs isn't actually enforced.
+     !> Allow different species to have different values of `bakdif`.
+     !> Forced false for nonlinear runs.
      logical :: mult_imp = .false.
      !> If true switches on "new" parallel boundary condition where h=0 at incoming boundary instead of g=0.
      !> This is considered the correct boundary condition but old behaviour retained for experimentation.
@@ -558,7 +556,7 @@ contains
   !> FIXME : Add documentation
   subroutine check_dist_fn(report_unit)
     use kt_grids, only: grid_option, gridopt_box, gridopt_switch
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
+    use nonlinear_terms, only: nonlin
     use species, only: spec, nspec, has_electron_species
     implicit none
     integer, intent(in) :: report_unit
@@ -700,17 +698,17 @@ contains
        write (report_unit, *) 
     end if
 
-    if (mult_imp .and. nonlinear_mode_switch == nonlinear_mode_on) then
+    if (mult_imp .and. nonlin) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('For nonlinear runs, all species must use the same values of fexpr and bakdif')")
        write (report_unit, fmt="('in the dist_fn_species_knobs_x namelists.')")
-       write (report_unit, fmt="('THIS IS AN ERROR.')") 
+       write (report_unit, fmt="('THIS IS AN ERROR AND MULT_IMP WILL BE SET FALSE.')")
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
     end if
 
-    if (def_parity .and. nonlinear_mode_switch == nonlinear_mode_on) then
+    if (def_parity .and. nonlin) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('Choosing a definite parity for a nonlinear run has never been tested.')")
@@ -1210,6 +1208,7 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
     use kt_grids, only: gridopt_box, gridopt_switch
+    use nonlinear_terms, only: nonlin
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
@@ -1249,7 +1248,6 @@ contains
 
     if (readinit) return
     readinit = .true.
-
 
     !Deal with source_knobs namelist
     if (present(source_config_in)) source_config = source_config_in
@@ -1354,13 +1352,14 @@ contains
     call broadcast (fexp)
     call broadcast (bkdiff)
   
-    !<DD>Turn off esv if not using linked boundaries
-    esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
+    ! Turn off esv if not using linked boundaries
+    esv = esv .and. (boundary_option_switch == boundary_option_linked)
 
-    if (mult_imp) then
-       ! nothing -- fine for linear runs, but not implemented nonlinearly
-    else
-! consistency check for bkdiff
+    ! Turn off mult_imp if nonlinear
+    mult_imp = mult_imp .and. .not. nonlin
+
+    if (.not. mult_imp) then
+       ! consistency check for bkdiff
        bd = bkdiff(1)
        do is = 1, nspec
           if (bkdiff(is) /= bd) then
@@ -4989,16 +4988,11 @@ contains
       use species, only: spec, nonmaxw_corr
       use theta_grid, only: itor_over_B
       implicit none
-      complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
+      complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
-
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       bdfac_p = 1.+bd*(3.-2.*real(isgn))
       bdfac_m = 1.-bd*(3.-2.*real(isgn))
-
-
 
 !CMR, 4/8/2011:
 ! Some concerns, may be red herrings !
@@ -5275,9 +5269,7 @@ contains
       complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
       integer :: sgn
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       sgn = 3 - 2 * isgn
       bdfac_p = 1 + bd * sgn
       bdfac_m = 1 - bd * sgn
