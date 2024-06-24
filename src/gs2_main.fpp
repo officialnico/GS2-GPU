@@ -835,7 +835,7 @@ contains
 
        if (show_progress) then
           ! Have to split this from previous logic as we shouldn't call mod if
-          ! progress_frequency and we can't rely on short circuit logic
+          ! progress_frequency is zero and we can't rely on short circuit logic
           if (mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
              call time_message(.false.,progress_time,' Progress time')
              time_per_step = progress_time(1)/progress_frequency
