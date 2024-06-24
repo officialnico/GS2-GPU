@@ -433,7 +433,7 @@ contains
   subroutine init_integrations
     use kt_grids, only: naky, ntheta0
     use species, only: nspec
-    use gs2_layouts, only: init_dist_fn_layouts, pe_layout
+    use gs2_layouts, only: init_dist_fn_layouts
     use theta_grid, only: ntgrid
     use mp, only: nproc, iproc
     implicit none

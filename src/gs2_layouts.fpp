@@ -4863,7 +4863,7 @@ contains
   end subroutine xxfidx2yxfidx
 
   !> FIXME : Add documentation  
-  subroutine pe_layout (char)
+  pure subroutine pe_layout (char)
     implicit none
     character (1), intent (out) :: char
 
@@ -4889,7 +4889,7 @@ contains
   end subroutine pe_layout
 
   !> Get the factors of an integer n
-  subroutine factors (n, j, div)
+  pure subroutine factors (n, j, div)
     !> The number to factorize
     integer, intent (in) :: n
     !> The number of factors
@@ -4900,16 +4900,16 @@ contains
 
     ! find: i = lowest factor of n
     ! and therefore imax=n/i is the HIGHEST factor of n
-    do i=2,n
-       if (mod(n,i)==0) exit
+    do i = 2, n
+       if (mod(n,i) == 0) exit
     end do
-    imax = n/i
-    j=1
+    imax = n / i
+    j = 1
     ! loop over all possible factors of n, and return in div(j)
-    do i=1,imax
-       if (mod(n,i)==0) then
+    do i = 1, imax
+       if (mod(n,i) == 0) then
           div(j) = i
-          j=j+1
+          j = j + 1
        end if
     end do
     div(j) = n
@@ -4924,13 +4924,14 @@ contains
 
     ! Check input is the integers 1 to 5
     check = [it_ord, ik_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (g_lo) is not unique integers 1 to 5')
 
-    lo%ie_ord=ie_ord
-    lo%il_ord=il_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%is_ord=is_ord
+    lo%ie_ord = ie_ord
+    lo%il_ord = il_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_g
 
   !> Sets the order of x y th s in le_lo
@@ -4942,12 +4943,13 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, it_ord, ik_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (le_lo) is not unique integers 1 to 4')
 
-    lo%ig_ord=ig_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_le
 
   !> Sets the order of x y e th s in lz_lo
@@ -4959,13 +4961,14 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, it_ord, ik_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (lz_lo) is not unique integers 1 to 5')
 
-    lo%ig_ord=ig_ord
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%ie_ord=ie_ord    
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_lz
 
   !> Sets the order of th sgn x y l s in e_lo
@@ -4977,14 +4980,15 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ig_ord, isgn_ord, it_ord, ik_ord, il_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (e_lo) is not unique integers 1 to 5')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (e_lo) is not unique integers 1 to 6')
 
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord    
-    lo%it_ord=it_ord
-    lo%ik_ord=ik_ord
-    lo%il_ord=il_ord    
-    lo%is_ord=is_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%it_ord = it_ord
+    lo%ik_ord = ik_ord
+    lo%il_ord = il_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_e
   
   !> Sets the order of y th sgn l e s in xxf_lo
@@ -4998,14 +5002,15 @@ contains
 
     ! Check input is the integers 1 to N
     check = [ik_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (xxf_lo) is not unique integers 1 to 6')
 
-    lo%ik_ord=ik_ord
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord
-    lo%il_ord=il_ord
-    lo%ie_ord=ie_ord
-    lo%is_ord=is_ord
+    lo%ik_ord = ik_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%il_ord = il_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_xxf
 
   !> Sets the order of x th sgn l e s in yxf_lo
@@ -5019,32 +5024,29 @@ contains
 
     ! Check input is the integers 1 to N
     check = [it_ord, ig_ord, isgn_ord, il_ord, ie_ord, is_ord]
-    call check_unique_integers(check,'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
+    call check_unique_integers(check, &
+         'Input to set_dimension_order (yxf_lo) is not unique integers 1 to 6')
 
-    lo%it_ord=it_ord
-    lo%ig_ord=ig_ord
-    lo%isgn_ord=isgn_ord
-    lo%il_ord=il_ord
-    lo%ie_ord=ie_ord
-    lo%is_ord=is_ord
+    lo%it_ord = it_ord
+    lo%ig_ord = ig_ord
+    lo%isgn_ord = isgn_ord
+    lo%il_ord = il_ord
+    lo%ie_ord = ie_ord
+    lo%is_ord = is_ord
   end subroutine set_dimension_order_yxf
 
   !> Checks that the given array contains unique integers 1 to (array size) (in any order),
   !> aborts if not.
   subroutine check_unique_integers(array,message)
-
     use mp, only: mp_abort
     use sorting, only: quicksort
-
     implicit none
     !> Dimension of input 
-    integer, dimension(:), intent(inout) :: array
+    integer, dimension(:), intent(in out) :: array
     !> Error message
     character(*), intent(in) :: message
     integer, dimension(:), allocatable :: check
-    integer :: n
-    integer :: i
-
+    integer :: n, i
     n = size(array)
     ! Explicit allocation not necessary, but we get a warning from
     ! gfortran about 'check.offset used uninitialized' -- this is a
@@ -5052,11 +5054,8 @@ contains
     allocate(check(n))
     check = [(i, i = 1, n)]
 
-    call quicksort(n,array)
-    if (any(check.ne.array)) then
-      call mp_abort(message)
-    end if
-
+    call quicksort(n, array)
+    if (any(check /= array)) call mp_abort(message)
   end subroutine check_unique_integers
 
   !> Set the module level config type
