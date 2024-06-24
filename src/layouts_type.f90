@@ -62,7 +62,9 @@ module layouts_type
      logical :: x_before_y !Information about layout order
      logical :: x_local, y_local, l_local, e_local, s_local !Used to record if various dimensions are entirely local
      ! shm data
-     integer :: ppn, nnd, bpn, ndbklsize, llim_node, ulim_node
+     integer :: ppn, llim_node, ulim_node
+     ! Only used during setup so could be moved to the init routine
+     integer :: nnd, bpn
      integer, allocatable :: proc_map(:) ! llimit on all ranks
   end type g_layout_type
 
