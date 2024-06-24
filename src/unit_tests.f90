@@ -1,6 +1,5 @@
 !> A module containing functions for running unit tests
 module unit_tests
-  use runtime_tests, only: verbosity
   implicit none
 
   private
@@ -43,15 +42,8 @@ module unit_tests
 
   public :: print_with_stars
 
-  public :: verbosity
-
   !> Trinity or list mode job id
   public :: job_id
-
-! HJL Moved here from gs2_main
-  public :: ilast_step
-
-  integer :: ilast_step
   integer :: job_id
 
   interface agrees_with
@@ -128,8 +120,8 @@ contains
   end function agrees_with_real
 
   function should_print(verbosity_level)
-    use mp, only: proc0
-    use mp, only: mp_initialized
+    use runtime_tests, only: verbosity
+    use mp, only: proc0, mp_initialized
     integer, intent(in) :: verbosity_level
     logical :: should_print
     if (mp_initialized) then 
