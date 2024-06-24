@@ -3037,7 +3037,7 @@ contains
   end function il_idx_parity
 
   !> FIXME : Add documentation  
-  elemental intege  function ie_idx_parity (lo, i)
+  elemental integer function ie_idx_parity (lo, i)
     implicit none
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
