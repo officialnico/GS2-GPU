@@ -2989,9 +2989,8 @@ contains
   end subroutine init_parity_layouts
 
   !> FIXME : Add documentation  
-  elemental function idx_parity (lo, ik, il, ie, is)
+  elemental integer function idx_parity (lo, ik, il, ie, is)
     implicit none
-    integer :: idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, il, ie, is
     select case (layout)
@@ -3011,71 +3010,56 @@ contains
   end function idx_parity
 
   !> FIXME : Add documentation  
-  elemental function idx_local_parity (lo, ik, il, ie, is)
+  elemental logical function idx_local_parity (lo, ik, il, ie, is)
     implicit none
-    logical :: idx_local_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, il, ie, is
-
     idx_local_parity = idx_local(lo, idx(lo, ik, il, ie, is))
   end function idx_local_parity
 
   !> FIXME : Add documentation  
-  elemental function ig_local_parity (lo, ip)
+  elemental logical function ig_local_parity (lo, ip)
     implicit none
-    logical :: ig_local_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: ip
-
     ig_local_parity = lo%iproc == proc_id(lo, ip)
   end function ig_local_parity
 
   !> FIXME : Add documentation  
-  elemental function proc_id_parity (lo, i)
+  elemental integer function proc_id_parity (lo, i)
     implicit none
-    integer :: proc_id_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     proc_id_parity = i/lo%blocksize
   end function proc_id_parity
 
   !> FIXME : Add documentation  
-  elemental function ik_idx_parity (lo, i)
+  elemental integer function ik_idx_parity (lo, i)
     implicit none
-    integer :: ik_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_parity = 1+mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function is_idx_parity (lo, i)
-    
+  elemental integer function is_idx_parity (lo, i)
     implicit none
-
-    integer :: is_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_parity = 1+mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function il_idx_parity (lo, i)
-
+  elemental integer function il_idx_parity (lo, i)
     implicit none
-
-    integer :: il_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_parity = 1+mod((i - lo%llim_world)/lo%il_comp, lo%nlambda)
   end function il_idx_parity
 
   !> FIXME : Add documentation  
-  elemental function ie_idx_parity (lo, i)
-
+  elemental intege  function ie_idx_parity (lo, i)
     implicit none
-
-    integer :: ie_idx_parity
     type (p_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_parity = 1+mod((i - lo%llim_world)/lo%ie_comp, lo%negrid)
