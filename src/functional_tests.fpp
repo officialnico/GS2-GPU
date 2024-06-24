@@ -52,8 +52,7 @@ contains
 
   !> FIXME : Add documentation
   function check_growth_rate(rslt, err)
-    use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
     use run_parameters, only: use_old_diagnostics
@@ -63,8 +62,6 @@ contains
     real, dimension(naky), intent(in) :: rslt
     real, intent(in) :: err
     logical :: check_growth_rate
-
-    logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
     integer :: ik
@@ -74,10 +71,10 @@ contains
     if (proc0) then
        call announce_check('growth rate')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)
@@ -96,8 +93,7 @@ contains
 
   !> FIXME : Add documentation
   logical function check_frequency(rslt, err)
-    use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0
     use run_parameters, only: use_old_diagnostics
@@ -106,7 +102,6 @@ contains
 #endif
     real, dimension(naky), intent(in) :: rslt
     real, intent(in) :: err
-    logical :: dummy
     logical :: check_result
     complex, dimension(ntheta0, naky) :: omegaavg
     integer :: ik
@@ -115,10 +110,10 @@ contains
     if (proc0) then
        call announce_check('frequency')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        check_result =  agrees_with(real(omegaavg(1,:)), rslt, err)
@@ -137,8 +132,7 @@ contains
 
   !> FIXME : Add documentation  
   function check_growth_rates_equal_in_list(err)
-    use unit_tests, only: ilast_step
-    use gs2_diagnostics, only: get_omegaavg
+    use gs2_diagnostics, only: omegaavg_old => omegaavg
     use kt_grids, only: ntheta0, naky
     use mp, only: proc0, grp0, scope, subprocs, allprocs
     use mp, only: iproc, sum_allreduce
@@ -153,8 +147,6 @@ contains
     real, intent(in) :: err
     real, dimension(naky, njobs) :: omegas
     logical :: check_growth_rates_equal_in_list
-
-    logical :: dummy
     logical :: check_result
     integer :: i, ijob
     complex, dimension(ntheta0, naky) :: omegaavg
@@ -165,12 +157,11 @@ contains
     omegaavg=0.
 
     if (proc0) then
-       !call announce_check('growth rate')
        if (use_old_diagnostics) then
-         call get_omegaavg(ilast_step-1, dummy, omegaavg)
+          omegaavg = omegaavg_old
        else
 #ifdef NEW_DIAG
-         omegaavg = gnostics%current_results%omega_average
+          omegaavg = gnostics%current_results%omega_average
 #endif
        end if
        !check_result =  agrees_with(aimag(omegaavg(1,:)), rslt, err)

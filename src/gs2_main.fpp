@@ -660,17 +660,22 @@ contains
     use mp, only: proc0, scope, subprocs, broadcast
     use parameter_scan, only: update_scan_parameter_value
     use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
-    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics, ncheck_stop
-    use unit_tests, only: ilast_step, debug_message
+    use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics
+    use run_parameters, only: progress_frequency, ncheck_stop
+    use unit_tests, only: debug_message
     use gs2_init, only: init
     use standard_header, only: standard_header_type
     use exit_codes, only: EXIT_MAX_SIM_TIME
+    use file_utils, only: open_output_file, close_output_file
     type(gs2_program_state_type), intent(inout) :: state
     type(standard_header_type), optional, intent(in) :: header
-    integer :: istep
+    integer :: istep, progress_unit
     integer, intent(in) :: nstep_run
-    logical :: temp_initval_override_store, should_save_restart
-    integer :: istep_loop_max, istep_offset
+    logical :: temp_initval_override_store, should_save_restart, show_progress
+    integer :: istep_loop_start, istep_loop_max, istep_offset
+    real, dimension(2) :: progress_time
+    real :: time_per_step
+    character(len = 256) :: progress_message
     ! Actual value for optional `header` input
     type(standard_header_type) :: local_header
 
@@ -684,9 +689,9 @@ contains
 
     call debug_message(state%verb, &
         'gs2_main::evolve_equations starting')
-    
+
     temp_initval_override_store = state%init%initval_ov%override
-    
+
     call time_message(.false.,state%timers%total,' Total')
     
     if (state%nensembles > 1) call scope (subprocs)
@@ -698,11 +703,16 @@ contains
 
     call debug_message(state%verb, 'gs2_main::evolve_equations starting loop')
 
+    progress_time = 0
+    show_progress = proc0 .and. (progress_frequency > 0)
+    if (show_progress .and. proc0) call open_output_file(progress_unit, '.progress')
+
     ! We run for nstep_run iterations, starting from whatever istep we got
     ! to in previous calls to this function. Note that calling
     ! finalize_diagnostics resets state%istep_end
+    istep_loop_start = state%istep_end + 1
     istep_loop_max = state%istep_end + nstep_run
-    do istep = state%istep_end+1, istep_loop_max
+    do istep = istep_loop_start, istep_loop_max
        if (istep > nstep) then
          if (proc0) write (*,*) 'Reached maximum number of steps allowed &
               & (set by nstep) without restarting diagnostics.'
@@ -711,8 +721,8 @@ contains
        end if
 
        call time_message(.false.,state%timers%advance,' Advance time step')
+       call time_message(.false.,progress_time,' Progress time')
        call debug_message(state%verb+1, 'gs2_main::evolve_equations calling advance')
-
        call time_message(.false.,state%timers%timestep,' Timestep')
        ! Try to take a time step
        call advance (istep)
@@ -823,11 +833,34 @@ contains
           state%exit = .true.
        end if
 
+       if (show_progress) then
+          ! Have to split this from previous logic as we shouldn't call mod if
+          ! progress_frequency is zero and we can't rely on short circuit logic
+          if (mod(istep - istep_loop_start + 1, progress_frequency) == 0) then
+             call time_message(.false.,progress_time,' Progress time')
+             time_per_step = progress_time(1)/progress_frequency
+             write(progress_message, &
+                  '("Done step ",I0," of ",I0," : Time/step ",G9.3," s ETA ",G9.3," s")') &
+                  istep - istep_loop_start + 1, istep_loop_max - istep_loop_start + 1, &
+                  time_per_step, (istep_loop_max - istep) * time_per_step
+             write(6, '(A)') trim(progress_message)
+             rewind(progress_unit)
+             write(progress_unit, '(A)') trim(progress_message)
+             ! Reset progress timer
+             progress_time = 0
+          end if
+       end if
+
        if (state%exit) then
            call debug_message(state%verb, 'gs2_main::evolve_equations exiting loop')
           exit
        end if
     end do
+
+    if (proc0 .and. show_progress) then
+       write(progress_unit, '("Finished.")')
+       call close_output_file(progress_unit)
+    end if
 
     ! Try to ensure that we write the time dependent diagnostics at the end of the simulation
     ! even in cases where nstep does not have nwrite as a factor.
@@ -851,8 +884,6 @@ contains
 
     call time_message(.false.,state%timers%total,' Total')
     if (state%print_times) call print_times(state, state%timers)
-
-    ilast_step = state%istep_end
 
     ! We also restore the value of the override switch to what it
     ! was when this function was called.

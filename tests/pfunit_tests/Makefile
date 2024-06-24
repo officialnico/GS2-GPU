@@ -20,7 +20,9 @@ ifeq ($(PFUNIT_VERSION_MAJOR),4)
   PFUNIT_MOD := pfunit
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_BIN_DIR)/funitproc
   PFUNIT_INC := -I$(PFUNIT_INCLUDE_DIR)
-  PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES)
+# The raw use of GFTL_SHARED_V1_LIBRARIES here is a workaround apparently required with
+# gfortran 14 / Fedora 40 based environments. See https://github.com/Goddard-Fortran-Ecosystem/pFUnit/issues/466 
+  PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES) $(GFTL_SHARED_V1_LIBRARIES)
   F90FLAGS += $(PFUNIT_EXTRA_FFLAGS)
 else
   PFUNIT_VERSION_MINOR ?= 3
