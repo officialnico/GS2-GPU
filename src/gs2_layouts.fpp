@@ -6,7 +6,6 @@
 module gs2_layouts
   use abstract_config, only: abstract_config_type, CONFIG_MAX_NAME_LEN
 
-  use layouts_type, only: ikit, ikitprocs
   use layouts_type, only: g_layout_type, lz_layout_type, e_layout_type
   use layouts_type, only: le_layout_type, p_layout_type, gf_layout_type
   use layouts_type, only: xxf_layout_type, yxf_layout_type
@@ -2294,7 +2293,6 @@ contains
        result(gf_lo)
     use mp, only: mp_abort
     use file_utils, only: error_unit
-    use layouts_type, only: ikit
     implicit none
     integer, intent (in) :: ntgrid, naky, ntheta0, negrid, nlambda, nspec, nproc, iproc
     
