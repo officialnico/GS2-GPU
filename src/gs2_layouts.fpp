@@ -4056,7 +4056,6 @@ contains
     call check_accel (ntheta0, naky, nlambda, negrid, nspec, nblock)
 
     if (accel_lxyes) then
-
        yxf_lo%groupblocksize = (nblock-1)/nproc + 1
 
        ngroup = min (nproc, nblock)
@@ -4098,28 +4097,21 @@ contains
        ! Please see init_x_transform_layouts for more details on the
        ! functionality below.
        if (unbalanced_yxf) then
-
           call calculate_unbalanced_y(nproc, iproc, unbalanced_amount)
-
        end if
 
        if (.not. unbalanced_yxf) then
-
           yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
           yxf_lo%llim_proc = yxf_lo%blocksize*iproc
           yxf_lo%ulim_proc &
                = min(yxf_lo%ulim_world, yxf_lo%llim_proc + yxf_lo%blocksize - 1)
           yxf_lo%ulim_alloc = max(yxf_lo%llim_proc, yxf_lo%ulim_proc)
-
        else
-
-          if(proc0) then
+          if (proc0) then
              write(*, fmt="('Using unbalanced decomposition for yxf. ',&
              & 'Unbalanced fraction',F6.2)") unbalanced_amount
           end if
-
        end if
-
     end if
   end function setup_y_transform_layouts
 
@@ -4147,23 +4139,21 @@ contains
     if(.not. initialized_y_transform) then
        write(*,*) 'Y Transform data structures not initialized so calculate_unbalanced_y subroutine will not operate correctly'
        write(*,*) 'Aborting subroutine calculate_unbalanced_y'
-       return
+       return !Should this be an abort instead?
     end if
 
     yxf_lo%blocksize = yxf_lo%ulim_world/nproc + 1
     yxf_lo%small_block_balance_factor = 1
-    yxf_lo%large_block_balance_factor = 1                                                        
-    
+    yxf_lo%large_block_balance_factor = 1
     level_proc_num = nproc
 
     k = yxf_lo%nspec
 
     call calculate_block_breakdown(k, i, m, j, level_proc_num)
     
-    if(j .eq. 0) then
-       
-       if(m .eq. 0) then
-          level_proc_num = level_proc_num/k
+    if(j == 0) then
+       if(m == 0) then
+          level_proc_num = level_proc_num / k
           k = 1
        end if
        
@@ -4175,10 +4165,9 @@ contains
        end select
        call calculate_block_breakdown(k, i, m, j, level_proc_num)
        
-       if(j .eq. 0) then
-          
-          if(m .eq. 0) then
-             level_proc_num = level_proc_num/k
+       if(j == 0) then
+          if(m == 0) then
+             level_proc_num = level_proc_num / k
              k = 1
           end if
           
@@ -4191,187 +4180,186 @@ contains
           
           call calculate_block_breakdown(k, i, m, j, level_proc_num)
           
-          if(j .eq. 0) then
-             
-             if(m .eq. 0) then
-                level_proc_num = level_proc_num/k
+          if(j == 0) then
+             if(m == 0) then
+                level_proc_num = level_proc_num / k
                 k = 1
              end if
              
              k = yxf_lo%nsign * k
              call calculate_block_breakdown(k, i, m, j, level_proc_num)
              
-             if(j .eq. 0) then
-                
-                if(m .eq. 0) then
-                   level_proc_num = level_proc_num/k
+             if(j == 0) then
+                if(m == 0) then
+                   level_proc_num = level_proc_num / k
                    k = 1
                 end if
                 
                 k = yxf_lo%ntgridtotal * k
                 call calculate_block_breakdown(k, i, m, j, level_proc_num)
                 
-                if(j .eq. 0) then
-                   
-                   if(m .eq. 0) then
-                      level_proc_num = level_proc_num/k
+                if(j == 0) then ! Note calculate_block_breakdown can change j
+                   if(m == 0) then
+                      level_proc_num = level_proc_num / k
                       k = 1
                    end if
                    
                    k = yxf_lo%nx * k
                    call calculate_block_breakdown(k, i, m, j, level_proc_num)
                    
-                   if(i .ne. 0) then
-                      
-                      call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                           1, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      call calculate_unbalanced_decomposition(k, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                           yxf_lo%num_large, level_proc_num)
+                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, &
+                           1, yxf_lo%blocksize, yxf_lo%small_block_size, &
+                           yxf_lo%large_block_size, yxf_lo%block_multiple, &
+                           yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
                    end if
                    
                 else
                    
-                   if(i .ne. 0) then
-                      
-                      call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)     
-                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                           yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                      
+                   if(i /= 0) then
+                      call calculate_unbalanced_decomposition(k, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                           yxf_lo%num_large, level_proc_num)
+                      call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                           yxf_lo%small_block_balance_factor, &
+                           yxf_lo%large_block_balance_factor, &
+                           yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, &
+                           yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, &
+                           yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
                    end if
-                   
                 end if
                 
              else
                 
-                if(i .ne. 0) then
-                   
-                   call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)                         
-                   call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                        yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, &
-                        yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                   
+                if(i /= 0) then
+                   call calculate_unbalanced_decomposition(k, &
+                        yxf_lo%small_block_balance_factor, &
+                        yxf_lo%large_block_balance_factor, yxf_lo%num_small, &
+                        yxf_lo%num_large, level_proc_num)
+                   call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                        yxf_lo%small_block_balance_factor, &
+                        yxf_lo%large_block_balance_factor, yxf_lo%ntgridtotal*yxf_lo%nx, &
+                        yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                        yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                        yxf_lo%ulim_alloc)
                 end if
-                
              end if
-             
              
           else
              
-             if(i .ne. 0) then
-                
-                call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, yxf_lo%block_multiple, &
-                     yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-                
+             if(i /= 0) then
+                call calculate_unbalanced_decomposition(k, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, &
+                     yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              end if
-             
           end if
           
        else
           
-          if(i .ne. 0) then
-             
-             call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-             
+          if(i /= 0) then
+             call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, &
+                  yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, &
+                  level_proc_num)
              select case(layout)
              case('yxels')
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%negrid*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
-                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%negrid*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+                     yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              case default
-                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-                     yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
-                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
+                call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+                     yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+                     yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+                     yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+                     yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, &
+                     yxf_lo%ulim_alloc)
              end select
-             
           end if
-          
        end if
        
     else
        
-       if(i .ne. 0) then
-          
+       if (i /= 0) then
           call calculate_unbalanced_decomposition(k, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, yxf_lo%num_small, yxf_lo%num_large, level_proc_num)
-          call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
-               yxf_lo%negrid*yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, yxf_lo%blocksize, yxf_lo%small_block_size, &
-               yxf_lo%large_block_size, yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
-          
+          call calculate_block_size(iproc, yxf_lo%num_small, yxf_lo%num_large, &
+               yxf_lo%small_block_balance_factor, yxf_lo%large_block_balance_factor, &
+               yxf_lo%negrid*yxf_lo%nlambda*yxf_lo%nsign*yxf_lo%ntgridtotal*yxf_lo%nx, &
+               yxf_lo%blocksize, yxf_lo%small_block_size, yxf_lo%large_block_size, &
+               yxf_lo%block_multiple, yxf_lo%llim_proc, yxf_lo%ulim_proc, yxf_lo%ulim_alloc)
        end if
-       
     end if
     
-    
-    if(yxf_lo%large_block_balance_factor .eq. 1 .and. yxf_lo%small_block_balance_factor .eq. 1) then
-       
+    if(yxf_lo%large_block_balance_factor == 1 .and. &
+         yxf_lo%small_block_balance_factor == 1) then
        unbalanced_amount = 0
-       
     else 
-       
        unbalanced_amount = real(yxf_lo%large_block_size)/real(yxf_lo%small_block_size)
        unbalanced_amount = unbalanced_amount - 1
-              
     end if
     
-    if (unbalanced_amount .gt. max_unbalanced_yxf .or. unbalanced_amount .eq. 0) then
-       
+    if (unbalanced_amount > max_unbalanced_yxf .or. unbalanced_amount == 0) then
        unbalanced_yxf = .false.
-       
     end if
-    
-
   end subroutine calculate_unbalanced_y
 
   !> Return the species index, given yxf-layout and a global index
-  elemental function is_idx_yxf (lo, i)
+  elemental integer function is_idx_yxf (lo, i)
     implicit none
-    integer :: is_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_yxf = 1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_yxf
 
   !> Return the energy index, given yxf-layout and a global index
-  elemental function ie_idx_yxf (lo, i)
+  elemental integer function ie_idx_yxf (lo, i)
     implicit none
-    integer :: ie_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_yxf = 1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_yxf
 
   !> Return the lambda index, given yxf-layout and a global index
-  elemental function il_idx_yxf (lo, i)
+  elemental integer function il_idx_yxf (lo, i)
     implicit none
-    integer :: il_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_yxf = 1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_yxf
 
   !> Return the sign index, given yxf-layout and a global index
-  elemental function isign_idx_yxf (lo, i)
+  elemental integer function isign_idx_yxf (lo, i)
     implicit none
-    integer :: isign_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     isign_idx_yxf = 1+mod((i-lo%llim_world)/lo%isgn_comp,lo%nsign)
   end function isign_idx_yxf
  
   !> Return the theta index, given yxf-layout and a global index of a point on this proc
-  elemental function ig_idx_yxf (lo, i)
+  elemental integer function ig_idx_yxf (lo, i)
     implicit none
-    integer :: ig_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_yxf = -lo%ntgrid+mod((i-lo%llim_world)/lo%ig_comp,lo%ntgridtotal)
   end function ig_idx_yxf
 
   !> Return the kx index, given yxf-layout and a global index
-  elemental function it_idx_yxf (lo, i)
+  elemental integer function it_idx_yxf (lo, i)
     implicit none
-    integer :: it_idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_yxf = 1+mod((i-lo%llim_world)/lo%it_comp,lo%nx)
@@ -4399,9 +4387,8 @@ contains
   end function idx_accelx
 
   !> Return the global index in the yxf_lo layout given the dimensional indices
-  elemental function idx_yxf (lo, ig, isign, it, il, ie, is)
+  elemental integer function idx_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
-    integer :: idx_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
     integer, dimension(6) :: i
@@ -4441,9 +4428,8 @@ contains
   end function proc_id_accelx
 
   !> Return the processor id that has the point i in the yxf_lo layout
-  elemental function proc_id_yxf (lo, i)
+  elemental integer function proc_id_yxf (lo, i)
     implicit none
-    integer :: proc_id_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     integer :: block_offset, offset_block_number, j, k, tempi
@@ -4536,18 +4522,16 @@ contains
   end function ig_local_accelx
 
   !> Return whether a point is local to a processor given the dimensional indices
-  elemental function idx_local_yxf (lo, ig, isign, it, il, ie, is)
+  elemental logical function idx_local_yxf (lo, ig, isign, it, il, ie, is)
     implicit none
-    logical :: idx_local_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, isign, it, il, ie, is
     idx_local_yxf = idx_local (lo, idx(lo, ig, isign, it, il, ie, is))
   end function idx_local_yxf
 
   !> Return whether a point is local to a processor given the global index
-  elemental function ig_local_yxf (lo, i)
+  elemental logical function ig_local_yxf (lo, i)
     implicit none
-    logical ig_local_yxf
     type (yxf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_local_yxf = lo%iproc == proc_id(lo, i)
