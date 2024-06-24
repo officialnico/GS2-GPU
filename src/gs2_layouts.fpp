@@ -2436,59 +2436,64 @@ contains
   end subroutine init_gf_layouts
 
   !> FIXME : Add documentation    
-  elemental function it_idx_gf (lo, i)
+  elemental integer function it_idx_gf (lo, i)
     implicit none
-    integer :: it_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_gf = 1 + mod((i - lo%llim_world), lo%ntheta0)
   end function it_idx_gf
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_gf (lo, i)
+  elemental integer function ik_idx_gf (lo, i)
     implicit none
-    integer :: ik_idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_gf = 1 + ((i - lo%llim_world)/lo%ntheta0)
   end function ik_idx_gf
 
   !> FIXME : Add documentation    
-  elemental function idx_gf (lo, ik, it)
+  elemental integer function idx_gf (lo, ik, it)
     implicit none
-    integer :: idx_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
     idx_gf = (ik-1)*lo%ntheta0 + it
   end function idx_gf
 
   !> FIXME : Add documentation  
-  elemental function proc_id_gf (lo, i)
+  elemental integer function proc_id_gf (lo, i)
     implicit none
-    integer :: proc_id_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
-! For this scenario we have more blocks than processes so each process has multiple blocks, but the number of blocks
-! does not exactly divide by the number of processes, so some have larger blocks than others.
-    if(lo%largeblocksize .gt. 1) then
-       if(i .gt. lo%largeregionlimit) then
-           proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world)/lo%smallblocksize) + lo%largeblocklimit)
+    ! For this scenario we have more blocks than processes so each
+    ! process has multiple blocks, but the number of blocks does not
+    ! exactly divide by the number of processes, so some have larger
+    ! blocks than others.
+    if (lo%largeblocksize > 1) then
+       if (i > lo%largeregionlimit) then
+          proc_id_gf = (((i - (lo%largeblocksize * lo%largeblocklimit) - lo%llim_world) &
+               / lo%smallblocksize) + lo%largeblocklimit)
        else
            proc_id_gf = (i - lo%llim_world) / lo%largeblocksize
        end if
-! For this scenario we have less blocks than processes so we try to spread the blocks between processes.
-    else if(lo%largeblocksize .eq. 1) then
-       if(i .gt. lo%largeblocklimit) then
-          proc_id_gf = lo%largeregionlimit + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
+       ! For this scenario we have less blocks than processes so we try to
+       ! spread the blocks between processes.
+    else if (lo%largeblocksize == 1) then
+       if (i > lo%largeblocklimit) then
+          proc_id_gf = lo%largeregionlimit &
+               + ((i - lo%largeblocklimit - lo%llim_world)*lo%smallgapsize)
        else
           proc_id_gf = (i - lo%llim_world) * lo%largegapsize
        end if
-! For this scenario we either have exactly the same number of blocks as processes, or the number of blocks divides exactly
-! by the number of processes so each process has the same size blocks of the domain.
-! It is also used by the "simple_gf_decomposition" functionality for the scenario where we have less blocks than processes and we 
-! are not trying to distributed those blocks through the whole process space, just assigning them to the first n processes 
-! (where n is the number of xypoints we have in the gf_lo domain).
+       ! For this scenario we either have exactly the same number of
+       ! blocks as processes, or the number of blocks divides exactly
+       ! by the number of processes so each process has the same size
+       ! blocks of the domain.  It is also used by the
+       ! "simple_gf_decomposition" functionality for the scenario
+       ! where we have less blocks than processes and we are not
+       ! trying to distributed those blocks through the whole process
+       ! space, just assigning them to the first n processes (where n
+       ! is the number of xypoints we have in the gf_lo domain).
     else
        proc_id_gf = (i - lo%llim_world) / lo%smallblocksize
     end if
@@ -2496,18 +2501,16 @@ contains
   end function proc_id_gf
 
   !> FIXME : Add documentation    
-  elemental function idx_local_gf (lo, ik, it)
+  elemental logical function idx_local_gf (lo, ik, it)
     implicit none
-    logical :: idx_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it
     idx_local_gf = idx_local(lo, idx(lo, ik, it))
   end function idx_local_gf
 
   !> FIXME : Add documentation  
-  elemental function ig_local_gf (lo, ig)
+  elemental logical function ig_local_gf (lo, ig)
     implicit none
-    logical :: ig_local_gf
     type (gf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_gf = lo%iproc == proc_id(lo, ig)
