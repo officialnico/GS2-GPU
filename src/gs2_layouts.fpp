@@ -508,7 +508,7 @@ contains
 
   !> Handle nproc values outside valid range (i.e. <= 0 or > nproc_total).
   !> Values outside of this range are replaced with nproc_total
-  integer elemental function handle_processor_request(nproc_in, upper_limit) result(nproc)
+  elemental integer function handle_processor_request(nproc_in, upper_limit) result(nproc)
     implicit none
     integer, intent(in) :: nproc_in, upper_limit
     if(nproc_in <= 0 .or. nproc_in > upper_limit) then
@@ -837,8 +837,6 @@ contains
     lambda_local = .false.    
                        
 100 deallocate (facs)
-
-
   end subroutine check_llocal
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
