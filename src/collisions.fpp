@@ -629,7 +629,7 @@ contains
   subroutine init_le_bessel
     use gs2_layouts, only: g_lo, le_lo, ig_idx
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: negrid, nxi, g2le, ixi_to_il, energy => energy_maxw, al
+    use le_grids, only: negrid, g2le, ixi_to_il, energy => energy_maxw, al
     use theta_grid, only: ntgrid
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
@@ -638,7 +638,7 @@ contains
     integer :: ile, ig, ie, ixi, il
 
     allocate (z_big(-ntgrid:ntgrid, 2, g_lo%llim_proc:g_lo%ulim_alloc))
-    allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+    allocate (ctmp(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     ! We need to initialise ctmp as it is used as receiving buffer in
     ! g2le redistribute, which doesn't populate all elements
     call zero_array(ctmp)
@@ -650,8 +650,8 @@ contains
     call gather (g2le, z_big, ctmp)
 
     if (.not. allocated(aj0le)) then
-       allocate (aj0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       allocate (vperp_aj1le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (aj0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (vperp_aj1le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     end if
 
     aj0le = real(ctmp)
@@ -659,12 +659,12 @@ contains
 
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(ile, ig, ixi, ie, il) &
-    !$OMP SHARED(le_lo, negrid, nxi, ixi_to_il, vperp_aj1le, energy, al) &
+    !$OMP SHARED(le_lo, negrid, nxi_lim, ixi_to_il, vperp_aj1le, energy, al) &
     !$OMP SCHEDULE(static)
     do ile = le_lo%llim_proc, le_lo%ulim_proc
        ig = ig_idx(le_lo, ile)
        do ie = 1, negrid
-          do ixi = 1, nxi + 1
+          do ixi = 1, nxi_lim
              il = ixi_to_il(ixi, ig)
              vperp_aj1le(ixi, ie, ile) = vperp_aj1le(ixi, ie, ile) * energy(ie) * al(il)
           end do
@@ -676,7 +676,7 @@ contains
     call gather (g2le, z_big, ctmp)
     deallocate(z_big)
     if (.not. allocated(vpa_aj0_le)) then
-       allocate (vpa_aj0_le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (vpa_aj0_le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
     end if
     vpa_aj0_le = real(ctmp) * aj0le
   end subroutine init_le_bessel
@@ -692,7 +692,7 @@ contains
          integrate_moment, negrid, forbid
     use gs2_time, only: code_dt, tunits
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: g2le, nxi
+    use le_grids, only: g2le
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
@@ -706,7 +706,7 @@ contains
     logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
-       allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (ctmp(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        ! We need to initialise ctmp as it is used as receiving buffer in
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
@@ -1153,8 +1153,8 @@ contains
        call gather (g2le, z_big, ctmp)
 
        if (.not. allocated(s0le)) then
-          allocate (s0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (w0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (s0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (w0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        end if
 
        s0le = real(ctmp)
@@ -1163,7 +1163,7 @@ contains
        ! set z0le
        call gather (g2le, z0tmp, ctmp)
        if (allocated(z0tmp)) deallocate(z0tmp)
-       if (.not. allocated(z0le)) allocate (z0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       if (.not. allocated(z0le)) allocate (z0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        z0le = real(ctmp)
 
        deallocate (ctmp, z_big)
@@ -1201,7 +1201,7 @@ contains
     use le_grids, only: energy => energy_maxw, al, integrate_moment, negrid, forbid
     use gs2_time, only: code_dt
     use dist_fn_arrays, only: aj0, aj1, vpa
-    use le_grids, only: g2le, nxi
+    use le_grids, only: g2le
     use gs2_layouts, only: le_lo
     use redistribute, only: gather, scatter
     use array_utils, only: zero_array
@@ -1214,7 +1214,7 @@ contains
     logical, parameter :: all_procs = .true.
 
     if(use_le_layout) then
-       allocate (ctmp(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (ctmp(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        ! We need to initialise ctmp as it is used as receiving buffer in
        ! g2le redistribute, which doesn't populate all elements
        call zero_array(ctmp)
@@ -1642,14 +1642,14 @@ contains
        deallocate (bw0tmp)
        call gather (g2le, z_big, ctmp)
        deallocate(z_big)
-       if (.not. allocated(bs0le)) allocate (bs0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
-       if (.not. allocated(bw0le)) allocate (bw0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       if (.not. allocated(bs0le)) allocate (bs0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       if (.not. allocated(bw0le)) allocate (bw0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        bs0le = real(ctmp)
        bw0le = aimag(ctmp)
 
        call gather (g2le, bz0tmp, ctmp)
        deallocate (bz0tmp)
-       if (.not. allocated(bz0le)) allocate (bz0le(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       if (.not. allocated(bz0le)) allocate (bz0le(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        bz0le = real(ctmp)
        deallocate (ctmp)
     else
@@ -1887,7 +1887,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
-    use le_grids, only: negrid, nxi, forbid, ixi_to_il
+    use le_grids, only: negrid, forbid, ixi_to_il
     use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
@@ -1911,9 +1911,9 @@ contains
     if(use_le_layout) then
 
        if (.not.allocated(ec1le)) then
-          allocate (ec1le   (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (ebetaale(nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (eqle    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (ec1le   (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (ebetaale(nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (eqle    (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           vnmult(2) = max(1.0, vnmult(2))
        end if
        call zero_array(ec1le)
@@ -2129,7 +2129,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_lorentz (vnmult_target)
-    use le_grids, only: negrid, jend, ng2, nxi, nlambda, al, il_is_passing, il_is_wfb
+    use le_grids, only: negrid, jend, ng2, nlambda, al, il_is_passing, il_is_wfb
     use le_grids, only: setup_trapped_lambda_grids_old_finite_difference, setup_passing_lambda_grids
     use gs2_layouts, only: ig_idx, ik_idx, ie_idx, is_idx, it_idx, lz_lo, le_lo
     use theta_grid, only: ntgrid
@@ -2140,7 +2140,7 @@ contains
     integer :: ig, ixi, it, ik, ie, is, je, te2, ile, ilz
     real, dimension (:), allocatable :: aa, bb, cc, dd, hh
     real, dimension (:, :), allocatable :: local_weights
-    allocate (aa(nxi+1), bb(nxi+1), cc(nxi+1), dd(nxi+1), hh(nxi+1))
+    allocate (aa(nxi_lim), bb(nxi_lim), cc(nxi_lim), dd(nxi_lim), hh(nxi_lim))
 
     if (.not. allocated(pitch_weights)) then
        ! Start by just copying the existing weights
@@ -2159,12 +2159,12 @@ contains
 
     if(use_le_layout) then
        if (.not.allocated(c1le)) then
-          allocate (c1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (betaale (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-          allocate (qle     (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (c1le    (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (betaale (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+          allocate (qle     (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
           if (heating) then
-             allocate (d1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
-             allocate (h1le    (nxi+1, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+             allocate (d1le    (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
+             allocate (h1le    (nxi_lim, negrid, le_lo%llim_proc:le_lo%ulim_alloc))
              call zero_array(d1le)
              call zero_array(h1le)
           end if
@@ -2232,12 +2232,12 @@ contains
     else
 
        if (.not.allocated(c1)) then
-          allocate (c1(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-          allocate (betaa(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-          allocate (ql(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          allocate (c1(nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          allocate (betaa(nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
+          allocate (ql(nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
           if (heating) then
-             allocate (d1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
-             allocate (h1   (nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+             allocate (d1   (nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
+             allocate (h1   (nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
              call zero_array(d1)
              call zero_array(h1)
           end if
@@ -3568,7 +3568,7 @@ contains
   !> FIXME : Add documentation
   subroutine solfp_lorentz_standard_layout (g, gc, gh, diagnostics)
     use theta_grid, only: ntgrid
-    use le_grids, only: jend, lambda_map, il_is_wfb, nxi, ng2
+    use le_grids, only: jend, lambda_map, il_is_wfb, ng2
     use gs2_layouts, only: ig_idx, ik_idx, il_idx, is_idx, it_idx, g_lo, lz_lo
     use redistribute, only: gather, scatter
     use run_parameters, only: ieqzip
@@ -3578,18 +3578,18 @@ contains
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (in out) :: g, gc, gh
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:,:), allocatable :: glz, glzc
-    complex, dimension (nxi+1) :: delta
+    complex, dimension (nxi_lim) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, it, je, nxi_scatt, ilz, cur_jend
     logical :: is_wfb
 
-    allocate (glz(nxi+1,lz_lo%llim_proc:lz_lo%ulim_alloc))
+    allocate (glz(nxi_lim,lz_lo%llim_proc:lz_lo%ulim_alloc))
     call zero_array(glz)
 
     call gather (lambda_map, g, glz)
 
     if (heating .and. present(diagnostics)) then
-       allocate (glzc(nxi + 1, lz_lo%llim_proc:lz_lo%ulim_alloc))
+       allocate (glzc(nxi_lim, lz_lo%llim_proc:lz_lo%ulim_alloc))
        call zero_array(glzc)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ilz, ig, je, il, fac) &
@@ -3730,7 +3730,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine solfp_lorentz_le_layout (gle, diagnostics)
-    use le_grids, only: jend, ng2, negrid, nxi, integrate_moment, il_is_wfb
+    use le_grids, only: jend, ng2, negrid, integrate_moment, il_is_wfb
     use gs2_layouts, only: ig_idx, ik_idx, is_idx, it_idx
     use run_parameters, only: ieqzip
     use gs2_layouts, only: le_lo
@@ -3742,14 +3742,14 @@ contains
     integer, optional, intent (in) :: diagnostics
     complex, dimension (:), allocatable :: tmp
     complex, dimension (:,:,:), allocatable :: glec
-    complex, dimension (nxi+1) :: delta
+    complex, dimension (nxi_lim) :: delta
     complex :: fac, gwfb
     integer :: ig, ik, il, is, je, it, ie, nxi_scatt, ile, cur_jend
     logical :: is_wfb
 
     if (heating .and. present(diagnostics)) then
        allocate (tmp(le_lo%llim_proc:le_lo%ulim_alloc)) ; call zero_array(tmp)
-       allocate (glec(nxi+1, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
+       allocate (glec(nxi_lim, negrid+1, le_lo%llim_proc:le_lo%ulim_alloc))
        call zero_array(glec)
        !$OMP PARALLEL DO DEFAULT(none) &
        !$OMP PRIVATE(ile, ig, je, ie, il, fac) &
@@ -4015,7 +4015,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_vpdiff
-    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, nxi, ixi_to_il, ixi_to_isgn, nxi
+    use le_grids, only: al, nlambda, jend, ng2, il_is_wfb, il_is_passing, ixi_to_il, ixi_to_isgn
     use theta_grid, only: ntgrid, bmag
     use array_utils, only: zero_array
     implicit none
@@ -4078,10 +4078,10 @@ contains
        end do
 
        if (use_le_layout) then
-          allocate(vpdiffle(nxi + 1, -ntgrid:ntgrid))
+          allocate(vpdiffle(nxi_lim, -ntgrid:ntgrid))
 
           do ig = -ntgrid, ntgrid
-             do ixi = 1, nxi + 1
+             do ixi = 1, nxi_lim
                 il = ixi_to_il(ixi, ig)
                 isgn = ixi_to_isgn(ixi, ig)
                 vpdiffle(ixi, ig) = vpdiff(ig, isgn, il)
