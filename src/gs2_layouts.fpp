@@ -4366,9 +4366,8 @@ contains
   end function it_idx_yxf
 
   !> FIXME : Add documentation  
-  elemental function idx_accelx (lo, ik, it, il, ie, is)
+  elemental integer function idx_accelx (lo, ik, it, il, ie, is)
     implicit none
-    integer :: idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
 
@@ -4402,17 +4401,15 @@ contains
     idx_yxf = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*(i(5) + lo%dim_size(5)*i(6)))))
   end function idx_yxf
 
-  elemental function proc_id_accelx (lo, i)
+  elemental integer function proc_id_accelx (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
 #endif
     implicit none
-    integer :: proc_id_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
 #ifdef SHMEM
-    integer k 
+    integer :: k
 
     proc_id_accelx = nproc - 1
     do k =1, nproc-1
@@ -4424,7 +4421,6 @@ contains
 #else
     proc_id_accelx = i/lo%blocksize
 #endif
-
   end function proc_id_accelx
 
   !> Return the processor id that has the point i in the yxf_lo layout
@@ -4498,18 +4494,16 @@ contains
   end function proc_id_yxf
 
   !> FIXME : Add documentation  
-  elemental function idx_local_accelx (lo, ik, it, il, ie, is)
+  elemental logical function idx_local_accelx (lo, ik, it, il, ie, is)
     implicit none
-    logical :: idx_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     idx_local_accelx = idx_local (lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_accelx
 
   !> FIXME : Add documentation  
-  elemental function ig_local_accelx (lo, i)
+  elemental logical function ig_local_accelx (lo, i)
     implicit none
-    logical ig_local_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 #ifndef SHMEM
@@ -4712,18 +4706,16 @@ contains
   end subroutine init_accel_transform_layouts
 
   !> FIXME : Add documentation
-  elemental function is_idx_accelx (lo, i)
+  elemental integer function is_idx_accelx (lo, i)
     implicit none
-    integer :: is_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_accelx = 1 + mod((i - lo%llim_world)/lo%nxny/lo%negrid/lo%nlambda, lo%nspec)
   end function is_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function ie_idx_accelx (lo, i)
+  elemental integer function ie_idx_accelx (lo, i)
     implicit none
-    integer :: ie_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
@@ -4739,9 +4731,8 @@ contains
   end function ie_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function il_idx_accelx (lo, i)
+  elemental integer function il_idx_accelx (lo, i)
     implicit none
-    integer :: il_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
@@ -4757,12 +4748,10 @@ contains
   end function il_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function it_idx_accelx (lo, i)
+  elemental integer function it_idx_accelx (lo, i)
     implicit none
-    integer :: it_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     it_idx_accelx = 1 + mod((i - lo%llim_world)/lo%ny, lo%nx)
 !    select case (layout)
 !    case ('yxels')
@@ -4776,12 +4765,10 @@ contains
   end function it_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function ik_idx_accelx (lo, i)
+  elemental integer function ik_idx_accelx (lo, i)
     implicit none
-    integer :: ik_idx_accelx
     type (accelx_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     ik_idx_accelx = 1 + mod((i - lo%llim_world), lo%ny)
 !    select case (layout)
 !    case ('yxels')
@@ -4795,9 +4782,8 @@ contains
   end function ik_idx_accelx
 
   !> FIXME : Add documentation  
-  elemental function it_idx_accel (lo, i)
+  elemental integer function it_idx_accel (lo, i)
     implicit none
-    integer :: it_idx_accel
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_accel = 1 + mod((i - lo%llim_world)/lo%ndky, lo%nx)
@@ -4813,9 +4799,8 @@ contains
   end function it_idx_accel
 
   !> FIXME : Add documentation
-  elemental function ik_idx_accel (lo, i)
+  elemental integer function ik_idx_accel (lo, i)
     implicit none
-    integer :: ik_idx_accel
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_accel = 1 + mod(i - lo%llim_world, lo%ndky)
@@ -4831,18 +4816,15 @@ contains
   end function ik_idx_accel
 
   !> FIXME : Add documentation  
-  elemental function dealiasing (lo, ia)
+  elemental logical function dealiasing (lo, ia)
     implicit none
-    logical dealiasing
     type (accel_layout_type), intent (in) :: lo
     integer, intent (in) :: ia
-    
+    integer :: it
     dealiasing = .true.
-
-    if (it_idx(accel_lo, ia) > lo%ntheta0/2+1 &
-  .and. it_idx(accel_lo, ia) <= lo%nx-lo%ntheta0/2) return
+    it = it_idx(accel_lo, ia)
+    if (it > lo%ntheta0/2+1 .and. it <= lo%nx-lo%ntheta0/2) return
     if (ik_idx(accel_lo, ia) > lo%naky) return
-
     dealiasing = .false.
   end function dealiasing
 
