@@ -16,61 +16,37 @@ module gs2_layouts
 
   private
 
-  public :: factors
-  public :: pe_layout, layout, local_field_solve
-  
-  public :: init_dist_fn_layouts, init_gs2_layouts
-  public :: finish_dist_fn_layouts
-  public :: finish_gs2_layouts
-  public :: wnml_gs2_layouts
-  public :: init_parity_layouts
-  public :: g_lo
-  public :: p_lo
-
-  public :: finish_layouts
-
-  public :: set_overrides
-
+  public :: factors, pe_layout, layout, local_field_solve, set_overrides
+  public :: init_gs2_layouts, finish_gs2_layouts, wnml_gs2_layouts, finish_layouts
+  public :: init_dist_fn_layouts, finish_dist_fn_layouts, init_parity_layouts
+  public :: g_lo, p_lo
   public :: finish_fields_layouts, finish_jfields_layouts
-
-  public :: init_fields_layouts
-  public :: f_lo, f_layout_type
-
-  public :: init_jfields_layouts
-  public :: jf_lo, jf_layout_type
-
-  public :: init_lambda_layouts
-  public :: lz_lo
-
-  public :: init_energy_layouts
-  public :: e_lo
-
-  public :: init_le_layouts
-  public :: le_lo
-
-  public :: init_gf_layouts
-  public :: gf_lo
+  public :: init_fields_layouts, f_lo, f_layout_type
+  public :: init_jfields_layouts, jf_lo, jf_layout_type
+  public :: init_lambda_layouts, lz_lo
+  public :: init_energy_layouts, e_lo
+  public :: init_le_layouts, le_lo
+  public :: init_gf_layouts, gf_lo
 
   public :: init_x_transform_layouts, init_y_transform_layouts
   public :: calculate_unbalanced_x, calculate_unbalanced_y, calculate_idle_processes
   public :: xxf_lo, xxf_layout_type, yxf_lo, yxf_layout_type
-  public :: gidx2xxfidx, xxfidx2yxfidx
 
   public :: init_accel_transform_layouts
   public :: accel_lo, accel_layout_type, dealiasing
   public :: accelx_lo, accelx_layout_type
 
   public :: ig_idx, ik_idx, it_idx, il_idx, ie_idx, is_idx, if_idx, isign_idx
-  public :: im_idx, in_idx, ij_idx, ifield_idx
-  public :: idx, proc_id, idx_local
+  public :: im_idx, in_idx, ij_idx, ifield_idx, idx, proc_id, idx_local
 
   public :: opt_local_copy
   public :: intmom_sub !Do we use sub-communicators in velocity space?
   public :: intspec_sub !Do we use sub-communicators in integrate_species?
 
   public :: fft_use_wisdom, fft_wisdom_file, fft_measure_plan
-
   public :: simple_gf_decomposition, gf_local_fields
+
+  public :: gidx2xxfidx, xxfidx2yxfidx
 
   public :: layouts_config_type
   public :: set_gs2_layouts_config
@@ -104,12 +80,6 @@ module gs2_layouts
   logical :: simple_gf_decomposition
   logical :: gf_local_fields
 
-  type (g_layout_type) :: g_lo
-  type (le_layout_type) :: le_lo
-  !> layout for fields_gf_local and gf_lo integration
-  type (gf_layout_type) :: gf_lo
-  type (p_layout_type) :: p_lo
-
   !> FIXME : Add documentation  
   type :: f_layout_type
      integer :: iproc, nproc
@@ -131,18 +101,18 @@ module gs2_layouts
      integer, dimension(:,:), allocatable :: dj
   end type jf_layout_type
 
+
+  type (g_layout_type) :: g_lo
+  type (le_layout_type) :: le_lo
+  !> layout for fields_gf_local and gf_lo integration
+  type (gf_layout_type) :: gf_lo
+  type (p_layout_type) :: p_lo
   type (jf_layout_type) :: jf_lo
-
   type (lz_layout_type) :: lz_lo
-
   type (e_layout_type) :: e_lo
-
   type (xxf_layout_type) :: xxf_lo
-
   type (yxf_layout_type) :: yxf_lo
-
   type (accel_layout_type) :: accel_lo
-
   type (accelx_layout_type) :: accelx_lo
   
   !> Used to represent the input configuration of layouts
