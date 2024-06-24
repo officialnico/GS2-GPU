@@ -1793,119 +1793,102 @@ contains
 
   !> FIXME : Add documentation
   subroutine finish_dist_fn_layouts
-
     use layouts_type, only: deallocate_layout
-
     call deallocate_layout(g_lo)
     initialized_dist_fn_layouts = .false.
-
   end subroutine finish_dist_fn_layouts
 
   !> FIXME : Add documentation
-  function ik_idx_f (lo, i)
+  elemental integer function ik_idx_f (lo, i)
     implicit none
-    integer :: ik_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_f = lo%ik(im_idx(lo,i),in_idx(lo,i))
   end function ik_idx_f
 
   !> FIXME : Add documentation
-  function it_idx_f (lo, i)
+  elemental integer function it_idx_f (lo, i)
     implicit none
-    integer :: it_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_f = lo%it(im_idx(lo,i),in_idx(lo,i))
   end function it_idx_f
 
   !> FIXME : Add documentation  
-  function im_idx_f (lo, i)
+  elemental integer function im_idx_f (lo, i)
     implicit none
-    integer :: im_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     im_idx_f = 1 + mod((i - lo%llim_world)/lo%nindex, lo%M_class)
   end function im_idx_f
 
   !> FIXME : Add documentation  
-  function if_idx_f (lo, i)
+  elemental integer function if_idx_f (lo, i)
     implicit none
-    integer :: if_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     if_idx_f = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_f
 
   !> FIXME : Add documentation  
-  function idx_f (lo, if, im)
+  elemental integer function idx_f (lo, if, im)
     implicit none
-    integer :: idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: if, im
     idx_f = if-1 + lo%nindex*(im-1)
   end function idx_f
 
   !> FIXME : Add documentation  
-  function proc_id_f (lo, i)
+  elemental integer function proc_id_f (lo, i)
     implicit none
-    integer :: proc_id_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    proc_id_f = i/lo%blocksize
+    proc_id_f = i / lo%blocksize
   end function proc_id_f
 
   !> FIXME : Add documentation  
-  function idx_local_f (lo, if, im)
+  elemental logical function idx_local_f (lo, if, im)
     implicit none
-    logical :: idx_local_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: if, im
-
     idx_local_f = idx_local(lo, idx(lo, if, im))
   end function idx_local_f
 
   !> FIXME : Add documentation  
-  function ig_local_f (lo, ig)
+  elemental logical function ig_local_f (lo, ig)
     implicit none
-    logical :: ig_local_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_f = lo%iproc == proc_id(lo, ig)
   end function ig_local_f
 
   !> FIXME : Add documentation  
-  function in_idx_f (lo, i)
+  elemental integer function in_idx_f (lo, i)
     implicit none
-    integer :: in_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     in_idx_f = 1 + mod((i - lo%llim_world)/lo%nidx, lo%N_class)
   end function in_idx_f
 
   !> FIXME : Add documentation  
-  function ig_idx_f (lo, i)
+  elemental integer function ig_idx_f (lo, i)
     implicit none
-    integer :: ig_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_f = -lo%ntgrid + mod((i - lo%llim_world)/lo%nfield, (2*lo%ntgrid+1))
   end function ig_idx_f
 
   !> FIXME : Add documentation  
-  function ij_idx_f (lo, ig, if, n)
+  elemental integer function ij_idx_f (lo, ig, if, n)
     implicit none
-    integer :: ij_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, if, n
     ij_idx_f = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1 + lo%nfield*(n-1))
   end function ij_idx_f
 
   !> FIXME : Add documentation  
-  function ifield_idx_f (lo, i)
+  elemental integer function ifield_idx_f (lo, i)
     implicit none
-    integer :: ifield_idx_f
     type (f_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ifield_idx_f = 1 + mod((i - lo%llim_world), lo%nfield)
@@ -1978,18 +1961,16 @@ contains
   end subroutine finish_jfields_layouts
 
   !> FIXME : Add documentation  
-  function ik_idx_jf (lo, i)
+  elemental integer function ik_idx_jf (lo, i)
     implicit none
-    integer :: ik_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex/lo%ntheta0, lo%naky)
   end function ik_idx_jf
 
   !> FIXME : Add documentation  
-  function it_idx_jf (lo, i)
+  elemental integer function it_idx_jf (lo, i)
     implicit none
-    integer :: it_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_jf = 1 + mod((i - lo%llim_world)/lo%nindex, lo%ntheta0)
@@ -1998,76 +1979,66 @@ contains
   !> FIXME : Add documentation
   !!
   !! @note Here if is the compound theta*field index
-  function if_idx_jf (lo, i)
+  elemental integer function if_idx_jf (lo, i)
     implicit none
-    integer :: if_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     if_idx_jf = 1 + mod(i - lo%llim_world, lo%nindex)
   end function if_idx_jf
 
   !> FIXME : Add documentation
-  function ig_idx_jf (lo, i)
+  elemental integer function ig_idx_jf (lo, i)
     implicit none
-    integer :: ig_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_jf = -lo%ntgrid + mod(i - lo%llim_world, lo%ntgrid*2+1)
   end function ig_idx_jf
 
   !> FIXME : Add documentation
-  function ifield_idx_jf (lo, i)
+  elemental integer function ifield_idx_jf (lo, i)
     implicit none
-    integer :: ifield_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ifield_idx_jf = 1 + mod((i - lo%llim_world)/(2*lo%ntgrid+1), lo%nfield)
   end function ifield_idx_jf
 
   !> FIXME : Add documentation  
-  function idx_jf (lo, if, ik, it)
+  elemental integer function idx_jf (lo, if, ik, it)
     implicit none
-    integer :: idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: if, ik, it
     idx_jf = if-1 + lo%nindex*(it-1 + lo%ntheta0*(ik-1))
   end function idx_jf
 
   !> FIXME : Add documentation  
-  function ij_idx_jf (lo, ig, if, ik, it)
+  elemental integer function ij_idx_jf (lo, ig, if, ik, it)
     implicit none
-    integer :: ij_idx_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, if, ik, it
     ij_idx_jf = ig+lo%ntgrid + (2*lo%ntgrid+1)*(if-1+lo%nfield*(it-1+lo%ntheta0*(ik-1)))
   end function ij_idx_jf
 
   !> FIXME : Add documentation  
-  function proc_id_jf (lo, i)
+  elemental integer function proc_id_jf (lo, i)
     implicit none
-    integer :: proc_id_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-    proc_id_jf = i/lo%blocksize
+    proc_id_jf = i / lo%blocksize
   end function proc_id_jf
 
   !> FIXME : Add documentation  
-  function idx_local_jf (lo, if, ik, it)
+  elemental logical function idx_local_jf (lo, if, ik, it)
     implicit none
-    logical :: idx_local_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: if, ik, it
-
     idx_local_jf = idx_local(lo, idx(lo, if, ik, it))
   end function idx_local_jf
 
   !> FIXME : Add documentation  
-  function ig_local_jf (lo, ig)
+  elemental logical function ig_local_jf (lo, ig)
     implicit none
-    logical :: ig_local_jf
     type (jf_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
     ig_local_jf = lo%iproc == proc_id(lo, ig)
   end function ig_local_jf
 
