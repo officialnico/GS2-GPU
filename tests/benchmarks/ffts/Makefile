@@ -17,10 +17,6 @@ all: $(EXENAME)
 	  $(call BENCHMARKCOMMAND,$$d,$(EXENAME),$(INPUTFILE)_lexys.in) ; \
 	done
 
-TIMINGFILES=$(wildcard *.timing.*)
-
-UPLOADCOMMAND = $(call UPLOAD_BENCHMARKS,$(TIMINGFILES))
-
 $(EXENAME).o:  ${TEST_MODS} 
 
 $(EXENAME): $(EXENAME).o $(TEST_MODS)

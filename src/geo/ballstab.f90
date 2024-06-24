@@ -8,16 +8,14 @@ module ballstab
   private
 
   !Routines
-  public :: init_ballstab, finish_ballstab
+  public :: init_ballstab, finish_ballstab, wnml_ballstab
   public :: run_stability_check, is_unstable
   public :: write_stability_ascii_1d, write_stability_ascii_2d
 
   !Vars
   public :: stability
 
-  public :: ballstab_config_type
-  public :: set_ballstab_config
-  public :: get_ballstab_config
+  public :: ballstab_config_type, set_ballstab_config, get_ballstab_config
   
   logical :: make_salpha
   integer :: n_shat, n_beta
@@ -256,12 +254,6 @@ contains
     !Footer
     write(unit,'("/")')
   end subroutine wnml_ballstab
-
-  !> Check value consistency etc.
-  subroutine check_ballstab(report_unit)
-    implicit none
-    integer, intent(in) :: report_unit
-  end subroutine check_ballstab
 
   !> Gets the current value of shat
   subroutine get_shat(shat_out)

@@ -5436,8 +5436,7 @@ contains
   subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, set_h_zero, g
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, forbid,&
-         is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
+    use le_grids, only: forbid, is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          is_upper_bounce_point, is_lower_bounce_point, mixed_wfb
     use kt_grids, only: aky
@@ -5457,7 +5456,7 @@ contains
     !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, is_passing_like, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
     !$OMP gnew, phinew, bparnew, boundary_option_switch, g, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
+    !$OMP aky, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, r, ainv, source) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
