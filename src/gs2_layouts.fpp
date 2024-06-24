@@ -1574,63 +1574,56 @@ contains
   end subroutine init_dist_fn_layouts
 
   !> Return the species index, given g-layout and a global index
-  elemental function is_idx_g (lo, i)
+  elemental integer function is_idx_g (lo, i)
     implicit none
-    integer :: is_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_g=1+mod((i-lo%llim_world)/lo%is_comp,lo%nspec)
   end function is_idx_g
 
   !> Return the lambda index, given g-layout and a global index
-  elemental function il_idx_g (lo, i)
+  elemental integer function il_idx_g (lo, i)
     implicit none
-    integer :: il_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     il_idx_g=1+mod((i-lo%llim_world)/lo%il_comp,lo%nlambda)
   end function il_idx_g
 
   !> Return the energy index, given g-layout and a global index
-  elemental function ie_idx_g (lo, i)
+  elemental integer function ie_idx_g (lo, i)
     implicit none
-    integer :: ie_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ie_idx_g=1+mod((i-lo%llim_world)/lo%ie_comp,lo%negrid)
   end function ie_idx_g
 
   !> Return the kx index, given g-layout and a global index
-  elemental function it_idx_g (lo, i)
+  elemental integer function it_idx_g (lo, i)
     implicit none
-    integer :: it_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_g=1+mod((i-lo%llim_world)/lo%it_comp,lo%ntheta0)
   end function it_idx_g
 
   !> Return the ky index, given g-layout and a global index
-  elemental function ik_idx_g (lo, i)
+  elemental integer function ik_idx_g (lo, i)
     implicit none
-    integer :: ik_idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_g=1+mod((i-lo%llim_world)/lo%ik_comp,lo%naky)
   end function ik_idx_g
 
   !> Return the processor id that has the point i in the g_lo layout
-  elemental function proc_id_g (lo, i)
+  elemental integer function proc_id_g (lo, i)
 #ifdef SHMEM
     use mp, only : nproc
 #endif
     implicit none
-    integer :: proc_id_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: i
 
 #ifdef SHMEM
-    integer k
-
+    integer :: k
     proc_id_g = nproc - 1
     do k =1, nproc-1
        if ( i < lo%proc_map(k)) then 
@@ -1639,15 +1632,13 @@ contains
        endif
     enddo
 #else
-    proc_id_g = i/lo%blocksize
+    proc_id_g = i / lo%blocksize
 #endif
-
   end function proc_id_g
 
   !> Return the global index in the g_lo layout given the dimensional indices
-  elemental function idx_g (lo, ik, it, il, ie, is)
+  elemental integer function idx_g (lo, ik, it, il, ie, is)
     implicit none
-    integer :: idx_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     integer, dimension(5) :: i
@@ -1657,25 +1648,21 @@ contains
     i(lo%ie_ord) = ie - 1
     i(lo%is_ord) = is - 1
     idx_g = i(1) + lo%dim_size(1)*(i(2) + lo%dim_size(2)*(i(3) + lo%dim_size(3)*(i(4) + lo%dim_size(4)*i(5))))
-
   end function idx_g
 
   !> Return whether a point is local to a processor given the dimensional indices
-  elemental function idx_local_g (lo, ik, it, il, ie, is)
+  elemental logical function idx_local_g (lo, ik, it, il, ie, is)
     implicit none
-    logical :: idx_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ik, it, il, ie, is
     idx_local_g = idx_local(lo, idx(lo, ik, it, il, ie, is))
   end function idx_local_g
 
   !> Return whether a point is local to a processor given the global index
-  elemental function ig_local_g (lo, ig)
+  elemental logical function ig_local_g (lo, ig)
     implicit none
-    logical :: ig_local_g
     type (g_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
-
 #ifndef SHMEM
     ig_local_g = lo%iproc == proc_id(lo, ig)
 #else
