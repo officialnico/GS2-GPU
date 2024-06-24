@@ -46,8 +46,6 @@ module gs2_layouts
   public :: fft_use_wisdom, fft_wisdom_file, fft_measure_plan
   public :: simple_gf_decomposition, gf_local_fields
 
-  public :: gidx2xxfidx, xxfidx2yxfidx
-
   public :: layouts_config_type
   public :: set_gs2_layouts_config
   public :: get_gs2_layouts_config
@@ -4711,40 +4709,6 @@ contains
     dealiasing = .false.
   end function dealiasing
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Transformation subroutines
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !> FIXME : Add documentation    
-  elemental subroutine gidx2xxfidx (ig, isign, iglo, g_lo, xxf_lo, it, ixxf)
-    implicit none
-    integer, intent (in) :: ig, isign, iglo
-    type (g_layout_type), intent (in) :: g_lo
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    integer, intent (out) :: it, ixxf
-
-    it = it_idx(g_lo,iglo)
-    if (it > (xxf_lo%ntheta0+1)/2) then
-       it = it - xxf_lo%ntheta0 + xxf_lo%nx
-    end if
-
-    ixxf = idx(xxf_lo, ig, isign, ik_idx(g_lo,iglo), il_idx(g_lo,iglo), &
-         ie_idx(g_lo,iglo), is_idx(g_lo,iglo))
-  end subroutine gidx2xxfidx
-  
-  !> FIXME : Add documentation  
-  elemental subroutine xxfidx2yxfidx (it, ixxf, xxf_lo, yxf_lo, ik, iyxf)
-    implicit none
-    integer, intent (in) :: it, ixxf
-    type (xxf_layout_type), intent (in) :: xxf_lo
-    type (yxf_layout_type), intent (in) :: yxf_lo
-    integer, intent (out) :: ik, iyxf
-
-    ik = ik_idx(xxf_lo,ixxf)
-    iyxf = idx(yxf_lo, ig_idx(xxf_lo,ixxf), isign_idx(xxf_lo,ixxf), &
-         it, il_idx(xxf_lo,ixxf), ie_idx(xxf_lo,ixxf), is_idx(xxf_lo,ixxf))
-  end subroutine xxfidx2yxfidx
-
   !> FIXME : Add documentation  
   pure subroutine pe_layout (char)
     implicit none
@@ -4768,7 +4732,6 @@ contains
 ! y is fastest index, including in calls to 2D FFTs
        char = '?'    
     end select
-
   end subroutine pe_layout
 
   !> Get the factors of an integer n

@@ -472,8 +472,7 @@ contains
   !> decomposition to the xxf_lo decomposition.
   subroutine setup_x_redist_local(g_lo, xxf_lo, g2x)
     use layouts_type, only: g_layout_type, xxf_layout_type
-    use gs2_layouts, only: gidx2xxfidx, proc_id, idx_local
-    use gs2_layouts, only: opt_local_copy, layout
+    use gs2_layouts, only: proc_id, idx_local, opt_local_copy, layout
     use gs2_layouts, only: ik_idx,il_idx,ie_idx,is_idx,idx, ig_idx, isign_idx
     use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
@@ -728,7 +727,7 @@ contains
   !> decomposition to the yxf_lo decomposition.
   subroutine setup_y_redist_local(xxf_lo, yxf_lo, x2y)
     use layouts_type, only: xxf_layout_type, yxf_layout_type
-    use gs2_layouts, only: xxfidx2yxfidx, proc_id, idx_local
+    use gs2_layouts, only: proc_id, idx_local
     use gs2_layouts, only: ik_idx,it_idx,il_idx,ie_idx,is_idx,idx,ig_idx,isign_idx
     use mp, only: nproc
     use redistribute, only: index_list_type, init_redist, delete_list
