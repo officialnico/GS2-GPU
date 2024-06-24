@@ -2201,45 +2201,40 @@ contains
   end subroutine init_le_layouts
 
   !> FIXME : Add documentation  
-  elemental function is_idx_le (lo, i)
+  elemental integer function is_idx_le (lo, i)
     implicit none
-    integer :: is_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     is_idx_le = 1 + mod((i - lo%llim_world)/lo%is_comp, lo%nspec)
   end function is_idx_le
 
   !> FIXME : Add documentation    
-  elemental function it_idx_le (lo, i)
+  elemental integer function it_idx_le (lo, i)
     implicit none
-    integer :: it_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     it_idx_le = 1 + mod((i - lo%llim_world)/lo%it_comp, lo%ntheta0)
   end function it_idx_le
 
   !> FIXME : Add documentation    
-  elemental function ik_idx_le (lo, i)
+  elemental integer function ik_idx_le (lo, i)
     implicit none
-    integer :: ik_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ik_idx_le = 1 + mod((i - lo%llim_world)/lo%ik_comp, lo%naky)
   end function ik_idx_le
 
   !> FIXME : Add documentation  
-  elemental function ig_idx_le (lo, i)
+  elemental integer function ig_idx_le (lo, i)
     implicit none
-    integer :: ig_idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
     ig_idx_le = -lo%ntgrid + mod((i - lo%llim_world)/lo%ig_comp, lo%ntgridtotal)
   end function ig_idx_le
 
   !> FIXME : Add documentation    
-  elemental function idx_le (lo, ig, ik, it, is)
+  elemental integer function idx_le (lo, ig, ik, it, is)
     implicit none
-    integer :: idx_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
     integer, dimension(4) :: i
@@ -2251,29 +2246,24 @@ contains
   end function idx_le
 
   !> FIXME : Add documentation  
-  elemental function proc_id_le (lo, i)
+  elemental integer function proc_id_le (lo, i)
     implicit none
-    integer :: proc_id_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: i
-
     proc_id_le = i / lo%blocksize
-
   end function proc_id_le
 
   !> FIXME : Add documentation    
-  elemental function idx_local_le (lo, ig, ik, it, is)
+  elemental logical function idx_local_le (lo, ig, ik, it, is)
     implicit none
-    logical :: idx_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig, ik, it, is
     idx_local_le = idx_local(lo, idx(lo, ig, ik, it, is))
   end function idx_local_le
 
   !> FIXME : Add documentation  
-  elemental function ig_local_le (lo, ig)
+  elemental logical function ig_local_le (lo, ig)
     implicit none
-    logical :: ig_local_le
     type (le_layout_type), intent (in) :: lo
     integer, intent (in) :: ig
     ig_local_le = lo%iproc == proc_id(lo, ig)
