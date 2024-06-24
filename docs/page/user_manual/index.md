@@ -74,29 +74,19 @@ system-specific settings are written in `Makefiles/Makefile.$(GK_SYSTEM)`, you s
 specify what system you are on. There are many supported systems -- look in `Makefiles` to
 see if yours is already in there!
 
-In order to load `Makefile.$(GK_SYSTEM)` from the `Makefiles/` directory, you must tell
-`make` that it should search in that directory for files. This can be done with the
-command line option
+For example, to compile GS2 on the UK national supercomputer, Archer2, you would run:
 
-    make -I Makefiles
+    make GK_SYSTEM=archer2
 
-or, alternatively, use the `MAKEFLAGS` environment variable to give the `-I` option.
-
-For example, to compile GS2 on the UK national supercomputer, ARCHER, you would run:
-
-    make -I Makefiles GK_SYSTEM=archer
-
-Instead of setting them on the command line, you can also set the `GK_SYSTEM` and
-`MAKEFLAGS` environment variables in your `.cshrc` or `.bashrc`. Add the following:
+Instead of setting them on the command line, you can also set the `GK_SYSTEM` environment
+variable in your `.cshrc` or `.bashrc`. Add the following:
 
 (tcsh)
 
-    setenv MAKEFLAGS -IMakefiles
     setenv GK_SYSTEM 'your system'
 
 (bash)
 
-    export MAKEFLAGS=-IMakefiles
     export GK_SYSTEM='your system'
 
 After setting those environment variables, you just type `make` to get an executable. The

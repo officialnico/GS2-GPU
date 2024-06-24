@@ -127,11 +127,11 @@ openmp_tests:
     OMP_NUM_THREADS: 2
   script: *default_script
 
-gfortran13_mpich:
+gfortran14_mpich:
   stage: test
-  image: fedora:39
+  image: fedora:40
   variables:
-    CASENAME: "gfortran_13_mpich"
+    CASENAME: "gfortran_14_mpich"
     MPI_PACKAGES: "mpich mpich-devel"
     EXTRA_PACKAGES: "openblas openblas-devel diffutils"
     GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS+=-std=f2008"
@@ -189,11 +189,10 @@ coverage_standard_tests:
   stage: test
   image: fedora:39
   variables:
-    CASENAME: "standard+coverage+debug+onestep"
+    CASENAME: "standard+coverage+debug"
     GK_CI_INTEGRATED: ""
     GK_CI_PFUNIT_COVERAGE: "ON"
-    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on ONE_STEP_PP=on"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
+    EXTRA_MAKE_FLAGS: "USE_GCOV=on DEBUG=on"
     COVERALLS_SERVICE_NAME: "gitlab-ci"
   script: *default_script
   after_script:
@@ -202,14 +201,13 @@ coverage_standard_tests:
     - date
     - su -c "time coveralls --exclude tests --exclude ${PKG_CACHE_DIR} --exclude externals/pFUnit_build" theuser
 
-onestep_standard_tests:
+parallel_netcdf_tests:
   stage: test
   image: fedora:39
   variables:
-    CASENAME: "standard_one_step_pp"
-    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= ONE_STEP_PP=on TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
+    CASENAME: "parallel_netcdf_no_compression"
+    EXTRA_MAKE_FLAGS: "USE_NEW_DIAG= TEST_LEVEL=2 USE_PARALLEL_NETCDF=on USE_NETCDF_COMPRESSION= "
     EXTRA_PACKAGES: "netcdf-fortran-openmpi-devel"
-    GK_MAKEFILE_LOCAL_EXTRA_FLAGS: "F90FLAGS += -ffree-form"
   script: *default_script
 
 nodeps_tests:

@@ -661,7 +661,7 @@ contains
     use parameter_scan, only: update_scan_parameter_value
     use run_parameters, only: reset, has_phi, has_apar, has_bpar, nstep, max_sim_time
     use run_parameters, only: avail_cpu_time, margin_cpu_time, use_old_diagnostics, ncheck_stop
-    use unit_tests, only: ilast_step, debug_message
+    use unit_tests, only: debug_message
     use gs2_init, only: init
     use standard_header, only: standard_header_type
     use exit_codes, only: EXIT_MAX_SIM_TIME
@@ -851,8 +851,6 @@ contains
 
     call time_message(.false.,state%timers%total,' Total')
     if (state%print_times) call print_times(state, state%timers)
-
-    ilast_step = state%istep_end
 
     ! We also restore the value of the override switch to what it
     ! was when this function was called.

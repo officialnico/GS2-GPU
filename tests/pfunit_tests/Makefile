@@ -20,7 +20,9 @@ ifeq ($(PFUNIT_VERSION_MAJOR),4)
   PFUNIT_MOD := pfunit
   PFUNIT_PREPROCESSOR ?= $(PFUNIT_BIN_DIR)/funitproc
   PFUNIT_INC := -I$(PFUNIT_INCLUDE_DIR)
-  PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES)
+# The raw use of GFTL_SHARED_V1_LIBRARIES here is a workaround apparently required with
+# gfortran 14 / Fedora 40 based environments. See https://github.com/Goddard-Fortran-Ecosystem/pFUnit/issues/466 
+  PFUNIT_LIB := -L$(PFUNIT_TOP_DIR)/lib -lpfunit -lfunit $(FARGPARSE_LIBRARIES) $(GFTL_SHARED_V1_LIBRARIES)
   F90FLAGS += $(PFUNIT_EXTRA_FFLAGS)
 else
   PFUNIT_VERSION_MINOR ?= 3
@@ -145,6 +147,7 @@ pfunit_coverage: gs2 make_test run_test run_gcov
 	mv *.gcov coverage-pfunit/. || echo "Couldn't move generated gcov files to coverage-pfunit. This is likely because gcov files not found in ${GK_HEAD_DIR}."
 endif
 
+distclean: pfunit_clean
 pfunit_clean:
 	$(call messageRm,"pFUnit tests")
 	$(QUIETSYM)$(RM) $(PFUNIT_TEST_EXE) $(PFUNIT_TEST_DIR)/*.o $(PFUNIT_TEST_DIR)/*.mod \

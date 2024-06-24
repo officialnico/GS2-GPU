@@ -49,7 +49,7 @@ program eiktest
        diffscheme,nbeta,beta_p1,beta_p2,alpha_input,big, &
        beta_prime_times, beta_prime_over, fast, profile_fac, &
        tstar, shotnum, gs2d_eq, transp_eq, Xanthopoulos, dipole, &
-       eqnormfile, no_end_point
+       eqnormfile, no_end_point, in_nt
 
   call init_mp
 
@@ -84,7 +84,7 @@ program eiktest
   invLp_input = 5
   irho = 2 ;      isym = -1 ; itor = -1 ; iflux=-1
   delrho = 0.01
-  no_end_point = .false.
+  no_end_point = .false. ; in_nt = .false.
 
   if (command_argument_count() == 0) then
      allocate(character(len=3)::in_stem)
@@ -163,30 +163,31 @@ program eiktest
   call eikcoefs(ntheta, nperiod, eikcoefs_results)
 
   ! Unpack results for ease of use
-  theta = eikcoefs_results%theta
-  bmag = eikcoefs_results%bmag
-  gradpar = eikcoefs_results%gradpar
-  grho = eikcoefs_results%grho
-  cvdrift = eikcoefs_results%cvdrift
-  gbdrift = eikcoefs_results%gbdrift
-  cvdrift0 = eikcoefs_results%cvdrift0
-  gbdrift0 = eikcoefs_results%gbdrift0
-  gds2 = eikcoefs_results%gds2
-  gds21 = eikcoefs_results%gds21
-  gds22 = eikcoefs_results%gds22
-  rplot = eikcoefs_results%rplot
-  zplot = eikcoefs_results%zplot
-  aplot = eikcoefs_results%aplot
-  rprime = eikcoefs_results%rprime
-  zprime = eikcoefs_results%zprime
-  aprime = eikcoefs_results%aprime
-  bpol = eikcoefs_results%bpol
+  allocate(theta, source = eikcoefs_results%theta)
+  allocate(bmag, source = eikcoefs_results%bmag)
+  allocate(gradpar, source = eikcoefs_results%gradpar)
+  allocate(grho, source = eikcoefs_results%grho)
+  allocate(cvdrift, source = eikcoefs_results%cvdrift)
+  allocate(gbdrift, source = eikcoefs_results%gbdrift)
+  allocate(cvdrift0, source = eikcoefs_results%cvdrift0)
+  allocate(gbdrift0, source = eikcoefs_results%gbdrift0)
+  allocate(gds2, source = eikcoefs_results%gds2)
+  allocate(gds21, source = eikcoefs_results%gds21)
+  allocate(gds22, source = eikcoefs_results%gds22)
+  allocate(rplot, source = eikcoefs_results%rplot)
+  allocate(zplot, source = eikcoefs_results%zplot)
+  allocate(aplot, source = eikcoefs_results%aplot)
+  allocate(rprime, source = eikcoefs_results%rprime)
+  allocate(zprime, source = eikcoefs_results%zprime)
+  allocate(aprime, source = eikcoefs_results%aprime)
+  allocate(bpol, source = eikcoefs_results%bpol)
   kxfac = eikcoefs_results%kxfac
   qsf = eikcoefs_results%qsf
   surfarea = eikcoefs_results%surfarea
   dvdrhon = eikcoefs_results%dvdrhon
   shat = eikcoefs_results%shat
   drhodpsi = eikcoefs_results%drhodpsi
+  dbetadrho = eikcoefs_results%dbetadrho
 
   ! note that ntheta may have changed
   ntgrid = (size(theta)-1)/2 ; nth = ntheta / 2

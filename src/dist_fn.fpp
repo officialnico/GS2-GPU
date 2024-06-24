@@ -111,8 +111,7 @@ module dist_fn
   public :: check_getan
 
   ! knobs
-  complex, dimension (:), allocatable :: fexp ! (nspec)
-  real, dimension (:), allocatable :: bkdiff  ! (nspec)
+  real, dimension (:), allocatable :: fexp, bkdiff  ! (nspec)
   real :: gridfac, apfac, driftknob, tpdriftknob, poisfac, vparknob
   real :: t0, omega0, gamma0, source0
   real :: phi_ext, afilter, exponential_boundary_factor
@@ -407,10 +406,8 @@ module dist_fn
      !>
      !> @todo Expand documentation
      real :: mach = 0.0
-     !> Allow different species to have different values of `bakdif` and
-     !> `fexpr`.  Not allowed for nonlinear runs.
-     !>
-     !> @note The restriction to `.false.` for nonlinear runs isn't actually enforced.
+     !> Allow different species to have different values of `bakdif`.
+     !> Forced false for nonlinear runs.
      logical :: mult_imp = .false.
      !> If true switches on "new" parallel boundary condition where h=0 at incoming boundary instead of g=0.
      !> This is considered the correct boundary condition but old behaviour retained for experimentation.
@@ -533,12 +530,6 @@ module dist_fn
      !>
      !> @todo Consider changing the default to the recommended value.     
      real :: bakdif = 0.0
-     !> Sets the imaginary part of the temporal implicitness
-     !> parameter. It is considered an error for this to be non-zero.
-     !>
-     !> @todo Consider removing this variable as it should always be
-     !> zero. Is this used for numerical testing?
-     real :: fexpi = 0.0
      !> Sets the real part of the temporal implicitness parameter. Any
      !> value smaller than 0.5 adds numerical dissipation. When `fexpr
      !> = 0.5` we have a \(2^\textrm{nd}\) order time centered
@@ -565,7 +556,7 @@ contains
   !> FIXME : Add documentation
   subroutine check_dist_fn(report_unit)
     use kt_grids, only: grid_option, gridopt_box, gridopt_switch
-    use nonlinear_terms, only: nonlinear_mode_switch, nonlinear_mode_on
+    use nonlinear_terms, only: nonlin
     use species, only: spec, nspec, has_electron_species
     implicit none
     integer, intent(in) :: report_unit
@@ -707,17 +698,17 @@ contains
        write (report_unit, *) 
     end if
 
-    if (mult_imp .and. nonlinear_mode_switch == nonlinear_mode_on) then
+    if (mult_imp .and. nonlin) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('For nonlinear runs, all species must use the same values of fexpr and bakdif')")
        write (report_unit, fmt="('in the dist_fn_species_knobs_x namelists.')")
-       write (report_unit, fmt="('THIS IS AN ERROR.')") 
+       write (report_unit, fmt="('THIS IS AN ERROR AND MULT_IMP WILL BE SET FALSE.')")
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, *) 
     end if
 
-    if (def_parity .and. nonlinear_mode_switch == nonlinear_mode_on) then
+    if (def_parity .and. nonlin) then
        write (report_unit, *) 
        write (report_unit, fmt="('################# WARNING #######################')")
        write (report_unit, fmt="('Choosing a definite parity for a nonlinear run has never been tested.')")
@@ -776,17 +767,7 @@ contains
     ! implicitness parameters
     !
     do is = 1, nspec
-       if (aimag(fexp(is)) /= 0.) then
-          write (report_unit, *) 
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, fmt="('Species ',i2,' has fexpi = ',e11.4)") is, aimag(fexp(is))
-          write (report_unit, fmt="('THIS IS AN ERROR')")
-          write (report_unit, fmt="('fexpi should be zero for all species.')")
-          write (report_unit, fmt="('################# WARNING #######################')")
-          write (report_unit, *) 
-       end if
-
-       write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, real(fexp(is))
+       write (report_unit, fmt="('Species ',i2,' has fexpr = ', e11.4)") is, fexp(is)
     end do
   end subroutine check_dist_fn
 
@@ -886,7 +867,7 @@ contains
        write (line, *) i
        write (unit, fmt="(' &',a)") &
             & trim("dist_fn_species_knobs_"//trim(adjustl(line)))
-       write (unit, fmt="(' fexpr = ',e13.6)") real(fexp(i))
+       write (unit, fmt="(' fexpr = ',e13.6)") fexp(i)
        write (unit, fmt="(' bakdif = ',e13.6)") bkdiff(i)
     end do
   end subroutine wnml_dist_fn_species
@@ -1227,6 +1208,7 @@ contains
     use mp, only: proc0, broadcast, mp_abort
     use theta_grid, only: itor_over_B
     use kt_grids, only: gridopt_box, gridopt_switch
+    use nonlinear_terms, only: nonlin
     implicit none
     type(dist_fn_config_type), intent(in), optional :: dist_fn_config_in
     type(source_config_type), intent(in), optional :: source_config_in
@@ -1266,7 +1248,6 @@ contains
 
     if (readinit) return
     readinit = .true.
-
 
     !Deal with source_knobs namelist
     if (present(source_config_in)) source_config = source_config_in
@@ -1371,13 +1352,14 @@ contains
     call broadcast (fexp)
     call broadcast (bkdiff)
   
-    !<DD>Turn off esv if not using linked boundaries
-    esv=esv.and.(boundary_option_switch.eq.boundary_option_linked)
+    ! Turn off esv if not using linked boundaries
+    esv = esv .and. (boundary_option_switch == boundary_option_linked)
 
-    if (mult_imp) then
-       ! nothing -- fine for linear runs, but not implemented nonlinearly
-    else
-! consistency check for bkdiff
+    ! Turn off mult_imp if nonlinear
+    mult_imp = mult_imp .and. .not. nonlin
+
+    if (.not. mult_imp) then
+       ! consistency check for bkdiff
        bd = bkdiff(1)
        do is = 1, nspec
           if (bkdiff(is) /= bd) then
@@ -1430,7 +1412,6 @@ contains
     type(dist_fn_species_config_type), intent(in), dimension(:), allocatable, optional :: dist_fn_species_config_in
     integer :: is
     logical :: exist
-    real :: fexpr, fexpi
 
     if(present(dist_fn_species_config_in)) dist_fn_species_config = dist_fn_species_config_in
     if(.not.allocated(dist_fn_species_config)) allocate(dist_fn_species_config(nspec))
@@ -1443,12 +1424,9 @@ contains
 
        ! Copy out internal values into module level parameters
        bkdiff(is) = dist_fn_species_config(is)%bakdif
-       fexpi = dist_fn_species_config(is)%fexpi
-       fexpr = dist_fn_species_config(is)%fexpr
+       fexp(is) = dist_fn_species_config(is)%fexpr
        
        exist = dist_fn_species_config(is)%exist
-       
-       fexp(is) = cmplx(fexpr,fexpi)
     end do
   end subroutine read_species_knobs
 
@@ -5010,16 +4988,11 @@ contains
       use species, only: spec, nonmaxw_corr
       use theta_grid, only: itor_over_B
       implicit none
-      complex :: apar_p, apar_m, phi_p, phi_m!, bpar_p !GGH added bpar_p
+      complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
-
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       bdfac_p = 1.+bd*(3.-2.*real(isgn))
       bdfac_m = 1.-bd*(3.-2.*real(isgn))
-
-
 
 !CMR, 4/8/2011:
 ! Some concerns, may be red herrings !
@@ -5296,9 +5269,7 @@ contains
       complex :: apar_p, apar_m, phi_p, phi_m
       real :: bd, bdfac_p, bdfac_m
       integer :: sgn
-! try fixing bkdiff dependence
-      bd = bkdiff(1)
-
+      bd = bkdiff(is)
       sgn = 3 - 2 * isgn
       bdfac_p = 1 + bd * sgn
       bdfac_m = 1 - bd * sgn
@@ -5436,8 +5407,7 @@ contains
   subroutine invert_rhs_1 (phinew, bparnew, source)
     use dist_fn_arrays, only: gnew, set_h_zero, g
     use theta_grid, only: ntgrid
-    use le_grids, only: ng2, forbid,&
-         is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
+    use le_grids, only: forbid, is_passing_hybrid_electron, passing_wfb, trapped_wfb, &
          il_is_wfb, is_ttp, il_is_passing, il_is_trapped, &
          is_upper_bounce_point, is_lower_bounce_point, mixed_wfb
     use kt_grids, only: aky
@@ -5457,7 +5427,7 @@ contains
     !$OMP is_wfb, is_passing, is_trapped, is_self_periodic, is_passing_like, beta1) &
     !$OMP SHARED(g_lo, kwork_filter, ieqzip, is_ttp, start_from_previous_solution, &
     !$OMP gnew, phinew, bparnew, boundary_option_switch, g, &
-    !$OMP aky, ng2, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
+    !$OMP aky, forbid, g_h, zero_forbid, mixed_wfb, l_links, r_links, &
     !$OMP connections, trapped_wfb, passing_wfb, wfb, ntgrid, r, ainv, source) &
     !$OMP SCHEDULE(static)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
@@ -10889,16 +10859,15 @@ contains
     ! Note: When this routine is in the module where these variables live
     ! we shadow the module level variables here. This is intentional to provide
     ! isolation and ensure we can move this routine to another module easily.
-    real :: bakdif, fexpi, fexpr
+    real :: bakdif, fexpr
 
-    namelist /dist_fn_species_knobs/ bakdif, fexpi, fexpr
+    namelist /dist_fn_species_knobs/ bakdif, fexpr
 
     ! Only proc0 reads from file
     if (.not. proc0) return
 
     ! First set local variables from current values
     bakdif = self%bakdif
-    fexpi = self%fexpi
     fexpr = self%fexpr
 
     ! Now read in the main namelist
@@ -10908,7 +10877,6 @@ contains
 
     ! Now copy from local variables into type members
     self%bakdif = bakdif
-    self%fexpi = fexpi
     self%fexpr = fexpr
 
     self%exist = exist
@@ -10928,7 +10896,6 @@ contains
 
     call self%write_namelist_header(unit_internal)
     call self%write_key_val("bakdif", self%bakdif, unit_internal)
-    call self%write_key_val("fexpi", self%fexpi, unit_internal)
     call self%write_key_val("fexpr", self%fexpr, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_dist_fn_species_config
@@ -10950,7 +10917,6 @@ contains
     implicit none
     class(dist_fn_species_config_type), intent(in out) :: self
     call broadcast(self%bakdif)
-    call broadcast(self%fexpi)
     call broadcast(self%fexpr)
 
     call broadcast(self%exist)

@@ -612,7 +612,7 @@ contains
      use mp, only: mp_abort
      implicit none
      real, intent(in):: v
-     real::f0temp, dummy1, dummy2
+     real::dummy1, dummy2
      eval_f0 = 0.0 !Set a default, avoids warnings about maybe unset
      if (is_global <= 0)  call mp_abort("is_global not specified when calling eval_f0")
 
