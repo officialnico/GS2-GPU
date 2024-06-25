@@ -44,7 +44,12 @@ contains
     use mp, only: mp_abort, proc0
 
     implicit none
-    real, external:: wgt_func
+    interface
+       real function wgt_func_exp(x)
+         real, intent(in) :: x
+       end function wgt_func_exp
+    end interface
+    procedure(wgt_func_exp) :: wgt_func
     integer,intent(in):: N_out
     real,intent(in):: v0, vf
     real,dimension(1:), intent(inout):: out_abscissae, out_wgts
