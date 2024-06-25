@@ -1887,8 +1887,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine init_ediffuse (vnmult_target)
-    use le_grids, only: negrid, forbid, ixi_to_il
-    use egrid, only: zeroes => zeroes_maxw, x0 => x0_maxw
+    use le_grids, only: negrid, forbid, ixi_to_il, speed => speed_maxw
     use gs2_layouts, only: le_lo, e_lo, il_idx
     use gs2_layouts, only: ig_idx, it_idx, ik_idx, is_idx
     use array_utils, only: zero_array
@@ -1901,8 +1900,7 @@ contains
 
     ! want to use x variables instead of e because we want conservative form
     ! for the x-integration
-    xe(1:negrid-1) = zeroes
-    xe(negrid) = x0
+    xe = speed
 
     if (present(vnmult_target)) then
        vnmult(2) = max (vnmult_target, 1.0)
