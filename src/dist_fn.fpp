@@ -5093,7 +5093,7 @@ contains
     use kt_grids, only: aky
     use le_grids, only: lmax, grid_has_trapped_particles, is_ttp, can_be_ttp
     use species, only: spec, nonmaxw_corr
-    use run_parameters, only: fphi, fapar, fbpar, has_apar, has_bpar, has_phi
+    use run_parameters, only: fphi, fbpar, has_apar, has_bpar, has_phi
     use gs2_time, only: code_dt
     use constants, only: zi
     implicit none
