@@ -498,6 +498,9 @@ endif
 
 ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
+$(warning $(shell echo -e "$(C_RED)")\
+LOWFLOW is deprecated in 8.2 and will be removed in the future\
+$(shell echo -e "$(C_END)"))
 endif
 
 #Setup the flags for using the eigensolver
