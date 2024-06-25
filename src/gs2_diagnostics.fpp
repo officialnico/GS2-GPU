@@ -3400,10 +3400,8 @@ contains
   !> Write \(g(v_\parallel,v_\perp)\) at `ik=it=is=1, ig=0` to text file `<runname>.dist`
   subroutine do_write_f (unit)
     use mp, only: proc0, send, receive
-    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx
-    use gs2_layouts, only: idx_local, proc_id
-    use le_grids, only: al, energy, forbid, negrid, nlambda
-    use egrid, only: zeroes, x0
+    use gs2_layouts, only: g_lo, ik_idx, it_idx, is_idx, il_idx, ie_idx, idx_local, proc_id
+    use le_grids, only: al, energy, forbid, negrid, nlambda, speed
     use theta_grid, only: bmag
     use dist_fn_arrays, only: gnew
     use species, only: nspec
@@ -3421,8 +3419,7 @@ contains
        allocate(ypts(nlambda))
 
        ! should really just get rid of xpts and ypts
-       xpts(1:negrid-1,:) = zeroes(1:negrid-1,:)
-       xpts(negrid,:) = x0(:)
+       xpts = speed
        ypts = 0.0
 
        do il=1,nlambda
