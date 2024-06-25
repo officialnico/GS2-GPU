@@ -484,6 +484,12 @@ contains
        grho = 1.0
 
     end select
+
+    if (gb_to_cv) then
+       gbdrift = cvdrift
+       gbdrift0 = cvdrift0
+    end if
+
     gradpar = pk/2.0
 
     ! not sure about factor of epsl below...
