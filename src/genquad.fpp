@@ -212,6 +212,8 @@ contains
     UNUSED_DUMMY(out_abscissae); UNUSED_DUMMY(out_wgts)
     if (proc0) write(*,*) "ERROR: Must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile."
     call mp_abort("You must link to LAPACK for genquad to work. Set USE_LAPACK=on in Makefile.")
+    ! Hacky way to avoid unused argument warning
+    if (.false.) write(*,*) wgt_func(0.0)
 #endif
   end subroutine get_quadrature_rule
 
