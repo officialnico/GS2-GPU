@@ -7,18 +7,6 @@ module gs2_transforms
   use redistribute, only: redist_type
   use fft_work, only: fft_type
 
-#if FFT == _FFTW3_
-#ifdef SINGLE_PRECISION
-  use fft_wrapper, only: fftw_execute_dft => fftwf_execute_dft
-  use fft_wrapper, only: fftw_execute_dft_r2c => fftwf_execute_dft_r2c
-  use fft_wrapper, only: fftw_execute_dft_c2r => fftwf_execute_dft_c2r
-#else
-  use fft_wrapper, only: fftw_execute_dft
-  use fft_wrapper, only: fftw_execute_dft_r2c
-  use fft_wrapper, only: fftw_execute_dft_c2r
-#endif
-#endif
-
   implicit none
 
   private
@@ -30,8 +18,8 @@ module gs2_transforms
   public :: g2x, x2y
 
   logical :: initialized=.false., initialized_x=.false., initialized_y_fft=.false.
-  logical :: initialized_x_redist=.false., initialized_y_redist=.false., initialized_3d=.false.
-  logical :: initialized_zf = .false.
+  logical :: initialized_x_redist=.false., initialized_y_redist=.false.
+  logical :: initialized_zf = .false., initialized_3d=.false.
 
   interface transform_x
      module procedure transform_x5d
@@ -988,11 +976,9 @@ contains
     !
     call gather (g2x, g, xxf)
 
-#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call fftw_execute_dft(xf_fft%plan, xxf, xxf)
+    call xf_fft%execute_c2c(xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
-#endif
   end subroutine transform_x5d
 
   !> FIXME : Add documentation  
@@ -1005,11 +991,9 @@ contains
     complex, dimension (:,xxf_lo%llim_proc:), intent (in out) :: xxf
     complex, dimension (-xxf_lo%ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
 
-#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call fftw_execute_dft(xb_fft%plan, xxf, xxf)
+    call xb_fft%execute_c2c(xxf, xxf)
     call time_message(.false., time_fft, ' FFT')
-#endif
 
     call scatter (g2x, xxf, g)
   end subroutine inverse_x5d
@@ -1038,11 +1022,9 @@ contains
     !an FFT routine.
     call gather (x2y, xxf, fft)
 
-#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call fftw_execute_dft_c2r(yf_fft%plan, fft, yxf)
+    call yf_fft%execute_c2r(fft, yxf)
     call time_message(.false., time_fft, ' FFT')
-#endif
   end subroutine transform_y5d
 
   !> FIXME : Add documentation  
@@ -1055,11 +1037,9 @@ contains
     real, dimension (:,yxf_lo%llim_proc:), intent (in out) :: yxf
     complex, dimension (:,xxf_lo%llim_proc:), intent (out) :: xxf
 
-#if FFT == _FFTW3_
     call time_message(.false., time_fft, ' FFT')
-    call fftw_execute_dft_r2c(yb_fft%plan, yxf, fft)
+    call yb_fft%execute_r2c(yxf, fft)
     call time_message(.false., time_fft, ' FFT')
-#endif
 
     call scatter (x2y, fft, xxf)
   end subroutine inverse_y5d
@@ -1273,11 +1253,8 @@ contains
     idx = 1
     call time_message(.false., time_fft, ' FFT')
     do k = accel_lo%llim_proc, accel_lo%ulim_proc, accel_lo%nxnky
-#if FFT == _FFTW3_
        ! remember FFTW3 for c2r destroys the contents of ag
-       call fftw_execute_dft_c2r(yf_fft%plan, ag(:, :, k:), &
-            axf(:, :, ia(idx):))
-#endif
+       call yf_fft%execute_c2r(ag(:, :, k:), axf(:, :, ia(idx):))
        idx = idx + 1
     end do
     call time_message(.false., time_fft, ' FFT')
@@ -1300,9 +1277,9 @@ contains
        else
           kk = k
        endif
-#if FFT == _FFTW3_
+
        call fft_shm(kk,ia(idx))
-#endif
+
        idx = idx + 1
        if ( use_shm_2d_plan) then
           idx = mod(idx -1, accel_lo%nia) +1
@@ -1312,7 +1289,6 @@ contains
     call time_message(.false., time_fft, ' FFT')
   contains
 
-# if FFT == _FFTW3_
     !> FIXME : Add documentation
     subroutine fft_shm(k1, k2)
       use mp, only : proc0
@@ -1357,15 +1333,15 @@ contains
       if ( idw < mod(p3, nwk)) je = je +1
 
       do i = is, ie 
-         call fftw_execute_dft(faccel_shmy%plan, ag_ptr(-ntgrid,1,k1+i),ag_ptr(-ntgrid,1,k1+i))
-      enddo
+         call faccel_shmy%execute_c2c(ag_ptr(-ntgrid,1,k1+i), ag_ptr(-ntgrid,1,k1+i))
+      end do
 
       call shm_node_barrier
       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
 
       do j = js, je
-         call fftw_execute_dft_c2r(faccel_shmx%plan, ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
-      enddo
+         call faccel_shmx%execute_c2r(ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
+      end do
 
     end subroutine fft1d_shm
 
@@ -1397,20 +1373,18 @@ contains
             enddo
          enddo
 
-         call fftw_execute_dft_c2r(yf_fft_shm%plan, cin, rout)
+         call yf_fft_shm%execute_c2r(cin, rout)
 
          do j=1,n2*n3
             do i=1,howmany
                axf_ptr(ts1+i-1,ts2,k2+j-1)= rout(i,j)
-            enddo
-         enddo
+            end do
+         end do
       else
-         call fftw_execute_dft_c2r(yf_fft_shm%plan, ag_ptr(ts1, ts2,k1), axf_ptr(ts1,ts2,k2))
-      endif
+         call yf_fft_shm%execute_c2r(ag_ptr(ts1, ts2,k1), axf_ptr(ts1,ts2,k2))
+      end if
 
     end subroutine fft2d_shm
-
-# endif
 # endif
 
   end subroutine transform2_5d_accel
@@ -1447,10 +1421,7 @@ contains
     idx = 1
     call time_message(.false., time_fft, ' FFT')
     do k = accelx_lo%llim_proc, accelx_lo%ulim_proc, accelx_lo%nxny
-#if FFT == _FFTW3_
-       call fftw_execute_dft_r2c(yb_fft%plan, axf(:, :, k:), &
-            ag(:, :, iak(idx):))
-#endif
+       call yb_fft%execute_r2c(axf(:, :, k:), ag(:, :, iak(idx):))
        idx = idx + 1
     end do
     call time_message(.false., time_fft, ' FFT')
@@ -1515,9 +1486,9 @@ contains
        else
           kk = k
        endif
-#if FFT == _FFTW3_
+
        call fft_shm_inv(kk, iak(idx))
-#endif
+
        idx = idx + 1
        if ( use_shm_2d_plan) then
           idx = mod(idx-1, accel_lo%nia) +1
@@ -1574,13 +1545,10 @@ contains
 
   contains
 
-# if FFT == _FFTW3_
     !> FIXME : Add documentation
     subroutine fft_shm_inv(k1, k2)
       implicit none
       integer, intent(in) :: k1, k2
-
-
       if (use_shm_2d_plan) then
          call fft2d_shm_inv(k1, k2)
       else
@@ -1613,14 +1581,14 @@ contains
       if ( idw < mod(ny, nwk)) je = je +1
 
       do j = js, je
-         call fftw_execute_dft_r2c(baccel_shmx%plan, axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
+         call baccel_shmx%execute_r2c(axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
       enddo
 
       call shm_node_barrier
       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
 
       do i = is, ie 
-         call fftw_execute_dft(baccel_shmy%plan, ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
+         call baccel_shmy%execute_c2c(ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
       enddo
 
     end subroutine fft1d_shm_inv
@@ -1652,21 +1620,17 @@ contains
                rin(i,j) =  axf_ptr(ts1o+i-1,ts2,k1+j-1)
             enddo
          enddo
-         call fftw_execute_dft_r2c(yb_fft_shm%plan, rin, cout)
+         call yb_fft_shm%execute_r2c(rin, cout)
          do j=1,(n2/2+1)*n3
             do i=1,howmany
                ag_ptr(ts1+i-1,ts2,k2+j-1) = cout(i,j)
             enddo
          enddo
       else
-         call fftw_execute_dft_r2c(yb_fft_shm%plan, axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))
+         call yb_fft_shm%execute_r2c(axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))
       endif
 
     end subroutine fft2d_shm_inv
-
-
-# endif
-
 # endif
   end subroutine inverse2_5d_accel
 
@@ -1742,9 +1706,7 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft_c2r(xf3d_cr%plan, aphi, phix)
-#endif
+    call xf3d_cr%execute_c2r(aphi, phix)
     call time_message(.false., time_fft, ' FFT')
 
     do it=1,nnx
@@ -1790,9 +1752,7 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft_r2c(xf3d_rc%plan, phix, aphi)
-#endif
+    call xf3d_rc%execute_r2c(phix, aphi)
     call time_message(.false., time_fft, ' FFT')
 
     ! dealias and scale
@@ -1863,9 +1823,7 @@ contains
 
     ! transform
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft_c2r(xf2d%plan, aphi, phix)
-#endif
+    call xf2d%execute_c2r(aphi, phix)
     call time_message(.false., time_fft, ' FFT')
 
     phixf(:,:)=transpose(phix(:,:))
@@ -1895,9 +1853,7 @@ contains
     !May be inefficient to create and destroy this fft plan
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
-#if FFT == _FFTW3_
     call init_rcfftw (xf2d, FFT_TO_SPECTRAL_SPACE, nny, nnx, 1)
-#endif    
 
     allocate (aphi (nny/2+1, nnx))
     allocate (phix (nny, nnx))
@@ -1907,9 +1863,7 @@ contains
 
     ! transform
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft_r2c(xf2d%plan, phix, aphi)
-#endif
+    call xf2d%execute_r2c(phix, aphi)
     call time_message(.false., time_fft, ' FFT')
 
     ! scale, dealias and transpose
@@ -1975,9 +1929,7 @@ contains
     ! transform
     i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft_c2r(xf3d_cr%plan, aphi, phix)
-#endif
+    call xf3d_cr%execute_c2r(aphi, phix)
     call time_message(.false., time_fft, ' FFT')
     do it=1,nnx
        do ik=1,nny
@@ -2016,9 +1968,7 @@ contains
     complex, dimension (:,:,:), intent(out) :: an2
     an2 = 0.0
     call time_message(.false., time_fft, ' FFT')
-#if FFT == _FFTW3_
-    call fftw_execute_dft(zf_fft%plan, an, an2)
-#endif
+    call zf_fft%execute_c2c(an, an2)
     call time_message(.false., time_fft, ' FFT')
     an2 = conjg(an2)*an2
 
