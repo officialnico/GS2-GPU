@@ -14,7 +14,7 @@ module gs2_transforms
   public :: init_transforms, finish_transforms, init_zf
   public :: transform2, inverse2, kz_spectrum
   public :: transform_x, transform_y, inverse_x, inverse_y ! Only for testing
-  logical :: initialized=.false., initialized_x=.false., initialized_y_fft=.false.
+  logical :: initialized=.false., initialized_y_fft=.false.
   logical :: initialized_x_redist=.false., initialized_y_redist=.false.
   logical :: initialized_zf = .false., initialized_3d=.false.
 
@@ -1838,12 +1838,10 @@ contains
 
     !Reset init state flags
     initialized = .false.
-    initialized_x = .false.
     initialized_y_fft = .false.
     initialized_x_redist = .false.
     initialized_y_redist = .false.
     initialized_3d = .false.
-    xfft_initted = .false.
     initialized_zf = .false.
 
     !Tidy up fft internals (FFTW3 only)
