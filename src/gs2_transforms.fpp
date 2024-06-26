@@ -56,11 +56,9 @@ module gs2_transforms
   type (fft_type), save :: xf3d_cr, xf3d_rc
 #ifdef SHMEM
   type (fft_type) :: faccel_shmx, faccel_shmy, baccel_shmx, baccel_shmy
-  integer, save :: gidx_s ! starting point for dealising loop
-  integer planf_accel_x, planf_accel_y, planb_accel_y, plan
   type (fft_type), save :: yf_fft_shm, yb_fft_shm
   logical, save :: use_shm_2d_plan=.false., use_shm_2d_plan_buff=.false.
-  integer, save :: its, ite, ips, ipe!  idices for split ntgrid and second dim
+  integer, save :: its, ite, ips, ipe!  idices for split ntgrid and second dim < Set but not used
   integer, allocatable :: gidx(:)
 #endif
 
