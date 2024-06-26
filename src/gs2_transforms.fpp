@@ -52,16 +52,13 @@ module gs2_transforms
   end interface inverse2
 
   ! redistribution
-
   type (redist_type), save :: g2x, x2y
 
   ! fft
-
   type (fft_type), save :: xf_fft, xb_fft, yf_fft, yb_fft, zf_fft
   type (fft_type), save :: xf3d_cr, xf3d_rc
 #ifdef SHMEM
   type (fft_type) :: faccel_shmx, faccel_shmy, baccel_shmx, baccel_shmy
-
   integer, save :: gidx_s ! starting point for dealising loop
   integer planf_accel_x, planf_accel_y, planb_accel_y, plan
   type (fft_type), save :: yf_fft_shm, yb_fft_shm
@@ -1637,7 +1634,7 @@ contains
     real, dimension (:,:,:), allocatable :: phix
     complex, dimension (:,:,:), allocatable :: aphi
     real :: fac
-    integer :: ig, ik, it, i
+    integer :: ig, ik, it
 
     ! scale, dealias and transpose
     call init_3d (nny, nnx, 2*ntgrid+1)
@@ -1646,32 +1643,31 @@ contains
     allocate (aphi (-ntgrid:ntgrid, nny/2+1, nnx))
     aphi = 0.
 
-    do ik=1,naky
+    do ik = 1, naky
        fac = 0.5
        if (aky(ik) < epsilon(0.)) fac = 1.0
-       do it=1,(ntheta0+1)/2
-          do ig=-ntgrid, ntgrid
-             aphi(ig,ik,it) = phi(ig,it,ik)*fac
+       do it = 1, (ntheta0+1) / 2
+          do ig = -ntgrid, ntgrid
+             aphi(ig, ik, it) = phi(ig, it, ik) * fac !Note transpose of it and ik here
           end do
        end do
-       do it=(ntheta0+1)/2+1,ntheta0
-          do ig=-ntgrid, ntgrid
+       do it = (ntheta0+1) / 2 + 1, ntheta0
+          do ig = -ntgrid, ntgrid
              !CMR, 30/3/2010: bug fix to replace nx by nnx on next line
-             aphi(ig,ik,it-ntheta0+nnx) = phi(ig,it,ik)*fac
+             aphi(ig, ik, it-ntheta0+nnx) = phi(ig,it,ik) * fac
           end do
        end do
     end do
 
     ! transform
-    i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
     call xf3d_cr%execute_c2r(aphi, phix)
     call time_message(.false., time_fft, ' FFT')
 
-    do it=1,nnx
-       do ik=1,nny
-          do ig=-ntgrid, ntgrid
-             phixf (it,ik,ig) = phix (ig,ik,it)
+    do it = 1, nnx
+       do ik = 1, nny
+          do ig = -ntgrid, ntgrid
+             phixf(it, ik, ig) = phix(ig, ik, it)
           end do
        end do
     end do
@@ -1695,43 +1691,42 @@ contains
     complex, dimension (:,:,:), allocatable :: aphi
     real, dimension (:,:,:), allocatable :: phix
     real :: fac
-    integer :: i, ik, it, ig
-
+    integer :: ik, it, ig
+    ! Note assumes init_3d has already been called
     allocate (aphi (-ntgrid:ntgrid, nny/2+1, nnx))
     allocate (phix (-ntgrid:ntgrid, nny, nnx))
 
-    do it=1,nnx
-       do ik=1,nny
-          do ig=-ntgrid, ntgrid
-             phix (ig,ik,it) = phixf (it,ik,ig)
+    do it = 1, nnx
+       do ik = 1, nny
+          do ig = -ntgrid, ntgrid
+             phix(ig, ik, it) = phixf(it, ik, ig)
           end do
        end do
     end do
 
     ! transform
-    i = 2*ntgrid+1
     call time_message(.false., time_fft, ' FFT')
     call xf3d_rc%execute_r2c(phix, aphi)
     call time_message(.false., time_fft, ' FFT')
 
     ! dealias and scale
-    do it=1,(ntheta0+1)/2
-       do ik=1,naky
+    do it = 1, (ntheta0+1) / 2
+       do ik = 1, naky
           fac = 2.0
           if (aky(ik) < epsilon(0.0)) fac = 1.0
-          do ig=-ntgrid, ntgrid
-             phi (ig,it,ik) = aphi (ig,ik,it)*fac*xf3d_rc%scale
+          do ig = -ntgrid, ntgrid
+             phi(ig, it, ik) = aphi(ig, ik, it) * fac * xf3d_rc%scale
           end do
        end do
     end do
 
     !CMR, 30/4/2010:  fixed up previously buggy handling of dealiasing
-    do it=(ntheta0+1)/2+1,ntheta0
-       do ik=1,naky
+    do it = (ntheta0+1) / 2 + 1, ntheta0
+       do ik = 1, naky
           fac = 2.0
           if (aky(ik) < epsilon(0.0)) fac = 1.0
-          do ig=-ntgrid, ntgrid
-             phi (ig,it,ik) = aphi (ig,ik,it-ntheta0+nnx)*fac*xf3d_rc%scale
+          do ig = -ntgrid, ntgrid
+             phi(ig,it,ik) = aphi(ig, ik, it-ntheta0+nnx) * fac * xf3d_rc%scale
           end do
        end do
     end do
@@ -1749,10 +1744,10 @@ contains
     use job_manage, only: time_message
     implicit none
     integer, intent(in) :: nnx, nny
-    complex, intent (in) :: phi(:,:)
-    real, intent (out) :: phixf  (:,:)
-    real, allocatable :: phix(:,:)
-    complex, allocatable :: aphi(:,:)
+    complex, dimension(:, :), intent (in) :: phi
+    real, dimension(:, :), intent (out) :: phixf
+    real, dimension(:, :), allocatable :: phix
+    complex, dimension(:, :), allocatable :: aphi
     real :: fac
     integer :: ik, it
     type (fft_type) :: xf2d
@@ -1767,14 +1762,14 @@ contains
     phix(:,:)=0.; aphi(:,:)=cmplx(0.,0.)
 
     ! scale, dealias and transpose
-    do ik=1,naky
+    do ik = 1, naky
        fac = 0.5
        if (aky(ik) < epsilon(0.)) fac = 1.0
-       do it=1,(nakx+1)/2
-          aphi(ik,it) = phi(it,ik)*fac
+       do it = 1, (nakx+1) / 2
+          aphi(ik, it) = phi(it, ik) * fac
        end do
-       do it=(nakx+1)/2+1,nakx
-          aphi(ik,it-nakx+nx) = phi(it,ik)*fac
+       do it = (nakx+1) / 2 + 1, nakx
+          aphi(ik, it-nakx+nx) = phi(it, ik) * fac
        end do
     end do
 
@@ -1823,11 +1818,11 @@ contains
     call time_message(.false., time_fft, ' FFT')
 
     ! scale, dealias and transpose
-    do it=1,nakx
-       do ik=1,naky
+    do it = 1, nakx
+       do ik = 1, naky
           fac = 2.0
           if (aky(ik) < epsilon(0.0)) fac = 1.0
-          phi(it,ik) = aphi(ik,it) * fac * xf2d%scale
+          phi(it, ik) = aphi(ik, it) * fac * xf2d%scale
        end do
     end do
 
