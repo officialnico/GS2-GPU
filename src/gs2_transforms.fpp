@@ -11,11 +11,8 @@ module gs2_transforms
 
   private
 
-  public :: init_transforms, finish_transforms
-  public :: init_x_transform, init_zf, kz_spectrum
-  public :: transform_x, transform_y, transform2
-  public :: inverse_x, inverse_y, inverse2
-  public :: g2x, x2y
+  public :: init_transforms, finish_transforms, init_zf
+  public :: transform2, inverse2, kz_spectrum
 
   logical :: initialized=.false., initialized_x=.false., initialized_y_fft=.false.
   logical :: initialized_x_redist=.false., initialized_y_redist=.false.
@@ -133,18 +130,20 @@ contains
     if (accel) then
        if (debug) write (*,*) 'init_transforms: init_gs2_layouts (accel)'
        call init_accel_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+
+       ! need these for movies - also called via init_y_redist_local in non-accel branch
+       if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
+       call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
+       if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
+       call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
+
     else
        !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
        !Could automate selection, though above condition is only fairly rough
        if (debug) write (*,*) 'init_transforms: init_y_redist_local'
+       ! Note also calls init_x_redist_local
        call init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
     end if
-
-    ! need these for movies
-    if (debug) write (*,*) 'init_transforms: init_y_transform_layouts'
-    call init_y_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny, nproc, iproc)
-    if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
-    call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
     
     if (debug) write (*,*) 'init_transforms: init_xy_fft'
     call init_xy_fft(ntgrid)
@@ -155,48 +154,6 @@ contains
     if (proc0.and.fft_use_wisdom) call save_wisdom(trim(fft_wisdom_file))
     
   end subroutine init_transforms
-
-  !> FIXME : Add documentation  
-  subroutine init_x_transform (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-    
-    !JH As of 7th December 2011 this routine is dead code and should be considered
-    !JH for removal from the source.  
-    !JH This functionality is presently implemented in subroutine init_y_fft 
-    !JH present later in this file.
-    
-    use mp, only: nproc
-    use fft_work, only: init_ccfftw, FFT_TO_REAL_SPACE, FFT_TO_SPECTRAL_SPACE
-    use gs2_layouts, only: xxf_lo, pe_layout
-#ifdef SHMEM
-    use shm_mpi3, only : shm_alloc
-#endif
-    integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
-    character (1) :: char
-    integer :: nb_ffts
-
-    if (initialized_x) return
-    initialized_x = .true.
-    
-    call pe_layout (char)
-
-#ifndef SHMEM
-    accel = (char == 'v') .and. (mod(negrid * nlambda * nspec, nproc) == 0)
-#else
-    accel = (char == 'v')
-#endif
-
-    if (.not. accel) then
-       call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-       if (.not. allocated(xxf)) allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
-       
-       ! number of independent ffts to be calculated
-       nb_ffts = xxf_lo%ulim_proc - xxf_lo%llim_proc + 1
-       
-       call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-       call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-       xfft_initted = .true.
-    end if
-  end subroutine init_x_transform
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -339,36 +296,23 @@ contains
 #endif
     else
        ! non-accelerated
-       allocate (fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       if (.not. allocated(xxf)) allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
+       if (.not. allocated(fft)) allocate(fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
+       if (.not. allocated(xxf)) allocate(xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
 
-       if (.not. xfft_initted) then !Near identical to init_x_transform
-          !JH FFTW plan creation for transform x5d and inverse
-          ! number of ffts to be calculated
-          !JH 7th December 2011
-          !JH xxf_lo%ulim_alloc is used here rather than xxf_lo%lulim_proc
-          !JH because there are situations where xxf_lo%llim_proc is greater 
-          !JH than xxf_lo%ulim_proc and that would create a negative number 
-          !JH of FFTs to be calculated.  However, xxf_lo%ulim_alloc is set
-          !JH to be xxf_lo%llim_proc in this situation, and that will give 
-          !JH 1 FFT to be calculated which the code can correctly undertake.
-          nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-          call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-          call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-          xfft_initted = .true.
-       end if
-
-       !JH FFTW plan creation for transform y5d and inverse
+       !JH FFTW plan creation for transform x5d and inverse
        ! number of ffts to be calculated
        !JH 7th December 2011
-       !JH yxf_lo%ulim_alloc is used here rather than yxf_lo%lulim_proc
-       !JH because there are situations where yxf_lo%llim_proc is greater 
-       !JH than yxf_lo%ulim_proc and that would create a negative number 
-       !JH of FFTs to be calculated.  However, yxf_lo%ulim_alloc is set
-       !JH to be yxf_lo%llim_proc in this situation, and that will give 
+       !JH xxf_lo%ulim_alloc is used here rather than x/yxf_lo%ulim_proc
+       !JH because there are situations where x/yxf_lo%llim_proc is greater
+       !JH than x/yxf_lo%ulim_proc and that would create a negative number
+       !JH of FFTs to be calculated.  However, x/yxf_lo%ulim_alloc is set
+       !JH to be x/yxf_lo%llim_proc in this situation, and that will give
        !JH 1 FFT to be calculated which the code can correctly undertake.
-       nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+       nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
+       call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+       call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
 
+       nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
        call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
        call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
     end if
