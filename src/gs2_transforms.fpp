@@ -32,7 +32,6 @@ module gs2_transforms
   interface transform2
      module procedure transform2_5d_accel
      module procedure transform2_5d
-     module procedure transform2_4d
      module procedure transform2_3d
      module procedure transform2_2d
   end interface transform2
@@ -1838,66 +1837,6 @@ contains
     !    then we can guard this line with some directives.   
     call xf2d%delete
   end subroutine inverse2_2d
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  !> FIXME : Add documentation        
-  subroutine transform2_4d (den, phixf, nny, nnx)
-    !CMR, 30/3/2010: den input has 4th index being species, 
-    !     but transform only operates for species=1
-    !     anyone who uses this routine should be aware of/fix this!
-    use theta_grid, only: ntgrid
-    use kt_grids, only: naky, ntheta0, aky
-    use job_manage, only: time_message
-    use fft_work, only: time_fft
-    implicit none
-    integer, intent(in) :: nnx, nny
-    complex, dimension (-ntgrid:,:,:,:), intent (in) :: den
-    real, dimension (:,:,-ntgrid:), intent (out) :: phixf  
-    real, dimension (:,:,:), allocatable :: phix
-    complex, dimension (:,:,:), allocatable :: aphi
-    real :: fac
-    integer :: ig, ik, it, i
-
-    ! scale, dealias and transpose
-    call init_3d (nny, nnx, 2*ntgrid+1)
-
-    allocate (phix (-ntgrid:ntgrid, nny, nnx))
-    allocate (aphi (-ntgrid:ntgrid, nny/2+1, nnx))
-    aphi = 0.
-
-    do ik=1,naky
-       fac = 0.5
-       if (aky(ik) < epsilon(0.)) fac = 1.0
-       do it=1,(ntheta0+1)/2
-          do ig=-ntgrid, ntgrid
-             aphi(ig,ik,it) = den(ig,it,ik,1)*fac
-          end do
-       end do
-       do it=(ntheta0+1)/2+1,ntheta0
-          do ig=-ntgrid, ntgrid
-             !CMR, 30/3/2010: bug fix to replace nx by nnx on next line
-             aphi(ig,ik,it-ntheta0+nnx) = den(ig,it,ik,1)*fac
-          end do
-       end do
-    end do
-
-    ! transform
-    i = 2*ntgrid+1
-    call time_message(.false., time_fft, ' FFT')
-    call xf3d_cr%execute_c2r(aphi, phix)
-    call time_message(.false., time_fft, ' FFT')
-    do it=1,nnx
-       do ik=1,nny
-          do ig=-ntgrid, ntgrid
-             phixf (it,ik,ig) = phix (ig,ik,it)
-          end do
-       end do
-    end do
-
-    deallocate (aphi, phix)
-
-  end subroutine transform2_4d
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
