@@ -30,7 +30,7 @@ module gs2_transforms
      module procedure transform2_5d_accel
      module procedure transform2_5d
      module procedure transform2_3d
-     module procedure transform2_2d
+     module procedure transform2_2d !Not actually used, but gives symmetry to inverse2_2d
   end interface transform2
 
   interface inverse_x
@@ -58,7 +58,7 @@ module gs2_transforms
   type (fft_type), save :: faccel_shmx, faccel_shmy, baccel_shmx, baccel_shmy
   type (fft_type), save :: yf_fft_shm, yb_fft_shm
   logical, save :: use_shm_2d_plan=.false., use_shm_2d_plan_buff=.false.
-  integer, allocatable :: gidx(:)
+  integer, dimension(:), allocatable :: gidx
 #endif
 
   ! accel will be set to true if the v layout is used AND the number of
@@ -67,13 +67,13 @@ module gs2_transforms
   ! terms
   logical :: accel = .false.
 
-  logical, dimension (:), allocatable :: aidx  ! aidx == aliased index
-  integer, dimension (:), allocatable :: ia, iak
-  complex, dimension (:, :), allocatable :: fft, xxf
+  logical, dimension(:), allocatable :: aidx  ! aidx == aliased index
+  integer, dimension(:), allocatable :: ia, iak
+  complex, dimension(:, :), allocatable :: fft, xxf
 #ifndef SHMEM
-  complex, dimension (:, :, :), allocatable :: ag
+  complex, dimension(:, :, :), allocatable :: ag
 #else
-  complex, save, dimension (:, :, :), pointer, contiguous :: ag => null()
+  complex, save, dimension(:, :, :), pointer, contiguous :: ag => null()
 #endif
 
 contains
@@ -93,9 +93,8 @@ contains
     integer, intent (in) :: nx, ny
     logical, intent (out) :: accelerated
     logical, parameter :: debug = .false.
+    character(1) :: char
 
-    character (1) :: char
-    ! CMR, 12/2/2010:  return correct status of "accelerated" even if already initialised
     accelerated = accel
 
     !Early exit if possible
@@ -811,12 +810,12 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec
     integer, intent (in) :: nx, ny
 
+    !Setup g_lo-->xxf_lo redist object first
+    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
+
     !Early exit if possible
     if (initialized_y_redist) return
     initialized_y_redist = .true.
-
-    !Setup g_lo-->xxf_lo redist object first
-    call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
 
     !Setup the yxf layout object
     call init_y_transform_layouts &
@@ -941,7 +940,7 @@ contains
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) == 1) cycle
-       g(:,:,iglo) = g(:,:,iglo) / 2.0
+       g(:,:,iglo) = g(:,:,iglo) * 0.5
     end do
     !$OMP END PARALLEL DO
 
@@ -971,9 +970,9 @@ contains
     !$OMP SCHEDULE(dynamic)
     do iglo = g_lo%llim_proc, g_lo%ulim_proc
        if (ik_idx(g_lo, iglo) .ne. 1) then
-          g(:,:,iglo) = g(:,:,iglo)  * (scale * 2.0)
+          g(:,:,iglo) = g(:,:,iglo) * (scale * 2.0)
        else
-          g(:,:,iglo) = g(:,:,iglo)  * scale
+          g(:,:,iglo) = g(:,:,iglo) * scale
        end if
     end do
     !$OMP END PARALLEL DO
@@ -1037,6 +1036,9 @@ contains
           if (ik_idx(g_lo, idx) .ne. 1) then
              do iduo = 1, 2
                 do itgrid = 1, 2*ntgrid +1
+                   ! It seems strange that we scale the input and then
+                   ! copy it to ag -- why not just scaling ag, which is
+                   ! what we are going to fft and return?
                    g(itgrid, iduo, idx) &
                         = 0.5 * g(itgrid, iduo, idx)
                    ag(itgrid - (ntgrid+1), iduo, k) &
