@@ -146,8 +146,8 @@ contains
     if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
     call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
     
-    if (debug) write (*,*) 'init_transforms: init_y_fft'
-    call init_y_fft (ntgrid)
+    if (debug) write (*,*) 'init_transforms: init_xy_fft'
+    call init_xy_fft(ntgrid)
     
     if (debug) write (*,*) 'init_transforms: done'
     accelerated = accel
@@ -201,7 +201,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation
-  subroutine init_y_fft (ntgrid)
+  subroutine init_xy_fft (ntgrid)
     use gs2_layouts, only: xxf_lo, yxf_lo, accel_lo, accelx_lo, dealiasing
     use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
 #ifdef SHMEM
@@ -404,8 +404,7 @@ contains
       if ( idw < ir) ite=ite+1
     end subroutine compute_ntgrid_split
 #endif   
-
-  end subroutine init_y_fft
+  end subroutine init_xy_fft
 
   !> Constructs the redistribute mapping from the g_lo data
   !> decomposition to the xxf_lo decomposition.
