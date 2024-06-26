@@ -340,7 +340,7 @@ if (printlots) call barrier
 
    nnx=2*nx; nny=2*ny
    allocate (rdens(nnx,nny,-ntgrid:ntgrid))
-   call transform2(density,rdens,nny,nnx)
+   call transform2(density(:,:,:,1),rdens,nny,nnx)
    rdens=2.0*rdens
 
 ! CHECK results at theta=0 for 1st species
