@@ -64,8 +64,6 @@ module gs2_transforms
   integer, allocatable :: gidx(:)
 #endif
 
-  logical :: xfft_initted = .false.
-
   ! accel will be set to true if the v layout is used AND the number of
   ! PEs is such that each PE has a complete copy of the x,y space --
   ! in that case, no communication is needed to evaluate the nonlinear
