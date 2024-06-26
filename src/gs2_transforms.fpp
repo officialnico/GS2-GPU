@@ -982,7 +982,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation
-  subroutine transform2_5d_accel (g, axf, i)
+  subroutine transform2_5d_accel (g, axf)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
     use unit_tests, only: debug_message
     use job_manage, only: time_message
@@ -993,7 +993,6 @@ contains
     implicit none
     complex, dimension (:,:,g_lo%llim_proc:), target, intent (in out) :: g
     real, dimension (:,:,accelx_lo%llim_proc:), target, intent (in out) :: axf
-    integer, intent(out) :: i
     integer :: iglo, k, idx
 #ifdef SHMEM
     complex, pointer, contiguous ::ag_ptr(:,:,:) => null(), g_ptr(:,:,:) => null()
@@ -1110,7 +1109,6 @@ contains
 
 
     ! transform
-    i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
     idx = 1
     call time_message(.false., time_fft, ' FFT')
@@ -1254,7 +1252,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !> FIXME : Add documentation
-  subroutine inverse2_5d_accel (axf, g, i)
+  subroutine inverse2_5d_accel (axf, g)
     use gs2_layouts, only: g_lo, accel_lo, accelx_lo, ik_idx
     use job_manage, only: time_message
     use fft_work, only: time_fft
@@ -1264,7 +1262,6 @@ contains
     implicit none
     real, dimension (:,:,accelx_lo%llim_proc:), target, intent (in out) :: axf
     complex, dimension (:,:,g_lo%llim_proc:), target, intent (out) :: g
-    integer, intent(out) :: i
     integer :: iglo, idx, k
     integer :: itgrid, iduo
     integer :: ntgrid
@@ -1277,7 +1274,6 @@ contains
 #endif
 
     ntgrid = accel_lo%ntgrid
-    i = (2*accel_lo%ntgrid+1)*2
 #ifndef SHMEM
     ! transform
     idx = 1

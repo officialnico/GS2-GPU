@@ -258,7 +258,7 @@ contains
 
     fail=.false.
     if (accelerated) then
-       call transform2 (g, gra, ia)
+       call transform2 (g, gra)
        gra=2.0*gra
     else
        call transform2 (g, gr)
@@ -316,7 +316,7 @@ contains
 
     if (accelerated) then
        gra=0.5*gra
-       call inverse2 (gra, g, ia)
+       call inverse2 (gra, g)
     else
        gr=0.5*gr
        call inverse2 (gr, g)

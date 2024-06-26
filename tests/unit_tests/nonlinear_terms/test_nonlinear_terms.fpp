@@ -130,7 +130,7 @@ function ffttest (jx,jy,debug)
   logical, optional, intent(in):: debug
   logical :: ffttest
 !  ik,is,ie,il,it are indices for ky, species, energy, lambda and kx respectively
-  integer:: ik,is,ie,il,it,ia
+  integer:: ik,is,ie,il,it
   integer:: isgn, ig, iglo, index
   logical:: printlots, fail, anyfail
   logical, save :: accelerated
@@ -376,8 +376,7 @@ if (printlots) call barrier
 
    fail=.false.
    if (accelerated) then
-     !write (*,*) accelerated, 'accelerated', iproc
-      call transform2 (g_ptr, gra, ia)
+      call transform2 (g_ptr, gra)
       gra=2.0*gra
    else
       call transform2 (g, gr)
@@ -435,7 +434,7 @@ if (printlots) call barrier
 
    if (accelerated) then
       gra=0.5*gra
-      call inverse2 (gra, g_ptr, ia)
+      call inverse2 (gra, g_ptr)
    else
       gr=0.5*gr
       call inverse2 (gr, g)
