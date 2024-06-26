@@ -55,10 +55,9 @@ module gs2_transforms
   type (fft_type), save :: xf_fft, xb_fft, yf_fft, yb_fft, zf_fft
   type (fft_type), save :: xf3d_cr, xf3d_rc
 #ifdef SHMEM
-  type (fft_type) :: faccel_shmx, faccel_shmy, baccel_shmx, baccel_shmy
+  type (fft_type), save :: faccel_shmx, faccel_shmy, baccel_shmx, baccel_shmy
   type (fft_type), save :: yf_fft_shm, yb_fft_shm
   logical, save :: use_shm_2d_plan=.false., use_shm_2d_plan_buff=.false.
-  integer, save :: its, ite, ips, ipe!  idices for split ntgrid and second dim < Set but not used
   integer, allocatable :: gidx(:)
 #endif
 
@@ -232,8 +231,6 @@ contains
           endif
        endif
        
-       call compute_ntgrid_split
-       
        if (use_shm_2d_plan) then
           n2 = accel_lo%ny
           n3 = accel_lo%nx
@@ -312,38 +309,6 @@ contains
        call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
        call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
     end if
-
-#ifdef SHMEM
-  contains
-    !> FIXME : Add documentation
-    subroutine compute_ntgrid_split
-      implicit none
-      integer k, ir, idw, nw
-
-      ! computes only shifts for its ite (base 0)
-
-      if (shm_info%size > 1) then
-         if (shm_info%id < shm_info%size / 2) then
-            idw = shm_info%id
-            nw  = shm_info%size / 2
-            ips =1; ipe =1
-         else
-            idw = shm_info%id - shm_info%size / 2
-            nw = shm_info%size - shm_info%size / 2
-            ips=2;ipe=2
-         endif
-      else
-         idw = 0
-         ips=1; ipe=2
-         nw = shm_info%size
-      end if
-      k=(2*ntgrid+1)/nw
-      ir=mod((2*ntgrid+1),nw)
-      its = idw * k + min(ir, idw) 
-      ite = its + k-1
-      if ( idw < ir) ite=ite+1
-    end subroutine compute_ntgrid_split
-#endif   
   end subroutine init_xy_fft
 
   !> Constructs the redistribute mapping from the g_lo data
