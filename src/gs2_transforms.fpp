@@ -175,12 +175,8 @@ contains
     use shm_mpi3, only : shm_alloc
 #endif
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx
-
     character (1) :: char
-
-# if FFT == _FFTW3_
     integer :: nb_ffts
-# endif
 
     if (initialized_x) return
     initialized_x = .true.
@@ -195,24 +191,16 @@ contains
 
     if (.not. accel) then
        call init_x_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx)
-
-#if FFT == _FFTW3_
-       if (.not.allocated(xxf)) then
-          allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
-       endif
+       if (.not. allocated(xxf)) allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
        
-       ! number of ffts to be calculated
+       ! number of independent ffts to be calculated
        nb_ffts = xxf_lo%ulim_proc - xxf_lo%llim_proc + 1
        
        call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
        call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-#endif
-       
        xfft_initted = .true.
     end if
-    
   end subroutine init_x_transform
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -227,34 +215,26 @@ contains
 #endif
     implicit none
     integer, intent (in) :: ntgrid
-    
-    integer :: idx, i
+    integer :: idx, i, nb_ffts
 #ifdef SHMEM
     integer howmany,stride,n2,n3,idw,nwk,envlen,ts1,ts2
     character(len=1) envval
-#endif
-
-# if FFT == _FFTW3_
-    integer :: nb_ffts
-#ifdef SHMEM
     complex, allocatable :: dummy(:,:)
-# endif
-# endif
+#endif
 
     if (initialized_y_fft) return
     initialized_y_fft = .true.
 
     if (accel) then
-       
        ! prepare for dealiasing 
-       allocate (ia (accel_lo%nia))
-       allocate (iak(accel_lo%nia))
+       allocate (ia (accel_lo%nia), iak(accel_lo%nia))
 #ifndef SHMEM 
-       allocate ( aidx (accel_lo%llim_proc:accel_lo%ulim_proc))
-       allocate (ag(-ntgrid:ntgrid,2,accel_lo%llim_proc:accel_lo%ulim_alloc))
+       allocate (aidx(accel_lo%llim_proc:accel_lo%ulim_proc))
+       allocate (ag(-ntgrid:ntgrid, 2, accel_lo%llim_proc:accel_lo%ulim_alloc))
 #else
-       allocate ( aidx (accel_lo%llim_node:accel_lo%ulim_node), gidx (accel_lo%llim_node:accel_lo%ulim_node))
-       call shm_alloc(ag, (/ -ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc /))
+       allocate (aidx(accel_lo%llim_node:accel_lo%ulim_node))
+       allocate (gidx(accel_lo%llim_node:accel_lo%ulim_node))
+       call shm_alloc(ag, [-ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc])
 #endif
        aidx = .true.
 
@@ -282,7 +262,6 @@ contains
        end do
 #endif
 
-#if FFT == _FFTW3_
        !JH FFTW plan creation for the accelerated 2d transforms
        call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
             (2*accel_lo%ntgrid+1) * 2)
@@ -362,17 +341,12 @@ contains
           deallocate(dummy)
        end if
 #endif
-
-#endif
     else
        ! non-accelerated
        allocate (fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       if (.not.allocated(xxf))then
-          allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
-       endif
+       if (.not. allocated(xxf)) allocate (xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
 
-       if (.not. xfft_initted) then
-#if FFT == _FFTW3_
+       if (.not. xfft_initted) then !Near identical to init_x_transform
           !JH FFTW plan creation for transform x5d and inverse
           ! number of ffts to be calculated
           !JH 7th December 2011
@@ -383,14 +357,11 @@ contains
           !JH to be xxf_lo%llim_proc in this situation, and that will give 
           !JH 1 FFT to be calculated which the code can correctly undertake.
           nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-
           call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
           call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-#endif
           xfft_initted = .true.
        end if
 
-#if FFT == _FFTW3_
        !JH FFTW plan creation for transform y5d and inverse
        ! number of ffts to be calculated
        !JH 7th December 2011
@@ -404,7 +375,6 @@ contains
 
        call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
        call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
-#endif
     end if
 
 #ifdef SHMEM
@@ -1007,11 +977,7 @@ contains
     use array_utils, only: zero_array
     implicit none
     complex, dimension (:,xxf_lo%llim_proc:), intent (in) :: xxf
-# ifdef FFT
-    real, dimension (:,yxf_lo%llim_proc:), intent (out) :: yxf
-# else
     real, dimension (:,yxf_lo%llim_proc:), intent(in out) :: yxf
-# endif
 
     ! Zero out the array as the subsequent gather doesn't populate
     ! every element as we skip communicating forbidden points and
@@ -1126,11 +1092,7 @@ contains
 #endif
     implicit none
     complex, dimension (:,:,g_lo%llim_proc:), target, intent (in out) :: g
-# ifdef FFT
-    real, dimension (:,:,accelx_lo%llim_proc:), target, intent (out) :: axf
-# else
-    real, dimension (:,:,accelx_lo%llim_proc:) :: axf
-# endif
+    real, dimension (:,:,accelx_lo%llim_proc:), target, intent (in out) :: axf
     integer, intent(out) :: i
     integer :: iglo, k, idx
 #ifdef SHMEM
@@ -1636,18 +1598,20 @@ contains
 
   !> FIXME : Add documentation        
   subroutine init_3d (nny_in, nnx_in, how_many_in)
-    use fft_work, only: init_crfftw, init_rcfftw, delete_fft, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
+    use fft_work, only: init_crfftw, init_rcfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
     implicit none
     integer, intent(in) :: nny_in, nnx_in, how_many_in
-    integer, save :: nnx, nny, how_many
+    integer, save :: nnx = 0, nny = 0, how_many = 0
 
+    ! If we've already initialised check if any of the sizes have changed,
+    ! if not we can just return, otherwise delete plans and start again
     if (initialized_3d) then
        if (nnx /= nnx_in .or. nny /= nny_in) then
-          call delete_fft(xf3d_cr)
-          call delete_fft(xf3d_rc)
+          call xf3d_cr%delete
+          call xf3d_rc%delete
        elseif ( how_many /= how_many_in) then
-          call delete_fft(xf3d_cr)
-          call delete_fft(xf3d_rc)
+          call xf3d_cr%delete
+          call xf3d_rc%delete
        else
           return
        end if
@@ -1657,11 +1621,8 @@ contains
     nnx = nnx_in
     how_many = how_many_in
 
-#if FFT == _FFTW3_
     call init_crfftw (xf3d_cr, FFT_TO_REAL_SPACE, nny, nnx, how_many)
     call init_rcfftw (xf3d_rc, FFT_TO_SPECTRAL_SPACE, nny, nnx, how_many)
-#endif
-
   end subroutine init_3d
 
   !> FIXME : Add documentation        
@@ -1680,7 +1641,6 @@ contains
     integer :: ig, ik, it, i
 
     ! scale, dealias and transpose
-
     call init_3d (nny, nnx, 2*ntgrid+1)
 
     allocate (phix (-ntgrid:ntgrid, nny, nnx))
@@ -1785,7 +1745,7 @@ contains
 
   !> FIXME : Add documentation
   subroutine transform2_2d (phi, phixf, nny, nnx)
-    use fft_work, only: FFT_TO_REAL_SPACE, delete_fft, init_crfftw, time_fft
+    use fft_work, only: FFT_TO_REAL_SPACE, init_crfftw, time_fft
     use kt_grids, only: naky, nakx => ntheta0, nx, aky
     use job_manage, only: time_message
     implicit none
@@ -1801,9 +1761,7 @@ contains
     !May be inefficient to create and destroy this fft plan
     !on every call to the routine. We may want to move this
     !variable to module level and check its created flag.
-#if FFT == _FFTW3_
     call init_crfftw (xf2d, FFT_TO_REAL_SPACE, nny, nnx, 1)
-#endif
 
     allocate (phix (nny, nnx))
     allocate (aphi (nny/2+1, nnx))
@@ -1826,18 +1784,18 @@ contains
     call xf2d%execute_c2r(aphi, phix)
     call time_message(.false., time_fft, ' FFT')
 
-    phixf(:,:)=transpose(phix(:,:))
+    phixf = transpose(phix)
 
     deallocate (aphi, phix)
     !RN> this statement causes error for lahey with DEBUG. I don't know why
     !<DD>Reinstating after discussion with RN, if this causes anyone an issue
     !    then we can guard this line with some directives.   
-    call delete_fft(xf2d)
+    call xf2d%delete
   end subroutine transform2_2d
 
   !> FIXME : Add documentation
   subroutine inverse2_2d (phixf, phi, nny, nnx)
-    use fft_work, only: FFT_TO_SPECTRAL_SPACE, delete_fft, init_rcfftw, time_fft
+    use fft_work, only: FFT_TO_SPECTRAL_SPACE, init_rcfftw, time_fft
     use kt_grids, only: naky, nakx => ntheta0, aky
     use job_manage, only: time_message
     implicit none
@@ -1857,9 +1815,8 @@ contains
 
     allocate (aphi (nny/2+1, nnx))
     allocate (phix (nny, nnx))
-    phix(:,:)=0.; aphi(:,:)=cmplx(0.,0.)
-
-    phix(:,:)=transpose(phixf(:,:))
+    phix = 0.; aphi = cmplx(0.,0.)
+    phix = transpose(phixf)
 
     ! transform
     call time_message(.false., time_fft, ' FFT')
@@ -1871,7 +1828,7 @@ contains
        do ik=1,naky
           fac = 2.0
           if (aky(ik) < epsilon(0.0)) fac = 1.0
-          phi(it,ik) = aphi(ik,it)*fac*xf2d%scale
+          phi(it,ik) = aphi(ik,it) * fac * xf2d%scale
        end do
     end do
 
@@ -1879,7 +1836,7 @@ contains
     !RN> this statement causes error for lahey with DEBUG. I don't know why
     !<DD>Reinstating after discussion with RN, if this causes anyone an issue
     !    then we can guard this line with some directives.   
-    call delete_fft(xf2d)
+    call xf2d%delete
   end subroutine inverse2_2d
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1903,7 +1860,6 @@ contains
     integer :: ig, ik, it, i
 
     ! scale, dealias and transpose
-
     call init_3d (nny, nnx, 2*ntgrid+1)
 
     allocate (phix (-ntgrid:ntgrid, nny, nnx))
@@ -1971,13 +1927,12 @@ contains
     call zf_fft%execute_c2c(an, an2)
     call time_message(.false., time_fft, ' FFT')
     an2 = conjg(an2)*an2
-
   end subroutine kz_spectrum
 
   !> FIXME : Add documentation
   subroutine finish_transforms
     use redistribute, only : delete_redist
-    use fft_work, only: delete_fft, finish_fft_work
+    use fft_work, only: finish_fft_work
 #ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
@@ -1998,14 +1953,13 @@ contains
     if(allocated(fft)) deallocate(fft) 
 
     !Destroy fftw plans
-    !Note delete_fft is safe to call on plans that have not been created
-    call delete_fft(yf_fft)
-    call delete_fft(yb_fft)
-    call delete_fft(xf_fft)
-    call delete_fft(xb_fft)
-    call delete_fft(zf_fft)
-    call delete_fft(xf3d_cr)
-    call delete_fft(xf3d_rc)
+    call yf_fft%delete
+    call yb_fft%delete
+    call xf_fft%delete
+    call xb_fft%delete
+    call zf_fft%delete
+    call xf3d_cr%delete
+    call xf3d_rc%delete
 
     !Reset init state flags
     initialized = .false.
