@@ -1201,17 +1201,30 @@ contains
       je = js + (p3/nwk) -1 
       if ( idw < mod(p3, nwk)) je = je +1
 
-      do i = is, ie 
-         call faccel_shmy%execute_c2c(ag_ptr(-ntgrid,1,k1+i), ag_ptr(-ntgrid,1,k1+i))
+      do i = is, ie
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft( &
+#else
+         call dfftw_execute_dft( &
+#endif
+         faccel_shmy%plan, ag_ptr(-ntgrid,1,k1+i), ag_ptr(-ntgrid,1,k1+i))
       end do
 
       call shm_node_barrier
       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
 
       do j = js, je
-         call faccel_shmx%execute_c2r(ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft_c2r( &
+#else
+         call dfftw_execute_dft_c2r( &
+#endif
+         faccel_shmx%plan, ag_ptr(-ntgrid,1,k1+j*n2), axf_ptr(-ntgrid,1,k2+j*p2))
       end do
-
     end subroutine fft1d_shm
 
     !> FIXME : Add documentation         
@@ -1250,7 +1263,14 @@ contains
             end do
          end do
       else
-         call yf_fft_shm%execute_c2r(ag_ptr(ts1, ts2,k1), axf_ptr(ts1,ts2,k2))
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft_c2r( &
+#else
+         call dfftw_execute_dft_c2r( &
+#endif
+         yf_fft_shm%plan, ag_ptr(ts1, ts2,k1), axf_ptr(ts1,ts2,k2))
       end if
 
     end subroutine fft2d_shm
@@ -1448,16 +1468,29 @@ contains
       if ( idw < mod(ny, nwk)) je = je +1
 
       do j = js, je
-         call baccel_shmx%execute_r2c(axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
-      enddo
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft_r2c( &
+#else
+         call dfftw_execute_dft_r2c( &
+#endif
+         baccel_shmx%plan, axf_ptr(1,1,k1+j*nx), ag_ptr(-ntgrid,1,k2+j*px))
+      end do
 
       call shm_node_barrier
       call shm_fence(ag_ptr(-ntgrid,1,accel_lo%llim_node))
 
-      do i = is, ie 
-         call baccel_shmy%execute_c2c(ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
-      enddo
-
+      do i = is, ie
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft( &
+#else
+         call dfftw_execute_dft( &
+#endif
+         baccel_shmy%plan, ag_ptr(-ntgrid,1,k2+i), ag_ptr(-ntgrid,1,k2+i))
+      end do
     end subroutine fft1d_shm_inv
 
     !> FIXME : Add documentation          
@@ -1494,9 +1527,15 @@ contains
             enddo
          enddo
       else
-         call yb_fft_shm%execute_r2c(axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))
-      endif
-
+         ! For now these SHMEM calls don't match the modern fortran FFTW interface
+         ! so we have to fall back to an implied interface approach
+#ifdef SINGLE_PRECISION
+         call sfftw_execute_dft_r2c( &
+#else
+         call dfftw_execute_dft_r2c( &
+#endif
+         yb_fft_shm%plan, axf_ptr(ts1o,ts2,k1), ag_ptr(ts1,ts2,k2))
+      end if
     end subroutine fft2d_shm_inv
 # endif
   end subroutine inverse2_5d_accel
