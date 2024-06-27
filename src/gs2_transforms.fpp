@@ -843,7 +843,9 @@ contains
 
     ! Zero out the array as the subsequent gather doesn't populate
     ! every element as we skip communicating forbidden points and
-    ! we are padding our data
+    ! we are padding our data. We can't just zero once at the start
+    ! as fftw can destroy the input, meaning it might set zero entries
+    ! in fft to something non-zero. Plus here xxf also holds the output.
     call zero_array(xxf)
 
     !CMR, 7/3/2011: gather pulls appropriate pieces of g onto this processor for
@@ -886,7 +888,9 @@ contains
 
     ! Zero out the array as the subsequent gather doesn't populate
     ! every element as we skip communicating forbidden points and
-    ! we are padding our data
+    ! we are padding our data. We can't just zero once at the start
+    ! as fftw can destroy the input, meaning it might set zero entries
+    ! in fft to something non-zero.
     call zero_array(fft)
 
     !Note here we're doing the communication even if we're not using
@@ -1510,10 +1514,7 @@ contains
     ! If we've already initialised check if any of the sizes have changed,
     ! if not we can just return, otherwise delete plans and start again
     if (initialized_3d) then
-       if (nnx /= nnx_in .or. nny /= nny_in) then
-          call xf3d_cr%delete
-          call xf3d_rc%delete
-       elseif ( how_many /= how_many_in) then
+       if (nnx /= nnx_in .or. nny /= nny_in .or. how_many /= how_many_in) then
           call xf3d_cr%delete
           call xf3d_rc%delete
        else
@@ -1745,15 +1746,16 @@ contains
 
   !> FIXME : Add documentation        
   subroutine init_zf (ntgrid, howmany)
-    use fft_work, only: init_z
+    use fft_work, only: init_z, FFT_TO_REAL_SPACE
     implicit none
     integer, intent (in) :: ntgrid, howmany
 
     if (initialized_zf) return
     initialized_zf = .true.
 
-    call init_z (zf_fft, 1, 2*ntgrid, howmany)
-
+    ! Note we pass 2*ntgrid rather than 2*ntgrid + 1 so that we don't
+    ! include the duplicate theta point at {-pi,pi}
+    call init_z(zf_fft, FFT_TO_REAL_SPACE, 2*ntgrid, howmany)
   end subroutine init_zf
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
