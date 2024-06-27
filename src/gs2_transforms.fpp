@@ -131,183 +131,189 @@ contains
        if (debug) write (*,*) 'init_transforms: init_x_transform_layouts'
        call init_x_transform_layouts (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, nproc, iproc)
 
+       call init_accel_fft(ntgrid)
     else
-       !Recommended for p+log(p)>log(N) where p is number of processors and N is total number of mesh points
-       !Could automate selection, though above condition is only fairly rough
+       !Recommended for p+log(p)>log(N) where p is number of
+       !processors and N is total number of mesh points. Could automate
+       !selection, though above condition is only fairly rough
        if (debug) write (*,*) 'init_transforms: init_y_redist_local'
        ! Note also calls init_x_redist_local
        call init_y_redist_local (ntgrid, naky, ntheta0, nlambda, negrid, nspec, nx, ny)
+
+       if (debug) write (*,*) 'init_transforms: init_xy_fft'
+       call init_xy_fft
     end if
-    
-    if (debug) write (*,*) 'init_transforms: init_xy_fft'
-    call init_xy_fft(ntgrid)
-    
+
     if (debug) write (*,*) 'init_transforms: done'
     accelerated = accel
     
-    if (proc0.and.fft_use_wisdom) call save_wisdom(trim(fft_wisdom_file))
-    
+    if (proc0 .and. fft_use_wisdom) call save_wisdom(trim(fft_wisdom_file))
   end subroutine init_transforms
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  !> FIXME : Add documentation
-  subroutine init_xy_fft (ntgrid)
-    use gs2_layouts, only: xxf_lo, yxf_lo, accel_lo, accelx_lo, dealiasing
+  !> Setup accelerated 2D or SHMEM FFT(s)
+  subroutine init_accel_fft(ntgrid)
+    use gs2_layouts, only: accel_lo, accelx_lo, dealiasing
     use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
 #ifdef SHMEM
     use shm_mpi3, only : shm_info, shm_alloc
     use mp, only : proc0
     use gs2_layouts, only: g_lo, accel_lo
+    integer :: howmany,stride,n2,n3,idw,nwk,envlen,ts1,ts2
+    character(len=1) :: envval
+    complex, dimension(:, :), allocatable :: dummy
 #endif
-    implicit none
-    integer, intent (in) :: ntgrid
-    integer :: idx, i, nb_ffts
-#ifdef SHMEM
-    integer howmany,stride,n2,n3,idw,nwk,envlen,ts1,ts2
-    character(len=1) envval
-    complex, allocatable :: dummy(:,:)
-#endif
+    integer, intent(in) :: ntgrid
+    integer :: i, idx
 
     if (initialized_y_fft) return
     initialized_y_fft = .true.
 
-    if (accel) then
-       ! prepare for dealiasing 
-       allocate (ia (accel_lo%nia), iak(accel_lo%nia))
-#ifndef SHMEM 
-       allocate (aidx(accel_lo%llim_proc:accel_lo%ulim_proc))
-       allocate (ag(-ntgrid:ntgrid, 2, accel_lo%llim_proc:accel_lo%ulim_alloc))
+    ! prepare for dealiasing
+    allocate (ia (accel_lo%nia), iak(accel_lo%nia))
+#ifndef SHMEM
+    allocate (aidx(accel_lo%llim_proc:accel_lo%ulim_proc))
+    allocate (ag(-ntgrid:ntgrid, 2, accel_lo%llim_proc:accel_lo%ulim_alloc))
 #else
-       allocate (aidx(accel_lo%llim_node:accel_lo%ulim_node))
-       allocate (gidx(accel_lo%llim_node:accel_lo%ulim_node))
-       call shm_alloc(ag, [-ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc])
+    allocate (aidx(accel_lo%llim_node:accel_lo%ulim_node))
+    allocate (gidx(accel_lo%llim_node:accel_lo%ulim_node))
+    call shm_alloc(ag, [-ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc])
 #endif
-       aidx = .true.
+    aidx = .true.
 
 #ifndef SHMEM
-       do i = accel_lo%llim_proc, accel_lo%ulim_proc
-          if (dealiasing(accel_lo, i)) cycle
-          aidx(i) = .false.
-       end do
-       do idx = 1, accel_lo%nia
-          ia (idx) = accelx_lo%llim_proc + (idx-1)*accelx_lo%nxny
-          iak(idx) = accel_lo%llim_proc  + (idx-1)*accel_lo%nxnky
-       end do
+    do i = accel_lo%llim_proc, accel_lo%ulim_proc
+       if (dealiasing(accel_lo, i)) cycle
+       aidx(i) = .false.
+    end do
+    do idx = 1, accel_lo%nia
+       ia (idx) = accelx_lo%llim_proc + (idx-1)*accelx_lo%nxny
+       iak(idx) = accel_lo%llim_proc  + (idx-1)*accel_lo%nxnky
+    end do
 #else
-       gidx = -1
-       idx = g_lo%llim_node
-       do i = accel_lo%llim_node, accel_lo%ulim_node
-          if (dealiasing(accel_lo, i)) cycle
-          aidx(i) = .false.
-          gidx(i) = idx; idx = idx+1
-       end do
+    gidx = -1
+    idx = g_lo%llim_node
+    do i = accel_lo%llim_node, accel_lo%ulim_node
+       if (dealiasing(accel_lo, i)) cycle
+       aidx(i) = .false.
+       gidx(i) = idx; idx = idx+1
+    end do
 
-       do idx = 1, accel_lo%nia
-          ia (idx) = accelx_lo%llim_node + (idx-1)*accelx_lo%nxny
-          iak(idx) = accel_lo%llim_node  + (idx-1)*accel_lo%nxnky
-       end do
+    do idx = 1, accel_lo%nia
+       ia (idx) = accelx_lo%llim_node + (idx-1)*accelx_lo%nxny
+       iak(idx) = accel_lo%llim_node  + (idx-1)*accel_lo%nxnky
+    end do
 #endif
 
-       !JH FFTW plan creation for the accelerated 2d transforms
-       call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
-            (2*accel_lo%ntgrid+1) * 2)
-       call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
-            (2*accel_lo%ntgrid+1) * 2)
+    !JH FFTW plan creation for the accelerated 2d transforms
+    call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
+         (2*accel_lo%ntgrid+1) * 2)
+    call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
+         (2*accel_lo%ntgrid+1) * 2)
 #ifdef SHMEM
-       call get_environment_variable("GS2_SHM_2D_PLAN",VALUE=envval,LENGTH=envlen)
-       if (envlen >0) read(envval,*) use_shm_2d_plan
-       call get_environment_variable("GS2_SHM_2D_PLAN_BUFF",VALUE=envval, LENGTH=envlen)
-       if (envlen >0) read(envval,*) use_shm_2d_plan_buff
-       if (proc0) then
-          if (use_shm_2d_plan) then
-             write(*,*)' SHM with 2D plans'      
-             if (use_shm_2d_plan_buff) then 
-                write(*,*)' SHM 2D plans with buffering'
-             endif
-          else 
-             write(*,*)' SHM with 1D plans'
-          endif
-       endif
-       
+    call get_environment_variable("GS2_SHM_2D_PLAN",VALUE=envval,LENGTH=envlen)
+    if (envlen >0) read(envval,*) use_shm_2d_plan
+    call get_environment_variable("GS2_SHM_2D_PLAN_BUFF",VALUE=envval, LENGTH=envlen)
+    if (envlen >0) read(envval,*) use_shm_2d_plan_buff
+    if (proc0) then
        if (use_shm_2d_plan) then
-          n2 = accel_lo%ny
-          n3 = accel_lo%nx
-          
-          ! attention, trouble if ppn =1
-          if ( shm_info%size > 1 ) then
-             if (shm_info%id < shm_info%size / 2) then
-                idw = shm_info%id
-                ts2=1
-                nwk = shm_info%size / 2
-             else
-                idw = shm_info%id - shm_info%size / 2
-                ts2=2
-                nwk = shm_info%size - shm_info%size / 2! for odd ppn 
-             endif
-          else
-             idw = 0
-             ts2=1
-             nwk=1
+          write(*,*)' SHM with 2D plans'
+          if (use_shm_2d_plan_buff) then
+             write(*,*)' SHM 2D plans with buffering'
           endif
-          ts1 = -ntgrid + (2*ntgrid+1)/nwk * idw &
-               + min(mod(2*ntgrid+1,nwk), idw)
-          howmany =  (2*ntgrid+1)/nwk
-          if ( idw < mod(2*ntgrid+1,nwk)) howmany = howmany+1
-          if(shm_info%size == 1) howmany = 2*(2*ntgrid+1)
-
-          if ( use_shm_2d_plan_buff) then
-             stride=howmany
-          else
-             stride=2*(2*accel_lo%ntgrid+1)
-          endif
-
-          call init_crfftw (yf_fft_shm, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
-               howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
-
-          ! now the inverse        
-          call init_rcfftw (yb_fft_shm, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
-               howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
-
-          ! init_... has intent out for plan var
-          yf_fft_shm%ts1=ts1
-          yf_fft_shm%ts2=ts2
-          yb_fft_shm%ts1=ts1
-          yb_fft_shm%ts2=ts2
-
        else
-          call init_crfftw(faccel_shmx, FFT_TO_REAL_SPACE, accel_lo%ny, 2*(2*ntgrid+1), .true.)
-          allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
-          call init_ccfftw(faccel_shmy, FFT_TO_REAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true., accel_lo%ndky)
-          deallocate(dummy)
-          call init_rcfftw(baccel_shmx, FFT_TO_SPECTRAL_SPACE, accelx_lo%ny, 2*(2*ntgrid+1), .true.)
-          allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
-          call init_ccfftw(baccel_shmy, FFT_TO_SPECTRAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true.,accel_lo%ndky)
-          deallocate(dummy)
-       end if
-#endif
+          write(*,*)' SHM with 1D plans'
+       endif
+    endif
+
+    if (use_shm_2d_plan) then
+       n2 = accel_lo%ny
+       n3 = accel_lo%nx
+
+       ! attention, trouble if ppn =1
+       if ( shm_info%size > 1 ) then
+          if (shm_info%id < shm_info%size / 2) then
+             idw = shm_info%id
+             ts2=1
+             nwk = shm_info%size / 2
+          else
+             idw = shm_info%id - shm_info%size / 2
+             ts2=2
+             nwk = shm_info%size - shm_info%size / 2! for odd ppn
+          endif
+       else
+          idw = 0
+          ts2=1
+          nwk=1
+       endif
+       ts1 = -ntgrid + (2*ntgrid+1)/nwk * idw &
+            + min(mod(2*ntgrid+1,nwk), idw)
+       howmany =  (2*ntgrid+1)/nwk
+       if ( idw < mod(2*ntgrid+1,nwk)) howmany = howmany+1
+       if(shm_info%size == 1) howmany = 2*(2*ntgrid+1)
+
+       if ( use_shm_2d_plan_buff) then
+          stride=howmany
+       else
+          stride=2*(2*accel_lo%ntgrid+1)
+       endif
+
+       call init_crfftw (yf_fft_shm, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
+            howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
+
+       ! now the inverse
+       call init_rcfftw (yb_fft_shm, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
+            howmany, stride) !(2*accel_lo%ntgrid+1) * 2)
+
+       ! init_... has intent out for plan var
+       yf_fft_shm%ts1=ts1
+       yf_fft_shm%ts2=ts2
+       yb_fft_shm%ts1=ts1
+       yb_fft_shm%ts2=ts2
+
     else
-       ! non-accelerated
-       if (.not. allocated(fft)) allocate(fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
-       if (.not. allocated(xxf)) allocate(xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
-
-       !JH FFTW plan creation for transform x5d and inverse
-       ! number of ffts to be calculated
-       !JH 7th December 2011
-       !JH xxf_lo%ulim_alloc is used here rather than x/yxf_lo%ulim_proc
-       !JH because there are situations where x/yxf_lo%llim_proc is greater
-       !JH than x/yxf_lo%ulim_proc and that would create a negative number
-       !JH of FFTs to be calculated.  However, x/yxf_lo%ulim_alloc is set
-       !JH to be x/yxf_lo%llim_proc in this situation, and that will give
-       !JH 1 FFT to be calculated which the code can correctly undertake.
-       nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
-       call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-       call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
-
-       nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
-       call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
-       call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
+       call init_crfftw(faccel_shmx, FFT_TO_REAL_SPACE, accel_lo%ny, 2*(2*ntgrid+1), .true.)
+       allocate(dummy( 2*(2*ntgrid+1), accel_lo%ndky * accel_lo%nx))
+       call init_ccfftw(faccel_shmy, FFT_TO_REAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true., accel_lo%ndky)
+       deallocate(dummy)
+       call init_rcfftw(baccel_shmx, FFT_TO_SPECTRAL_SPACE, accelx_lo%ny, 2*(2*ntgrid+1), .true.)
+       allocate(dummy( 2*(2*ntgrid+1), accelx_lo%ny * accelx_lo%nx))
+       call init_ccfftw(baccel_shmy, FFT_TO_SPECTRAL_SPACE, accel_lo%nx, 2*(2*ntgrid+1), dummy, .true.,accel_lo%ndky)
+       deallocate(dummy)
     end if
+#endif
+  end subroutine init_accel_fft
+
+  !> Setup non-accelerated separate x and y FFTs
+  subroutine init_xy_fft
+    use gs2_layouts, only: xxf_lo, yxf_lo
+    use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
+    implicit none
+    integer :: nb_ffts
+
+    if (initialized_y_fft) return
+    initialized_y_fft = .true.
+
+    if (.not. allocated(fft)) allocate(fft(yxf_lo%ny/2+1, yxf_lo%llim_proc:yxf_lo%ulim_alloc))
+    if (.not. allocated(xxf)) allocate(xxf(xxf_lo%nx,xxf_lo%llim_proc:xxf_lo%ulim_alloc))
+
+    !JH FFTW plan creation for transform x5d and inverse
+    ! number of ffts to be calculated
+    !JH 7th December 2011
+    !JH xxf_lo%ulim_alloc is used here rather than x/yxf_lo%ulim_proc
+    !JH because there are situations where x/yxf_lo%llim_proc is greater
+    !JH than x/yxf_lo%ulim_proc and that would create a negative number
+    !JH of FFTs to be calculated.  However, x/yxf_lo%ulim_alloc is set
+    !JH to be x/yxf_lo%llim_proc in this situation, and that will give
+    !JH 1 FFT to be calculated which the code can correctly undertake.
+    nb_ffts = xxf_lo%ulim_alloc - xxf_lo%llim_proc + 1
+    call init_ccfftw (xf_fft, FFT_TO_REAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+    call init_ccfftw (xb_fft, FFT_TO_SPECTRAL_SPACE, xxf_lo%nx, nb_ffts, xxf)
+
+    nb_ffts = yxf_lo%ulim_alloc - yxf_lo%llim_proc + 1
+    call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, yxf_lo%ny, nb_ffts)
+    call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE,  yxf_lo%ny, nb_ffts)
   end subroutine init_xy_fft
 
   !> Constructs the redistribute mapping from the g_lo data
