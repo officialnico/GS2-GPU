@@ -1253,9 +1253,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
-#ifndef SHMEM    
     use gs2_transforms, only: finish_transforms
-#else
+#ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
     implicit none
@@ -1280,10 +1279,7 @@ contains
     nonlin = .false. ; alloc = .true. ; zip = .false. ; accelerated = .false.
     initialized = .false. ; initializing = .true. ; exist = .false.
 
-#ifndef SHMEM
     call finish_transforms
-#endif
-
     call nonlinear_terms_config%reset()
   end subroutine finish_nonlinear_terms
 
