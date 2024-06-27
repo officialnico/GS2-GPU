@@ -271,7 +271,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem.
      !>
      !> FIXME: expand
-     complex, dimension(6) :: phiamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: phiamp = cmplx(0.0,0.0)
      !> If doing multiple flux tube calculations, multiply
      !> [[init_g_knobs:phiinit]] by `(job * phifrac + 1)`. Allows for ensemble
      !> averaging of multiple flux tube calculations
