@@ -157,10 +157,10 @@ contains
     use gs2_layouts, only: accel_lo, accelx_lo, dealiasing
     use fft_work, only: init_crfftw, init_rcfftw, init_ccfftw, FFT_TO_SPECTRAL_SPACE, FFT_TO_REAL_SPACE
 #ifdef SHMEM
-    use shm_mpi3, only : shm_info, shm_alloc
-    use mp, only : proc0
+    use shm_mpi3, only: shm_info, shm_alloc
+    use mp, only: proc0
     use gs2_layouts, only: g_lo, accel_lo
-    integer :: howmany,stride,n2,n3,idw,nwk,envlen,ts1,ts2
+    integer :: howmany, stride, n2, n3, idw, nwk, envlen, ts1, ts2
     character(len=1) :: envval
     complex, dimension(:, :), allocatable :: dummy
 #endif
@@ -170,33 +170,37 @@ contains
     if (initialized_y_fft) return
     initialized_y_fft = .true.
 
+    !JH FFTW plan creation for the accelerated 2d transforms -- do we need this
+    !when we have SHMEM?
+    call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
+         (2*accel_lo%ntgrid+1) * 2)
+    call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
+         (2*accel_lo%ntgrid+1) * 2)
+
     ! prepare for dealiasing
     allocate (ia (accel_lo%nia), iak(accel_lo%nia))
-#ifndef SHMEM
-    allocate (aidx(accel_lo%llim_proc:accel_lo%ulim_proc))
-    allocate (ag(-ntgrid:ntgrid, 2, accel_lo%llim_proc:accel_lo%ulim_alloc))
-#else
-    allocate (aidx(accel_lo%llim_node:accel_lo%ulim_node))
-    allocate (gidx(accel_lo%llim_node:accel_lo%ulim_node))
-    call shm_alloc(ag, [-ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc])
-#endif
-    aidx = .true.
 
 #ifndef SHMEM
+    allocate (ag(-ntgrid:ntgrid, 2, accel_lo%llim_proc:accel_lo%ulim_alloc))
+    allocate (aidx(accel_lo%llim_proc:accel_lo%ulim_proc))
+
     do i = accel_lo%llim_proc, accel_lo%ulim_proc
-       if (dealiasing(accel_lo, i)) cycle
-       aidx(i) = .false.
+       aidx(i) = dealiasing(accel_lo, i)
     end do
+
     do idx = 1, accel_lo%nia
        ia (idx) = accelx_lo%llim_proc + (idx-1)*accelx_lo%nxny
        iak(idx) = accel_lo%llim_proc  + (idx-1)*accel_lo%nxnky
     end do
 #else
+    call shm_alloc(ag, [-ntgrid, ntgrid, 1, 2, accel_lo%llim_proc, accel_lo%ulim_alloc])
+    allocate (gidx(accel_lo%llim_node:accel_lo%ulim_node))
     gidx = -1
     idx = g_lo%llim_node
+    allocate (aidx(accel_lo%llim_node:accel_lo%ulim_node))
     do i = accel_lo%llim_node, accel_lo%ulim_node
-       if (dealiasing(accel_lo, i)) cycle
-       aidx(i) = .false.
+       aidx(i) = dealiasing(accel_lo, i)
+       if (aidx(i)) cycle
        gidx(i) = idx; idx = idx+1
     end do
 
@@ -204,14 +208,7 @@ contains
        ia (idx) = accelx_lo%llim_node + (idx-1)*accelx_lo%nxny
        iak(idx) = accel_lo%llim_node  + (idx-1)*accel_lo%nxnky
     end do
-#endif
 
-    !JH FFTW plan creation for the accelerated 2d transforms
-    call init_crfftw (yf_fft, FFT_TO_REAL_SPACE, accel_lo%ny, accel_lo%nx, &
-         (2*accel_lo%ntgrid+1) * 2)
-    call init_rcfftw (yb_fft, FFT_TO_SPECTRAL_SPACE, accel_lo%ny, accel_lo%nx, &
-         (2*accel_lo%ntgrid+1) * 2)
-#ifdef SHMEM
     call get_environment_variable("GS2_SHM_2D_PLAN",VALUE=envval,LENGTH=envlen)
     if (envlen >0) read(envval,*) use_shm_2d_plan
     call get_environment_variable("GS2_SHM_2D_PLAN_BUFF",VALUE=envval, LENGTH=envlen)
