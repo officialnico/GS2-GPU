@@ -669,7 +669,7 @@ $(DEPEND): $(UTILS_SENTINEL) depend
 	@echo -n ""
 endif
 
-depend: $(F90FROMFPP) $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try

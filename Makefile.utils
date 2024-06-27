@@ -56,17 +56,17 @@ endif
 #############################################################################
 
 ############################################################################# RECIPES
-define preprocess =
+define preprocess
 	$(call messageOp,"Preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(CPP) $(FPPFLAGS) $(INCLUDES) $< -o $@
 endef
 
-define compile_and_preprocess =
+define compile_and_preprocess
 	$(call messageOp,"Compiling and preprocessing","\\t:",$(call processName,$<))
 	$(QUIETSYM)$(FC) $(FPPFLAGS) $(F90FLAGS) $(MODDIR_FLAG)$(MODDIR) -c $< -o $@
 endef
 
-define build_program =
+define build_program
 $(BINDIR)/$(1): $$($(1)_mod) | $(BINDIR)
 	$(call messageOp,"Linking ","\\t:",$(call processName,$$^),"\\n\\t\-\-\-\-\-\-\>",$(call processName,$$@))
 	$(QUIETSYM)$(LD) $(2) -o $$@ $$^ $(LIBS)
