@@ -2837,7 +2837,7 @@ contains
     use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, ik, it, is, i
-    real :: fac
+    complex :: fac
     complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
