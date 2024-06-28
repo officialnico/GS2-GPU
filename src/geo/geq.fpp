@@ -1,9 +1,11 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module geq
 # ifdef NETCDF
   use netcdf, only: NF90_NOWRITE, NF90_NOERR, nf90_open, nf90_close, nf90_get_var
   use netcdf, only: nf90_inq_dimid, nf90_inquire_dimension, nf90_inq_varid
   use netcdf_utils, only: netcdf_error
+  use constants, only: pi
 # else
   use mp, only: mp_abort
 # endif
@@ -24,16 +26,15 @@ contains
   !> This subroutine reads a generic NetCDF equilibrium file containing
   !> the axisymmetric magnetic field geometry in flux coordinates
   subroutine read_and_set(self, inputs)
-    use constants, only: pi
     implicit none
     class(geq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
+# ifdef NETCDF
     real, parameter :: psi_scale = 1.0e-8, b_scale = 1.0e-4, l_scale = 1.0e-2
     real :: f_N, psi_N
     integer :: istatus, ncid, id, j
     self%type_name = 'geq'
     self%filename = trim(adjustl(inputs%eqfile))
-# ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -196,6 +197,7 @@ contains
     self%rc = 0.5 * (self%R_psi(:, 1) + self%R_psi(:, self%nt))
     self%has_full_theta_range = .false.
 # else
+    UNUSED_DUMMY(self) ; UNUSED_DUMMY(inputs)
     call mp_abort('error: geq eqin is called without netcdf',.true.)
 #endif
   end subroutine read_and_set
