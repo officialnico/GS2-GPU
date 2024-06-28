@@ -61,9 +61,9 @@ contains
 !    procedure(wgt_x_func),pointer:: wgt_x => null
 !    procedure(poly_sq_func),pointer:: poly_sq => null
 !    procedure(poly_sqx_func),pointer:: poly_sqx => null
-    procedure(real),pointer:: wgt_x
-    procedure(real),pointer:: poly_sq 
-    procedure(real),pointer:: poly_sqx 
+    procedure(wgt_func),pointer:: wgt_x
+    procedure(wgt_func),pointer:: poly_sq
+    procedure(wgt_func),pointer:: poly_sqx
 
     wgt_x => wgt_x_func
     poly_sq => poly_sq_func
