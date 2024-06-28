@@ -296,6 +296,7 @@ contains
   !! them as the absissae and weights for Gaussian quadrature. See Numerical Recipes, 3rd Ed. 
   !! section 4.6.2. Uses the LAPACK routine, given as an external source file.
   subroutine solve_jacobi_matrix(N,abscissae,wgts)
+    use lapack_wrapper, only: steqr
     implicit none
     integer,intent(in):: N
     real,dimension(1:),intent(inout):: abscissae,wgts
@@ -309,7 +310,7 @@ contains
     b_use = sqrt(b_poly(0:N-1))
     a_use = a_poly(0:N-1)
 
-    call DSTEQR('I',N,a_use(0:N-1),b_use(1:N-1),eigenvectors(1:N,1:N),N,workspace(1:4*N),info)
+    call STEQR('I',N,a_use(0:N-1),b_use(1:N-1),eigenvectors(1:N,1:N),N,workspace(1:4*N),info)
 
     if (info .NE. 0) then
        write(*,*) "ERROR: LAPACK returned error code ", info, " in genquad routine."
