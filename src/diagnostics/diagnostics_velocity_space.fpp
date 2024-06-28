@@ -55,9 +55,9 @@ contains
     use species, only: spec
     use diagnostics_config, only: diagnostics_type
 #ifdef NETCDF
+    use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     use neasyf, only: neasyf_write
 #endif
-    use gs2_io, only: starts, time_dim, dim_2, dim_3, dim_5
     implicit none
     type(diagnostics_type), intent(in) :: gnostics
     real, dimension (5,2) :: errest
