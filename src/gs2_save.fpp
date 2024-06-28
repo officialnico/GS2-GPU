@@ -600,6 +600,7 @@ contains
   subroutine gs2_restore_many (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
+    use array_utils, only: zero_array
     use mp, only: iproc, proc0, broadcast
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
