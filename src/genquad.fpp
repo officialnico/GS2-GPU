@@ -42,8 +42,8 @@ contains
        inf_flag2_in)      !< Optional: Set to true to make upper bound +inf
 #ifdef GENQUAD
     use quadpack, only: qagi, qags
-    use mp, only: mp_abort, proc0
 #endif
+    use mp, only: mp_abort, proc0
     implicit none
     interface
        real function wgt_func_exp(x)
