@@ -2157,7 +2157,7 @@ contains
 
   !> FIXME : Add documentation  
   subroutine init_source_term
-    use dist_fn_arrays, only: vpac, aj0, wstar
+    use dist_fn_arrays, only: vpac, aj0
     use run_parameters, only: has_apar, fapar
     use gs2_time, only: wunits, code_dt
     use species, only: spec,nspec,nonmaxw_corr
@@ -2168,6 +2168,8 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
 #ifdef LOWFLOW
     use lowflow, only: vparterm, wdfac, wstarfac
+#else
+    use dist_fn_arrays, only: wstar
 #endif
     implicit none
     integer :: iglo
@@ -3928,7 +3930,9 @@ contains
     use dist_fn_arrays, only: antot, antota, antotp
     use dist_fn_arrays, only: fieldeq, fieldeqa, fieldeqp
     use gs2_layouts, only: g_lo
+#ifndef LOWFLOW
     use nonlinear_terms, only: nonlin, split_nonlinear
+#endif
     use run_parameters, only: has_apar
     use array_utils, only: zero_array
 #ifdef SHMEM
@@ -5085,7 +5089,7 @@ contains
        (phi, apar, bpar, phinew, aparnew, bparnew, include_explicit, &
         ab_coefficients, iglo,ik,it,il,ie,is, sourcefac, source)
 #ifdef LOWFLOW
-    use lowflow, only: hneoc, vparterm, wdfac, wstarfac, wdttpfac
+    use lowflow, only: hneoc, wdttpfac
 #endif
     use dist_fn_arrays, only: aj0, aj1, vperp2, g, wstar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3
@@ -5314,7 +5318,9 @@ contains
     use gs2_layouts, only: g_lo, ik_idx, it_idx, il_idx, ie_idx, is_idx
     use theta_grid, only: ntgrid
     use gs2_time, only: get_adams_bashforth_coefficients
+#ifndef LOWFLOW
     use nonlinear_terms, only: nonlin, split_nonlinear
+#endif
     use kt_grids, only: kwork_filter
     implicit none
     complex, dimension (-ntgrid:, :, g_lo%llim_proc:), intent(in out) :: source

@@ -179,16 +179,14 @@ contains
   subroutine get_and_set_gvpa(gle)
     use gs2_layouts, only: le_lo, ig_idx, is_idx
     use theta_grid, only: gradpar, ntgrid
-    use le_grids, only: ixi_to_il, forbid, jend, negrid, nxi
-    use le_grids, only: xi, speed => speed_maxw, energy => energy_maxw
+    use le_grids, only: ixi_to_il, forbid, negrid, nxi
     use species, only: spec
     use lowflow, only: dphidth
     use gs2_time, only: code_dt
     implicit none
     complex, dimension(:, :, le_lo%llim_proc:), intent(in out) :: gle
     integer :: ile, ig, ie, ixi, il, is
-    integer, dimension (2) :: i
-    real :: dvp, vp0
+    real :: dvp
     complex, dimension (:,:), allocatable :: gtmp
 
     allocate (gtmp(nxi+1,negrid+1))
