@@ -87,6 +87,7 @@ module build_config
 #endif
 
   character(len=*), parameter :: gs2_build_tag = GS2_BUILD_TAG
+  character(len=*), parameter :: gs2_gk_system = GK_SYSTEM
 
 contains
 
@@ -101,6 +102,7 @@ contains
     write(output, '(a, a)') "Built with ", compiler_version()
     write(output, '(a, a)') trim(output) // nl // "Build flags: ", compiler_options()
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
+    write(output, '(a, a)') trim(output) // nl // "GS2_GK_SYSTEM: ", gs2_gk_system
     write(output, '(a, a)') trim(output) // nl // "GS2_BUILD_TAG: ", gs2_build_tag
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
