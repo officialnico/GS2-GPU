@@ -64,8 +64,6 @@ USE_F200X_INTRINSICS ?=
 GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
-# Use nag libraray (spfunc,undefined)
-USE_NAGLIB ?=
 # Use openmp (very limited use currently)
 USE_OPENMP ?=
 # Include higher-order terms in GK equation arising from low-flow physics
@@ -461,30 +459,11 @@ ifdef USE_F200X_INTRINSICS
 else
 	ifdef USE_LOCAL_SPFUNC
 		MACRO_DEFS += -DSPFUNC=_SPLOCAL_
-	else
-		ifeq ($(findstring spfunc,$(USE_NAGLIB)),spfunc)
-			MACRO_DEFS += -DSPFUNC=_SPNAG_
-		endif
 	endif
 endif
 
 ifdef GK_HAS_COMPILER_OPTIONS_2008 #Is this required now?
 	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
-endif
-
-ifdef USE_NAGLIB
-	ifeq ($(NAG_PREC),dble)
-		ifndef DBLE
-$(warning Precision mismatch with NAG libarray)	
-		endif
-		MACRO_DEFS += -DNAG_PREC=_NAGDBLE_
-	endif
-	ifeq ($(NAG_PREC),sngl)
-		ifdef DBLE
-$(warning Precision mismatch with NAG libarray)	
-		endif
-		MACRO_DEFS += -DNAG_PREC=_NAGSNGL_
-	endif
 endif
 
 ifndef DBLE
@@ -832,7 +811,6 @@ test_make:
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
-	$(call messageKeyVal, "USE_NAGLIB", $(USE_NAGLIB))
 	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
 	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
 	@echo
