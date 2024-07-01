@@ -2,7 +2,7 @@
 module gs2_diagnostics
   use gs2_heating, only: heating_diagnostics
   use gs2_save, only: save_many
-  use diagnostics_base_config, only: diagnostics_base_config_type
+  use diagnostics_base_configuration, only: diagnostics_base_config_type
   use gs2_io, only: get_netcdf_file_id
 
   ! what about boundary condition contributions?  In the presence 
@@ -685,7 +685,7 @@ contains
 
   !> Read the input parameters for the diagnostics module
   subroutine read_parameters (is_list_run, gs2_diagnostics_config_in)
-    use diagnostics_base_config, only: warn_about_nonfunctional_selection
+    use diagnostics_base_configuration, only: warn_about_nonfunctional_selection
     use file_utils, only: input_unit, input_unit_exist
     use run_parameters, only: has_phi
     use nonlinear_terms, only: nonlin

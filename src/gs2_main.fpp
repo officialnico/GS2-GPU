@@ -54,7 +54,7 @@
 !> memory space.
 module gs2_main
   use gs2_init, only: init_type, init_level_list
-  use optimisation_config, only: optimisation_type
+  use optimisation_configuration, only: optimisation_type
   use constants, only: run_name_size
   use exit_codes, only: exit_code, EXIT_NOT_REQUESTED
   use mp, only: mp_comm_null
