@@ -222,7 +222,7 @@ contains
   !> Can be used to get a "snapshot" of the current state of all
   !> module's configs.
   subroutine get_configs(self)
-    use antenna, only : get_antenna_driver_config, get_antenna_stir_config
+    use antenna, only : get_driver_config, get_stir_config
     use ballstab, only: get_ballstab_config
     use collisions, only: get_collisions_config
     use dist_fn, only: get_dist_fn_config, get_dist_fn_species_config, get_source_config
@@ -261,8 +261,8 @@ contains
 
     class(gs2_config_type), intent(in out) :: self
 
-    self%driver_config = get_antenna_driver_config()
-    self%stir_config = get_antenna_stir_config()
+    self%driver_config = get_driver_config()
+    self%stir_config = get_stir_config()
 
     self%ballstab_config = get_ballstab_config()
     self%collisions_config = get_collisions_config()
