@@ -507,6 +507,10 @@ MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
 
 ############################################################################# Done dealing with user flags
 
+ALL_SOURCE_FILES := $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+
 LIBS	+= $(DEFAULT_LIB) $(MPI_LIB) $(NETCDF_LIB) $(FFT_LIB) \
 		   $(NAG_LIB) $(EIG_LIB) $(GENQUAD_LIB) $(LAPACK_LIB)
 INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
@@ -890,7 +894,7 @@ revision:
 #It would be nice to provide a default helplocal target that just says no help available
 help: helplocal
 
-TAGS: $(wildcard $(addsuffix /*.fpp, $(SRCDIR) $(PROGDIR) $(SUBDIRS))) $(wildcard $(addsuffix /*.f90, $(SRCDIR) $(PROGDIR) $(SUBDIRS))) $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIRS)))
+TAGS: $(ALL_SOURCE_FILES)
 	$(QUIETSYM)etags $^
 
 ############################################################# Documentation
