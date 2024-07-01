@@ -91,23 +91,15 @@ module build_config
 contains
 
   function formatted_build_config() result(output)
-#ifdef GK_HAS_COMPILER_OPTIONS_2008
     use, intrinsic :: iso_fortran_env, only: compiler_version, compiler_options
-#endif
     character(len=:), allocatable :: output
-
     character(len=*), parameter :: nl = new_line('a')
     integer, parameter :: max_len = 3000
 
     allocate(character(len=max_len)::output)
 
-#ifdef GK_HAS_COMPILER_OPTIONS_2008
     write(output, '(a, a)') "Built with ", compiler_version()
     write(output, '(a, a)') trim(output) // nl // "Build flags: ", compiler_options()
-#else
-    write(output, '(a, a)') "Built with compiler which does not support compiler_version()"
-    write(output, '(a, a)') trim(output) // nl // "Build flags: Cannot be detected"
-#endif
     write(output, '(a)') trim(output) // nl // nl // "Current build configuration: "
     write(output, '(a, a)') trim(output) // nl // "GS2_BUILD_TAG: ", gs2_build_tag
     write(output, '(a, l)') trim(output) // nl // "MPI: ", gs2_has_mpi

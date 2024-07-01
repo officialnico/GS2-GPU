@@ -60,8 +60,6 @@ USE_LOCAL_RAN ?=
 # Use Fortran 2003, 2008 Intrinsics (bin)
 # (Note this overwhelms other special function options)
 USE_F200X_INTRINSICS ?=
-# Does this compiler support f2008 compiler_version and compiler_options
-GK_HAS_COMPILER_OPTIONS_2008 ?= on
 # Use local special functions (bin)
 USE_LOCAL_SPFUNC ?= 
 # Use openmp (very limited use currently)
@@ -454,10 +452,6 @@ else
 	ifdef USE_LOCAL_SPFUNC
 		MACRO_DEFS += -DSPFUNC=_SPLOCAL_
 	endif
-endif
-
-ifdef GK_HAS_COMPILER_OPTIONS_2008 #Is this required now?
-	MACRO_DEFS += -DGK_HAS_COMPILER_OPTIONS_2008
 endif
 
 ifndef DBLE
