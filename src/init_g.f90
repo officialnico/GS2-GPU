@@ -232,6 +232,9 @@ module init_g
      !> Amplitude of imaginary part of \(\phi\) for various
      !> [[init_g_knobs:ginit_option]] options
      real :: imfac = 0.0
+     !> Initial spectrum power index. with
+     !> [[init_g_knobs:ginit_option]] `"noise"`.
+     real :: init_spec_pow = 0.0
      !> Do we want to include the explicit source terms and
      !> related timesteps when saving/restoring from the restart file.
      logical :: include_explicit_source_in_restart = .true.
@@ -423,8 +426,6 @@ module init_g
      real :: width0 = -3.5
      !> Amplitude of initial zonal flow perturbations relative to other modes
      real :: zf_init = 1.0
-     !> Initial spectrum power index
-     real :: init_spec_pow = 0.0
    contains
      procedure, public :: read => read_init_g_config
      procedure, public :: write => write_init_g_config
@@ -1364,6 +1365,7 @@ contains
     ikx_init = init_g_config%ikx_init
     imfac = init_g_config%imfac
     include_explicit_source_in_restart = init_g_config%include_explicit_source_in_restart
+    init_spec_pow = init_g_config%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = init_g_config%initial_condition_is_nonadiabatic_dfn
     input_check_recon = init_g_config%input_check_recon
     itt = init_g_config%itt
@@ -1401,7 +1403,6 @@ contains
     upar2 = init_g_config%upar2
     width0 = init_g_config%width0
     zf_init = init_g_config%zf_init
-    init_spec_pow = init_g_config%init_spec_pow
 
     exist = init_g_config%exist
     
@@ -4599,14 +4600,15 @@ contains
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt
-    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
-    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
-    real :: upar2, width0, zf_init, init_spec_pow
+    logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi
+    logical :: read_many
+    real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, init_spec_pow, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart
+    real :: upar0, upar1, upar2, width0, zf_init
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
-         include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, null_apar, null_bpar, null_phi, phiamp, &
-         phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
-         upar1, upar2, width0, zf_init, init_spec_pow
+         include_explicit_source_in_restart, init_spec_pow, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, left, max_mode, new_field_init, null_apar, null_bpar, null_phi, &
+         phiamp, phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, &
+         tstart, ukxy_pt, upar0, upar1, upar2, width0, zf_init
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4635,6 +4637,7 @@ contains
     ikx_init = self%ikx_init
     imfac = self%imfac
     include_explicit_source_in_restart = self%include_explicit_source_in_restart
+    init_spec_pow = self%init_spec_pow
     initial_condition_is_nonadiabatic_dfn = self%initial_condition_is_nonadiabatic_dfn
     input_check_recon = self%input_check_recon
     itt = self%itt
@@ -4672,7 +4675,6 @@ contains
     upar2 = self%upar2
     width0 = self%width0
     zf_init = self%zf_init
-    init_spec_pow = self%init_spec_pow
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -4702,6 +4704,7 @@ contains
     self%ikx_init = ikx_init
     self%imfac = imfac
     self%include_explicit_source_in_restart = include_explicit_source_in_restart
+    self%init_spec_pow = init_spec_pow
     self%initial_condition_is_nonadiabatic_dfn = initial_condition_is_nonadiabatic_dfn
     self%input_check_recon = input_check_recon
     self%itt = itt
@@ -4739,7 +4742,6 @@ contains
     self%upar2 = upar2
     self%width0 = width0
     self%zf_init = zf_init
-    self%init_spec_pow = init_spec_pow
 
     self%exist = exist
   end subroutine read_init_g_config
@@ -4748,7 +4750,7 @@ contains
   subroutine write_init_g_config(self, unit)
     implicit none
     class(init_g_config_type), intent(in) :: self
-    integer, intent(in) , optional:: unit
+    integer, intent(in), optional:: unit
     integer :: unit_internal
 
     unit_internal = 6 ! @todo -- get stdout from file_utils
@@ -4780,6 +4782,7 @@ contains
     call self%write_key_val("ikx_init", self%ikx_init, unit_internal)
     call self%write_key_val("imfac", self%imfac, unit_internal)
     call self%write_key_val("include_explicit_source_in_restart", self%include_explicit_source_in_restart, unit_internal)
+    call self%write_key_val("init_spec_pow", self%init_spec_pow, unit_internal)
     call self%write_key_val("initial_condition_is_nonadiabatic_dfn", self%initial_condition_is_nonadiabatic_dfn, unit_internal)
     call self%write_key_val("input_check_recon", self%input_check_recon, unit_internal)
     call self%write_key_val("itt", self%itt, unit_internal)
@@ -4817,7 +4820,6 @@ contains
     call self%write_key_val("upar2", self%upar2, unit_internal)
     call self%write_key_val("width0", self%width0, unit_internal)
     call self%write_key_val("zf_init", self%zf_init, unit_internal)
-    call self%write_key_val("init_spec_pow", self%init_spec_pow, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_init_g_config
 
@@ -4860,6 +4862,7 @@ contains
     call broadcast(self%ikx_init)
     call broadcast(self%imfac)
     call broadcast(self%include_explicit_source_in_restart)
+    call broadcast(self%init_spec_pow)
     call broadcast(self%initial_condition_is_nonadiabatic_dfn)
     call broadcast(self%input_check_recon)
     call broadcast(self%itt)
@@ -4897,7 +4900,6 @@ contains
     call broadcast(self%upar2)
     call broadcast(self%width0)
     call broadcast(self%zf_init)
-    call broadcast(self%init_spec_pow)
 
     call broadcast(self%exist)
   end subroutine broadcast_init_g_config
