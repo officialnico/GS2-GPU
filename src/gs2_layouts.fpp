@@ -841,7 +841,7 @@ contains
     integer :: nproc_tmp, idim, tmp, i
     real :: tmp_r
 #ifdef SHMEM
-    integer nxy, les, xyb, nd_les, llim_nd, left_lim_nd, ind, sfft
+    integer nxy, les, xyb, nd_les, llim_nd, ind
 #endif
     integer,dimension(5) :: nproc_dim
     integer,dimension(:),allocatable :: les_kxky_range
@@ -4428,7 +4428,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
 #ifdef SHMEM
-    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind
 #endif
 
     accelx_lo%iproc = iproc
@@ -4503,7 +4503,7 @@ contains
     integer, intent (in) :: ntgrid, naky, ntheta0, nlambda, negrid, nspec, nproc, iproc
     integer, intent (in) :: nx, ny
 #ifdef SHMEM
-    integer :: nxy, les, xyb, llim_nd, nd_les, ind, left_lim_nd, sfft
+    integer :: nxy, les, xyb, llim_nd, nd_les, ind
 #endif
 
     accel_lo%iproc = iproc
