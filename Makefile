@@ -641,7 +641,7 @@ $(DEPEND): $(UTILS_SENTINEL) depend
 	@echo -n ""
 endif
 
-depend: $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
+depend: config_auto_gen $(UTILS_SENTINEL) $(NEASYF_SENTINEL) Makefile.$(GK_SYSTEM) |$(GENERATED_SRC_DIR)
 	$(call messageOp,"Generating dependency file","\\t:",$(call processName,$(DEPEND)))
 # Note we force UTILS to be included in the paths that we pass to fortdep
 # We touch the dependency file first as fortdep will call make in order to try
@@ -666,9 +666,13 @@ compiler_flags: force
 $(OBJDIR)/git_hash.o: compiler_flags
 
 .PHONY: config_auto_gen
+ifeq ($(GS2_HAS_PYTHON),yes)
 config_auto_gen:
 	$(call messageInfo,"Generating config object boilerplate.")
 	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only
+else
+config_auto_gen:
+endif
 
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
@@ -729,6 +733,10 @@ cleanlib:
 cleanconfig:
 	$(call messageRm,"System config")
 	-$(QUIETSYM)rm -f system_config .tmp_output
+
+clean_auto_gen_config:
+	$(call messageRm,"Auto-generated config boilerplate")
+	-$(QUIETSYM)rm -f $(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*_auto_gen.inc" ${PATHS} --absolute)
 
 clean_depend:
 	$(call messageRm,"Dependency file")	
