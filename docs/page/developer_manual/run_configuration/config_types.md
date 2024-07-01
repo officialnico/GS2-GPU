@@ -119,7 +119,7 @@ to document `write_perfomance`. Now we can run the code generation
 tool as follows
 
     :::bash
-    scripts/config_generation.py /path/to/performance.f90
+    scripts/config_generation.py --files /path/to/performance.f90
 
 This will then generate the file `performance_placeholders.f90` where
 you ran the script. This will contain several sections of code than
@@ -237,7 +237,7 @@ and then follow the same steps as previously in order to produce the
 generated code, i.e. beginning with
 
     :::bash
-    scripts/config_generation.py /path/to/performance.f90
+    scripts/config_generation.py --files /path/to/performance.f90
 
 to generate the code and then using copy-paste to _replace_ the
 existing generated code with that in the generated placeholders file.

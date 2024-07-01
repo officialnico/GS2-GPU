@@ -621,16 +621,25 @@ def constructFromFile(fileIn=None, verbose=False, quiet=False):
     return result
 
 if __name__ == "__main__":
-    import sys
+    import argparse
 
-    # Handle case where no files passed as arguments    
-    if len(sys.argv) < 2:
+    parser = argparse.ArgumentParser(
+        description = 'Identify any config types from passed (or found) source files and produce generated code.'
+        )
+
+    parser.add_argument("--files", nargs = "*", action = "store", help =
+                        "Files to parse, if not set search for all source files.")
+
+    args = parser.parse_args()
+
+    # Handle case where no files passed as arguments
+    if args.files is None:
         from get_all_matching_files import get_all_matching_files
         probablyFiles = get_all_matching_files(paths=["src/","externals/utils/"],
                                                patterns=["*.[fF]??"])
     else:
-        probablyFiles = sys.argv[1:]
-        
+        probablyFiles = args.files
+
     for fil in probablyFiles:
         tmp = constructFromFile(fileIn=fil)
         if tmp is None: continue
