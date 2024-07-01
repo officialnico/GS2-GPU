@@ -504,7 +504,6 @@ endif
 # NOTE: we use a _shell variable_ here to expand GS2_BUILD_TAG to
 # ensure that it gets quoted correctly on the command line
 MACRO_DEFS += -DGS2_BUILD_TAG='"${GS2_BUILD_TAG}"'
-MACRO_DEFS += -DGS2_GK_SYSTEM='"${GK_SYSTEM}"'
 
 ############################################################################# Done dealing with user flags
 
