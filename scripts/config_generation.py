@@ -223,7 +223,7 @@ class config():
 !---------------------------------------
 ! Following is for the config_type
 !---------------------------------------
-"""
+""".rstrip()
     
     def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, comment = "FIXME: Add documentation"):
         self.varList = set(varList)
@@ -400,7 +400,12 @@ class config():
         st = []
         st.append(self.decl(**kwargs))
         st.append("\n"+self.instance(**kwargs))
-        st.append(self.readParams())        
+        st.append(self.readParams())
+        st.append(self.printIncludeOnly(**kwargs))
+        return "\n".join(st)
+
+    def printIncludeOnly(self,**kwargs):
+        st = []
         st.append(self.subComment)
         st.append(self.readConfig())
         st.append(self.writeConfig())
