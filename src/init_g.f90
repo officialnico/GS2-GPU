@@ -44,6 +44,7 @@ module init_g
        ginitopt_random_sine = 40, ginitopt_constant = 41
 
   real :: width0, dphiinit, phiinit, imfac, refac, zf_init, phifrac
+  real :: init_spec_pow
   real :: den0, upar0, tpar0, tperp0
   real :: den1, upar1, tpar1, tperp1
   real :: den2, upar2, tpar2, tperp2
@@ -422,6 +423,8 @@ module init_g
      real :: width0 = -3.5
      !> Amplitude of initial zonal flow perturbations relative to other modes
      real :: zf_init = 1.0
+     !> Initial spectrum power index
+     real :: init_spec_pow = 0.0
    contains
      procedure, public :: read => read_init_g_config
      procedure, public :: write => write_init_g_config
@@ -1021,6 +1024,7 @@ contains
     call broadcast (phifrac)
     call broadcast (dphiinit)
     call broadcast (zf_init)
+    call broadcast (init_spec_pow)
     call broadcast (apar0)
     call broadcast (tstart)
     call broadcast (chop_side)
@@ -1397,6 +1401,7 @@ contains
     upar2 = init_g_config%upar2
     width0 = init_g_config%width0
     zf_init = init_g_config%zf_init
+    init_spec_pow = init_g_config%init_spec_pow
 
     exist = init_g_config%exist
     
@@ -1606,11 +1611,13 @@ contains
     use constant_random, only: finish_constant_random
     use constant_random, only: constant_ranf=>ranf
     use array_utils, only: copy, zero_array
+    use constants, only: twopi
+    use kt_grids, only: kperp2
     implicit none
     complex, dimension (-ntgrid:ntgrid,ntheta0,naky) :: phi, phit
     real :: a, b
     integer :: iglo, ig, ik, it, il, is, nn
-
+    real :: spec_pow
 
     !CMR: need to document tracer phit parameter   ;-)
     call zero_array(phit)
@@ -1628,15 +1635,20 @@ contains
     do it = 1, ntheta0
        do ik = 1, naky
           do ig = -ntgrid, ntgrid
-            if (constant_random_flag) then 
-             a = constant_ranf()-0.5
-             b = constant_ranf()-0.5
-            else
-             a = ranf()-0.5
-             b = ranf()-0.5
-            end if
-             phi(ig,it,ik) = cmplx(a,b)
-           end do
+             if (constant_random_flag) then
+                a = constant_ranf()-0.5
+                b = constant_ranf()-0.5
+             else
+                a = ranf()-0.5
+                b = ranf()-0.5
+             end if
+             if (init_spec_pow > 0.) then
+                spec_pow = 1./sqrt(1.+kperp2(ig,it,ik)**(0.5*init_spec_pow))
+                phi(ig,it,ik) = spec_pow*exp(cmplx(0.,twopi*a))
+             else
+                phi(ig,it,ik) = cmplx(a,b)
+             end if
+          end do
 !CMR,28/1/13: 
 ! clean_init debrutalises influence of chop_side on phi with linked bc
           if (chop_side) then
@@ -1671,7 +1683,7 @@ contains
        end do
     end do
     if (constant_random_flag) call finish_constant_random
-    
+
     !Wipe out all but one kx if requested
     if (ikx_init  > 0) call single_initial_kx(phi)
     
@@ -4589,12 +4601,12 @@ contains
     integer, dimension(3) :: ikkk, ittt
     logical :: chop_side, clean_init, constant_random_flag, even, include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, left, new_field_init, null_apar, null_bpar, null_phi, read_many
     real :: a0, apar0, b0, den0, den1, den2, dphiinit, imfac, kpar_init, phifrac, phiinit, phiinit0, phiinit_rand, prof_width, refac, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, upar0, upar1
-    real :: upar2, width0, zf_init
+    real :: upar2, width0, zf_init, init_spec_pow
 
     namelist /init_g_knobs/ a0, adj_spec, apar0, aparamp, b0, chop_side, clean_init, constant_random_flag, den0, den1, den2, dphiinit, eq_mode_n, eq_mode_u, eq_type, even, ginit_option, ikk, ikkk, ikpar_init, ikx_init, imfac, &
          include_explicit_source_in_restart, initial_condition_is_nonadiabatic_dfn, input_check_recon, itt, ittt, kpar_init, max_mode, left, new_field_init, null_apar, null_bpar, null_phi, phiamp, &
          phifrac, phiinit, phiinit0, phiinit_rand, proc_to_save_fields, prof_width, read_many, refac, restart_dir, restart_eig_id, restart_file, scale, tpar0, tpar1, tpar2, tperp0, tperp1, tperp2, tstart, ukxy_pt, upar0, &
-         upar1, upar2, width0, zf_init
+         upar1, upar2, width0, zf_init, init_spec_pow
 
     ! Only proc0 reads from file
     if (.not. proc0) return
@@ -4660,6 +4672,7 @@ contains
     upar2 = self%upar2
     width0 = self%width0
     zf_init = self%zf_init
+    init_spec_pow = self%init_spec_pow
 
     ! Now read in the main namelist
     in_file = input_unit_exist(self%get_name(), exist)
@@ -4726,6 +4739,7 @@ contains
     self%upar2 = upar2
     self%width0 = width0
     self%zf_init = zf_init
+    self%init_spec_pow = init_spec_pow
 
     self%exist = exist
   end subroutine read_init_g_config
@@ -4803,6 +4817,7 @@ contains
     call self%write_key_val("upar2", self%upar2, unit_internal)
     call self%write_key_val("width0", self%width0, unit_internal)
     call self%write_key_val("zf_init", self%zf_init, unit_internal)
+    call self%write_key_val("init_spec_pow", self%init_spec_pow, unit_internal)
     call self%write_namelist_footer(unit_internal)
   end subroutine write_init_g_config
 
@@ -4882,6 +4897,7 @@ contains
     call broadcast(self%upar2)
     call broadcast(self%width0)
     call broadcast(self%zf_init)
+    call broadcast(self%init_spec_pow)
 
     call broadcast(self%exist)
   end subroutine broadcast_init_g_config
