@@ -6,6 +6,7 @@
 #with the boiler plate routines and canonical form of the type.
 
 from collections import OrderedDict
+import os
 
 # The maximum line length allowed by the Cray compiler is 256
 # Set the allowed limit a bit below this to allow for indentation, variable type,
@@ -416,12 +417,22 @@ class config():
         st.append(self.getModuleConfig())
         return "\n".join(st)
 
-    def dumpToFile(self,fileOut=None):
+    def dumpToFile(self, fileOut = None, IncludeOnly = False):
         if fileOut is None:
-            fileOut = self.moduleName+"_placeholders.f90"
+            if IncludeOnly:
+                fileOut = os.path.join(
+                    os.path.dirname(self.file_name),
+                    self.moduleName+"_auto_gen.inc")
+            else:
+                fileOut = self.moduleName+"_placeholders.f90"
+
+        if IncludeOnly:
+            lines = self.printIncludeOnly()
+        else:
+            lines = self.printAll()
 
         with open(fileOut, 'w') as f:
-            f.writelines(self.printAll())
+            f.writelines(lines)
 
     def toHTMLTable(self):
         st = []
@@ -652,4 +663,4 @@ if __name__ == "__main__":
         if tmp is None: continue
         for k, v in tmp.items():
             print("Config '{k}' in file '{f}'".format(k=k,f=fil))
-            v.dumpToFile()
+            v.dumpToFile(IncludeOnly = args.include_only)
