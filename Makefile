@@ -85,8 +85,6 @@ GS2_PYTEST_NAME ?= pytest
 GS2_BUILD_TAG ?= None
 # Compile with the new simplified diagnostics module (bin)
 USE_NEW_DIAG ?=on
-# Does the compiler version support the iso_c_binding features of Fortran?
-HAS_ISO_C_BINDING ?= on
 # If on, build with position independent code, needed if GS2 is going to be included
 # in a shared library or linked dynamically
 # This *may* have performance implications, but it hasn't been tested yet.
@@ -383,10 +381,6 @@ endif
 
 ifeq ($(USE_MPI),mpi3)
 	MACRO_DEFS += -DMPI3
-endif
-
-ifdef HAS_ISO_C_BINDING
-	MACRO_DEFS += -DISO_C_BINDING
 endif
 
 ifeq ($(USE_NEW_DIAG),on)

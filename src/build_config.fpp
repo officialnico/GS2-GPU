@@ -26,12 +26,6 @@ module build_config
   logical, parameter :: gs2_has_fft = .false.
 #endif
 
-#ifdef ISO_C_BINDING
-  logical, parameter :: gs2_has_iso_c_binding = .true.
-#else
-  logical, parameter :: gs2_has_iso_c_binding = .false.
-#endif
-
 #ifdef NEW_DIAG
   logical, parameter :: gs2_has_new_diag = .true.
 #else
@@ -120,7 +114,6 @@ contains
     write(output, '(a, l)') trim(output) // nl // "MPI3: ", gs2_has_mpi3
     write(output, '(a, l)') trim(output) // nl // "OPENMP: ", gs2_has_openmp
     write(output, '(a, l)') trim(output) // nl // "FFTW: ", gs2_has_fft
-    write(output, '(a, l)') trim(output) // nl // "iso_c_binding: ", gs2_has_iso_c_binding
     write(output, '(a, l)') trim(output) // nl // "New diagnostics: ", gs2_has_new_diag
     write(output, '(a, l)') trim(output) // nl // "GENQUAD: ", gs2_has_genquad
     write(output, '(a, l)') trim(output) // nl // "NetCDF: ", gs2_has_netcdf
