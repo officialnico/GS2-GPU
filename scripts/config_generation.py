@@ -417,12 +417,12 @@ class config():
         st.append(self.getModuleConfig())
         return "\n".join(st)
 
-    def dumpToFile(self, fileOut = None, IncludeOnly = False):
+    def dumpToFile(self, fileOut = None, IncludeOnly = False, TargetDir = None):
         if fileOut is None:
             if IncludeOnly:
+                location = TargetDir if TargetDir else os.path.dirname(self.file_name)
                 fileOut = os.path.join(
-                    os.path.dirname(self.file_name),
-                    self.moduleName+"_auto_gen.inc")
+                    TargetDir, self.moduleName+"_auto_gen.inc")
             else:
                 fileOut = self.moduleName+"_placeholders.f90"
 
@@ -652,6 +652,10 @@ if __name__ == "__main__":
     parser.add_argument("--verbose", action = "count", default = 0, help =
                         "If set prints more information about what is happening.")
 
+    parser.add_argument("--target-dir", action = "store", help =
+                        "If set controls the directory the generated files are written to.")
+
+
     args = parser.parse_args()
 
     # Handle case where no files passed as arguments
@@ -667,6 +671,6 @@ if __name__ == "__main__":
         if tmp is None: continue
         for k, v in tmp.items():
             if args.verbose > 0: print("Config '{k}' in file '{f}'".format(k=k,f=fil))
-            v.dumpToFile(IncludeOnly = args.include_only)
+            v.dumpToFile(IncludeOnly = args.include_only, TargetDir = args.target_dir)
 
 

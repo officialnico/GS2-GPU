@@ -214,6 +214,8 @@ GEO:=$(SRCDIR)/geo
 UTILS:=$(EXTERNALDIR)/utils
 NEASYF := $(EXTERNALDIR)/neasyf/src
 
+AUTO_GEN_CONFIG_DIR:= $(SRCDIR)/config_auto_gen
+
 #Tests
 TEST_DIR:=$(GK_HEAD_DIR)/tests
 TEST_RESULT_DIR:= $(GK_HEAD_DIR)/test-results
@@ -534,7 +536,7 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(AUTO_GEN_CONFIG_DIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -572,7 +574,7 @@ endif
 .PHONY: doc check_ford_install namelist_doc clean_namelist_doc cleandoc
 
 ####################################################################### Source code targets
-$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR):
+$(BINDIR) $(LIBDIR) $(OBJDIR) $(MODDIR) $(GENERATED_SRC_DIR) $(AUTO_GEN_CONFIG_DIR):
 	$(QUIETSYM)$(MKDIR) $@
 
 %.o : %.pf
@@ -667,9 +669,9 @@ $(OBJDIR)/git_hash.o: compiler_flags
 
 .PHONY: config_auto_gen
 ifeq ($(GS2_HAS_PYTHON),yes)
-config_auto_gen:
+config_auto_gen: |$(AUTO_GEN_CONFIG_DIR)
 	$(call messageInfo,"Generating config object boilerplate.")
-	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only --target-dir $(AUTO_GEN_CONFIG_DIR)
 else
 config_auto_gen:
 endif
@@ -736,7 +738,7 @@ cleanconfig:
 
 clean_auto_gen_config:
 	$(call messageRm,"Auto-generated config boilerplate")
-	-$(QUIETSYM)rm -f $(shell $(GK_HEAD_DIR)/scripts/get_all_matching_files.py --pattern "*_auto_gen.inc" ${PATHS} --absolute)
+	-$(QUIETSYM)rm -f $(AUTO_GEN_CONFIG_DIR)
 
 clean_depend:
 	$(call messageRm,"Dependency file")	
