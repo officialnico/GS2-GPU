@@ -519,6 +519,7 @@ INCLUDES = $(DEFAULT_INC) $(MPI_INC) $(NETCDF_INC) $(FFT_INC)\
 		   $(EIG_INC) $(GENQUAD_INC) $(PFUNIT_INC) $(LAPACK_INC)
 
 INCLUDES += -I$(MODDIR)
+INCLUDES += -I$(AUTO_GEN_CONFIG_DIR)
 
 # Here we attempt to remove non-existent directories from INCLUDES. We assume that
 # INCLUDES is currently just a list of entries of the form -I<some directory> so for
@@ -536,7 +537,7 @@ VPATH_tmp := $(foreach tmpvp,$(subst :, ,$(VPATH)),$(shell [ -d $(tmpvp) ] && ec
 VPATH := .:$(shell echo $(VPATH_tmp) | sed "s/ /:/g")
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(AUTO_GEN_CONFIG_DIR)
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -738,7 +739,7 @@ cleanconfig:
 
 clean_auto_gen_config:
 	$(call messageRm,"Auto-generated config boilerplate")
-	-$(QUIETSYM)rm -f $(AUTO_GEN_CONFIG_DIR)
+	-$(QUIETSYM)rm -rf $(AUTO_GEN_CONFIG_DIR)
 
 clean_depend:
 	$(call messageRm,"Dependency file")	
