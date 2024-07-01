@@ -69,7 +69,8 @@ USE_OPENMP ?=
 # Include higher-order terms in GK equation arising from low-flow physics
 LOWFLOW ?=
 # Compile with PETSC/SLEPC support for determining eigensystem (bin).
-# TODO : Rename USE_EIG for consistency
+USE_EIG ?=
+# Deprecated form
 WITH_EIG ?=
 # Include LAPACK and GSL libraries for genquad scheme
 GENQUAD ?=
@@ -479,8 +480,14 @@ ifdef LOWFLOW
 	MACRO_DEFS += -DLOWFLOW
 endif
 
-#Setup the flags for using the eigensolver
+#Support old deprecated option
 ifdef WITH_EIG
+$(warning WITH_EIG is deprecated, set USE_EIG instead. Forcing USE_EIG=on.)
+	USE_EIG := on
+endif
+
+#Setup the flags for using the eigensolver
+ifdef USE_EIG
 	EIG_INC += -I$(PETSC_DIR)/include -I$(SLEPC_DIR)/include
 	ifdef PETSC_ARCH
 		EIG_LIB += -L$(PETSC_DIR)/$(PETSC_ARCH)/lib
@@ -807,7 +814,7 @@ test_make:
 	$(call messageKeyVal, "USE_NETCDF", $(USE_NETCDF))
 	$(call messageKeyVal, "USE_PARALLEL_NETCDF", $(USE_PARALLEL_NETCDF))
 	$(call messageKeyVal, "USE_NETCDF_COMPRESSION", $(USE_NETCDF_COMPRESSION))
-	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
+	$(call messageKeyVal, "USE_EIG", $(USE_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
 	$(call messageKeyVal, "USE_LOCAL_SPFUNC", $(USE_LOCAL_SPFUNC))
@@ -883,7 +890,7 @@ else
 	$(call messageInfo,"FFT: DISABLED")
 endif
 	@echo
-ifdef WITH_EIG
+ifdef USE_EIG
 	$(call messageInfo,"Eigensolver:")
 	$(call messageKeyVal, "EIG_LIB", $(EIG_LIB))
 	$(call messageKeyVal, "EIG_INC", $(EIG_INC))
