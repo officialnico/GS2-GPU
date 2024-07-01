@@ -665,6 +665,11 @@ compiler_flags: force
 # preprocessed file to depend on compiler_flags
 $(OBJDIR)/git_hash.o: compiler_flags
 
+.PHONY: config_auto_gen
+config_auto_gen:
+	$(call messageInfo,"Generating config object boilerplate.")
+	$(QUIETSYM)$(GK_HEAD_DIR)/scripts/config_generation.py --include-only
+
 ##################################################################### Main TARGETS
 # .DEFAULT_GOAL works for GNU make 3.81 (or higher)
 # For 3.80 or less, see all target
