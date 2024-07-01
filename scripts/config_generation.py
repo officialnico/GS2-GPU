@@ -635,6 +635,8 @@ if __name__ == "__main__":
     parser.add_argument("--files", nargs = "*", action = "store", help =
                         "Files to parse, if not set search for all source files.")
 
+    parser.add_argument("--include-only", action = "store_true", help =
+                        "If set only generate the boiler plate which can be included directly.")
     args = parser.parse_args()
 
     # Handle case where no files passed as arguments
