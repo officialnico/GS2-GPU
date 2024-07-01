@@ -256,7 +256,7 @@ contains
     use theta_grid_eik, only: get_theta_grid_eik_config
     use theta_grid_file, only: get_theta_grid_file_config
     use theta_grid_gridgen, only: get_theta_grid_gridgen_config
-    use theta_grid_params, only: get_theta_grid_params_config
+    use theta_grid_params, only: get_theta_grid_parameters_config
     use theta_grid_salpha, only: get_theta_grid_salpha_config
 
     class(gs2_config_type), intent(in out) :: self
@@ -301,7 +301,7 @@ contains
     self%theta_grid_eik_config = get_theta_grid_eik_config()
     self%theta_grid_file_config = get_theta_grid_file_config()
     self%theta_grid_gridgen_config = get_theta_grid_gridgen_config()
-    self%theta_grid_parameters_config = get_theta_grid_params_config()
+    self%theta_grid_parameters_config = get_theta_grid_parameters_config()
     self%theta_grid_salpha_config = get_theta_grid_salpha_config()
 
   end subroutine get_configs
