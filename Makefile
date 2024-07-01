@@ -810,7 +810,7 @@ test_make:
 	$(call messageKeyVal, "WITH_EIG", $(WITH_EIG))
 	$(call messageKeyVal, "USE_LAPACK", $(USE_LAPACK))
 	$(call messageKeyVal, "USE_LOCAL_RAN", $(USE_LOCAL_RN))
-	$(call messageKeyVal, "USE_SPFUNC", $(USE_SPFUNC))
+	$(call messageKeyVal, "USE_LOCAL_SPFUNC", $(USE_LOCAL_SPFUNC))
 	$(call messageKeyVal, "USE_NEW_DIAG", $(USE_NEW_DIAG))
 	$(call messageKeyVal, "USE_GCOV", $(USE_GCOV))
 	@echo
