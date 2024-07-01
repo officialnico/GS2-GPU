@@ -225,7 +225,7 @@ class config():
 !---------------------------------------
 """.rstrip()
     
-    def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, comment = "FIXME: Add documentation"):
+    def __init__(self, varList = [], moduleName = None, namelistName = None, requires_index = False, file_name = None, comment = "FIXME: Add documentation"):
         self.varList = set(varList)
         self.moduleName = moduleName.lower()
         self.namelistName = namelistName.lower()
@@ -234,7 +234,7 @@ class config():
             comment = "\n".join(comment)
         
         self.comment = comment.split("\n")
-
+        self.file_name = file_name
         #Now sort vars
         self.sortVars()
         
@@ -577,7 +577,12 @@ def constructFromFile(fileIn=None, verbose=False, quiet=False):
                 if name != currName:
                     raise ValueError("Mismatched type names {a} and {b}".format(a=name, b=currName))
 
-                theConfigs[currName] = config(varList = theVars[currName], moduleName = currName, namelistName = namelistName, comment = theComments, requires_index = requires_index)
+                theConfigs[currName] = config(varList = theVars[currName],
+                                              moduleName = currName,
+                                              namelistName = namelistName,
+                                              comment = theComments,
+                                              requires_index = requires_index,
+                                              file_name = fileIn)
                 
                 found = False
                 currName = 'ERROR'
