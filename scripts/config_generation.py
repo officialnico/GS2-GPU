@@ -648,6 +648,10 @@ if __name__ == "__main__":
 
     parser.add_argument("--include-only", action = "store_true", help =
                         "If set only generate the boiler plate which can be included directly.")
+
+    parser.add_argument("--verbose", action = "count", default = 0, help =
+                        "If set prints more information about what is happening.")
+
     args = parser.parse_args()
 
     # Handle case where no files passed as arguments
@@ -659,8 +663,10 @@ if __name__ == "__main__":
         probablyFiles = args.files
 
     for fil in probablyFiles:
-        tmp = constructFromFile(fileIn=fil)
+        tmp = constructFromFile(fileIn=fil, quiet = args.verbose <= 1)
         if tmp is None: continue
         for k, v in tmp.items():
-            print("Config '{k}' in file '{f}'".format(k=k,f=fil))
+            if args.verbose > 0: print("Config '{k}' in file '{f}'".format(k=k,f=fil))
             v.dumpToFile(IncludeOnly = args.include_only)
+
+
