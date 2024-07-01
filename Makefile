@@ -76,7 +76,6 @@ WITH_EIG ?=
 GENQUAD ?=
 # Compile with gcov flags to check for code coverage
 USE_GCOV ?=
-HAS_GCOV=$(USE_GCOV)
 # Name of python exe
 GS2_PYTHON_NAME ?= python3
 # Name of pytest executable
