@@ -121,7 +121,7 @@ module run_parameters
      !> If true use original diagnostics rather than new form
      logical :: use_old_diagnostics = .false.
      !> Custom description of run to be added to netcdf output (new diagnostics only)
-     character(len = 100000) :: user_comments = ''
+     character(len = 65000) :: user_comments = ''
      !> If true makes timestep proportional to ky*rho. Only sensible for linear runs.
      logical :: wstar_units = .false.
      !> Effective ionic charge appearing in electron collision frequency

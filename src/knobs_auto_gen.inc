@@ -15,8 +15,8 @@ subroutine read_knobs_config(self)
   ! Note: When this routine is in the module where these variables live
   ! we shadow the module level variables here. This is intentional to provide
   ! isolation and ensure we can move this routine to another module easily.    
-  character(len = 100000) :: user_comments
   character(len = 20) :: delt_option, eqzip_option
+  character(len = 65000) :: user_comments
   integer :: ncheck_stop, nstep, progress_frequency, seed
   logical :: do_eigsolve, immediate_reset, neo_test, save_init_times, save_timer_statistics, use_old_diagnostics, wstar_units
   real :: avail_cpu_time, beta, delt, fapar, fbpar, fphi, k0, margin_cpu_time, max_sim_time, rhostar, tite, zeff
