@@ -17,6 +17,8 @@ type diagnostics_ascii_type
   integer :: lpc
   integer :: vres2
   integer :: cres
+  integer :: dist
+  integer :: yxdist
   integer :: parity
   integer :: jext
   integer :: eigenfunc
@@ -28,6 +30,8 @@ type diagnostics_ascii_type
   logical :: write_to_lpc = .false.
   logical :: write_to_vres2 = .false.
   logical :: write_to_cres = .false.
+  logical :: write_to_dist = .false.
+  logical :: write_to_yxdist = .false.
   logical :: write_to_parity = .false.
   logical :: write_to_jext = .false.
   logical :: write_to_eigenfunc = .false.
@@ -49,6 +53,8 @@ subroutine init_diagnostics_ascii(ascii_files)
   if (ascii_files%write_to_lpc) call open_output_file(ascii_files%lpc, '.lpc')
   if (ascii_files%write_to_vres2) call open_output_file(ascii_files%vres2, '.vres2')
   if (ascii_files%write_to_cres) call open_output_file(ascii_files%cres, '.cres')
+  if (ascii_files%write_to_dist) call open_output_file(ascii_files%dist, '.dist')
+  if (ascii_files%write_to_yxdist) call open_output_file(ascii_files%yxdist, '.yxdist')
   if (ascii_files%write_to_parity) call open_output_file(ascii_files%parity, '.parity')
   if (ascii_files%write_to_jext) call open_output_file(ascii_files%jext, '.jext')
   if (ascii_files%write_to_eigenfunc) call open_output_file(ascii_files%eigenfunc, '.eigenfunc')
@@ -69,6 +75,8 @@ subroutine finish_diagnostics_ascii(ascii_files)
   if (ascii_files%write_to_lpc) call close_output_file(ascii_files%lpc)
   if (ascii_files%write_to_vres2) call close_output_file(ascii_files%vres2)
   if (ascii_files%write_to_cres) call close_output_file(ascii_files%cres)
+  if (ascii_files%write_to_dist) call close_output_file(ascii_files%dist)
+  if (ascii_files%write_to_yxdist) call close_output_file(ascii_files%yxdist)
   if (ascii_files%write_to_parity) call close_output_file(ascii_files%parity)
   if (ascii_files%write_to_jext) call close_output_file(ascii_files%jext)
   if (ascii_files%write_to_eigenfunc) call close_output_file(ascii_files%eigenfunc)
@@ -88,6 +96,8 @@ subroutine flush_output_files(ascii_files)
   if (ascii_files%write_to_lpc) flush(ascii_files%lpc)
   if (ascii_files%write_to_vres2) flush(ascii_files%vres2)
   if (ascii_files%write_to_cres) flush(ascii_files%cres)
+  if (ascii_files%write_to_dist) flush(ascii_files%dist)
+  if (ascii_files%write_to_yxdist) flush(ascii_files%yxdist)
   if (ascii_files%write_to_parity) flush(ascii_files%parity)
   if (ascii_files%write_to_jext) flush(ascii_files%jext)
   if (ascii_files%write_to_eigenfunc) flush(ascii_files%eigenfunc)

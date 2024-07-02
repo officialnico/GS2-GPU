@@ -22,7 +22,7 @@ module fields_implicit
   ! has (2*ntgrid+1)*nfield points.
   !> FIXME : Add documentation  
   type dcell_type
-     complex, dimension(:), pointer :: supercell => null()
+     complex, dimension(:), allocatable :: supercell
   end type dcell_type
   !----------------------------------------------------------------
 
@@ -37,7 +37,7 @@ module fields_implicit
   !// FIELD_MATRIX_TYPE :
   !> FIXME : Add documentation  
   type :: field_matrix_type
-     type(dcell_type), dimension (:), pointer :: dcell => null()
+     type(dcell_type), dimension (:), allocatable :: dcell
   end type field_matrix_type
   !----------------------------------------------------------------
 
@@ -440,12 +440,12 @@ contains
       'fields_implicit::reset_init starting')
     if (.not. allocated (aminv)) return
     do i = 1, size(aminv)
-       if (.not. associated (aminv(i)%dcell)) cycle
+       if (.not. allocated (aminv(i)%dcell)) cycle
        do j = 1, size(aminv(i)%dcell)
-          if (associated (aminv(i)%dcell(j)%supercell)) &
+          if (allocated (aminv(i)%dcell(j)%supercell)) &
                deallocate(aminv(i)%dcell(j)%supercell)
        end do
-       if (associated (aminv(i)%dcell)) deallocate (aminv(i)%dcell)
+       if (allocated (aminv(i)%dcell)) deallocate (aminv(i)%dcell)
     end do
     deallocate (aminv)
 
@@ -964,7 +964,7 @@ contains
     do jlo = jf_lo%llim_proc, jf_lo%ulim_proc
           
        !Allocate store in this class, on this proc to store the jlo points
-       if (.not.associated(aminv(ic)%dcell)) then
+       if (.not. allocated(aminv(ic)%dcell)) then
           allocate (aminv(ic)%dcell(dc))
        else
           !Just check the array is the correct size
@@ -985,7 +985,7 @@ contains
           jc = nidx*N_class(ic)
 
           !Allocate storage for the supercell if required
-          if (.not.associated(aminv(ic)%dcell(k)%supercell)) then
+          if (.not. allocated(aminv(ic)%dcell(k)%supercell)) then
              allocate (aminv(ic)%dcell(k)%supercell(jc))
           else
              !Just check the array is the correct size
@@ -1758,14 +1758,14 @@ contains
        enddo
 
        !Next level, one object for each point in the class
-       if(.not.associated(aminv(ic)%dcell))then
+       if(.not. allocated(aminv(ic)%dcell))then
           allocate(aminv(ic)%dcell(dc))
        endif
 
        !Now loop over each point and allocate storage for the response data
        do idc=1,dc
           !Bottom level, this is actually where data is stored
-          if(.not.associated(aminv(ic)%dcell(idc)%supercell)) then
+          if(.not. allocated(aminv(ic)%dcell(idc)%supercell)) then
              allocate(aminv(ic)%dcell(idc)%supercell(sc_len))
           endif
        enddo

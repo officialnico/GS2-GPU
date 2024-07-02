@@ -3243,9 +3243,8 @@ contains
     use gs2_transforms, only: inverse2,transform2
     use run_parameters, only: beta
     use le_grids, only: integrate_moment
-    use dist_fn, only: getmoms_notgc, get_init_field
-    use dist_fn, only: init_mom_coeff
-    use dist_fn, only: gamtot, gamtot1, gamtot2
+    use diagnostics_moments, only: getmoms_notgc, init_mom_coeff
+    use dist_fn, only: gamtot, gamtot1, gamtot2, get_init_field
     use fields_arrays, only: phinew, bparnew
     use constants, only: pi, zi
     use file_utils, only: error_unit, open_output_file, close_output_file

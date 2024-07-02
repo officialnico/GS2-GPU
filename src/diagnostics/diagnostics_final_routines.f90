@@ -303,7 +303,7 @@ contains
     use theta_grid, only: ntgrid, theta
     use kt_grids, only: ntheta0, naky, aky, akx, theta0
     use species, only: nspec, spec
-    use dist_fn, only: getmoms
+    use diagnostics_moments, only: getmoms
     use file_utils, only: open_output_file, close_output_file
     use mp, only: proc0
     use fields_arrays, only: phinew, bparnew
