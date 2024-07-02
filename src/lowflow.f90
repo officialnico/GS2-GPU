@@ -403,7 +403,7 @@ contains
     use le_grids, only: w, wl
     use theta_grid, only: delthet, jacob, ntgrid, Rplot
     use file_utils, only: open_output_file, close_output_file, get_unused_unit
-    use geometry, only: rmaj
+    use geometry, only: surf
     use species, only: spec
     use integration, only: trapezoidal_integration
     implicit none
@@ -415,7 +415,7 @@ contains
     real, dimension (:), intent (out) :: dphidthc, dphidrc, phi_neo
     logical, intent (in) :: lf_default, lf_decompose
 
-    real :: rgeo2, drlt, drln
+    real :: rgeo2, drlt, drln, rmaj
 
     real, dimension (:,:,:,:,:), allocatable :: hneo
     real, dimension (:,:,:,:), allocatable :: dHdxi, dHdE, vpadHdE, dHdr, dHdth
@@ -441,7 +441,7 @@ contains
     nlambda = size(al)
     nenergy = size(energy)
     nxi = 2*nlambda-1
-
+    rmaj = surf%rmaj
     if (.not. allocated(xi)) allocate (xi(ntheta,nxi))
     if (.not. allocated(forbid)) allocate(forbid(ntheta,nxi))
     forbid = .false. ; xi = 0.0

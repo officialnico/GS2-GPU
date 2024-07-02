@@ -1010,7 +1010,7 @@ contains
     use le_grids, only: integrate_moment
     use species, only: nspec
     use kt_grids, only: aky
-    use theta_grid, only: theta, grho, bmag, jacob
+    use theta_grid, only: theta, grho, bmag, jacob, rplot
     use lowflow, only: mach_lab
     use integration, only: trapezoidal_integration
 #endif
