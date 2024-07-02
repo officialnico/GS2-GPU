@@ -331,7 +331,9 @@ else
 $(warning Could not find Python, looking for '$(GS2_PYTHON_NAME)'. \
 You will not be able to generate some files, or run some tests. \
 Please make sure '$(GS2_PYTHON_NAME)' is in your '$$PATH', or set \
-"GS2_PYTHON_NAME" to the correct name of the Python executable on your system)
+"GS2_PYTHON_NAME" to the correct name of the Python executable on your system.\
+Python will soon become a hard-dependency to build GS2.
+)
 endif
 
 PYTEST := $(shell which $(GS2_PYTEST_NAME) 2>/dev/null)
