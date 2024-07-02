@@ -422,7 +422,7 @@ class config():
             if IncludeOnly:
                 location = TargetDir if TargetDir else os.path.dirname(self.file_name)
                 fileOut = os.path.join(
-                    TargetDir, self.moduleName+"_auto_gen.inc")
+                    location, self.moduleName+"_auto_gen.inc")
             else:
                 fileOut = self.moduleName+"_placeholders.f90"
 
