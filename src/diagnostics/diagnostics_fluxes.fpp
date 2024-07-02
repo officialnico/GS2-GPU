@@ -1187,7 +1187,6 @@ contains
     !$OMP PARALLEL DO DEFAULT(none) &
     !$OMP PRIVATE(is, ik, it) &
     !$OMP SHARED(nspec, naky, ntheta0, nonlin, exchange_sym, total, &
-    !$OMP exchange2i, exchange3r, exchange3i, exchange4r, exchange4i, &
     !$OMP phinew, total2, phi, code_dt) &
     !$OMP COLLAPSE(3) &
     !$OMP SCHEDULE(static)
