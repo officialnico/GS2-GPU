@@ -536,7 +536,7 @@ INCLUDES := $(foreach tmpvp,$(INCLUDES),$(shell [ -d $(echo $(tmpvp) | sed 's/^ 
 
 F90FLAGS += $(F90OPTFLAGS) $(INCLUDES)
 F90FLAGS += $(FC_PREPROCESS_FLAG) $(FC_FREE_FORM_FLAG)
-FPPFLAGS += $(MACRO_DEFS) -I$(UTILS)
+FPPFLAGS += $(MACRO_DEFS)
 
 VPATH = $(SUBDIRS) $(MODDIR) $(SRCDIR) $(PROGDIR) $(GENERATED_SRC_DIR) $(NEASYF)
 # this just removes non-existing directory from VPATH
