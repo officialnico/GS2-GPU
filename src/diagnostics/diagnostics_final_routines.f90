@@ -33,9 +33,11 @@ contains
     implicit none
     complex, dimension(:,:,:), intent(in) :: an
     complex, dimension(:,:,:), intent(out) :: an2
+    complex, dimension(:,:,:), allocatable :: tmp
     real :: scale
-
-    call kz_spectrum (an, an2)
+    ! Copy the input data as the ffts can potentially modify input
+    allocate(tmp, source = an)
+    call kz_spectrum (tmp, an2)
     scale = 1./real(4*ntgrid**2)
     an2 = an2*scale
   end subroutine par_spectrum

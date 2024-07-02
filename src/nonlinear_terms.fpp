@@ -795,8 +795,7 @@ contains
     logical, intent(in), optional :: adjust
     logical :: should_adjust
     integer, parameter :: verb = 4
-
-    integer :: iglo, ik, it, ia
+    integer :: iglo, ik, it
     
     call debug_message(verb, 'nonlinear_terms::add_nl starting')
     should_adjust = get_option_with_default(adjust, .true.)
@@ -809,7 +808,7 @@ contains
     call debug_message(verb, 'nonlinear_terms::add_nl calling transform2')
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, aba, ia)
+       call transform2 (g1, aba)
     else
        call transform2 (g1, ba)
     end if
@@ -833,7 +832,7 @@ contains
 
     !Transform to real space
     if (accelerated) then
-       call transform2 (g1, agb, ia)
+       call transform2 (g1, agb)
     else
        call transform2 (g1, gb)
     end if
@@ -858,7 +857,7 @@ contains
 
     !Transform to real space    
     if (accelerated) then
-       call transform2 (g1, aba, ia)
+       call transform2 (g1, aba)
     else
        call transform2 (g1, ba)
     end if
@@ -877,7 +876,7 @@ contains
 
     !Transform to real space
     if (accelerated) then
-       call transform2 (g2, agb, ia)
+       call transform2 (g2, agb)
     else
        call transform2 (g2, gb)
     end if
@@ -893,7 +892,7 @@ contains
 
     !Transform NL source back to spectral space
     if (accelerated) then
-       call inverse2 (abracket, g1, ia)
+       call inverse2 (abracket, g1)
     else
        call inverse2 (bracket, g1)
     end if
@@ -1254,9 +1253,8 @@ contains
 
   !> FIXME : Add documentation  
   subroutine finish_nonlinear_terms
-#ifndef SHMEM    
     use gs2_transforms, only: finish_transforms
-#else
+#ifdef SHMEM
     use shm_mpi3, only : shm_free
 #endif
     implicit none
@@ -1281,10 +1279,7 @@ contains
     nonlin = .false. ; alloc = .true. ; zip = .false. ; accelerated = .false.
     initialized = .false. ; initializing = .true. ; exist = .false.
 
-#ifndef SHMEM
     call finish_transforms
-#endif
-
     call nonlinear_terms_config%reset()
   end subroutine finish_nonlinear_terms
 

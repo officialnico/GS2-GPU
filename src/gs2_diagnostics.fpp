@@ -3484,7 +3484,7 @@ contains
 #endif
     real, dimension (:), allocatable :: agp0, agp0zf
     real :: gp0, gp0zf
-    integer :: ig, it, ik, il, ie, is, iyxlo, isign, ia, iaclo, iglo, acc
+    integer :: ig, it, ik, il, ie, is, iyxlo, isign, iaclo, iglo, acc
     logical, save :: first = .true.
 
     if (accelerated) then
@@ -3530,7 +3530,7 @@ contains
 
 #ifndef SHMEM
     if (accelerated) then
-       call transform2 (g_work, agrs, ia)
+       call transform2 (g_work, agrs)
     else
        call transform2 (g_work, grs)
     end if
@@ -3544,7 +3544,7 @@ contains
     call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
-       call transform2 (g_work, agzf, ia)
+       call transform2 (g_work, agzf)
     else
        call transform2 (g_work, gzf)
     end if
@@ -3552,7 +3552,7 @@ contains
 #else
 
     if (accelerated) then
-       call transform2 (g0_ptr, agrs, ia)
+       call transform2 (g0_ptr, agrs)
     else
        call transform2 (g0_ptr, grs)
     end if
@@ -3566,7 +3566,7 @@ contains
     call g_adjust (gnew, phi, bpar, direction = to_g_gs2)
 
     if (accelerated) then
-       call transform2 (g0_ptr, agzf, ia)
+       call transform2 (g0_ptr, agzf)
     else
        call transform2 (g0_ptr, gzf)
     end if
