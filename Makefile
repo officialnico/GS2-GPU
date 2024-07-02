@@ -224,7 +224,7 @@ PATCHFILE:= .patch.make
 
 ######################################################### PLATFORM DEPENDENCE
 
-# compile mode switches (DEBUG, TEST, PROF, OPT, STATIC, DBLE)
+# compile mode switches (DEBUG, PROF, OPT, STATIC, DBLE)
 # must be set before loading Makefile.$(GK_SYSTEM) because they may affect
 # compiler options.
 
@@ -782,7 +782,6 @@ test_make:
 	$(call messageInfo,"Compilation mode:")
 	$(call messageKeyVal, "DEBUG", $(DEBUG))
 	$(call messageKeyVal, "SCAL", $(SCAL))
-	$(call messageKeyVal, "TEST", $(TEST))
 	$(call messageKeyVal, "PROF", $(PROF))
 	$(call messageKeyVal, "OPT", $(OPT))
 	$(call messageKeyVal, "STATIC", $(STATIC))
