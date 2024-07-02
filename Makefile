@@ -515,7 +515,7 @@ ALL_SOURCE_FILES += $(wildcard $(addsuffix /*.F90, $(SRCDIR) $(PROGDIR) $(SUBDIR
 
 
 # most common include and library directories
-DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(MODDIR) $(AUTO_GEN_CONFIG_DIR)
+DEFAULT_INC_LIST := . $(UTILS) $(GEO) .. $(NEASYF) $(MODDIR) $(AUTO_GEN_CONFIG_DIR) $(SRCDIR)
 DEFAULT_LIB_LIST :=
 # This default library path list can simplify the procedure of porting,
 # however, I found this (actually -L/usr/lib flag) causes an error
@@ -588,8 +588,6 @@ $(info Alternatively you may simply remove the corresponding '$(GENERATED_SRC_DI
 #Special interim handling for cray which will only preprocess files
 #with a limited set of suffixes (including F90). Here we just copy
 #our source files to GENERATED_SRC_DIR with a F90 extension
-# Ensure we can include .inc files from SRCDIR
-F90FLAGS+=-I$(SRCDIR)
 # Keep the F90 files in GENERATED_SRC_DIR
 .PRECIOUS: $(GENERATED_SRC_DIR)/%.F90
 # Define rules for copying. Important that fpp is before f90
