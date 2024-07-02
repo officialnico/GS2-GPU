@@ -156,10 +156,12 @@ Following the new type definition there are some "free lines of code"
 followed by a block comment containing `! Following is for the
 config_type` and this is followed by a number of complete subroutines
 and functions. These subroutines and functions provide the main
-boilerplate code including all of the type-bound routines. These can
-be simply copy-paste into the `performance` module (the convention is
-to put these at the bottom of the module as they are uninteresting
-generated code) -- in the future we may consider putting this
+boilerplate code including all of the type-bound routines. These could
+be simply copy-paste into the `performance` module, but a better
+approach is to run `make config_auto_gen` which puts this boilerplate
+code into `src/config_auto_gen/performance_auto_gen.inc` so we simply
+need to add `#include "performance_auto_gen.inc"` to the bottom of the
+`performance` module -- in the future we may consider putting this
 generated code in a sub-module. Returning to the lines referred to as
 "free lines", these consist of several chunks. The first line is
 simply a declaration designed to be used to define the module level
