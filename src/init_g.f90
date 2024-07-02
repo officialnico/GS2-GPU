@@ -55,7 +55,7 @@ module init_g
   character (len=150) :: restart_dir
   integer, dimension(2) :: ikk, itt
   integer, dimension(3) :: ikkk,ittt
-  complex, dimension (6) :: phiamp, aparamp
+  complex, dimension(3) :: phiamp, aparamp
   integer :: restart_eig_id
   integer :: max_mode
 
@@ -119,7 +119,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem
      !> ([[init_g_knobs:ginit_option]] `"ot"`). Controls size of `jpar` term.
      !> FIXME: Reference equations?
-     complex, dimension(6) :: aparamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: aparamp = cmplx(0.0,0.0)
      !> Amplitude of equilibrium `By`: if `b0` is non-zero, \(u_0\) is
      !> rescaled to give this `By` amplitude by overriding [[init_g_knobs:a0]]
      real :: b0 = 0.0
@@ -275,7 +275,7 @@ module init_g
      !> Used in initialization for the Orszag-Tang 2D vortex problem.
      !>
      !> FIXME: expand
-     complex, dimension(6) :: phiamp = cmplx(0.0,0.0)
+     complex, dimension(3) :: phiamp = cmplx(0.0,0.0)
      !> If doing multiple flux tube calculations, multiply
      !> [[init_g_knobs:phiinit]] by `(job * phifrac + 1)`. Allows for ensemble
      !> averaging of multiple flux tube calculations
@@ -2850,7 +2850,7 @@ contains
     use array_utils, only: copy, zero_array
     implicit none
     integer :: iglo, ik, it, is, i
-    real :: fac
+    complex :: fac
     complex, dimension (-ntgrid:ntgrid,nakx,naky) :: phi, jpar ! local !
     real, dimension (-ntgrid:ntgrid) :: dfac, ufac
 
@@ -2901,6 +2901,7 @@ contains
        it = ittt(i)
        ik = ikkk(i)
        if (abs(phiamp(i)) > epsilon(0.0)) then
+          ! Should this include abs?
           fac = phiamp(i) / phinew(0,it,ik)
           phi(:,it,ik) = phi(:,it,ik) * fac
        end if
@@ -4594,8 +4595,7 @@ contains
     character(len = 150) :: restart_dir
     character(len = 20) :: eq_type, ginit_option
     character(len = run_name_size) :: restart_file
-    complex, dimension(3) :: ukxy_pt
-    complex, dimension(6) :: aparamp, phiamp
+    complex, dimension(3) :: aparamp, phiamp, ukxy_pt
     integer :: adj_spec, eq_mode_n, eq_mode_u, ikpar_init, ikx_init, max_mode, proc_to_save_fields, restart_eig_id
     integer, dimension(2) :: ikk, itt
     integer, dimension(3) :: ikkk, ittt

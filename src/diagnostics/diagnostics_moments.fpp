@@ -1,5 +1,6 @@
+#include "unused_dummy.inc"
 !> A module for writing out moments of the distribution function,
-!! for example density, temperature, parallel flow
+!> for example density, temperature, parallel flow
 module diagnostics_moments
   implicit none
   private
@@ -81,16 +82,16 @@ contains
   !> FIXME : Add documentation  
   subroutine write_standard_moment_properties(gnostics, moment_name, moment_description, &
        moment_units, moment_value, distributed)
+    use theta_grid, only: ntgrid
+    use diagnostics_config, only: diagnostics_type
+#ifdef NETCDF
     use volume_averages, only: average_theta, average_kx, average_ky
     use fields_parallelization, only: field_k_local
     use mp, only: sum_allreduce
-    use theta_grid, only: ntgrid
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
-    use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex, complex_dim, &
-         kx_dim, ky_dim, species_dim, time_dim, theta_dim
-#ifdef NETCDF
+    use gs2_io, only: starts, mom_dims, mom_t_dims, fluxk_dims, netcdf_write_complex, &
+         complex_dim, kx_dim, ky_dim, species_dim, time_dim, theta_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -98,6 +99,7 @@ contains
     character(*), intent(in) :: moment_name, moment_description, moment_units
     complex, dimension(-ntgrid:,:,:,:), intent(inout) :: moment_value
     logical, intent(in) :: distributed
+#ifdef NETCDF
     real, dimension(ntheta0, naky, nspec) :: moment2_by_mode
     real, dimension(naky,nspec) :: moment2_by_ky
     real, dimension(ntheta0,nspec) :: moment2_by_kx
@@ -105,10 +107,9 @@ contains
     complex, dimension(ntheta0, naky, nspec) :: moment_igomega_by_mode
     complex, dimension(ntheta0, nspec) :: moment_flx_surfavg
     logical :: write_moment_by_time
-    integer :: it !, ik
+    integer :: it
 
     if (.not. gnostics%writing) return
-#ifdef NETCDF
     call average_theta(moment_value, moment_value, moment2_by_mode, distributed)
 
     call average_kx(moment2_by_mode, moment2_by_ky, distributed)
@@ -172,6 +173,9 @@ contains
             long_name=moment_description//": the whole moment" , &
             units=moment_units)
     end if
+#else
+    UNUSED_DUMMY(gnostics); UNUSED_DUMMY(moment_name); UNUSED_DUMMY(moment_description)
+    UNUSED_DUMMY(moment_units); UNUSED_DUMMY(moment_value); UNUSED_DUMMY(distributed)
 #endif
   end subroutine write_standard_moment_properties
 

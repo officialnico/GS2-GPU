@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module gs2_save
 
@@ -57,6 +58,10 @@ module gs2_save
   character (run_name_size) :: restart_file
 
 #ifdef NETCDF
+  !> Names of dimensions for distribution-sized variables in netCDF files
+  character(len=5), dimension(*), parameter :: g_dim_names = ["theta", "sign ", "glo  "]
+  character(len=5), dimension(*), parameter :: field_dim_names = ["theta", "akx  ", "aky  "]
+
   real, allocatable, dimension(:,:,:) :: tmpr, tmpi, ftmpr, ftmpi
   real, allocatable, dimension(:) :: stmp, atmp
 
@@ -75,9 +80,6 @@ module gs2_save
 #endif
 #endif
 
-  !> Names of dimensions for distribution-sized variables in netCDF files
-  character(len=5), dimension(*), parameter :: g_dim_names = ["theta", "sign ", "glo  "]
-  character(len=5), dimension(*), parameter :: field_dim_names = ["theta", "akx  ", "aky  "]
 contains
 
   !> Create and fill the restart files
@@ -136,10 +138,7 @@ contains
     logical, intent (in), optional :: save_velocities
     !> Header for files with build and run information
     type(standard_header_type), optional, intent(in) :: header
-
-#ifndef NETCDF
-    if (proc0) write (error_unit(),*) 'WARNING: gs2_save_for_restart is called without netcdf library'
-#else
+#ifdef NETCDF
     !> Arrays holding information about the layout for plotting
     integer, dimension (:,:,:,:,:), allocatable :: procid_kykxsel, iglo_kykxsel
     character (run_name_size) :: file_proc
@@ -455,6 +454,13 @@ contains
 
     ! Deallocate module arrays
     call deallocate_arrays
+#else
+    if (proc0) write (error_unit(),*) 'WARNING: gs2_save_for_restart is called without netcdf library'
+    UNUSED_DUMMY(g); UNUSED_DUMMY(t0); UNUSED_DUMMY(vnm); UNUSED_DUMMY(has_phi)
+    UNUSED_DUMMY(has_apar); UNUSED_DUMMY(has_bpar); UNUSED_DUMMY(code_dt)
+    UNUSED_DUMMY(code_dt_prev1); UNUSED_DUMMY(code_dt_prev2); UNUSED_DUMMY(code_dt_max)
+    UNUSED_DUMMY(fileopt); UNUSED_DUMMY(save_glo_info_and_grids)
+    UNUSED_DUMMY(save_velocities); UNUSED_DUMMY(header)
 #endif
   end subroutine gs2_save_for_restart
 
@@ -583,6 +589,10 @@ contains
     call neasyf_close(ncid)
 
     nout_local = nout_local + 1
+# else
+    UNUSED_DUMMY(g_in); UNUSED_DUMMY(it); UNUSED_DUMMY(ik) ; UNUSED_DUMMY(il)
+    UNUSED_DUMMY(ie); UNUSED_DUMMY(is); UNUSED_DUMMY(time); UNUSED_DUMMY(nout)
+    UNUSED_DUMMY(fileopt); UNUSED_DUMMY(header)
 # endif
   end subroutine gs2_save_slice
 
@@ -590,7 +600,8 @@ contains
   subroutine gs2_restore_many (g, scale, istatus, has_phi, has_apar, has_bpar, fileopt)
 !MR, 2007: restore kx_shift array if already allocated
 # ifdef NETCDF
-    use mp, only: iproc, mp_abort, proc0, broadcast
+    use array_utils, only: zero_array
+    use mp, only: iproc, proc0, broadcast
     use fields_arrays, only: phinew, aparnew, bparnew
     use fields_arrays, only: phi, apar, bpar
     use dist_fn_arrays, only: gexp_1, gexp_2, gexp_3, kx_shift, theta0_shift
@@ -598,18 +609,17 @@ contains
     use gs2_layouts, only: layout
     use neasyf, only: neasyf_open, neasyf_read, neasyf_close
 # endif
+    use mp, only: mp_abort
     use theta_grid, only: ntgrid
     use gs2_layouts, only: g_lo
-    use file_utils, only: error_unit
-    use array_utils, only: zero_array
     implicit none
     complex, dimension (-ntgrid:,:,g_lo%llim_proc:), intent (out) :: g
-    logical :: this_proc_reads_fields, need_to_broadcast_fields
     real, intent (in) :: scale
     integer, intent (out) :: istatus
     logical, intent (in) :: has_phi, has_apar, has_bpar
     character (len=*), intent(in), optional :: fileopt
 # ifdef NETCDF
+    logical :: this_proc_reads_fields, need_to_broadcast_fields
     !> This parameter controls whether or not gs2
     !> aborts if it cannot read the restart file (and
     !> it has been told to load g from  a restart).
@@ -867,8 +877,9 @@ contains
     call deallocate_arrays
     
 # else
-    write (error_unit(),*) &
-         'ERROR: gs2_restore_many is called without netcdf'
+    call mp_abort("Cannot restore from restart file without netcdf.", .true.)
+    UNUSED_DUMMY(g); UNUSED_DUMMY(scale); UNUSED_DUMMY(istatus) ; UNUSED_DUMMY(has_phi)
+    UNUSED_DUMMY(has_apar); UNUSED_DUMMY(has_bpar); UNUSED_DUMMY(fileopt)
 # endif
   end subroutine gs2_restore_many
 
@@ -877,8 +888,8 @@ contains
   subroutine gs2_save_response(resp, fname, code_dt, condition, header)
     use file_utils, only: error_unit
     use standard_header, only: standard_header_type
-    use optionals, only: get_option_with_default
 #ifdef NETCDF
+    use optionals, only: get_option_with_default
     use convert, only: c2r
     use netcdf_utils, only: ensure_netcdf_dim_exists, ensure_netcdf_var_exists
     use gs2_metadata, only: create_metadata
@@ -893,8 +904,8 @@ contains
     real, intent(in), optional :: condition
     !> Header for files with build and run information
     type(standard_header_type), optional, intent(in) :: header
-
     integer :: sz
+
 #ifdef NETCDF
     integer :: ncid
     real, dimension(:,:,:), allocatable :: ri_resp
@@ -948,6 +959,8 @@ contains
     open(unit=unit,file=fname,form="unformatted")
     write(unit) resp
     close(unit)
+
+    UNUSED_DUMMY(code_dt); UNUSED_DUMMY(condition); UNUSED_DUMMY(header)
 #endif
   end subroutine gs2_save_response
 
@@ -1011,6 +1024,9 @@ contains
     open(unit=unit,file=fname,form="unformatted")
     read(unit) resp
     close(unit)
+
+    !Set outputs to something invalid
+    code_dt = -1 ; condition = 0.0
 #endif
   end subroutine gs2_restore_response
 
@@ -1034,15 +1050,17 @@ contains
     call neasyf_dim(IDs%ncid, "ri", dim_size=2)
     call neasyf_dim(IDs%ncid, "theta", theta)
     call neasyf_dim(IDs%ncid, "conv", unlimited=.true.)
+#else
+    UNUSED_DUMMY(fname)
 #endif
   end subroutine init_eigenfunc_file
 
   !> Add an eigenpairs data to file
-  subroutine add_eigenpair_to_file(eval, has_phi, has_apar, has_bpar,IDs,my_conv)
+  subroutine add_eigenpair_to_file(eval, has_phi, has_apar, has_bpar, IDs, my_conv)
+#ifdef NETCDF
     use fields_arrays, only: phinew, aparnew, bparnew
     use convert, only: c2r
     use theta_grid, only: ntgrid
-#ifdef NETCDF
     use neasyf, only: neasyf_write
     use optionals, only: get_option_with_default
 #endif
@@ -1056,12 +1074,9 @@ contains
     integer, dimension(3) :: start_field, count_field
     real :: local_conv
     character(*), dimension(*), parameter :: eigen_field_dim_names = [character(len=5)::"ri", "theta", "conv"]
-#endif
 
     !First increment counter
     IDs%nconv_count=IDs%nconv_count+1
-
-#ifdef NETCDF
     start_field = [1, 1, IDs%nconv_count]
     count_field = [2, 2*ntgrid+1, 1]
 
@@ -1093,7 +1108,10 @@ contains
        call neasyf_write(IDs%ncid, "bpar", ri_field, dim_names=eigen_field_dim_names, &
             start=start_field, count=count_field)
     endif
-    deallocate(ri_field)       
+    deallocate(ri_field)
+#else
+    UNUSED_DUMMY(eval); UNUSED_DUMMY(has_phi); UNUSED_DUMMY(has_apar); UNUSED_DUMMY(has_bpar)
+    UNUSED_DUMMY(IDs); UNUSED_DUMMY(my_conv)
 #endif
   end subroutine add_eigenpair_to_file
 
@@ -1106,6 +1124,8 @@ contains
     type(EigNetcdfID), intent(inout) :: IDs
 #ifdef NETCDF
     call neasyf_close(IDs%ncid)
+#else
+    UNUSED_DUMMY(IDs)
 #endif
   end subroutine finish_eigenfunc_file
 
@@ -1219,6 +1239,7 @@ contains
 #endif
   end subroutine deallocate_arrays
 
+#ifdef NETCDF
   !> Returns the file corresponding to restart file in current setup
   function get_file_proc(is_one_file_per_processor, fileopt) result(file_proc)
     use mp, only: iproc
@@ -1230,6 +1251,7 @@ contains
     if (present(fileopt)) file_proc = trim(file_proc) // trim(adjustl(fileopt))
     if (is_one_file_per_processor) write(file_proc, '(A,".",I0)') trim(file_proc), iproc
   end function get_file_proc
+#endif
 
   !> FIXME : Add documentation
   subroutine restore_current_scan_parameter_value(current_scan_parameter_value)
@@ -1237,11 +1259,13 @@ contains
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
     use neasyf, only: neasyf_open, neasyf_read, neasyf_close
+# else
+    use mp, only: mp_abort
 # endif
     implicit none
-    integer :: ncid_local
     real, intent (out) :: current_scan_parameter_value
 # ifdef NETCDF
+    integer :: ncid_local
     character (run_name_size) :: file_proc
     logical :: is_one_file_per_processor
 
@@ -1258,7 +1282,9 @@ contains
     endif
 
     call broadcast (current_scan_parameter_value)
-
+# else
+    call mp_abort("Cannot restore scan parameters from restart without netcdf.", .true.)
+    UNUSED_DUMMY(current_scan_parameter_value)
 # endif
   end subroutine restore_current_scan_parameter_value
 
@@ -1269,6 +1295,8 @@ contains
     use file_utils, only: error_unit
     use optionals, only: get_option_with_default
     use neasyf, only: neasyf_open, neasyf_read, neasyf_close
+# else
+    use mp, only: mp_abort
 # endif
     implicit none
     real, intent (in out) :: delt0, delt1, delt2, delt_max
@@ -1346,7 +1374,10 @@ contains
     call broadcast (delt1)
     call broadcast (delt2)
     call broadcast (delt_max)
-
+# else
+    call mp_abort("Cannot load initial dt from restart without netcdf.", .true.)
+    UNUSED_DUMMY(delt0); UNUSED_DUMMY(delt1); UNUSED_DUMMY(delt2); UNUSED_DUMMY(delt_max)
+    UNUSED_DUMMY(istatus); UNUSED_DUMMY(not_set_value)
 # endif
   end subroutine init_dt
 
@@ -1355,6 +1386,8 @@ contains
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
+# else
+    use mp, only: mp_abort
 # endif
     implicit none
     real, dimension(2), intent (in out) :: vnm
@@ -1398,9 +1431,10 @@ contains
 
     call broadcast (istatus)
     call broadcast (vnm)
-
+# else
+    call mp_abort("Cannot load vnm from restart without netcdf.", .true.)
+    UNUSED_DUMMY(vnm); UNUSED_DUMMY(istatus)
 # endif
-
   end subroutine init_vnm
 
   !> FIXME : Add documentation
@@ -1411,8 +1445,10 @@ contains
     use file_utils, only: error_unit
     use constants, only: zi
     use neasyf, only: neasyf_read, neasyf_close
-# endif
     use mp, only: proc0
+# else
+    use mp, only: mp_abort
+# endif
     implicit none
     complex, dimension(:), intent (in out) :: a_ant, b_ant
     integer, intent (in) :: nk_stir
@@ -1468,11 +1504,9 @@ contains
     endif
 
 # else
-
-    if (proc0) istatus = 2
-
+    call mp_abort("Cannot load antenna amplitudes from restart without netcdf.", .true.)
+    UNUSED_DUMMY(a_ant); UNUSED_DUMMY(b_ant); UNUSED_DUMMY(nk_stir); UNUSED_DUMMY(istatus)
 # endif
-
   end subroutine init_ant_amp
 
   !> FIXME : Add documentation
@@ -1480,6 +1514,8 @@ contains
 # ifdef NETCDF
     use mp, only: proc0, broadcast
     use file_utils, only: error_unit
+# else
+    use mp, only: mp_abort
 # endif
     implicit none
     real, intent (in out) :: tstart
@@ -1513,8 +1549,9 @@ contains
 
     call broadcast (istatus)
     call broadcast (tstart)
-
+# else
+    call mp_abort("Cannot read t0 from restart file in build with no netcdf.", .true.)
+    UNUSED_DUMMY(tstart); UNUSED_DUMMY(istatus)
 # endif
-
   end subroutine read_t0_from_restart_file
 end module gs2_save

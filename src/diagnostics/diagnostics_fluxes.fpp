@@ -103,9 +103,9 @@ contains
     use nonlinear_terms, only: nonlin
     use diagnostics_config, only: diagnostics_type
     use unit_tests, only: debug_message
-    use gs2_io, only: starts, egrid_dim, species_dim, time_dim
     use build_config, only: gs2_has_lowflow
 #ifdef NETCDF
+    use gs2_io, only: starts, egrid_dim, species_dim, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -334,8 +334,8 @@ contains
     use theta_grid, only: grho
     use diagnostics_config, only: diagnostics_type
     use mp, only: sum_allreduce
-    use gs2_io, only: flux_dims, starts, time_dim
 #ifdef NETCDF
+    use gs2_io, only: flux_dims, starts, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -428,14 +428,14 @@ contains
   !! flux... e.g. the flux summed over kx as a function of ky, species and time
   subroutine calculate_standard_flux_properties(gnostics, flux_name, flux_description, &
        flux_units, flux_value, distributed)
+    use diagnostics_config, only: diagnostics_type
+    use volume_averages, only: average_all, average_kx, average_ky
     use kt_grids, only: ntheta0, naky
     use species, only: nspec
     use fields_parallelization, only: field_k_local
-    use mp, only: broadcast, sum_allreduce
-    use volume_averages, only: average_all, average_kx, average_ky
-    use diagnostics_config, only: diagnostics_type
-    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
 #ifdef NETCDF
+    use mp, only: broadcast, sum_allreduce
+    use gs2_io, only: flux_dims, fluxk_dims, mode_dims, starts, kx_dim, ky_dim, time_dim
     use neasyf, only: neasyf_write
 #endif
     implicit none
@@ -496,7 +496,9 @@ contains
              long_name=flux_description//" summed over species", &
              units=flux_units, start=starts(3, gnostics%nout))
       end if
-    end if
+   end if
+#else
+   UNUSED_DUMMY(flux_units); UNUSED_DUMMY(flux_description)
 #endif
 
     if (flux_name .eq. 'es_heat_flux') gnostics%current_results%species_es_heat_flux = flux_by_species

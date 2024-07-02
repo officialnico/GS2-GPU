@@ -1,3 +1,4 @@
+#include "unused_dummy.inc"
 !> FIXME : Add documentation
 module peq
 # ifdef NETCDF
@@ -37,11 +38,10 @@ contains
     implicit none
     class(peq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
+# ifdef NETCDF
     integer :: istatus, ncid, id, i, j, i_sym, nz1, nz2
     real, allocatable, dimension(:) :: work
     self%filename = trim(adjustl(inputs%eqfile))
-
-# ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -145,6 +145,7 @@ contains
     self%has_full_theta_range = .false.
     call self%shared_setup(self%nt, 1)
 # else
+    UNUSED_DUMMY(self) ; UNUSED_DUMMY(inputs)
     call mp_abort('error: peq eqin is called without netcdf',.true.)
 # endif
   end subroutine read_and_set_peq
@@ -156,11 +157,10 @@ contains
     implicit none
     class(teq_type), intent(in out) :: self
     type(geo_input_type), intent(in) :: inputs
+# ifdef NETCDF
     integer :: istatus, ncid, id
     real, allocatable, dimension(:,:) :: work
     self%filename = trim(adjustl(inputs%eqfile))
-
-# ifdef NETCDF
     istatus = nf90_open(self%filename, NF90_NOWRITE, ncid)
     if (istatus /= NF90_NOERR) call netcdf_error (istatus, file = self%filename)
 
@@ -238,6 +238,7 @@ contains
     self%has_full_theta_range = .true.
     call self%shared_setup(self%nt, self%nt/2)
 # else
+    UNUSED_DUMMY(self) ; UNUSED_DUMMY(inputs)
     call mp_abort('error: peq teqin is called without netcdf',.true.)
 # endif
   end subroutine read_and_set_teq
