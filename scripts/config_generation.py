@@ -399,10 +399,15 @@ class config():
 
     def printAll(self,**kwargs):
         st = []
+        st.append(self.printCopyPasteCode(**kwargs))
+        st.append(self.printIncludeOnly(**kwargs))
+        return "\n".join(st)
+
+    def printCopyPasteCode(self,**kwargs):
+        st = []
         st.append(self.decl(**kwargs))
         st.append("\n"+self.instance(**kwargs))
         st.append(self.readParams())
-        st.append(self.printIncludeOnly(**kwargs))
         return "\n".join(st)
 
     def printIncludeOnly(self,**kwargs):
